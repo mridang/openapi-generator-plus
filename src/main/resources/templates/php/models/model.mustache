@@ -1,22 +1,8 @@
 {{#models}}
 {{#model}}
 {{>api_info}}
-{{! Generated oneOf/anyOf deserializer factories with fully-qualified call
-    expressions (line length) are inherent to the generated model; suppress at
-    the file level. Inline enums are rendered one per file (PSR-4) by
-    BetterPHPCodegen from models/inline_enum.mustache. }}
-{{#oneOf}}
-{{#-first}}
-/* phpcs:ignoreFile */
-
-{{/-first}}
-{{/oneOf}}
-{{#anyOf}}
-{{#-first}}
-/* phpcs:ignoreFile */
-
-{{/-first}}
-{{/anyOf}}
+{{! Inline enums are rendered one per file (PSR-4) by BetterPHPCodegen
+    from models/inline_enum.mustache. }}
 namespace {{modelPackage}};
 
 {{#isEnum}}

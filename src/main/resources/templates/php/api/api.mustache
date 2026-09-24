@@ -1,12 +1,6 @@
 {{>api_info}}
-{{! Operations with per-operation server overrides emit long fully-qualified
-    call expressions; these are inherent to the generated API group, so
-    suppress at the file level. The server-variant classes themselves are
-    rendered one class per file (PSR-4) by BetterPHPCodegen. }}
-{{#hasServerTypeDefs}}
-/* phpcs:ignoreFile */
-
-{{/hasServerTypeDefs}}
+{{! The server-variant classes are rendered one class per file (PSR-4)
+    by BetterPHPCodegen. }}
 namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiClient;

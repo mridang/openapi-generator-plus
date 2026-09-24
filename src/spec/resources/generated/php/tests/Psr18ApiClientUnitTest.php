@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-// phpcs:ignoreFile
-
 namespace PetstoreClient\Test;
 
 use PetstoreClient\Errors\ApiException;

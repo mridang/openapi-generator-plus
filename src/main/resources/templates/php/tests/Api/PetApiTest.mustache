@@ -1,8 +1,10 @@
 <?php
 
-declare(strict_types=1);
+/**
+ * Integration tests for the Pet API endpoints.
+ */
 
-// phpcs:ignoreFile
+declare(strict_types=1);
 
 namespace {{invokerPackage}}\Test\Api;
 
@@ -35,9 +37,6 @@ use {{invokerPackage}}\Models\Photo;
 use {{invokerPackage}}\Models\PhotoMetadata;
 use {{invokerPackage}}\Models\SetPetAvatarThumbnailRequest;
 
-/**
- * Integration tests for the Pet API endpoints.
- */
 beforeEach(function (): void {
     $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
     $config = Configuration::builder()

@@ -11,8 +11,6 @@
 
 declare(strict_types=1);
 
-/* phpcs:ignoreFile */
-
 namespace PetstoreClient\Serializer;
 
 use Symfony\Component\PropertyAccess\PropertyAccess;
@@ -270,11 +268,13 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
          * `\Ds\Vector<int>` (up to the last `>` before the param name),
          * matching ObjectSerializer::deserializeInternal's own greedy
          * container regex. */
-        if (!preg_match(
-            '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
-            $doc,
-            $matches,
-        )) {
+        if (
+            !preg_match(
+                '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+                $doc,
+                $matches,
+            )
+        ) {
             return null;
         }
         $inner = trim($matches[1]);

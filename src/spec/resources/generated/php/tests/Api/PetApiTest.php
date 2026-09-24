@@ -1,8 +1,10 @@
 <?php
 
-declare(strict_types=1);
+/**
+ * Integration tests for the Pet API endpoints.
+ */
 
-// phpcs:ignoreFile
+declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
@@ -35,9 +37,6 @@ use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 
-/**
- * Integration tests for the Pet API endpoints.
- */
 beforeEach(function (): void {
     $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
     $config = Configuration::builder()
@@ -391,7 +390,7 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -568,7 +567,7 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -776,7 +775,7 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }

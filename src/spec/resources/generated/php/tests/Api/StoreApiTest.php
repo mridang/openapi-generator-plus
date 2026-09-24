@@ -1,8 +1,10 @@
 <?php
 
-declare(strict_types=1);
+/**
+ * Integration tests for the Store API endpoints.
+ */
 
-// phpcs:ignoreFile
+declare(strict_types=1);
 
 namespace PetstoreClient\Test\Api;
 
@@ -15,9 +17,6 @@ use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 
-/**
- * Integration tests for the Store API endpoints.
- */
 beforeEach(function (): void {
     $config = Configuration::builder()
         ->baseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010')

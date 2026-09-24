@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-// phpcs:ignoreFile
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Testcontainers\Container\GenericContainer;
@@ -34,8 +32,8 @@ foreach ($declaredLines === false ? [] : $declaredLines as $line) {
     if ($entry === '') {
         continue;
     }
-    $name = strtok($entry, ' ');
-    if ($name === false || array_key_exists($name, $requireDev)) {
+    $name = explode(' ', $entry, 2)[0];
+    if (array_key_exists($name, $requireDev)) {
         continue;
     }
     fwrite(STDERR, "[bootstrap] composer.json does not declare \"$name\", which "
@@ -167,9 +165,10 @@ $squid = new GenericContainer('ubuntu/squid:5.2-22.04_beta')
     ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     // The image declares VOLUME for both paths, so every container would
-    // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory.
-    ->withTmpfs('/var/log/squid', 'rw')
-    ->withTmpfs('/var/spool/squid', 'rw')
+    // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+    // mode=1777 because squid runs as the unprivileged `proxy` user.
+    ->withTmpfs('/var/log/squid', 'rw,mode=1777')
+    ->withTmpfs('/var/spool/squid', 'rw,mode=1777')
     ->start();
 
 dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [

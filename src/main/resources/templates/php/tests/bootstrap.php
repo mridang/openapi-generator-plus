@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-// phpcs:ignoreFile
-
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Testcontainers\Container\GenericContainer;
@@ -34,8 +32,8 @@ foreach ($declaredLines === false ? [] : $declaredLines as $line) {
     if ($entry === '') {
         continue;
     }
-    $name = strtok($entry, ' ');
-    if ($name === false || array_key_exists($name, $requireDev)) {
+    $name = explode(' ', $entry, 2)[0];
+    if (array_key_exists($name, $requireDev)) {
         continue;
     }
     fwrite(STDERR, "[bootstrap] composer.json does not declare \"$name\", which "

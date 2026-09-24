@@ -11,8 +11,6 @@
 
 declare(strict_types=1);
 
-/* phpcs:ignoreFile */
-
 namespace PetstoreClient\Auth\OAuth;
 
 use PetstoreClient\Errors\OAuth2ServerException;
@@ -89,10 +87,9 @@ final class OAuth2TokenManager
      */
     public function getAccessToken(string $tokenUrl, array $params, array $extraHeaders = []): string
     {
-        if ($this->accessToken !== null && (
-            $this->tokenExpiry === null
-            || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S)
-        )) {
+        $stillFresh = $this->tokenExpiry === null
+            || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S);
+        if ($this->accessToken !== null && $stillFresh) {
             return $this->accessToken;
         }
         if ($this->refreshToken !== null && $this->refreshToken !== '') {
@@ -214,7 +211,8 @@ final class OAuth2TokenManager
         if (!is_array($responseBody)) {
             throw new OAuth2TokenException('Token response is not a JSON object');
         }
-        if (!isset($responseBody['access_token'])
+        if (
+            !isset($responseBody['access_token'])
             || !is_string($responseBody['access_token'])
             || $responseBody['access_token'] === ''
         ) {
