@@ -57,6 +57,9 @@ public interface IApiClient : IDisposable
     /// </summary>
     void IDisposable.Dispose()
     {
-        /* No-op by default. Implementations override to release resources. */
+        /* No-op by default. Implementations override to release resources.
+           SuppressFinalize is still called so a derived type that adds a
+           finalizer does not have to re-implement IDisposable to do it. */
+        GC.SuppressFinalize(this);
     }
 }
