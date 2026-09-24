@@ -1,6 +1,3 @@
-// ignore_for_file: unused_import
-import 'dart:typed_data';
-
 /// Options for the setPetPreferences operation.
 class SetPetPreferencesOptions {
   final String nickname;

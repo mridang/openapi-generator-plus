@@ -27,8 +27,15 @@ Future<void> setUpContainers() async {
 
   final squidConfFile = File('${fixtures.path}/proxy/squid.conf');
 
+  /* ubuntu/squid declares VOLUME /var/log/squid and VOLUME /var/spool/squid,
+   * so every proxy container Docker creates leaves two anonymous volumes
+   * behind after the suite stops it. Mounting both as tmpfs keeps the
+   * container writable without allocating a volume. mode=1777 because squid
+   * drops to the unprivileged `proxy` user before it opens its logs. */
   _squidContainer = DockerContainer('ubuntu/squid:5.2-22.04_beta')
       .withExposedPorts([3128, 3129])
+      .withTmpfsMount('/var/log/squid', size: 'rw,mode=1777')
+      .withTmpfsMount('/var/spool/squid', size: 'rw,mode=1777')
       .withCopyIntoContainer(
         PathTransferable(squidConfFile),
         '/etc/squid/squid.conf',

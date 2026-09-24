@@ -1,6 +1,3 @@
-// ignore_for_file: unused_import
-import 'dart:typed_data';
-
 /// Options for the findPetsByStatus operation.
 class FindPetsByStatusOptions {
   /// Status values that need to be considered for filter

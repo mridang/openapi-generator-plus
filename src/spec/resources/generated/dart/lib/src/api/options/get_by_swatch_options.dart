@@ -1,6 +1,3 @@
-// ignore_for_file: unused_import
-import 'dart:typed_data';
-
 import '../../models/swatch.dart';
 
 /// Options for the getBySwatch operation.

@@ -235,10 +235,30 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        // Only 'dart format .' runs here. Lint findings inherent to generated
-        // code are handled by file-level '// ignore_for_file:' directives in the
-        // templates, not by a codegen-time 'dart fix' pass.
-        return new String[] {"dart pub get", "dart format ."};
+        // No generated file carries an '// ignore_for_file:' directive, so the
+        // findings a fixed template block inevitably produces are fixed here
+        // rather than silenced. A Mustache template cannot know which imports a
+        // given schema or operation ends up using, so the import block is
+        // emitted wide and 'unused_import' deletes exactly the ones nothing in
+        // the rendered file references; the other five codes are shapes the
+        // templates emit uniformly (an explicit super call, a '+'-joined
+        // literal) that the analyzer wants written another way.
+        //
+        // The code list is an allowlist on purpose. An unrestricted 'dart fix
+        // --apply' runs every fix producer in the SDK and several of them
+        // cascade — 'prefer_final_locals' rewrites 'var x' to an illegal 'final
+        // var x', 'unnecessary_null_checks' drops a needed '!' — so only
+        // producers verified to leave the tree clean are named.
+        return new String[] {
+            "dart pub get",
+            "dart fix --apply"
+                    + " --code=unused_import"
+                    + " --code=prefer_adjacent_string_concatenation"
+                    + " --code=use_super_parameters"
+                    + " --code=unnecessary_nullable_for_final_variable_declarations"
+                    + " --code=no_leading_underscores_for_local_identifiers",
+            "dart format ."
+        };
     }
 
     /** {@inheritDoc} */
@@ -379,6 +399,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFile("client.mustache", srcDir, clientClassFile + ".dart"));
 
         if (emitUnitTests()) {
+            // The dev-dependency manifest: one line per dependency an emitted test
+            // imports. Every client keep-lists its own package manifest, so this
+            // generator-owned file is the only thing keeping the two in step.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "dev_dependencies.mustache",
+                            ".openapi-generator",
+                            "DEV-DEPENDENCIES"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_unit_test.mustache",

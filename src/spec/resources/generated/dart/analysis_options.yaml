@@ -1,1 +1,16 @@
 include: package:lints/recommended.yaml
+
+# No generated file carries an `// ignore_for_file:` directive, so every rule
+# in the ruleset above applies to every file in lib/ and test/ and a new
+# finding fails the build. The two rules below are the only ones turned off,
+# and they are named one by one with the reason the generated shape cannot
+# satisfy them.
+linter:
+  rules:
+    # A server variable's constants take their identifiers from the enum
+    # values in the spec, and all twelve SDKs expose that same name.
+    constant_identifier_names: false
+    # A doc comment reproduces the spec's description verbatim, and a
+    # description may legitimately contain angle brackets; escaping them here
+    # would change the documented text and diverge from the other eleven SDKs.
+    unintended_html_in_doc_comment: false
