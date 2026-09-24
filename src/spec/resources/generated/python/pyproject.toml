@@ -19,7 +19,6 @@ dev = [
     "pytest-asyncio>=0.21.0",
     "mypy>=1,<3",
     "ruff>=0.15,<0.16",
-    "ty>=0.0.1a1",
     "types-python-dateutil>=2.8.0",
     "types-requests>=2.28.0",
     "types-urllib3>=1.26.0",
@@ -40,12 +39,19 @@ include = ["petstore_client*"]
 [tool.setuptools.package-data]
 petstore_client = ["py.typed"]
 
-# Ruff, mypy and pyright run with their industry-default configuration; no
-# custom or relaxed rules, line length or rule selection are declared here.
-# The generated modules carry no blanket suppression: every rule applies to
-# every file. The three import rules a fixed generated import block cannot
-# satisfy (F401, F811, E402) are turned off per file, by name, in the model,
-# API and errors modules that emit such a block, never inline.
+# Ruff and mypy run with their industry-default configuration; no custom or
+# relaxed rules, line length or rule selection are declared here. No generated
+# module carries a suppression of any kind: every rule applies to every file,
+# and the only exceptions are the two named below.
+
+[tool.ruff.lint.per-file-ignores]
+# Two schemas that reference each other (A has a B, B has an A) generate two
+# modules that import each other, so the model imports have to follow the
+# class definition or the cycle fails at import time.
+"petstore_client/models/*.py" = ["E402"]
+# The typed subclasses import the root exception from this module, so their
+# re-export can only follow the class definition.
+"petstore_client/errors/__init__.py" = ["E402"]
 
 [[tool.mypy.overrides]]
 # brotli ships neither stubs nor a py.typed marker, and the SDK imports it

@@ -2,8 +2,38 @@
 
 require 'etc'
 require 'securerandom'
-require 'simplecov'
-require 'simplecov-cobertura'
+
+# Every dependency an emitted test loads is listed, with the test that needs
+# it, in .openapi-generator/DEV-DEPENDENCIES. A client keep-lists its own
+# Gemfile, so a dependency the generator started using is missing there until
+# someone copies it across -- and the whole suite then dies with a LoadError
+# from whichever require happened to come first. Probing them together turns
+# that into one message naming the file to reconcile against.
+DEV_DEPENDENCIES = '.openapi-generator/DEV-DEPENDENCIES'
+
+REQUIRED_TEST_GEMS = {
+  'simplecov' => 'simplecov',
+  'simplecov-cobertura' => 'simplecov-cobertura',
+  'minitest/autorun' => 'minitest',
+  'minitest/reporters' => 'minitest-reporters',
+  'better_junit' => 'better_coverage',
+  'testcontainers' => 'testcontainers',
+  'docker' => 'docker-api',
+  'opentelemetry/sdk' => 'opentelemetry-sdk'
+}.freeze
+
+missing_test_gems = REQUIRED_TEST_GEMS.filter_map do |feature, gem_name|
+  require feature
+  nil
+rescue LoadError
+  gem_name
+end
+
+unless missing_test_gems.empty?
+  raise "Missing test dependencies: #{missing_test_gems.join(', ')}. Every dependency the " \
+        "generated tests load is listed in #{DEV_DEPENDENCIES}; add the missing entries to " \
+        "this project's Gemfile and run bundle install."
+end
 
 SimpleCov.start do
   formatter SimpleCov::Formatter::CoberturaFormatter
@@ -98,10 +128,26 @@ Minitest.after_run { PROXY_NETWORK.remove }
 
 PROXY_NETWORK.connect(CHASM._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['chasm'] } })
 
+# ubuntu/squid declares VOLUME /var/log/squid and VOLUME /var/spool/squid, so
+# every proxy container Docker creates leaves two anonymous volumes behind
+# after the suite stops it. testcontainers-core 0.2 has no tmpfs setter, so the
+# Tmpfs host config is added to this one container's create options. mode=1777
+# because squid drops to the unprivileged `proxy` user before it opens its logs.
+module SquidTmpfs
+  TMPFS = { '/var/log/squid' => 'rw,mode=1777', '/var/spool/squid' => 'rw,mode=1777' }.freeze
+
+  def _container_create_options
+    options = super
+    options['HostConfig'] = (options['HostConfig'] || {}).merge('Tmpfs' => TMPFS)
+    options
+  end
+end
+
 # Start Squid proxy
 squid_conf_path = File.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')
 
 SQUID = Testcontainers::DockerContainer.new('ubuntu/squid:5.2-22.04_beta')
+SQUID.singleton_class.prepend(SquidTmpfs)
 SQUID.with_exposed_ports(3128, 3129)
 SQUID.with_filesystem_binds(["#{squid_conf_path}:/etc/squid/squid.conf:ro"])
 

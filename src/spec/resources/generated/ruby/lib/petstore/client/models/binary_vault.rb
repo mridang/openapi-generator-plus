@@ -48,7 +48,7 @@ module Petstore::Client
 
         shards: 'byte[]',
 
-        inner: 'byte[]',
+        inner: 'byte[]'
 
       }
       OPENAPI_FORMATS = openapi_formats.freeze

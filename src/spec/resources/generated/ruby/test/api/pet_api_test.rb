@@ -98,7 +98,11 @@ describe Petstore::Client::Api::PetApi do
       captured_body = Queue.new
       captured_content_type = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
         content_length = 0
         content_type = ''
         client.gets # request line
@@ -146,7 +150,7 @@ describe Petstore::Client::Api::PetApi do
         # (2) The declared Content-Type is preserved verbatim.
         _(content_type).must_equal 'image/jpeg'
         _(content_type).wont_match(/octet-stream/)
-        _(content_type).wont_match(/application\/json/)
+        _(content_type).wont_match(%r{application/json})
       ensure
         server.close
         thread.join(2)
@@ -270,7 +274,11 @@ describe Petstore::Client::Api::PetApi do
       captured_body = Queue.new
       captured_content_type = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
         content_length = 0
         content_type = ''
         client.gets # request line
@@ -477,7 +485,11 @@ describe Petstore::Client::Api::PetApi do
       port = server.addr[1]
       thread = Thread.new do
         loop do
-          client = server.accept rescue break
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
           client.gets # read request line
           while (line = client.gets)
             break if line.strip.empty?
@@ -581,7 +593,11 @@ describe Petstore::Client::Api::PetApi do
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
         captured << client.gets.to_s
         while (line = client.gets)
           break if line.strip.empty?
@@ -745,7 +761,11 @@ describe Petstore::Client::Api::PetApi do
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
         client.gets # request line
         saw_auth = false
         while (line = client.gets)
@@ -833,9 +853,9 @@ describe Petstore::Client::Api::PetApi do
       options = Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available')
 
       _(options.status).must_equal 'available'
-      refute options.respond_to?(:status=)
-      refute options.respond_to?(:auth=)
-      assert options.frozen?
+      refute_respond_to options, :status=
+      refute_respond_to options, :auth=
+      assert_predicate options, :frozen?
     end
 
     # unsecured-op-has-no-auth-member: an unsecured operation
@@ -862,13 +882,15 @@ describe Petstore::Client::Api::PetApi do
       port = server.addr[1]
       captured = Queue.new
       thread = Thread.new do
-        client = server.accept rescue next
+        client = begin
+          server.accept
+        rescue StandardError
+          next
+        end
         content_length = 0
         client.gets # request line
         while (line = client.gets)
-          if line.downcase.start_with?('content-length:')
-            content_length = line.split(':', 2).last.strip.to_i
-          end
+          content_length = line.split(':', 2).last.strip.to_i if line.downcase.start_with?('content-length:')
           break if line.strip.empty?
         end
         captured << (content_length.positive? ? client.read(content_length).to_s : '')

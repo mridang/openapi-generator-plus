@@ -117,9 +117,7 @@ module Petstore::Client
           # "invalid JSON" error. Surface the real failure instead, as the
           # same typed error an API call with that status raises.
           status = response.status_code.to_i
-          if status < 200 || status >= 300
-            raise ::Petstore::Client::Errors::ApiError.from_response(status, response.headers, response.body)
-          end
+          raise ::Petstore::Client::Errors::ApiError.from_response(status, response.headers, response.body) if status < 200 || status >= 300
 
           discovery = parse_discovery(response.body)
           authorization_endpoint = discovery['authorization_endpoint']
@@ -127,12 +125,8 @@ module Petstore::Client
           # Guard against a discovery document that omits the required
           # endpoints: building a delegate with nil/empty endpoint URLs would
           # otherwise NPE far away at the first authorize/token call.
-          if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
-            raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'"
-          end
-          if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
-            raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'"
-          end
+          raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'" if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
+          raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'" if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
 
           @delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,

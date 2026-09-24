@@ -53,7 +53,7 @@ module Petstore::Client
 
         scans: 'byte[]',
 
-        biometric_chip: 'byte',
+        biometric_chip: 'byte'
 
       }
       OPENAPI_FORMATS = openapi_formats.freeze

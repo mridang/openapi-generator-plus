@@ -159,11 +159,10 @@ describe Petstore::Client::Errors::ApiError do
   end
 
   it 'typed_error_body deserializes the body into the typed model' do
-    err = Petstore::Client::Errors::ApiError.new(
-      status_code: 400,
-      response_body: '{"id":42,"name":"Dogs"}',
-      response_headers: {}
-    )
+    # Built through from_response, the way a real response reaches a caller:
+    # the typed body must come out of the raw body, not out of whatever the
+    # generic parse happened to leave behind.
+    err = Petstore::Client::Errors::ApiError.from_response(400, {}, '{"id":42,"name":"Dogs"}')
 
     body = err.typed_error_body('Category')
     _(body).must_be_kind_of(Petstore::Client::Models::Category)
@@ -172,31 +171,19 @@ describe Petstore::Client::Errors::ApiError do
   end
 
   it 'typed_error_body returns nil when there is no response body' do
-    err = Petstore::Client::Errors::ApiError.new(
-      status_code: 500,
-      response_body: '',
-      response_headers: {}
-    )
+    err = Petstore::Client::Errors::ApiError.from_response(500, {}, '')
 
     assert_nil(err.typed_error_body('Category'))
   end
 
   it 'typed_error_body returns nil when the response body is absent' do
-    err = Petstore::Client::Errors::ApiError.new(
-      status_code: 0,
-      response_body: nil,
-      response_headers: nil
-    )
+    err = Petstore::Client::Errors::ApiError.from_response(0, nil, nil)
 
     assert_nil(err.typed_error_body('Category'))
   end
 
   it 'typed_error_body ignores extraneous fields not on the model' do
-    err = Petstore::Client::Errors::ApiError.new(
-      status_code: 422,
-      response_body: '{"id":1,"name":"Cat","extra":"drop-me"}',
-      response_headers: {}
-    )
+    err = Petstore::Client::Errors::ApiError.from_response(422, {}, '{"id":1,"name":"Cat","extra":"drop-me"}')
 
     body = err.typed_error_body('Category')
     _(body).must_be_kind_of(Petstore::Client::Models::Category)

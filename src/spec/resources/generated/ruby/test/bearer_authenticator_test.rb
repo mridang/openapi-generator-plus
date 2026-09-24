@@ -52,13 +52,13 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # from .env / file reads, which would CRLF-inject the Authorization header.
   # Also reject non-ASCII.
   it 'rejects CR/LF in the token' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
   end
 
   it 'rejects a non-ASCII token' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
     }).must_raise ArgumentError
   end
@@ -70,7 +70,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
     _(auth.to_s).wont_include 'super-secret-token'
-    _("#{auth}").wont_include 'super-secret-token'
+    _(auth.to_s).wont_include 'super-secret-token'
     _(auth.inspect).must_include '***'
     _(auth.inspect).must_include 'host='
   end

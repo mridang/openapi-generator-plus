@@ -58,14 +58,10 @@ module Petstore::Client
           return value if value.nil?
 
           # +format: byte+ scalar variant — base64-encode a bare byte String.
-          if value.is_a?(String)
-            return ::Petstore::Client::ObjectSerializer.apply_format_on_serialize(value, 'byte')
-          end
+          return ::Petstore::Client::ObjectSerializer.apply_format_on_serialize(value, 'byte') if value.is_a?(String)
 
           # +format: byte+ array variant — base64-encode every byte String.
-          if value.is_a?(Array)
-            return value.map { |item| ::Petstore::Client::ObjectSerializer.apply_format_on_serialize(item, 'byte') }
-          end
+          return value.map { |item| ::Petstore::Client::ObjectSerializer.apply_format_on_serialize(item, 'byte') } if value.is_a?(Array)
 
           value
         end

@@ -353,6 +353,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
 
         if (emitUnitTests()) {
+            // The dev-dependency manifest: one line per dependency an emitted test
+            // imports. Every client keep-lists its own package manifest, so this
+            // generator-owned file is the only thing keeping the two in step.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "dev_dependencies.mustache",
+                            ".openapi-generator",
+                            "DEV-DEPENDENCIES"));
             // Type-checks the tests together with the sources, as the SDK's own
             // client does before it runs them.
             supportingFiles.add(new SupportingFile("tsconfig_jest.mustache", "", "tsconfig.jest.json"));

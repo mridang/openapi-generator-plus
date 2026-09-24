@@ -35,7 +35,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects an empty header key at construction' do
-    err = _(-> {
+    err = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -44,7 +44,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects an empty query key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'api_key', '', Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
@@ -52,7 +52,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects an empty cookie key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'session', '', Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
@@ -60,7 +60,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects a whitespace-only key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', '   ', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -69,7 +69,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
 
   # CR/LF/NUL are forbidden control characters in ALL locations.
   it 'rejects CR/LF in a query key at construction' do
-    err = _(-> {
+    err = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'api_key', "abc\r\n", Petstore::Client::Auth::ApiKeyLocation::QUERY
       )
@@ -78,7 +78,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects LF in a cookie key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'session', "abc\n", Petstore::Client::Auth::ApiKeyLocation::COOKIE
       )
@@ -86,7 +86,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   end
 
   it 'rejects CR in a header key at construction' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', "abc\rdef", Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -97,7 +97,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
   # silent UTF-8 mangling that varies per HTTP lib. Non-header locations
   # accept arbitrary chars.
   it 'HEADER location rejects a non-ASCII key' do
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-Api-Key', 'kéy', Petstore::Client::Auth::ApiKeyLocation::HEADER
       )
@@ -120,7 +120,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     )
     _(auth.inspect).wont_include 'super-secret-key'
     _(auth.to_s).wont_include 'super-secret-key'
-    _("#{auth}").wont_include 'super-secret-key'
+    _(auth.to_s).wont_include 'super-secret-key'
     _(auth.inspect).must_include '***'
   end
 end

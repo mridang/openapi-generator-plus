@@ -869,7 +869,7 @@ describe Petstore::Client::DefaultApiClient do
     client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'X-API-Key' => 'secret-api-key-value',
-      'X-Internal-Key' => 'secret-api-key-value',
+      'X-Internal-Key' => 'secret-api-key-value'
     }
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request(:GET, 'http://localhost/start', headers, nil)
@@ -917,11 +917,9 @@ describe Petstore::Client::DefaultApiClient do
     # Faraday's net_http adapter wraps Net::OpenTimeout in ConnectionFailed.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/connect-timeout') do
-        begin
-          raise Net::OpenTimeout, 'execution expired'
-        rescue Net::OpenTimeout => e
-          raise Faraday::ConnectionFailed, e
-        end
+        raise Net::OpenTimeout, 'execution expired'
+      rescue Net::OpenTimeout => e
+        raise Faraday::ConnectionFailed, e
       end
     end
     client = Petstore::Client::DefaultApiClient.new
@@ -939,11 +937,9 @@ describe Petstore::Client::DefaultApiClient do
     # same budget as the connect and read ones, so it is the same error type.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/write-timeout') do
-        begin
-          raise Net::WriteTimeout, 'execution expired'
-        rescue Net::WriteTimeout => e
-          raise Faraday::TimeoutError, e
-        end
+        raise Net::WriteTimeout, 'execution expired'
+      rescue Net::WriteTimeout => e
+        raise Faraday::TimeoutError, e
       end
     end
     client = Petstore::Client::DefaultApiClient.new

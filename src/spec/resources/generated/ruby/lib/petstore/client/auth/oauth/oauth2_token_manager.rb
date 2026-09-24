@@ -186,19 +186,14 @@ module Petstore::Client
         end
 
         def require_api_client
-          @api_client || raise(
-            RuntimeError,
-            'ApiClient has not been injected. ' \
-            'Ensure the Petstore constructor calls api_client= ' \
-            'on HttpAwareAuthenticator before making API requests.'
-          )
+          @api_client || raise('ApiClient has not been injected. ' \
+                               'Ensure the Petstore constructor calls api_client= ' \
+                               'on HttpAwareAuthenticator before making API requests.')
         end
 
         def apply_token_response(parsed)
           access_token = parsed['access_token']
-          unless access_token.is_a?(String) && !access_token.empty?
-            raise ::Petstore::Client::Errors::OAuth2TokenError, 'Token response missing or empty access_token field'
-          end
+          raise ::Petstore::Client::Errors::OAuth2TokenError, 'Token response missing or empty access_token field' unless access_token.is_a?(String) && !access_token.empty?
 
           @access_token = access_token
           new_refresh_token = parsed['refresh_token']

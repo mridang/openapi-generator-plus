@@ -1,7 +1,3 @@
-# The model and pydantic import blocks below are emitted for every API
-# class, so an API that references none of them still carries them. Only
-# F401 is off -- every other ruff rule applies to this file.
-# ruff: noqa: F401
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -14,14 +10,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import AwareDatetime, StrictBool, StrictFloat, StrictInt, StrictStr
+from pydantic import StrictInt, StrictStr
 
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet
 from petstore_client.models.pet_passport import PetPassport
 from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.photo import Photo
-from petstore_client.models.photo_metadata import PhotoMetadata
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )

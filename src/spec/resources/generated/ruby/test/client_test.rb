@@ -34,11 +34,11 @@ describe Petstore::Client::Petstore do
     # RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
     # newlines from .env / file reads, which would CRLF-inject the
     # Authorization header. Also reject non-ASCII.
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
 
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'ñoño')
     }).must_raise ArgumentError
   end
@@ -47,11 +47,11 @@ describe Petstore::Client::Petstore do
     # bearer-no-empty-token-guard: an empty/whitespace token would emit a
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so the constructor must reject it.
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', '')
     }).must_raise ArgumentError
 
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', '   ')
     }).must_raise ArgumentError
   end
@@ -61,12 +61,12 @@ describe Petstore::Client::Petstore do
     # The HEADER location must reject anything outside printable ASCII
     # + TAB to prevent header injection (CR/LF) and silent UTF-8
     # mangling that varies per HTTP lib.
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', "abc\r\nInjected: yes",
                                                       Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
 
-    _(-> {
+    _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new('/api/v3', 'X-Api-Key', 'kéy',
                                                       Petstore::Client::Auth::ApiKeyLocation::HEADER)
     }).must_raise ArgumentError
@@ -140,9 +140,7 @@ describe Petstore::Client::Petstore do
           walk.call(namespace.const_get(name, false), sub_dir)
           next
         end
-        if File.dirname(file) != dir || normalize.call(File.basename(file, '.rb')) != normalize.call(name)
-          problems << "#{namespace}::#{name} is declared in #{file}, not in a file of its own under #{dir}"
-        end
+        problems << "#{namespace}::#{name} is declared in #{file}, not in a file of its own under #{dir}" if File.dirname(file) != dir || normalize.call(File.basename(file, '.rb')) != normalize.call(name)
       end
     end
     walk.call(Petstore::Client, root_dir)

@@ -118,8 +118,8 @@ module Petstore::Client
 
       # @return [Defaults]
       # @raise [ApiError] if fails to make API call
-      def get_defaults()
-        result = get_defaults_with_http_info()
+      def get_defaults
+        result = get_defaults_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -138,7 +138,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_defaults_with_http_info()
+      def get_defaults_with_http_info
         path = '/store/defaults'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -158,8 +158,8 @@ module Petstore::Client
 
       # @return [Department]
       # @raise [ApiError] if fails to make API call
-      def get_department()
-        result = get_department_with_http_info()
+      def get_department
+        result = get_department_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -178,7 +178,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_department_with_http_info()
+      def get_department_with_http_info
         path = '/store/department'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -198,8 +198,8 @@ module Petstore::Client
 
       # @return [Array<Hash<String, Category>>]
       # @raise [ApiError] if fails to make API call
-      def get_grouped_categories()
-        result = get_grouped_categories_with_http_info()
+      def get_grouped_categories
+        result = get_grouped_categories_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -218,7 +218,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_grouped_categories_with_http_info()
+      def get_grouped_categories_with_http_info
         path = '/store/grouped-categories'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -238,8 +238,8 @@ module Petstore::Client
 
       # @return [Hash<String, Integer>]
       # @raise [ApiError] if fails to make API call
-      def get_inventory()
-        result = get_inventory_with_http_info()
+      def get_inventory
+        result = get_inventory_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -258,7 +258,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_inventory_with_http_info()
+      def get_inventory_with_http_info
         path = '/store/inventory'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -278,8 +278,8 @@ module Petstore::Client
 
       # @return [Array<Array<Integer>>]
       # @raise [ApiError] if fails to make API call
-      def get_matrix()
-        result = get_matrix_with_http_info()
+      def get_matrix
+        result = get_matrix_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -298,7 +298,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_matrix_with_http_info()
+      def get_matrix_with_http_info
         path = '/store/matrix'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -416,8 +416,8 @@ module Petstore::Client
 
       # @return [Swatch]
       # @raise [ApiError] if fails to make API call
-      def get_swatch()
-        result = get_swatch_with_http_info()
+      def get_swatch
+        result = get_swatch_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -436,7 +436,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_with_http_info()
+      def get_swatch_with_http_info
         path = '/store/swatch'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -456,8 +456,8 @@ module Petstore::Client
 
       # @return [Array<Hash<String, Swatch>>]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_groups()
-        result = get_swatch_groups_with_http_info()
+      def get_swatch_groups
+        result = get_swatch_groups_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -476,7 +476,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_swatch_groups_with_http_info()
+      def get_swatch_groups_with_http_info
         path = '/store/swatch-groups'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -496,8 +496,8 @@ module Petstore::Client
 
       # @return [Array<Hash<String, Time>>]
       # @raise [ApiError] if fails to make API call
-      def get_timestamp_groups()
-        result = get_timestamp_groups_with_http_info()
+      def get_timestamp_groups
+        result = get_timestamp_groups_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -516,7 +516,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_timestamp_groups_with_http_info()
+      def get_timestamp_groups_with_http_info
         path = '/store/timestamp-groups'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -536,8 +536,8 @@ module Petstore::Client
 
       # @return [TreeNode]
       # @raise [ApiError] if fails to make API call
-      def get_tree()
-        result = get_tree_with_http_info()
+      def get_tree
+        result = get_tree_with_http_info
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -556,7 +556,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_tree_with_http_info()
+      def get_tree_with_http_info
         path = '/store/tree'
         # @type var query_params: Hash[String, untyped]
         query_params = {}

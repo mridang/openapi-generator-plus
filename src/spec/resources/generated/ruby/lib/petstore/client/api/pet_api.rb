@@ -56,7 +56,7 @@ module Petstore::Client
 
       def url
         url = 'https://{region}.example.com/v1'
-        url.gsub('{' + 'region' + '}', @region.to_s)
+        url.gsub('{region}', @region.to_s)
       end
     end
 
@@ -105,8 +105,8 @@ module Petstore::Client
 
       def url
         url = 'https://{environment}.example.com/api/{version}'
-        url = url.gsub('{' + 'environment' + '}', @environment.to_s)
-        url.gsub('{' + 'version' + '}', @version.to_s)
+        url = url.gsub('{environment}', @environment.to_s)
+        url.gsub('{version}', @version.to_s)
       end
     end
 
@@ -364,9 +364,7 @@ module Petstore::Client
           # Cookie request header. Pass the raw value through without
           # URL-encoding, mirroring the auth path.
           cookie_value = ::Petstore::Client::ValueSerializer.serialize_styled('api_key', options.api_key, :cookie, 'String', nil, 'form', true).to_s
-          unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
-            raise ArgumentError, "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
-          end
+          raise ArgumentError, "Cookie value for 'api_key' contains characters forbidden by RFC 6265" unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
 
           cookie_parts << "api_key=#{cookie_value}"
         end

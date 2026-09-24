@@ -419,12 +419,10 @@ describe Petstore::Client::DefaultApiClient do
       # Each redirecting thread must raise; capture the exception per thread.
       refused = Array.new(4) do
         Thread.new do
-          begin
-            client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
-            nil
-          rescue Petstore::Client::Errors::ApiError => e
-            e
-          end
+          client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
+          nil
+        rescue Petstore::Client::Errors::ApiError => e
+          e
         end
       end
       # Each non-redirecting thread must succeed despite the concurrent

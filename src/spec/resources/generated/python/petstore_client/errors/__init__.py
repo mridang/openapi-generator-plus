@@ -1,7 +1,3 @@
-# The typed subclasses import ApiException from this module, so their
-# re-export can only follow the class definition. Only E402 is off --
-# every other ruff rule applies to this file.
-# ruff: noqa: E402
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #

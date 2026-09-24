@@ -42,7 +42,7 @@ module Petstore::Client
       # on the (de)serialize path.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {
-        data: 'byte',
+        data: 'byte'
 
       }
       OPENAPI_FORMATS = openapi_formats.freeze

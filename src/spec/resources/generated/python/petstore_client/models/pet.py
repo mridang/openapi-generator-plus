@@ -1,8 +1,3 @@
-# The import block below is emitted for every model, so a model that uses
-# none of the strict scalars or containers still carries them; the footer
-# re-imports the strict aliases a forward reference needs. Only those three
-# import rules are off -- every other ruff rule applies to this file.
-# ruff: noqa: F401, F811, E402
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -12,19 +7,10 @@
 
 from __future__ import annotations
 
-import re
 import warnings
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_serializer,
-    model_validator,
-)
-from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
-from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import StrictInt, StrictStr
+from typing import Any, List, Optional, Set
 from enum import Enum
 
 
@@ -107,7 +93,5 @@ from petstore_client._types import UrlStr
 from petstore_client.models.category import Category
 from petstore_client.models.tag import Tag
 from pydantic import EmailStr
-from pydantic import StrictInt
-from pydantic import StrictStr
 
 Pet.model_rebuild(raise_errors=False)

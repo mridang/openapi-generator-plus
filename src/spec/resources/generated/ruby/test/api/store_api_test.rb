@@ -105,7 +105,11 @@ describe Petstore::Client::Api::StoreApi do
       port = server.addr[1]
       thread = Thread.new do
         loop do
-          client = server.accept rescue break
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
           client.gets # read request line
           while (line = client.gets)
             break if line.strip.empty?
@@ -150,7 +154,11 @@ describe Petstore::Client::Api::StoreApi do
       port = server.addr[1]
       thread = Thread.new do
         loop do
-          client = server.accept rescue break
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
           client.gets # read request line
           while (line = client.gets)
             break if line.strip.empty?
