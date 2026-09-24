@@ -13,21 +13,6 @@ import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
-@SuppressWarnings({
-  "checkstyle:SummaryJavadoc",
-  "checkstyle:JavadocParagraph",
-  "checkstyle:SingleLineJavadoc",
-  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
-  "checkstyle:NonEmptyAtclauseDescription",
-  "checkstyle:JavadocTagContinuationIndentation",
-  "checkstyle:AtclauseOrder",
-  "checkstyle:InvalidJavadocPosition",
-  "checkstyle:AbbreviationAsWordInName",
-  "checkstyle:MemberName",
-  "checkstyle:OverloadMethodsDeclarationOrder",
-  "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping"
-})
 public class EdgeCases {
 
   /** The {@code freeFormAny} property. */
@@ -40,7 +25,10 @@ public class EdgeCases {
   @Nullable
   public Color favoriteColor;
 
-  /** Required permission is "user.grant.write" for <admin> & owner roles (don't skip it) */
+  /**
+   * Required permission is "user.grant.write" for {@literal <}admin{@literal >} & owner roles
+   * (don't skip it)
+   */
   @JsonProperty("permissionsNote")
   @Nullable
   public String permissionsNote;

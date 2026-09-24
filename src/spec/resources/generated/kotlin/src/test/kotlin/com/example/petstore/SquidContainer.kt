@@ -31,6 +31,9 @@ object SquidContainer {
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                     "/etc/squid/squid.conf",
                 ).withNetwork(ChasmContainer.PROXY_NETWORK)
+                // The image declares VOLUME for both paths, so every container would
+                // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory.
+                .withTmpFs(mapOf("/var/log/squid" to "rw", "/var/spool/squid" to "rw"))
                 .withStartupTimeout(Duration.ofSeconds(120))
                 .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()

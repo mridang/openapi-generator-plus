@@ -84,7 +84,10 @@ kotlin {
         val jvmTest by getting {
             kotlin.srcDirs("src/test/kotlin")
             dependencies {
-                implementation(kotlin("test-junit5"))
+                // Spelled as an explicit coordinate rather than kotlin("test-junit5")
+                // so .openapi-generator/DEV-DEPENDENCIES can be checked against this
+                // manifest by name.
+                implementation("org.jetbrains.kotlin:kotlin-test-junit5:2.2.0")
                 implementation("io.ktor:ktor-client-mock:3.5.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
                 implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")

@@ -191,11 +191,12 @@
                 <version>${checkstyle-plugin-version}</version>
                 <configuration>
                     <!-- Industry-default ruleset bundled with checkstyle; no
-                         custom/relaxed config. Findings inherent to generated
-                         code are silenced per-file via class-level
-                         @SuppressWarnings("checkstyle:...") honoured by
-                         google_checks' SuppressWarningsFilter. -->
+                         custom/relaxed config. No generated source file
+                         disables a check: the few checks generated code cannot
+                         satisfy are named, one per entry with its reason, in
+                         checkstyle-suppressions.xml. -->
                     <configLocation>/google_checks.xml</configLocation>
+                    <suppressionsLocation>checkstyle-suppressions.xml</suppressionsLocation>
                     <consoleOutput>true</consoleOutput>
                     <includeTestSourceDirectory>true</includeTestSourceDirectory>
                     <failsOnError>true</failsOnError>

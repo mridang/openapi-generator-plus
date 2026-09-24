@@ -40,22 +40,6 @@ import javax.annotation.Nullable;
  *
  * @see <a href="https://example.com/docs/pets">Find out more about pets</a>
  */
-@SuppressWarnings({
-  "checkstyle:SummaryJavadoc",
-  "checkstyle:JavadocParagraph",
-  "checkstyle:SingleLineJavadoc",
-  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
-  "checkstyle:NonEmptyAtclauseDescription",
-  "checkstyle:JavadocTagContinuationIndentation",
-  "checkstyle:AtclauseOrder",
-  "checkstyle:InvalidJavadocPosition",
-  "checkstyle:AbbreviationAsWordInName",
-  "checkstyle:MemberName",
-  "checkstyle:OverloadMethodsDeclarationOrder",
-  "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping",
-  "checkstyle:LineLength"
-})
 public class PetApi extends BaseApi {
 
   private static final java.lang.reflect.Type addPetTypeRef = new TypeReference<Pet>() {}.getType();
@@ -1025,9 +1009,8 @@ public class PetApi extends BaseApi {
   /**
    * Find pet by ID Returns a single pet
    *
-   * @param petId ID of pet to return (required)
-   *     <p>Example — Small breed ID: {@code 1}
-   *     <p>Example — Large breed ID: {@code 42}
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
@@ -1040,9 +1023,8 @@ public class PetApi extends BaseApi {
   /**
    * Find pet by ID Returns a single pet
    *
-   * @param petId ID of pet to return (required)
-   *     <p>Example — Small breed ID: {@code 1}
-   *     <p>Example — Large breed ID: {@code 42}
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated.
@@ -1055,9 +1037,8 @@ public class PetApi extends BaseApi {
   /**
    * Find pet by ID Returns a single pet
    *
-   * @param petId ID of pet to return (required)
-   *     <p>Example — Small breed ID: {@code 1}
-   *     <p>Example — Large breed ID: {@code 42}
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
@@ -1071,9 +1052,8 @@ public class PetApi extends BaseApi {
   /**
    * Find pet by ID Returns a single pet
    *
-   * @param petId ID of pet to return (required)
-   *     <p>Example — Small breed ID: {@code 1}
-   *     <p>Example — Large breed ID: {@code 42}
+   * @param petId ID of pet to return (required) Example — Small breed ID: {@code 1} Example — Large
+   *     breed ID: {@code 42}
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call

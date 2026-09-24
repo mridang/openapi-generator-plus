@@ -347,10 +347,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("header_selector.mustache", Path.of(invokerFolder, "api").toString(), "HeaderSelector.java"),
             new SupportingFileSpec("trace_context_util.mustache", Path.of(invokerFolder, "api").toString(), "TraceContextUtil.java"),
             new SupportingFileSpec("pom.mustache", "", "pom.xml"),
+            new SupportingFileSpec(
+                "checkstyle_suppressions.mustache", "", "checkstyle-suppressions.xml"),
             new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.java"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec(
+                "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES"),
             new SupportingFileSpec(
                 "junit_platform_properties.mustache",
                 "src/test/resources",
@@ -391,6 +395,39 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         additionalProperties.put("apiKeyHeaderNames", apiKeyHeaderNames);
         additionalProperties.put("hasApiKeyHeaderNames", !apiKeyHeaderNames.isEmpty());
+    }
+
+    /**
+     * Registers the {@code javadocDescription} lambda. An OpenAPI description is
+     * free prose and may contain angle brackets; javadoc and checkstyle both
+     * read those as HTML, and an unclosed tag makes the whole doc comment
+     * unparseable.
+     */
+    @Override
+    protected com.google.common.collect.ImmutableMap.Builder<
+                    String, com.samskivert.mustache.Mustache.Lambda>
+            addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "javadocDescription",
+                        (fragment, writer) ->
+                                writer.write(escapeForJavadoc(fragment.execute())));
+    }
+
+    /**
+     * Neutralises the angle brackets javadoc reads as HTML. An inline
+     * {@code literal} tag is used rather than an HTML entity because the
+     * formatting spec forbids entities in generated source, and because the
+     * rendered text is then the prose the document actually wrote.
+     *
+     * @param text the doc-comment prose to escape
+     * @return the prose with each angle bracket wrapped in an inline literal tag
+     */
+    private static String escapeForJavadoc(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("<", "{@literal <}").replace(">", "{@literal >}");
     }
 
     @Override

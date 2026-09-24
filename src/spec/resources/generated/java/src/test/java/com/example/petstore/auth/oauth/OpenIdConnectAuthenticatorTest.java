@@ -28,21 +28,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@SuppressWarnings({
-  "checkstyle:SummaryJavadoc",
-  "checkstyle:JavadocParagraph",
-  "checkstyle:SingleLineJavadoc",
-  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
-  "checkstyle:NonEmptyAtclauseDescription",
-  "checkstyle:JavadocTagContinuationIndentation",
-  "checkstyle:AtclauseOrder",
-  "checkstyle:InvalidJavadocPosition",
-  "checkstyle:AbbreviationAsWordInName",
-  "checkstyle:MemberName",
-  "checkstyle:OverloadMethodsDeclarationOrder",
-  "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping"
-})
 class OpenIdConnectAuthenticatorTest {
 
   private static final String DISCOVERY_RESPONSE =

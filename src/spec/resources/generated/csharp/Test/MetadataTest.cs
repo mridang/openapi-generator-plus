@@ -73,4 +73,37 @@ public class MetadataTest
         };
         Assert.Equal("value", metadata.AdditionalProperties["key"]);
     }
+
+    [Fact]
+    public void DeclaredDevDependenciesAreInTheProjectManifest()
+    {
+        // A generated test may reference a package that only the generator knows
+        // about, and every real client keep-lists its own test project file, so
+        // the two silently drift apart and the suite dies at compile time with an
+        // unresolved using. The generator-owned manifest lists what the generated
+        // tests need; this fails first, naming the file.
+        var root = Directory.GetCurrentDirectory();
+        var declared = Path.Combine(root, ".openapi-generator", "DEV-DEPENDENCIES");
+        Assert.True(
+            File.Exists(declared),
+            ".openapi-generator/DEV-DEPENDENCIES must exist at the project root"
+        );
+        var manifest = File.ReadAllText(Path.Combine(root, "PetstoreClient.Test.csproj"));
+        foreach (var line in File.ReadAllLines(declared))
+        {
+            var entry = line.Trim();
+            if (entry.Length == 0)
+            {
+                continue;
+            }
+            var name = entry.Split(' ')[0];
+            Assert.True(
+                manifest.Contains($"Include=\"{name}\"", StringComparison.Ordinal),
+                $"PetstoreClient.Test.csproj does not declare {name}, which "
+                    + ".openapi-generator/DEV-DEPENDENCIES lists as required by the generated "
+                    + "tests. Add it as a PackageReference; the generator cannot edit a "
+                    + "keep-listed manifest."
+            );
+        }
+    }
 }

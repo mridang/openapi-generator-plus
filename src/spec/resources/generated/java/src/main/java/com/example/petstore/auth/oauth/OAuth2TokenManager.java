@@ -29,21 +29,6 @@ import javax.annotation.Nullable;
  * <p>Uses the shared {@link ApiClient} instance so that token exchange requests honour the same
  * transport configuration (proxy, TLS, timeouts) as regular API calls.
  */
-@SuppressWarnings({
-  "checkstyle:SummaryJavadoc",
-  "checkstyle:JavadocParagraph",
-  "checkstyle:SingleLineJavadoc",
-  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
-  "checkstyle:NonEmptyAtclauseDescription",
-  "checkstyle:JavadocTagContinuationIndentation",
-  "checkstyle:AtclauseOrder",
-  "checkstyle:InvalidJavadocPosition",
-  "checkstyle:AbbreviationAsWordInName",
-  "checkstyle:MemberName",
-  "checkstyle:OverloadMethodsDeclarationOrder",
-  "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping"
-})
 public class OAuth2TokenManager {
 
   /**
@@ -249,16 +234,6 @@ public class OAuth2TokenManager {
   }
 
   /**
-   * Defensive parse of the {@code expires_in} field per RFC 6749 §5.1.
-   *
-   * <p>Returns {@code 0} (caller skips caching) when the value is missing, unparseable, or
-   * non-positive. Accepts integers, floors floats, and parses digit strings (e.g. {@code "3600"}
-   * from Salesforce).
-   *
-   * @param node the JSON node holding {@code expires_in}
-   * @return the parsed lifetime in seconds, or {@code 0} when unusable
-   */
-  /**
    * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed {@link OAuth2ServerException}.
    * Falls back to a generic error using the raw body when the body is not a valid OAuth2 error
    * object.
@@ -283,6 +258,16 @@ public class OAuth2TokenManager {
     return new OAuth2ServerException(statusCode, null, null, null, body);
   }
 
+  /**
+   * Defensive parse of the {@code expires_in} field per RFC 6749 §5.1.
+   *
+   * <p>Returns {@code 0} (caller skips caching) when the value is missing, unparseable, or
+   * non-positive. Accepts integers, floors floats, and parses digit strings (e.g. {@code "3600"}
+   * from Salesforce).
+   *
+   * @param node the JSON node holding {@code expires_in}
+   * @return the parsed lifetime in seconds, or {@code 0} when unusable
+   */
   private static long parseExpiresIn(JsonNode node) {
     if (node == null || node.isNull()) {
       return 0L;

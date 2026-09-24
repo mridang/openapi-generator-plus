@@ -139,7 +139,10 @@ test('a typed error is caught by a base ApiException catch', function (): void {
 });
 
 test('getTypedErrorBody deserializes the body into the given class', function (): void {
-    $ex = new ApiException(400, 'bad request', [], '{"id":42,"name":"Dogs"}');
+    // Built through fromResponse, the way a real response reaches a caller:
+    // the typed body must come out of the raw body, not out of whatever the
+    // generic parse happened to leave behind.
+    $ex = ApiException::fromResponse(400, [], '{"id":42,"name":"Dogs"}');
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);
@@ -149,13 +152,13 @@ test('getTypedErrorBody deserializes the body into the given class', function ()
 });
 
 test('getTypedErrorBody returns null when there is no response body', function (): void {
-    $ex = new ApiException(500, 'oops', []);
+    $ex = ApiException::fromResponse(500, [], null);
 
     expect($ex->getTypedErrorBody(Category::class))->toBeNull();
 });
 
 test('getTypedErrorBody ignores extraneous fields not on the model', function (): void {
-    $ex = new ApiException(422, 'unprocessable', [], '{"id":1,"name":"Cat","extra":"drop-me"}');
+    $ex = ApiException::fromResponse(422, [], '{"id":1,"name":"Cat","extra":"drop-me"}');
 
     $typed = $ex->getTypedErrorBody(Category::class);
     expect($typed)->toBeInstanceOf(Category::class);

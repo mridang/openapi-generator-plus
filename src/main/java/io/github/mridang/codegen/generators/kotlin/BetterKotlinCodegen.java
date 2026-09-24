@@ -313,7 +313,9 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("detekt_yml.mustache", "", "detekt.yml"),
-            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec(
+                "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
         );
     }
 

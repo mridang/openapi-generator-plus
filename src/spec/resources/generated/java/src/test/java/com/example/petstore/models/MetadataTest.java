@@ -19,21 +19,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
-@SuppressWarnings({
-  "checkstyle:SummaryJavadoc",
-  "checkstyle:JavadocParagraph",
-  "checkstyle:SingleLineJavadoc",
-  "checkstyle:RequireEmptyLineBeforeBlockTagGroup",
-  "checkstyle:NonEmptyAtclauseDescription",
-  "checkstyle:JavadocTagContinuationIndentation",
-  "checkstyle:AtclauseOrder",
-  "checkstyle:InvalidJavadocPosition",
-  "checkstyle:AbbreviationAsWordInName",
-  "checkstyle:MemberName",
-  "checkstyle:OverloadMethodsDeclarationOrder",
-  "checkstyle:VariableDeclarationUsageDistance",
-  "checkstyle:ConstructorsDeclarationGrouping"
-})
 class MetadataTest {
 
   private static final java.lang.reflect.Type METADATA_TYPE =
@@ -96,6 +81,32 @@ class MetadataTest {
     Matcher matcher = Pattern.compile("<description>(.*?)</description>").matcher(contents);
     assertThat(matcher.find()).as("pom.xml must declare a <description>").isTrue();
     assertThat(matcher.group(1).trim()).as("description must not be empty").isNotEmpty();
+  }
+
+  @Test
+  void testDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
+    Path declared = Path.of(".openapi-generator", "DEV-DEPENDENCIES");
+    assertThat(Files.exists(declared))
+        .as(".openapi-generator/DEV-DEPENDENCIES must exist at the project root")
+        .isTrue();
+    String pomContents = Files.readString(Path.of("pom.xml"));
+    for (String line : Files.readAllLines(declared)) {
+      String entry = line.strip();
+      if (entry.isEmpty()) {
+        continue;
+      }
+      int space = entry.indexOf(' ');
+      String coordinate = space < 0 ? entry : entry.substring(0, space);
+      String artifactId = coordinate.substring(coordinate.indexOf(':') + 1);
+      assertThat(pomContents)
+          .as(
+              "pom.xml does not declare %s, which"
+                  + " .openapi-generator/DEV-DEPENDENCIES lists as required by"
+                  + " the generated tests. Add it with <scope>test</scope>; the"
+                  + " generator cannot edit a keep-listed manifest.",
+              coordinate)
+          .contains("<artifactId>" + artifactId + "</artifactId>");
+    }
   }
 
   @Test

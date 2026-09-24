@@ -115,6 +115,32 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("dev-dependency-drift: build.gradle.kts declares every dependency the generated tests need")
+    fun testDeclaredDevDependenciesAreInTheProjectManifest() {
+        // A generated test may import a package that only the generator knows
+        // about, and every real client keep-lists its own build.gradle.kts, so
+        // the two silently drift apart and the suite dies at compile time with
+        // an unresolved import. The generator-owned manifest lists what the
+        // generated tests need; this fails first, naming the file.
+        val declared = java.io.File(".openapi-generator/DEV-DEPENDENCIES")
+        assertTrue(
+            declared.exists(),
+            ".openapi-generator/DEV-DEPENDENCIES must exist at the project root",
+        )
+        val manifest = java.io.File("build.gradle.kts").readText()
+        declared.readLines().map { it.trim() }.filter { it.isNotEmpty() }.forEach { entry ->
+            val coordinate = entry.substringBefore(' ')
+            assertTrue(
+                manifest.contains("$coordinate:"),
+                "build.gradle.kts does not declare $coordinate, which " +
+                    ".openapi-generator/DEV-DEPENDENCIES lists as required by the generated " +
+                    "tests. Add it to the jvmTest source set; the generator cannot edit a " +
+                    "keep-listed manifest.",
+            )
+        }
+    }
+
+    @Test
     @DisplayName("example-doc-null-pollution: generated models never emit a literal `Example: null` doc line")
     fun testNoNullExampleDocPollution() {
         // L1 regression: OpenAPI Generator supplies the literal string "null" as

@@ -9,6 +9,7 @@ package com.example.petstore;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.MountableFile;
 
@@ -28,6 +29,13 @@ public final class SquidContainer {
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
             .withNetwork(ChasmContainer.PROXY_NETWORK)
+            // The image declares VOLUME for both paths, so every container would
+            // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+            // mode=1777 because squid runs as the unprivileged `proxy` user.
+            .withTmpFs(
+                Map.of(
+                    "/var/log/squid", "rw,mode=1777",
+                    "/var/spool/squid", "rw,mode=1777"))
             .withStartupTimeout(Duration.ofMinutes(2))
             .withLabel("com.mridang.openapi.testcontainer", "true");
     INSTANCE.start();

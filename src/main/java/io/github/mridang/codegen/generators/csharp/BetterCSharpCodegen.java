@@ -320,7 +320,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("docfx.mustache", "", "docfx.json"),
             new SupportingFileSpec("docfx_index.mustache", "", "index.md"),
             new SupportingFileSpec("docfx_toc.mustache", "", "toc.yml"),
-            new SupportingFileSpec("makefile.mustache", "", "Makefile")
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec(
+                "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
         );
     }
 

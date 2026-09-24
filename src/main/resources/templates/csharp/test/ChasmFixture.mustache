@@ -54,6 +54,17 @@ public class ChasmFixture : IAsyncLifetime
             .WithPortBinding(3128, true)
             .WithPortBinding(3129, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
+            // The image declares VOLUME for both paths, so every container would
+            // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+            // mode=1777 because squid runs as the unprivileged `proxy` user, and
+            // WithTmpfsMount cannot pass mount options.
+            .WithCreateParameterModifier(parameters =>
+                parameters.HostConfig.Tmpfs = new Dictionary<string, string>
+                {
+                    { "/var/log/squid", "rw,mode=1777" },
+                    { "/var/spool/squid", "rw,mode=1777" },
+                }
+            )
             .WithNetwork(_network)
             .Build();
         await _squid.StartAsync();

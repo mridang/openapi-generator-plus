@@ -10,6 +10,40 @@ use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Wait\WaitForLog;
 
+/*
+ * A generated test may import a package that only the generator knows about,
+ * and every real client keep-lists its own composer.json, so the two silently
+ * drift apart and the suite dies at collection with a class-not-found. The
+ * generator-owned .openapi-generator/DEV-DEPENDENCIES lists what the generated
+ * tests need; fail here, before a single test file is loaded, naming that file.
+ */
+$declaredPath = __DIR__ . '/../.openapi-generator/DEV-DEPENDENCIES';
+if (!is_file($declaredPath)) {
+    fwrite(STDERR, "[bootstrap] .openapi-generator/DEV-DEPENDENCIES is missing from the "
+        . "project root; regenerate the SDK.\n");
+    exit(1);
+}
+$composerRaw = file_get_contents(__DIR__ . '/../composer.json');
+/** @var array<string, mixed> $composerManifest */
+$composerManifest = json_decode(is_string($composerRaw) ? $composerRaw : '{}', true);
+/** @var array<string, string> $requireDev */
+$requireDev = is_array($composerManifest['require-dev'] ?? null) ? $composerManifest['require-dev'] : [];
+$declaredLines = file($declaredPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+foreach ($declaredLines === false ? [] : $declaredLines as $line) {
+    $entry = trim($line);
+    if ($entry === '') {
+        continue;
+    }
+    $name = strtok($entry, ' ');
+    if ($name === false || array_key_exists($name, $requireDev)) {
+        continue;
+    }
+    fwrite(STDERR, "[bootstrap] composer.json does not declare \"$name\", which "
+        . ".openapi-generator/DEV-DEPENDENCIES lists as required by the generated tests. "
+        . "Add it to require-dev; the generator cannot edit a keep-listed manifest.\n");
+    exit(1);
+}
+
 /**
  * Wrapper around getMappedPort that falls back to `docker port` CLI
  * when the beluga-php/docker-php-api library throws a TypeError
@@ -132,6 +166,11 @@ $squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 $squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
     ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
+    // The image declares VOLUME for both paths, so every container would
+    // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+    // mode=1777 because squid runs as the unprivileged `proxy` user.
+    ->withTmpfs('/var/log/squid', 'rw,mode=1777')
+    ->withTmpfs('/var/spool/squid', 'rw,mode=1777')
     ->start();
 
 dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [

@@ -16,7 +16,6 @@ import javax.annotation.Nullable;
 {{^description}}
 /** {{classname}}. */
 {{/description}}
-{{>models/checkstyle_suppressions}}
 {{#isInteger}}
 public enum {{classname}} {
   {{#allowableValues}}
@@ -192,7 +191,6 @@ public enum {{classname}} {
 {{/description}}
 {{/isDeprecated}}
 {{#discriminator}}
-{{>models/checkstyle_suppressions}}
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,
@@ -210,7 +208,6 @@ public abstract class {{classname}} {
 }
 {{/discriminator}}
 {{^discriminator}}
-{{>models/checkstyle_suppressions}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
 public class {{classname}} {
@@ -321,7 +318,6 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-{{>models/checkstyle_suppressions}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(
     using = {{classname}}.{{classname}}Deserializer.class)
 public class {{classname}} {
@@ -522,7 +518,6 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-{{>models/checkstyle_suppressions}}
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -672,7 +667,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       spec forbids). @deprecated and the @Deprecated annotation follow. }}
   /**
   {{#description}}
-   * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+   * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
   {{/description}}
   {{^description}}
    * The {@code {{name}}} property.
