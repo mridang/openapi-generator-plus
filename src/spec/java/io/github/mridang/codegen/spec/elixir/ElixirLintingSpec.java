@@ -19,7 +19,13 @@ public class ElixirLintingSpec extends AbstractIntegrationSpec implements Elixir
          * (the generated .credo.exs), and Dialyzer with the flags mix.exs
          * sets. */
         return new String[] {
-            "mix compile --warnings-as-errors --force", "mix credo --strict", "mix dialyzer"
+            /* Each step is bounded: a tool that hangs -- credo and dialyzer
+             * have both sat at idle CPU with no output for over 20 minutes --
+             * stalls every other language behind it and reports nothing. A
+             * timeout turns that into a failure naming the step. */
+            "timeout -k 30 600 mix compile --warnings-as-errors --force",
+            "timeout -k 30 900 mix credo --strict",
+            "timeout -k 60 1800 mix dialyzer"
         };
     }
 
