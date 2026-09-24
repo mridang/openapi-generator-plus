@@ -15,7 +15,7 @@ describe Petstore::Client::Api::PetApi do
   parallelize_me!
 
   before do
-    @api = Petstore::Client::Api::PetApi.new
+    @api = Petstore::Client::Api::PetApi.new(nil, TEST_CONFIGURATION)
     @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
     @auth = Petstore::Client::Auth::BearerAuthenticator.new(@base_url, 'test-token')
   end

@@ -13,7 +13,7 @@ describe Petstore::Client::Api::StoreApi do
   parallelize_me!
 
   before do
-    @api = Petstore::Client::Api::StoreApi.new
+    @api = Petstore::Client::Api::StoreApi.new(nil, TEST_CONFIGURATION)
   end
 
   describe '#get_inventory' do

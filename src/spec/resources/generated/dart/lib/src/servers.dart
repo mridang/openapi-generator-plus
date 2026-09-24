@@ -14,7 +14,7 @@ import 'server_configuration.dart';
 /// server:
 ///
 /// ```dart
-/// final config = ConfigurationBuilder()
+/// final config = Configuration.builder()
 ///   .server(server0)
 ///   .build();
 /// ```
@@ -22,7 +22,7 @@ import 'server_configuration.dart';
 /// For servers with variables, pass overrides:
 ///
 /// ```dart
-/// final config = ConfigurationBuilder()
+/// final config = Configuration.builder()
 ///   .server(server1, {'environment': 'staging'})
 ///   .build();
 /// ```

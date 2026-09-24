@@ -80,11 +80,13 @@ ENV['CHASM_HTTPS_URL'] = "https://#{chasm_host}:#{chasm_tls_port}"
 ENV['CHASM_INTERNAL_HTTP_URL'] = 'http://chasm:4010'
 ENV['CHASM_INTERNAL_HTTPS_URL'] = 'https://chasm:8443'
 
-# Configure the client to use the Chasm mock server
-Petstore::Client.configure do |b|
-  b.base_url chasm_url
-  b.default_header 'Authorization', 'Bearer test-token'
-end
+# The Configuration every integration test uses: the Chasm mock server plus
+# the bearer token its fixtures expect. There is no process-wide default
+# Configuration, so each API instance is handed this one explicitly.
+TEST_CONFIGURATION = Petstore::Client::Configuration.builder
+                                                  .base_url(chasm_url)
+                                                  .default_header('Authorization', 'Bearer test-token')
+                                                  .build
 
 # Create a shared Docker network for proxy tests so Squid can reach Chasm
 # directly via container alias, avoiding host.docker.internal DNS issues.

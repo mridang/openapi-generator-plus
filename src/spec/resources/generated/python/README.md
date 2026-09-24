@@ -1,4 +1,4 @@
-# petstore_client SDK
+# Swagger Petstore - OpenAPI 3.0 SDK
 
 Auto-generated Python SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
@@ -79,7 +79,7 @@ offset.
 
 ## Caveats
 
-### `format: float` / `format: double` precision
+### Decimal / `format: number` precision
 
 A bare `type: number` (no `format`) maps to `decimal.Decimal`, which
 preserves exact decimal representation in Python — safe for in-process

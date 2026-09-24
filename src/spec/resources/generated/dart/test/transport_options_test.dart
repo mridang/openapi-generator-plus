@@ -10,6 +10,15 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('TransportOptions', () {
+    test('builder is the static entry point for the builder', () {
+      final builder = TransportOptions.builder();
+      expect(builder, isA<TransportOptionsBuilder>());
+      expect(
+        TransportOptions.builder().timeout(5000).build().timeout,
+        equals(5000),
+      );
+    });
+
     test('verifySsl defaults to true', () {
       final opts = TransportOptionsBuilder().build();
       expect(opts.verifySsl, isTrue);

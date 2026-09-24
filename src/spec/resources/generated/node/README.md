@@ -1,4 +1,4 @@
-# SDK
+# Swagger Petstore - OpenAPI 3.0 SDK
 
 Auto-generated TypeScript SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
@@ -60,7 +60,7 @@ npm run build      # tsc (emit to ./dist)
 
 ## Caveats
 
-### Integer precision above 2^53
+### Decimal / `format: number` precision
 
 JavaScript's only number type is a 64-bit IEEE-754 float, which can
 exactly represent integers only up to `Number.MAX_SAFE_INTEGER`

@@ -127,6 +127,28 @@ describe {{moduleName}}::Errors::ApiError do
     end
   end
 
+  it 'from_response treats a status at or above 600 as the base ApiError' do
+    # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+    # base ApiError, never ServerError.
+    err = {{moduleName}}::Errors::ApiError.from_response(600, { 'x-request-id' => 'abc' }, nil)
+
+    _(err).must_be_instance_of({{moduleName}}::Errors::ApiError)
+    _(err).wont_be_kind_of({{moduleName}}::Errors::ServerError)
+    _(err.status_code).must_equal(600)
+  end
+
+  it 'from_response refuses a deeply nested error body' do
+    # The error body is attacker-controlled, so parsing is depth-capped: an
+    # over-deep payload leaves error_body nil instead of exhausting the stack.
+    body = ('[' * 2000) + (']' * 2000)
+
+    err = {{moduleName}}::Errors::ApiError.from_response(400, {}, body)
+
+    _(err).must_be_instance_of({{moduleName}}::Errors::BadRequestError)
+    _(err.response_body).must_equal(body)
+    _(err.error_body).must_be_nil
+  end
+
   it 'from_response keeps a non-JSON body raw without an error body' do
     err = {{moduleName}}::Errors::ApiError.from_response(500, {}, '<html>oops</html>')
 
@@ -154,6 +176,16 @@ describe {{moduleName}}::Errors::ApiError do
       status_code: 500,
       response_body: '',
       response_headers: {}
+    )
+
+    assert_nil(err.typed_error_body('Category'))
+  end
+
+  it 'typed_error_body returns nil when the response body is absent' do
+    err = {{moduleName}}::Errors::ApiError.new(
+      status_code: 0,
+      response_body: nil,
+      response_headers: nil
     )
 
     assert_nil(err.typed_error_body('Category'))

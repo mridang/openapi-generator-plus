@@ -13,8 +13,16 @@ void main() {
     });
 
     test('builder returns builder instance', () {
-      final builder = ConfigurationBuilder();
-      expect(builder, isNotNull);
+      final builder = Configuration.builder();
+      expect(builder, isA<ConfigurationBuilder>());
+    });
+
+    test('builder is the static entry point for the builder', () {
+      final config = Configuration.builder()
+          .baseUrl('https://static.example.com')
+          .build();
+
+      expect(config.baseUrl, equals('https://static.example.com'));
     });
 
     test('builder sets baseUrl', () {

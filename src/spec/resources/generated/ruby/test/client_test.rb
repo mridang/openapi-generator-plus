@@ -92,7 +92,10 @@ describe Petstore::Client::Petstore do
   # (errors/not_found_error.rb declares Errors::NotFoundError), no constant
   # lives in a file named after another, and no file claims a top-level
   # constant besides the gem's own module. Loading every file first makes
-  # a file that no other file requires count too.
+  # a file that no other file requires count too. The one exception is the
+  # per-operation server types: they are declared inside the API file whose
+  # operations use them, as in the other eleven SDKs, so they are listed by
+  # name below and skipped.
   it 'declares exactly the constant each lib file path names' do
     lib = File.expand_path('../lib', File.dirname(__FILE__))
     root_dir = File.join(lib, 'petstore/client')
@@ -102,6 +105,21 @@ describe Petstore::Client::Petstore do
     under_lib = ->(file) { !file.nil? && file.start_with?("#{lib}/") }
     problems = []
 
+    inline_server_types = %w[
+      GetExternalPetInfoServer
+      GetExternalPetInfoServerServer0
+      GetMultiServerPetInfoServer
+      GetMultiServerPetInfoServerRegion
+      GetMultiServerPetInfoServerPrimary
+      GetMultiServerPetInfoServerRegional
+      GetPetByIdServer
+      GetPetByIdServerCDNBackedReadEndpointForPetDetails
+      GetStagingPetInfoServer
+      GetStagingPetInfoServerEnvironment
+      GetStagingPetInfoServerVersion
+      GetStagingPetInfoServerStagingServer
+    ]
+
     top_level = 'Petstore::Client'.split('::').first
     Object.constants.each do |name|
       file, = Object.const_source_location(name)
@@ -110,6 +128,8 @@ describe Petstore::Client::Petstore do
 
     walk = lambda do |namespace, dir|
       namespace.constants(false).each do |name|
+        next if inline_server_types.include?(name.to_s)
+
         file, = namespace.const_source_location(name)
         next unless under_lib.call(file)
 

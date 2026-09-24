@@ -13,11 +13,10 @@ import 'server_configuration.dart';
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// [TransportOptions] and are configured on the [DefaultApiClient].
 ///
-/// Configuration is immutable once built. Use [ConfigurationBuilder] to create
-/// instances:
+/// This class is immutable. Use [Configuration.builder] to create instances:
 ///
 /// ```dart
-/// final config = ConfigurationBuilder()
+/// final config = Configuration.builder()
 ///   .baseUrl('https://api.example.com')
 ///   .defaultHeader('Authorization', 'Bearer token')
 ///   .build();
@@ -40,6 +39,9 @@ class Configuration {
   /// Returns a copy of the default headers included in every API request.
   Map<String, String> get defaultHeaders =>
       Map<String, String>.from(_defaultHeaders);
+
+  /// Creates a new builder for constructing [Configuration] instances.
+  static ConfigurationBuilder builder() => ConfigurationBuilder();
 
   /// Returns a [Configuration] with default values.
   factory Configuration.defaultConfiguration() {

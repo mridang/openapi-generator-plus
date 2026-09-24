@@ -31,7 +31,7 @@ import 'api/store_api.dart';
 /// Example with custom transport (proxy, timeouts, etc.):
 ///
 /// ```dart
-/// final transport = TransportOptionsBuilder()
+/// final transport = TransportOptions.builder()
 ///   .proxy('http://proxy:3128')
 ///   .timeout(5000)
 ///   .build();

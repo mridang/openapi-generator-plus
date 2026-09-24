@@ -1,19 +1,70 @@
 # frozen_string_literal: true
 
 {{>api_info}}
-{{#operations}}
-{{#serverTypeFiles}}
-{{#-first}}
-
-{{/-first}}
-require_relative '{{.}}'
-{{/serverTypeFiles}}
-{{/operations}}
 
 # :nodoc:
 module {{moduleName}}
   module Api
 {{#operations}}
+{{#serverTypeDefs}}
+
+    # Server type for the {{operationId}} operation.
+    class {{serverTypeName}}
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+{{#variants}}
+{{#serverVariables}}
+{{#hasEnumValues}}
+
+    # Valid values for {{name}} in {{serverTypeName}}.
+    module {{serverTypeName}}{{pascalName}}
+{{#enumValues}}
+      {{name}} = '{{value}}'
+{{/enumValues}}
+    end
+{{/hasEnumValues}}
+{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+{{#hasDescription}}
+    # {{{description}}}
+{{/hasDescription}}
+{{^hasDescription}}
+    # {{variantName}} server variant.
+{{/hasDescription}}
+    class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
+{{#hasVariables}}
+      def initialize({{#serverVariables}}{{snakeName}}:{{^-last}}, {{/-last}}{{/serverVariables}})
+        super()
+{{#serverVariables}}
+        @{{snakeName}} = {{snakeName}}
+{{/serverVariables}}
+      end
+
+{{/hasVariables}}
+      def url
+{{#hasVariables}}
+        url = '{{url}}'
+{{#serverVariables}}
+{{^-last}}
+        url = url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
+{{#-last}}
+        url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
+{{/serverVariables}}
+{{/hasVariables}}
+{{^hasVariables}}
+        '{{url}}'
+{{/hasVariables}}
+      end
+    end
+{{/variants}}
+{{/serverTypeDefs}}
 
     # {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
@@ -23,7 +74,7 @@ module {{moduleName}}
     # @see {{url}} {{{description}}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
-      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil)
         super
       end
     {{#operation}}

@@ -167,12 +167,41 @@ class TestFromResponse:
         assert err.response_body == '{"code":7}'
         assert err.error_body == {"code": 7}
 
+    def test_status_at_or_above_600_is_not_a_server_error(self) -> None:
+        # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+        # base ApiException, never ServerException.
+        err = ApiException.from_response(600, {"x-request-id": "abc"}, None)
+
+        assert type(err) is ApiException
+        assert not isinstance(err, ServerException)
+        assert err.status_code == 600
+
     def test_keeps_a_non_json_body_raw_without_an_error_body(self) -> None:
         err = ApiException.from_response(500, {}, "<html>oops</html>")
 
         assert type(err) is InternalServerErrorException
         assert err.response_headers == {}
         assert err.response_body == "<html>oops</html>"
+        assert err.error_body is None
+
+    def test_keeps_absent_response_headers_as_none(self) -> None:
+        # None means no response arrived at all and is never coerced to an
+        # empty dict, which would claim a response with no headers.
+        err = ApiException.from_response(0, None, None)
+
+        assert err.response_headers is None
+        assert err.response_body is None
+
+    def test_refuses_a_deeply_nested_error_body(self) -> None:
+        # The error body is attacker-controlled, so parsing is depth-capped:
+        # an over-deep payload leaves error_body None instead of exhausting
+        # the interpreter stack.
+        body = "[" * 2000 + "]" * 2000
+
+        err = ApiException.from_response(400, {}, body)
+
+        assert type(err) is BadRequestException
+        assert err.response_body == body
         assert err.error_body is None
 
 

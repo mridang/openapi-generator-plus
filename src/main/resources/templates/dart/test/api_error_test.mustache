@@ -52,37 +52,37 @@ void main() {
       expect(err, isA<Exception>());
     });
 
-    test('typedErrorBody deserializes the body into the requested type', () {
+    test('getTypedErrorBody deserializes the body into the requested type', () {
       const err = ApiException(
         statusCode: 400,
         message: 'bad request',
         responseBody: '{"id":42,"name":"Dogs"}',
       );
 
-      final typed = err.typedErrorBody(Category.fromJson);
+      final typed = err.getTypedErrorBody(Category.fromJson);
       expect(typed, isNotNull);
       expect(typed!.id, equals(42));
       expect(typed.name, equals('Dogs'));
     });
 
-    test('typedErrorBody returns null when there is no response body', () {
+    test('getTypedErrorBody returns null when there is no response body', () {
       const err = ApiException(
         statusCode: 500,
         message: 'oops',
         responseBody: null,
       );
 
-      expect(err.typedErrorBody(Category.fromJson), isNull);
+      expect(err.getTypedErrorBody(Category.fromJson), isNull);
     });
 
-    test('typedErrorBody ignores extraneous fields not on the model', () {
+    test('getTypedErrorBody ignores extraneous fields not on the model', () {
       const err = ApiException(
         statusCode: 422,
         message: 'unprocessable',
         responseBody: '{"id":1,"name":"Cat","extra":"drop-me"}',
       );
 
-      final typed = err.typedErrorBody(Category.fromJson);
+      final typed = err.getTypedErrorBody(Category.fromJson);
       expect(typed, isNotNull);
       expect(typed!.id, equals(1));
       expect(typed.name, equals('Cat'));
@@ -126,6 +126,59 @@ void main() {
       expect(err, isA<SerializationException>());
       expect(err, isA<{{errorPrefix}}Exception>());
       expect(err, isA<Exception>());
+    });
+  });
+
+  group('fromResponse', () {
+    test('maps each status to its exception', () {
+      final cases = <int, Type>{
+        400: BadRequestException,
+        401: UnauthorizedException,
+        403: ForbiddenException,
+        404: NotFoundException,
+        409: ConflictException,
+        422: UnprocessableEntityException,
+        418: ClientException,
+        500: InternalServerErrorException,
+        503: ServerException,
+        302: ApiException,
+      };
+
+      cases.forEach((status, expected) {
+        final err = ApiException.fromResponse(
+          status,
+          {'x-request-id': 'abc'},
+          '{"code":7}',
+        );
+
+        expect(err.runtimeType, equals(expected));
+        expect(err.statusCode, equals(status));
+        expect(err.responseHeaders, equals({'x-request-id': 'abc'}));
+        expect(err.responseBody, equals('{"code":7}'));
+        expect(err.errorBody, equals({'code': 7}));
+      });
+    });
+
+    test('a status at or above 600 is not a ServerException', () {
+      // The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+      // base ApiException, never ServerException.
+      final err = ApiException.fromResponse(600, {'x-request-id': 'abc'}, null);
+
+      expect(err.runtimeType, equals(ApiException));
+      expect(err, isNot(isA<ServerException>()));
+      expect(err.statusCode, equals(600));
+    });
+
+    test('refuses a deeply nested error body', () {
+      // The error body is attacker-controlled, so parsing is depth-capped: an
+      // over-deep payload leaves errorBody null instead of crashing the VM.
+      final body = '${'[' * 2000}${']' * 2000}';
+
+      final err = ApiException.fromResponse(400, const {}, body);
+
+      expect(err.runtimeType, equals(BadRequestException));
+      expect(err.responseBody, equals(body));
+      expect(err.errorBody, isNull);
     });
   });
 }

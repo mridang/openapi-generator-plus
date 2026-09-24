@@ -597,7 +597,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         if (ops == null) {
             return objs;
         }
-        writeServerTypeFiles(operations);
         for (final CodegenOperation op : ops) {
             // A top-level byte response: the return schema itself is
             // `format: byte` (not a byte *field* of a model, which decodes via
@@ -663,66 +662,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             supportingFiles.add(
                     new SupportingFile("test/" + template + ".mustache", "test", file + ".rb"));
         }
-    }
-
-    /**
-     * Writes each per-operation server type, server-variable enum module and
-     * server variant to a file of its own under {@code api/}, named after the
-     * constant it declares, and lists those files in {@code serverTypeFiles}
-     * so the API file can {@code require_relative} them. One constant per file
-     * is the layout Zeitwerk (and the golden's file/constant test) expects.
-     */
-    @SuppressWarnings("unchecked")
-    private void writeServerTypeFiles(Map<String, Object> operations) {
-        final List<Map<String, Object>> typeDefs =
-                (List<Map<String, Object>>) operations.get("serverTypeDefs");
-        final List<String> files = new ArrayList<>();
-        if (typeDefs != null) {
-            final String modulePath =
-                    NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
-            final Path apiDir = Path.of(getOutputDir(), LIB_FOLDER, modulePath, "api");
-            for (final Map<String, Object> typeDef : typeDefs) {
-                final String typeName =
-                        (String) Objects.requireNonNull(typeDef.get("serverTypeName"));
-                final String typeFile = NamingConvention.SNAKE_CASE.apply(typeName);
-                writeServerTypeFile(apiDir, typeFile, "api/server_type.mustache", new HashMap<>(typeDef));
-                files.add(typeFile);
-                final Set<String> enumNames = new LinkedHashSet<>();
-                final List<Map<String, Object>> variants =
-                        (List<Map<String, Object>>) Objects.requireNonNull(typeDef.get("variants"));
-                for (final Map<String, Object> variant : variants) {
-                    final List<Map<String, Object>> vars =
-                            (List<Map<String, Object>>) variant.get("serverVariables");
-                    for (final Map<String, Object> var : vars == null ? List.<Map<String, Object>>of() : vars) {
-                        final String enumName = typeName + var.get("pascalName");
-                        if (Boolean.TRUE.equals(var.get("hasEnumValues")) && enumNames.add(enumName)) {
-                            final Map<String, Object> ctx = new HashMap<>(var);
-                            ctx.put("serverTypeName", typeName);
-                            final String enumFile = NamingConvention.SNAKE_CASE.apply(enumName);
-                            writeServerTypeFile(apiDir, enumFile, "api/server_variable_enum.mustache", ctx);
-                            files.add(enumFile);
-                        }
-                    }
-                }
-                for (final Map<String, Object> variant : variants) {
-                    final Map<String, Object> ctx = new HashMap<>(variant);
-                    ctx.put("serverTypeName", typeName);
-                    ctx.put("serverTypeFile", typeFile);
-                    final String variantFile =
-                            NamingConvention.SNAKE_CASE.apply(typeName + variant.get("variantName"));
-                    writeServerTypeFile(apiDir, variantFile, "api/server_variant.mustache", ctx);
-                    files.add(variantFile);
-                }
-            }
-        }
-        operations.put("serverTypeFiles", files);
-    }
-
-    private void writeServerTypeFile(
-            Path apiDir, String fileName, String template, Map<String, Object> context) {
-        final String filePath = apiDir.resolve(fileName + ".rb").toString();
-        writeFile(filePath, renderOptionsTemplate(template, context));
-        postProcessFile(Path.of(filePath).toFile(), "source");
     }
 
     /**

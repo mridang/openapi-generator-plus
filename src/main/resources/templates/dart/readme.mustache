@@ -1,4 +1,4 @@
-# {{packageName}} SDK
+# {{appNameBase}} SDK
 
 Auto-generated Dart SDK client for the {{appName}} API.
 
@@ -72,7 +72,7 @@ dart test
 
 ## Caveats
 
-### Integer and decimal precision
+### Decimal / `format: number` precision
 
 Dart's `jsonDecode` returns a `num` (the union of `int` and `double`).
 For JSON numbers above 2^53 the parser silently picks `double`, so

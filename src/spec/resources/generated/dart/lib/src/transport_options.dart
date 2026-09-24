@@ -13,10 +13,10 @@
 /// are independent of API-level concerns (base URL, authentication headers)
 /// which belong in [Configuration].
 ///
-/// Use [TransportOptionsBuilder] to create instances:
+/// This class is immutable. Use [TransportOptions.builder] to create instances:
 ///
 /// ```dart
-/// final transport = TransportOptionsBuilder()
+/// final transport = TransportOptions.builder()
 ///   .verifySsl(false)
 ///   .proxy('http://proxy.example.com:8080')
 ///   .timeout(5000)
@@ -73,6 +73,9 @@ class TransportOptions {
   /// Returns a copy of the transport-level default headers.
   Map<String, String> get defaultHeaders =>
       Map<String, String>.from(_defaultHeaders);
+
+  /// Creates a new builder for constructing [TransportOptions] instances.
+  static TransportOptionsBuilder builder() => TransportOptionsBuilder();
 }
 
 /// Builds immutable [TransportOptions] instances.

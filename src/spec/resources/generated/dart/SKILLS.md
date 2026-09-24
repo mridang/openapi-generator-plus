@@ -223,7 +223,7 @@ try {
 ### Custom Transport Options
 
 ```dart
-final transport = TransportOptionsBuilder()
+final transport = TransportOptions.builder()
   .proxy('http://proxy:3128')
   .timeout(5000)
   .build();

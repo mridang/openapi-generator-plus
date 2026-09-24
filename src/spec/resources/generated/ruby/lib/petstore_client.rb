@@ -117,20 +117,3 @@ require 'petstore/client/api/options/upload_pet_certificate_options'
 require 'petstore/client/api/options/upload_pet_document_options'
 require 'petstore/client/api/options/get_by_swatch_options'
 require 'petstore/client/api/options/get_stock_item_options'
-
-# :nodoc:
-module Petstore::Client
-  class << self
-    # Configure the default Configuration instance using a builder.
-    #
-    #     Petstore::Client.configure do |b|
-    #       b.base_url 'https://api.example.com'
-    #       b.default_header 'Authorization', 'Bearer token'
-    #     end
-    def configure
-      builder = Configuration.builder
-      yield(builder) if block_given?
-      Configuration.default = builder.build
-    end
-  end
-end

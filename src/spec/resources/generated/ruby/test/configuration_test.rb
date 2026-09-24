@@ -3,15 +3,6 @@
 require 'test_helper'
 
 describe Petstore::Client::Configuration do
-  before do
-    @saved_default = Petstore::Client::Configuration.default
-    Petstore::Client::Configuration.default = Petstore::Client::Configuration.builder.build
-  end
-
-  after do
-    Petstore::Client::Configuration.default = @saved_default
-  end
-
   it 'builder produces correct defaults' do
     config = Petstore::Client::Configuration.builder.build
 
@@ -158,29 +149,26 @@ describe Petstore::Client::Configuration do
     _(config.base_url).must_equal('https://override.example.com')
   end
 
-  it 'default returns an instance' do
-    config = Petstore::Client::Configuration.default
+  it 'default_configuration returns an instance' do
+    config = Petstore::Client::Configuration.default_configuration
 
     _(config).must_be_instance_of(Petstore::Client::Configuration)
     _(config.base_url).must_equal('/api/v3')
   end
 
-  it 'default returns the same instance' do
-    first = Petstore::Client::Configuration.default
-    second = Petstore::Client::Configuration.default
+  it 'default_configuration returns a fresh instance' do
+    # There is no settable process-wide default: every call builds a new
+    # Configuration, so nothing one caller does can change what another gets.
+    first = Petstore::Client::Configuration.default_configuration
+    second = Petstore::Client::Configuration.default_configuration
 
-    _(first).must_be_same_as(second)
+    _(first).wont_be_same_as(second)
+    _(first.base_url).must_equal(second.base_url)
   end
 
-  it 'setting default changes the default' do
-    custom = Petstore::Client::Configuration.builder
-      .base_url('https://custom.example.com')
-      .build
-
-    Petstore::Client::Configuration.default = custom
-
-    _(Petstore::Client::Configuration.default).must_be_same_as(custom)
-    _(Petstore::Client::Configuration.default.base_url).must_equal('https://custom.example.com')
+  it 'has no settable process-wide default' do
+    _(Petstore::Client::Configuration).wont_respond_to(:default)
+    _(Petstore::Client::Configuration).wont_respond_to(:default=)
   end
 
   it 'builder produces independent instances' do

@@ -200,12 +200,52 @@ describe("ApiError", () => {
       expect(err.errorBody).toEqual({ code: 7 });
     });
 
+    test("a status at or above 600 is not a server error", () => {
+      /* The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+       * base ApiError, never ServerError. */
+      const err = ApiError.fromResponse(600, { "x-request-id": "abc" }, null);
+      expect(err.constructor).toBe(ApiError);
+      expect(err).not.toBeInstanceOf(ServerError);
+      expect(err.statusCode).toBe(600);
+    });
+
     test("keeps a non-JSON body raw without an error body", () => {
       const err = ApiError.fromResponse(500, {}, "<html>oops</html>");
       expect(err.constructor).toBe(InternalServerError);
       expect(err.responseHeaders).toEqual({});
       expect(err.responseBody).toBe("<html>oops</html>");
       expect(err.errorBody).toBeNull();
+    });
+
+    test("refuses a deeply nested error body", () => {
+      /* The error body is attacker-controlled, so parsing is depth-capped:
+       * an over-deep payload leaves errorBody null instead of overflowing
+       * the V8 stack. */
+      const body = "[".repeat(2000) + "]".repeat(2000);
+      const err = ApiError.fromResponse(400, {}, body);
+      expect(err.constructor).toBe(BadRequestError);
+      expect(err.responseBody).toBe(body);
+      expect(err.errorBody).toBeNull();
+    });
+  });
+
+  describe("toString", () => {
+    test("renders the message, status, headers and body", () => {
+      const err = new ApiError(
+        404,
+        "not found",
+        { "x-request-id": "abc" },
+        '{"code":7}',
+        null,
+      );
+      expect(err.toString()).toBe(
+        'not found\nHTTP status code: 404\nResponse headers: {"x-request-id":"abc"}\nResponse body: {"code":7}',
+      );
+    });
+
+    test("omits an absent status, headers and body", () => {
+      const err = new ApiError(0, "connection reset");
+      expect(err.toString()).toBe("connection reset");
     });
   });
 });

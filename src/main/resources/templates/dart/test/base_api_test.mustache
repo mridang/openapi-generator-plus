@@ -250,9 +250,9 @@ void main() {
 
     // -- TypedErrorBodyTests --
     //
-    // ApiException exposes typedErrorBody<T>(fromJson) which deserialises the
+    // ApiException exposes getTypedErrorBody<T>(fromJson) which deserialises the
     // response body into a typed model when the server returned JSON.
-    test('typedErrorBody parses JSON body into a typed model', () async {
+    test('getTypedErrorBody parses JSON body into a typed model', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -272,7 +272,7 @@ void main() {
           await api.getPetById(1, null);
           fail('expected BadRequestException');
         } on BadRequestException catch (e) {
-          final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
+          final typed = e.getTypedErrorBody<ApiResponse>(ApiResponse.fromJson);
           expect(typed, isNotNull);
           expect(typed!.code, equals(400));
           expect(typed.message, equals('bad input'));
@@ -282,7 +282,7 @@ void main() {
       }
     });
 
-    test('typedErrorBody returns null on empty response body', () async {
+    test('getTypedErrorBody returns null on empty response body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
@@ -300,7 +300,7 @@ void main() {
           await api.getPetById(1, null);
           fail('expected BadRequestException');
         } on BadRequestException catch (e) {
-          final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
+          final typed = e.getTypedErrorBody<ApiResponse>(ApiResponse.fromJson);
           expect(typed, isNull);
         }
       } finally {

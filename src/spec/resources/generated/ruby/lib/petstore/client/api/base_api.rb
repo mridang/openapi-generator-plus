@@ -45,7 +45,7 @@ module Petstore::Client
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
         @config = config
         @api_client = api_client || ::Petstore::Client::DefaultApiClient.new
         @header_selector = ::Petstore::Client::HeaderSelector.new

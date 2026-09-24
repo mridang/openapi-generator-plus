@@ -13,7 +13,7 @@ module Petstore::Client
     # StoreApi provides methods for the Store API group.
     # Access to Petstore orders
     class StoreApi < BaseApi
-      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
         super
       end
 

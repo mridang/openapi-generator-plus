@@ -100,20 +100,3 @@ require '{{modulePath}}/api/{{{classFilename}}}'
 require '{{.}}'
 {{/optionsRequires}}
 {{/hasAnyOptionsClasses}}
-
-# :nodoc:
-module {{moduleName}}
-  class << self
-    # Configure the default Configuration instance using a builder.
-    #
-    #     {{moduleName}}.configure do |b|
-    #       b.base_url 'https://api.example.com'
-    #       b.default_header 'Authorization', 'Bearer token'
-    #     end
-    def configure
-      builder = Configuration.builder
-      yield(builder) if block_given?
-      Configuration.default = builder.build
-    end
-  end
-end

@@ -40,7 +40,7 @@ module {{moduleName}}
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default, authenticator = nil)
+      def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil)
         @config = config
         @api_client = api_client || ::{{moduleName}}::DefaultApiClient.new
         @header_selector = ::{{moduleName}}::HeaderSelector.new

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 {{> api_info}}
-require 'json'
 {{#apiErrorParentFile}}
 require_relative '{{apiErrorParentFile}}'
 
@@ -52,8 +51,10 @@ module {{moduleName}}
       def self.parse_error_body(body)
         return nil if body.nil? || body.empty?
 
-        JSON.parse(body)
-      rescue JSON::ParserError
+        # F5: route through parse_json so the depth-cap rejects malicious
+        # 100k-deep error payloads before they exhaust the interpreter stack.
+        ::{{moduleName}}::ObjectSerializer.parse_json(body)
+      rescue SerializationError
         nil
       end
       private_class_method :parse_error_body
@@ -92,7 +93,9 @@ module {{moduleName}}
       # @param klass [String] the target type name for deserialization
       # @return [Object, nil] the deserialized error body, or nil if the body is empty
       def typed_error_body(klass)
-        ObjectSerializer.deserialize(response_body, klass)
+        return nil if response_body.nil? || response_body.empty?
+
+        ::{{moduleName}}::ObjectSerializer.deserialize(response_body, klass)
       end
 
       # Build a human-readable error message from the stored attributes.

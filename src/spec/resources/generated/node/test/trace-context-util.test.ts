@@ -26,9 +26,9 @@ import type { Sampler } from "@opentelemetry/sdk-trace-base";
 import { injectTraceContext } from "../src/trace-context-util.js";
 
 describe("TraceContextUtil", () => {
-  test("is a no-op without tracer", async () => {
+  test("is a no-op without tracer", () => {
     const headers: Record<string, string> = {};
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(0);
   });
 
@@ -38,47 +38,47 @@ describe("TraceContextUtil", () => {
     expect(Object.keys(headers).length).toBe(0);
   });
 
-  test("does not inject traceparent without OTel", async () => {
+  test("does not inject traceparent without OTel", () => {
     const headers: Record<string, string> = {};
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers["traceparent"]).toBeUndefined();
   });
 
-  test("does not inject tracestate without OTel", async () => {
+  test("does not inject tracestate without OTel", () => {
     const headers: Record<string, string> = {};
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers["tracestate"]).toBeUndefined();
   });
 
-  test("preserves Authorization header", async () => {
+  test("preserves Authorization header", () => {
     const headers: Record<string, string> = {
       Authorization: "Bearer token123",
     };
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers["Authorization"]).toBe("Bearer token123");
   });
 
-  test("preserves Content-Type header", async () => {
+  test("preserves Content-Type header", () => {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers["Content-Type"]).toBe("application/json");
   });
 
-  test("preserves X-Request-ID header", async () => {
+  test("preserves X-Request-ID header", () => {
     const headers: Record<string, string> = { "X-Request-ID": "req-12345" };
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers["X-Request-ID"]).toBe("req-12345");
   });
 
-  test("preserves all existing headers", async () => {
+  test("preserves all existing headers", () => {
     const headers: Record<string, string> = {
       Authorization: "Bearer token",
       "Content-Type": "application/json",
       "X-Request-ID": "abc-123",
     };
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(3);
     expect(headers["Authorization"]).toBe("Bearer token");
     expect(headers["Content-Type"]).toBe("application/json");
@@ -91,7 +91,7 @@ describe("TraceContextUtil", () => {
     const spanContext = await tracer.startActiveSpan(
       "request",
       async (span) => {
-        await injectTraceContext(headers);
+        injectTraceContext(headers);
         span.end();
         return span.spanContext();
       },
@@ -111,7 +111,7 @@ describe("TraceContextUtil", () => {
       {},
       remoteParent("vendor=value"),
       async (span) => {
-        await injectTraceContext(headers);
+        injectTraceContext(headers);
         span.end();
       },
     );
@@ -122,7 +122,7 @@ describe("TraceContextUtil", () => {
     const { tracer } = sdkTracer();
     const headers: Record<string, string> = {};
     await tracer.startActiveSpan("request", async (span) => {
-      await injectTraceContext(headers);
+      injectTraceContext(headers);
       span.end();
     });
     expect(headers["traceparent"]).toBeDefined();
@@ -135,11 +135,11 @@ describe("TraceContextUtil", () => {
     const sampledHeaders: Record<string, string> = {};
     const unsampledHeaders: Record<string, string> = {};
     await sampled.startActiveSpan("sampled", async (span) => {
-      await injectTraceContext(sampledHeaders);
+      injectTraceContext(sampledHeaders);
       span.end();
     });
     await unsampled.startActiveSpan("unsampled", async (span) => {
-      await injectTraceContext(unsampledHeaders);
+      injectTraceContext(unsampledHeaders);
       span.end();
     });
     const sampledFlags = sampledHeaders["traceparent"]!.split("-")[3]!;
@@ -155,8 +155,7 @@ describe("TraceContextUtil", () => {
 });
 
 /*
- * The active span has to survive the `await` inside injectTraceContext, so
- * the tests install the AsyncLocalStorage context manager and the W3C
+ * The tests install the AsyncLocalStorage context manager and the W3C
  * propagator the OpenTelemetry SDK registers by default. No global tracer
  * provider is installed: each test drives its own, and so controls the span.
  */
