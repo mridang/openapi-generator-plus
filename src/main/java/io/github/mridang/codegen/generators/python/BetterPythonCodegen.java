@@ -270,10 +270,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return "python:3-slim@sha256:c845af9399020c7e562969a13689e929074a10fd057acd1b1fad06a2fb068e97";
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The import-pruning pass is what lets the model, API and errors
+     * modules ship without a {@code # ruff: noqa: F401, F811} pragma. Those
+     * modules emit a fixed import block — every strict scalar, every typing
+     * container, every referenced model — because a Mustache template cannot
+     * know which of them a given schema actually uses, and the footer
+     * {@code imports} block re-imports names the header already brought in.
+     * Rather than guess the set in Java (and risk a NameError when the guess
+     * is short), the block is emitted wide and ruff deletes exactly the names
+     * nothing in the rendered file references. Ruff resolves deferred
+     * annotations, so a name used only inside a {@code from __future__ import
+     * annotations} annotation is kept.
+     *
+     * <p>{@code --exit-zero} so a finding ruff cannot fix does not abort
+     * generation before {@code ruff format} runs; the linting spec is the gate
+     * that fails on anything left over.
+     */
     @Override
     protected String[] getFormatterCommands() {
-        return new String[] {"pip install --quiet \"ruff>=0.15,<0.16\"", "ruff format ."};
+        return new String[] {
+            "pip install --quiet \"ruff>=0.15,<0.16\"",
+            "ruff check --select F401,F811 --fix --exit-zero --quiet .",
+            "ruff format ."
+        };
     }
 
     /** {@inheritDoc} */
@@ -433,6 +455,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Emitted for the full golden suite and for real clients that opt in via
         // generateUnitTests.
         if (emitUnitTests()) {
+            // The dev-dependency manifest: one line per dependency an emitted test
+            // imports. Every client keep-lists its own package manifest, so this
+            // generator-owned file is the only thing keeping the two in step.
+            supportingFiles.add(
+                    new SupportingFile(
+                            "dev_dependencies.mustache",
+                            ".openapi-generator",
+                            "DEV-DEPENDENCIES"));
             supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));
             supportingFiles.add(
                     new SupportingFile("test/tests_init.py", "test", "__init__.py"));
