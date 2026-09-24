@@ -1,18 +1,51 @@
 {{>api_info}}
 
-import { context, propagation, ROOT_CONTEXT, trace, TraceFlags } from '@opentelemetry/api';
 import type { Context, Tracer } from '@opentelemetry/api';
-import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
-import { TraceState, W3CTraceContextPropagator } from '@opentelemetry/core';
-import {
+import type { InMemorySpanExporter as InMemorySpanExporterType, Sampler } from '@opentelemetry/sdk-trace-base';
+import { injectTraceContext } from '../src/trace-context-util{{importFileExtension}}';
+
+/*
+ * Load OpenTelemetry exactly the way trace-context-util does, rather than
+ * importing it. In an ES module package the test runner resolves an `import`
+ * through its own registry and the SDK's synchronous load through another, so
+ * the two hold separate copies: a span started here would be invisible to the
+ * SDK and every assertion below would pass on a no-op. An application has one
+ * copy, so this mirrors production rather than working around it.
+ */
+const loadModule: (id: string) => unknown =
+  typeof require === 'function'
+    ? require
+    : (
+        globalThis as unknown as {
+          process: {
+            getBuiltinModule: (id: string) => {
+              createRequire: (path: string) => (id: string) => unknown;
+            };
+            cwd: () => string;
+          };
+        }
+      ).process
+        .getBuiltinModule('node:module')
+        .createRequire(`${process.cwd()}/`);
+
+const { context, propagation, ROOT_CONTEXT, trace, TraceFlags } = loadModule(
+  '@opentelemetry/api',
+) as typeof import('@opentelemetry/api');
+const { AsyncLocalStorageContextManager } = loadModule(
+  '@opentelemetry/context-async-hooks',
+) as typeof import('@opentelemetry/context-async-hooks');
+const { TraceState, W3CTraceContextPropagator } = loadModule(
+  '@opentelemetry/core',
+) as typeof import('@opentelemetry/core');
+const {
   AlwaysOffSampler,
   AlwaysOnSampler,
   BasicTracerProvider,
   InMemorySpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
-import type { Sampler } from '@opentelemetry/sdk-trace-base';
-import { injectTraceContext } from '../src/trace-context-util{{importFileExtension}}';
+} = loadModule(
+  '@opentelemetry/sdk-trace-base',
+) as typeof import('@opentelemetry/sdk-trace-base');
 
 describe('TraceContextUtil', () => {
   test('is a no-op without tracer', () => {
@@ -80,7 +113,7 @@ describe('TraceContextUtil', () => {
     });
     const flags = spanContext.traceFlags.toString(16).padStart(2, '0');
     expect(headers['traceparent']).toBe(`00-${spanContext.traceId}-${spanContext.spanId}-${flags}`);
-    expect(exporter.getFinishedSpans().map((s) => s.name)).toEqual(['request']);
+    expect(exporter.getFinishedSpans().map((s: { name: string }) => s.name)).toEqual(['request']);
   });
 
   test('includes tracestate when present on the active span', async () => {
@@ -143,7 +176,7 @@ afterAll(() => {
 });
 
 /** A tracer from a real SDK provider that records every finished span in memory. */
-function sdkTracer(sampler: Sampler = new AlwaysOnSampler()): { tracer: Tracer; exporter: InMemorySpanExporter } {
+function sdkTracer(sampler: Sampler = new AlwaysOnSampler()): { tracer: Tracer; exporter: InMemorySpanExporterType } {
   const exporter = new InMemorySpanExporter();
   const provider = new BasicTracerProvider({
     sampler,
