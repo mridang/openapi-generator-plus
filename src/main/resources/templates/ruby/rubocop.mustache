@@ -21,6 +21,13 @@ Layout/LineLength:
 Layout/MultilineMethodCallIndentation:
   Enabled: false
 
+# One behaviour is often worth several assertions -- that a failure carries the
+# right type, status and cause is one fact checked three ways -- and a test
+# written as `def test_x` in a hand-written suite is flagged where the same
+# test written in spec style is not. The count is not a defect.
+Minitest/MultipleAssertions:
+  Enabled: false
+
 Metrics/AbcSize:
   Enabled: false
 Metrics/BlockLength:
