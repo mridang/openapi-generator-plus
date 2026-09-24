@@ -129,6 +129,12 @@ final class SharedRuntimeContainer {
                   .withEnv("DOCKER_HOST", "unix:///var/run/docker.sock")
                   .withEnv("HOST_APP_PATH", outputDir.toAbsolutePath().toString())
                   .withLabel("com.mridang.openapi.testcontainer", "true")
+                  /* Which checkout started this container. The build's
+                   * cleanup removes only containers carrying its own path,
+                   * so parallel checkouts cannot kill each other's runs. */
+                  .withLabel(
+                      "com.mridang.openapi.workdir",
+                      System.getProperty("openapi.workdir", ""))
                   .withWorkingDirectory("/app")
                   .withCommand("tail", "-f", "/dev/null")
                   .withCreateContainerCmdModifier(cmd -> cmd.withUser("root"))

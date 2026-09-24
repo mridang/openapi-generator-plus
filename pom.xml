@@ -336,6 +336,13 @@
           </execution>
         </executions>
         <configuration>
+          <systemPropertyVariables>
+            <!-- Identifies the containers THIS checkout started, so the cleanup
+                 below removes only its own. Several checkouts of this repo run
+                 specs at the same time, and a cleanup that matched every
+                 container killed the other runs' containers mid-test. -->
+            <openapi.workdir>${project.basedir}</openapi.workdir>
+          </systemPropertyVariables>
           <testSourceDirectory>src/spec/java</testSourceDirectory>
           <includes>
             <include>**/*Spec.java</include>
@@ -392,7 +399,7 @@
               <executable>sh</executable>
               <arguments>
                 <argument>-c</argument>
-                <argument>docker ps -aq --filter "label=com.mridang.openapi.testcontainer=true" | xargs -r docker rm -f || true</argument>
+                <argument>docker ps -aq --filter "label=com.mridang.openapi.workdir=${project.basedir}" | xargs -r docker rm -f || true</argument>
               </arguments>
             </configuration>
           </execution>
