@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 # enum-unknown-value-silent-vs-throw test helper. Defined at the top level
 # (NOT inside the test module) so it lives at its real
 # PetstoreClient.Models.TestEnumStatus address that ObjectSerializer.
@@ -47,7 +42,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         minute: 30,
         second: 45,
         microsecond: {0, 0},
-        utc_offset: 19800,
+        utc_offset: 19_800,
         std_offset: 0,
         zone_abbr: "+05:30",
         time_zone: "Etc/UTC+5",
@@ -69,7 +64,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         minute: 30,
         second: 45,
         microsecond: {0, 0},
-        utc_offset: -28800,
+        utc_offset: -28_800,
         std_offset: 0,
         zone_abbr: "-08:00",
         time_zone: "Etc/UTC-8",

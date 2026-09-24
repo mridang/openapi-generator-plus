@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Models.MetadataTest do
   use ExUnit.Case, async: true
 
@@ -52,7 +47,7 @@ defmodule PetstoreClient.Models.MetadataTest do
   # documentation noise. It is a parity assertion that should already pass and
   # stay passing.
   describe "generated model docblocks (L1 parity)" do
-    test "no generated model carries a literal \"Example: null\" / \"@example null\" doc line" do
+    test ~s(no generated model carries a literal "Example: null" / "@example null" doc line) do
       model_files =
         Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
 

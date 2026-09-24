@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
   use ExUnit.Case, async: true
 

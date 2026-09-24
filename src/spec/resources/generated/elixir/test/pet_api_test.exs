@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.Api.PetApiTest do
   use ExUnit.Case, async: true
 
@@ -38,7 +33,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
     assert {:ok, result} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
     assert is_list(result)
-    assert length(result) > 0
+    assert result != []
   end
 
   test "get_pet_by_id returns a pet by id", %{api: api} do

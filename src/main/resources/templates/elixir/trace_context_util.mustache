@@ -1,9 +1,4 @@
 {{>api_info}}
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 
 defmodule {{moduleName}}.TraceContextUtil do
   @moduledoc """
@@ -33,9 +28,11 @@ defmodule {{moduleName}}.TraceContextUtil do
   def inject_trace_context(headers) do
     if Code.ensure_loaded?(:otel_propagator_text_map) do
       # Called through apply/3: :opentelemetry_api is an optional dependency,
-      # so it is not known when this module is compiled. The configured
-      # injector writes into the headers map through the setter, which
-      # receives the key and value before the carrier.
+      # so it is not known when this module is compiled. A call on a variable
+      # module is constant-folded by the compiler and warns that the module is
+      # undefined, which `--warnings-as-errors` turns into a failure. The
+      # configured injector writes into the headers map through the setter,
+      # which receives the key and value before the carrier.
       try do
         injector = apply(:opentelemetry, :get_text_map_injector, [])
 

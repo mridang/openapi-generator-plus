@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.DefaultApiClientUnitTest do
   use ExUnit.Case, async: true
 
@@ -751,26 +746,29 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     loc = "http://127.0.0.1:#{port}/loop"
 
     spawn(fn ->
-      Enum.reduce_while(1..max_conns, :ok, fn _, _ ->
-        case :gen_tcp.accept(listen_socket, 5000) do
-          {:ok, socket} ->
-            :gen_tcp.recv(socket, 0, 2000)
+      # `_ =` because the fold's result is not used: the accept loop runs for
+      # its side effects and Credo rejects a discarded `Enum` return value.
+      _ =
+        Enum.reduce_while(1..max_conns, :ok, fn _, _ ->
+          case :gen_tcp.accept(listen_socket, 5000) do
+            {:ok, socket} ->
+              :gen_tcp.recv(socket, 0, 2000)
 
-            response =
-              "HTTP/1.1 302 Found\r\n" <>
-                "Location: #{loc}\r\n" <>
-                "Content-Length: 0\r\n" <>
-                "Connection: close\r\n" <>
-                "\r\n"
+              response =
+                "HTTP/1.1 302 Found\r\n" <>
+                  "Location: #{loc}\r\n" <>
+                  "Content-Length: 0\r\n" <>
+                  "Connection: close\r\n" <>
+                  "\r\n"
 
-            :gen_tcp.send(socket, response)
-            :gen_tcp.close(socket)
-            {:cont, :ok}
+              :gen_tcp.send(socket, response)
+              :gen_tcp.close(socket)
+              {:cont, :ok}
 
-          _ ->
-            {:halt, :ok}
-        end
-      end)
+            _ ->
+              {:halt, :ok}
+          end
+        end)
 
       :gen_tcp.close(listen_socket)
     end)

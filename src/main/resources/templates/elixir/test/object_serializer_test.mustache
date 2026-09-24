@@ -1,9 +1,4 @@
 {{#generateTests}}
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 # enum-unknown-value-silent-vs-throw test helper. Defined at the top level
 # (NOT inside the test module) so it lives at its real
 # {{moduleName}}.Models.TestEnumStatus address that ObjectSerializer.
@@ -42,7 +37,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       # directly to preserve the +05:30 offset in the serialized output.
       dt = %DateTime{
         year: 2024, month: 1, day: 1, hour: 12, minute: 30, second: 45,
-        microsecond: {0, 0}, utc_offset: 19800, std_offset: 0,
+        microsecond: {0, 0}, utc_offset: 19_800, std_offset: 0,
         zone_abbr: "+05:30", time_zone: "Etc/UTC+5", calendar: Calendar.ISO
       }
       result = {{moduleName}}.ObjectSerializer.stringify(dt)
@@ -54,7 +49,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       # directly to preserve the -08:00 offset in the serialized output.
       dt = %DateTime{
         year: 2024, month: 1, day: 1, hour: 12, minute: 30, second: 45,
-        microsecond: {0, 0}, utc_offset: -28800, std_offset: 0,
+        microsecond: {0, 0}, utc_offset: -28_800, std_offset: 0,
         zone_abbr: "-08:00", time_zone: "Etc/UTC-8", calendar: Calendar.ISO
       }
       result = {{moduleName}}.ObjectSerializer.stringify(dt)

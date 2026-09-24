@@ -1,0 +1,17 @@
+# Dev dependencies the generated tests import.
+#
+# This file is generator-owned; the package manifest is not, because it carries
+# the package's own metadata and every real client keep-lists it. That makes
+# this file the only thing keeping the two in step, so the generated test
+# bootstrap reads it and fails with a message naming it when an entry is not
+# declared in mix.exs.
+#
+# One entry per line: <name> <version-range>  # <which test needs it>
+{{#generateTests}}
+excoveralls ~> 0.18  # mix test --cover, the coverage reporter mix.exs configures
+junit_formatter ~> 3.4  # test/test_helper.exs
+testcontainers ~> 1.12  # test/test_helper.exs
+fs ~> 8.6  # test/test_helper.exs, via testcontainers
+opentelemetry_api ~> 1.4  # test/trace_context_util_test.exs
+opentelemetry ~> 1.5  # test/trace_context_util_test.exs
+{{/generateTests}}

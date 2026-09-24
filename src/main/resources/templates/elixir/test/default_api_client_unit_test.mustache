@@ -1,9 +1,4 @@
 {{#generateTests}}
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule {{moduleName}}.DefaultApiClientUnitTest do
   use ExUnit.Case, async: true
 
@@ -651,8 +646,11 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     loc = "http://127.0.0.1:#{port}/loop"
 
     spawn(fn ->
-      Enum.reduce_while(1..max_conns, :ok, fn _, _ ->
-        case :gen_tcp.accept(listen_socket, 5000) do
+      # `_ =` because the fold's result is not used: the accept loop runs for
+      # its side effects and Credo rejects a discarded `Enum` return value.
+      _ =
+        Enum.reduce_while(1..max_conns, :ok, fn _, _ ->
+          case :gen_tcp.accept(listen_socket, 5000) do
           {:ok, socket} ->
             :gen_tcp.recv(socket, 0, 2000)
 

@@ -1,9 +1,4 @@
 {{>api_info}}
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 
 defmodule {{moduleName}}.HeaderSelector do
   @moduledoc false
@@ -37,11 +32,11 @@ defmodule {{moduleName}}.HeaderSelector do
       end
 
     headers =
-      if not is_multipart do
+      if is_multipart do
+        headers
+      else
         ct = if is_nil(content_type) or content_type == "", do: "application/json", else: content_type
         Map.put(headers, "Content-Type", ct)
-      else
-        headers
       end
 
     headers

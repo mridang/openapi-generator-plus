@@ -318,7 +318,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("credo_exs.mustache", "", ".credo.exs"),
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
-            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec(
+                "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
         );
     }
 

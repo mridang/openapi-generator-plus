@@ -1,9 +1,4 @@
 {{>api_info}}
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 
 defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   @moduledoc """
@@ -137,11 +132,9 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   end
 
   defp try_fetch_token(state, token_url, params, extra_headers) do
-    try do
-      {:ok, fetch_token(state, token_url, params, extra_headers)}
-    rescue
-      _ -> :error
-    end
+    {:ok, fetch_token(state, token_url, params, extra_headers)}
+  rescue
+    _ -> :error
   end
 
   @doc """
@@ -315,21 +308,19 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   defp parse_expires_in(value) when is_binary(value) do
     trimmed = String.trim(value)
 
-    cond do
-      trimmed == "" ->
-        0
+    if trimmed == "" do
+      0
+    else
+      case Integer.parse(trimmed) do
+        {n, ""} ->
+          n
 
-      true ->
-        case Integer.parse(trimmed) do
-          {n, ""} ->
-            n
-
-          _ ->
-            case Float.parse(trimmed) do
-              {f, ""} -> trunc(:math.floor(f))
-              _ -> 0
-            end
-        end
+        _ ->
+          case Float.parse(trimmed) do
+            {f, ""} -> trunc(:math.floor(f))
+            _ -> 0
+          end
+      end
     end
   end
 

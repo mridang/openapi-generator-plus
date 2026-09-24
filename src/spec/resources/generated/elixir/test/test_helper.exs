@@ -3,6 +3,31 @@ ExUnit.start(formatters: [ExUnit.CLIFormatter, JUnitFormatter])
 Application.put_env(:junit_formatter, :report_dir, ".out/reports")
 Application.put_env(:junit_formatter, :report_file, "junit.xml")
 
+# .openapi-generator/DEV-DEPENDENCIES lists every dependency the generated
+# tests import. It is generator-owned; mix.exs is not, because it carries the
+# project's own metadata and every real client keep-lists it. Reading both here
+# turns a drift between them into a message naming the file instead of an
+# opaque build failure.
+dev_dependencies =
+  [File.cwd!(), ".openapi-generator", "DEV-DEPENDENCIES"]
+  |> Path.join()
+  |> File.read!()
+  |> String.split("\n", trim: true)
+  |> Enum.reject(&String.starts_with?(&1, "#"))
+  |> Enum.map(fn line -> line |> String.split() |> hd() |> String.to_atom() end)
+
+missing_dependencies =
+  Enum.reject(dev_dependencies, fn app ->
+    match?({:error, {:already_loaded, ^app}}, Application.load(app)) or
+      Application.spec(app, :vsn) != nil
+  end)
+
+if missing_dependencies != [] do
+  raise "#{Enum.map_join(missing_dependencies, ", ", &inspect/1)} " <>
+          "required by the generated tests but not declared in mix.exs; every entry " <>
+          "in .openapi-generator/DEV-DEPENDENCIES must be declared there"
+end
+
 System.put_env("TESTCONTAINERS_RYUK_DISABLED", "true")
 Process.flag(:trap_exit, true)
 {:ok, _} = Testcontainers.start_link()
@@ -76,6 +101,20 @@ squid_config =
   |> Testcontainers.Container.with_exposed_port(3128)
   |> Testcontainers.Container.with_exposed_port(3129)
   |> Testcontainers.Container.with_bind_mount(squid_conf_path, "/etc/squid/squid.conf")
+  # ubuntu/squid declares VOLUME /var/log/squid and /var/spool/squid, so every
+  # proxy container would otherwise leave two anonymous volumes behind. The
+  # other SDKs mount both as tmpfs; `testcontainers` for Elixir has no tmpfs
+  # mount (its Docker request hard-codes `Type: "volume"`), so both paths get a
+  # named volume instead: two volumes exist in total and are reused by every
+  # run, rather than two more being created and stranded each time.
+  |> Testcontainers.Container.with_bind_volume(
+    "openapi-generator-squid-log",
+    "/var/log/squid"
+  )
+  |> Testcontainers.Container.with_bind_volume(
+    "openapi-generator-squid-spool",
+    "/var/spool/squid"
+  )
   |> Testcontainers.Container.with_network(network_name)
 
 {:ok, squid} = Testcontainers.start_container(squid_config)

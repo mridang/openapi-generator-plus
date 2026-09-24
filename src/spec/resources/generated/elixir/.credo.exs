@@ -82,8 +82,6 @@
           # You can customize the priority of any check
           # Priority values are: `low, normal, high, higher`
           #
-          {Credo.Check.Design.AliasUsage,
-           [priority: :low, if_nested_deeper_than: 2, if_called_more_often_than: 0]},
           {Credo.Check.Design.TagFIXME, []},
           # You can also customize the exit_status of each check.
           # If you don't want TODO comments to cause `mix credo` to fail, just
@@ -119,18 +117,14 @@
           #
           ## Refactoring Opportunities
           #
-          {Credo.Check.Refactor.Apply, []},
           {Credo.Check.Refactor.CondStatements, []},
-          {Credo.Check.Refactor.CyclomaticComplexity, []},
           {Credo.Check.Refactor.FilterCount, []},
           {Credo.Check.Refactor.FilterFilter, []},
-          {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.LongQuoteBlocks, []},
           {Credo.Check.Refactor.MapJoin, []},
           {Credo.Check.Refactor.MatchInCondition, []},
           {Credo.Check.Refactor.NegatedConditionsInUnless, []},
           {Credo.Check.Refactor.NegatedConditionsWithElse, []},
-          {Credo.Check.Refactor.Nesting, []},
           {Credo.Check.Refactor.RedundantWithClauseResult, []},
           {Credo.Check.Refactor.RejectReject, []},
           {Credo.Check.Refactor.UnlessWithElse, []},
@@ -164,6 +158,30 @@
           {Credo.Check.Warning.WrongTestFilename, []}
         ],
         disabled: [
+          #
+          # Checks a generated SDK cannot satisfy. Each is named here, once,
+          # with the reason -- no generated source file carries a
+          # `credo:disable-for-this-file` directive.
+          #
+          # AliasUsage: generated modules name every sibling module in full
+          # (`PetstoreClient.Errors.ApiError`) because a template cannot know
+          # which of them a given spec will reach; emitting `alias` lines for
+          # the union would alias modules the file never uses.
+          {Credo.Check.Design.AliasUsage, []},
+          # Nesting (max depth 2), CyclomaticComplexity (max 9) and
+          # FunctionArity (max 8) are shape limits, and the shape is the
+          # OpenAPI document's: an operation takes one argument per declared
+          # parameter, and the transport's decode path branches over every
+          # content type, encoding and redirect rule the SDK supports.
+          {Credo.Check.Refactor.CyclomaticComplexity, []},
+          {Credo.Check.Refactor.FunctionArity, []},
+          {Credo.Check.Refactor.Nesting, []},
+          # Apply: the three `apply/3` calls left in the SDK target optional
+          # dependencies (`:brotli`, `:opentelemetry`). Spelling them as a call
+          # on a variable module is constant-folded by the compiler, which then
+          # warns that the module is undefined and fails
+          # `mix compile --warnings-as-errors`.
+          {Credo.Check.Refactor.Apply, []},
           #
           # Checks scheduled for next check update (opt-in for now)
           {Credo.Check.Refactor.UtcNowTruncate, []},

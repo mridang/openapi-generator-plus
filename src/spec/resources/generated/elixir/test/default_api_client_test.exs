@@ -1,8 +1,3 @@
-# credo:disable-for-this-file
-# Credo findings here are inherent to generated code (fully-qualified
-# nested-module references and machine-generated control flow); the SDK
-# uses Credo's default config and handles them with this file-level
-# directive rather than relaxing the ruleset.
 defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   use ExUnit.Case, async: true
 
@@ -416,12 +411,12 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       "--" <>
         boundary <>
         "\r\n" <>
-        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" <>
+        ~s(Content-Disposition: form-data; name="description"\r\n\r\n) <>
         "hello\r\n" <>
         "--" <>
         boundary <>
         "\r\n" <>
-        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" <>
+        ~s(Content-Disposition: form-data; name="file"; filename="file"\r\n) <>
         "Content-Type: application/octet-stream\r\n\r\n" <>
         "file-content-bytes\r\n" <>
         "--" <> boundary <> "--\r\n"
