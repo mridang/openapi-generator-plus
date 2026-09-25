@@ -49,10 +49,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Creates a client with default transport settings.
     ///
     /// The default ``TransportOptions`` configure no custom CA certificate,
-    /// so this initializer never fails and is non-throwing.
+    /// so this initializer never fails and is non-throwing. It routes through
+    /// do/catch rather than force-try, so a future change that makes
+    /// construction fallible surfaces a clear message instead of crashing.
     public convenience init() {
-        {{! force-unwrap is safe: default TransportOptions have no caCertPath, so the throwing init cannot fail here. }}
-        try! self.init(transportOptions: TransportOptionsBuilder().build())
+        do {
+            try self.init(transportOptions: TransportOptionsBuilder().build())
+        } catch {
+            preconditionFailure("default DefaultApiClient initialization failed: \(error)")
+        }
     }
 
     /// Creates a client with the given transport settings.
@@ -656,8 +661,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                     stream.avail_out = uInt(chunkSize)
                     let s = inflate(&stream, Z_NO_FLUSH)
                     let produced = chunkSize - Int(stream.avail_out)
-                    if produced > 0 {
-                        output.append(outPtr.baseAddress!, count: produced)
+                    if produced > 0, let outBase = outPtr.baseAddress {
+                        output.append(outBase, count: produced)
                     }
                     return s
                 }

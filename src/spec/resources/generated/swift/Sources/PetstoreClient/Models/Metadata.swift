@@ -47,7 +47,7 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
     /* Encode additional properties */
     var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
     for (key, value) in additionalProperties {
-      let codingKey = DynamicCodingKey(stringValue: key)!
+      let codingKey = DynamicCodingKey(stringValue: key)
       try dynamicContainer.encode(value, forKey: codingKey)
     }
   }
@@ -66,7 +66,7 @@ private struct DynamicCodingKey: CodingKey {
   var stringValue: String
   var intValue: Int?
 
-  init?(stringValue: String) {
+  init(stringValue: String) {
     self.stringValue = stringValue
     self.intValue = nil
   }

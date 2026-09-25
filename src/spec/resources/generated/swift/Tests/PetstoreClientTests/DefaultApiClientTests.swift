@@ -746,12 +746,17 @@
       }
       let sent = StubURLProtocol.withBody(request)
       let (data, statusCode, headers) = handler(sent)
-      let response = HTTPURLResponse(
-        url: request.url!,
-        statusCode: statusCode,
-        httpVersion: "HTTP/1.1",
-        headerFields: headers
-      )!
+      guard let requestURL = request.url,
+        let response = HTTPURLResponse(
+          url: requestURL,
+          statusCode: statusCode,
+          httpVersion: "HTTP/1.1",
+          headerFields: headers
+        )
+      else {
+        client?.urlProtocolDidFinishLoading(self)
+        return
+      }
       /* A custom protocol must perform redirects itself: hand the follow-up
          request to the loading system (and so to the SDK's redirect
          delegate) with the method and body a real HTTP loader would use —
@@ -810,10 +815,16 @@
       switch outcome {
       case .redirect(let status, let location):
         let headers = ["Location": location]
-        let response = HTTPURLResponse(
-          url: request.url!, statusCode: status,
-          httpVersion: "HTTP/1.1", headerFields: headers)!
-        var newRequest = URLRequest(url: URL(string: location)!)
+        guard let requestURL = request.url,
+          let response = HTTPURLResponse(
+            url: requestURL, statusCode: status,
+            httpVersion: "HTTP/1.1", headerFields: headers),
+          let redirectURL = URL(string: location)
+        else {
+          client?.urlProtocolDidFinishLoading(self)
+          return
+        }
+        var newRequest = URLRequest(url: redirectURL)
         newRequest.httpMethod =
           (status == 301 || status == 302 || status == 303)
           ? "GET" : request.httpMethod
@@ -825,10 +836,15 @@
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocolDidFinishLoading(self)
       case .ok(let data):
-        let response = HTTPURLResponse(
-          url: request.url!, statusCode: 200,
-          httpVersion: "HTTP/1.1",
-          headerFields: ["Content-Type": "application/json"])!
+        guard let requestURL = request.url,
+          let response = HTTPURLResponse(
+            url: requestURL, statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: ["Content-Type": "application/json"])
+        else {
+          client?.urlProtocolDidFinishLoading(self)
+          return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
         client?.urlProtocolDidFinishLoading(self)

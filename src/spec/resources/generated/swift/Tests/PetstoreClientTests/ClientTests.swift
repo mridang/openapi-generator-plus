@@ -12,7 +12,16 @@ import Testing
 
 @Suite final class ClientTests {
 
-  private let authenticator = try! BearerAuthenticator(host: "/api/v3", token: "test-token")
+  private let authenticator: BearerAuthenticator = {
+    // Constant host and token are known valid; build in do/catch so a
+    // future change surfaces a clear message instead of an opaque force-try
+    // crash.
+    do {
+      return try BearerAuthenticator(host: "/api/v3", token: "test-token")
+    } catch {
+      preconditionFailure("test BearerAuthenticator initialization failed: \(error)")
+    }
+  }()
 
   @Test func testConstructWithAuthenticatorOnly() throws {
     _ = try Client(authenticator: authenticator)

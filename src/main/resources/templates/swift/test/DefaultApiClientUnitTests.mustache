@@ -667,12 +667,17 @@ private final class UnitStubURLProtocol: URLProtocol {
         }
         var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
         let failWith = headers.removeValue(forKey: UnitStubURLProtocol.failWithHeader)
-        let response = HTTPURLResponse(
-            url: request.url!,
-            statusCode: statusCode,
-            httpVersion: "HTTP/1.1",
-            headerFields: headers
-        )!
+        guard let requestURL = request.url,
+            let response = HTTPURLResponse(
+                url: requestURL,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )
+        else {
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         if failWith == "cannotDecodeContentData" {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))

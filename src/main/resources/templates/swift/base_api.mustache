@@ -356,7 +356,7 @@ public class BaseApi: @unchecked Sendable {
                 try appendMultipartField(&body, boundary: boundary, name: name, value: value)
             }
         }
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        body.append(Data("--\(boundary)--\r\n".utf8))
         return body
     }
 
@@ -368,23 +368,23 @@ public class BaseApi: @unchecked Sendable {
             let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
             let mimeType = mimeTypeForFilename(fileName)
             let disposition = try buildContentDisposition(name: safeName, filename: fileName)
-            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
             body.append(fileData)
-            body.append("\r\n".data(using: .utf8)!)
+            body.append(Data("\r\n".utf8))
         } else if let data = value as? Data {
             let mimeType = mimeTypeForFilename(name)
             let disposition = try buildContentDisposition(name: safeName, filename: name)
-            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
             body.append(data)
-            body.append("\r\n".data(using: .utf8)!)
+            body.append(Data("\r\n".utf8))
         } else if value is String || value is Int || value is Double || value is Bool {
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".utf8))
         } else {
             /* Model objects -- serialize to JSON */
             if let jsonString = try? ObjectSerializer.serialize(value) {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".utf8))
             } else {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+                body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".utf8))
             }
         }
     }

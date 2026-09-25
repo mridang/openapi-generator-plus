@@ -4,10 +4,19 @@ import Foundation
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
 internal final class HeaderSelector: Sendable {
-    private static let jsonMIMEPattern = try! NSRegularExpression(
-        pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
-        options: .caseInsensitive
-    )
+    /// Matches JSON media types. The pattern is a compile-time constant, built
+    /// through do/catch rather than force-try so a future edit that breaks it
+    /// fails with a clear message instead of crashing.
+    private static let jsonMIMEPattern: NSRegularExpression = {
+        do {
+            return try NSRegularExpression(
+                pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
+                options: .caseInsensitive
+            )
+        } catch {
+            preconditionFailure("jsonMIMEPattern is not a valid regular expression: \(error)")
+        }
+    }()
 
     init() {}
 
