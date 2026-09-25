@@ -11,5 +11,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>petStoreBasic</c> security scheme.
 /// </summary>
-public sealed class PetStoreBasicAuthenticator(string host, string username, string password)
-    : BasicAuthenticator(host, username, password) { }
+public sealed class PetStoreBasicAuthenticator : BasicAuthenticator
+{
+    public PetStoreBasicAuthenticator(string host, string username, string password)
+        : base(host, username, password) { }
+}

@@ -8,5 +8,8 @@ namespace {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespa
 /// <summary>
 /// Scheme-specific authenticator for the <c>{{schemeName}}</c> security scheme.
 /// </summary>
-public sealed class {{className}}({{{constructorSignature}}})
-    : {{baseClass}}({{{superCall}}}) { }
+public sealed class {{className}} : {{baseClass}}
+{
+    public {{className}}({{{constructorSignature}}})
+        : base({{{superCall}}}) { }
+}

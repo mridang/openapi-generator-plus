@@ -11,5 +11,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>serviceToken</c> security scheme.
 /// </summary>
-public sealed class ServiceTokenAuthenticator(string host, string token)
-    : BearerAuthenticator(host, token) { }
+public sealed class ServiceTokenAuthenticator : BearerAuthenticator
+{
+    public ServiceTokenAuthenticator(string host, string token)
+        : base(host, token) { }
+}

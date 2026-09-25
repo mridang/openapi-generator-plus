@@ -11,5 +11,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>sessionCookie</c> security scheme.
 /// </summary>
-public sealed class SessionCookieAuthenticator(string host, string apiKey)
-    : ApiKeyAuthenticator(host, "SESSION_ID", apiKey, ApiKeyLocation.Cookie) { }
+public sealed class SessionCookieAuthenticator : ApiKeyAuthenticator
+{
+    public SessionCookieAuthenticator(string host, string apiKey)
+        : base(host, "SESSION_ID", apiKey, ApiKeyLocation.Cookie) { }
+}

@@ -11,5 +11,8 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>internalApiKey</c> security scheme.
 /// </summary>
-public sealed class InternalApiKeyAuthenticator(string host, string apiKey)
-    : ApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocation.Header) { }
+public sealed class InternalApiKeyAuthenticator : ApiKeyAuthenticator
+{
+    public InternalApiKeyAuthenticator(string host, string apiKey)
+        : base(host, "X-Internal-Key", apiKey, ApiKeyLocation.Header) { }
+}
