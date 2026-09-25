@@ -12,6 +12,10 @@ lint: install
 	ruff check .
 
 format: install
+	# Mirror the generator's own formatter step (getFormatterCommands):
+	# strip the unused imports the wide model import-block emits, THEN format.
+	# Without the first line a `make generate` leaves imports ruff -> lint fails.
+	ruff check --select F401,F811 --fix --exit-zero --quiet .
 	ruff format .
 
 typecheck: install
