@@ -1,0 +1,45 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each constant corresponds to a server entry defined in the spec's
+/// <c>servers</c> array. Use these constants with
+/// <see cref="ConfigurationBuilder.BaseUrl(string)"/> to select a server:
+/// <code>
+/// var config = Configuration.Builder()
+///     .BaseUrl(Servers.Server0.GetUrl())
+///     .Build();
+/// </code>
+///
+/// For servers with variables, pass overrides via
+/// <see cref="ServerConfiguration.GetUrl(Dictionary{string, string})"/>.
+/// </summary>
+public static class Servers
+{
+{{#serverConfigs}}
+    /// <summary>
+    /// Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+    ///
+    /// {{{serverDescription}}}{{/serverDescription}}
+    /// </summary>
+    {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{{serverUrl}}}", {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []);{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
+        "{{{serverUrl}}}",
+        {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+        new Dictionary<string, ServerVariable>
+        {
+{{#serverVariables}}            ["{{varName}}"] = new ServerVariable(
+                "{{{varDefault}}}",
+                {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}),
+{{/serverVariables}}        }
+    );{{/hasVariables}}
+
+{{/serverConfigs}}
+    /// <summary>
+    /// All server configurations in declaration order.
+    /// </summary>
+    public static readonly IReadOnlyList<ServerConfiguration> All = [{{#serverConfigs}}Server{{serverIndex}}{{^-last}}, {{/-last}}{{/serverConfigs}}];
+}

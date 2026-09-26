@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ILLink trimmer keep-list. The SDK serializes models through reflection
+  (System.Text.Json's reflection-based resolver), which the trimmer cannot
+  statically analyse. Without this descriptor, `PublishTrimmed` (Release
+  Blazor WebAssembly, single-file, etc.) would strip model members and break
+  deserialization. preserve="all" keeps every model's constructors, fields,
+  properties (and their nested enums/converters, kept by code reference), so
+  reflection round-trips intact under trimming. This is the .NET analogue of
+  the GraalVM reflect-config.json emitted for the Java client. Embedded into
+  the assembly as a LogicalName of ILLink.Descriptors.xml (see the csproj).
+-->
+<linker>
+  <assembly fullname="{{packageName}}">
+{{#models}}
+{{#model}}
+    <type fullname="{{packageName}}.Models.{{classname}}" preserve="all" />
+{{/model}}
+{{/models}}
+  </assembly>
+</linker>

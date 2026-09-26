@@ -1,0 +1,56 @@
+{{>api_info}}
+/// Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+/// into outgoing API requests when OpenTelemetry is available.
+///
+/// If no propagator has been set, this class silently no-ops.
+///
+/// Dart does not support runtime detection of optional packages (unlike Python's
+/// `try import` or Ruby's `require`), so this implementation uses a pluggable
+/// callback. To enable trace context propagation, set the propagator at
+/// application startup:
+///
+/// ```dart
+/// import 'package:opentelemetry/api.dart';
+///
+/// class _MapSetter implements TextMapSetter<Map<String, String>> {
+///   @override
+///   void set(Map<String, String> carrier, String key, String value) {
+///     carrier[key] = value;
+///   }
+/// }
+///
+/// TraceContextUtil.propagator = (Map<String, String> headers) {
+///   globalTextMapPropagator.inject(Context.current, headers, _MapSetter());
+/// };
+/// ```
+///
+/// This matches the pattern used by other languages in this SDK: try to use
+/// OpenTelemetry if available, otherwise do nothing (no crash).
+class TraceContextUtil {
+  /// The propagator function used to inject trace context headers.
+  /// Set this at application startup to enable trace context propagation.
+  /// When null (the default), [injectTraceContext] is a no-op.
+  static void Function(Map<String, String> headers)? propagator;
+
+  /// Injects W3C Trace Context headers into the given [headers] map.
+  ///
+  /// If a [propagator] has been configured, it is called to inject
+  /// traceparent and tracestate headers. Otherwise this is a no-op.
+  ///
+  /// The propagator writes into a scratch map, and only its non-empty entries
+  /// reach [headers]. The W3C propagator always writes `tracestate`, empty or
+  /// not, and an empty `tracestate` header is not what the other SDKs send.
+  static void injectTraceContext(Map<String, String> headers) {
+    final inject = propagator;
+    if (inject == null) {
+      return;
+    }
+    final injected = <String, String>{};
+    inject(injected);
+    injected.forEach((key, value) {
+      if (value.isNotEmpty) {
+        headers[key] = value;
+      }
+    });
+  }
+}

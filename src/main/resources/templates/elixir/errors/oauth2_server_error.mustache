@@ -1,0 +1,53 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.OAuth2ServerError do
+  @moduledoc """
+  Raised when the OAuth2 token endpoint answers with any non-2xx status,
+  including a refused 3xx redirect. Typed representation of an RFC 6749 §5.2
+  OAuth2 error response.
+
+  Fields:
+
+    * `:status_code` -- HTTP status code returned by the token endpoint.
+    * `:code` -- the OAuth2 error code (e.g. `"invalid_grant"`).
+    * `:description` -- optional human-readable description.
+    * `:uri` -- optional URI to a page describing the error.
+    * `:raw_body` -- the original response payload (for diagnostics).
+  """
+
+  @type t :: %__MODULE__{
+          status_code: integer(),
+          code: String.t() | nil,
+          description: String.t() | nil,
+          uri: String.t() | nil,
+          raw_body: String.t(),
+          message: String.t()
+        }
+
+  defexception [:status_code, :code, :description, :uri, :raw_body, :message]
+
+  @impl true
+  def exception(opts) do
+    status_code = Keyword.fetch!(opts, :status_code)
+    code = Keyword.get(opts, :code)
+    description = Keyword.get(opts, :description)
+    uri = Keyword.get(opts, :uri)
+    raw_body = Keyword.get(opts, :raw_body, "")
+
+    message =
+      cond do
+        is_nil(code) -> "Token request failed with status #{status_code}: #{raw_body}"
+        is_binary(description) -> "Token request failed with status #{status_code}: #{code} -- #{description}"
+        true -> "Token request failed with status #{status_code}: #{code}"
+      end
+
+    %__MODULE__{
+      status_code: status_code,
+      code: code,
+      description: description,
+      uri: uri,
+      raw_body: raw_body,
+      message: message
+    }
+  end
+end

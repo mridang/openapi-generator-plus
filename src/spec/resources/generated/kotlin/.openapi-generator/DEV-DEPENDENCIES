@@ -1,0 +1,6 @@
+com.fasterxml.jackson.core:jackson-databind 2.22.0  # BaseApiTest, DefaultApiClientTest
+io.ktor:ktor-client-mock 3.5.0  # DefaultApiClientUnitTest and the per-tag API tests
+io.opentelemetry:opentelemetry-sdk 1.62.0  # TraceContextUtilTest
+io.opentelemetry:opentelemetry-sdk-testing 1.62.0  # TraceContextUtilTest
+org.jetbrains.kotlin:kotlin-test-junit5 2.2.0  # every generated test
+org.testcontainers:testcontainers 1.21.4  # ChasmContainer, SquidContainer

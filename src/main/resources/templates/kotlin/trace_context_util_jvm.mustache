@@ -1,0 +1,21 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/** JVM actual: injects W3C Trace Context headers using OpenTelemetry when available. */
+actual object TraceContextUtil {
+    @JvmStatic
+    actual fun injectTraceContext(headers: MutableMap<String, String>) {
+        try {
+            io.opentelemetry.api.GlobalOpenTelemetry
+                .getPropagators()
+                .textMapPropagator
+                .inject(
+                    io.opentelemetry.context.Context.current(),
+                    headers,
+                ) { carrier, key, value -> carrier?.put(key, value) }
+        } catch (_: LinkageError) {
+        } catch (_: RuntimeException) {
+        }
+    }
+}

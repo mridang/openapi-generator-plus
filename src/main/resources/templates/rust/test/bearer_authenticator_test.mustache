@@ -1,0 +1,80 @@
+{{>api_info}}
+
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::BearerAuthenticator;
+use {{packageName}}::ConfigurationError;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_raw_token_is_prefixed_with_bearer() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_already_prefixed_token_is_not_doubled() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "Bearer xyz").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_lowercase_bearer_prefix_is_stripped() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "bearer xyz").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_mixed_case_bearer_prefix_is_stripped() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "BeArEr xyz").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+/// Gap AC — Bearer tokens with CR/LF would CRLF-inject the Authorization
+/// header, non-ASCII bytes are mangled, and an empty or whitespace-only token
+/// would emit a bare `Authorization: Bearer ` header
+/// (bearer-no-empty-token-guard). All fail closed with
+/// `ConfigurationError::InvalidArgument`, never a panic.
+#[test]
+fn test_bearer_rejects_invalid_tokens() {
+    for (token, expected) in [
+        ("tok\r\nInjected: yes", "printable ASCII"),
+        ("ñoño", "printable ASCII"),
+        ("", "must not be empty"),
+        ("   ", "must not be empty"),
+    ] {
+        match BearerAuthenticator::new("https://api.example.com", token) {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains(expected), "{}", reason)
+            }
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument for {:?}, got {:?}",
+                token, other
+            ),
+        }
+    }
+}
+
+/// The default Debug representation must mask the stored token: the secret
+/// value must be absent and a `***` redaction marker present.
+#[test]
+fn test_redacts_secret() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("token: \"xyz\""));
+    assert!(debug.contains("***"));
+}

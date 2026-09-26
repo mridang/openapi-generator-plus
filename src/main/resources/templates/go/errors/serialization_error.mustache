@@ -1,0 +1,46 @@
+{{>api_info}}
+package errors
+
+import "fmt"
+
+// SerializationError is returned when a value cannot be encoded to, or decoded
+// from, its wire form: malformed JSON, a wrong primitive type, a missing
+// required field, an unknown enum value or a malformed date, time or duration.
+//
+// Its state is immutable: fields are set once at construction via
+// NewSerializationError and read through the Message and Cause getters.
+type SerializationError struct {
+	message string
+	cause   error
+}
+
+// NewSerializationError builds a SerializationError. The underlying decode or
+// encode error is kept as the cause, so errors.Is and errors.As still reach it.
+func NewSerializationError(message string, cause error) *SerializationError {
+	return &SerializationError{message: message, cause: cause}
+}
+
+// Message returns the error message.
+func (e *SerializationError) Message() string {
+	return e.message
+}
+
+// Cause returns the underlying error, if any.
+func (e *SerializationError) Cause() error {
+	return e.cause
+}
+
+// is{{errorPrefix}}Error brands SerializationError as a {{errorPrefix}}Error.
+func (e *SerializationError) is{{errorPrefix}}Error() {}
+
+func (e *SerializationError) Error() string {
+	if e.cause != nil {
+		return fmt.Sprintf("%s: %v", e.message, e.cause)
+	}
+	return e.message
+}
+
+// Unwrap returns the underlying error so errors.Is and errors.As can reach it.
+func (e *SerializationError) Unwrap() error {
+	return e.cause
+}

@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// NetworkTimeoutError represents a request that timed out. The status code is 0.
+type NetworkTimeoutError struct {
+	NetworkError
+}

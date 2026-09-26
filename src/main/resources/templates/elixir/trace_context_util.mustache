@@ -1,0 +1,51 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.TraceContextUtil do
+  @moduledoc """
+  Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+  into outgoing API requests when OpenTelemetry is available.
+
+  If the `:opentelemetry_api` application is not installed, this module
+  silently no-ops.
+  """
+
+  @doc """
+  Inject the current OpenTelemetry trace context into the given headers map.
+
+  Elixir data is immutable, so the updated map is returned instead of being
+  mutated in place as it is in the other SDKs.
+
+  ## Parameters
+
+    * `headers` - Map of request headers.
+
+  ## Returns
+
+    The headers map, potentially with `traceparent` and `tracestate` added.
+  """
+  @spec inject_trace_context(%{optional(String.t()) => String.t()}) ::
+          %{optional(String.t()) => String.t()}
+  def inject_trace_context(headers) do
+    if Code.ensure_loaded?(:otel_propagator_text_map) do
+      # Called through apply/3: :opentelemetry_api is an optional dependency,
+      # so it is not known when this module is compiled. A call on a variable
+      # module is constant-folded by the compiler and warns that the module is
+      # undefined, which `--warnings-as-errors` turns into a failure. The
+      # configured injector writes into the headers map through the setter,
+      # which receives the key and value before the carrier.
+      try do
+        injector = apply(:opentelemetry, :get_text_map_injector, [])
+
+        apply(:otel_propagator_text_map, :inject, [
+          injector,
+          headers,
+          fn key, value, carrier -> Map.put(carrier, key, value) end
+        ])
+      rescue
+        _ -> headers
+      end
+    else
+      headers
+    end
+  end
+end

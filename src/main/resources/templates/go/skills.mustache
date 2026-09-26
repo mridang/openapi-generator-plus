@@ -1,0 +1,275 @@
+# {{appNameBase}} SDK - AI Agent Reference
+
+## Installation
+
+```bash
+go get {{packageName}}
+```
+
+## Quick Start
+
+```go
+import "{{packageName}}/pkg"
+
+client, err := {{packageName}}.New{{clientClassName}}WithToken("https://api.example.com", "your-token", nil)
+if err != nil {
+    return err
+}
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```go
+import "{{packageName}}/pkg/auth"
+
+authenticator, err := auth.NewBearerAuthenticator("https://api.example.com", "your-token")
+if err != nil {
+    return err
+}
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```go
+authenticator, err := auth.NewBasicAuthenticator("https://api.example.com", "username", "password")
+if err != nil {
+    return err
+}
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```go
+authenticator, err := auth.NewApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", auth.ApiKeyLocationHeader)
+if err != nil {
+    return err
+}
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```go
+import "{{packageName}}/pkg/auth/oauth"
+
+authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil)
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```go
+authenticator := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/authorize", "https://auth.example.com/token",
+    "https://app.example.com/callback", nil, "")
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```go
+authenticator := oauth.NewOAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password", nil, "")
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```go
+authenticator := oauth.NewOAuth2ImplicitAuthenticator(
+    "https://api.example.com", "client-id", "https://auth.example.com/authorize", nil)
+if err := authenticator.SetAccessToken("your-access-token"); err != nil {
+    return err
+}
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```go
+authenticator := oauth.NewOpenIdConnectAuthenticator(
+    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+    "client-id", "client-secret", "https://app.example.com/callback", nil)
+client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators resolve the access token by making an HTTP call to the token endpoint, which happens before the request carrying it is sent.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethodBody` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethodBasic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```go
+authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil).
+    WithClientAuthMethod(oauth.ClientAuthMethodBasic)
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client:
+
+```go
+url, err := {{packageName}}.Server0.URL(nil)
+if err != nil {
+	log.Fatal(err)
+}
+
+client, err := {{packageName}}.New{{clientClassName}}WithToken(url, "your-token", nil)
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```go
+type fakeAuth struct{}
+
+func (fakeAuth) Host() string { return "https://api.example.com" }
+func (fakeAuth) AuthHeaders() map[string]string {
+    return map[string]string{"Authorization": "Bearer test-token"}
+}
+func (fakeAuth) QueryParams() map[string]string  { return nil }
+func (fakeAuth) CookieParams() map[string]string { return nil }
+
+client := {{packageName}}.New{{clientClassName}}(fakeAuth{}, nil)
+```
+
+## Error Handling
+
+All API errors derive from `ApiError`. The error hierarchy is:
+
+- `ApiError` (base)
+  - `ClientError` (4xx)
+    - `BadRequestError` (400)
+    - `UnauthorizedError` (401)
+    - `ForbiddenError` (403)
+    - `NotFoundError` (404)
+    - `ConflictError` (409)
+    - `UnprocessableEntityError` (422)
+  - `ServerError` (5xx)
+    - `InternalServerError` (500)
+  - `NetworkError` (no HTTP response, status 0)
+    - `NetworkTimeoutError` (the request timed out, status 0)
+
+```go
+import (
+    "errors"
+    "fmt"
+
+    "{{packageName}}/pkg"
+)
+
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#returnType}}_, {{/returnType}}{{/-first}}{{/operation}}err := client.{{baseName}}.{{#operation}}{{#-first}}{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}nil{{/isOptions}}{{#isServer}}nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+if err != nil {
+    var notFound *{{packageName}}.NotFoundError
+    var clientErr *{{packageName}}.ClientError
+    var serverErr *{{packageName}}.ServerError
+    if errors.As(err, &notFound) {
+        fmt.Printf("Not found: %s\n", notFound.Error())
+    } else if errors.As(err, &clientErr) {
+        fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
+    } else if errors.As(err, &serverErr) {
+        fmt.Printf("Server error: %s\n", serverErr.Error())
+    }
+}
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```go
+timeout := 5000
+transport, err := {{packageName}}.NewTransportOptionsBuilder().
+    Proxy("http://proxy:3128").
+    Timeout(&timeout).
+    Build()
+if err != nil {
+    return err
+}
+
+client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+```
+
+## API Methods
+
+Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as Go structs in the `models` package.
+
+```go
+import "{{packageName}}/pkg/models"
+
+{{#models}}{{#model}}{{#-first}}m := models.{{classname}}{}{{/-first}}{{/model}}{{/models}}
+```
+
+## Binary / File Uploads
+
+File upload parameters are typed as `io.Reader`. Binary response bodies are returned as `[]byte`.
+
+## Comment Style
+
+Never place a comment on the same line as code. Use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+x := 1
+```
+
+```bad
+// This explains the logic
+x := 1
+```

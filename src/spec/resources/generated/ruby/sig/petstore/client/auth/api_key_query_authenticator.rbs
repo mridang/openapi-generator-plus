@@ -1,0 +1,7 @@
+module Petstore::Client
+  module Auth
+    class ApiKeyQueryAuthenticator < ApiKeyAuthenticator
+      def initialize: (host: String, api_key: String) -> void
+    end
+  end
+end

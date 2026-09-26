@@ -1,0 +1,83 @@
+{{>api_info}}
+
+using {{packageName}}.Auth;
+using Xunit;
+
+namespace Test;
+
+public class BearerAuthenticatorTest
+{
+    [Fact]
+    public void RawTokenIsPrefixedWithBearer()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "xyz");
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void AlreadyPrefixedTokenIsNotDoubled()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "Bearer xyz");
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void LowercaseBearerPrefixIsStripped()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "bearer xyz");
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void MixedCaseBearerPrefixIsStripped()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "BeArEr xyz");
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void RejectsCrlfAndNonAscii()
+    {
+        // auth-validation-timing: the token is validated eagerly at
+        // construction (matching the 10-SDK majority), so a malformed token
+        // throws when the authenticator is created, not at first use.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes"));
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "ñoño"));
+    }
+
+    [Fact]
+    public void EmptyTokenIsRejectedAtConstruction()
+    {
+        // bearer-no-empty-token-guard: an empty/whitespace token would emit a
+        // bare "Authorization: Bearer " header, sending the request
+        // unauthenticated. It must be rejected like the api-key empty guard.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", ""));
+    }
+
+    [Fact]
+    public void WhitespaceOnlyTokenIsRejectedAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "   "));
+    }
+
+    /// <summary>
+    /// The default ToString() must mask the stored token: the secret value
+    /// must be absent and a *** redaction marker present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "xyz");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("Token=xyz", repr);
+        Assert.Contains("***", repr);
+    }
+}

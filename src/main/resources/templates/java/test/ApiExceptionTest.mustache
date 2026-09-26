@@ -1,0 +1,219 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import {{invokerPackage}}.errors.SerializationException;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import java.util.Objects;
+import org.junit.jupiter.api.Test;
+
+class ApiExceptionTest {
+
+    @Test
+    void exposesStatusCodeMessageBodyHeadersErrorBody() {
+        ApiException ex = new ApiException(
+                404,
+                "not found",
+                Map.of("content-type", "application/json"),
+                "{\"id\":7,\"name\":\"missing\"}",
+                null);
+
+        assertEquals(404, ex.getStatusCode());
+        assertEquals("{\"id\":7,\"name\":\"missing\"}", ex.getResponseBody());
+        assertEquals(
+                "application/json",
+                Objects.requireNonNull(ex.getResponseHeaders()).get("content-type"));
+        assertNull(ex.getErrorBody());
+    }
+
+    @Test
+    void nullHeadersAndBodyMarkTransportNoResponse() {
+        // apierror-responsebody-headers-nullable-split: null is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        ApiException ex = new ApiException(0, "connection reset", null, null);
+
+        assertNull(ex.getResponseHeaders());
+        assertNull(ex.getResponseBody());
+    }
+
+    @Test
+    void isAnUncheckedExceptionWithStatusInItsStringForm() {
+        // Unified hierarchy: ApiException extends the branded root
+        // {{errorPrefix}}Exception, which extends RuntimeException — so the whole SDK
+        // error tree is unchecked and a single catch on {{errorPrefix}}Exception covers
+        // every API/HTTP failure. getMessage() stays the detail message the
+        // exception was constructed with; the response context is rendered by
+        // the string conversion, one labelled field per line.
+        ApiException ex = new ApiException(
+                500, "boom", Map.of("x-request-id", "abc"), "the body");
+
+        assertInstanceOf({{errorPrefix}}Exception.class, ex);
+        assertInstanceOf(RuntimeException.class, ex);
+        assertEquals("boom", ex.getMessage());
+        assertEquals(
+                "boom"
+                        + "\nHTTP status code: 500"
+                        + "\nResponse headers: {x-request-id=abc}"
+                        + "\nResponse body: the body",
+                ex.toString());
+    }
+
+    @Test
+    void getTypedErrorBodyDeserializesTheBodyIntoTheGivenClass() {
+        // Built through fromResponse, the way a real response reaches a caller:
+        // the typed body must come out of the raw body, not out of whatever the
+        // generic parse happened to leave behind.
+        ApiException ex = ApiException.fromResponse(
+                400, Map.of(), "{\"id\":42,\"name\":\"Dogs\"}");
+
+        {{modelPackage}}.Category typed = ex.getTypedErrorBody({{modelPackage}}.Category.class);
+        assertNotNull(typed);
+        assertEquals(42L, typed.id);
+        assertEquals("Dogs", typed.name);
+    }
+
+    @Test
+    void getTypedErrorBodyReturnsNullWhenThereIsNoResponseBody() {
+        ApiException ex = ApiException.fromResponse(500, Map.of(), null);
+
+        assertNull(ex.getTypedErrorBody({{modelPackage}}.Category.class));
+    }
+
+    @Test
+    void getTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel() {
+        ApiException ex = ApiException.fromResponse(
+                422, Map.of(), "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}");
+
+        {{modelPackage}}.Category typed = ex.getTypedErrorBody({{modelPackage}}.Category.class);
+        assertNotNull(typed);
+        assertEquals(1L, typed.id);
+        assertEquals("Cat", typed.name);
+    }
+
+    @Test
+    void typedErrorsExtendApiExceptionSoBaseCatchWorks() {
+        // #5: typed HTTP errors must extend the common ApiException base so a
+        // single catch / assertThrows(ApiException) catches every concrete
+        // subtype. The full chain for a 4xx leaf is:
+        // BadRequestException → ClientException → ApiException →
+        // {{errorPrefix}}Exception → RuntimeException.
+        {{invokerPackage}}.errors.BadRequestException badRequest =
+                new {{invokerPackage}}.errors.BadRequestException("bad request", Map.of(), null, null);
+
+        assertInstanceOf({{invokerPackage}}.errors.ClientException.class, badRequest);
+        assertInstanceOf(ApiException.class, badRequest);
+        assertInstanceOf({{errorPrefix}}Exception.class, badRequest);
+        assertInstanceOf(RuntimeException.class, badRequest);
+
+        ApiException caught =
+                assertThrows(
+                        ApiException.class,
+                        () -> {
+                            throw badRequest;
+                        });
+        assertEquals(400, caught.getStatusCode());
+    }
+
+    @Test
+    void networkExceptionsExtendApiExceptionWithStatusZero() {
+        // No HTTP response arrived, so the status is 0 and the transport
+        // failure is kept as the cause. Both sit under ApiException so an
+        // existing catch on ApiException keeps catching them.
+        java.io.IOException cause = new java.io.IOException("connection refused");
+        {{invokerPackage}}.errors.NetworkException network = new {{invokerPackage}}.errors.NetworkException("connection refused", cause);
+        {{invokerPackage}}.errors.NetworkTimeoutException timeout = new {{invokerPackage}}.errors.NetworkTimeoutException("timed out", cause);
+
+        assertInstanceOf(ApiException.class, network);
+        assertEquals(0, network.getStatusCode());
+        assertEquals(cause, network.getCause());
+        assertInstanceOf({{invokerPackage}}.errors.NetworkException.class, timeout);
+        assertInstanceOf(ApiException.class, timeout);
+        assertEquals(0, timeout.getStatusCode());
+        assertEquals(cause, timeout.getCause());
+    }
+
+    @Test
+    void serializationExceptionExtendsTheSdkRoot() {
+        // The serializer's failure type lives under the same branded root, so a
+        // single catch on {{errorPrefix}}Exception covers serialization errors too.
+        SerializationException ex =
+                new SerializationException("bad json");
+
+        assertInstanceOf({{errorPrefix}}Exception.class, ex);
+        assertInstanceOf(RuntimeException.class, ex);
+    }
+
+    @Test
+    void fromResponseMapsEveryStatusToItsException() {
+        // 302 is below the client range and 600 above the server range: neither
+        // is a ClientException or a ServerException, both are the base type.
+        Map<Integer, Class<? extends ApiException>> expected = Map.ofEntries(
+                Map.entry(400, {{invokerPackage}}.errors.BadRequestException.class),
+                Map.entry(401, {{invokerPackage}}.errors.UnauthorizedException.class),
+                Map.entry(403, {{invokerPackage}}.errors.ForbiddenException.class),
+                Map.entry(404, {{invokerPackage}}.errors.NotFoundException.class),
+                Map.entry(409, {{invokerPackage}}.errors.ConflictException.class),
+                Map.entry(422, {{invokerPackage}}.errors.UnprocessableEntityException.class),
+                Map.entry(418, {{invokerPackage}}.errors.ClientException.class),
+                Map.entry(500, {{invokerPackage}}.errors.InternalServerErrorException.class),
+                Map.entry(503, {{invokerPackage}}.errors.ServerException.class),
+                Map.entry(302, ApiException.class),
+                Map.entry(600, ApiException.class));
+        for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
+            ApiException ex = ApiException.fromResponse(
+                    entry.getKey(), Map.of("x-request-id", "abc"), "{\"code\":\"denied\"}");
+
+            assertEquals(entry.getValue(), ex.getClass());
+            assertEquals(entry.getKey(), ex.getStatusCode());
+            assertEquals("abc",
+                    Objects.requireNonNull(ex.getResponseHeaders()).get("x-request-id"));
+            assertEquals("{\"code\":\"denied\"}", ex.getResponseBody());
+            assertEquals(Map.of("code", "denied"), ex.getErrorBody());
+        }
+    }
+
+    @Test
+    void fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
+        ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
+
+        assertEquals({{invokerPackage}}.errors.ServerException.class, ex.getClass());
+        assertEquals("<html>bad gateway</html>", ex.getResponseBody());
+        assertNull(ex.getErrorBody());
+    }
+
+    @Test
+    void everyErrorTypeLivesInTheErrorsPackageUnderTheRoot() {
+        java.util.List<Class<? extends RuntimeException>> errors = java.util.List.of(
+                {{errorPrefix}}Exception.class,
+                ApiException.class,
+                {{invokerPackage}}.errors.ClientException.class,
+                {{invokerPackage}}.errors.ServerException.class,
+                {{invokerPackage}}.errors.BadRequestException.class,
+                {{invokerPackage}}.errors.UnauthorizedException.class,
+                {{invokerPackage}}.errors.ForbiddenException.class,
+                {{invokerPackage}}.errors.NotFoundException.class,
+                {{invokerPackage}}.errors.ConflictException.class,
+                {{invokerPackage}}.errors.UnprocessableEntityException.class,
+                {{invokerPackage}}.errors.InternalServerErrorException.class,
+                {{invokerPackage}}.errors.NetworkException.class,
+                {{invokerPackage}}.errors.NetworkTimeoutException.class,
+                SerializationException.class,
+                {{invokerPackage}}.errors.OAuth2ServerException.class,
+                {{invokerPackage}}.errors.OAuth2TokenException.class);
+        for (Class<? extends RuntimeException> error : errors) {
+            assertEquals("{{invokerPackage}}.errors", error.getPackageName(), error.getName());
+            assertNull(error.getEnclosingClass(), error.getName());
+            assertTrue({{errorPrefix}}Exception.class.isAssignableFrom(error), error.getName());
+        }
+    }
+}

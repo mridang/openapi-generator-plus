@@ -1,0 +1,271 @@
+{{>api_info}}
+
+import * as util from 'node:util';
+import { OpenIdConnectAuthenticator } from '../src/auth/oauth/openid-connect-authenticator{{importFileExtension}}';
+import { InternalServerError, NotFoundError } from '../src/errors/index{{importFileExtension}}';
+import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
+import type { ApiClient } from '../src/api-client{{importFileExtension}}';
+import type { ApiHttpResponse } from '../src/api-http-response{{importFileExtension}}';
+
+class MockApiClient implements ApiClient {
+  lastMethod = '';
+  lastUrl = '';
+  lastHeaders: Record<string, string> = {};
+  lastBody: string | Buffer | null = null;
+  responses: ApiHttpResponse[] = [];
+  callCount = 0;
+
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null
+  ): Promise<ApiHttpResponse> {
+    this.lastMethod = method;
+    this.lastUrl = url;
+    this.lastHeaders = headers;
+    this.lastBody = body;
+    const response = this.responses[this.callCount] ?? {
+      statusCode: 200,
+      body: '{}',
+      headers: { 'content-type': 'application/json' }
+    };
+    this.callCount++;
+    return response;
+  }
+}
+
+describe('OpenIdConnectAuthenticator', () => {
+  let authenticator: OpenIdConnectAuthenticator;
+  let mockClient: MockApiClient;
+
+  beforeEach(() => {
+    authenticator = new OpenIdConnectAuthenticator(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my-client-id',
+      'my-client-secret',
+      'https://myapp.example.com/callback',
+      ['openid', 'profile']
+    );
+    mockClient = new MockApiClient();
+    authenticator.setApiClient(mockClient);
+  });
+
+  test('client secret is not leaked in default string representation', () => {
+    // client-secret-leak-in-default-repr: console.log / util.inspect /
+    // JSON.stringify must never expose the stored OAuth2 client secret.
+    expect(util.inspect(authenticator)).not.toContain('my-client-secret');
+    expect(JSON.stringify(authenticator)).not.toContain('my-client-secret');
+    expect(util.inspect(authenticator)).toContain('***');
+  });
+
+  it("redacts the secret in inspect and JSON output", () => {
+    expect(util.inspect(authenticator)).not.toContain('my-client-secret');
+    expect(JSON.stringify(authenticator)).not.toContain('my-client-secret');
+    expect(util.inspect(authenticator)).toContain('***');
+    expect(JSON.stringify(authenticator)).toContain('***');
+  });
+
+  test('builds authorization URL from discovery', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    const url = await authenticator.buildAuthorizationUrl();
+
+    expect(url).toContain('https://auth.example.com/authorize?');
+    expect(url).toContain('client_id=my-client-id');
+    expect(url).toContain('response_type=code');
+  });
+
+  test('fetches discovery document', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await authenticator.buildAuthorizationUrl();
+
+    expect(mockClient.lastMethod).toBe('GET');
+    expect(mockClient.lastUrl).toBe('https://auth.example.com/.well-known/openid-configuration');
+  });
+
+  test('obtains token after code exchange', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      },
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          access_token: 'oidc-access-token',
+          expires_in: 3600
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await authenticator.exchangeCode('my-auth-code');
+
+    // The second call should have been to the token endpoint
+    expect(mockClient.lastUrl).toBe('https://auth.example.com/token');
+    const body = mockClient.lastBody as string;
+    const params = new URLSearchParams(body);
+    expect(params.get('grant_type')).toBe('authorization_code');
+    expect(params.get('code')).toBe('my-auth-code');
+  });
+
+  test('getAuthHeaders returns Bearer after exchange', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      },
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          access_token: 'oidc-tok',
+          expires_in: 3600
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await authenticator.exchangeCode('oidc-code');
+    const headers = await authenticator.getAuthHeadersAsync();
+
+    expect(headers['Authorization']).toBe('Bearer oidc-tok');
+  });
+
+  test.each([
+    [404, NotFoundError],
+    [500, InternalServerError]
+  ])('throws on a non-2xx (%i) discovery response instead of mis-parsing it', async (status, errorClass) => {
+    // oauth-oidc-discovery-no-status-check: a non-2xx answer (e.g. a 500
+    // HTML error page) must surface as the same status-specific error an
+    // API call would throw, not a downstream "invalid JSON".
+    mockClient.responses = [
+      {
+        statusCode: status,
+        body: '<html><body>Error</body></html>',
+        headers: { 'content-type': 'text/html' }
+      }
+    ];
+
+    const error = await authenticator.buildAuthorizationUrl().catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(errorClass);
+    expect((error as NotFoundError).statusCode).toBe(status);
+  });
+
+  test('throws SerializationError when the discovery document is not JSON', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: '<html>not json</html>',
+        headers: { 'content-type': 'text/html' }
+      }
+    ];
+
+    const error = await authenticator.buildAuthorizationUrl().catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(SerializationError);
+  });
+
+  test('throws when no ApiClient injected', async () => {
+    const auth = new OpenIdConnectAuthenticator(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my-client-id',
+      'my-client-secret',
+      'https://myapp.example.com/callback',
+      ['openid', 'profile']
+    );
+
+    const error = await auth.buildAuthorizationUrl().catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(Error);
+  });
+
+  test('getHost returns configured host', () => {
+    expect(authenticator.getHost()).toBe('https://api.example.com');
+  });
+
+  test('fetches discovery document only once', async () => {
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token'
+        }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await authenticator.buildAuthorizationUrl();
+    await authenticator.buildAuthorizationUrl();
+
+    // The cached discovery document must be reused; only one GET is made.
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  // oauth-oidc-missing-endpoint-guard: a discovery document missing the
+  // authorization/token endpoint should fail loudly rather than build a
+  // delegate with an undefined endpoint URL.
+  test('throws when discovery is missing authorization_endpoint', async () => {
+    // getDelegate() now guards the discovery document: an absent
+    // authorization_endpoint surfaces a clear discovery error rather than
+    // building a delegate with an `undefined` endpoint URL.
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({ token_endpoint: 'https://auth.example.com/token' }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
+      'OIDC discovery document is missing authorization_endpoint'
+    );
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(SerializationError);
+  });
+
+  test('throws when discovery is missing token_endpoint', async () => {
+    // getDelegate() now guards the discovery document: an absent
+    // token_endpoint surfaces a clear discovery error rather than building a
+    // delegate with an `undefined` endpoint URL.
+    mockClient.responses = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({ authorization_endpoint: 'https://auth.example.com/authorize' }),
+        headers: { 'content-type': 'application/json' }
+      }
+    ];
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
+      'OIDC discovery document is missing token_endpoint'
+    );
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(SerializationError);
+  });
+});

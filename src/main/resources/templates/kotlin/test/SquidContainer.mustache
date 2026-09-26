@@ -1,0 +1,56 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.utility.MountableFile
+import java.nio.file.Path
+import java.time.Duration
+
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ */
+object SquidContainer {
+
+    private val INSTANCE: GenericContainer<*>
+
+    init {
+        // Force ChasmContainer initialization so the shared network is created first.
+        ChasmContainer.getBaseUrl()
+
+        INSTANCE = GenericContainer("ubuntu/squid:5.2-22.04_beta")
+            .withExposedPorts(3128, 3129)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
+                "/etc/squid/squid.conf"
+            )
+            .withNetwork(ChasmContainer.PROXY_NETWORK)
+            // The image declares VOLUME for both paths, so every container would
+            // otherwise leave two anonymous volumes behind. tmpfs keeps them in memory;
+            // mode=1777 because squid runs as the unprivileged `proxy` user.
+            .withTmpFs(
+                mapOf(
+                    "/var/log/squid" to "rw,mode=1777",
+                    "/var/spool/squid" to "rw,mode=1777",
+                ),
+            )
+            .withStartupTimeout(Duration.ofSeconds(120))
+            .withLabel("com.mridang.openapi.testcontainer", "true")
+        INSTANCE.start()
+        Runtime.getRuntime().addShutdownHook(Thread {
+            if (INSTANCE.isRunning) INSTANCE.stop()
+        })
+        Thread.sleep(3000)
+    }
+
+    /** URL of the open proxy port, which needs no credentials. */
+    fun getProxyUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+
+    /**
+     * URL of the proxy port that answers 407 unless the request carries Basic
+     * proxy credentials. Any user name and password are accepted.
+     */
+    fun getAuthProxyUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3129)}"
+}

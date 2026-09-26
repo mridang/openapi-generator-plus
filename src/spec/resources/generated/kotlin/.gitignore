@@ -1,0 +1,11 @@
+# Gradle build output
+build/
+.gradle/
+*.class
+
+# IDE files
+*.iml
+.idea/
+
+# Coverage output
+.out/

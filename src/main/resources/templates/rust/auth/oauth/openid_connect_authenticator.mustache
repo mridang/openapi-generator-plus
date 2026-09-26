@@ -1,0 +1,317 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+
+use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::oauth2_authorization_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
+use crate::auth::Authenticator;
+use crate::errors::configuration_error::ConfigurationError;
+use crate::errors::serialization_error::SerializationError;
+
+/// OpenIdConnectAuthenticator provides OpenID Connect authentication.
+///
+/// Fetches the OIDC discovery document to discover the authorization and
+/// token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
+///
+/// Implements HttpAwareAuthenticator so that both the discovery request and
+/// subsequent token exchange requests use the shared ApiClient with the same
+/// transport configuration (proxy, TLS, timeouts) as regular API calls.
+pub struct OpenIdConnectAuthenticator {
+    host: String,
+    openid_connect_url: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+    scopes: Vec<String>,
+    api_client: Mutex<Option<Arc<dyn ApiClient>>>,
+    delegate: Mutex<Option<OAuth2AuthorizationCodeAuthenticator>>,
+    discovery_expiry: Mutex<Option<Instant>>,
+}
+
+const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
+
+/// Parse `Cache-Control: max-age=<seconds>` from response headers.
+///
+/// Returns 86400 (RFC 8414 default) if the header is absent or does not
+/// contain a `max-age` directive.
+fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
+    for (key, value) in headers {
+        if key.eq_ignore_ascii_case("cache-control") {
+            if let Some(idx) = value.to_ascii_lowercase().find("max-age=") {
+                let rest = &value[idx + "max-age=".len()..];
+                let digits: String = rest
+                    .chars()
+                    .take_while(|c| c.is_ascii_digit())
+                    .collect();
+                if let Ok(seconds) = digits.parse::<u64>() {
+                    return seconds;
+                }
+            }
+            return DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+        }
+    }
+    DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+}
+
+impl OpenIdConnectAuthenticator {
+    /// Creates a new OpenID Connect authenticator.
+    pub fn new(
+        host: &str,
+        openid_connect_url: &str,
+        client_id: &str,
+        client_secret: &str,
+        redirect_uri: &str,
+        scopes: Vec<String>,
+    ) -> Self {
+        Self {
+            host: host.to_string(),
+            openid_connect_url: openid_connect_url.to_string(),
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+            redirect_uri: redirect_uri.to_string(),
+            scopes,
+            api_client: Mutex::new(None),
+            delegate: Mutex::new(None),
+            discovery_expiry: Mutex::new(None),
+        }
+    }
+
+    /// Builds the authorization URL using the discovered authorization endpoint.
+    pub async fn build_authorization_url(
+        &self,
+        state: &str,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.resolve_delegate().await?;
+        let delegate_guard = self.delegate.lock().unwrap();
+        let delegate = delegate_guard.as_ref().ok_or_else(|| {
+            Box::new(ConfigurationError::InvalidState(
+                "OIDC delegate is in use by a concurrent call".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+        Ok(delegate.build_authorization_url(state))
+    }
+
+    /// Exchanges an authorization code for tokens using the discovered token
+    /// endpoint.
+    pub async fn exchange_code(
+        &self,
+        code: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.resolve_delegate().await?;
+        /* The delegate's exchange_code is async; take ownership of the
+         * delegate temporarily so the mutex is not held across the await. */
+        let delegate = self.take_delegate()?;
+        let result = delegate.exchange_code(code).await;
+        /* Restore the delegate regardless of the result. */
+        {
+            let mut delegate_guard = self.delegate.lock().unwrap();
+            *delegate_guard = Some(delegate);
+        }
+        result
+    }
+
+    /// Takes the resolved delegate out of its mutex so it can be awaited on
+    /// without holding the lock. Two concurrent calls can race for it; the
+    /// loser gets [`ConfigurationError::InvalidState`].
+    fn take_delegate(
+        &self,
+    ) -> Result<OAuth2AuthorizationCodeAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
+        self.delegate.lock().unwrap().take().ok_or_else(|| {
+            Box::new(ConfigurationError::InvalidState(
+                "OIDC delegate is in use by a concurrent call".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })
+    }
+
+    /// Lazily resolves the delegate by fetching the OIDC discovery document
+    /// using the injected API client. Stores the injected delegate in the
+    /// mutex for reuse. Honors the `Cache-Control: max-age=<seconds>` header
+    /// from the discovery response; falls back to the RFC 8414 recommended
+    /// default of 86400 seconds when absent.
+    async fn resolve_delegate(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        /* Fast path: delegate already resolved and not yet expired. */
+        {
+            let delegate_guard = self.delegate.lock().unwrap();
+            let expiry_guard = self.discovery_expiry.lock().unwrap();
+            if delegate_guard.is_some() {
+                if let Some(expiry) = *expiry_guard {
+                    if Instant::now() < expiry {
+                        return Ok(());
+                    }
+                } else {
+                    return Ok(());
+                }
+            }
+        }
+
+        let client = {
+            let client_guard = self.api_client.lock().unwrap();
+            client_guard
+                .as_ref()
+                .ok_or_else(|| {
+                    Box::new(ConfigurationError::InvalidState(
+                        "ApiClient has not been injected. \
+                         Ensure the {{clientClassName}} constructor calls set_api_client \
+                         on HttpAwareAuthenticator before making API requests"
+                            .to_string(),
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })?
+                .clone()
+        };
+
+        let mut headers = HashMap::new();
+        headers.insert("Accept".to_string(), "application/json".to_string());
+
+        /* Discovery is an HTTP call like any other: a transport failure is
+         * already a NetworkError or NetworkTimeoutError and passes through. */
+        let response = client
+            .send_request("GET", &self.openid_connect_url, &headers, None)
+            .await?;
+
+        // oauth-oidc-discovery-no-status-check: reject a non-2xx discovery
+        // response BEFORE attempting to JSON-parse it, as the typed error for
+        // its status. Otherwise a 500-HTML or 404 error page surfaces to the
+        // caller as a misleading "invalid JSON" error.
+        if response.status_code() < 200 || response.status_code() >= 300 {
+            return Err(crate::errors::ApiError::from_response(
+                response.status_code(),
+                response.headers(),
+                response.body(),
+            ));
+        }
+
+        /* An unparseable or incomplete document is a SerializationError. */
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
+            Box::new(SerializationError::new(
+                "failed to parse OIDC discovery document".to_string(),
+                Some(Box::new(e)),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        let endpoint = |name: &str| -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+            parsed
+                .get(name)
+                .and_then(|v| v.as_str())
+                .filter(|v| !v.trim().is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    Box::new(SerializationError::new(
+                        format!("missing {} in OIDC discovery document", name),
+                        None,
+                    )) as Box<dyn std::error::Error + Send + Sync>
+                })
+        };
+        let authorization_endpoint = endpoint("authorization_endpoint")?;
+        let token_endpoint = endpoint("token_endpoint")?;
+
+        let mut delegate = OAuth2AuthorizationCodeAuthenticator::new(
+            &self.host,
+            &self.client_id,
+            &self.client_secret,
+            &authorization_endpoint,
+            &token_endpoint,
+            &self.redirect_uri,
+            self.scopes.clone(),
+            "",
+        );
+
+        /* Inject the API client into the delegate's token manager. */
+        delegate.set_api_client(client);
+
+        let max_age = parse_max_age(response.headers());
+        let new_expiry = Instant::now() + Duration::from_secs(max_age);
+
+        let mut delegate_guard = self.delegate.lock().unwrap();
+        let mut expiry_guard = self.discovery_expiry.lock().unwrap();
+        *delegate_guard = Some(delegate);
+        *expiry_guard = Some(new_expiry);
+        Ok(())
+    }
+}
+
+/// Redacts the client secret so it never leaks through `{:?}` (Debug)
+/// formatting, stack traces, or error logs. The non-secret configuration
+/// fields are shown normally; the client secret is masked as `***`.
+impl std::fmt::Debug for OpenIdConnectAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OpenIdConnectAuthenticator")
+            .field("host", &self.host)
+            .field("openid_connect_url", &self.openid_connect_url)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"***")
+            .field("redirect_uri", &self.redirect_uri)
+            .field("scopes", &self.scopes)
+            .finish()
+    }
+}
+
+impl Authenticator for OpenIdConnectAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the Bearer authentication header, or an empty map when
+    /// discovery or the token request fails. The API client does not call
+    /// this method: it calls [`try_auth_headers`](Self::try_auth_headers),
+    /// which reports the failure instead of sending the request
+    /// unauthenticated.
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            self.try_auth_headers().await.unwrap_or_else(|_| HashMap::new())
+        })
+    }
+
+    /// Returns the Bearer authentication header from the discovered
+    /// authorization-code delegate, or propagates the discovery or token
+    /// error (including `OAuth2AuthorizationCodeError::CodeNotExchanged`).
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> Pin<
+        Box<
+            dyn Future<
+                    Output = Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>>,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            self.resolve_delegate().await?;
+
+            /* The delegate's try_auth_headers is async; take ownership briefly
+             * so the mutex is not held across the await. */
+            let delegate = self.take_delegate()?;
+
+            let headers = delegate.try_auth_headers().await;
+
+            {
+                let mut delegate_guard = self.delegate.lock().unwrap();
+                *delegate_guard = Some(delegate);
+            }
+
+            headers
+        })
+    }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
+}
+
+impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        let mut guard = self.api_client.lock().unwrap();
+        *guard = Some(client);
+    }
+}
+
+unsafe impl Send for OpenIdConnectAuthenticator {}
+unsafe impl Sync for OpenIdConnectAuthenticator {}

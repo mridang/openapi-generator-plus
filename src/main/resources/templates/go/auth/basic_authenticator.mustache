@@ -1,0 +1,75 @@
+{{>api_info}}
+package auth
+
+import (
+	"encoding/base64"
+	"errors"
+	"fmt"
+)
+
+// ErrBasicAuthUsernameControlChar is returned by NewBasicAuthenticator when the
+// username contains CR, LF, or NUL (RFC 7617 §2 header-injection / smuggling).
+var ErrBasicAuthUsernameControlChar = errors.New("basic auth username must not contain CR, LF, or NUL characters")
+
+// ErrBasicAuthUsernameColon is returned by NewBasicAuthenticator when the
+// username contains ':' (the RFC 7617 §2 field separator).
+var ErrBasicAuthUsernameColon = errors.New("basic auth username must not contain ':' (RFC 7617 §2)")
+
+// ErrBasicAuthPasswordControlChar is returned by NewBasicAuthenticator when the
+// password contains CR, LF, or NUL (RFC 7617 §2 header-injection / smuggling).
+var ErrBasicAuthPasswordControlChar = errors.New("basic auth password must not contain CR, LF, or NUL characters")
+
+// BasicAuthenticator provides HTTP Basic authentication.
+type BasicAuthenticator struct {
+	BaseAuthenticator
+	host     string
+	username string
+	password string
+}
+
+// NewBasicAuthenticator creates a new Basic authenticator.
+//
+// Credentials are validated eagerly at construction, so a malformed
+// credential is reported where it is supplied rather than lazily at first
+// use. A colon in the username or CR, LF or NUL in either field would corrupt
+// the header (RFC 7617 §2); the constructor returns one of the
+// ErrBasicAuth* sentinels instead. Match them with errors.Is.
+func NewBasicAuthenticator(host, username, password string) (*BasicAuthenticator, error) {
+	for _, c := range username {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			return nil, ErrBasicAuthUsernameControlChar
+		}
+		if c == ':' {
+			return nil, ErrBasicAuthUsernameColon
+		}
+	}
+	for _, c := range password {
+		if c == '\r' || c == '\n' || c == '\x00' {
+			return nil, ErrBasicAuthPasswordControlChar
+		}
+	}
+	return &BasicAuthenticator{
+		host:     host,
+		username: username,
+		password: password,
+	}, nil
+}
+
+// Host returns the API base URL.
+func (a *BasicAuthenticator) Host() string {
+	return a.host
+}
+
+// String implements fmt.Stringer so the default string/format representation
+// never leaks the password. authenticator-secret-in-default-string-repr.
+func (a *BasicAuthenticator) String() string {
+	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
+}
+
+// AuthHeaders returns the Basic authentication header.
+func (a *BasicAuthenticator) AuthHeaders() map[string]string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))
+	return map[string]string{
+		"Authorization": "Basic " + encoded,
+	}
+}

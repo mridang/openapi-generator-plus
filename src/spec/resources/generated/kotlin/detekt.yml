@@ -1,0 +1,102 @@
+# detekt runs with buildUponDefaultConfig, so every rule below is the default
+# ruleset's rule switched off by name, with the reason it cannot hold for
+# generated code. No generated source file carries a suppression for a whole
+# tool or rule set.
+build:
+  maxIssues: 0
+
+formatting:
+  # ktlint is this project's formatter of record: the ktlint Gradle plugin runs
+  # the same rules over the same sources, in ktlint_official style, reading
+  # .editorconfig. detekt-formatting re-runs a vendored copy of them with its
+  # own defaults, so these five contradict the layout ktlint itself produces.
+  ArgumentListWrapping:
+    active: false
+  Indentation:
+    active: false
+  MaximumLineLength:
+    active: false
+  ParameterListWrapping:
+    active: false
+  NoWildcardImports:
+    active: false
+
+libraries:
+  # Every type a generated SDK emits is its published surface; there is no
+  # internal half to hide behind.
+  LibraryEntitiesShouldNotBePublic:
+    active: false
+  # Models are data classes by design: they are transport records, and their
+  # generated copy/equals/hashCode are what the round-trip tests assert.
+  ForbiddenPublicDataClass:
+    active: false
+
+complexity:
+  # An API class has one method per operation and one per overload, and the
+  # transport has one method per wire concern; both counts come from the
+  # OpenAPI document, not from the template.
+  LargeClass:
+    active: false
+  TooManyFunctions:
+    active: false
+  # The request pipeline (build URL, apply auth, encode body, send, follow
+  # redirects, decode) is one straight-line function in all twelve SDKs, so it
+  # is long, branchy and nested by construction.
+  LongMethod:
+    active: false
+  CyclomaticComplexMethod:
+    active: false
+  NestedBlockDepth:
+    active: false
+  ComplexCondition:
+    active: false
+  # The transport and the authenticators take one parameter per wire concern;
+  # the shape is shared across the twelve SDKs and cannot be bundled here
+  # alone.
+  LongParameterList:
+    active: false
+
+exceptions:
+  # The serializers and the transport translate any failure of the underlying
+  # library into the SDK's own error type, which means catching broadly at
+  # exactly those boundaries.
+  TooGenericExceptionCaught:
+    active: false
+
+style:
+  # The error contract names one specific exception per failure, so a function
+  # that can fail several ways throws several times.
+  ThrowsCount:
+    active: false
+  # Status codes, ports and buffer sizes read better at the point of use than
+  # as named constants scattered through generated files.
+  MagicNumber:
+    active: false
+  # Line length is governed by .editorconfig and enforced by ktlint.
+  MaxLineLength:
+    active: false
+  # The generated tests import the SDK's own packages and JUnit's Assertions
+  # on demand; .editorconfig names exactly those three and ktlint enforces it.
+  WildcardImport:
+    active: false
+  # Dispatching on a status code, a media type or a parameter style is a table
+  # of early returns in every one of the twelve SDKs.
+  ReturnCount:
+    active: false
+  # The twelve SDKs raise the same argument/state error at the same points with
+  # the same message. An explicit throw keeps those sites textually parallel
+  # and can carry a cause, which require()/check() cannot.
+  UseRequire:
+    active: false
+  UseCheckOrError:
+    active: false
+  # The container fixtures expose the same accessor names in all twelve SDKs,
+  # including the two whose value is a fixed internal URL.
+  FunctionOnlyReturningConstant:
+    active: false
+
+naming:
+  # A property whose wire name is a Kotlin keyword is escaped with a leading
+  # underscore; the parameter has to stay recognisable as the wire name.
+  ConstructorParameterNaming:
+    active: false

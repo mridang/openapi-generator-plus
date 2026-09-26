@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'api_exception.dart';
+
+/// ClientException represents an HTTP 4xx client error.
+class ClientException extends ApiException {
+  const ClientException({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

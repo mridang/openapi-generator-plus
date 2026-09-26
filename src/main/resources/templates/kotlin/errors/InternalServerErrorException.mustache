@@ -1,0 +1,13 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Exception for HTTP 500 Internal Server Error.
+ */
+class InternalServerErrorException(
+    message: String,
+    responseHeaders: Map<String, String>?,
+    responseBody: String?,
+    errorBody: Any? = null
+) : ServerException(500, message, responseHeaders, responseBody, errorBody)

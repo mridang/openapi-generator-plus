@@ -1,0 +1,44 @@
+{{>api_info}}
+import Foundation
+
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each constant corresponds to a server entry defined in the spec's
+/// servers array. Use these with ``ConfigurationBuilder/server(_:variables:)``
+/// to select a server:
+///
+/// ```swift
+/// let config = ConfigurationBuilder()
+///     .server(Servers.server0)
+///     .build()
+/// ```
+///
+/// For servers with variables, pass overrides:
+///
+/// ```swift
+/// let config = ConfigurationBuilder()
+///     .server(Servers.server1, variables: ["environment": "staging"])
+///     .build()
+/// ```
+public enum Servers {
+{{#serverConfigs}}
+    /// Server configuration for: {{serverUrl}}{{#serverDescription}}
+    /// {{serverDescription}}{{/serverDescription}}
+    public static let server{{serverIndex}} = ServerConfiguration(
+        urlTemplate: "{{{serverUrl}}}",
+        description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
+        variables: {{#hasVariables}}[
+{{#serverVariables}}            "{{{varName}}}": ServerVariable(
+                defaultValue: "{{{varDefault}}}",
+                description: "{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
+                enumValues: {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+            ){{^-last}},{{/-last}}
+{{/serverVariables}}        ]{{/hasVariables}}{{^hasVariables}}[:]{{/hasVariables}}
+    )
+
+{{/serverConfigs}}
+    /// All server configurations in declaration order.
+    public static let all: [ServerConfiguration] = [
+{{#serverConfigs}}        server{{serverIndex}}{{^-last}},{{/-last}}
+{{/serverConfigs}}    ]
+}

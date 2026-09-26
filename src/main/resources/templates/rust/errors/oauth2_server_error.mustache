@@ -1,0 +1,88 @@
+{{>api_info}}
+
+use std::fmt;
+
+/// Returned when the OAuth2 token endpoint answers with any non-2xx status,
+/// including a refused 3xx redirect. Typed representation of an RFC 6749
+/// §5.2 OAuth2 error response. The
+/// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
+/// `invalid_client`); `description` and `uri` are the optional
+/// human-readable description and a URL to a page describing the error.
+/// `raw_body` preserves the original response payload for diagnostics when
+/// the body is not a well-formed OAuth2 error object.
+#[derive(Debug)]
+pub struct OAuth2ServerError {
+    status_code: u16,
+    code: Option<String>,
+    description: Option<String>,
+    uri: Option<String>,
+    raw_body: String,
+}
+
+impl OAuth2ServerError {
+    /// Creates a server error for a token endpoint response.
+    pub fn new(
+        status_code: u16,
+        code: Option<String>,
+        description: Option<String>,
+        uri: Option<String>,
+        raw_body: String,
+    ) -> Self {
+        Self {
+            status_code,
+            code,
+            description,
+            uri,
+            raw_body,
+        }
+    }
+
+    /// Returns the HTTP status code of the failed token request.
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    /// Returns the RFC 6749 §5.2 OAuth2 error code, if present.
+    pub fn code(&self) -> Option<&str> {
+        self.code.as_deref()
+    }
+
+    /// Returns the human-readable error description, if present.
+    pub fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    /// Returns the URL to a page describing the error, if present.
+    pub fn uri(&self) -> Option<&str> {
+        self.uri.as_deref()
+    }
+
+    /// Returns the original response payload preserved for diagnostics.
+    pub fn raw_body(&self) -> &str {
+        &self.raw_body
+    }
+}
+
+impl fmt::Display for OAuth2ServerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match (&self.code, &self.description) {
+            (None, _) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, self.raw_body
+            ),
+            (Some(code), Some(desc)) => write!(
+                f,
+                "token request failed with status {}: {} — {}",
+                self.status_code, code, desc
+            ),
+            (Some(code), None) => write!(
+                f,
+                "token request failed with status {}: {}",
+                self.status_code, code
+            ),
+        }
+    }
+}
+
+impl std::error::Error for OAuth2ServerError {}

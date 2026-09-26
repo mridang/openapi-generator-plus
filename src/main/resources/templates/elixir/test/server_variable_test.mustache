@@ -1,0 +1,39 @@
+{{#generateTests}}
+defmodule {{moduleName}}.ServerVariableTest do
+  use ExUnit.Case, async: true
+
+  alias {{moduleName}}.ServerVariable
+
+  describe "ServerVariable struct" do
+    test "exposes the default value" do
+      variable = %ServerVariable{default_value: "prod"}
+
+      assert variable.default_value == "prod"
+    end
+
+    test "description and enum_values default to nil and an empty list" do
+      variable = %ServerVariable{default_value: "v1"}
+
+      assert variable.description == nil
+      assert variable.enum_values == []
+    end
+
+    test "retains an enum constraint when provided" do
+      variable = %ServerVariable{
+        default_value: "prod",
+        description: "Deployment environment",
+        enum_values: ["prod", "staging"]
+      }
+
+      assert variable.description == "Deployment environment"
+      assert variable.enum_values == ["prod", "staging"]
+    end
+
+    test "requires the default_value key" do
+      assert_raise ArgumentError, fn ->
+        struct!(ServerVariable, description: "missing default")
+      end
+    end
+  end
+end
+{{/generateTests}}

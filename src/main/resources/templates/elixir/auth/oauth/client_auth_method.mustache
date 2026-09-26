@@ -1,0 +1,12 @@
+{{>api_info}}
+defmodule {{moduleName}}.Auth.OAuth.ClientAuthMethod do
+  @moduledoc """
+  How OAuth2 client credentials (client_id / client_secret) are transmitted
+  to the token endpoint per RFC 6749 §2.3.1.
+
+  - `:body`  — send credentials as form parameters in the request body (default).
+  - `:basic` — send credentials via HTTP Basic Authorization header.
+  """
+
+  @type t :: :body | :basic
+end

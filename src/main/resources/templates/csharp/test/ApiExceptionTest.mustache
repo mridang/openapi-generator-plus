@@ -1,0 +1,222 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Errors;
+using {{packageName}}.Models;
+using Xunit;
+
+namespace Test;
+
+public class ApiExceptionTest
+{
+    [Fact]
+    public void ExposesStatusCodeMessageBodyHeadersErrorBody()
+    {
+        var ex = new ApiException(
+            404,
+            "not found",
+            new Dictionary<string, string> { { "content-type", "application/json" } },
+            "{\"id\":7,\"name\":\"missing\"}",
+            null
+        );
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal("{\"id\":7,\"name\":\"missing\"}", ex.ResponseBody);
+        Assert.Equal("application/json", ex.ResponseHeaders!["content-type"]);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void NullHeadersAndBodyMarkTransportNoResponse()
+    {
+        // apierror-responsebody-headers-nullable-split: null is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        var ex = new ApiException(0, "connection reset", null, null);
+
+        Assert.Null(ex.ResponseHeaders);
+        Assert.Null(ex.ResponseBody);
+    }
+
+    [Fact]
+    public void IsAnExceptionWithStatusInItsStringForm()
+    {
+        // Message stays the detail message the exception was constructed with;
+        // the response context is rendered by the string conversion, one
+        // labelled field per line.
+        var ex = new ApiException(
+            500,
+            "boom",
+            new Dictionary<string, string> { { "x-request-id", "abc" } },
+            "the body"
+        );
+
+        Assert.IsAssignableFrom<Exception>(ex);
+        Assert.Equal("boom", ex.Message);
+        Assert.Equal(
+            "boom\nHTTP status code: 500\nResponse headers: {x-request-id=abc}\nResponse body: the body",
+            ex.ToString()
+        );
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyDeserializesTheBodyIntoTheGivenClass()
+    {
+        // Built through FromResponse, the way a real response reaches a caller:
+        // the typed body must come out of the raw body, not out of whatever the
+        // generic parse happened to leave behind.
+        var ex = ApiException.FromResponse(
+            400,
+            new Dictionary<string, string>(),
+            "{\"id\":42,\"name\":\"Dogs\"}"
+        );
+
+        var typed = ex.GetTypedErrorBody<Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(42L, typed!.Id);
+        Assert.Equal("Dogs", typed.Name);
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);
+
+        Assert.Null(ex.GetTypedErrorBody<Category>());
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyIgnoresExtraneousFieldsNotOnTheModel()
+    {
+        var ex = ApiException.FromResponse(
+            422,
+            new Dictionary<string, string>(),
+            "{\"id\":1,\"name\":\"Cat\",\"extra\":\"drop-me\"}"
+        );
+
+        var typed = ex.GetTypedErrorBody<Category>();
+        Assert.NotNull(typed);
+        Assert.Equal(1L, typed!.Id);
+        Assert.Equal("Cat", typed.Name);
+    }
+
+    [Fact]
+    public void ApiExceptionDerivesFromBrandedRoot()
+    {
+        // unified-exception-hierarchy: ApiException sits under the single
+        // branded root so one catch covers every SDK-originated failure.
+        var ex = new ApiException(500, "boom");
+
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+    }
+
+    [Fact]
+    public void TypedClientErrorWalksTheFullChain()
+    {
+        // BadRequest → ClientException → ApiException → {{errorPrefix}}Exception.
+        var ex = new BadRequestException("bad request");
+
+        Assert.IsAssignableFrom<ClientException>(ex);
+        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public void NetworkExceptionsDeriveFromApiExceptionWithStatusZero()
+    {
+        // No HTTP response arrived, so the status is 0 and the transport
+        // failure is kept as the inner exception. Both sit under ApiException
+        // so an existing catch on ApiException keeps catching them.
+        var cause = new HttpRequestException("connection refused");
+        var network = new {{packageName}}.Errors.NetworkException("connection refused", cause);
+        var timeout = new {{packageName}}.Errors.NetworkTimeoutException("timed out", cause);
+
+        Assert.IsAssignableFrom<ApiException>(network);
+        Assert.Equal(0, network.StatusCode);
+        Assert.Same(cause, network.InnerException);
+        Assert.IsAssignableFrom<{{packageName}}.Errors.NetworkException>(timeout);
+        Assert.IsAssignableFrom<ApiException>(timeout);
+        Assert.Equal(0, timeout.StatusCode);
+        Assert.Same(cause, timeout.InnerException);
+    }
+
+    [Fact]
+    public void SerializationExceptionDerivesFromBrandedRoot()
+    {
+        var ex = new SerializationException("nope");
+
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+        Assert.IsAssignableFrom<Exception>(ex);
+    }
+
+    [Theory]
+    [InlineData(400, typeof(BadRequestException))]
+    [InlineData(401, typeof(UnauthorizedException))]
+    [InlineData(403, typeof(ForbiddenException))]
+    [InlineData(404, typeof(NotFoundException))]
+    [InlineData(409, typeof(ConflictException))]
+    [InlineData(422, typeof(UnprocessableEntityException))]
+    [InlineData(418, typeof(ClientException))]
+    [InlineData(500, typeof(InternalServerErrorException))]
+    [InlineData(503, typeof(ServerException))]
+    // 302 is below the client range and 600 above the server range: neither is
+    // a ClientException or a ServerException, both are the base type.
+    [InlineData(302, typeof(ApiException))]
+    [InlineData(600, typeof(ApiException))]
+    public void FromResponseMapsEveryStatusToItsException(int status, Type expected)
+    {
+        var ex = ApiException.FromResponse(
+            status,
+            new Dictionary<string, string> { { "x-request-id", "abc" } },
+            "{\"code\":\"denied\"}"
+        );
+
+        Assert.Equal(expected, ex.GetType());
+        Assert.Equal(status, ex.StatusCode);
+        Assert.Equal("abc", ex.ResponseHeaders!["x-request-id"]);
+        Assert.Equal("{\"code\":\"denied\"}", ex.ResponseBody);
+        var body = Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+        Assert.Equal("denied", body.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public void FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson()
+    {
+        var ex = ApiException.FromResponse(
+            502,
+            new Dictionary<string, string>(),
+            "<html>bad gateway</html>"
+        );
+
+        Assert.IsType<ServerException>(ex);
+        Assert.Equal("<html>bad gateway</html>", ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Theory]
+    [InlineData(typeof({{errorPrefix}}Exception))]
+    [InlineData(typeof(ApiException))]
+    [InlineData(typeof(ClientException))]
+    [InlineData(typeof(ServerException))]
+    [InlineData(typeof(BadRequestException))]
+    [InlineData(typeof(UnauthorizedException))]
+    [InlineData(typeof(ForbiddenException))]
+    [InlineData(typeof(NotFoundException))]
+    [InlineData(typeof(ConflictException))]
+    [InlineData(typeof(UnprocessableEntityException))]
+    [InlineData(typeof(InternalServerErrorException))]
+    [InlineData(typeof(NetworkException))]
+    [InlineData(typeof(NetworkTimeoutException))]
+    [InlineData(typeof(SerializationException))]
+    [InlineData(typeof(OAuth2ServerException))]
+    [InlineData(typeof(OAuth2TokenException))]
+    public void EveryErrorTypeLivesInTheErrorsNamespaceUnderTheRoot(Type error)
+    {
+        Assert.Equal("{{packageName}}.Errors", error.Namespace);
+        Assert.False(error.IsNested);
+        Assert.True(typeof({{errorPrefix}}Exception).IsAssignableFrom(error));
+    }
+}

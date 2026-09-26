@@ -1,0 +1,272 @@
+{{>api_info}}
+package oauth
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"net/url"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"{{packageName}}/pkg/auth"
+	errors_pkg "{{packageName}}/pkg/errors"
+)
+
+// expirySafetyMargin is applied to token expiry checks so that we refresh
+// slightly before the token actually expires, avoiding a race against the
+// server clock.
+const expirySafetyMargin = 60 * time.Second
+
+// ErrApiClientNotInjected is returned when an OAuth2 or OpenID Connect
+// authenticator makes an HTTP call before the {{clientClassName}} constructor
+// injected the shared ApiClient via SetApiClient. Match it with errors.Is.
+var ErrApiClientNotInjected = errors.New("API client has not been injected; " +
+	"ensure the {{clientClassName}} constructor calls SetApiClient on " +
+	"HttpAwareAuthenticator before making API requests")
+
+// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+//
+// Uses the shared ApiClient instance so that token exchange requests honour
+// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+type OAuth2TokenManager struct {
+	mu           sync.Mutex
+	apiClient    auth.ApiClient
+	accessToken  string
+	refreshToken string
+	tokenExpiry  time.Time
+}
+
+// NewOAuth2TokenManager creates a new token manager.
+//
+// The ApiClient must be injected via SetApiClient before any token requests
+// are made.
+func NewOAuth2TokenManager() *OAuth2TokenManager {
+	return &OAuth2TokenManager{}
+}
+
+// SetApiClient injects the shared API client for making token requests.
+func (m *OAuth2TokenManager) SetApiClient(client auth.ApiClient) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.apiClient = client
+}
+
+// RefreshToken returns the current refresh token, if any.
+func (m *OAuth2TokenManager) RefreshToken() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.refreshToken
+}
+
+// GetAccessToken returns a valid access token, fetching or refreshing as necessary.
+//
+// This method is synchronized to prevent concurrent token requests.
+func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]string) (string, error) {
+	return m.GetAccessTokenWithHeaders(tokenURL, params, nil)
+}
+
+// GetAccessTokenWithHeaders returns a valid access token, fetching or refreshing
+// as necessary, with additional HTTP headers (e.g. Authorization for HTTP Basic
+// client authentication per RFC 6749 §2.3.1) included on the token request.
+func (m *OAuth2TokenManager) GetAccessTokenWithHeaders(tokenURL string, params map[string]string, extraHeaders map[string]string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))) {
+		return m.accessToken, nil
+	}
+
+	if m.refreshToken != "" {
+		refreshParams := map[string]string{
+			"grant_type":    "refresh_token",
+			"refresh_token": m.refreshToken,
+		}
+		if v, ok := params["client_id"]; ok {
+			refreshParams["client_id"] = v
+		}
+		if v, ok := params["client_secret"]; ok {
+			refreshParams["client_secret"] = v
+		}
+		if err := m.fetchToken(tokenURL, refreshParams, extraHeaders); err == nil && m.accessToken != "" {
+			return m.accessToken, nil
+		}
+		/* Refresh failed (e.g. refresh token revoked or expired).
+		 * Fall back to re-running the original grant below. */
+	}
+
+	if err := m.fetchToken(tokenURL, params, extraHeaders); err != nil {
+		return "", err
+	}
+	return m.accessToken, nil
+}
+
+// SetAccessToken manually sets an access token, bypassing the token endpoint.
+func (m *OAuth2TokenManager) SetAccessToken(token string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.accessToken = token
+	m.tokenExpiry = time.Time{}
+}
+
+// InvalidateAccessToken clears the cached access token so that the next call
+// to GetAccessToken fetches a fresh token from the token endpoint. Intended
+// for tests and recovery flows.
+func (m *OAuth2TokenManager) InvalidateAccessToken() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.accessToken = ""
+	m.tokenExpiry = time.Time{}
+}
+
+func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string, extraHeaders map[string]string) error {
+	client := m.apiClient
+	if client == nil {
+		return ErrApiClientNotInjected
+	}
+
+	values := url.Values{}
+	for k, v := range params {
+		values.Set(k, v)
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+		"Accept":       "application/json",
+	}
+	for k, v := range extraHeaders {
+		headers[k] = v
+	}
+
+	/* Gap 3.2: refuse 307 / 308 on the token POST. RFC 7231 §6.4.7 /
+	 * RFC 7538 require the runtime to replay method and body when
+	 * following 307 / 308 — for a token POST that would forward the
+	 * form-encoded `client_secret` (and `refresh_token` on refresh
+	 * grants) onto the redirect target. If the token endpoint were
+	 * compromised or misconfigured to return a 307 / 308 pointing at an
+	 * attacker host, the credential would be exfiltrated in plain text.
+	 * NoRedirect makes the transport surface the 3xx verbatim so the
+	 * caller fails closed with an OAuth2 server error rather than
+	 * silently leaking the credential. */
+	resp, err := client.SendRequestWithOptions(
+		"POST", tokenURL, headers, []byte(values.Encode()),
+		&auth.RequestOptions{NoRedirect: true})
+	if err != nil {
+		/* A transport failure is already a *NetworkError or
+		 * *NetworkTimeoutError; return it unchanged. */
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		/* Any non-2xx answer is an *OAuth2ServerError carrying its status,
+		 * including a 3xx: RFC 6749 §3.2 forbids redirects at the token
+		 * endpoint, and with NoRedirect set the transport surfaces the 3xx
+		 * verbatim instead of replaying the credential-bearing POST.
+		 *
+		 * RFC 6749 §5.2: OAuth2 error responses are JSON bodies with
+		 * `error` (required), `error_description`, `error_uri`. Parse
+		 * them into a typed *OAuth2ServerError so callers can recover
+		 * via errors.As. Fall back to the raw body when the response is
+		 * not a valid error object. */
+		return parseOAuth2ServerError(resp.StatusCode, resp.Body)
+	}
+
+	/* expires_in is read as json.RawMessage so the whole parse does not
+	 * fail when providers send it as a quoted string (Salesforce, some
+	 * Apigee deployments) or as a JSON float. See parseExpiresIn below. */
+	var parsed struct {
+		AccessToken  string          `json:"access_token"`
+		RefreshToken string          `json:"refresh_token"`
+		ExpiresIn    json.RawMessage `json:"expires_in"`
+	}
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. */
+		return errors_pkg.NewOAuth2TokenError(fmt.Sprintf("failed to parse token response: %v", err))
+	}
+
+	if parsed.AccessToken == "" {
+		return errors_pkg.NewOAuth2TokenError("token response missing or empty access_token field")
+	}
+	m.accessToken = parsed.AccessToken
+	if parsed.RefreshToken != "" {
+		m.refreshToken = parsed.RefreshToken
+	}
+	if len(parsed.ExpiresIn) > 0 && string(parsed.ExpiresIn) != "null" {
+		expiresIn := parseExpiresIn(parsed.ExpiresIn)
+		if expiresIn > 0 {
+			bufferSecs := expiresIn
+			if bufferSecs > 30 {
+				bufferSecs = 30
+			}
+			m.tokenExpiry = time.Now().Add(time.Duration(expiresIn-bufferSecs) * time.Second)
+		} else {
+			// Unparseable or non-positive expires_in: mark the token as
+			// immediately stale so the next call refetches.
+			m.tokenExpiry = time.Now()
+		}
+	}
+
+	return nil
+}
+
+// parseOAuth2ServerError parses an RFC 6749 §5.2 OAuth2 error response body
+// into a typed *OAuth2ServerError. Falls back to a generic error using the
+// raw body when the body is not a valid OAuth2 error object.
+func parseOAuth2ServerError(statusCode int, body string) *errors_pkg.OAuth2ServerError {
+	var parsed struct {
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+		ErrorURI         string `json:"error_uri"`
+	}
+	if err := json.Unmarshal([]byte(body), &parsed); err == nil && parsed.Error != "" {
+		return errors_pkg.NewOAuth2ServerError(
+			statusCode,
+			parsed.Error,
+			parsed.ErrorDescription,
+			parsed.ErrorURI,
+			body,
+		)
+	}
+	return errors_pkg.NewOAuth2ServerError(statusCode, "", "", "", body)
+}
+
+// parseExpiresIn performs a defensive parse of the OAuth2 "expires_in" field
+// (RFC 6749 §5.1). Returns 0 (caller skips caching) when the value is missing,
+// unparseable, or non-positive. Accepts integers, floors floats, and parses
+// digit strings (e.g. "3600" from Salesforce).
+func parseExpiresIn(raw json.RawMessage) int64 {
+	if len(raw) == 0 {
+		return 0
+	}
+	// Try integer first.
+	var asInt int64
+	if err := json.Unmarshal(raw, &asInt); err == nil {
+		return asInt
+	}
+	// Try float (handles 3600.5).
+	var asFloat float64
+	if err := json.Unmarshal(raw, &asFloat); err == nil {
+		if math.IsNaN(asFloat) || math.IsInf(asFloat, 0) {
+			return 0
+		}
+		return int64(math.Floor(asFloat))
+	}
+	// Try string (handles "3600").
+	var asStr string
+	if err := json.Unmarshal(raw, &asStr); err == nil {
+		trimmed := strings.TrimSpace(asStr)
+		if trimmed == "" {
+			return 0
+		}
+		if v, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			if math.IsNaN(v) || math.IsInf(v, 0) {
+				return 0
+			}
+			return int64(math.Floor(v))
+		}
+	}
+	return 0
+}

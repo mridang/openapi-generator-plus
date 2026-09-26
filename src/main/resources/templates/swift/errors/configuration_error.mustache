@@ -1,0 +1,49 @@
+{{>api_info}}
+import Foundation
+
+/// ConfigurationError is thrown when the SDK is configured or called with an
+/// invalid value, or called in the wrong order: a proxy URL that does not
+/// parse or is not http(s), a server variable outside its enum, a CA
+/// certificate file that cannot be read, a proxy on a platform that cannot
+/// route through one, a malformed argument (bad credentials, a missing
+/// required parameter, a value that would corrupt the HTTP message), or a
+/// call made in the wrong state (a closed client, an authenticator used
+/// before its API client or access token is set).
+///
+/// This is a programming error, not an API failure, so it conforms to plain
+/// `Error` and is deliberately not part of the SDK error hierarchy rooted at
+/// ``{{errorPrefix}}Error``.
+public enum ConfigurationError: Error, LocalizedError, Equatable {
+    /// The proxy URL does not parse, is not http(s), or has no host.
+    case invalidProxyURL(String)
+    /// A server variable override is not one of the variable's enum values.
+    case invalidServerVariable(variable: String, value: String, allowed: [String])
+    /// The CA certificate file cannot be read or parsed.
+    case invalidCACertificate(String)
+    /// A proxy is configured on a platform whose URLSession cannot use one.
+    case proxyUnsupported
+    /// An argument is malformed: bad credentials, a missing required
+    /// parameter, a malformed URL, or a header, cookie or multipart value
+    /// holding characters that would corrupt the HTTP message.
+    case invalidArgument(String)
+    /// The call was made in the wrong state: the client was closed, or an
+    /// authenticator was used before its API client or access token was set.
+    case invalidState(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidProxyURL(let url):
+            return "Invalid proxy URL: \(url)"
+        case .invalidServerVariable(let variable, let value, let allowed):
+            return "Invalid value '\(value)' for variable '\(variable)'; allowed: \(allowed)"
+        case .invalidCACertificate(let reason):
+            return "Invalid CA certificate: \(reason)"
+        case .proxyUnsupported:
+            return "Proxy configuration is not supported on this platform"
+        case .invalidArgument(let reason):
+            return "Invalid argument: \(reason)"
+        case .invalidState(let reason):
+            return "Invalid state: \(reason)"
+        }
+    }
+}

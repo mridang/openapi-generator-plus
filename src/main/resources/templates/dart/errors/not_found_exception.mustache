@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'client_exception.dart';
+
+/// NotFoundException represents an HTTP 404 Not Found error.
+class NotFoundException extends ClientException {
+  const NotFoundException({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

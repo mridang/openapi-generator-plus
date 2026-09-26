@@ -1,0 +1,13 @@
+{{>api_info}}
+import 'api_exception.dart';
+
+/// ServerException represents an HTTP 5xx server error.
+class ServerException extends ApiException {
+  const ServerException({
+    required super.statusCode,
+    required super.message,
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+  });
+}

@@ -1,0 +1,80 @@
+{{>api_info}}
+package auth
+
+// ApiHttpResponse wraps an HTTP response from the API client.
+//
+// Mirrors the main package's ApiHttpResponse to avoid circular imports.
+type ApiHttpResponse struct {
+	/* StatusCode is the HTTP status code of the response. */
+	StatusCode int
+
+	/* Body is the raw response body as a string. */
+	Body string
+
+	/* Headers contains the response headers. */
+	Headers map[string]string
+}
+
+// RequestOptions carries per-request transport overrides for ApiClient calls
+// originating from the auth subpackage.
+//
+// Mirrors the main package's RequestOptions to avoid circular imports.
+type RequestOptions struct {
+	/* NoRedirect, when true, forces the transport to refuse every 3xx
+	 * response. Set by OAuth2TokenManager on token endpoint POSTs so a
+	 * 307 / 308 cannot replay the form-encoded `client_secret` /
+	 * `refresh_token` onto an attacker-controlled host. */
+	NoRedirect bool
+}
+
+// ApiClient is the interface for HTTP clients used by authentication components.
+//
+// Mirrors the main package's ApiClient to avoid circular imports between the
+// auth subpackage and the root module package.
+type ApiClient interface {
+	/* SendRequest sends an HTTP request and returns the response. */
+	SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error)
+
+	/* SendRequestWithOptions sends an HTTP request applying the supplied
+	 * per-request RequestOptions on top of the transport-level defaults.
+	 * Implementations MUST treat a nil opts the same as a zero-value
+	 * RequestOptions. */
+	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error)
+}
+
+// HttpAwareAuthenticator is implemented by authentication schemes that
+// require making HTTP requests (e.g. OAuth2 token exchange, OpenID
+// Connect discovery).
+//
+// Implementations receive a shared ApiClient instance so that
+// authentication-related HTTP calls (token endpoints, discovery documents)
+// use the same transport configuration (proxy, TLS, timeouts) as regular
+// API calls.
+//
+// The ApiClient is injected by the {{clientClassName}} constructor after
+// creation, via SetApiClient. Implementations must not make HTTP calls
+// before the client is injected.
+//
+// Only OAuth2 and OpenID Connect authenticators implement this interface.
+// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
+type HttpAwareAuthenticator interface {
+	/* Host returns the base URL of the API. */
+	Host() string
+
+	/* AuthHeaders returns the authentication headers to include in every request. */
+	AuthHeaders() map[string]string
+
+	/* QueryParams returns query parameters to include for authentication. */
+	QueryParams() map[string]string
+
+	/* CookieParams returns cookie parameters to include for authentication. */
+	CookieParams() map[string]string
+
+	/* SetApiClient injects the shared API client for making HTTP requests.
+	 *
+	 * Called by the {{clientClassName}} constructor after the ApiClient has been
+	 * created with the user's TransportOptions. Implementations should store
+	 * this reference and use it for all outbound HTTP calls (token exchange,
+	 * discovery, etc.). */
+	SetApiClient(client ApiClient)
+}

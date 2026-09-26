@@ -1,0 +1,91 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+
+use super::Authenticator;
+use crate::errors::configuration_error::ConfigurationError;
+
+/// BasicAuthenticator provides HTTP Basic authentication.
+pub struct BasicAuthenticator {
+    host: String,
+    username: String,
+    password: String,
+}
+
+impl BasicAuthenticator {
+    /// Creates a new Basic authenticator.
+    ///
+    /// # Errors
+    ///
+    /// Credentials are validated eagerly at construction, so a malformed
+    /// credential (colon in user-id, or CR/LF/NUL in either field per
+    /// RFC 7617 §2) is reported where it is supplied rather than lazily at
+    /// first use, as [`ConfigurationError::InvalidArgument`].
+    pub fn new(host: &str, username: &str, password: &str) -> Result<Self, ConfigurationError> {
+        if let Some(problem) = credential_problem(username, password) {
+            return Err(ConfigurationError::InvalidArgument(format!(
+                "invalid HTTP Basic credentials: {}",
+                problem
+            )));
+        }
+        Ok(Self {
+            host: host.to_string(),
+            username: username.to_string(),
+            password: password.to_string(),
+        })
+    }
+}
+
+/// Returns why the credentials would corrupt the HTTP Authorization header
+/// (RFC 7617 §2), or `None` when they are well-formed.
+fn credential_problem(username: &str, password: &str) -> Option<&'static str> {
+    for c in username.chars() {
+        if c == '\r' || c == '\n' || c == '\0' {
+            return Some("Basic auth username must not contain CR, LF, or NUL characters");
+        }
+        if c == ':' {
+            return Some("Basic auth username must not contain ':' (RFC 7617 §2)");
+        }
+    }
+    if password.chars().any(|c| c == '\r' || c == '\n' || c == '\0') {
+        return Some("Basic auth password must not contain CR, LF, or NUL characters");
+    }
+    None
+}
+
+/// Redacts the password so it never leaks through `{:?}` (Debug) formatting,
+/// stack traces, or error logs. The host and username are shown normally; the
+/// password is masked as `***`.
+impl std::fmt::Debug for BasicAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BasicAuthenticator")
+            .field("host", &self.host)
+            .field("username", &self.username)
+            .field("password", &"***")
+            .finish()
+    }
+}
+
+impl Authenticator for BasicAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the Basic Authorization header. The credentials were
+    /// validated by [`BasicAuthenticator::new`], so this cannot fail.
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let encoded = STANDARD.encode(format!("{}:{}", self.username, self.password));
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), format!("Basic {}", encoded));
+            headers
+        })
+    }
+}

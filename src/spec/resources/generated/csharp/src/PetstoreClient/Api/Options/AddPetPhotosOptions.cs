@@ -1,0 +1,14 @@
+#nullable enable
+using PetstoreClient.Models;
+
+namespace PetstoreClient.Api.Options;
+
+/// <summary>
+/// Options for the AddPetPhotos operation.
+/// </summary>
+public sealed class AddPetPhotosOptions
+{
+    public required List<System.IO.Stream> Files { get; init; }
+
+    public required PhotoMetadata Metadata { get; init; }
+}

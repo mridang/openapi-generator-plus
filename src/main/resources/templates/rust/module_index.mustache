@@ -1,0 +1,8 @@
+{{! A module with nothing public -- the crate-internal base_api -- is declared
+    but not re-exported: a glob that re-exports nothing is a rustc warning. }}
+{{#modules}}mod {{name}};
+{{#reexport}}pub use {{name}}::*;
+{{/reexport}}
+{{/modules}}
+{{#hasOptions}}pub mod options;
+{{/hasOptions}}

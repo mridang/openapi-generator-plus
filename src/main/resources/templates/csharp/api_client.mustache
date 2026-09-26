@@ -1,0 +1,65 @@
+{{>api_info}}
+
+namespace {{packageName}};
+
+/// <summary>
+/// Interface for API HTTP transport.
+/// </summary>
+public interface IApiClient : IDisposable
+{
+    /// <summary>
+    /// Send an HTTP request and return the response.
+    /// </summary>
+    /// <param name="method">HTTP method (GET, POST, PUT, DELETE, etc.)</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body
+    );
+
+    /// <summary>
+    /// Send an HTTP request, optionally refusing to follow redirects.
+    ///
+    /// When <paramref name="noRedirect"/> is <c>true</c>, any 3xx response
+    /// (including 307/308) is returned to the caller as-is rather than being
+    /// replayed to the <c>Location</c> target. OAuth2 token/revoke/authorize
+    /// endpoint POSTs use this guard so a malicious or misconfigured server
+    /// cannot replay the credentialed body to an attacker-controlled URL
+    /// (Gap 3.2).
+    ///
+    /// The default implementation delegates to the four-argument overload;
+    /// transport implementations that own the redirect loop should implement
+    /// this method and honour the flag.
+    /// </summary>
+    /// <param name="method">HTTP method</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (may be null)</param>
+    /// <param name="noRedirect">When <c>true</c>, do not follow 3xx responses.</param>
+    /// <returns>ApiHttpResponse containing status code, body, and headers</returns>
+    Task<ApiHttpResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body,
+        bool noRedirect
+    ) => SendRequestAsync(method, url, headers, body);
+
+    /// <summary>
+    /// Releases any resources held by this client (connection pool, sockets).
+    /// The default implementation is a no-op; implementations that own a
+    /// pooled HTTP client should dispose of it.
+    /// </summary>
+    void IDisposable.Dispose()
+    {
+        /* No-op by default. Implementations override to release resources.
+           SuppressFinalize is still called so a derived type that adds a
+           finalizer does not have to re-implement IDisposable to do it. */
+        GC.SuppressFinalize(this);
+    }
+}

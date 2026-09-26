@@ -1,0 +1,27 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * Represents a typed API response with deserialized data, status code,
+ * raw body, and headers. Returned by withHttpInfo methods.
+ *
+ * @template-covariant T
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class ApiResult
+{
+    /**
+     * @param int                     $statusCode HTTP status code
+     * @param T|null                  $data       Deserialized response body
+     * @param string                  $rawBody    Raw response body string
+     * @param array<string, string>   $headers    Response headers
+     */
+    public function __construct(
+        public readonly int $statusCode,
+        public readonly mixed $data,
+        public readonly string $rawBody,
+        public readonly array $headers
+    ) {
+    }
+}

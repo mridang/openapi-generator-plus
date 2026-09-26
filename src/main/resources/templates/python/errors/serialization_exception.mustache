@@ -1,0 +1,24 @@
+{{>api_info}}
+
+from typing import Optional
+
+from {{packageName}}.errors import {{errorPrefix}}Exception
+
+
+class SerializationException({{errorPrefix}}Exception):
+    """Exception raised when serialization or deserialization fails."""
+
+    def __init__(self, message: str, cause: Optional[Exception] = None):
+        super().__init__(message)
+        # Stored privately and exposed via read-only @property getters so a
+        # caught error's fields cannot be reassigned after construction.
+        self._message = message
+        self._cause = cause
+
+    @property
+    def message(self) -> str:
+        return self._message
+
+    @property
+    def cause(self) -> Optional[Exception]:
+        return self._cause

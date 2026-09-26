@@ -1,0 +1,25 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 404 Not Found.
+ */
+export class NotFoundError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string,
+    responseHeaders: Record<string, string> | null = {},
+    responseBody: string | null = null,
+    errorBody: T | null = null
+  ) {
+    super(404, message, responseHeaders, responseBody, errorBody);
+    this.name = 'NotFoundError';
+  }
+}
+
+ApiError.registerStatusError(
+  404,
+  (_statusCode, message, headers, body, errorBody) =>
+    new NotFoundError(message, headers, body, errorBody)
+);

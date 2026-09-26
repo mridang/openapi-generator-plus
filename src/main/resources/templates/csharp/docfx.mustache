@@ -1,0 +1,47 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "src/{{packageName}}",
+          "files": [
+            "**/*.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net8.0"
+      },
+      "disableGitFeatures": true,
+      "disableDefaultFilter": false
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**.{md,yml}",
+          "toc.yml",
+          "index.md"
+        ]
+      }
+    ],
+    "globalMetadata": {
+      "_appTitle": "{{#appName}}{{appName}}{{/appName}}{{^appName}}{{packageName}}{{/appName}} API Documentation",
+      "_appName": "{{packageName}}",
+      "_enableSearch": true,
+      "_disableContribution": true
+    },
+    "dest": ".out/docs",
+    "globalMetadataFiles": [],
+    "fileMetadataFiles": [],
+    "template": [
+      "default",
+      "modern"
+    ],
+    "postProcessors": [],
+    "keepFileLink": false,
+    "disableGitFeatures": true
+  }
+}

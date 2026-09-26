@@ -1,0 +1,271 @@
+{{>api_info}}
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+import Testing
+@testable import {{packageName}}
+
+@Suite final class ApiErrorTests {
+
+    @Test func testExposesStatusMessageBodyHeadersErrorBody() {
+        let err = ApiError(
+            statusCode: 404,
+            message: "not found",
+            responseBody: #"{"id":7,"name":"missing"}"#,
+            responseHeaders: ["content-type": "application/json"],
+            errorBody: nil
+        )
+
+        #expect(err.statusCode == 404)
+        #expect(err.message == "not found")
+        #expect(err.responseBody == #"{"id":7,"name":"missing"}"#)
+        #expect(err.responseHeaders?["content-type"] == "application/json")
+        #expect(err.errorBody == nil)
+    }
+
+    @Test func testNilHeadersAndBodyMarkTransportNoResponse() {
+        // apierror-responsebody-headers-nullable-split: nil is distinct from an
+        // empty header map / empty body so a pre-response transport failure can
+        // be encoded.
+        let err = ApiError(
+            statusCode: 0,
+            message: "connection reset",
+            responseBody: nil,
+            responseHeaders: nil
+        )
+
+        #expect(err.responseHeaders == nil)
+        #expect(err.responseBody == nil)
+    }
+
+    @Test func testConformsToErrorAndHasDescription() {
+        let err = ApiError(statusCode: 500, message: "boom")
+
+        let _: any Error = err
+        #expect(err.errorDescription?.isEmpty == false)
+    }
+
+    @Test func testGetTypedErrorBodyDeserializesBody() throws {
+        let err = ApiError(
+            statusCode: 400,
+            message: "bad request",
+            responseBody: #"{"id":42,"name":"Dogs"}"#
+        )
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 42)
+        #expect(typed?.name == "Dogs")
+    }
+
+    @Test func testGetTypedErrorBodyReturnsNilWhenNoBody() throws {
+        let err = ApiError(statusCode: 500, message: "oops", responseBody: nil)
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed == nil)
+    }
+
+    @Test func testApiErrorConformsTo{{errorPrefix}}Error() {
+        // Branded root: every SDK-thrown error reaches {{errorPrefix}}Error, so a
+        // caller can catch the whole hierarchy with one `as? {{errorPrefix}}Error`.
+        let err: any Error = ApiError(statusCode: 500, message: "boom")
+
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    /* A 404 is a NotFoundError and a 500 an InternalServerError; each is an
+     * ApiError of the right family and part of the {{errorPrefix}}Error hierarchy. */
+    @Test func testStatusCodesMapToTypedErrors() {
+        let notFound: any Error = ApiError.fromResponse(
+            statusCode: 404, headers: [:], body: "")
+        #expect(notFound is NotFoundError)
+        #expect(notFound is ClientError)
+        #expect(!(notFound is ServerError))
+        #expect(!(notFound is NetworkError))
+        #expect(notFound is {{errorPrefix}}Error)
+        #expect((notFound as? ApiError)?.statusCode == 404)
+
+        let serverError: any Error = ApiError.fromResponse(
+            statusCode: 500, headers: [:], body: "")
+        #expect(serverError is InternalServerError)
+        #expect(serverError is ServerError)
+        #expect(!(serverError is ClientError))
+        #expect(serverError is {{errorPrefix}}Error)
+        #expect((serverError as? ApiError)?.statusCode == 500)
+
+        /* A status outside 400-599 is neither a ClientError nor a ServerError:
+         * the 5xx arm stops at 599, so 600 is a plain ApiError. */
+        let outOfRange: any Error = ApiError.fromResponse(
+            statusCode: 600, headers: [:], body: "")
+        #expect(!(outOfRange is ServerError))
+        #expect(!(outOfRange is ClientError))
+        #expect(outOfRange is ApiError)
+        #expect((outOfRange as? ApiError)?.statusCode == 600)
+    }
+
+    @Test func testTypedErrorConformsToApiErrorAnd{{errorPrefix}}Error() {
+        // A typed HTTP error subclasses ApiError and therefore conforms to
+        // {{errorPrefix}}Error transitively.
+        let err: any Error = BadRequestError(statusCode: 400, message: "bad")
+
+        #expect(err is ApiError)
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    @Test func testSerializationErrorConformsTo{{errorPrefix}}Error() {
+        // The serialization failure value type is branded too, so a single
+        // {{errorPrefix}}Error catch covers transport, HTTP, and (de)serialization.
+        let err: any Error = SerializationError(message: "decode failed")
+
+        #expect(err is {{errorPrefix}}Error)
+        #expect(err as? {{errorPrefix}}Error != nil)
+    }
+
+    @Test func testGetTypedErrorBodyIgnoresExtraneousFields() throws {
+        let err = ApiError(
+            statusCode: 422,
+            message: "unprocessable",
+            responseBody: #"{"id":1,"name":"Cat","extra":"drop-me"}"#
+        )
+
+        let typed = try err.getTypedErrorBody({{packageName}}.Category.self)
+        #expect(typed != nil)
+        #expect(typed?.id == 1)
+        #expect(typed?.name == "Cat")
+    }
+
+    @Test func testAuthAndSerializationErrorsConformTo{{errorPrefix}}Error() {
+        // INVARIANT: every SDK-thrown error type — including the auth and
+        // serialization value types that do not subclass ApiError — is branded
+        // with {{errorPrefix}}Error, so a single `as? {{errorPrefix}}Error` catch covers the
+        // entire surface the SDK can throw.
+        let errors: [any Error] = [
+            SerializationError(message: "not a duration"),
+            NetworkError(statusCode: 0, message: "connection refused"),
+            NetworkTimeoutError(statusCode: 0, message: "timed out"),
+            OAuth2TokenError.missingAccessToken("empty access_token"),
+            OAuth2ServerError(
+                statusCode: 400,
+                code: "invalid_grant",
+                description: "expired",
+                uri: nil,
+                rawBody: #"{"error":"invalid_grant"}"#
+            ),
+        ]
+
+        for err in errors {
+            #expect(err is {{errorPrefix}}Error)
+            #expect(err as? {{errorPrefix}}Error != nil)
+        }
+    }
+
+    @Test func testConfigurationErrorIsNotAn{{errorPrefix}}Error() {
+        // A configuration mistake or a wrong call order is a programming error,
+        // not an API failure, so ConfigurationError and
+        // OAuth2AuthorizationCodeError conform to plain Error only.
+        let errors: [any Error] = [
+            ConfigurationError.invalidProxyURL("://bad"),
+            ConfigurationError.invalidServerVariable(variable: "region", value: "mars", allowed: ["us", "eu"]),
+            ConfigurationError.invalidCACertificate("missing"),
+            ConfigurationError.proxyUnsupported,
+            ConfigurationError.invalidArgument("bad"),
+            ConfigurationError.invalidState("closed"),
+            OAuth2AuthorizationCodeError.codeNotExchanged,
+            OAuth2AuthorizationCodeError.emptyCode,
+        ]
+        for err in errors {
+            #expect(!(err is {{errorPrefix}}Error))
+            #expect(!(err is ApiError))
+        }
+    }
+
+    @Test func testTransportFailuresAreClassified() {
+        // URLError(.timedOut) is a NetworkTimeoutError; any other failure with
+        // no HTTP response is a NetworkError. Both keep the URLError.
+        let timeout = DefaultApiClient.transportError(URLError(.timedOut))
+        #expect(timeout is NetworkTimeoutError)
+        #expect(((timeout as? ApiError)?.underlyingError as? URLError)?.code == .timedOut)
+        for code in [
+            URLError.Code.cannotConnectToHost, .cannotFindHost, .secureConnectionFailed,
+            .networkConnectionLost, .dnsLookupFailed, .notConnectedToInternet,
+        ] {
+            let error = DefaultApiClient.transportError(URLError(code))
+            #expect(error is NetworkError)
+            #expect(!(error is NetworkTimeoutError))
+            #expect((error as? ApiError)?.statusCode == 0)
+            #expect(((error as? ApiError)?.underlyingError as? URLError)?.code == code)
+        }
+        // A cancelled URLSession task outside a cancelled Swift Task (e.g. the
+        // session was invalidated) is still a transport failure.
+        #expect(DefaultApiClient.transportError(URLError(.cancelled)) is NetworkError)
+    }
+
+    /* The one `timeout` option arms BOTH of URLSession's deadlines — the
+       per-request idle timer and the total resource budget — and an expired
+       deadline must be a NetworkTimeoutError whichever of the two fired.
+       Both expire as URLError.timedOut, so the assertion covers both paths:
+       the session is proved to carry both deadlines, and the classifier is
+       proved to map that code to the timeout type. */
+    @Test func testEveryConfiguredDeadlineClassifiesAsTimeout() throws {
+        let opts = TransportOptionsBuilder().timeout(1500).build()
+        let (session, _) = try DefaultApiClient.buildSession(opts)
+
+        #expect(session.configuration.timeoutIntervalForRequest == 1.5)
+        #expect(session.configuration.timeoutIntervalForResource == 1.5)
+
+        let expired = DefaultApiClient.transportError(URLError(.timedOut))
+        #expect(expired is NetworkTimeoutError)
+        #expect(expired is NetworkError)
+        #expect((expired as? ApiError)?.statusCode == 0)
+    }
+
+    @Test func testCancelledTaskSurfacesCancellationError() async throws {
+        // The SDK does not wrap the platform's cancellation: a request made
+        // from a Swift Task that is already cancelled throws CancellationError
+        // and is never started, instead of an ApiError with status 0.
+        let client = DefaultApiClient()
+        let task = Task { () -> ApiHttpResponse in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:9/cancelled", headers: [:], body: nil)
+        }
+        do {
+            _ = try await task.value
+            Issue.record("expected CancellationError")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            Issue.record("expected CancellationError, got \(error)")
+        }
+    }
+
+    @Test func testConnectionRefusedIsNetworkError() async throws {
+        // Port 9 (discard) on loopback is not listening, so the connection is
+        // refused and no HTTP response exists.
+        let client = DefaultApiClient()
+        do {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://127.0.0.1:9/refused", headers: [:], body: nil)
+            Issue.record("expected NetworkError")
+        } catch let error as NetworkError {
+            #expect(error.statusCode == 0)
+            #expect(error.underlyingError is URLError)
+        } catch {
+            Issue.record("expected NetworkError, got \(error)")
+        }
+    }
+
+    @Test func testNetworkErrorsAreApiErrorsWithStatusZero() {
+        let cause = URLError(.cannotConnectToHost)
+        let network: ApiError = NetworkError(statusCode: 0, message: "refused", underlyingError: cause)
+        let timeout: ApiError = NetworkTimeoutError(statusCode: 0, message: "timed out")
+        #expect(network.statusCode == 0)
+        #expect(timeout.statusCode == 0)
+        #expect(timeout is NetworkError)
+        #expect(!(network is NetworkTimeoutError))
+        #expect((network.underlyingError as? URLError)?.code == .cannotConnectToHost)
+    }
+}

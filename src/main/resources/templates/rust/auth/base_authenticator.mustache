@@ -1,0 +1,37 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+
+use super::Authenticator;
+
+/// BaseAuthenticator provides a minimal Authenticator implementation that
+/// returns the stored host and empty credentials.
+///
+/// Use this as a building block when no authentication is needed but an
+/// Authenticator instance is required.
+pub struct BaseAuthenticator {
+    host: String,
+}
+
+impl BaseAuthenticator {
+    /// Creates a new BaseAuthenticator with the given API host URL.
+    pub fn new(host: &str) -> Self {
+        Self {
+            host: host.to_string(),
+        }
+    }
+}
+
+impl Authenticator for BaseAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move { HashMap::new() })
+    }
+}

@@ -1,0 +1,12 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * Represents a low-level HTTP transport response returned by [ApiClient.sendRequest].
+ */
+data class ApiHttpResponse(
+    val statusCode: Int,
+    val body: String,
+    val headers: Map<String, String>
+)

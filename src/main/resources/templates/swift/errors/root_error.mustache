@@ -1,0 +1,13 @@
+{{>api_info}}
+import Foundation
+
+/// {{errorPrefix}}Error is the branded root of the SDK's error hierarchy.
+///
+/// Every error thrown by the generated SDK conforms to `{{errorPrefix}}Error`, so a
+/// caller can catch any SDK-originated failure with a single
+/// `catch let error as {{errorPrefix}}Error` (or `error is {{errorPrefix}}Error`) without
+/// having to enumerate the concrete error types. It refines Swift's `Error`
+/// and adds no requirements of its own: it is a marker protocol used purely to
+/// brand the hierarchy. Both the `ApiError` class tree (and its typed HTTP
+/// subclasses) and the `SerializationError` value type conform to it.
+public protocol {{errorPrefix}}Error: Error {}

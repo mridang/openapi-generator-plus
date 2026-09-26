@@ -1,0 +1,12 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+/**
+ * Location where the API key is sent.
+ */
+enum class ApiKeyLocation {
+    HEADER,
+    QUERY,
+    COOKIE
+}

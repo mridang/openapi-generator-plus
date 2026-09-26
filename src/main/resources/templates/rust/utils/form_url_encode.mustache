@@ -1,0 +1,31 @@
+{{>api_info}}
+
+/// Percent-encodes a string for use in `application/x-www-form-urlencoded`
+/// bodies and query-string components.
+///
+/// Follows the HTML form-urlencoded convention (WHATWG URL §5):
+///   - RFC 3986 unreserved characters (`A-Z a-z 0-9 - _ . ~`) pass through
+///   - space (` `) is encoded as `+`
+///   - every other byte is percent-encoded as `%XX` (uppercase hex)
+///
+/// This is the encoding used for OAuth2 token-endpoint request bodies and for
+/// `application/x-www-form-urlencoded` request bodies built by `base_api`.
+/// Centralising the helper here keeps the OAuth path and the generic form
+/// path byte-for-byte consistent (previously `base_api` delegated to the
+/// `urlencoding` crate which emits `%20` for space, while the OAuth helpers
+/// emitted `+`).
+pub fn form_url_encode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            b' ' => result.push('+'),
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
+}

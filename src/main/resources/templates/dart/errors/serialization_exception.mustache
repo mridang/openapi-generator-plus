@@ -1,0 +1,23 @@
+{{>api_info}}
+import '{{errorPrefixSnake}}_exception.dart';
+
+/// SerializationException is thrown when serialization or deserialization fails.
+///
+/// Extends [{{errorPrefix}}Exception], the branded root of the exception hierarchy, so
+/// that `serializationError is {{errorPrefix}}Exception` holds alongside the API
+/// errors.
+class SerializationException extends {{errorPrefix}}Exception {
+  @override
+  final String message;
+  final Object? cause;
+
+  const SerializationException(this.message, [this.cause]);
+
+  @override
+  String toString() {
+    if (cause != null) {
+      return 'SerializationException: $message: $cause';
+    }
+    return 'SerializationException: $message';
+  }
+}

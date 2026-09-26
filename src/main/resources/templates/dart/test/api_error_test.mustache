@@ -1,0 +1,185 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ApiException', () {
+    test('exposes statusCode, message, responseBody, responseHeaders, errorBody',
+        () {
+      const err = ApiException(
+        statusCode: 404,
+        message: 'not found',
+        responseBody: '{"id":7,"name":"missing"}',
+        responseHeaders: {'content-type': 'application/json'},
+        errorBody: null,
+      );
+
+      expect(err.statusCode, equals(404));
+      expect(err.message, equals('not found'));
+      expect(err.responseBody, equals('{"id":7,"name":"missing"}'));
+      expect(err.responseHeaders?['content-type'], equals('application/json'));
+      expect(err.errorBody, isNull);
+    });
+
+    test('null headers and body mark transport-no-response', () {
+      // apierror-responsebody-headers-nullable-split: null is distinct from an
+      // empty header map / empty body so a pre-response transport failure can
+      // be encoded.
+      const err = ApiException(
+        statusCode: 0,
+        message: 'connection reset',
+        responseBody: null,
+        responseHeaders: null,
+      );
+
+      expect(err.responseHeaders, isNull);
+      expect(err.responseBody, isNull);
+    });
+
+    test('implements Exception', () {
+      const err = ApiException(statusCode: 500, message: 'boom');
+
+      expect(err, isA<Exception>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err.toString(), isNotEmpty);
+    });
+
+    test('is a {{errorPrefix}}Exception (branded root)', () {
+      const err = ApiException(statusCode: 500, message: 'boom');
+
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err, isA<Exception>());
+    });
+
+    test('getTypedErrorBody deserializes the body into the requested type', () {
+      const err = ApiException(
+        statusCode: 400,
+        message: 'bad request',
+        responseBody: '{"id":42,"name":"Dogs"}',
+      );
+
+      final typed = err.getTypedErrorBody(Category.fromJson);
+      expect(typed, isNotNull);
+      expect(typed!.id, equals(42));
+      expect(typed.name, equals('Dogs'));
+    });
+
+    test('getTypedErrorBody returns null when there is no response body', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: null,
+      );
+
+      expect(err.getTypedErrorBody(Category.fromJson), isNull);
+    });
+
+    test('getTypedErrorBody ignores extraneous fields not on the model', () {
+      const err = ApiException(
+        statusCode: 422,
+        message: 'unprocessable',
+        responseBody: '{"id":1,"name":"Cat","extra":"drop-me"}',
+      );
+
+      final typed = err.getTypedErrorBody(Category.fromJson);
+      expect(typed, isNotNull);
+      expect(typed!.id, equals(1));
+      expect(typed.name, equals('Cat'));
+    });
+  });
+
+  group('exception hierarchy', () {
+    test('BadRequestException is ClientException, ApiException and {{errorPrefix}}Exception', () {
+      const err = BadRequestException(statusCode: 400, message: 'bad request');
+
+      expect(err, isA<BadRequestException>());
+      expect(err, isA<ClientException>());
+      expect(err, isA<ApiException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err, isA<Exception>());
+    });
+
+    test('InternalServerErrorException is ServerException, ApiException and {{errorPrefix}}Exception',
+        () {
+      const err = InternalServerErrorException(statusCode: 500, message: 'boom');
+
+      expect(err, isA<ServerException>());
+      expect(err, isA<ApiException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+    });
+
+    test('NetworkTimeoutException is NetworkException and ApiException with status 0',
+        () {
+      const err = NetworkTimeoutException(message: 'timed out');
+
+      expect(err, isA<NetworkException>());
+      expect(err, isA<ApiException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err.statusCode, equals(0));
+      expect(const NetworkException(message: 'refused').statusCode, equals(0));
+    });
+
+    test('SerializationException is a {{errorPrefix}}Exception', () {
+      const err = SerializationException('nope');
+
+      expect(err, isA<SerializationException>());
+      expect(err, isA<{{errorPrefix}}Exception>());
+      expect(err, isA<Exception>());
+    });
+  });
+
+  group('fromResponse', () {
+    test('maps each status to its exception', () {
+      final cases = <int, Type>{
+        400: BadRequestException,
+        401: UnauthorizedException,
+        403: ForbiddenException,
+        404: NotFoundException,
+        409: ConflictException,
+        422: UnprocessableEntityException,
+        418: ClientException,
+        500: InternalServerErrorException,
+        503: ServerException,
+        302: ApiException,
+      };
+
+      cases.forEach((status, expected) {
+        final err = ApiException.fromResponse(
+          status,
+          {'x-request-id': 'abc'},
+          '{"code":7}',
+        );
+
+        expect(err.runtimeType, equals(expected));
+        expect(err.statusCode, equals(status));
+        expect(err.responseHeaders, equals({'x-request-id': 'abc'}));
+        expect(err.responseBody, equals('{"code":7}'));
+        expect(err.errorBody, equals({'code': 7}));
+      });
+    });
+
+    test('a status at or above 600 is not a ServerException', () {
+      // The 5xx arm is bounded at < 600: a status outside 400-599 yields the
+      // base ApiException, never ServerException.
+      final err = ApiException.fromResponse(600, {'x-request-id': 'abc'}, null);
+
+      expect(err.runtimeType, equals(ApiException));
+      expect(err, isNot(isA<ServerException>()));
+      expect(err.statusCode, equals(600));
+    });
+
+    test('refuses a deeply nested error body', () {
+      // The error body is attacker-controlled, so parsing is depth-capped: an
+      // over-deep payload leaves errorBody null instead of crashing the VM.
+      final body = '${'[' * 2000}${']' * 2000}';
+
+      final err = ApiException.fromResponse(400, const {}, body);
+
+      expect(err.runtimeType, equals(BadRequestException));
+      expect(err.responseBody, equals(body));
+      expect(err.errorBody, isNull);
+    });
+  });
+}
+{{/generateTests}}

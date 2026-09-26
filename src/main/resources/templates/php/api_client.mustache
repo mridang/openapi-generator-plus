@@ -1,0 +1,39 @@
+{{>api_info}}
+namespace {{invokerPackage}};
+
+/**
+ * ApiClient Interface
+ *
+ * @category Interface
+ * @package  {{invokerPackage}}
+ */
+interface ApiClient
+{
+    /**
+     * Send an HTTP request and return the response.
+     *
+     * @param string                $method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string                $url        Fully qualified URL
+     * @param array<string, string> $headers    HTTP headers
+     * @param mixed                 $body       Request body
+     * @param bool                  $noRedirect when true, do not follow 3xx responses
+     *                                          regardless of {@see TransportOptions::followRedirects}.
+     *                                          Set by callers (e.g. {@see OAuth2TokenManager})
+     *                                          that must refuse redirect-driven request replays.
+     */
+    public function sendRequest(
+        string $method,
+        string $url,
+        array $headers,
+        mixed $body,
+        bool $noRedirect = false,
+    ): ApiHttpResponse;
+
+    /**
+     * Release any resources held by this client (connection pool, sockets).
+     *
+     * Implementations that own a pooled HTTP client dispose of it here; an
+     * implementation that owns nothing may no-op. Calling it twice is safe.
+     */
+    public function close(): void;
+}

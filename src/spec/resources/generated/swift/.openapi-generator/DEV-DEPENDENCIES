@@ -1,0 +1,11 @@
+# Dev dependencies the generated tests import.
+#
+# This file is generator-owned; the package manifest is not, because it carries
+# the package's own metadata and every real client keep-lists it. That makes
+# this file the only thing keeping the two in step, so the generated test
+# bootstrap reads it and fails with a message naming it when an entry is not
+# declared in Package.swift.
+#
+# One entry per line: <name> <version-range>  # <which test needs it>
+testcontainers-swift 1.0.5  # Tests/PetstoreClientTests/TestContainersHelper.swift
+opentelemetry-swift 1.13.0  # Tests/PetstoreClientTests/TraceContextUtilTests.swift

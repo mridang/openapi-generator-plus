@@ -1,0 +1,187 @@
+{{>api_info}}
+package errors
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+// ApiError represents an error returned by the API, including the HTTP status
+// code, response headers, and response body.
+//
+// Its state is immutable: fields are unexported and set once at construction
+// via NewApiError (or the status factory FromResponse). Callers
+// read the state through the getter methods, so an error value handed to one
+// caller can never be mutated out from under another.
+type ApiError struct {
+	statusCode      int
+	msg             string
+	responseBody    string
+	responseHeaders map[string]string
+	errorBody       any
+	cause           error
+}
+
+// NewApiError constructs an ApiError. The state is fixed at construction and
+// thereafter read-only via the getter methods.
+func NewApiError(statusCode int, msg, responseBody string, responseHeaders map[string]string, errorBody any, cause error) *ApiError {
+	return &ApiError{
+		statusCode:      statusCode,
+		msg:             msg,
+		responseBody:    responseBody,
+		responseHeaders: responseHeaders,
+		errorBody:       errorBody,
+		cause:           cause,
+	}
+}
+
+// As lets errors.As match a subclass (for example a *NotFoundError or a
+// *NetworkError) against *ApiError, so the Go hierarchy reads like the other
+// SDKs: every HTTP-level failure is an *ApiError.
+func (e *ApiError) As(target any) bool {
+	if t, ok := target.(**ApiError); ok {
+		*t = e
+		return true
+	}
+	return false
+}
+
+// StatusCode returns the HTTP status code, or 0 for a pre-response transport failure.
+func (e *ApiError) StatusCode() int {
+	return e.statusCode
+}
+
+// Msg returns the error message.
+func (e *ApiError) Msg() string {
+	return e.msg
+}
+
+// ResponseBody returns the raw response body.
+func (e *ApiError) ResponseBody() string {
+	return e.responseBody
+}
+
+// ResponseHeaders returns the response headers. nil indicates a pre-response
+// transport failure, distinct from an empty (but present) header set.
+func (e *ApiError) ResponseHeaders() map[string]string {
+	return e.responseHeaders
+}
+
+// ErrorBody returns the parsed response body, if JSON.
+func (e *ApiError) ErrorBody() any {
+	return e.errorBody
+}
+
+// Cause returns the underlying transport error, if any. Set when wrapping a
+// network failure so callers can drill down via errors.Unwrap or errors.Is.
+func (e *ApiError) Cause() error {
+	return e.cause
+}
+
+// Unwrap returns the underlying cause, enabling errors.Is / errors.As
+// to traverse the chain. Returns nil when ApiError was produced from a
+// non-wrapped failure (e.g. a non-2xx HTTP response).
+func (e *ApiError) Unwrap() error {
+	return e.cause
+}
+
+// is{{errorPrefix}}Error brands ApiError, and every type embedding it, as a
+// {{errorPrefix}}Error.
+func (e *ApiError) is{{errorPrefix}}Error() {}
+
+// Error implements the error interface.
+func (e *ApiError) Error() string {
+	msg := e.msg
+	if msg == "" {
+		msg = "Error message: the server returns an error"
+	}
+	if e.statusCode != 0 {
+		msg += fmt.Sprintf("\nHTTP status code: %d", e.statusCode)
+	}
+	if len(e.responseHeaders) > 0 {
+		msg += fmt.Sprintf("\nResponse headers: %v", e.responseHeaders)
+	}
+	if e.responseBody != "" {
+		msg += fmt.Sprintf("\nResponse body: %s", e.responseBody)
+	}
+	return msg
+}
+
+// GetTypedErrorBody deserializes the raw response body into the given target
+// value. This is the one accessor for spec-declared error schemas — callers
+// pass a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
+// apiErr.GetTypedErrorBody(&e)`). An empty body leaves the target untouched
+// and reports no error.
+func (e *ApiError) GetTypedErrorBody(target any) error {
+	if e.responseBody == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(e.responseBody), target)
+}
+
+// NewNetworkError builds the error returned when a request produced no HTTP
+// response: connection refused, DNS failure, TLS failure or connection reset.
+// The status code is 0 and the transport error is kept as the cause, so
+// errors.Is and errors.As still reach it.
+func NewNetworkError(msg string, cause error) *NetworkError {
+	return &NetworkError{ApiError: ApiError{msg: msg, cause: cause}}
+}
+
+// NewNetworkTimeoutError builds the error returned when a request timed out.
+// The status code is 0 and the transport error is kept as the cause.
+func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
+	return &NetworkTimeoutError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
+}
+
+// FromResponse builds the error for a non-2xx HTTP response: the most specific
+// type for the status code, sharing one immutable ApiError as the embedded
+// base. 400-499 produces a *ClientError (or a recognised subclass); 500-599 a
+// *ServerError (or a recognised subclass); anything else the bare *ApiError.
+// A JSON body is also parsed into the error body. Every generated operation and
+// the OpenID Connect discovery request build their HTTP errors here, so this is
+// the one place the status-to-error mapping lives.
+func FromResponse(statusCode int, headers map[string]string, body string) error {
+	var errorBody any
+	if body != "" {
+		_ = json.Unmarshal([]byte(body), &errorBody)
+	}
+	base := ApiError{
+		statusCode:      statusCode,
+		msg:             fmt.Sprintf("API returned status code %d", statusCode),
+		responseBody:    body,
+		responseHeaders: headers,
+		errorBody:       errorBody,
+	}
+
+	if statusCode >= 400 && statusCode < 500 {
+		clientErr := ClientError{ApiError: base}
+		switch statusCode {
+		case 400:
+			return &BadRequestError{ClientError: clientErr}
+		case 401:
+			return &UnauthorizedError{ClientError: clientErr}
+		case 403:
+			return &ForbiddenError{ClientError: clientErr}
+		case 404:
+			return &NotFoundError{ClientError: clientErr}
+		case 409:
+			return &ConflictError{ClientError: clientErr}
+		case 422:
+			return &UnprocessableEntityError{ClientError: clientErr}
+		default:
+			return &clientErr
+		}
+	}
+
+	if statusCode >= 500 && statusCode < 600 {
+		serverErr := ServerError{ApiError: base}
+		switch statusCode {
+		case 500:
+			return &InternalServerError{ServerError: serverErr}
+		default:
+			return &serverErr
+		}
+	}
+
+	return &base
+}

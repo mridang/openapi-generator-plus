@@ -1,0 +1,47 @@
+{{>api_info}}
+
+namespace {{namespace}};
+{{#hasModelImports}}
+
+{{#modelImports}}
+use {{invokerPackage}}\Models\{{{.}}};
+{{/modelImports}}
+{{/hasModelImports}}
+{{#hasAuthField}}
+
+use {{authImport}};
+{{/hasAuthField}}
+
+/**
+ * Options for the {{operationId}} operation.
+ */
+class {{className}}
+{
+{{#hasAnyDocTypes}}
+    /**
+{{#params}}
+{{#hasDocType}}
+     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{{description}}}{{/description}}
+{{/hasDocType}}
+{{/params}}
+     */
+{{/hasAnyDocTypes}}
+    public function __construct(
+{{#requiredParams}}
+{{#deprecated}}
+        /** @deprecated This parameter is deprecated. */
+{{/deprecated}}
+        public readonly {{phpType}} ${{paramName}},
+{{/requiredParams}}
+{{#optionalParams}}
+{{#deprecated}}
+        /** @deprecated This parameter is deprecated. */
+{{/deprecated}}
+        public readonly ?{{phpType}} ${{paramName}} = null,
+{{/optionalParams}}
+{{#hasAuthField}}
+        public readonly ?{{authFieldType}} $auth = null,
+{{/hasAuthField}}
+    ) {
+    }
+}
