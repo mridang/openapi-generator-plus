@@ -4,9 +4,35 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Docker\API\Model\ContainersCreatePostBody;
 use Testcontainers\Container\GenericContainer;
 use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Wait\WaitForLog;
+
+/**
+ * testcontainers-php sets host PortBindings but never Config.ExposedPorts, so the
+ * daemon only publishes ports the image already EXPOSEs. mridang/chasm exposes 4010
+ * but not 8443, and ubuntu/squid exposes 3128 but not the 3129 auth port, so on a
+ * strict daemon (CI) those bindings are silently dropped and getMappedPort() comes
+ * back empty; a lenient daemon (local Docker Desktop) publishes them anyway, which
+ * hides the bug. Expose every requested port explicitly. Each ExposedPorts value is
+ * an empty object ({}); the beluga normalizer wraps it in a JsonObject, so passing
+ * an empty array serialises correctly.
+ */
+final class ExposingContainer extends GenericContainer
+{
+    protected function createContainerConfig(): ContainersCreatePostBody
+    {
+        $config = parent::createContainerConfig();
+        $exposed = [];
+        foreach ($this->exposedPorts as $port) {
+            $exposed[$port] = [];
+        }
+        $config->setExposedPorts($exposed);
+
+        return $config;
+    }
+}
 
 /*
  * A generated test may import a package that only the generator knows about,
@@ -87,7 +113,7 @@ if ($startupLock !== false) {
     flock($startupLock, LOCK_EX);
 }
 
-$chasm = new GenericContainer('mridang/chasm:1.3.0')
+$chasm = new ExposingContainer('mridang/chasm:1.3.0')
     ->withExposedPorts(4010, 8443)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withMount($chasmCertPath, '/certs/cert.pem')
@@ -161,7 +187,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 
-$squid = new GenericContainer('ubuntu/squid:5.2-22.04_beta')
+$squid = new ExposingContainer('ubuntu/squid:5.2-22.04_beta')
     ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     // The image declares VOLUME for both paths, so every container would
