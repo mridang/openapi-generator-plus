@@ -151,7 +151,13 @@ real client and run THAT client's own CI gates, not just the golden's tests. Kno
    compiles the code can see that config — a container build whose `.dockerignore`
    excludes `.editorconfig` will fail even though the local build passes.
 
-4. **A test fixture exposing more than one container port is CI-fragile.** The squid
-   proxy fixture exposes 3128 and 3129; `getMappedPort` for the second port can come back
-   empty on a CI runner (it does in php). If you add a port, wait for it explicitly and
-   confirm it maps in CI, not just locally.
+4. **A container port the image does not `EXPOSE` is only published on a lenient daemon.**
+   The squid proxy fixture publishes 3128 and 3129, and the chasm fixture 4010 and 8443,
+   but the images only `EXPOSE` 3128 and 4010. Docker publishes a host binding for a
+   `PortBindings` entry only when the port is also in the container's `Config.ExposedPorts`;
+   testcontainers-php sets `PortBindings` but never `ExposedPorts`, so on a strict daemon
+   (CI) the auth and TLS ports get no binding and `getMappedPort` returns empty, while a
+   lenient daemon (local Docker Desktop) publishes them anyway and hides it. The php
+   bootstrap builds both fixtures through a container that overrides `createContainerConfig`
+   to set `ExposedPorts` for every requested port (each value an empty object). If you add
+   a published port to any fixture, expose it there too, and verify on CI, not just locally.
