@@ -10,28 +10,33 @@ use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Wait\WaitForLog;
 
 /**
+ * Builds a container that publishes every port it exposes.
+ *
  * testcontainers-php sets host PortBindings but never Config.ExposedPorts, so the
  * daemon only publishes ports the image already EXPOSEs. mridang/chasm exposes 4010
  * but not 8443, and ubuntu/squid exposes 3128 but not the 3129 auth port, so on a
  * strict daemon (CI) those bindings are silently dropped and getMappedPort() comes
  * back empty; a lenient daemon (local Docker Desktop) publishes them anyway, which
- * hides the bug. Expose every requested port explicitly. Each ExposedPorts value is
- * an empty object ({}); the beluga normalizer wraps it in a JsonObject, so passing
- * an empty array serialises correctly.
+ * hides the bug. The returned container sets ExposedPorts for every requested port.
+ * Each value is an empty object ({}); the beluga normalizer wraps it in a JsonObject,
+ * so passing an empty array serialises correctly. An anonymous class is used because
+ * a named class in this bootstrap would break the tests' PSR-4 autoloading.
  */
-final class ExposingContainer extends GenericContainer
+function exposingContainer(string $image): GenericContainer
 {
-    protected function createContainerConfig(): ContainersCreatePostBody
-    {
-        $config = parent::createContainerConfig();
-        $exposed = [];
-        foreach ($this->exposedPorts as $port) {
-            $exposed[$port] = [];
-        }
-        $config->setExposedPorts($exposed);
+    return new class ($image) extends GenericContainer {
+        protected function createContainerConfig(): ContainersCreatePostBody
+        {
+            $config = parent::createContainerConfig();
+            $exposed = [];
+            foreach ($this->exposedPorts as $port) {
+                $exposed[$port] = [];
+            }
+            $config->setExposedPorts($exposed);
 
-        return $config;
-    }
+            return $config;
+        }
+    };
 }
 
 /*
@@ -113,7 +118,7 @@ if ($startupLock !== false) {
     flock($startupLock, LOCK_EX);
 }
 
-$chasm = (new ExposingContainer('mridang/chasm:1.3.0'))
+$chasm = exposingContainer('mridang/chasm:1.3.0')
     ->withExposedPorts(4010, 8443)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withMount($chasmCertPath, '/certs/cert.pem')
@@ -187,7 +192,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 
-$squid = (new ExposingContainer('ubuntu/squid:5.2-22.04_beta'))
+$squid = exposingContainer('ubuntu/squid:5.2-22.04_beta')
     ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     // The image declares VOLUME for both paths, so every container would
