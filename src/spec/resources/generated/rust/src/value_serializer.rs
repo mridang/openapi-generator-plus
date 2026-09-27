@@ -47,6 +47,43 @@ fn encode_path_array_item(s: &str) -> String {
     encode_path_segment(s)
 }
 
+/// Percent-encodes a query value while leaving RFC 3986 reserved characters
+/// literal (OAS `allowReserved: true`).
+///
+/// This is the reserved-preserving variant of the query encoder used by
+/// `base_api::build_query_string` (the `urlencoding` crate). Everything that is
+/// not RFC 3986 reserved or unreserved — spaces, control characters, non-ASCII —
+/// is still percent-encoded (space stays `%20`, exactly as `urlencoding::encode`
+/// emits it), so the result is always a valid URL query segment. Only the
+/// reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` is restored after
+/// `urlencoding::encode` over-encodes it.
+///
+/// `~` is left untouched: the `urlencoding` crate treats it as RFC 3986
+/// unreserved and never encodes it, so no restore is needed (unlike Java's
+/// `URLEncoder`).
+pub fn encode_query_allowing_reserved(s: &str) -> String {
+    urlencoding::encode(s)
+        .into_owned()
+        .replace("%3A", ":")
+        .replace("%2F", "/")
+        .replace("%3F", "?")
+        .replace("%23", "#")
+        .replace("%5B", "[")
+        .replace("%5D", "]")
+        .replace("%40", "@")
+        .replace("%21", "!")
+        .replace("%24", "$")
+        .replace("%26", "&")
+        .replace("%27", "'")
+        .replace("%28", "(")
+        .replace("%29", ")")
+        .replace("%2A", "*")
+        .replace("%2B", "+")
+        .replace("%2C", ",")
+        .replace("%3B", ";")
+        .replace("%3D", "=")
+}
+
 /// Serializes a parameter value for HTTP requests based on its location.
 ///
 /// # Arguments
@@ -247,7 +284,11 @@ pub fn serialize_styled(
                 };
             }
             if let Some(arr) = items {
-                Some(SerializedValue::Single(arr.join(" ")))
+                if explode {
+                    Some(SerializedValue::Multi(arr.to_vec()))
+                } else {
+                    Some(SerializedValue::Single(arr.join(" ")))
+                }
             } else {
                 match value {
                     Some(val) => Some(SerializedValue::Single(val.to_string())),
@@ -264,7 +305,11 @@ pub fn serialize_styled(
                 };
             }
             if let Some(arr) = items {
-                Some(SerializedValue::Single(arr.join("|")))
+                if explode {
+                    Some(SerializedValue::Multi(arr.to_vec()))
+                } else {
+                    Some(SerializedValue::Single(arr.join("|")))
+                }
             } else {
                 match value {
                     Some(val) => Some(SerializedValue::Single(val.to_string())),
@@ -838,6 +883,22 @@ mod tests {
     }
 
     #[test]
+    fn test_serialize_styled_space_delimited_array_explode() {
+        let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
+        let result = super::serialize_styled(
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "spaceDelimited",
+            true,
+        );
+        assert_eq!(unwrap_multi(result), vec!["red", "green", "blue"]);
+    }
+
+    #[test]
     fn test_serialize_styled_space_delimited_scalar() {
         let result = super::serialize_styled(
             "color",
@@ -868,6 +929,22 @@ mod tests {
             false,
         );
         assert_eq!(unwrap_single(result), "red|green|blue");
+    }
+
+    #[test]
+    fn test_serialize_styled_pipe_delimited_array_explode() {
+        let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
+        let result = super::serialize_styled(
+            "color",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "pipeDelimited",
+            true,
+        );
+        assert_eq!(unwrap_multi(result), vec!["red", "green", "blue"]);
     }
 
     #[test]
@@ -1308,5 +1385,24 @@ mod tests {
     fn test_empty_string_path_param_rejected() {
         let _ =
             super::serialize_styled("id", Some(""), None, "path", "string", "", "simple", false);
+    }
+
+    // OAS allowReserved: RFC 3986 reserved characters are sent literally, but
+    // everything else (space, control chars, non-ASCII) is still percent-encoded.
+    // Mirrors the Java AllowReservedTests.
+    #[test]
+    fn test_encode_query_allowing_reserved_preserves_reserved_chars() {
+        // Reserved characters `/` and `:` are left literal.
+        assert_eq!(
+            super::encode_query_allowing_reserved("v1.0/beta:rc1"),
+            "v1.0/beta:rc1"
+        );
+    }
+
+    #[test]
+    fn test_encode_query_allowing_reserved_still_encodes_space() {
+        // Space is not reserved, so it is still percent-encoded, while the
+        // reserved `:` between the words stays literal.
+        assert_eq!(super::encode_query_allowing_reserved("a b:c"), "a%20b:c");
     }
 }

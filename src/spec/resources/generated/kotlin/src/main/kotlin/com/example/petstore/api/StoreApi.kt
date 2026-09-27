@@ -111,7 +111,10 @@ class StoreApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.querySwatch != null) {
             queryParams["querySwatch"] =
-                ValueSerializer.serializeStyled("querySwatch", options!!.querySwatch, "query", "Swatch", null, "form", true)
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("querySwatch", options!!.querySwatch, "query", "Swatch", null, "form", true),
+                    false,
+                )
         }
         val headerParams = mutableMapOf<String, String>()
         if (options?.preferredSwatch != null) {
@@ -367,7 +370,11 @@ class StoreApi : BaseApi {
         var path = "/store/stock-item"
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.asOf != null) {
-            queryParams["asOf"] = ValueSerializer.serializeStyled("asOf", options!!.asOf, "query", "OffsetDateTime", null, "form", true)
+            queryParams["asOf"] =
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("asOf", options!!.asOf, "query", "OffsetDateTime", null, "form", true),
+                    false,
+                )
         }
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<StockItem>(

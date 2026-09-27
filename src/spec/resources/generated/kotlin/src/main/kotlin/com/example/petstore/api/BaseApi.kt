@@ -15,6 +15,7 @@ import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
 import com.example.petstore.ObjectSerializer
 import com.example.petstore.TraceContextUtil
+import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
@@ -338,19 +339,41 @@ abstract class BaseApi {
     private fun buildQueryString(queryParams: Map<String, Any?>): String {
         if (queryParams.isEmpty()) return ""
         val parts = mutableListOf<String>()
-        for ((key, value) in queryParams) {
+        for ((key, rawValue) in queryParams) {
+            /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+             * characters literal instead of percent-encoding them. */
+            var value = rawValue
+            var allowReserved = false
+            if (value is ValueSerializer.AllowReservedValue) {
+                value = value.value
+                allowReserved = true
+            }
             if (value != null) {
+                val encodedKey = encode(key)
                 if (value is List<*>) {
                     for (item in value) {
-                        parts.add("${encode(key)}=${encode(item.toString())}")
+                        parts.add("$encodedKey=${encodeQueryValue(item.toString(), allowReserved)}")
                     }
                 } else {
-                    parts.add("${encode(key)}=${encode(value.toString())}")
+                    parts.add("$encodedKey=${encodeQueryValue(value.toString(), allowReserved)}")
                 }
             }
         }
         return parts.joinToString("&")
     }
+
+    /**
+     * Encode a query-parameter value, preserving RFC 3986 reserved characters
+     * when the parameter declared `allowReserved: true`.
+     *
+     * @param value         the value to encode
+     * @param allowReserved whether reserved characters are left literal
+     * @return the encoded value
+     */
+    private fun encodeQueryValue(
+        value: String,
+        allowReserved: Boolean,
+    ): String = if (allowReserved) ValueSerializer.encodeQueryAllowingReserved(value) else encode(value)
 
     /**
      * URL-encode a string using application/x-www-form-urlencoded encoding.

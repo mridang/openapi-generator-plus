@@ -448,6 +448,19 @@ void main() {
       expect(result, equals('red green blue'));
     });
 
+    test('serializeStyled spaceDelimited array explode returns list', () {
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'query',
+        'array',
+        '',
+        'spaceDelimited',
+        true,
+      );
+      expect(result, equals(['red', 'green', 'blue']));
+    });
+
     test('serializeStyled spaceDelimited scalar', () {
       final result = serializeStyled(
         'color',
@@ -474,6 +487,19 @@ void main() {
         false,
       );
       expect(result, equals('red|green|blue'));
+    });
+
+    test('serializeStyled pipeDelimited array explode returns list', () {
+      final result = serializeStyled(
+        'color',
+        ['red', 'green', 'blue'],
+        'query',
+        'array',
+        '',
+        'pipeDelimited',
+        true,
+      );
+      expect(result, equals(['red', 'green', 'blue']));
     });
 
     test('serializeStyled pipeDelimited scalar', () {
@@ -785,6 +811,33 @@ void main() {
       test('midnight UTC DateTime returns YYYY-MM-DD', () {
         final date = DateTime.utc(2024, 1, 15);
         expect(stringifyDate(date), equals('2024-01-15'));
+      });
+    });
+
+    // OAS `allowReserved: true` — reserved query encoding parity. Reserved
+    // characters must pass through literally, but everything else (space,
+    // control, non-ASCII) must still be percent-encoded, and a space must
+    // yield `%20`, never `+`.
+    group('allowReserved query encoding', () {
+      test(
+        'reserved characters left literal, other characters still encoded',
+        () {
+          expect(
+            encodeQueryAllowingReserved('v1.0/beta:rc1'),
+            equals('v1.0/beta:rc1'),
+          );
+          // Space is illegal in a URL and must still be percent-encoded even
+          // when reserved characters are preserved.
+          expect(encodeQueryAllowingReserved('a b:c'), equals('a%20b:c'));
+        },
+      );
+
+      test('maybeAllowReserved wraps only when allowReserved is true', () {
+        expect(maybeAllowReserved('plain', false), equals('plain'));
+        final wrapped = maybeAllowReserved('v1/beta', true);
+        expect(wrapped, isA<AllowReservedValue>());
+        expect((wrapped as AllowReservedValue).value, equals('v1/beta'));
+        expect(maybeAllowReserved(null, true), isNull);
       });
     });
   });

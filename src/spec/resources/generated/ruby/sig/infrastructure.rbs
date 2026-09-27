@@ -217,8 +217,16 @@ module Petstore::Client
     def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
     def self.serialize_styled: (String, untyped, Symbol, String, Symbol?, String?, bool) -> untyped
     def self.serialize_deep_object: (String, Hash[String, untyped]?) -> Hash[String, String]
+    def self.encode_query_allowing_reserved: (String?) -> String
+    def self.maybe_allow_reserved: (untyped, bool) -> untyped
 
     PRESERVE_ENCODED: Hash[String, String]
+    RESERVED_PRESERVED: Hash[String, String]
+
+    class AllowReservedValue
+      attr_reader value: untyped
+      def initialize: (untyped) -> void
+    end
 
     private
 
@@ -411,6 +419,7 @@ module Petstore::Client
       private
       def throw_api_error: (ApiHttpResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
+      def encode_query_value: (untyped, bool) -> String
       def serialize_body: (untyped, String?) -> untyped
       def binary_part_from_form_body: (Hash[String, untyped]) -> untyped
       def binary_return_type?: (String?) -> bool

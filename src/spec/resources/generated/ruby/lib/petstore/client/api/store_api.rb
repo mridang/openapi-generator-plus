@@ -99,7 +99,10 @@ module Petstore::Client
         query_params = {}
         unless options.nil? || options.query_swatch.nil?
           query_params['querySwatch'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('querySwatch', options.query_swatch, :query, 'Swatch', nil, 'form', true)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('querySwatch', options.query_swatch, :query, 'Swatch', nil, 'form', true),
+              false
+            )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -398,7 +401,10 @@ module Petstore::Client
         query_params = {}
         unless options.nil? || options.as_of.nil?
           query_params['asOf'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('asOf', options.as_of, :query, 'Time', nil, 'form', true)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('asOf', options.as_of, :query, 'Time', nil, 'form', true),
+              false
+            )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}

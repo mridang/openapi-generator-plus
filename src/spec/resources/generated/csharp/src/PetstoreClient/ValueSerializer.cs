@@ -44,6 +44,72 @@ internal static class ValueSerializer
     }
 
     /// <summary>
+    /// Percent-encodes a query value while leaving RFC 3986 reserved characters
+    /// literal (OAS <c>allowReserved: true</c>).
+    /// </summary>
+    /// <remarks>
+    /// Everything that is not RFC 3986 reserved or unreserved — spaces, control
+    /// characters, non-ASCII — is still percent-encoded, so the result is always
+    /// a valid URL query segment. Only the reserved set
+    /// <c>: / ? # [ ] @ ! $ and ' ( ) * + , ; =</c> is restored after
+    /// <see cref="Uri.EscapeDataString"/> over-encodes it.
+    /// </remarks>
+    public static string EncodeQueryAllowingReserved(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+        string encoded = Uri.EscapeDataString(value);
+        return encoded
+            .Replace("%3A", ":", StringComparison.Ordinal)
+            .Replace("%2F", "/", StringComparison.Ordinal)
+            .Replace("%3F", "?", StringComparison.Ordinal)
+            .Replace("%23", "#", StringComparison.Ordinal)
+            .Replace("%5B", "[", StringComparison.Ordinal)
+            .Replace("%5D", "]", StringComparison.Ordinal)
+            .Replace("%40", "@", StringComparison.Ordinal)
+            .Replace("%21", "!", StringComparison.Ordinal)
+            .Replace("%24", "$", StringComparison.Ordinal)
+            .Replace("%26", "&", StringComparison.Ordinal)
+            .Replace("%27", "'", StringComparison.Ordinal)
+            .Replace("%28", "(", StringComparison.Ordinal)
+            .Replace("%29", ")", StringComparison.Ordinal)
+            .Replace("%2A", "*", StringComparison.Ordinal)
+            .Replace("%2B", "+", StringComparison.Ordinal)
+            .Replace("%2C", ",", StringComparison.Ordinal)
+            .Replace("%3B", ";", StringComparison.Ordinal)
+            .Replace("%3D", "=", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Wraps a query value so the query-string builder preserves RFC 3986
+    /// reserved characters (OAS <c>allowReserved: true</c>).
+    /// </summary>
+    /// <param name="Value">
+    /// The serialized query value (a string, or a list of strings for exploded
+    /// parameters).
+    /// </param>
+    public sealed record AllowReservedValue(object Value);
+
+    /// <summary>
+    /// Wraps <paramref name="value"/> in an <see cref="AllowReservedValue"/> when
+    /// the parameter declares <c>allowReserved: true</c>; otherwise returns it
+    /// unchanged.
+    /// </summary>
+    /// <param name="value">The serialized query value.</param>
+    /// <param name="allowReserved">Whether the parameter preserves reserved characters.</param>
+    /// <returns>The value, wrapped iff <paramref name="allowReserved"/> is true.</returns>
+    public static object? MaybeAllowReserved(object? value, bool allowReserved)
+    {
+        if (value == null || !allowReserved)
+        {
+            return value;
+        }
+        return new AllowReservedValue(value);
+    }
+
+    /// <summary>
     /// Serializes a value for use in an HTTP request parameter based on its location,
     /// schema type, and optional collection format.
     /// </summary>
@@ -190,14 +256,18 @@ internal static class ValueSerializer
                 return ObjectSerializer.Stringify(value);
 
             case "spaceDelimited":
-                return items != null
-                    ? string.Join(" ", items.Select(enc))
-                    : enc(ObjectSerializer.Stringify(value));
+                if (items != null)
+                {
+                    return explode ? items : string.Join(" ", items.Select(enc));
+                }
+                return enc(ObjectSerializer.Stringify(value));
 
             case "pipeDelimited":
-                return items != null
-                    ? string.Join("|", items.Select(enc))
-                    : enc(ObjectSerializer.Stringify(value));
+                if (items != null)
+                {
+                    return explode ? items : string.Join("|", items.Select(enc));
+                }
+                return enc(ObjectSerializer.Stringify(value));
 
             case "simple":
                 if (items != null)

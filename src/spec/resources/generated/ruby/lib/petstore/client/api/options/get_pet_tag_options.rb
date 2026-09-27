@@ -14,13 +14,15 @@ module Petstore::Client
       # @param colors [Array<String>]
       # @param sizes [Array<String>]
       # @param filter [String]
+      # @param revision [String] Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
       class GetPetTagOptions
-        attr_reader :colors, :sizes, :filter
+        attr_reader :colors, :sizes, :filter, :revision
 
-        def initialize(colors: nil, sizes: nil, filter: nil)
+        def initialize(colors: nil, sizes: nil, filter: nil, revision: nil)
           @colors = colors
           @sizes = sizes
           @filter = filter
+          @revision = revision
           freeze
         end
       end

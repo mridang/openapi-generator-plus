@@ -76,7 +76,11 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
 pub(crate) struct InvokeApiParams<'a> {
     pub method: &'a str,
     pub path: &'a str,
-    pub query_params: Vec<(String, String)>,
+    /// Query parameters as `(name, value, allow_reserved)` triples. When
+    /// `allow_reserved` is true (OAS `allowReserved: true`), the value's RFC 3986
+    /// reserved characters are left literal on the wire; otherwise the value is
+    /// encoded normally.
+    pub query_params: Vec<(String, String, bool)>,
     pub header_params: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
     /// Multipart/form-data fields. When set, the request is sent as
@@ -150,7 +154,7 @@ impl BaseApi {
         };
         if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
-                query_params.push((k, v));
+                query_params.push((k, v, false));
             }
         }
 
@@ -362,18 +366,27 @@ impl BaseApi {
     }
 }
 
-fn build_query_string(query_params: &[(String, String)]) -> String {
+fn build_query_string(query_params: &[(String, String, bool)]) -> String {
     if query_params.is_empty() {
         return String::new();
     }
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| {
+        .map(|(k, v, allow_reserved)| {
+            /* OAS allowReserved: when set, the value's RFC 3986 reserved
+             * characters are left literal; otherwise the value is encoded
+             * normally (byte-identical to the previous behaviour). The key is
+             * always encoded normally. */
+            let encoded_value = if *allow_reserved {
+                crate::value_serializer::encode_query_allowing_reserved(v)
+            } else {
+                urlencoding::encode(v).into_owned()
+            };
             format!(
                 "{}={}",
                 urlencoding::encode(k),
-                urlencoding::encode(v)
+                encoded_value
             )
         })
         .collect();

@@ -631,7 +631,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 	 * other optional query params above). An explicit empty value supplied by the
 	 * caller still flows through serializeStyled and emits the bare "key=". */
 	if options != nil && options.Status != nil {
-		queryParams["status"] = serializeStyled("status", options.Status, "query", "string", "", "form", true)
+		queryParams["status"] = maybeAllowReserved(serializeStyled("status", options.Status, "query", "string", "", "form", true), false)
 	}
 	if options != nil && options.Filter != nil {
 		for k, v := range serializeDeepObject("filter", options.Filter) {
@@ -1201,7 +1201,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 	queryParams := make(map[string]any)
 	/* Required query param: the Options field is a non-pointer value, so it is
 	 * always present (validated above) and serialized directly. */
-	queryParams["category"] = serializeStyled("category", options.Category, "query", "string", "", "form", true)
+	queryParams["category"] = maybeAllowReserved(serializeStyled("category", options.Category, "query", "string", "", "form", true), false)
 
 	headerParams := make(map[string]string)
 
@@ -1446,6 +1446,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 }
 
 // GetPetTag Get a tag for a pet
+// param revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
 
 func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
 	result, err := a.GetPetTagWithHTTPInfo(petId, tagName, options)
@@ -1485,10 +1486,10 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Colors != nil {
-		queryParams["colors"] = serializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false)
+		queryParams["colors"] = maybeAllowReserved(serializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false), false)
 	}
 	if options != nil && options.Sizes != nil {
-		queryParams["sizes"] = serializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
+		queryParams["sizes"] = maybeAllowReserved(serializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false), false)
 	}
 	/* allowEmptyValue means the server tolerates an empty value WHEN the client
 	 * sends the key; it does not require the SDK to always send the key. When the
@@ -1496,7 +1497,10 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 	 * other optional query params above). An explicit empty value supplied by the
 	 * caller still flows through serializeStyled and emits the bare "key=". */
 	if options != nil && options.Filter != nil {
-		queryParams["filter"] = serializeStyled("filter", options.Filter, "query", "string", "", "form", true)
+		queryParams["filter"] = maybeAllowReserved(serializeStyled("filter", options.Filter, "query", "string", "", "form", true), false)
+	}
+	if options != nil && options.Revision != nil {
+		queryParams["revision"] = maybeAllowReserved(serializeStyled("revision", options.Revision, "query", "string", "", "form", true), true)
 	}
 
 	headerParams := make(map[string]string)

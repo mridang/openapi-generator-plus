@@ -14,8 +14,12 @@ public class CSharpClientSpec extends AbstractClientSpec implements CSharpSpec {
 
   @Override
   protected String[] getBuildCommands() {
+    // Run the xunit.v3 test executable directly (Microsoft Testing Platform,
+    // no VSTest). VSTest via `dotnet test` silently skipped the container-
+    // backed collection specs; the xunit.v3 runner executes every test and
+    // writes the JUnit report the shared harness reads.
     return new String[] {
-      "dotnet test --verbosity normal --logger \"junit;LogFilePath=.out/reports/junit.xml\""
+      "dotnet run --project PetstoreClient.Test.csproj -- -jUnit .out/reports/junit.xml"
     };
   }
 

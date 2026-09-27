@@ -314,22 +314,42 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp build_query_string(query_params) do
     query_params
-    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
-    |> Enum.flat_map(fn {k, v} ->
-      encoded_key = URI.encode_www_form(to_string(k))
-
-      case v do
-        values when is_list(values) ->
-          Enum.map(values, fn val ->
-            "#{encoded_key}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.to_query_value(val, nil))}"
-          end)
-
-        _ ->
-          ["#{encoded_key}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.to_query_value(v, nil))}"]
-      end
-    end)
+    |> Enum.flat_map(&query_string_pairs/1)
     |> Enum.join("&")
   end
+
+  # Build the `key=value` pairs for one query parameter. OAS allowReserved: a
+  # value wrapped by ValueSerializer.maybe_allow_reserved/2 keeps RFC 3986
+  # reserved characters literal instead of percent-encoding them.
+  defp query_string_pairs({k, wrapped}) do
+    {allow_reserved, value} = unwrap_allow_reserved(wrapped)
+    query_string_pairs(k, value, allow_reserved)
+  end
+
+  defp query_string_pairs(_k, value, _allow_reserved) when is_nil(value) or value == [], do: []
+
+  defp query_string_pairs(k, values, allow_reserved) when is_list(values) do
+    encoded_key = URI.encode_www_form(to_string(k))
+
+    Enum.map(values, fn val ->
+      "#{encoded_key}=#{encode_query_value({{moduleName}}.ObjectSerializer.to_query_value(val, nil), allow_reserved)}"
+    end)
+  end
+
+  defp query_string_pairs(k, value, allow_reserved) do
+    encoded_key = URI.encode_www_form(to_string(k))
+    ["#{encoded_key}=#{encode_query_value({{moduleName}}.ObjectSerializer.to_query_value(value, nil), allow_reserved)}"]
+  end
+
+  # Unwrap a query value that ValueSerializer.maybe_allow_reserved/2 tagged for
+  # reserved-character preservation, returning `{allow_reserved?, value}`.
+  defp unwrap_allow_reserved({:allow_reserved, value}), do: {true, value}
+  defp unwrap_allow_reserved(value), do: {false, value}
+
+  # Encode a query-parameter value, preserving RFC 3986 reserved characters when
+  # the parameter declared `allowReserved: true`; otherwise encode as today.
+  defp encode_query_value(value, true), do: {{moduleName}}.ValueSerializer.encode_query_allowing_reserved(value)
+  defp encode_query_value(value, false), do: URI.encode_www_form(value)
 
   defp serialize_body(nil, _content_type), do: nil
 

@@ -447,9 +447,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.status {
-      queryParams["status"] = ValueSerializer.serializeStyled(
-        "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
-        style: "form", explode: true)
+      queryParams["status"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
     }
     if let options = options, let val = options.filter {
       if let dict = (val as Any) as? [String: Any] {
@@ -794,9 +795,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     var queryParams: [String: Any?] = [:]
     do {
       let val = options.category
-      queryParams["category"] = ValueSerializer.serializeStyled(
-        "category", value: val, location: "query", schemaType: "String", collectionFormat: "",
-        style: "form", explode: true)
+      queryParams["category"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "category", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
     }
 
     let headerParams: [String: String] = [:]
@@ -922,6 +924,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Get a tag for a pet
   ///
   /// - Parameters:
+  ///   - revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
 
   public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> Pet
@@ -958,19 +961,28 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.colors {
-      queryParams["colors"] = ValueSerializer.serializeStyled(
-        "colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes",
-        style: "pipeDelimited", explode: false)
+      queryParams["colors"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "colors", value: val, location: "query", schemaType: "[String]",
+          collectionFormat: "pipes", style: "pipeDelimited", explode: false), allowReserved: false)
     }
     if let options = options, let val = options.sizes {
-      queryParams["sizes"] = ValueSerializer.serializeStyled(
-        "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
-        style: "spaceDelimited", explode: false)
+      queryParams["sizes"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv",
+          style: "spaceDelimited", explode: false), allowReserved: false)
     }
     if let options = options, let val = options.filter {
-      queryParams["filter"] = ValueSerializer.serializeStyled(
-        "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
-        style: "form", explode: true)
+      queryParams["filter"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "filter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.revision {
+      queryParams["revision"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "revision", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: true)
     }
 
     let headerParams: [String: String] = [:]

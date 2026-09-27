@@ -200,6 +200,18 @@ class {{classname}} extends BaseApi
 {{/-first}}
 {{/servers}}
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+{{#queryParams}}
+{{#vendorExtensions.param.allowReserved}}
+        $allowReservedKeys['{{baseName}}'] = true;
+{{/vendorExtensions.param.allowReserved}}
+{{/queryParams}}
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
@@ -325,14 +337,15 @@ class {{classname}} extends BaseApi
             {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
             '{{#returnContainer}}{{{returnType}}}<{{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}>{{/returnContainer}}{{^returnContainer}}{{#returnProperty}}{{#isByteArray}}byte{{/isByteArray}}{{^isByteArray}}{{{returnType}}}{{/isByteArray}}{{/returnProperty}}{{^returnProperty}}{{{returnType}}}{{/returnProperty}}{{/returnContainer}}',
 {{#hasAuthMethods}}
-            $auth
+            $auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}
+            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}},
 {{/hasAuthMethods}}
+            $allowReservedKeys
         );
         return $result;
     }
@@ -435,6 +448,18 @@ class {{classname}} extends BaseApi
 {{/-first}}
 {{/servers}}
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+{{#queryParams}}
+{{#vendorExtensions.param.allowReserved}}
+        $allowReservedKeys['{{baseName}}'] = true;
+{{/vendorExtensions.param.allowReserved}}
+{{/queryParams}}
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
@@ -560,14 +585,15 @@ class {{classname}} extends BaseApi
             {{#vendorExtensions.op.hasMultipleConsumes}}$contentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}}{{^vendorExtensions.op.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasMultipleConsumes}},
             null,
 {{#hasAuthMethods}}
-            $auth
+            $auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}
+            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}},
 {{/hasAuthMethods}}
+            $allowReservedKeys
         );
         return $result;
     }

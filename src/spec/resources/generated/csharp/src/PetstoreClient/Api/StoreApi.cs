@@ -179,14 +179,17 @@ public class StoreApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.QuerySwatch != null)
         {
-            queryParams["querySwatch"] = ValueSerializer.SerializeStyled(
-                "querySwatch",
-                options.QuerySwatch,
-                "query",
-                "Swatch",
-                null,
-                "form",
-                true
+            queryParams["querySwatch"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "querySwatch",
+                    options.QuerySwatch,
+                    "query",
+                    "Swatch",
+                    null,
+                    "form",
+                    true
+                ),
+                false
             );
         }
         Dictionary<string, string> headerParams = [];
@@ -612,14 +615,17 @@ public class StoreApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.AsOf != null)
         {
-            queryParams["asOf"] = ValueSerializer.SerializeStyled(
-                "asOf",
-                options.AsOf,
-                "query",
-                "DateTimeOffset",
-                null,
-                "form",
-                true
+            queryParams["asOf"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "asOf",
+                    options.AsOf,
+                    "query",
+                    "DateTimeOffset",
+                    null,
+                    "form",
+                    true
+                ),
+                false
             );
         }
         Dictionary<string, string> headerParams = [];

@@ -717,14 +717,17 @@ public class PetApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.Status != null)
         {
-            queryParams["status"] = ValueSerializer.SerializeStyled(
-                "status",
-                options.Status,
-                "query",
-                "string",
-                null,
-                "form",
-                true
+            queryParams["status"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "status",
+                    options.Status,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
             );
         }
         if (options != null && options.Filter != null)
@@ -1253,14 +1256,17 @@ public class PetApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.Category != null)
         {
-            queryParams["category"] = ValueSerializer.SerializeStyled(
-                "category",
-                options.Category,
-                "query",
-                "string",
-                null,
-                "form",
-                true
+            queryParams["category"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "category",
+                    options.Category,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
             );
         }
         Dictionary<string, string> headerParams = [];
@@ -1534,37 +1540,61 @@ public class PetApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.Colors != null)
         {
-            queryParams["colors"] = ValueSerializer.SerializeStyled(
-                "colors",
-                options.Colors,
-                "query",
-                "List<string>",
-                "pipes",
-                "pipeDelimited",
+            queryParams["colors"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "colors",
+                    options.Colors,
+                    "query",
+                    "List<string>",
+                    "pipes",
+                    "pipeDelimited",
+                    false
+                ),
                 false
             );
         }
         if (options != null && options.Sizes != null)
         {
-            queryParams["sizes"] = ValueSerializer.SerializeStyled(
-                "sizes",
-                options.Sizes,
-                "query",
-                "List<string>",
-                "ssv",
-                "spaceDelimited",
+            queryParams["sizes"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "sizes",
+                    options.Sizes,
+                    "query",
+                    "List<string>",
+                    "ssv",
+                    "spaceDelimited",
+                    false
+                ),
                 false
             );
         }
         if (options != null && options.Filter != null)
         {
-            queryParams["filter"] = ValueSerializer.SerializeStyled(
-                "filter",
-                options.Filter,
-                "query",
-                "string",
-                null,
-                "form",
+            queryParams["filter"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "filter",
+                    options.Filter,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Revision != null)
+        {
+            queryParams["revision"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "revision",
+                    options.Revision,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
                 true
             );
         }

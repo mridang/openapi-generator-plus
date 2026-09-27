@@ -76,6 +76,34 @@ defmodule {{moduleName}}.ValueSerializer do
   end
 
   @doc """
+  Wrap a query value so the query-string builder preserves RFC 3986 reserved
+  characters (OAS `allowReserved: true`).
+
+  Returns the value unchanged when it is nil or when `allow_reserved` is false;
+  otherwise tags it with `:allow_reserved` for the query-string builder to
+  unwrap and encode with `encode_query_allowing_reserved/1`.
+  """
+  @spec maybe_allow_reserved(term(), boolean()) :: term()
+  def maybe_allow_reserved(nil, _allow_reserved), do: nil
+  def maybe_allow_reserved(value, true), do: {:allow_reserved, value}
+  def maybe_allow_reserved(value, false), do: value
+
+  @doc """
+  Percent-encode a query value while leaving RFC 3986 reserved characters
+  literal (OAS `allowReserved: true`).
+
+  Everything that is not RFC 3986 reserved or unreserved — spaces, control
+  characters, non-ASCII — is still percent-encoded, so the result is always a
+  valid URL query segment. In particular a space becomes `%20` (not `+`). Only
+  the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved
+  characters) is kept literal.
+  """
+  @spec encode_query_allowing_reserved(String.t()) :: String.t()
+  def encode_query_allowing_reserved(value) do
+    URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c":/?#[]@!$&'()*+,;=" end)
+  end
+
+  @doc """
   Serialize a parameter value according to OAS 3.0 style and explode rules.
 
   ## Parameters
@@ -126,10 +154,10 @@ defmodule {{moduleName}}.ValueSerializer do
         serialize_label(value, location, explode)
 
       "spaceDelimited" ->
-        serialize_delimited(value, location, " ")
+        serialize_delimited(value, location, " ", explode)
 
       "pipeDelimited" ->
-        serialize_delimited(value, location, "|")
+        serialize_delimited(value, location, "|", explode)
 
       "form" ->
         serialize_form(value, location, explode)
@@ -258,14 +286,18 @@ defmodule {{moduleName}}.ValueSerializer do
     ".#{str_val}"
   end
 
-  defp serialize_delimited(nil, :query, _delimiter), do: nil
-  defp serialize_delimited(nil, _location, _delimiter), do: ""
+  defp serialize_delimited(nil, :query, _delimiter, _explode), do: nil
+  defp serialize_delimited(nil, _location, _delimiter, _explode), do: ""
 
-  defp serialize_delimited(value, _location, delimiter) when is_list(value) do
+  defp serialize_delimited(value, _location, _delimiter, true) when is_list(value) do
+    Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_delimited(value, _location, delimiter, _explode) when is_list(value) do
     Enum.map_join(value, delimiter, &{{moduleName}}.ObjectSerializer.stringify/1)
   end
 
-  defp serialize_delimited(value, _location, _delimiter) do
+  defp serialize_delimited(value, _location, _delimiter, _explode) do
     {{moduleName}}.ObjectSerializer.stringify(value)
   end
 

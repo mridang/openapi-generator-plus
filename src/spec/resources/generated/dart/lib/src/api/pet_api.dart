@@ -627,14 +627,17 @@ class PetApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
     if (options != null && options.status != null) {
-      queryParams['status'] = serializeStyled(
-        'status',
-        options.status,
-        'query',
-        'String',
-        '',
-        'form',
-        true,
+      queryParams['status'] = maybeAllowReserved(
+        serializeStyled(
+          'status',
+          options.status,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
       );
     }
     if (options != null && options.filter != null) {
@@ -1118,14 +1121,17 @@ class PetApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
 
-    queryParams['category'] = serializeStyled(
-      'category',
-      options.category,
-      'query',
-      'String',
-      '',
-      'form',
-      true,
+    queryParams['category'] = maybeAllowReserved(
+      serializeStyled(
+        'category',
+        options.category,
+        'query',
+        'String',
+        '',
+        'form',
+        true,
+      ),
+      false,
     );
 
     final headerParams = <String, String>{};
@@ -1313,6 +1319,7 @@ class PetApi extends BaseApi {
   }
 
   /// Get a tag for a pet
+  /// `revision` Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
 
   Future<Pet> getPetTag(
     int petId,
@@ -1391,35 +1398,58 @@ class PetApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
     if (options != null && options.colors != null) {
-      queryParams['colors'] = serializeStyled(
-        'colors',
-        options.colors,
-        'query',
-        'List<String>',
-        'pipes',
-        'pipeDelimited',
+      queryParams['colors'] = maybeAllowReserved(
+        serializeStyled(
+          'colors',
+          options.colors,
+          'query',
+          'List<String>',
+          'pipes',
+          'pipeDelimited',
+          false,
+        ),
         false,
       );
     }
     if (options != null && options.sizes != null) {
-      queryParams['sizes'] = serializeStyled(
-        'sizes',
-        options.sizes,
-        'query',
-        'List<String>',
-        'ssv',
-        'spaceDelimited',
+      queryParams['sizes'] = maybeAllowReserved(
+        serializeStyled(
+          'sizes',
+          options.sizes,
+          'query',
+          'List<String>',
+          'ssv',
+          'spaceDelimited',
+          false,
+        ),
         false,
       );
     }
     if (options != null && options.filter != null) {
-      queryParams['filter'] = serializeStyled(
-        'filter',
-        options.filter,
-        'query',
-        'String',
-        '',
-        'form',
+      queryParams['filter'] = maybeAllowReserved(
+        serializeStyled(
+          'filter',
+          options.filter,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.revision != null) {
+      queryParams['revision'] = maybeAllowReserved(
+        serializeStyled(
+          'revision',
+          options.revision,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
         true,
       );
     }

@@ -134,14 +134,17 @@ class StoreApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
     if (options != null && options.querySwatch != null) {
-      queryParams['querySwatch'] = serializeStyled(
-        'querySwatch',
-        options.querySwatch,
-        'query',
-        'Swatch',
-        '',
-        'form',
-        true,
+      queryParams['querySwatch'] = maybeAllowReserved(
+        serializeStyled(
+          'querySwatch',
+          options.querySwatch,
+          'query',
+          'Swatch',
+          '',
+          'form',
+          true,
+        ),
+        false,
       );
     }
 
@@ -517,14 +520,17 @@ class StoreApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
     if (options != null && options.asOf != null) {
-      queryParams['asOf'] = serializeStyled(
-        'asOf',
-        options.asOf,
-        'query',
-        'DateTime',
-        '',
-        'form',
-        true,
+      queryParams['asOf'] = maybeAllowReserved(
+        serializeStyled(
+          'asOf',
+          options.asOf,
+          'query',
+          'DateTime',
+          '',
+          'form',
+          true,
+        ),
+        false,
       );
     }
 

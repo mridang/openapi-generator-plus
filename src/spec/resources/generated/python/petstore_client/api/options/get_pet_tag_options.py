@@ -19,3 +19,4 @@ class GetPetTagOptions:
     colors: Optional[List[StrictStr]] = None
     sizes: Optional[List[StrictStr]] = None
     filter: Optional[StrictStr] = None
+    revision: Optional[StrictStr] = None

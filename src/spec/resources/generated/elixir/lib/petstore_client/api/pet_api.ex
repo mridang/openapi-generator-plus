@@ -943,14 +943,17 @@ defmodule PetstoreClient.Api.PetApi do
         Map.put(
           query_params,
           "status",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "status",
-            options.status,
-            :query,
-            "String.t()",
-            nil,
-            "form",
-            true
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "status",
+              options.status,
+              :query,
+              "String.t()",
+              nil,
+              "form",
+              true
+            ),
+            false
           )
         )
       else
@@ -1709,14 +1712,17 @@ defmodule PetstoreClient.Api.PetApi do
         Map.put(
           query_params,
           "category",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "category",
-            options.category,
-            :query,
-            "String.t()",
-            nil,
-            "form",
-            true
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "category",
+              options.category,
+              :query,
+              "String.t()",
+              nil,
+              "form",
+              true
+            ),
+            false
           )
         )
       else
@@ -2145,13 +2151,16 @@ defmodule PetstoreClient.Api.PetApi do
         Map.put(
           query_params,
           "colors",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "colors",
-            options.colors,
-            :query,
-            "[String.t()]",
-            :pipes,
-            "pipeDelimited",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "colors",
+              options.colors,
+              :query,
+              "[String.t()]",
+              :pipes,
+              "pipeDelimited",
+              false
+            ),
             false
           )
         )
@@ -2164,13 +2173,16 @@ defmodule PetstoreClient.Api.PetApi do
         Map.put(
           query_params,
           "sizes",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "sizes",
-            options.sizes,
-            :query,
-            "[String.t()]",
-            :ssv,
-            "spaceDelimited",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "sizes",
+              options.sizes,
+              :query,
+              "[String.t()]",
+              :ssv,
+              "spaceDelimited",
+              false
+            ),
             false
           )
         )
@@ -2188,13 +2200,38 @@ defmodule PetstoreClient.Api.PetApi do
         Map.put(
           query_params,
           "filter",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "filter",
-            options.filter,
-            :query,
-            "String.t()",
-            nil,
-            "form",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "filter",
+              options.filter,
+              :query,
+              "String.t()",
+              nil,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.revision) and options.revision != [] do
+        Map.put(
+          query_params,
+          "revision",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "revision",
+              options.revision,
+              :query,
+              "String.t()",
+              nil,
+              "form",
+              true
+            ),
             true
           )
         )

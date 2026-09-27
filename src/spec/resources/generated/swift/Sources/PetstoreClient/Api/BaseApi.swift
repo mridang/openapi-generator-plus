@@ -271,6 +271,17 @@ public class BaseApi: @unchecked Sendable {
     return allowed
   }()
 
+  /// Query-value encoding for parameters declared `allowReserved: true` (OAS
+  /// 3.0). The RFC 3986 reserved set — `: / ? # [ ] @ ! $ & ' ( ) * + , ; =`
+  /// — is added to the unreserved set so those characters stay literal on the
+  /// wire. Everything outside both sets (space, control chars, non-ASCII) is
+  /// still percent-encoded, so a space still becomes `%20`.
+  private static let queryComponentAllowedReserved: CharacterSet = {
+    var allowed = queryComponentAllowed
+    allowed.insert(charactersIn: ":/?#[]@!$&'()*+,;=")
+    return allowed
+  }()
+
   static func buildQueryString(_ queryParams: [String: Any?]) -> String {
     guard !queryParams.isEmpty else { return "" }
 
@@ -280,17 +291,29 @@ public class BaseApi: @unchecked Sendable {
       let encodedKey =
         k.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? k
 
-      if let items = v as? [String] {
+      /* Unwrap an allowReserved marker: a wrapped value keeps RFC 3986
+       * reserved characters literal, an unwrapped value uses the default
+       * unreserved-only set (byte-identical to allowReserved: false). */
+      let allowedForValue: CharacterSet
+      let rawValue: Any
+      if let reserved = v as? ValueSerializer.AllowReservedValue {
+        allowedForValue = BaseApi.queryComponentAllowedReserved
+        rawValue = reserved.value
+      } else {
+        allowedForValue = BaseApi.queryComponentAllowed
+        rawValue = v
+      }
+
+      if let items = rawValue as? [String] {
         for item in items {
           let encodedValue =
-            item.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed) ?? item
+            item.addingPercentEncoding(withAllowedCharacters: allowedForValue) ?? item
           parts.append("\(encodedKey)=\(encodedValue)")
         }
       } else {
-        let strVal = ObjectSerializer.stringify(v)
+        let strVal = ObjectSerializer.stringify(rawValue)
         let encodedValue =
-          strVal.addingPercentEncoding(withAllowedCharacters: BaseApi.queryComponentAllowed)
-          ?? strVal
+          strVal.addingPercentEncoding(withAllowedCharacters: allowedForValue) ?? strVal
         parts.append("\(encodedKey)=\(encodedValue)")
       }
     }

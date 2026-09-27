@@ -296,7 +296,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
     query_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}) do
         Map.put(query_params, "{{baseName}}",
-          {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
       else
         query_params
       end
@@ -305,7 +307,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
     query_params =
       if not is_nil(options) and not is_nil(options.{{paramName}}) and options.{{paramName}} != [] do
         Map.put(query_params, "{{baseName}}",
-          {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
+          {{moduleName}}.ValueSerializer.maybe_allow_reserved(
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),
+            {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}))
       else
         query_params
       end

@@ -337,7 +337,10 @@ module {{moduleName}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
-            ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+            ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
+              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
+            )
         end
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -349,7 +352,10 @@ module {{moduleName}}
 {{#vendorExtensions.param.queryStyled}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
-            ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+            ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
+              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+              {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
+            )
         end
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}

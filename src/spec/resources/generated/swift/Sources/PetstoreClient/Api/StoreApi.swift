@@ -90,9 +90,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.querySwatch {
-      queryParams["querySwatch"] = ValueSerializer.serializeStyled(
-        "querySwatch", value: val, location: "query", schemaType: "Swatch", collectionFormat: "",
-        style: "form", explode: true)
+      queryParams["querySwatch"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "querySwatch", value: val, location: "query", schemaType: "Swatch", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
     }
 
     var headerParams: [String: String] = [:]
@@ -392,9 +393,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.asOf {
-      queryParams["asOf"] = ValueSerializer.serializeStyled(
-        "asOf", value: val, location: "query", schemaType: "Date", collectionFormat: "",
-        style: "form", explode: true)
+      queryParams["asOf"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "asOf", value: val, location: "query", schemaType: "Date", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
     }
 
     let headerParams: [String: String] = [:]

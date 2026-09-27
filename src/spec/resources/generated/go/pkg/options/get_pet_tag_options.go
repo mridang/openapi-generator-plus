@@ -7,4 +7,6 @@ type GetPetTagOptions struct {
 	Colors *[]string
 	Sizes  *[]string
 	Filter *string
+	/* Revision Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon. */
+	Revision *string
 }

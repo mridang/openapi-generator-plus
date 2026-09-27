@@ -26,6 +26,7 @@ class GetPetTagOptions
         public readonly ?array $colors = null,
         public readonly ?array $sizes = null,
         public readonly ?string $filter = null,
+        public readonly ?string $revision = null,
     ) {
     }
 }

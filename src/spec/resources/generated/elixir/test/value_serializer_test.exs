@@ -310,6 +310,21 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "blue black"
     end
 
+    test "spaceDelimited array with explode true returns list" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "color",
+          ["blue", "black"],
+          :query,
+          "array",
+          nil,
+          "spaceDelimited",
+          true
+        )
+
+      assert result == ["blue", "black"]
+    end
+
     test "spaceDelimited scalar returns stringified value" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
@@ -338,6 +353,21 @@ defmodule PetstoreClient.ValueSerializerTest do
         )
 
       assert result == "blue|black"
+    end
+
+    test "pipeDelimited array with explode true returns list" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "color",
+          ["blue", "black"],
+          :query,
+          "array",
+          nil,
+          "pipeDelimited",
+          true
+        )
+
+      assert result == ["blue", "black"]
     end
 
     test "pipeDelimited scalar returns stringified value" do
@@ -785,6 +815,26 @@ defmodule PetstoreClient.ValueSerializerTest do
       # behaviour of Go/Node/Swift/Dart.
       date = ~D[2024-12-31]
       assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-12-31"
+    end
+  end
+
+  describe "allowReserved query encoding" do
+    test "reserved characters are left literal, other characters still encoded" do
+      assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("v1.0/beta:rc1") ==
+               "v1.0/beta:rc1"
+
+      # Space is illegal in a URL and must still be percent-encoded (as %20, not
+      # +) even when reserved characters are preserved.
+      assert PetstoreClient.ValueSerializer.encode_query_allowing_reserved("a b:c") == "a%20b:c"
+    end
+
+    test "maybe_allow_reserved wraps only when allowReserved is true" do
+      assert PetstoreClient.ValueSerializer.maybe_allow_reserved("plain", false) == "plain"
+
+      assert PetstoreClient.ValueSerializer.maybe_allow_reserved("v1/beta", true) ==
+               {:allow_reserved, "v1/beta"}
+
+      assert PetstoreClient.ValueSerializer.maybe_allow_reserved(nil, true) == nil
     end
   end
 end

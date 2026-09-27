@@ -418,6 +418,18 @@ public class ValueSerializerTest
                 false
             )
         );
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "spaceDelimited",
+                true
+            )
+        );
     }
 
     [Fact]
@@ -452,6 +464,18 @@ public class ValueSerializerTest
                 null,
                 "pipeDelimited",
                 false
+            )
+        );
+        Assert.Equal(
+            new List<string> { "blue", "black" },
+            ValueSerializer.SerializeStyled(
+                "color",
+                new List<object> { "blue", "black" },
+                "query",
+                "array",
+                null,
+                "pipeDelimited",
+                true
             )
         );
     }
@@ -862,6 +886,28 @@ public class ValueSerializerTest
         // stringifyDate UTC behaviour of Go/Node/Swift/Dart.
         var date = new DateOnly(2024, 12, 31);
         Assert.Equal("2024-12-31", ValueSerializer.Serialize(date, "path", "string"));
+    }
+
+    // -- allowReserved query encoding --
+
+    [Fact]
+    public void AllowReservedKeepsReservedCharsLiteralButStillEncodesSpace()
+    {
+        Assert.Equal("v1.0/beta:rc1", ValueSerializer.EncodeQueryAllowingReserved("v1.0/beta:rc1"));
+        // Space is illegal in a URL and must still be percent-encoded even
+        // when reserved characters are preserved.
+        Assert.Equal("a%20b:c", ValueSerializer.EncodeQueryAllowingReserved("a b:c"));
+    }
+
+    [Fact]
+    public void MaybeAllowReservedWrapsOnlyWhenAllowReservedIsTrue()
+    {
+        Assert.Equal("plain", ValueSerializer.MaybeAllowReserved("plain", false));
+        var wrapped = Assert.IsType<ValueSerializer.AllowReservedValue>(
+            ValueSerializer.MaybeAllowReserved("v1/beta", true)
+        );
+        Assert.Equal("v1/beta", wrapped.Value);
+        Assert.Null(ValueSerializer.MaybeAllowReserved(null, true));
     }
 }
 

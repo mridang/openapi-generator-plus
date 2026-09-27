@@ -292,11 +292,11 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if options is not None and options.{{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
+            query_params['{{baseName}}'] = ValueSerializer.maybe_allow_reserved(ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}}), {{#vendorExtensions.param.allowReserved}}True{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}False{{/vendorExtensions.param.allowReserved}})
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if options is not None and options.{{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}})
+            query_params['{{baseName}}'] = ValueSerializer.maybe_allow_reserved(ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}}), {{#vendorExtensions.param.allowReserved}}True{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}False{{/vendorExtensions.param.allowReserved}})
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}

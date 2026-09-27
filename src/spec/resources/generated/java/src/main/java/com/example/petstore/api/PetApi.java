@@ -747,8 +747,10 @@ public class PetApi extends BaseApi {
     if (options != null && options.status() != null) {
       queryParams.put(
           "status",
-          ValueSerializer.serializeStyled(
-              "status", options.status(), "query", "String", null, "form", true));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "status", options.status(), "query", "String", null, "form", true),
+              false));
     }
     if (options != null && options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
@@ -1134,8 +1136,10 @@ public class PetApi extends BaseApi {
     if (options.category() != null) {
       queryParams.put(
           "category",
-          ValueSerializer.serializeStyled(
-              "category", options.category(), "query", "String", null, "form", true));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "category", options.category(), "query", "String", null, "form", true),
+              false));
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -1333,26 +1337,46 @@ public class PetApi extends BaseApi {
     if (options != null && options.colors() != null) {
       queryParams.put(
           "colors",
-          ValueSerializer.serializeStyled(
-              "colors",
-              options.colors(),
-              "query",
-              "List<String>",
-              "pipes",
-              "pipeDelimited",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "colors",
+                  options.colors(),
+                  "query",
+                  "List<String>",
+                  "pipes",
+                  "pipeDelimited",
+                  false),
               false));
     }
     if (options != null && options.sizes() != null) {
       queryParams.put(
           "sizes",
-          ValueSerializer.serializeStyled(
-              "sizes", options.sizes(), "query", "List<String>", "ssv", "spaceDelimited", false));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "sizes",
+                  options.sizes(),
+                  "query",
+                  "List<String>",
+                  "ssv",
+                  "spaceDelimited",
+                  false),
+              false));
     }
     if (options != null && options.filter() != null) {
       queryParams.put(
           "filter",
-          ValueSerializer.serializeStyled(
-              "filter", options.filter(), "query", "String", null, "form", true));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "filter", options.filter(), "query", "String", null, "form", true),
+              false));
+    }
+    if (options != null && options.revision() != null) {
+      queryParams.put(
+          "revision",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "revision", options.revision(), "query", "String", null, "form", true),
+              true));
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(

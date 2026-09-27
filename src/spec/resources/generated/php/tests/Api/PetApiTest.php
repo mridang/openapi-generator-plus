@@ -364,6 +364,33 @@ test('get pet tag serializes optional array query params as styled values', func
     expect($decoded)->not->toContain('["blue"');
 });
 
+// -- Canonical: allowReserved query params keep RFC 3986 reserved chars literal --
+//
+// getPetTag declares `revision` with `allowReserved: true`, so its RFC 3986
+// reserved characters (e.g. ':') must reach the wire literally while a space is
+// still percent-encoded (%20). The sibling `filter` param does NOT declare
+// allowReserved, so it must keep encoding reserved characters exactly as before
+// — proving the reserved-preserving encoder is applied to allowReserved params
+// only. The URL is built inside BaseApi before the request reaches the
+// ApiClient, so the URL-capturing fake client observes the exact query string.
+
+test('get pet tag preserves reserved chars only for allowReserved query param', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(filter: 'a:b', revision: 'a b:c'));
+    } catch (\Throwable) {
+        // The capturing client returns a canned non-Pet body, so deserializing
+        // the Pet-typed result may fail. Irrelevant: the query string is
+        // captured during sendRequest, before any deserialization happens.
+    }
+
+    // allowReserved revision: reserved ':' stays literal, space still '%20'.
+    expect($captured->url)->toContain('revision=a%20b:c');
+    // non-allowReserved filter: reserved ':' is percent-encoded as before.
+    expect($captured->url)->toContain('filter=a%3Ab');
+});
+
 // -- Canonical form-urlencoded body behaviors (#1, #2, #3) --
 //
 // setPetPreferences sends an application/x-www-form-urlencoded body with a

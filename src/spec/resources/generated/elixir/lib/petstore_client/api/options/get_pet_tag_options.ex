@@ -13,10 +13,12 @@ defmodule PetstoreClient.Api.Options.GetPetTagOptions do
   @type t :: %__MODULE__{
           colors: list(String.t()) | nil,
           sizes: list(String.t()) | nil,
-          filter: String.t() | nil
+          filter: String.t() | nil,
+          revision: String.t() | nil
         }
 
   defstruct colors: nil,
             sizes: nil,
-            filter: nil
+            filter: nil,
+            revision: nil
 end

@@ -339,28 +339,34 @@ public class {{classname}} : BaseApi
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
-            queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
-                "{{baseName}}",
-                options.{{vendorExtensions.pascalName}},
-                "query",
-                "{{{dataType}}}",
-                {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
-                "{{style}}",
-                {{isExplode}}
+            queryParams["{{baseName}}"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "{{baseName}}",
+                    options.{{vendorExtensions.pascalName}},
+                    "query",
+                    "{{{dataType}}}",
+                    {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                    "{{style}}",
+                    {{isExplode}}
+                ),
+                {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             );
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
-            queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
-                "{{baseName}}",
-                options.{{vendorExtensions.pascalName}},
-                "query",
-                "{{{dataType}}}",
-                {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
-                "{{style}}",
-                {{isExplode}}
+            queryParams["{{baseName}}"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "{{baseName}}",
+                    options.{{vendorExtensions.pascalName}},
+                    "query",
+                    "{{{dataType}}}",
+                    {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
+                    "{{style}}",
+                    {{isExplode}}
+                ),
+                {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             );
         }
 {{/vendorExtensions.param.queryStyled}}

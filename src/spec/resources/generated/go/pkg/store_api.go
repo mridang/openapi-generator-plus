@@ -116,7 +116,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 
 	queryParams := make(map[string]any)
 	if options != nil && options.QuerySwatch != nil {
-		queryParams["querySwatch"] = serializeStyled("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true)
+		queryParams["querySwatch"] = maybeAllowReserved(serializeStyled("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true), false)
 	}
 
 	headerParams := make(map[string]string)
@@ -692,7 +692,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 
 	queryParams := make(map[string]any)
 	if options != nil && options.AsOf != nil {
-		queryParams["asOf"] = serializeStyled("asOf", options.AsOf, "query", "time.Time", "", "form", true)
+		queryParams["asOf"] = maybeAllowReserved(serializeStyled("asOf", options.AsOf, "query", "time.Time", "", "form", true), false)
 	}
 
 	headerParams := make(map[string]string)

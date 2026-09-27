@@ -269,21 +269,41 @@ func buildQueryString(queryParams map[string]any) string {
 		if v == nil {
 			continue
 		}
+		/* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+		 * characters literal instead of percent-encoding them. */
+		allowReserved := false
+		if reserved, ok := v.(allowReservedValue); ok {
+			v = reserved.value
+			allowReserved = true
+		}
+		if v == nil {
+			continue
+		}
 		encodedKey := url.QueryEscape(k)
 
 		switch val := v.(type) {
 		case []string:
 			for _, item := range val {
-				parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(item)))
+				parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, encodeQueryValue(item, allowReserved)))
 			}
 		case string:
-			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(val)))
+			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, encodeQueryValue(val, allowReserved)))
 		default:
-			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, url.QueryEscape(stringify(v))))
+			parts = append(parts, fmt.Sprintf("%s=%s", encodedKey, encodeQueryValue(stringify(v), allowReserved)))
 		}
 	}
 
 	return strings.Join(parts, "&")
+}
+
+// encodeQueryValue percent-encodes a query-parameter value, preserving RFC 3986
+// reserved characters when the parameter declared allowReserved: true. The
+// default path is byte-identical to url.QueryEscape.
+func encodeQueryValue(value string, allowReserved bool) string {
+	if allowReserved {
+		return encodeQueryAllowingReserved(value)
+	}
+	return url.QueryEscape(value)
 }
 
 func serializeBody(body any, contentType string) ([]byte, error) {

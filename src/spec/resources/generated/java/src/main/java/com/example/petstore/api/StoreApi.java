@@ -207,8 +207,10 @@ public class StoreApi extends BaseApi {
     if (options != null && options.querySwatch() != null) {
       queryParams.put(
           "querySwatch",
-          ValueSerializer.serializeStyled(
-              "querySwatch", options.querySwatch(), "query", "Swatch", null, "form", true));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "querySwatch", options.querySwatch(), "query", "Swatch", null, "form", true),
+              false));
     }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.preferredSwatch() != null) {
@@ -494,8 +496,10 @@ public class StoreApi extends BaseApi {
     if (options != null && options.asOf() != null) {
       queryParams.put(
           "asOf",
-          ValueSerializer.serializeStyled(
-              "asOf", options.asOf(), "query", "OffsetDateTime", null, "form", true));
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "asOf", options.asOf(), "query", "OffsetDateTime", null, "form", true),
+              false));
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(

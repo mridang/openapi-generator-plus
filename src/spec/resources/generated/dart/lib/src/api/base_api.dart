@@ -19,6 +19,7 @@ import '../configuration.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';
 import '../object_serializer.dart';
+import '../value_serializer.dart';
 import '../trace_context_util.dart';
 import '../errors/api_exception.dart';
 
@@ -293,22 +294,41 @@ class BaseApi {
     final parts = <String>[];
     for (final entry in queryParams.entries) {
       final key = entry.key;
-      final value = entry.value;
+      var value = entry.value;
       if (value == null) continue;
+
+      /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+       * characters literal instead of percent-encoding them. */
+      var allowReserved = false;
+      if (value is AllowReservedValue) {
+        value = value.value;
+        allowReserved = true;
+      }
 
       final encodedKey = Uri.encodeQueryComponent(key);
       if (value is List<String>) {
         for (final item in value) {
-          parts.add('$encodedKey=${Uri.encodeQueryComponent(item)}');
+          parts.add('$encodedKey=${_encodeQueryValue(item, allowReserved)}');
         }
       } else if (value is String) {
-        parts.add('$encodedKey=${Uri.encodeQueryComponent(value)}');
+        parts.add('$encodedKey=${_encodeQueryValue(value, allowReserved)}');
       } else {
-        parts.add('$encodedKey=${Uri.encodeQueryComponent(stringify(value))}');
+        parts.add(
+          '$encodedKey=${_encodeQueryValue(stringify(value), allowReserved)}',
+        );
       }
     }
 
     return parts.join('&');
+  }
+
+  /// Encodes a query-parameter value, preserving RFC 3986 reserved
+  /// characters when the parameter declared `allowReserved: true` and
+  /// otherwise applying the standard form-component encoding.
+  String _encodeQueryValue(String value, bool allowReserved) {
+    return allowReserved
+        ? encodeQueryAllowingReserved(value)
+        : Uri.encodeQueryComponent(value);
   }
 
   Uint8List? _serializeBody(Object? body, String contentType) {

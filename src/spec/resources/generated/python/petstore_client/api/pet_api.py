@@ -631,8 +631,11 @@ class PetApi(BaseApi):
         path = "/pet/findByStatus"
         query_params: Dict[str, Any] = {}
         if options is not None and options.status is not None:
-            query_params["status"] = ValueSerializer.serialize_styled(
-                "status", options.status, "query", "StrictStr", None, "form", True
+            query_params["status"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "status", options.status, "query", "StrictStr", None, "form", True
+                ),
+                False,
             )
         if options is not None and options.filter is not None:
             query_params.update(
@@ -1082,8 +1085,17 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.category is not None:
-            query_params["category"] = ValueSerializer.serialize_styled(
-                "category", options.category, "query", "StrictStr", None, "form", True
+            query_params["category"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "category",
+                    options.category,
+                    "query",
+                    "StrictStr",
+                    None,
+                    "form",
+                    True,
+                ),
+                False,
             )
         header_params: Dict[str, str] = {}
         body = None
@@ -1330,28 +1342,50 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
-            query_params["colors"] = ValueSerializer.serialize_styled(
-                "colors",
-                options.colors,
-                "query",
-                "List[StrictStr]",
-                "pipes",
-                "pipeDelimited",
+            query_params["colors"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "colors",
+                    options.colors,
+                    "query",
+                    "List[StrictStr]",
+                    "pipes",
+                    "pipeDelimited",
+                    False,
+                ),
                 False,
             )
         if options is not None and options.sizes is not None:
-            query_params["sizes"] = ValueSerializer.serialize_styled(
-                "sizes",
-                options.sizes,
-                "query",
-                "List[StrictStr]",
-                "ssv",
-                "spaceDelimited",
+            query_params["sizes"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "sizes",
+                    options.sizes,
+                    "query",
+                    "List[StrictStr]",
+                    "ssv",
+                    "spaceDelimited",
+                    False,
+                ),
                 False,
             )
         if options is not None and options.filter is not None:
-            query_params["filter"] = ValueSerializer.serialize_styled(
-                "filter", options.filter, "query", "StrictStr", None, "form", True
+            query_params["filter"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "filter", options.filter, "query", "StrictStr", None, "form", True
+                ),
+                False,
+            )
+        if options is not None and options.revision is not None:
+            query_params["revision"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "revision",
+                    options.revision,
+                    "query",
+                    "StrictStr",
+                    None,
+                    "form",
+                    True,
+                ),
+                True,
             )
         header_params: Dict[str, str] = {}
         body = None

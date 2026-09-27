@@ -36,6 +36,61 @@ func encodePathSegment(value string) string {
 	return encoded
 }
 
+// encodeQueryAllowingReserved percent-encodes a query value while leaving the
+// RFC 3986 reserved characters literal (OAS allowReserved: true).
+//
+// Everything that is not RFC 3986 reserved or unreserved — spaces, control
+// characters, non-ASCII — is still percent-encoded, so the result is always a
+// valid URL query segment. Only the reserved set : / ? # [ ] @ ! $ & ' ( ) * +
+// , ; = is restored after url.QueryEscape over-encodes it. url.QueryEscape
+// emits "+" for a space, so it is normalised to "%20" first; a literal "+" in
+// the value is already "%2B" at that point and is restored with the rest of the
+// reserved set.
+func encodeQueryAllowingReserved(value string) string {
+	if value == "" {
+		return value
+	}
+	encoded := url.QueryEscape(value)
+	encoded = strings.ReplaceAll(encoded, "+", "%20")
+	encoded = strings.ReplaceAll(encoded, "%3A", ":")
+	encoded = strings.ReplaceAll(encoded, "%2F", "/")
+	encoded = strings.ReplaceAll(encoded, "%3F", "?")
+	encoded = strings.ReplaceAll(encoded, "%23", "#")
+	encoded = strings.ReplaceAll(encoded, "%5B", "[")
+	encoded = strings.ReplaceAll(encoded, "%5D", "]")
+	encoded = strings.ReplaceAll(encoded, "%40", "@")
+	encoded = strings.ReplaceAll(encoded, "%21", "!")
+	encoded = strings.ReplaceAll(encoded, "%24", "$")
+	encoded = strings.ReplaceAll(encoded, "%26", "&")
+	encoded = strings.ReplaceAll(encoded, "%27", "'")
+	encoded = strings.ReplaceAll(encoded, "%28", "(")
+	encoded = strings.ReplaceAll(encoded, "%29", ")")
+	encoded = strings.ReplaceAll(encoded, "%2A", "*")
+	encoded = strings.ReplaceAll(encoded, "%2B", "+")
+	encoded = strings.ReplaceAll(encoded, "%2C", ",")
+	encoded = strings.ReplaceAll(encoded, "%3B", ";")
+	encoded = strings.ReplaceAll(encoded, "%3D", "=")
+	return encoded
+}
+
+// allowReservedValue wraps a query value so the query-string builder preserves
+// RFC 3986 reserved characters (OAS allowReserved: true) instead of
+// percent-encoding them. The wrapped value is a string, or a []string for an
+// exploded parameter.
+type allowReservedValue struct {
+	value any
+}
+
+// maybeAllowReserved wraps value in an allowReservedValue when the parameter
+// declares allowReserved: true; otherwise it returns value unchanged. A nil
+// value is never wrapped, so it is still omitted from the query string.
+func maybeAllowReserved(value any, allowReserved bool) any {
+	if value == nil || !allowReserved {
+		return value
+	}
+	return allowReservedValue{value: value}
+}
+
 // serializeValue serializes a parameter value for HTTP requests based on its location.
 //
 // Parameters:
@@ -212,6 +267,9 @@ func serializeStyled(paramName string, value any, location, schemaType, collecti
 			return ""
 		}
 		if isArray {
+			if explode {
+				return items
+			}
 			return strings.Join(items, " ")
 		}
 		return stringify(value)
@@ -224,6 +282,9 @@ func serializeStyled(paramName string, value any, location, schemaType, collecti
 			return ""
 		}
 		if isArray {
+			if explode {
+				return items
+			}
 			return strings.Join(items, "|")
 		}
 		return stringify(value)

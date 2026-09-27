@@ -378,6 +378,13 @@ import Testing
     #expect(result as? String == "red green blue")
   }
 
+  @Test func testSerializeStyledSpaceDelimitedArrayExplode() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: ["red", "green", "blue"], location: "query", schemaType: "array",
+      collectionFormat: "", style: "spaceDelimited", explode: true)
+    #expect(result as? [String] == ["red", "green", "blue"])
+  }
+
   @Test func testSerializeStyledSpaceDelimitedScalar() {
     let result = ValueSerializer.serializeStyled(
       "color", value: "red", location: "query", schemaType: "string", collectionFormat: "",
@@ -392,6 +399,13 @@ import Testing
       "color", value: ["red", "green", "blue"], location: "query", schemaType: "array",
       collectionFormat: "", style: "pipeDelimited", explode: false)
     #expect(result as? String == "red|green|blue")
+  }
+
+  @Test func testSerializeStyledPipeDelimitedArrayExplode() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: ["red", "green", "blue"], location: "query", schemaType: "array",
+      collectionFormat: "", style: "pipeDelimited", explode: true)
+    #expect(result as? [String] == ["red", "green", "blue"])
   }
 
   @Test func testSerializeStyledPipeDelimitedScalar() {
@@ -630,5 +644,23 @@ import Testing
     #expect(throws: Never.self) {
       try ValueSerializer.requirePathParam("id", "5", operation: "Api.operation")
     }
+  }
+
+  // MARK: - allowReserved query wrapping
+
+  // maybeAllowReserved wraps a value only when allowReserved is true; a false
+  // flag must leave the value untouched so allowReserved: false stays
+  // byte-identical to today. A nil value is never wrapped.
+  @Test func testMaybeAllowReservedWrapsOnlyWhenTrue() {
+    #expect(ValueSerializer.maybeAllowReserved("plain", allowReserved: false) as? String == "plain")
+
+    let wrapped = ValueSerializer.maybeAllowReserved("v1/beta", allowReserved: true)
+    guard let marker = wrapped as? ValueSerializer.AllowReservedValue else {
+      Issue.record("expected AllowReservedValue, got \(String(describing: wrapped))")
+      return
+    }
+    #expect(marker.value as? String == "v1/beta")
+
+    #expect(ValueSerializer.maybeAllowReserved(nil, allowReserved: true) == nil)
   }
 }

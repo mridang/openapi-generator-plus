@@ -681,21 +681,23 @@ verbatim and must fork the codegen, adjust the language-version pin,
 and re-run. Not a parity gap, not a regression — a stance. Don't
 re-audit.
 
-### Java / C# UTF-8 BOM not stripped at deserialize entry
+### UTF-8 BOM strip at deserialize entry (RESOLVED — all 12 strip, tested)
 
-10 of 12 SDKs explicitly strip a leading UTF-8 BOM (`U+FEFF`) from
-JSON response bodies before parsing (Python, Ruby, Node, Go, Rust,
-Swift, Dart, PHP, Kotlin, Elixir — see Gap AG, commit `2bbefb50`).
-Java and C# do **not** strip it in the SDK layer — they rely on the
-parser defaults (Jackson `ObjectMapper`, `System.Text.Json
-.JsonSerializer`), which historically tolerate BOM on `InputStream` /
-`ReadOnlySpan<byte>` overloads but **not** on `String` input. Our
-generated code mostly funnels through `String` overloads. In practice
-this is rare — only Windows-emitted JSON (PowerShell `Out-File -Encoding
-utf8` pre-PS6, Notepad save-as) typically produces a BOM, and most
-HTTP servers strip it before sending. Not fixing because the failure
-surface is tiny and the fix needs a per-call defensive trim that
-introduces an allocation on every parse. Documented; not auditing.
+All 12 SDKs now explicitly strip a leading UTF-8 BOM (`U+FEFF`) from JSON
+response bodies before parsing. Eleven do it at the top of
+`object_serializer` (Java `object_serializer.mustache` ~line 112, C# ~line
+107, plus Kotlin, PHP, Python, Ruby, Go, Rust, Swift, Dart, Elixir); Node
+strips in `base_api.mustache` (its deserialize entry point). See Gap AG
+(commit `2bbefb50`) for the original 10-language landing; Java and C# were
+brought in line afterwards because `System.Text.Json` / Jackson `String`
+overloads reject a BOM on the first token.
+
+This entry previously read "Java / C# UTF-8 BOM not stripped" and described
+the strip as WONTFIX — that is stale and was corrected here. The canonical
+regression test (`AUDIT.md` P2) lives in every SDK's serializer test
+(`base_api` test for Node): deserialize `"﻿{\"id\":1,\"name\":\"Dogs\"}"`
+into `Category`, assert `id == 1` / `name == "Dogs"`. Green fleet-wide. Not
+a gap; do not re-audit.
 
 ### `User-Agent` default header diverges across the 12
 

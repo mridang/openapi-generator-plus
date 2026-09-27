@@ -92,6 +92,73 @@ internal object ValueSerializer {
             .replace("%7E", "~")
     }
 
+    /**
+     * Wraps a query value so the query-string builder preserves RFC 3986
+     * reserved characters (OAS `allowReserved: true`).
+     *
+     * @property value the serialized query value (a [String] or a [List] of
+     *     strings for exploded parameters)
+     */
+    data class AllowReservedValue(
+        val value: Any,
+    )
+
+    /**
+     * Wraps [value] in an [AllowReservedValue] when the parameter declares
+     * `allowReserved: true`; otherwise returns it unchanged.
+     *
+     * @param value         the serialized query value
+     * @param allowReserved whether the parameter preserves reserved characters
+     * @return the value, wrapped iff [allowReserved] is true
+     */
+    @JvmStatic
+    fun maybeAllowReserved(
+        value: Any?,
+        allowReserved: Boolean,
+    ): Any? {
+        if (value == null || !allowReserved) {
+            return value
+        }
+        return AllowReservedValue(value)
+    }
+
+    /**
+     * Percent-encodes a query value while leaving RFC 3986 reserved characters
+     * literal (OAS `allowReserved: true`).
+     *
+     * Everything that is not RFC 3986 reserved or unreserved — spaces, control
+     * characters, non-ASCII — is still percent-encoded, so the result is always
+     * a valid URL query segment. Only the reserved set
+     * `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved `~`) is
+     * restored after [URLEncoder] over-encodes it.
+     */
+    @JvmStatic
+    fun encodeQueryAllowingReserved(value: String): String {
+        if (value.isEmpty()) return value
+        return URLEncoder
+            .encode(value, StandardCharsets.UTF_8)
+            .replace("+", "%20")
+            .replace("%7E", "~")
+            .replace("%3A", ":")
+            .replace("%2F", "/")
+            .replace("%3F", "?")
+            .replace("%23", "#")
+            .replace("%5B", "[")
+            .replace("%5D", "]")
+            .replace("%40", "@")
+            .replace("%21", "!")
+            .replace("%24", "$")
+            .replace("%26", "&")
+            .replace("%27", "'")
+            .replace("%28", "(")
+            .replace("%29", ")")
+            .replace("%2A", "*")
+            .replace("%2B", "+")
+            .replace("%2C", ",")
+            .replace("%3B", ";")
+            .replace("%3D", "=")
+    }
+
     @JvmStatic
     fun serializeDeepObject(
         paramName: String,
@@ -165,8 +232,8 @@ internal object ValueSerializer {
                 } else {
                     items.joinToString(",")
                 }
-            "spaceDelimited" -> items.joinToString(" ")
-            "pipeDelimited" -> items.joinToString("|")
+            "spaceDelimited" -> if (explode && value is Collection<*>) ArrayList(items) else items.joinToString(" ")
+            "pipeDelimited" -> if (explode && value is Collection<*>) ArrayList(items) else items.joinToString("|")
             else -> serialize(value, location, schemaType, collectionFormat)
         }
     }

@@ -259,13 +259,13 @@ class {{classname}} : BaseApi {
         if (options != null) {
             val {{paramName}}Styled = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
             if ({{paramName}}Styled != null) {
-                queryParams["{{baseName}}"] = {{paramName}}Styled
+                queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved({{paramName}}Styled, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
             }
         }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
         if (options{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}} != null) {
-            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", options{{^vendorExtensions.op.optionsParamRequired}}!!{{/vendorExtensions.op.optionsParamRequired}}.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
         }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}

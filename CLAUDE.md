@@ -26,9 +26,25 @@ The `devbox.json` in the project root defines all available packages and scripts
 
 When generating file content programmatically (e.g., per-operation Options classes, authenticator classes), **always use Mustache template files** rendered with a context map. Never build file content with Java `StringBuilder` or string concatenation. Create `.mustache` template files under `src/main/resources/templates/<language>/` and render them using `renderOptionsTemplate()` or the same pattern. The structure and layout of generated files belong in templates, not in Java code.
 
-## No Vendor Extensions in Templates
+## Vendor Extensions in Templates
 
-**Never use vendor extensions** (`vendorExtensions.x-*`) in Mustache templates. Always use native CodegenOperation/CodegenParameter fields instead (e.g., `{{#content}}`, `{{#servers}}`, `{{#cookieParams}}`). Vendor extensions are fragile and require custom Java code to set them.
+**Never depend on spec-sourced vendor extensions** — an `x-*` key that came from the
+input OpenAPI document — in a Mustache template. Those are fragile: they only work if
+every spec happens to set them, and they couple generated code to non-standard spec
+conventions. Prefer a native `CodegenOperation`/`CodegenParameter`/`CodegenProperty`
+field wherever one carries what you need (e.g. `{{#content}}`, `{{#servers}}`,
+`{{#cookieParams}}`, `{{style}}`, `{{isExplode}}`).
+
+**Generator-computed extensions are the sanctioned mechanism where no native field
+exists.** Mustache is deliberately logic-less: it cannot compare strings, stringify or
+capitalise a boolean, build a list, or call a method. When the generator has to compute
+something for the template — a decorator object (`vendorExtensions.op` / `.param` /
+`.prop`), a format flag (`isDuration`), or any derived value — it computes it in Java and
+hands the *result* to the template through `vendorExtensions`, because openapi-generator
+offers no per-object channel to add a native field without subclassing the whole codegen
+model. That is not the fragile case the rule above targets: the value is computed here,
+not read from the spec. Keep these named without an `x-` prefix so they read as
+generator-owned, not spec-owned.
 
 ## Integration Tests
 

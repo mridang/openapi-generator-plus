@@ -4,6 +4,8 @@ pub struct GetPetTagOptions {
     pub colors: Option<Vec<String>>,
     pub sizes: Option<Vec<String>>,
     pub filter: Option<String>,
+    /// Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+    pub revision: Option<String>,
 }
 
 impl GetPetTagOptions {
@@ -27,6 +29,12 @@ impl GetPetTagOptions {
     /// Sets the filter field.
     pub fn filter(mut self, filter: String) -> Self {
         self.filter = Some(filter);
+        self
+    }
+
+    /// Sets the revision field.
+    pub fn revision(mut self, revision: String) -> Self {
+        self.revision = Some(revision);
         self
     }
 }

@@ -146,14 +146,17 @@ export class StoreApi extends BaseApi {
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.querySwatch != null) {
-      queryParams["querySwatch"] = ValueSerializer.serializeStyled(
-        "querySwatch",
-        options.querySwatch,
-        "query",
-        "Swatch",
-        null,
-        "form",
-        true,
+      queryParams["querySwatch"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "querySwatch",
+          options.querySwatch,
+          "query",
+          "Swatch",
+          null,
+          "form",
+          true,
+        ),
+        false,
       );
     }
     const headerParams: Record<string, string> = {};
@@ -504,14 +507,17 @@ export class StoreApi extends BaseApi {
     const path = `/store/stock-item`;
     const queryParams: Record<string, unknown> = {};
     if (options?.asOf != null) {
-      queryParams["asOf"] = ValueSerializer.serializeStyled(
-        "asOf",
-        options.asOf,
-        "query",
-        "Date",
-        null,
-        "form",
-        true,
+      queryParams["asOf"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "asOf",
+          options.asOf,
+          "query",
+          "Date",
+          null,
+          "form",
+          true,
+        ),
+        false,
       );
     }
     const headerParams: Record<string, string> = {};

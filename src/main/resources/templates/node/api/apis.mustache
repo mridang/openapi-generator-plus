@@ -249,12 +249,12 @@ export class {{classname}} extends BaseApi {
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
     if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
     if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}

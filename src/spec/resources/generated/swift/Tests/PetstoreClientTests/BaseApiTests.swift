@@ -677,6 +677,34 @@ import Testing
       "should not contain 10.0, got: \(mockClient.lastURL)")
   }
 
+  // MARK: - allowReserved query encoding
+
+  // A value wrapped in AllowReservedValue (OAS allowReserved: true) keeps RFC
+  // 3986 reserved characters literal, but a space is illegal in a URL and is
+  // still percent-encoded to %20.
+  @Test func testAllowReservedKeepsReservedButEncodesSpace() {
+    let reserved = BaseApi.buildQueryString(
+      ["revision": ValueSerializer.AllowReservedValue(value: "v1.0/beta:rc1")])
+    #expect(
+      reserved == "revision=v1.0/beta:rc1",
+      "reserved characters should stay literal, got: \(reserved)")
+
+    let spaced = BaseApi.buildQueryString(
+      ["q": ValueSerializer.AllowReservedValue(value: "a b:c")])
+    #expect(
+      spaced == "q=a%20b:c",
+      "space must still be percent-encoded, got: \(spaced)")
+  }
+
+  // Without the marker (allowReserved: false / absent) reserved characters
+  // are still percent-encoded exactly as before.
+  @Test func testUnmarkedQueryValueEncodesReservedCharacters() {
+    let encoded = BaseApi.buildQueryString(["revision": "v1.0/beta:rc1"])
+    #expect(
+      encoded == "revision=v1.0%2Fbeta%3Arc1",
+      "unmarked values must percent-encode reserved characters, got: \(encoded)")
+  }
+
   // MARK: - Returns nil for void operations
 
   @Test func testReturnsNilForVoidOperation() async throws {

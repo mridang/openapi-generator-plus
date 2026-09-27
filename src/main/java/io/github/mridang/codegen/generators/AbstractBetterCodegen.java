@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.servers.ServerVariable;
@@ -3236,6 +3237,27 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
     }
 
+    /**
+     * Captures the OAS {@code allowReserved} flag off the raw parameter.
+     *
+     * <p>{@link CodegenParameter} has no native field for {@code allowReserved},
+     * so the value is stashed on the flat {@code vendorExtensions} map here (the
+     * only per-object channel) and surfaced onto the {@code param} decorator by
+     * {@link #populateParameterDecorators}. This is a generator-computed
+     * extension, not a spec-sourced {@code x-*} — see CLAUDE.md.
+     */
+    @Override
+    public CodegenParameter fromParameter(Parameter parameter, Set<String> imports) {
+        final CodegenParameter cp = super.fromParameter(parameter, imports);
+        if (parameter != null && Boolean.TRUE.equals(parameter.getAllowReserved())) {
+            if (cp.vendorExtensions == null) {
+                cp.vendorExtensions = new HashMap<>();
+            }
+            cp.vendorExtensions.put("allowReserved", true);
+        }
+        return cp;
+    }
+
     /** Runs {@link #populateParameterDecorators} over every entry of a list. */
     private void populateParameterDecoratorsForList(List<CodegenParameter> params) {
         if (params == null) {
@@ -3318,6 +3340,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "queryStyledAllowEmpty",
                 "styledAllowEmpty".equals(querySerializationKind));
         d.put("queryStyled", "styled".equals(querySerializationKind));
+
+        // G1 — allowReserved (OAS): when true, RFC-3986 reserved characters in
+        // a query value are left literal instead of percent-encoded. Carried
+        // from the raw Parameter by the fromParameter override (no native
+        // CodegenParameter field exists) and surfaced here for the api template.
+        d.put(
+                "allowReserved",
+                Boolean.TRUE.equals(param.vendorExtensions.get("allowReserved")));
 
         // P2 / P3 — Path serialisation kind + encoding requirement
         d.put("pathSerialisationKind", derivePathSerialisationKind(param));
@@ -4991,6 +5021,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         reconcileSignatureFilesManifest();
         runFormatterInDocker(getFormatterDockerImage(), getFormatterCommands());
+    }
+
+    /**
+     * Records a file written through the codegen's own {@code writeFile} side
+     * channel (outside upstream's template-to-file pipeline) so that
+     * {@link #reconcileSignatureFilesManifest()} adds it to
+     * {@code .openapi-generator/FILES}. Without this a manifest-driven prune in
+     * a client's regeneration deletes the file as an orphan.
+     *
+     * @param filePath the absolute path the file was written to
+     */
+    protected final void registerExtraManifestFile(String filePath) {
+        final Path rel = Path.of(getOutputDir()).relativize(Path.of(filePath));
+        extraManifestFiles.add(rel.toString().replace('\\', '/'));
     }
 
     /**

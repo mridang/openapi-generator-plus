@@ -155,14 +155,17 @@ class StoreApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.query_swatch is not None:
-            query_params["querySwatch"] = ValueSerializer.serialize_styled(
-                "querySwatch",
-                options.query_swatch,
-                "query",
-                "Swatch",
-                None,
-                "form",
-                True,
+            query_params["querySwatch"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "querySwatch",
+                    options.query_swatch,
+                    "query",
+                    "Swatch",
+                    None,
+                    "form",
+                    True,
+                ),
+                False,
             )
         header_params: Dict[str, str] = {}
         if options is not None and options.preferred_swatch is not None:
@@ -537,8 +540,11 @@ class StoreApi(BaseApi):
         path = "/store/stock-item"
         query_params: Dict[str, Any] = {}
         if options is not None and options.as_of is not None:
-            query_params["asOf"] = ValueSerializer.serialize_styled(
-                "asOf", options.as_of, "query", "AwareDatetime", None, "form", True
+            query_params["asOf"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "asOf", options.as_of, "query", "AwareDatetime", None, "form", True
+                ),
+                False,
             )
         header_params: Dict[str, str] = {}
         body = None

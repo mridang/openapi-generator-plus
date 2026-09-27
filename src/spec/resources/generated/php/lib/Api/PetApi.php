@@ -79,6 +79,13 @@ class PetApi extends BaseApi
         $auth = $options?->auth;
         $path = '/pet';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $pet;
 
@@ -92,7 +99,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            $auth
+            $auth,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -157,6 +165,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = [];
         $requestBody['files'] = $options->files;
@@ -171,7 +186,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\Ds\Vector<Photo>'
+            '\Ds\Vector<Photo>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -235,6 +255,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $petTreatment;
 
@@ -248,7 +275,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\PetTreatment::class,
-            $auth
+            $auth,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -301,6 +329,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $cookieParts = [];
         if ($options !== null && $options->apiKey !== null) {
@@ -333,7 +368,8 @@ class PetApi extends BaseApi
             [],
             'application/json',
             null,
-            $auth
+            $auth,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -413,6 +449,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'documentId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -425,7 +468,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -472,6 +520,13 @@ class PetApi extends BaseApi
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         /* Optional allowEmptyValue query param: allowEmptyValue means the server
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
@@ -494,7 +549,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\Ds\Vector<Pet>'
+            '\Ds\Vector<Pet>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -560,6 +620,13 @@ class PetApi extends BaseApi
             }
         }
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -572,7 +639,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -638,6 +710,13 @@ class PetApi extends BaseApi
             }
         }
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -650,7 +729,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -711,6 +795,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -723,7 +814,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -784,6 +880,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -796,7 +899,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'byte'
+            'byte',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -868,6 +976,13 @@ class PetApi extends BaseApi
             }
         }
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -880,7 +995,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -947,6 +1067,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'name' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         /* Required query param: always present (non-nullable on the Options
          * object), so it is emitted unconditionally. An empty string is a
          * legitimate value and is sent as-is. */
@@ -963,7 +1090,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1024,6 +1156,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -1036,7 +1175,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetPassport::class
+            \PetstoreClient\Models\PetPassport::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1116,6 +1260,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'photoId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -1128,7 +1279,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            'string'
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1214,6 +1370,14 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $allowReservedKeys['revision'] = true;
         if ($options !== null && $options->colors !== null) {
             $queryParams['colors'] = ValueSerializer::serializeStyled(
                 'colors',
@@ -1243,6 +1407,17 @@ class PetApi extends BaseApi
         if ($options !== null && $options->filter !== null) {
             $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
         }
+        if ($options !== null && $options->revision !== null) {
+            $queryParams['revision'] = ValueSerializer::serializeStyled(
+                'revision',
+                $options->revision,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            );
+        }
         $headerParams = [];
         $requestBody = null;
 
@@ -1255,7 +1430,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1321,6 +1501,13 @@ class PetApi extends BaseApi
             }
         }
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -1333,7 +1520,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1379,6 +1571,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $body;
 
@@ -1391,7 +1590,12 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             $contentType ?? 'image/jpeg',
-            null
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1435,6 +1639,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $setPetAvatarThumbnailRequest;
 
@@ -1447,7 +1658,12 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             'application/json',
-            null
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1512,6 +1728,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = [];
         $requestBody['nickname'] = $options->nickname;
@@ -1531,7 +1754,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/x-www-form-urlencoded',
-            \PetstoreClient\Models\ApiResponse::class
+            \PetstoreClient\Models\ApiResponse::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1595,6 +1823,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $pet;
 
@@ -1607,7 +1842,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class
+            \PetstoreClient\Models\Pet::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1672,6 +1912,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = [];
         $requestBody['file'] = $options->file;
@@ -1685,7 +1932,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class
+            \PetstoreClient\Models\ApiResponse::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -1752,6 +2004,13 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = [];
         $requestBody['file'] = $options->file;
@@ -1771,7 +2030,12 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             $contentType ?? 'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class
+            \PetstoreClient\Models\ApiResponse::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }

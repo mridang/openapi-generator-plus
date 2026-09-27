@@ -610,6 +610,10 @@ class ValueSerializerTest {
                 "blue black",
                 ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "spaceDelimited", false),
             )
+            assertEquals(
+                listOf("blue", "black"),
+                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "spaceDelimited", true),
+            )
         }
 
         @Test
@@ -628,6 +632,10 @@ class ValueSerializerTest {
             assertEquals(
                 "blue|black",
                 ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "pipeDelimited", false),
+            )
+            assertEquals(
+                listOf("blue", "black"),
+                ValueSerializer.serializeStyled("color", listOf("blue", "black"), "query", "array", null, "pipeDelimited", true),
             )
         }
 
@@ -682,6 +690,29 @@ class ValueSerializerTest {
             assertThrows(IllegalArgumentException::class.java) {
                 ValueSerializer.serializeStyled("id", "", "path", "string", null, "simple", false)
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("allowReserved query encoding")
+    inner class AllowReservedTests {
+        @Test
+        @DisplayName("reserved characters are left literal, other characters still encoded")
+        fun reservedCharsPreserved() {
+            assertEquals("v1.0/beta:rc1", ValueSerializer.encodeQueryAllowingReserved("v1.0/beta:rc1"))
+            // Space is illegal in a URL and must still be percent-encoded even
+            // when reserved characters are preserved.
+            assertEquals("a%20b:c", ValueSerializer.encodeQueryAllowingReserved("a b:c"))
+        }
+
+        @Test
+        @DisplayName("maybeAllowReserved wraps only when allowReserved is true")
+        fun maybeAllowReservedWraps() {
+            assertEquals("plain", ValueSerializer.maybeAllowReserved("plain", false))
+            val wrapped = ValueSerializer.maybeAllowReserved("v1/beta", true)
+            assertInstanceOf(ValueSerializer.AllowReservedValue::class.java, wrapped)
+            assertEquals("v1/beta", (wrapped as ValueSerializer.AllowReservedValue).value)
+            assertNull(ValueSerializer.maybeAllowReserved(null, true))
         }
     }
 }

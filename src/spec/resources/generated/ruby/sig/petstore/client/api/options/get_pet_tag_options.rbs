@@ -9,7 +9,8 @@ module Petstore::Client
         attr_reader colors: Array[String]?
         attr_reader sizes: Array[String]?
         attr_reader filter: String?
-        def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?) -> void
+        attr_reader revision: String?
+        def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?, ?revision: String?) -> void
       end
     end
   end

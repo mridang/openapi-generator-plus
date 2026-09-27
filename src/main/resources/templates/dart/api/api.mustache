@@ -256,17 +256,17 @@ class {{classname}} extends BaseApi {
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
@@ -282,7 +282,7 @@ class {{classname}} extends BaseApi {
     queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-    queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
 {{/required}}
 {{^required}}
@@ -296,7 +296,7 @@ class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/required}}
@@ -312,7 +312,7 @@ class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/vendorExtensions.op.optionsParamRequired}}

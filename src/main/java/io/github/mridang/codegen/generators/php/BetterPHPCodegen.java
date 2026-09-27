@@ -1330,6 +1330,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         ctx.putIfAbsent("modelPackage", modelPackage);
         final String filePath = Path.of(folder, className + ".php").toString();
         writeFile(filePath, renderOptionsTemplate(template, ctx));
+        // Files written through this side channel never enter upstream's
+        // .openapi-generator/FILES manifest, so a manifest-driven prune in the
+        // client's regeneration would delete them as orphans. Record them.
+        registerExtraManifestFile(filePath);
         postProcessFile(Path.of(filePath).toFile(), "source");
     }
 

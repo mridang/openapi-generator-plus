@@ -95,7 +95,7 @@ impl StoreApi {
             path = path.replace("{orderId}", &v);
         }
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -196,7 +196,7 @@ impl StoreApi {
             path = path.replace("{pathSwatch}", &v);
         }
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.query_swatch {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -211,11 +211,11 @@ impl StoreApi {
                 ) {
                     match serialized {
                         SerializedValue::Single(v) => {
-                            query_params.push(("querySwatch".to_string(), v));
+                            query_params.push(("querySwatch".to_string(), v, false));
                         }
                         SerializedValue::Multi(values) => {
                             for v in values {
-                                query_params.push(("querySwatch".to_string(), v));
+                                query_params.push(("querySwatch".to_string(), v, false));
                             }
                         }
                     }
@@ -311,7 +311,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Defaults>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/defaults".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -387,7 +387,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Department>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/department".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -472,7 +472,7 @@ impl StoreApi {
     > {
         let mut path = "/store/grouped-categories".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -557,7 +557,7 @@ impl StoreApi {
     > {
         let mut path = "/store/inventory".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -635,7 +635,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Vec<Vec<i32>>>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/matrix".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -734,7 +734,7 @@ impl StoreApi {
             path = path.replace("{orderId}", &v);
         }
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -815,7 +815,7 @@ impl StoreApi {
     ) -> Result<ApiResult<StockItem>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/stock-item".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.as_of {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -830,11 +830,11 @@ impl StoreApi {
                 ) {
                     match serialized {
                         SerializedValue::Single(v) => {
-                            query_params.push(("asOf".to_string(), v));
+                            query_params.push(("asOf".to_string(), v, false));
                         }
                         SerializedValue::Multi(values) => {
                             for v in values {
-                                query_params.push(("asOf".to_string(), v));
+                                query_params.push(("asOf".to_string(), v, false));
                             }
                         }
                     }
@@ -914,7 +914,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Swatch>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/swatch".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -999,7 +999,7 @@ impl StoreApi {
     > {
         let mut path = "/store/swatch-groups".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1086,7 +1086,7 @@ impl StoreApi {
     > {
         let mut path = "/store/timestamp-groups".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1160,7 +1160,7 @@ impl StoreApi {
     ) -> Result<ApiResult<TreeNode>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/tree".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1239,7 +1239,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/order".to_string();
 
-        let mut query_params: Vec<(String, String)> = Vec::new();
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 

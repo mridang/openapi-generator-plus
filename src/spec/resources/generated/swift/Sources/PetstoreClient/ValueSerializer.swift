@@ -50,6 +50,31 @@ internal enum ValueSerializer {
     return result
   }
 
+  /// Wraps a query value so the query-string builder preserves RFC 3986
+  /// reserved characters (OAS `allowReserved: true`).
+  ///
+  /// `BaseApi.buildQueryString` recognizes this marker, unwraps it, and
+  /// encodes the inner value with a reserved-preserving allowed set instead
+  /// of the default unreserved-only set. The wrapped value is a `String`, or
+  /// a `[String]` for exploded/multi query parameters.
+  struct AllowReservedValue {
+    let value: Any
+  }
+
+  /// Wraps `value` in an ``AllowReservedValue`` when the parameter declares
+  /// `allowReserved: true`; otherwise returns it unchanged.
+  ///
+  /// - Parameters:
+  ///   - value: The serialized query value (a `String`, a `[String]`, or nil).
+  ///   - allowReserved: Whether the parameter preserves reserved characters.
+  /// - Returns: The value, wrapped iff `allowReserved` is true and `value` is non-nil.
+  static func maybeAllowReserved(_ value: Any?, allowReserved: Bool) -> Any? {
+    guard let value = value, allowReserved else {
+      return value
+    }
+    return AllowReservedValue(value: value)
+  }
+
   /// Rejects an empty path parameter.
   ///
   /// Path parameters are required components of the URL — accepting an
@@ -127,6 +152,9 @@ internal enum ValueSerializer {
         return location == "query" ? nil : "" as Any
       }
       if let items = items {
+        if explode {
+          return items
+        }
         return items.map(encodeIfPath).joined(separator: " ")
       }
       return encodeIfPath(ObjectSerializer.stringify(value))
@@ -136,6 +164,9 @@ internal enum ValueSerializer {
         return location == "query" ? nil : "" as Any
       }
       if let items = items {
+        if explode {
+          return items
+        }
         return items.map(encodeIfPath).joined(separator: "|")
       }
       return encodeIfPath(ObjectSerializer.stringify(value))

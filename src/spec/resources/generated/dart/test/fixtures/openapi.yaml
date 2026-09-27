@@ -753,6 +753,15 @@ paths:
           allowEmptyValue: true
           schema:
             type: string
+        - name: revision
+          in: query
+          allowReserved: true
+          description: >-
+            Query value whose RFC 3986 reserved characters must be sent
+            literally (OAS allowReserved), for example a version expression
+            such as v1.0/beta:rc1 keeping the slash and colon.
+          schema:
+            type: string
       responses:
         '200':
           description: OK

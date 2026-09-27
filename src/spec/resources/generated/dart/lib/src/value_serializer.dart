@@ -81,6 +81,119 @@ String encodePathSegment(String s) {
   return out.toString();
 }
 
+/// RFC 3986 query encoder that leaves reserved characters literal
+/// (OAS `allowReserved: true`). Everything that is neither unreserved
+/// nor RFC 3986 reserved — spaces, control bytes, non-ASCII — is still
+/// percent-encoded, so the result is always a valid query segment; only
+/// the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the
+/// unreserved `~`) passes through. In particular a space becomes `%20`,
+/// never `+`.
+String encodeQueryAllowingReserved(String s) {
+  const hex = '0123456789ABCDEF';
+  final bytes = utf8.encode(s);
+  final out = StringBuffer();
+  for (final b in bytes) {
+    final isUnreserved =
+        (b >= 0x41 && b <= 0x5A) // A-Z
+        ||
+        (b >= 0x61 && b <= 0x7A) // a-z
+        ||
+        (b >= 0x30 && b <= 0x39) // 0-9
+        ||
+        b ==
+            0x2D // -
+            ||
+        b ==
+            0x2E // .
+            ||
+        b ==
+            0x5F // _
+            ||
+        b == 0x7E; // ~
+    final isReserved =
+        b ==
+            0x3A // :
+            ||
+        b ==
+            0x2F // /
+            ||
+        b ==
+            0x3F // ?
+            ||
+        b ==
+            0x23 // #
+            ||
+        b ==
+            0x5B // [
+            ||
+        b ==
+            0x5D // ]
+            ||
+        b ==
+            0x40 // @
+            ||
+        b ==
+            0x21 // !
+            ||
+        b ==
+            0x24 // $
+            ||
+        b ==
+            0x26 // &
+            ||
+        b ==
+            0x27 // '
+            ||
+        b ==
+            0x28 // (
+            ||
+        b ==
+            0x29 // )
+            ||
+        b ==
+            0x2A // *
+            ||
+        b ==
+            0x2B // +
+            ||
+        b ==
+            0x2C // ,
+            ||
+        b ==
+            0x3B // ;
+            ||
+        b == 0x3D; // =
+    if (isUnreserved || isReserved) {
+      out.writeCharCode(b);
+    } else {
+      out.write('%');
+      out.write(hex[b >> 4]);
+      out.write(hex[b & 0x0F]);
+    }
+  }
+  return out.toString();
+}
+
+/// Wraps a query value so the query-string builder preserves RFC 3986
+/// reserved characters (OAS `allowReserved: true`). The wrapped [value]
+/// is either a [String] or a `List<String>` for exploded parameters.
+class AllowReservedValue {
+  /// Creates a marker carrying the serialized query [value].
+  const AllowReservedValue(this.value);
+
+  /// The serialized query value carried through to the query-string builder.
+  final Object value;
+}
+
+/// Wraps [value] in an [AllowReservedValue] when the parameter declares
+/// `allowReserved: true`; otherwise returns it unchanged.
+Object? maybeAllowReserved(Object? value, bool allowReserved) {
+  if (value == null || !allowReserved) {
+    return value;
+  }
+  return AllowReservedValue(value);
+}
+
 /// Serializes a parameter value for HTTP requests based on its location.
 ///
 /// Parameters:
@@ -207,12 +320,18 @@ Object? serializeStyled(
 
     case 'spaceDelimited':
       if (value == null) return location == 'query' ? null : '';
-      if (isArray) return items!.join(' ');
+      if (isArray) {
+        if (explode) return items!;
+        return items!.join(' ');
+      }
       return stringify(value);
 
     case 'pipeDelimited':
       if (value == null) return location == 'query' ? null : '';
-      if (isArray) return items!.join('|');
+      if (isArray) {
+        if (explode) return items!;
+        return items!.join('|');
+      }
       return stringify(value);
 
     case 'form':

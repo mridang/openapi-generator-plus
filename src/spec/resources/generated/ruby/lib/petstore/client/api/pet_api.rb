@@ -478,7 +478,10 @@ module Petstore::Client
         query_params = {}
         unless options.nil? || options.status.nil?
           query_params['status'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true),
+              false
+            )
         end
         query_params.merge!(::Petstore::Client::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
         # @type var header_params: Hash[String, String]
@@ -849,7 +852,10 @@ module Petstore::Client
         query_params = {}
         unless options.nil? || options.category.nil?
           query_params['category'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('category', options.category, :query, 'String', nil, 'form', true)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('category', options.category, :query, 'String', nil, 'form', true),
+              false
+            )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -1047,15 +1053,31 @@ module Petstore::Client
         query_params = {}
         unless options.nil? || options.colors.nil?
           query_params['colors'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false),
+              false
+            )
         end
         unless options.nil? || options.sizes.nil?
           query_params['sizes'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false),
+              false
+            )
         end
         unless options.nil? || options.filter.nil?
           query_params['filter'] =
-            ::Petstore::Client::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true),
+              false
+            )
+        end
+        unless options.nil? || options.revision.nil?
+          query_params['revision'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('revision', options.revision, :query, 'String', nil, 'form', true),
+              true
+            )
         end
         # @type var header_params: Hash[String, String]
         header_params = {}

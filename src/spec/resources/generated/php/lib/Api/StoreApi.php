@@ -70,6 +70,13 @@ class StoreApi extends BaseApi
         ]);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -82,7 +89,12 @@ class StoreApi extends BaseApi
             $requestBody,
             [],
             'application/json',
-            null
+            null,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -146,6 +158,13 @@ class StoreApi extends BaseApi
         ]);
         $path = str_replace('{' . 'pathSwatch' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         if ($options !== null && $options->querySwatch !== null) {
             $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
                 'querySwatch',
@@ -186,7 +205,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -227,6 +247,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/defaults';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -243,7 +270,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -284,6 +312,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/department';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -300,7 +335,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -341,6 +377,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/grouped-categories';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -357,7 +400,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -398,6 +442,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/inventory';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -414,7 +465,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -455,6 +507,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/matrix';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -471,7 +530,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -533,6 +593,13 @@ class StoreApi extends BaseApi
         ]);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -545,7 +612,12 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }
@@ -590,6 +662,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/stock-item';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         if ($options !== null && $options->asOf !== null) {
             $queryParams['asOf'] = ValueSerializer::serializeStyled(
                 'asOf',
@@ -617,7 +696,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -658,6 +738,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/swatch';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -674,7 +761,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -715,6 +803,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/swatch-groups';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -731,7 +826,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -772,6 +868,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/timestamp-groups';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -788,7 +891,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -829,6 +933,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/tree';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = null;
 
@@ -845,7 +956,8 @@ class StoreApi extends BaseApi
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            NoAuth::instance()
+            NoAuth::instance(),
+            $allowReservedKeys
         );
         return $result;
     }
@@ -886,6 +998,13 @@ class StoreApi extends BaseApi
     {
         $path = '/store/order';
         $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
         $headerParams = [];
         $requestBody = $order;
 
@@ -898,7 +1017,12 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Order::class
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
         );
         return $result;
     }

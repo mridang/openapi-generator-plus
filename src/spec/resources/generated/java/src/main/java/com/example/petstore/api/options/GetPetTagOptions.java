@@ -8,6 +8,7 @@ public final class GetPetTagOptions {
   @Nullable private List<String> colors;
   @Nullable private List<String> sizes;
   @Nullable private String filter;
+  @Nullable private String revision;
 
   /** Creates an options instance with the required parameters. */
   public GetPetTagOptions() {}
@@ -73,5 +74,34 @@ public final class GetPetTagOptions {
   @Nullable
   public String filter() {
     return filter;
+  }
+
+  /**
+   * Sets the {@code revision} parameter.
+   *
+   * <p>Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved),
+   * for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+   *
+   * @param revision Query value whose RFC 3986 reserved characters must be sent literally (OAS
+   *     allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash
+   *     and colon.
+   * @return this options instance for chaining
+   */
+  public GetPetTagOptions revision(String revision) {
+    this.revision = revision;
+    return this;
+  }
+
+  /**
+   * Returns the {@code revision} parameter.
+   *
+   * <p>Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved),
+   * for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+   *
+   * @return the {@code revision} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public String revision() {
+    return revision;
   }
 }

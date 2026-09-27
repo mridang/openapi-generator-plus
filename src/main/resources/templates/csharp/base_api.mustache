@@ -459,33 +459,53 @@ public abstract class BaseApi
         List<string> parts = [];
         foreach (KeyValuePair<string, object?> entry in queryParams)
         {
-            if (entry.Value != null)
+            object? value = entry.Value;
+            /* OAS allowReserved: a wrapped value keeps RFC 3986 reserved
+             * characters literal instead of percent-encoding them. */
+            bool allowReserved = false;
+            if (value is ValueSerializer.AllowReservedValue reserved)
             {
-                if (entry.Value is System.Collections.IEnumerable enumerable and not string)
+                value = reserved.Value;
+                allowReserved = true;
+            }
+            if (value != null)
+            {
+                if (value is System.Collections.IEnumerable enumerable and not string)
                 {
                     foreach (object? item in enumerable)
                     {
                         parts.Add(
                             Uri.EscapeDataString(entry.Key)
                                 + "="
-                                + Uri.EscapeDataString(item?.ToString() ?? "")
+                                + EncodeQueryValue(item?.ToString() ?? "", allowReserved)
                         );
                     }
                 }
                 else
                 {
-                    string value = entry.Value is bool b
+                    string str = value is bool b
                         ? (b ? "true" : "false")
-                        : entry.Value.ToString()!;
+                        : value.ToString()!;
                     parts.Add(
                         Uri.EscapeDataString(entry.Key)
                             + "="
-                            + Uri.EscapeDataString(value)
+                            + EncodeQueryValue(str, allowReserved)
                     );
                 }
             }
         }
         return string.Join("&", parts);
+    }
+
+    /// <summary>
+    /// Encodes a query-parameter value, preserving RFC 3986 reserved characters
+    /// when the parameter declared <c>allowReserved: true</c>.
+    /// </summary>
+    private static string EncodeQueryValue(string value, bool allowReserved)
+    {
+        return allowReserved
+            ? ValueSerializer.EncodeQueryAllowingReserved(value)
+            : Uri.EscapeDataString(value);
     }
 
     /// <summary>RFC 6265 cookie-name validation (RFC 7230 token).</summary>

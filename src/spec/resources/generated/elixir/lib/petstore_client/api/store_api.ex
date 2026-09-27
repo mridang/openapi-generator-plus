@@ -261,14 +261,17 @@ defmodule PetstoreClient.Api.StoreApi do
         Map.put(
           query_params,
           "querySwatch",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "querySwatch",
-            options.query_swatch,
-            :query,
-            "Swatch",
-            nil,
-            "form",
-            true
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "querySwatch",
+              options.query_swatch,
+              :query,
+              "Swatch",
+              nil,
+              "form",
+              true
+            ),
+            false
           )
         )
       else
@@ -977,14 +980,17 @@ defmodule PetstoreClient.Api.StoreApi do
         Map.put(
           query_params,
           "asOf",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "asOf",
-            options.as_of,
-            :query,
-            "DateTime.t()",
-            nil,
-            "form",
-            true
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "asOf",
+              options.as_of,
+              :query,
+              "DateTime.t()",
+              nil,
+              "form",
+              true
+            ),
+            false
           )
         )
       else

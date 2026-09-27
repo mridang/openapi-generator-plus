@@ -438,7 +438,7 @@ class PetApi : BaseApi {
         if (options != null) {
             val statusStyled = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
             if (statusStyled != null) {
-                queryParams["status"] = statusStyled
+                queryParams["status"] = ValueSerializer.maybeAllowReserved(statusStyled, false)
             }
         }
         if (options?.filter != null) {
@@ -767,7 +767,11 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         if (options.category != null) {
-            queryParams["category"] = ValueSerializer.serializeStyled("category", options.category, "query", "String", null, "form", true)
+            queryParams["category"] =
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("category", options.category, "query", "String", null, "form", true),
+                    false,
+                )
         }
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Pet>(
@@ -931,17 +935,30 @@ class PetApi : BaseApi {
         val queryParams = mutableMapOf<String, Any?>()
         if (options?.colors != null) {
             queryParams["colors"] =
-                ValueSerializer.serializeStyled("colors", options!!.colors, "query", "List<String>", "pipes", "pipeDelimited", false)
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("colors", options!!.colors, "query", "List<String>", "pipes", "pipeDelimited", false),
+                    false,
+                )
         }
         if (options?.sizes != null) {
             queryParams["sizes"] =
-                ValueSerializer.serializeStyled("sizes", options!!.sizes, "query", "List<String>", "ssv", "spaceDelimited", false)
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("sizes", options!!.sizes, "query", "List<String>", "ssv", "spaceDelimited", false),
+                    false,
+                )
         }
         if (options != null) {
             val filterStyled = ValueSerializer.serializeStyled("filter", options.filter, "query", "String", null, "form", true)
             if (filterStyled != null) {
-                queryParams["filter"] = filterStyled
+                queryParams["filter"] = ValueSerializer.maybeAllowReserved(filterStyled, false)
             }
+        }
+        if (options?.revision != null) {
+            queryParams["revision"] =
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("revision", options!!.revision, "query", "String", null, "form", true),
+                    true,
+                )
         }
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Pet>(

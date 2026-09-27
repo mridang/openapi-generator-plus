@@ -557,14 +557,17 @@ export class PetApi extends BaseApi {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
     if (options?.status != null) {
-      queryParams["status"] = ValueSerializer.serializeStyled(
-        "status",
-        options.status,
-        "query",
-        "string",
-        null,
-        "form",
-        true,
+      queryParams["status"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "status",
+          options.status,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
       );
     }
     if (options?.filter != null) {
@@ -993,14 +996,17 @@ export class PetApi extends BaseApi {
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.category != null) {
-      queryParams["category"] = ValueSerializer.serializeStyled(
-        "category",
-        options.category,
-        "query",
-        "string",
-        null,
-        "form",
-        true,
+      queryParams["category"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "category",
+          options.category,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
       );
     }
     const headerParams: Record<string, string> = {};
@@ -1174,6 +1180,7 @@ export class PetApi extends BaseApi {
    * @param options.colors  (optional)
    * @param options.sizes  (optional)
    * @param options.filter  (optional)
+   * @param options.revision Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon. (optional)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -1248,35 +1255,58 @@ export class PetApi extends BaseApi {
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.colors != null) {
-      queryParams["colors"] = ValueSerializer.serializeStyled(
-        "colors",
-        options.colors,
-        "query",
-        "Array<string>",
-        "pipes",
-        "pipeDelimited",
+      queryParams["colors"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "colors",
+          options.colors,
+          "query",
+          "Array<string>",
+          "pipes",
+          "pipeDelimited",
+          false,
+        ),
         false,
       );
     }
     if (options?.sizes != null) {
-      queryParams["sizes"] = ValueSerializer.serializeStyled(
-        "sizes",
-        options.sizes,
-        "query",
-        "Array<string>",
-        "ssv",
-        "spaceDelimited",
+      queryParams["sizes"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "sizes",
+          options.sizes,
+          "query",
+          "Array<string>",
+          "ssv",
+          "spaceDelimited",
+          false,
+        ),
         false,
       );
     }
     if (options?.filter != null) {
-      queryParams["filter"] = ValueSerializer.serializeStyled(
-        "filter",
-        options.filter,
-        "query",
-        "string",
-        null,
-        "form",
+      queryParams["filter"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "filter",
+          options.filter,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.revision != null) {
+      queryParams["revision"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "revision",
+          options.revision,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
         true,
       );
     }

@@ -414,9 +414,32 @@ test('redirect count and limit are scoped per request not shared per client', fu
 
         $base = 'http://127.0.0.1:' . $port;
 
+        // The startup banner can print before the listen socket is actually
+        // accepting connections; under parallel test load that race makes the
+        // first request time out with zero bytes received. Probe the port
+        // until it accepts a connection so the test exercises redirect-limit
+        // scoping, not server-startup timing.
+        $ready = false;
+        $probeDeadline = microtime(true) + 10.0;
+        while (microtime(true) < $probeDeadline) {
+            $conn = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.5);
+            if (is_resource($conn)) {
+                fclose($conn);
+                $ready = true;
+                break;
+            }
+            usleep(50_000);
+        }
+        expect($ready)->toBeTrue();
+
         $transport = TransportOptions::builder()
             ->followRedirects(true)
             ->maxRedirects(5)
+            // Following five redirect hops to a single-threaded `php -S`
+            // server can exceed the default request budget when the CI host is
+            // under parallel-test CPU load. This test asserts redirect-limit
+            // scoping, not latency, so allow a generous timeout.
+            ->timeout(30000)
             ->build();
 
         // ONE shared client drives every request below.

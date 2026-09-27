@@ -514,6 +514,18 @@ func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
 	}
 }
 
+func TestSerializeStyled_SpaceDelimitedArrayExplode(t *testing.T) {
+	t.Parallel()
+	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "spaceDelimited", true)
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for exploded spaceDelimited array, got %T", result)
+	}
+	if len(items) != 3 || items[0] != "red" || items[1] != "green" || items[2] != "blue" {
+		t.Errorf("expected [red green blue], got %v", items)
+	}
+}
+
 func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "red", "query", "string", "", "spaceDelimited", false)
@@ -529,6 +541,18 @@ func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
 	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", false)
 	if result != "red|green|blue" {
 		t.Errorf("expected 'red|green|blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_PipeDelimitedArrayExplode(t *testing.T) {
+	t.Parallel()
+	result := serializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", true)
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for exploded pipeDelimited array, got %T", result)
+	}
+	if len(items) != 3 || items[0] != "red" || items[1] != "green" || items[2] != "blue" {
+		t.Errorf("expected [red green blue], got %v", items)
 	}
 }
 
@@ -935,5 +959,41 @@ func TestSerializeStyled_PathEncodedExactlyOnce(t *testing.T) {
 	}
 	if s, ok := slash.(string); ok && strings.Contains(s, "%252F") {
 		t.Errorf("slash was double-encoded: %v", slash)
+	}
+}
+
+// ── allowReserved query encoding ──
+
+func TestEncodeQueryAllowingReserved_ReservedCharsPreserved(t *testing.T) {
+	t.Parallel()
+	// OAS allowReserved: true — RFC 3986 reserved characters go on the wire
+	// literal, so a version string keeps its "." "/" and ":" unescaped.
+	if got := encodeQueryAllowingReserved("v1.0/beta:rc1"); got != "v1.0/beta:rc1" {
+		t.Errorf("expected reserved chars preserved 'v1.0/beta:rc1', got %q", got)
+	}
+	// A space is illegal in a URL and must STILL be percent-encoded even when
+	// reserved characters are preserved.
+	if got := encodeQueryAllowingReserved("a b:c"); got != "a%20b:c" {
+		t.Errorf("expected space encoded 'a%%20b:c', got %q", got)
+	}
+}
+
+func TestMaybeAllowReserved_WrapsOnlyWhenAllowReserved(t *testing.T) {
+	t.Parallel()
+	// allowReserved false leaves the value unchanged.
+	if got := maybeAllowReserved("plain", false); got != "plain" {
+		t.Errorf("expected unwrapped 'plain', got %v", got)
+	}
+	// allowReserved true wraps the value in an allowReservedValue carrier.
+	wrapped, ok := maybeAllowReserved("v1/beta", true).(allowReservedValue)
+	if !ok {
+		t.Fatalf("expected allowReservedValue, got %T", maybeAllowReserved("v1/beta", true))
+	}
+	if wrapped.value != "v1/beta" {
+		t.Errorf("expected wrapped value 'v1/beta', got %v", wrapped.value)
+	}
+	// A nil value is never wrapped, so it is still omitted from the query string.
+	if got := maybeAllowReserved(nil, true); got != nil {
+		t.Errorf("expected nil to stay nil, got %v", got)
 	}
 }
