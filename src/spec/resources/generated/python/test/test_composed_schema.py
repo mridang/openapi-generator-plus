@@ -138,8 +138,8 @@ class TestAnyOfPetTreatment:
         """
         combined = PetTreatment(
             [
-                Medication(drug_name="Amoxicillin", notes="from-medication"),
-                Surgery(procedure_name="Spay", notes="from-surgery"),
+                Medication(drugName="Amoxicillin", notes="from-medication"),
+                Surgery(procedureName="Spay", notes="from-surgery"),
             ]
         )
 

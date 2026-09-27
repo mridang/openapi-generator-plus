@@ -146,9 +146,6 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 
   try {
     final decoded = parseJson(data);
-    // A bare JSON `null` body decodes to null, matching the absent/null body
-    // the other 10 SDKs return null for, rather than throwing "Expected JSON
-    // object, got Null".
     if (decoded == null) {
       return null;
     }

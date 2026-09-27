@@ -1159,7 +1159,7 @@ import Testing
     // A JSON body nested within the 1000-deep cap decodes; one past it is
     // rejected with the SDK's SerializationError (the jsonMaxDepth pre-flight
     // guard). A recursive `{"a":{...}}` shape drives the nesting.
-    struct DepthNest: Codable { let a: DepthNest? }
+    final class DepthNest: Codable { let a: DepthNest? }
 
     private func nestedObjects(_ n: Int) -> String {
         var s = "null"
