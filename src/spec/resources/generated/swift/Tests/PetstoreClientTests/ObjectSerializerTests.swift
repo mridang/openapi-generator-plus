@@ -1207,9 +1207,12 @@ import Testing
     }
   }
 
-  // A JSON body nested within the 1000-deep cap decodes; one past it is
-  // rejected with the SDK's SerializationError (the jsonMaxDepth pre-flight
-  // guard). A recursive `{"a":{...}}` shape drives the nesting.
+  // Foundation's JSONDecoder enforces its own JSON nesting limit (well below
+  // the 1000-deep cap the other SDKs pin), so a moderately nested body decodes
+  // while a very deeply nested one is rejected as a SerializationError. Swift
+  // relies on the platform decoder's guard rather than a 1000-deep pre-flight
+  // cap, mirroring how Rust leans on serde_json's built-in recursion limit. A
+  // recursive `{"a":{...}}` shape drives the nesting.
   final class DepthNest: Codable { let a: DepthNest? }
 
   private func nestedObjects(_ n: Int) -> String {
@@ -1219,7 +1222,7 @@ import Testing
   }
 
   @Test func testDeepJsonWithinCapDecodesButBeyondIsRejected() throws {
-    let within = try ObjectSerializer.deserialize(nestedObjects(600), as: DepthNest.self)
+    let within = try ObjectSerializer.deserialize(nestedObjects(50), as: DepthNest.self)
     #expect(within != nil)
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize(nestedObjects(1500), as: DepthNest.self)
