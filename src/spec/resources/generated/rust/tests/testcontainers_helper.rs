@@ -196,7 +196,7 @@ fn init_containers_inner() -> TestContainers {
 
         // Start Squid
         let squid_log_dir = writable_log_dir();
-        let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
+        let squid = GenericImage::new("ubuntu/squid", "6.10-24.10_beta")
             .with_exposed_port(ContainerPort::Tcp(3128))
             .with_exposed_port(ContainerPort::Tcp(3129))
             .with_label("io.openapi-generator.fixture", "squid")
