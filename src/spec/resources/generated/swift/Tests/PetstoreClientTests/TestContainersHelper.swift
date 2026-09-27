@@ -86,7 +86,7 @@ private func _setUpContainers() async throws {
 
   let squidConfPath = fixturesPath.appendingPathComponent("proxy/squid.conf")
 
-  let squid = DockerContainer("ubuntu/squid:5.2-22.04_beta")
+  let squid = DockerContainer("ubuntu/squid:6.10-24.10_beta")
     .withExposedPorts([3128])
     .withCopyIntoContainer(
       .path(squidConfPath),

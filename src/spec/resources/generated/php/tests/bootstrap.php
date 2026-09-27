@@ -192,7 +192,7 @@ dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/tests/fixtures/proxy/squid.conf';
 
-$squid = exposingContainer('ubuntu/squid:5.2-22.04_beta')
+$squid = exposingContainer('ubuntu/squid:6.10-24.10_beta')
     ->withExposedPorts(3128, 3129)
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     // The image declares VOLUME for both paths, so every container would

@@ -146,7 +146,7 @@ end
 # Start Squid proxy
 squid_conf_path = File.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')
 
-SQUID = Testcontainers::DockerContainer.new('ubuntu/squid:5.2-22.04_beta')
+SQUID = Testcontainers::DockerContainer.new('ubuntu/squid:6.10-24.10_beta')
 SQUID.singleton_class.prepend(SquidTmpfs)
 SQUID.with_exposed_ports(3128, 3129)
 SQUID.with_filesystem_binds(["#{squid_conf_path}:/etc/squid/squid.conf:ro"])

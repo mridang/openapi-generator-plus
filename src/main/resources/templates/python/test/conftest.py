@@ -134,7 +134,7 @@ def squid_container(proxy_network):
     # container writable without allocating a volume. mode=1777 because squid
     # drops to the unprivileged `proxy` user before it opens its logs.
     container = (
-        DockerContainer("ubuntu/squid:5.2-22.04_beta")
+        DockerContainer("ubuntu/squid:6.10-24.10_beta")
         .with_exposed_ports(3128, 3129)
         .with_volume_mapping(squid_conf_path, "/etc/squid/squid.conf", "ro")
         .with_tmpfs_mount("/var/log/squid", "rw,mode=1777")

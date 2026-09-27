@@ -37,7 +37,7 @@ Future<void> setUpContainers() async {
    * behind after the suite stops it. Mounting both as tmpfs keeps the
    * container writable without allocating a volume. mode=1777 because squid
    * drops to the unprivileged `proxy` user before it opens its logs. */
-  _squidContainer = DockerContainer('ubuntu/squid:5.2-22.04_beta')
+  _squidContainer = DockerContainer('ubuntu/squid:6.10-24.10_beta')
       .withExposedPorts([3128, 3129])
       .withTmpfsMount('/var/log/squid', size: 'rw,mode=1777')
       .withTmpfsMount('/var/spool/squid', size: 'rw,mode=1777')

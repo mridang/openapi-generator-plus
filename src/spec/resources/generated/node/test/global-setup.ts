@@ -135,7 +135,7 @@ export default async function globalSetup() {
    * container writable without allocating a volume. mode=1777 because squid
    * drops to the unprivileged `proxy` user before it opens its logs. */
   const squid = await startWithRetry("squid", () =>
-    new GenericContainer("ubuntu/squid:5.2-22.04_beta")
+    new GenericContainer("ubuntu/squid:6.10-24.10_beta")
       .withExposedPorts(3128, 3129)
       .withTmpFs({
         "/var/log/squid": "rw,mode=1777",

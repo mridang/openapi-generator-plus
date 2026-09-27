@@ -23,7 +23,7 @@ object SquidContainer {
         ChasmContainer.getBaseUrl()
 
         INSTANCE =
-            GenericContainer("ubuntu/squid:5.2-22.04_beta")
+            GenericContainer("ubuntu/squid:6.10-24.10_beta")
                 .withExposedPorts(3128, 3129)
                 .withCopyFileToContainer(
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),

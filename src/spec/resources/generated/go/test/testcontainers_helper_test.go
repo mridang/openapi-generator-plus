@@ -93,7 +93,7 @@ func TestMain(m *testing.M) {
 	squidConfPath := filepath.Join(fixturesDir, "proxy", "squid.conf")
 
 	squidReq := testcontainers.ContainerRequest{
-		Image:        "ubuntu/squid:5.2-22.04_beta",
+		Image:        "ubuntu/squid:6.10-24.10_beta",
 		ExposedPorts: []string{"3128/tcp", "3129/tcp"},
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: squidConfPath, ContainerFilePath: "/etc/squid/squid.conf"},

@@ -39,7 +39,7 @@ scrolls away otherwise and you have to run it again.
 The specs run in Docker. Before a run, stop leaked fixtures:
 
 ```bash
-docker ps -q --filter ancestor=mridang/chasm:1.3.0 --filter ancestor=ubuntu/squid:5.2-22.04_beta | xargs -r docker stop
+docker ps -q --filter ancestor=mridang/chasm:1.3.0 --filter ancestor=ubuntu/squid:6.10-24.10_beta | xargs -r docker stop
 ```
 
 A `ContainerLaunchException`, a `404 exec`, or a container killed with exit 137 is

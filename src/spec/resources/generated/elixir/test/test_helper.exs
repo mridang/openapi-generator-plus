@@ -97,7 +97,7 @@ System.put_env("CA_CERT_PATH", Path.join([File.cwd!(), "test", "fixtures", "cert
 
 # Start Squid proxy on the same network as Chasm
 squid_config =
-  Testcontainers.Container.new("ubuntu/squid:5.2-22.04_beta")
+  Testcontainers.Container.new("ubuntu/squid:6.10-24.10_beta")
   |> Testcontainers.Container.with_exposed_port(3128)
   |> Testcontainers.Container.with_exposed_port(3129)
   |> Testcontainers.Container.with_bind_mount(squid_conf_path, "/etc/squid/squid.conf")

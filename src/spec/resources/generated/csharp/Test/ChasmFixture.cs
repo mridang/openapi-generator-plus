@@ -68,7 +68,7 @@ public class ChasmFixture : IAsyncLifetime
             .Build();
         await _chasm.StartAsync();
 
-        _squid = new ContainerBuilder("ubuntu/squid:5.2-22.04_beta")
+        _squid = new ContainerBuilder("ubuntu/squid:6.10-24.10_beta")
             .WithPortBinding(3128, true)
             .WithPortBinding(3129, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
