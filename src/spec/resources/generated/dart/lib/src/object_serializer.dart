@@ -63,7 +63,7 @@ class UuidValue {
 }
 
 /// Converts an object to a JSON string.
-String serialize(Object object) {
+String serialize(Object? object) {
   try {
     return jsonEncode(object);
   } catch (e) {

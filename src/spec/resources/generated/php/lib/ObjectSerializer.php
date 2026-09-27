@@ -387,7 +387,7 @@ class ObjectSerializer
         if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
             $container = $containerMatch[1];
             $inner = self::qualifySchemaName(trim($containerMatch[2]));
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             if (!is_array($data)) {
                 throw new \InvalidArgumentException("Invalid container '$class'");
             }
@@ -410,7 +410,7 @@ class ObjectSerializer
         }
 
         if (str_ends_with($class, '[]')) {
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
 
             if (!is_array($data)) {
                 throw new \InvalidArgumentException("Invalid array '$class'");
@@ -425,7 +425,7 @@ class ObjectSerializer
         }
 
         if (preg_match('/^(array<|map\[)/', $class)) {
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             $data = (array) $data;
             $inner = substr($class, 4, -1);
             /** @var array<mixed> $deserialized */
@@ -455,7 +455,7 @@ class ObjectSerializer
          * the un-decoded base64 string (or the quoted literal) would diverge
          * from the byte-decoding SDKs (python/go/java/rust). */
         if ($class === 'byte') {
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             if ($data === null || $data === '') {
                 return null;
             }
@@ -483,7 +483,7 @@ class ObjectSerializer
              * so floats and bools deserialise as before. */
             if ($class === 'int' || $class === 'integer') {
                 if (is_string($data)) {
-                    $data = json_decode($data, true, 512, JSON_BIGINT_AS_STRING);
+                    $data = json_decode($data, true, self::MAX_JSON_DEPTH, JSON_BIGINT_AS_STRING);
                 }
                 if (is_string($data) && preg_match('/^-?\d+$/', $data)) {
                     $casted = (int) $data;
@@ -503,19 +503,19 @@ class ObjectSerializer
                 }
                 return 0;
             }
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             settype($data, $class);
             return $data;
         }
 
         if ($class === 'object') {
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             return (array) $data;
         }
 
         if ($class === 'DateTime') {
             if (is_string($data)) {
-                $decoded = json_decode($data, true);
+                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -538,7 +538,7 @@ class ObjectSerializer
              * wire string with today's date implied and callers project
              * the time portion via format('H:i:s'). */
             if (is_string($data)) {
-                $decoded = json_decode($data, true);
+                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -562,7 +562,7 @@ class ObjectSerializer
              * a round-tripping interval. Invalid strings surface as the
              * SerializationException used elsewhere for bad input. */
             if (is_string($data)) {
-                $decoded = json_decode($data, true);
+                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -575,7 +575,7 @@ class ObjectSerializer
 
         if ($class === \Symfony\Component\Uid\Uuid::class) {
             if (is_string($data)) {
-                $decoded = json_decode($data, true);
+                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -625,7 +625,7 @@ class ObjectSerializer
         }
 
         if (enum_exists($class)) {
-            $data = is_string($data) ? json_decode($data, true) : $data;
+            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
             return $result;
@@ -648,7 +648,7 @@ class ObjectSerializer
             && method_exists($class, 'build')
             && method_exists($class, 'getActualInstance')
         ) {
-            $decoded = is_string($data) ? json_decode($data, true) : $data;
+            $decoded = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
             /** @var object $built */
             $built = $class::build($decoded);
             return $built;
@@ -656,7 +656,7 @@ class ObjectSerializer
 
         if (is_string($data)) {
             try {
-                $decoded = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
+                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH, JSON_THROW_ON_ERROR);
                 if (!is_array($decoded)) {
                     throw new \InvalidArgumentException(
                         sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
