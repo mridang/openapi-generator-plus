@@ -1556,4 +1556,46 @@ public class ObjectSerializerTest
             Assert.NotEqual(left, right);
         }
     }
+
+    // Canonical serde behaviours (cross-SDK): a non-finite float is rejected on
+    // encode, a bare JSON null body decodes to null, and the 1000-deep JSON
+    // nesting cap rejects an over-deep payload.
+    public class CanonicalSerdeBehaviorsTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void NonFiniteDoubleThrowsOnSerialize()
+        {
+            // RFC 8259 §6 has no NaN/Infinity token, so a non-finite float must
+            // reject with the SDK's SerializationException rather than leak the
+            // native ArgumentException Utf8JsonWriter raises.
+            Assert.Throws<SerializationException>(() => _serializer.Serialize(double.NaN));
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Serialize(double.PositiveInfinity)
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Serialize(double.NegativeInfinity)
+            );
+        }
+
+        [Fact]
+        public void LiteralNullBodyDeserializesToNull()
+        {
+            Assert.Null(_serializer.Deserialize<Category>("null"));
+        }
+
+        // format:byte is base64-decoded by System.Text.Json on the model field,
+        // not in ObjectSerializer, so the invalid-base64-throws case does not
+        // apply to the C# SDK.
+
+        [Fact]
+        public void DeepJsonWithinCapDecodesButBeyondIsRejected()
+        {
+            var within = new string('[', 600) + new string(']', 600);
+            Assert.NotNull(_serializer.Deserialize<object>(within));
+            var beyond = new string('[', 1500) + new string(']', 1500);
+            Assert.Throws<SerializationException>(() => _serializer.Deserialize<object>(beyond));
+        }
+    }
 }

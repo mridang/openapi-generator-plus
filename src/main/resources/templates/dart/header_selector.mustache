@@ -38,7 +38,7 @@ class HeaderSelector {
   }
 
   String _selectAcceptHeader(List<String> accept) {
-    final filtered = accept.where((s) => s.isNotEmpty).toList();
+    final filtered = accept.where((s) => s.trim().isNotEmpty).toList();
 
     if (filtered.isEmpty) return '';
 

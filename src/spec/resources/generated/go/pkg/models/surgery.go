@@ -16,8 +16,9 @@ import (
 
 // Surgery is a model class generated from the OpenAPI schema.
 type Surgery struct {
-	ProcedureName   string `json:"procedureName"`
-	DurationMinutes *int32 `json:"durationMinutes,omitempty"`
+	ProcedureName   string  `json:"procedureName"`
+	DurationMinutes *int32  `json:"durationMinutes,omitempty"`
+	Notes           *string `json:"notes,omitempty"`
 }
 
 // Equal reports whether this Surgery is value-equal to other.

@@ -22,7 +22,8 @@ module Petstore::Client
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         procedure_name: 'procedureName',
-        duration_minutes: 'durationMinutes'
+        duration_minutes: 'durationMinutes',
+        notes: 'notes'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -31,7 +32,8 @@ module Petstore::Client
       # Attribute type mapping.
       OPENAPI_TYPES = {
         procedure_name: 'String',
-        duration_minutes: 'Integer'
+        duration_minutes: 'Integer',
+        notes: 'String'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -51,6 +53,7 @@ module Petstore::Client
 
       attribute :procedure_name, Types::Required
       attribute :duration_minutes, Types::Any.optional.meta(omittable: true)
+      attribute :notes, Types::Any.optional.meta(omittable: true)
     end
   end
 end

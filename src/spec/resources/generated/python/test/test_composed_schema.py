@@ -6,6 +6,7 @@ from petstore_client.models.dry_food import DryFood
 from petstore_client.models.wet_food import WetFood
 from petstore_client.models.medication import Medication
 from petstore_client.models.surgery import Surgery
+from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )
@@ -128,6 +129,27 @@ class TestAnyOfPetTreatment:
         assert "45" in serialized
         for field in ("drugName", "dosage", "procedureName", "durationMinutes"):
             assert field in serialized
+
+    def test_anyof_shared_property_collision_last_wins(self) -> None:
+        """anyOf-collision-last-wins: both Medication and Surgery declare
+        `notes`. When a PetTreatment retains both members with DIFFERENT
+        `notes` values, the merged encoding keeps the LAST-declared member's
+        value (Surgery) and emits `notes` exactly once -- never a duplicate key.
+        """
+        combined = PetTreatment(
+            [
+                Medication(drug_name="Amoxicillin", notes="from-medication"),
+                Surgery(procedure_name="Spay", notes="from-surgery"),
+            ]
+        )
+
+        serialized = ObjectSerializer().serialize(combined)
+
+        # Surgery is the later-declared member, so its `notes` wins the collision.
+        assert "from-surgery" in serialized
+        assert "from-medication" not in serialized
+        # `notes` appears exactly once -- no duplicate key.
+        assert serialized.count('"notes"') == 1
 
     def test_anyof_single_variant_still_round_trips(self) -> None:
         """Retain-all must not regress the single-variant case: a

@@ -108,6 +108,24 @@ describe 'Composed Schema' do
       _(reparsed['durationMinutes']).must_equal(45)
     end
 
+    it 'anyOf collision keeps the last-declared variant, emitted once' do
+      # anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+      # When a PetTreatment retains both members with DIFFERENT `notes` values,
+      # the merged encoding keeps the LAST-declared member's value (Surgery) and
+      # emits `notes` exactly once — never a duplicate JSON key.
+      medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
+      surgery = Petstore::Client::Models::Surgery.new(procedure_name: 'Spay', notes: 'from-surgery')
+      composite = Petstore::Client::Models::PetTreatment::Composite.new([medication, surgery])
+
+      serialized = Petstore::Client::ObjectSerializer.serialize(composite)
+      reparsed = JSON.parse(serialized)
+
+      # Surgery is the later-declared member, so its `notes` wins the collision.
+      _(reparsed['notes']).must_equal('from-surgery')
+      # `notes` appears exactly once — no duplicate key.
+      _(serialized.scan('"notes"').length).must_equal(1)
+    end
+
     it 'serializes round-trip for a single-variant anyOf payload' do
       json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'PetTreatment')

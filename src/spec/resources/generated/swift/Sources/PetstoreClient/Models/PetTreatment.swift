@@ -17,6 +17,14 @@ public struct PetTreatment: Codable, @unchecked Sendable {
   private let _values: [Any]
   private var _value: Any { _values[0] }
 
+  /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
+  /// the multi-instance constructors the other SDKs expose (e.g. Java's
+  /// `List<Object>` form and Kotlin's `instances = …`) so a co-satisfying
+  /// value can be built in code, not only decoded.
+  public init(_ values: [Any]) {
+    self._values = values
+  }
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)
@@ -66,9 +74,11 @@ public struct PetTreatment: Codable, @unchecked Sendable {
 
     /* Multiple variants were co-satisfied. Encode each to its own JSON
        object and MERGE the fields into a single union object so every
-       retained variant's data round-trips losslessly. Later variants do
-       not clobber earlier shared keys. Scalar (non-object) variants are
-       kept as a fallback only when no object variant produced a merge. */
+       retained variant's data round-trips losslessly. Later variants
+       clobber earlier shared keys, so a collision resolves to the last
+       member's value and the key is emitted exactly once. Scalar
+       (non-object) variants are kept as a fallback only when no object
+       variant produced a merge. */
     var merged: [String: AnyCodable] = [:]
     var scalarFallback: Any?
     for variant in _values {
@@ -77,7 +87,7 @@ public struct PetTreatment: Codable, @unchecked Sendable {
       if let object = try? ObjectSerializer.decodeFromData(
         variantData, as: [String: AnyCodable].self)
       {
-        for (key, value) in object where merged[key] == nil {
+        for (key, value) in object {
           merged[key] = value
         }
       } else if let scalar = try? ObjectSerializer.decodeFromData(variantData, as: AnyCodable.self)

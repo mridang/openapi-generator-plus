@@ -26,6 +26,8 @@ export class Medication {
   drugName!: string;
   @Expose({ name: "dosage" })
   dosage?: string;
+  @Expose({ name: "notes" })
+  notes?: string;
 
   constructor(data?: Partial<Medication>) {
     Object.assign(this, data);
@@ -41,6 +43,9 @@ export class Medication {
     }
     if (this.dosage != null && typeof this.dosage !== "string") {
       throw new TypeError(`dosage must be a string, got ${typeof this.dosage}`);
+    }
+    if (this.notes != null && typeof this.notes !== "string") {
+      throw new TypeError(`notes must be a string, got ${typeof this.notes}`);
     }
   }
 
@@ -65,6 +70,9 @@ export class Medication {
       return false;
     }
     if (!Medication.__deepEquals(this.dosage, (other as Medication).dosage)) {
+      return false;
+    }
+    if (!Medication.__deepEquals(this.notes, (other as Medication).notes)) {
       return false;
     }
     return true;

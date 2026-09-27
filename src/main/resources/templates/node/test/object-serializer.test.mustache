@@ -1374,6 +1374,36 @@ describe('ObjectSerializer', () => {
       expect(parsed).not.toHaveProperty('additionalProperties');
     });
   });
+
+  describe('CanonicalSerdeBehaviours', () => {
+    // A non-finite number (NaN, ±Infinity) must reject on ENCODE rather than be
+    // silently emitted as JSON null (RFC 8259 §6 has no such token), matching the
+    // other SDKs (python allow_nan=False, go, rust, …).
+    test('serializing a non-finite number throws SerializationError', () => {
+      expect(() => ObjectSerializer.serialize(NaN)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.serialize(Infinity)).toThrow(SerializationError);
+      expect(() => ObjectSerializer.serialize({ weight: -Infinity })).toThrow(SerializationError);
+    });
+
+    // A bare JSON null body decodes to null for a model return type.
+    test('a literal null body deserializes to null', () => {
+      expect(ObjectSerializer.deserialize(ObjectSerializer.parseJson('null'), Category)).toBeNull();
+      expect(ObjectSerializer.deserialize(null, Category)).toBeNull();
+    });
+
+    // format:byte is decoded to a Buffer at the deserialize boundary via
+    // class-transformer, not through a base64 branch in ObjectSerializer, so the
+    // invalid-base64-throws case does not apply to the Node SDK.
+
+    // parseJson rejects a payload past the 1000-deep nesting cap; one within it
+    // parses fine.
+    test('deep JSON within the cap parses but past it is rejected', () => {
+      const within = '['.repeat(600) + ']'.repeat(600);
+      expect(ObjectSerializer.parseJson(within)).toBeDefined();
+      const beyond = '['.repeat(1500) + ']'.repeat(1500);
+      expect(() => ObjectSerializer.parseJson(beyond)).toThrow(SerializationError);
+    });
+  });
 });
 
 describe('model value-equality', () => {

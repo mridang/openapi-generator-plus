@@ -986,5 +986,28 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
   end
+
+  # ── canonical serde behaviours (cross-SDK) ──
+  #
+  # A bare JSON null body decodes to nil, and the 1000-deep JSON nesting cap
+  # rejects an over-deep payload. Invalid base64 on a format:byte field is
+  # covered above; a non-finite float is not representable on the BEAM (Elixir
+  # floats are always finite), so NaN/Infinity-on-encode does not apply here.
+  describe "canonical serde behaviours" do
+    test "deserializes a literal null body to nil" do
+      assert {{moduleName}}.ObjectSerializer.deserialize("null", "Category") == nil
+    end
+
+    test "decodes a payload within the depth cap but rejects one past it" do
+      within = String.duplicate("[", 600) <> String.duplicate("]", 600)
+      assert {{moduleName}}.ObjectSerializer.deserialize(within, "Object") != nil
+
+      beyond = String.duplicate("[", 1500) <> String.duplicate("]", 1500)
+
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(beyond, "Object")
+      end
+    end
+  end
 end
 {{/generateTests}}

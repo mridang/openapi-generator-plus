@@ -12,6 +12,8 @@ pub struct Medication {
     pub drug_name: String,
     #[serde(rename = "dosage", skip_serializing_if = "Option::is_none")]
     pub dosage: Option<String>,
+    #[serde(rename = "notes", skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 impl Medication {
@@ -20,6 +22,7 @@ impl Medication {
         Self {
             drug_name,
             dosage: None,
+            notes: None,
         }
     }
 }

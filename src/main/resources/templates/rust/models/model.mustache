@@ -389,19 +389,46 @@ pub enum {{classname}} {
     drop the others' fields on re-encode. Instead we model the composite as a
     struct holding one `Option<Variant>` per member: on deserialize we try each
     member independently against the same JSON value and keep EVERY variant that
-    decodes; on serialize each present variant is `#[serde(flatten)]`ed so the
-    wire payload is the UNION of all retained variants' fields, round-tripping
-    co-satisfied data without loss. Each member schema here is an object model,
-    so flattening merges their fields into a single JSON object. }}
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize)]
+    decodes; on serialize (hand-rolled below) each present variant's fields are
+    merged into ONE JSON object so the wire payload is the UNION of all retained
+    variants' fields, round-tripping co-satisfied data without loss. A naive
+    `#[serde(flatten)]` per member would emit a shared key TWICE (a duplicate
+    JSON key) when two members declare it; the merge collapses it to a single
+    key, with the last-declared member winning on a collision. }}
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct {{classname}} {
 {{#composedSchemas.anyOf}}
     /// The `{{{dataType}}}` view of this anyOf, present when the payload
-    /// satisfied that member schema. Flattened on serialize so its fields
-    /// merge into the composite object.
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// satisfied that member schema. Its fields are merged into the composite
+    /// object on serialize.
     pub {{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}}: Option<{{{dataType}}}>,
 {{/composedSchemas.anyOf}}
+}
+
+{{! Hand-rolled Serialize: merge each retained member's serialized object into
+    one map so the wire payload is the UNION of their fields. Members are merged
+    in declaration order and a later member OVERWRITES a shared key, so a
+    collision resolves to the last-declared member's value and every key is
+    emitted exactly once (never a duplicate JSON key, which a per-member
+    `#[serde(flatten)]` would produce). }}
+impl serde::Serialize for {{classname}} {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        let mut merged = serde_json::Map::new();
+{{#composedSchemas.anyOf}}
+        if let Some(ref variant) = self.{{#lambda.snakecase}}{{#rustVariantName}}{{{dataType}}}{{/rustVariantName}}{{/lambda.snakecase}} {
+            if let serde_json::Value::Object(map) =
+                serde_json::to_value(variant).map_err(S::Error::custom)?
+            {
+                merged.extend(map);
+            }
+        }
+{{/composedSchemas.anyOf}}
+        serde_json::Value::Object(merged).serialize(serializer)
+    }
 }
 
 impl {{classname}} {

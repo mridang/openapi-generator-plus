@@ -8,18 +8,41 @@
 use super::*;
 
 /// PetTreatment A treatment that can match a medication, a surgery, or both
-#[derive(Debug, Clone, PartialEq, Default, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PetTreatment {
     /// The `Medication` view of this anyOf, present when the payload
-    /// satisfied that member schema. Flattened on serialize so its fields
-    /// merge into the composite object.
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// satisfied that member schema. Its fields are merged into the composite
+    /// object on serialize.
     pub medication: Option<Medication>,
     /// The `Surgery` view of this anyOf, present when the payload
-    /// satisfied that member schema. Flattened on serialize so its fields
-    /// merge into the composite object.
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    /// satisfied that member schema. Its fields are merged into the composite
+    /// object on serialize.
     pub surgery: Option<Surgery>,
+}
+
+impl serde::Serialize for PetTreatment {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+        let mut merged = serde_json::Map::new();
+        if let Some(ref variant) = self.medication {
+            if let serde_json::Value::Object(map) =
+                serde_json::to_value(variant).map_err(S::Error::custom)?
+            {
+                merged.extend(map);
+            }
+        }
+        if let Some(ref variant) = self.surgery {
+            if let serde_json::Value::Object(map) =
+                serde_json::to_value(variant).map_err(S::Error::custom)?
+            {
+                merged.extend(map);
+            }
+        }
+        serde_json::Value::Object(merged).serialize(serializer)
+    }
 }
 
 impl PetTreatment {

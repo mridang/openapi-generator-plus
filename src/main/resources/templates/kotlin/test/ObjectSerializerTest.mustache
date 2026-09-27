@@ -1354,4 +1354,49 @@ class ObjectSerializerTest {
             assertNotEquals(left, right)
         }
     }
+
+    @Nested
+    @DisplayName("CanonicalSerdeBehaviours")
+    inner class CanonicalSerdeBehaviours {
+
+        // NaN/Infinity on ENCODE must reject with the SDK's SerializationException
+        // (RFC 8259 §6 has no such token). kotlinx-serialization's default
+        // allowSpecialFloatingPointValues = false rejects non-finite floats,
+        // which serialize() surfaces as the SDK's SerializationException.
+        @Test
+        @DisplayName("serializing a non-finite double throws SerializationException")
+        fun nonFiniteDoubleThrowsOnSerialize() {
+            assertThrows(SerializationException::class.java) { serializer.serialize(Double.NaN) }
+            assertThrows(SerializationException::class.java) {
+                serializer.serialize(Double.POSITIVE_INFINITY)
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.serialize(Double.NEGATIVE_INFINITY)
+            }
+        }
+
+        // A bare JSON null body decoded to a model type returns null.
+        @Test
+        @DisplayName("a literal null body deserializes to null")
+        fun literalNullBodyDeserializesToNull() {
+            assertNull(serializer.deserialize<{{modelPackage}}.Category>("null"))
+        }
+
+        // format:byte is base64-decoded by a kotlinx serializer on the model
+        // field, not in ObjectSerializer, so the invalid-base64-throws case does
+        // not apply to the Kotlin SDK.
+
+        // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000
+        // MAX_JSON_DEPTH cap and is rejected.
+        @Test
+        @DisplayName("deep JSON within the depth cap parses; past it is rejected")
+        fun deepJsonDepthCap() {
+            val within = "[".repeat(600) + "]".repeat(600)
+            assertNotNull(serializer.parseToJsonElement(within))
+            val beyond = "[".repeat(1500) + "]".repeat(1500)
+            assertThrows(SerializationException::class.java) {
+                serializer.parseToJsonElement(beyond)
+            }
+        }
+    }
 }

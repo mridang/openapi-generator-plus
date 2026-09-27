@@ -4,8 +4,244 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use crate::errors::serialization_error::SerializationError;
 
+/// Sentinel error raised by [`FiniteFloatCheck`] the moment it walks a
+/// non-finite float (NaN or ±Infinity). It carries no message of its own —
+/// [`serialize`] maps it to the SDK's [`SerializationError`].
+#[derive(Debug)]
+struct NonFiniteError;
+
+impl std::fmt::Display for NonFiniteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "non-finite float (NaN or Infinity) is not permitted by RFC 8259"
+        )
+    }
+}
+
+impl std::error::Error for NonFiniteError {}
+
+impl serde::ser::Error for NonFiniteError {
+    fn custom<T: std::fmt::Display>(_msg: T) -> Self {
+        NonFiniteError
+    }
+}
+
+/// A `serde::Serializer` that produces no output and exists only to reject a
+/// non-finite float anywhere inside a value BEFORE it reaches `serde_json`.
+///
+/// `serde_json` silently encodes a NaN or ±Infinity float as JSON `null`
+/// (RFC 8259 §6 has no such token), which would corrupt the wire form and
+/// diverge from the 11 other SDKs that reject non-finite floats. Walking the
+/// value first lets [`serialize`] fail loudly with a [`SerializationError`].
+/// Every scalar is a no-op except `serialize_f32`/`serialize_f64`, which error
+/// on a non-finite value; the compound impls recurse so a float nested in a
+/// struct, map or sequence is checked too.
+#[derive(Clone, Copy)]
+struct FiniteFloatCheck;
+
+impl serde::Serializer for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    type SerializeSeq = Self;
+    type SerializeTuple = Self;
+    type SerializeTupleStruct = Self;
+    type SerializeTupleVariant = Self;
+    type SerializeMap = Self;
+    type SerializeStruct = Self;
+    type SerializeStructVariant = Self;
+
+    fn serialize_bool(self, _v: bool) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_i8(self, _v: i8) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_i16(self, _v: i16) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_i32(self, _v: i32) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_i64(self, _v: i64) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_i128(self, _v: i128) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_u8(self, _v: u8) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_u16(self, _v: u16) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_u32(self, _v: u32) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_u64(self, _v: u64) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_u128(self, _v: u128) -> Result<(), NonFiniteError> { Ok(()) }
+
+    fn serialize_f32(self, v: f32) -> Result<(), NonFiniteError> {
+        if v.is_finite() { Ok(()) } else { Err(NonFiniteError) }
+    }
+
+    fn serialize_f64(self, v: f64) -> Result<(), NonFiniteError> {
+        if v.is_finite() { Ok(()) } else { Err(NonFiniteError) }
+    }
+
+    fn serialize_char(self, _v: char) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_str(self, _v: &str) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_bytes(self, _v: &[u8]) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_none(self) -> Result<(), NonFiniteError> { Ok(()) }
+
+    fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(self)
+    }
+
+    fn serialize_unit(self) -> Result<(), NonFiniteError> { Ok(()) }
+    fn serialize_unit_struct(self, _name: &'static str) -> Result<(), NonFiniteError> { Ok(()) }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _index: u32,
+        _variant: &'static str,
+    ) -> Result<(), NonFiniteError> {
+        Ok(())
+    }
+
+    fn serialize_newtype_struct<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        value: &T,
+    ) -> Result<(), NonFiniteError> {
+        value.serialize(self)
+    }
+
+    fn serialize_newtype_variant<T: ?Sized + Serialize>(
+        self,
+        _name: &'static str,
+        _index: u32,
+        _variant: &'static str,
+        value: &T,
+    ) -> Result<(), NonFiniteError> {
+        value.serialize(self)
+    }
+
+    fn serialize_seq(self, _len: Option<usize>) -> Result<Self, NonFiniteError> { Ok(self) }
+    fn serialize_tuple(self, _len: usize) -> Result<Self, NonFiniteError> { Ok(self) }
+
+    fn serialize_tuple_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self, NonFiniteError> {
+        Ok(self)
+    }
+
+    fn serialize_tuple_variant(
+        self,
+        _name: &'static str,
+        _index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self, NonFiniteError> {
+        Ok(self)
+    }
+
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self, NonFiniteError> { Ok(self) }
+
+    fn serialize_struct(
+        self,
+        _name: &'static str,
+        _len: usize,
+    ) -> Result<Self, NonFiniteError> {
+        Ok(self)
+    }
+
+    fn serialize_struct_variant(
+        self,
+        _name: &'static str,
+        _index: u32,
+        _variant: &'static str,
+        _len: usize,
+    ) -> Result<Self, NonFiniteError> {
+        Ok(self)
+    }
+}
+
+impl serde::ser::SerializeSeq for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeTuple for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeTupleStruct for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeTupleVariant for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeMap for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), NonFiniteError> {
+        key.serialize(FiniteFloatCheck)
+    }
+    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeStruct for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_field<T: ?Sized + Serialize>(
+        &mut self,
+        _key: &'static str,
+        value: &T,
+    ) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
+impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
+    type Ok = ();
+    type Error = NonFiniteError;
+    fn serialize_field<T: ?Sized + Serialize>(
+        &mut self,
+        _key: &'static str,
+        value: &T,
+    ) -> Result<(), NonFiniteError> {
+        value.serialize(FiniteFloatCheck)
+    }
+    fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
+}
+
 /// Serializes an object to a JSON string.
+///
+/// Rejects a non-finite float (NaN or ±Infinity) before encoding: `serde_json`
+/// would otherwise write it as JSON `null`, silently corrupting the wire value
+/// (RFC 8259 §6 has no NaN/Infinity token). The pre-flight [`FiniteFloatCheck`]
+/// walk surfaces such a value as a [`SerializationError`], matching the other
+/// SDKs (python `allow_nan=False`, node, etc.).
 pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
+    if value.serialize(FiniteFloatCheck).is_err() {
+        return Err(SerializationError::new(
+            "failed to serialize object to JSON: non-finite float (NaN or Infinity) \
+             is not permitted by RFC 8259"
+                .to_string(),
+            None,
+        ));
+    }
     serde_json::to_string(value).map_err(|e| SerializationError::new(
         format!("failed to serialize object to JSON: {}", e),
         Some(Box::new(e)),
@@ -769,6 +1005,64 @@ mod tests {
         let restored: Option<Holder> = object_serializer::deserialize(serialized.as_bytes())
             .expect("deserialize must succeed");
         assert_eq!(restored.expect("Some"), original);
+    }
+
+    // ── canonical serde behaviours (cross-SDK) ──
+
+    // A non-finite float (NaN, ±Infinity) must reject on ENCODE with a
+    // SerializationError. serde_json silently encodes such a value as JSON
+    // `null` (RFC 8259 §6 has no NaN/Infinity token); the FiniteFloatCheck
+    // pre-flight walk surfaces it, at the top level and nested in a struct.
+    #[test]
+    fn test_serialize_non_finite_float_is_error() {
+        #[derive(serde::Serialize)]
+        struct Holder {
+            weight: f64,
+        }
+        assert!(object_serializer::serialize(&Holder { weight: f64::NAN }).is_err());
+        assert!(object_serializer::serialize(&Holder { weight: f64::INFINITY }).is_err());
+        assert!(object_serializer::serialize(&f64::NEG_INFINITY).is_err());
+        // A finite float still serializes cleanly.
+        assert!(object_serializer::serialize(&Holder { weight: 1.5 }).is_ok());
+    }
+
+    // serialize of a None option emits the literal JSON null.
+    #[test]
+    fn test_serialize_none_emits_null() {
+        let json = object_serializer::serialize(&Option::<i32>::None)
+            .expect("serialize must succeed");
+        assert_eq!(json, "null");
+    }
+
+    // A bare JSON null body is a JSON null value. Rust models are non-null
+    // structs (no nil-model concept), so a null body decoded to a value type
+    // surfaces as serde_json::Value::Null; the empty-body path returns None and
+    // is covered by test_deserialize_empty_data.
+    #[test]
+    fn test_deserialize_null_body_is_json_null_value() {
+        let result: Option<serde_json::Value> =
+            object_serializer::deserialize(b"null").expect("null body must decode");
+        assert_eq!(result, Some(serde_json::Value::Null));
+    }
+
+    // format:byte is base64-decoded by serde on the model field, not in this
+    // module, so the invalid-base64-throws case does not apply to the Rust SDK.
+
+    // Rust relies on serde_json's own recursion limit rather than the 1000-deep
+    // cap the other SDKs pin in ObjectSerializer (no explicit depth cap lives in
+    // this module), so a moderately nested payload decodes while a very deeply
+    // nested one is rejected as a SerializationError.
+    #[test]
+    fn test_deep_json_rejected_by_recursion_limit() {
+        let shallow = format!("{}{}", "[".repeat(50), "]".repeat(50));
+        let ok: Result<Option<serde_json::Value>, _> =
+            object_serializer::deserialize(shallow.as_bytes());
+        assert!(ok.is_ok(), "a shallow payload must decode");
+
+        let deep = format!("{}{}", "[".repeat(1500), "]".repeat(1500));
+        let err: Result<Option<serde_json::Value>, _> =
+            object_serializer::deserialize(deep.as_bytes());
+        assert!(err.is_err(), "a very deeply nested payload must be rejected");
     }
 
 {{#generateTests}}

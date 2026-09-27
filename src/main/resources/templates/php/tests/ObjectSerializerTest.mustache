@@ -602,8 +602,11 @@ test('decode bytes returns null for empty string', function (): void {
     expect(ObjectSerializer::decodeBytes(''))->toBeNull();
 });
 
-test('decode bytes returns null for invalid base64', function (): void {
-    expect(ObjectSerializer::decodeBytes('!!!not-base64!!!'))->toBeNull();
+test('decode bytes throws on invalid base64', function (): void {
+    // Invalid base64 is a wire-shape violation; decodeBytes throws (matching
+    // ruby/elixir) rather than silently returning null.
+    expect(fn () => ObjectSerializer::decodeBytes('!!!not-base64!!!'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('encode bytes returns base64 of raw bytes', function (): void {
@@ -1191,6 +1194,50 @@ test('nested array-of-array deep-round-trips to typed int leaves', function (): 
     /** @var array<string, mixed> $data */
     $data = json_decode(ObjectSerializer::serialize($item), true);
     expect($data['matrix'])->toBe([[1, 2, 3], [4, 5]]);
+});
+
+// -- canonical serde behaviours (cross-SDK) --
+//
+// A non-finite float rejects on encode, a bare JSON null body and an empty body
+// both decode to null, invalid base64 for a format:byte value throws, and the
+// 1000-deep JSON nesting cap rejects an over-deep payload.
+
+test('serializing a non-finite float throws SerializationException', function (): void {
+    // RFC 8259 §6 has no NaN/Infinity token; json_encode fails on a non-finite
+    // float and serialize wraps that as the SDK's SerializationException.
+    expect(fn () => ObjectSerializer::serialize(NAN))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect(fn () => ObjectSerializer::serialize(INF))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect(fn () => ObjectSerializer::serialize(-INF))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('a literal null body deserializes to null', function (): void {
+    expect(ObjectSerializer::deserialize('null', Category::class))->toBeNull();
+});
+
+test('an empty body deserializes to null', function (): void {
+    expect(ObjectSerializer::deserialize('', Category::class))->toBeNull();
+});
+
+test('invalid base64 for a format:byte value throws', function (): void {
+    // The scalar `byte` deserialize path base64-decodes the JSON string literal;
+    // invalid base64 must throw rather than return the raw undecoded string.
+    expect(fn (): mixed => ObjectSerializer::deserialize('"!!!not-base64!!!"', 'byte'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('deep JSON within the depth cap decodes but past it is rejected', function (): void {
+    // json_decode is called with the MAX_JSON_DEPTH cap; a payload nested past
+    // it is rejected, while one within it decodes. Uses 'object[]' so the
+    // element decode does not require a valid model shape.
+    $within = str_repeat('[', 600) . str_repeat(']', 600);
+    expect(ObjectSerializer::deserialize($within, 'object[]'))->toBeArray();
+
+    $beyond = str_repeat('[', 1500) . str_repeat(']', 1500);
+    expect(fn (): mixed => ObjectSerializer::deserialize($beyond, 'object[]'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 // -- F-BM-03 (WONTFIX for PHP): PHP's native #[\Deprecated] attribute does

@@ -167,6 +167,17 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert headers["Accept"] == "image/png, application/json"
     end
 
+    test "drops whitespace-only entries before joining" do
+      headers =
+        PetstoreClient.HeaderSelector.select_headers(
+          ["   ", "application/json"],
+          "application/json",
+          false
+        )
+
+      assert headers["Accept"] == "application/json"
+    end
+
     test "returns single entry without separator" do
       headers =
         PetstoreClient.HeaderSelector.select_headers(

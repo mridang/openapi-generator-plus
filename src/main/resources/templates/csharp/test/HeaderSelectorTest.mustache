@@ -193,6 +193,17 @@ public class HeaderSelectorTest
         }
 
         [Fact]
+        public void ShouldDropWhitespaceOnlyEntries()
+        {
+            var headers = HeaderSelector.SelectHeaders(
+                ["   ", "application/json"],
+                "application/json",
+                false
+            );
+            Assert.Equal("application/json", headers["Accept"]);
+        }
+
+        [Fact]
         public void ShouldNotSetAcceptHeaderWhenAllEntriesBlank()
         {
             var headers = HeaderSelector.SelectHeaders(

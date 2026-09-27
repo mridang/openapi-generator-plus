@@ -13,7 +13,13 @@ class Surgery {
 
   final int? durationMinutes;
 
-  const Surgery({required this.procedureName, this.durationMinutes});
+  final String? notes;
+
+  const Surgery({
+    required this.procedureName,
+    this.durationMinutes,
+    this.notes,
+  });
 
   /// Creates a [Surgery] from a JSON map.
   factory Surgery.fromJson(Map<String, dynamic> json) {
@@ -31,6 +37,8 @@ class Surgery {
       procedureName: json['procedureName'] as String,
 
       durationMinutes: json['durationMinutes'] as int?,
+
+      notes: json['notes'] as String?,
     );
   }
 
@@ -42,6 +50,9 @@ class Surgery {
 
     if (durationMinutes != null) {
       json['durationMinutes'] = durationMinutes;
+    }
+    if (notes != null) {
+      json['notes'] = notes;
     }
     return json;
   }
@@ -55,7 +66,8 @@ class Surgery {
     if (identical(this, other)) return true;
     return other is Surgery &&
         procedureName == other.procedureName &&
-        durationMinutes == other.durationMinutes;
+        durationMinutes == other.durationMinutes &&
+        notes == other.notes;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -64,5 +76,5 @@ class Surgery {
   /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
   /// so equal instances hash equally.
   @override
-  int get hashCode => Object.hashAll([procedureName, durationMinutes]);
+  int get hashCode => Object.hashAll([procedureName, durationMinutes, notes]);
 }

@@ -172,6 +172,26 @@ void main() {
       expect(restored['durationMinutes'], equals(45));
     });
 
+    test('PetTreatment shared-property collision keeps the last variant, '
+        'emitted once', () {
+      // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+      // Retaining both members with DIFFERENT `notes` values must encode the
+      // LAST-declared member's value (Surgery) and emit `notes` exactly once —
+      // never a duplicate JSON key.
+      final treatment = PetTreatment.ofValues(<Object?>[
+        Medication(drugName: 'Amoxicillin', notes: 'from-medication'),
+        Surgery(procedureName: 'Spay', notes: 'from-surgery'),
+      ]);
+
+      final serialized = jsonEncode(treatment.toJson());
+      final restored = jsonDecode(serialized) as Map<String, dynamic>;
+
+      // Surgery is the later-declared member, so its `notes` wins the collision.
+      expect(restored['notes'], equals('from-surgery'));
+      // `notes` appears exactly once — no duplicate key.
+      expect('"notes"'.allMatches(serialized).length, equals(1));
+    });
+
     // allOf: PetWithOwner extends Pet fields
 
     test('PetWithOwner deserialize', () {

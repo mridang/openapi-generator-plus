@@ -954,6 +954,49 @@ void main() {
         throwsA(isA<SerializationException>()),
       );
     });
+
+    // -- CanonicalSerdeBehaviours (cross-SDK) --
+
+    // serialize(null) must emit the literal "null" (regression guard for the
+    // null-body fix), NOT throw or emit an empty string.
+    test('serialize(null) returns the literal "null"', () {
+      expect(serialize(null), equals('null'));
+    });
+
+    // A non-finite double (NaN, ±Infinity) must reject on ENCODE rather than be
+    // silently emitted (RFC 8259 §6 has no such token). jsonEncode throws a
+    // JsonUnsupportedObjectError, which serialize wraps as SerializationException.
+    test('serializing a non-finite double throws SerializationException', () {
+      expect(() => serialize(double.nan), throwsA(isA<SerializationException>()));
+      expect(() => serialize(double.infinity), throwsA(isA<SerializationException>()));
+      expect(
+        () => serialize(double.negativeInfinity),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    // A bare JSON null body decoded to a model type returns null (rather than
+    // throwing "Expected JSON object, got Null").
+    test('a literal null body deserializes to null', () {
+      expect(deserialize<Category>('null', Category.fromJson), isNull);
+    });
+
+    // An empty body decoded to a model type returns null.
+    test('an empty body deserializes to null', () {
+      expect(deserialize<Category>('', Category.fromJson), isNull);
+    });
+
+    // format:byte is decoded to a Uint8List on the model field, not through a
+    // base64 branch in ObjectSerializer, so the invalid-base64-throws case does
+    // not apply to the Dart SDK.
+
+    // parseJson parses a payload within the 1000-deep cap and rejects one past it.
+    test('deep JSON within the cap parses but past it is rejected', () {
+      final within = '[' * 600 + ']' * 600;
+      expect(parseJson(within), isNotNull);
+      final beyond = '[' * 1500 + ']' * 1500;
+      expect(() => parseJson(beyond), throwsA(isA<SerializationException>()));
+    });
   });
 }
 {{/generateTests}}

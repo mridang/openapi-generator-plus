@@ -23,13 +23,18 @@ class Surgery
     #[SerializedName('durationMinutes')]
     public ?int $durationMinutes = null;
 
+    #[SerializedName('notes')]
+    public ?string $notes = null;
+
     /**
      */
     public function __construct(
         string $procedureName,
         ?int $durationMinutes = null,
+        ?string $notes = null,
     ) {
         $this->procedureName = $procedureName;
         $this->durationMinutes = $durationMinutes;
+        $this->notes = $notes;
     }
 }

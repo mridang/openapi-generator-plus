@@ -1150,3 +1150,26 @@ class TestSubMilliDurationNoScientificNotation:
         out = ObjectSerializer.stringify(datetime.timedelta(microseconds=-1))
         assert out == '-0.000001s'
         assert 'e' not in out.lower()
+
+
+class TestCanonicalSerdeBehaviours:
+    """Cross-SDK canonical serde behaviours: a bare JSON null body decodes to
+    None, and the 1000-deep JSON nesting cap rejects an over-deep payload.
+
+    NaN/Infinity rejection on encode is covered by TestNanInfinityRejection
+    above. format:byte decoding for Python happens through pydantic model-field
+    validation, not a base64 branch in ObjectSerializer, so the
+    invalid-base64-throws case does not apply here.
+    """
+
+    def test_literal_null_body_deserializes_to_none(self) -> None:
+        assert ObjectSerializer().deserialize('null', 'Category') is None
+
+    def test_deep_json_within_cap_decodes(self) -> None:
+        within = '[' * 600 + ']' * 600
+        assert ObjectSerializer().deserialize(within, 'object') is not None
+
+    def test_deep_json_beyond_cap_is_rejected(self) -> None:
+        beyond = '[' * 1500 + ']' * 1500
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(beyond, 'object')

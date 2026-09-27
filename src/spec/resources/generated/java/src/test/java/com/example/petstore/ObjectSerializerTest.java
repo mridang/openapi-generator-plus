@@ -1295,4 +1295,53 @@ class ObjectSerializerTest {
       assertNotEquals(left, right);
     }
   }
+
+  @Nested
+  @DisplayName("CanonicalSerdeBehaviours")
+  class CanonicalSerdeBehaviours {
+
+    // NaN/Infinity on ENCODE must reject with the SDK's SerializationException
+    // (RFC 8259 §6 has no such token). Jackson's default QUOTE_NON_NUMERIC_NUMBERS
+    // would emit the quoted strings "NaN"/"Infinity"; the serializer rejects them
+    // instead, matching python (allow_nan=False), go, node, rust and the rest.
+    @Test
+    @DisplayName("serializing a non-finite double throws SerializationException")
+    void nonFiniteDoubleThrowsOnSerialize() {
+      assertThrows(SerializationException.class, () -> serializer.serialize(Double.NaN));
+      assertThrows(
+          SerializationException.class, () -> serializer.serialize(Double.POSITIVE_INFINITY));
+      assertThrows(
+          SerializationException.class, () -> serializer.serialize(Double.NEGATIVE_INFINITY));
+    }
+
+    // A bare JSON null body decoded to a model type returns null, not a
+    // partial object or an error.
+    @Test
+    @DisplayName("a literal null body deserializes to null")
+    void literalNullBodyDeserializesToNull() {
+      assertNull(
+          serializer.deserialize(
+              "null",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}.getType()));
+    }
+
+    // format:byte is base64-decoded in the transport layer, not in
+    // ObjectSerializer, so the invalid-base64-throws case does not apply to
+    // the Java SDK.
+
+    // A payload nested ~600 deep decodes fine; ~1500 deep exceeds the 1000
+    // maxNestingDepth cap and is rejected (Jackson StreamReadConstraints,
+    // surfaced as the SDK's SerializationException).
+    @Test
+    @DisplayName("deep JSON within the depth cap decodes; past it is rejected")
+    void deepJsonDepthCap() {
+      java.lang.reflect.Type objectType =
+          new com.fasterxml.jackson.core.type.TypeReference<Object>() {}.getType();
+      assertNotNull(serializer.deserialize("[".repeat(600) + "]".repeat(600), objectType));
+      assertThrows(
+          SerializationException.class,
+          () -> serializer.deserialize("[".repeat(1500) + "]".repeat(1500), objectType));
+    }
+  }
 }

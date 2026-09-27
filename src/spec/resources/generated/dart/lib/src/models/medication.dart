@@ -13,7 +13,9 @@ class Medication {
 
   final String? dosage;
 
-  const Medication({required this.drugName, this.dosage});
+  final String? notes;
+
+  const Medication({required this.drugName, this.dosage, this.notes});
 
   /// Creates a [Medication] from a JSON map.
   factory Medication.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,8 @@ class Medication {
       drugName: json['drugName'] as String,
 
       dosage: json['dosage'] as String?,
+
+      notes: json['notes'] as String?,
     );
   }
 
@@ -42,6 +46,9 @@ class Medication {
 
     if (dosage != null) {
       json['dosage'] = dosage;
+    }
+    if (notes != null) {
+      json['notes'] = notes;
     }
     return json;
   }
@@ -55,7 +62,8 @@ class Medication {
     if (identical(this, other)) return true;
     return other is Medication &&
         drugName == other.drugName &&
-        dosage == other.dosage;
+        dosage == other.dosage &&
+        notes == other.notes;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -64,5 +72,5 @@ class Medication {
   /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
   /// so equal instances hash equally.
   @override
-  int get hashCode => Object.hashAll([drugName, dosage]);
+  int get hashCode => Object.hashAll([drugName, dosage, notes]);
 }

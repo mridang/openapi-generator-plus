@@ -11,16 +11,19 @@ import Foundation
 public struct Surgery: Codable, Sendable, Equatable, Hashable {
   public var procedureName: String
   public var durationMinutes: Int?
+  public var notes: String?
 
   enum CodingKeys: String, CodingKey {
     case procedureName = "procedureName"
     case durationMinutes = "durationMinutes"
+    case notes = "notes"
   }
 
   /// Creates a new Surgery instance.
-  public init(procedureName: String, durationMinutes: Int? = nil) {
+  public init(procedureName: String, durationMinutes: Int? = nil, notes: String? = nil) {
     self.procedureName = procedureName
     self.durationMinutes = durationMinutes
+    self.notes = notes
   }
 
   /// Decodes this instance from the given decoder.
@@ -37,6 +40,7 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.procedureName = try container.decode(String.self, forKey: .procedureName)
     self.durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes)
+    self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -48,5 +52,6 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(procedureName, forKey: .procedureName)
     try container.encodeIfPresent(durationMinutes, forKey: .durationMinutes)
+    try container.encodeIfPresent(notes, forKey: .notes)
   }
 }

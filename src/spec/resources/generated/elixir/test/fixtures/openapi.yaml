@@ -1631,6 +1631,8 @@ components:
           type: string
         dosage:
           type: string
+        notes:
+          type: string
 
     Surgery:
       type: object
@@ -1642,6 +1644,8 @@ components:
         durationMinutes:
           type: integer
           format: int32
+        notes:
+          type: string
 
     PetTreatment:
       description: A treatment that can match a medication, a surgery, or both

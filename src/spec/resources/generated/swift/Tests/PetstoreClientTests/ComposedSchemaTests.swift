@@ -186,6 +186,25 @@ import Testing
     #expect(roundTripped?["durationMinutes"] as? Int == 45)
   }
 
+  /// anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+  /// Retaining both members with DIFFERENT `notes` values must encode the
+  /// LAST-declared member's value (Surgery) and emit `notes` exactly once —
+  /// never a duplicate JSON key.
+  @Test func testPetTreatmentSharedPropertyCollisionLastWins() throws {
+    let medication = Medication(drugName: "Amoxicillin", notes: "from-medication")
+    let surgery = Surgery(procedureName: "Spay", notes: "from-surgery")
+    let treatment = PetTreatment([medication, surgery])
+
+    let data = try JSONEncoder().encode(treatment)
+    let json = String(decoding: data, as: UTF8.self)
+
+    // Surgery is the later-declared member, so its `notes` wins the collision.
+    #expect(json.contains("from-surgery"))
+    #expect(!json.contains("from-medication"))
+    // `notes` appears exactly once — no duplicate key.
+    #expect(json.components(separatedBy: "\"notes\"").count == 2)
+  }
+
   // MARK: - allOf: PetWithOwner extends Pet fields
 
   @Test func testPetWithOwnerDeserialize() throws {

@@ -222,6 +222,34 @@ describe("Composed Schema", () => {
     expect(reparsed.durationMinutes).toBe(45);
   });
 
+  test("anyOf shared-property collision keeps the last variant, emitted once", () => {
+    // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+    // When a PetTreatment retains both members with DIFFERENT `notes` values,
+    // the merged encoding must keep the LAST-declared member's value (Surgery)
+    // and emit `notes` exactly once — never a duplicate JSON key.
+    const medication = ObjectSerializer.deserialize(
+      { drugName: "Amoxicillin", notes: "from-medication" },
+      PetTreatment,
+    )!
+      .getMatchedInstances()
+      .find((m) => m instanceof Medication) as Medication;
+    const surgery = ObjectSerializer.deserialize(
+      { procedureName: "Spay", notes: "from-surgery" },
+      PetTreatment,
+    )!
+      .getMatchedInstances()
+      .find((s) => s instanceof Surgery) as Surgery;
+    const combined = new PetTreatment([medication, surgery]);
+
+    const serialized = ObjectSerializer.serialize(combined);
+    const reparsed = JSON.parse(serialized) as Record<string, unknown>;
+
+    // Surgery is the later-declared member, so its `notes` wins the collision.
+    expect(reparsed.notes).toBe("from-surgery");
+    // `notes` appears exactly once — no duplicate key.
+    expect(serialized.split('"notes"').length).toBe(2);
+  });
+
   test("anyOf single-variant payloads still decode correctly", () => {
     // The both-variants retention must not break the single-variant case: a
     // medication-only and a surgery-only payload each still decode, exposing

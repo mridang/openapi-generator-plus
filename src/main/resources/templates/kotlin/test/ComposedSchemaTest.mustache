@@ -241,6 +241,30 @@ class ComposedSchemaTest {
             assertTrue(surgeryOnly.actualInstance is Surgery)
             assertEquals("Spay", (surgeryOnly.actualInstance as Surgery).procedureName)
         }
+
+        @Test
+        @DisplayName("shared-property collision keeps the last variant's value, emitted once")
+        fun testSharedPropertyCollisionLastWins() {
+            // anyOf-collision-last-wins: both Medication and Surgery declare
+            // `notes`. When a PetTreatment retains both members with DIFFERENT
+            // `notes` values, the merged encoding keeps the LAST-declared
+            // member's value (Surgery) and emits `notes` exactly once — never a
+            // duplicate JSON key.
+            val treatment = PetTreatment(
+                instances = listOf(
+                    Medication(drugName = "Amoxicillin", notes = "from-medication"),
+                    Surgery(procedureName = "Spay", notes = "from-surgery"),
+                ),
+            )
+
+            val encoded = json.encodeToString(treatment)
+
+            // Surgery is the later-declared member, so its `notes` wins.
+            assertTrue(encoded.contains("from-surgery"))
+            assertFalse(encoded.contains("from-medication"))
+            // `notes` appears exactly once — no duplicate key.
+            assertEquals(2, encoded.split("\"notes\"").size)
+        }
     }
 
     @Nested

@@ -70,7 +70,11 @@ impl HeaderSelector {
     /// are filtered out. No quality weights are applied and no reordering is
     /// performed.
     fn select_accept_header(&self, accept: &[&str]) -> String {
-        let filtered: Vec<&str> = accept.iter().filter(|s| !s.is_empty()).copied().collect();
+        let filtered: Vec<&str> = accept
+            .iter()
+            .filter(|s| !s.trim().is_empty())
+            .copied()
+            .collect();
 
         if filtered.is_empty() {
             return String::new();
@@ -241,6 +245,15 @@ mod tests {
             headers.get("Accept").unwrap(),
             "application/json, application/xml"
         );
+    }
+
+    #[test]
+    fn test_header_selector_drops_whitespace_only_entries() {
+        let hs = HeaderSelector::new();
+
+        let headers = hs.select_headers(&["   ", "application/json"], "application/json", false);
+
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
     }
 
     #[test]

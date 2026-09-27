@@ -1193,4 +1193,46 @@ import Testing
       decoded?.weightKg == 1.5,
       "type:number weightKg must round-trip as the Double 1.5")
   }
+
+  // MARK: - Canonical serde behaviours (cross-SDK)
+
+  // A non-finite float (NaN, ±Infinity) must reject on ENCODE with the SDK's
+  // SerializationError (RFC 8259 §6 has no NaN/Infinity token). JSONEncoder's
+  // default nonConformingFloatEncodingStrategy is .throw, which serialize wraps.
+  @Test func testNonFiniteDoubleThrowsOnSerialize() {
+    for value in [Double.nan, .infinity, -.infinity] {
+      #expect(throws: SerializationError.self) {
+        _ = try ObjectSerializer.serialize(value)
+      }
+    }
+  }
+
+  // A JSON body nested within the 1000-deep cap decodes; one past it is
+  // rejected with the SDK's SerializationError (the jsonMaxDepth pre-flight
+  // guard). A recursive `{"a":{...}}` shape drives the nesting.
+  struct DepthNest: Codable { let a: DepthNest? }
+
+  private func nestedObjects(_ n: Int) -> String {
+    var s = "null"
+    for _ in 0..<n { s = "{\"a\":\(s)}" }
+    return s
+  }
+
+  @Test func testDeepJsonWithinCapDecodesButBeyondIsRejected() throws {
+    let within = try ObjectSerializer.deserialize(nestedObjects(600), as: DepthNest.self)
+    #expect(within != nil)
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(nestedObjects(1500), as: DepthNest.self)
+    }
+  }
+
+  // Notes on the behaviours that do not map to Swift's typed decoder:
+  // - A bare JSON null body decoded to a NON-optional model is a decode error
+  //   in Swift (there is no nil-model), so behaviour "null body -> nil" maps to
+  //   the empty-body path already covered by testDeserializeEmptyDataReturnsNil.
+  // - serialize(nil): serialize requires an Encodable value, so a bare null
+  //   argument is not representable; a nil model field is omitted via
+  //   encodeIfPresent (see testNilFieldsOmittedOnSerialize).
+  // - format:byte is decoded to Data by JSONDecoder on the model field, not in
+  //   ObjectSerializer, so the invalid-base64-throws case does not apply here.
 }

@@ -255,6 +255,38 @@ func TestPetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
 	}
 }
 
+// anyOf-collision-last-wins: both Medication and Surgery declare `notes`. When a
+// PetTreatment retains both members with DIFFERENT `notes` values, the merged
+// encoding must keep the LAST-declared member's value (Surgery) and emit `notes`
+// exactly once — never a duplicate JSON key.
+func TestPetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
+	t.Parallel()
+	medNotes := "from-medication"
+	surgNotes := "from-surgery"
+	treatment := models.PetTreatment{
+		Medication: &models.Medication{DrugName: "Amoxicillin", Notes: &medNotes},
+		Surgery:    &models.Surgery{ProcedureName: "Spay", Notes: &surgNotes},
+	}
+
+	data, err := json.Marshal(treatment)
+	if err != nil {
+		t.Fatalf("failed to serialize PetTreatment: %v", err)
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		t.Fatalf("failed to parse serialized JSON: %v", err)
+	}
+	// Surgery is the later member, so its `notes` wins the collision.
+	if parsed["notes"] != "from-surgery" {
+		t.Errorf("expected notes 'from-surgery' (last variant wins), got %v", parsed["notes"])
+	}
+	// `notes` appears exactly once — no duplicate JSON key.
+	if n := strings.Count(string(data), `"notes"`); n != 1 {
+		t.Errorf("expected `notes` key exactly once, got %d in %s", n, string(data))
+	}
+}
+
 func TestPetTreatment_NoMatchThrows(t *testing.T) {
 	t.Parallel()
 	// oneof-nondiscriminator-no-match-silent: a payload matching neither

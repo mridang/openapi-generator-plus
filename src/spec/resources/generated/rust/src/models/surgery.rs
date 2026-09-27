@@ -12,6 +12,8 @@ pub struct Surgery {
     pub procedure_name: String,
     #[serde(rename = "durationMinutes", skip_serializing_if = "Option::is_none")]
     pub duration_minutes: Option<i32>,
+    #[serde(rename = "notes", skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 impl Surgery {
@@ -20,6 +22,7 @@ impl Surgery {
         Self {
             procedure_name,
             duration_minutes: None,
+            notes: None,
         }
     }
 }

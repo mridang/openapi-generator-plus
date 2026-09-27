@@ -6,5 +6,6 @@ module Petstore::Client::Models
     OPENAPI_FORMATS: Hash[Symbol, String]
     attr_reader procedure_name: String
     attr_reader duration_minutes: Integer?
+    attr_reader notes: String?
   end
 end

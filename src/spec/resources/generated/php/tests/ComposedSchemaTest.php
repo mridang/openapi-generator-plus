@@ -148,6 +148,24 @@ test('any of retains all matching variants (medication and surgery) losslessly',
     ]);
 });
 
+test('any of shared property collision keeps the last variant, emitted once', function (): void {
+    // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+    // When a PetTreatment retains both members with DIFFERENT `notes` values,
+    // the merged encoding keeps the LAST-declared member's value (Surgery) and
+    // emits `notes` exactly once — never a duplicate JSON key.
+    $medication = new Medication('Amoxicillin', notes: 'from-medication');
+    $surgery = new Surgery('Spay', notes: 'from-surgery');
+    $treatment = new PetTreatment([$medication, $surgery]);
+
+    $serialized = ObjectSerializer::serialize($treatment);
+
+    // Surgery is the later-declared member, so its `notes` wins the collision.
+    expect($serialized)->toContain('from-surgery');
+    expect($serialized)->not->toContain('from-medication');
+    // `notes` appears exactly once — no duplicate key.
+    expect(substr_count($serialized, '"notes"'))->toBe(1);
+});
+
 test('any of single variant still round-trips after retain-all', function (): void {
     // The retain-all change must not regress the single-variant case: a
     // medication-only payload still decodes and serializes as just Medication.

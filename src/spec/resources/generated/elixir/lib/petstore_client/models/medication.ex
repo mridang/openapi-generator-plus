@@ -13,7 +13,8 @@ defmodule PetstoreClient.Models.Medication do
 
   @type t :: %__MODULE__{
           drug_name: String.t(),
-          dosage: String.t() | nil
+          dosage: String.t() | nil,
+          notes: String.t() | nil
         }
 
   @enforce_keys [
@@ -21,7 +22,8 @@ defmodule PetstoreClient.Models.Medication do
   ]
   defstruct [
     :drug_name,
-    :dosage
+    :dosage,
+    :notes
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -29,7 +31,8 @@ defmodule PetstoreClient.Models.Medication do
   def attribute_map do
     %{
       drug_name: "drugName",
-      dosage: "dosage"
+      dosage: "dosage",
+      notes: "notes"
     }
   end
 
@@ -60,7 +63,8 @@ defmodule PetstoreClient.Models.Medication do
   def openapi_types do
     %{
       drug_name: "String.t()",
-      dosage: "String.t()"
+      dosage: "String.t()",
+      notes: "String.t()"
     }
   end
 end

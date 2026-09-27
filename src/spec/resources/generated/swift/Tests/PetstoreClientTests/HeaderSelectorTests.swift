@@ -118,6 +118,17 @@ import Testing
     #expect(headers["Accept"] == "image/png, application/json")
   }
 
+  @Test func testSelectHeadersDropsWhitespaceOnlyEntries() {
+    let hs = HeaderSelector()
+    let headers = hs.selectHeaders(
+      accept: ["   ", "application/json"],
+      contentType: "application/json",
+      isMultipart: false
+    )
+
+    #expect(headers["Accept"] == "application/json")
+  }
+
   @Test func testSelectHeadersAllEmptyEntriesOmitsAccept() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(

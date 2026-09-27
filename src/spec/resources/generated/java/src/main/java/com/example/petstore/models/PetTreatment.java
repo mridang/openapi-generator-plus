@@ -81,9 +81,10 @@ public class PetTreatment {
 
   /* Re-encode as the union of every retained variant's fields. When the
    * payload satisfied several object variants their serialized field-sets
-   * are merged (earlier-declared variants win on key collisions) so no
-   * co-satisfied field is dropped on round-trip. A single non-object
-   * variant (e.g. a scalar or byte[]) is emitted as-is. */
+   * are merged (later-declared variants win on key collisions) so no
+   * co-satisfied field is dropped on round-trip and the emitted object
+   * carries each key exactly once. A single non-object variant (e.g. a
+   * scalar or byte[]) is emitted as-is. */
   private Object mergedValue() {
     com.fasterxml.jackson.databind.ObjectMapper mapper =
         new com.fasterxml.jackson.databind.ObjectMapper();
@@ -93,9 +94,9 @@ public class PetTreatment {
       if (node instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
         for (java.util.Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry :
             objectNode.properties()) {
-          if (!merged.has(entry.getKey())) {
-            merged.set(entry.getKey(), entry.getValue());
-          }
+          /* Later-declared variants overwrite earlier ones on a shared key,
+           * so a collision resolves to the last member's value. */
+          merged.set(entry.getKey(), entry.getValue());
         }
       } else {
         /* A non-object variant cannot be merged into a field-set; emit the

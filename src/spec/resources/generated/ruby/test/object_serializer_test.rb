@@ -1146,4 +1146,25 @@ describe Petstore::Client::ObjectSerializer do
       _(restored.scans).must_equal([raw])
     end
   end
+
+  # ── canonical serde behaviours (cross-SDK) ──
+  #
+  # A bare JSON null body decodes to nil, and the 1000-deep JSON nesting cap
+  # rejects an over-deep payload. NaN/Infinity rejection on encode and invalid
+  # base64 on a format:byte field are covered above.
+  describe 'canonical serde behaviours' do
+    it 'deserializes a literal null body to nil' do
+      _(Petstore::Client::ObjectSerializer.deserialize('null', 'Category')).must_be_nil
+    end
+
+    it 'decodes a payload within the depth cap but rejects one past it' do
+      within = ('[' * 600) + (']' * 600)
+      _(Petstore::Client::ObjectSerializer.deserialize(within, 'Object')).wont_be_nil
+
+      beyond = ('[' * 1500) + (']' * 1500)
+      _(proc {
+        Petstore::Client::ObjectSerializer.deserialize(beyond, 'Object')
+      }).must_raise(Petstore::Client::Errors::SerializationError)
+    end
+  end
 end

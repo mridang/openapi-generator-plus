@@ -261,17 +261,17 @@ public class {{classname}}
         {
             /* anyOf is inclusive, so emit the union of every retained variant's
              * fields. Serialize each matched variant to its own JSON object and
-             * merge their properties into a single object; the first variant
-             * to supply a key wins on a collision, and distinct fields from
-             * every variant are preserved so a co-satisfied payload round-trips
-             * losslessly. */
+             * merge their properties into a single object; the last variant to
+             * supply a key wins on a collision, and distinct fields from every
+             * variant are preserved so a co-satisfied payload round-trips
+             * losslessly. Each key is emitted exactly once (no duplicate). */
             if (value.MatchedInstances.Count == 1)
             {
                 JsonSerializer.Serialize(writer, value.MatchedInstances[0], options);
                 return;
             }
-            writer.WriteStartObject();
-            HashSet<string> written = new HashSet<string>(StringComparer.Ordinal);
+            List<string> order = new List<string>();
+            Dictionary<string, string> merged = new Dictionary<string, string>(StringComparer.Ordinal);
             foreach (object instance in value.MatchedInstances)
             {
                 using JsonDocument part = JsonDocument.Parse(
@@ -282,11 +282,19 @@ public class {{classname}}
                 }
                 foreach (JsonProperty property in part.RootElement.EnumerateObject())
                 {
-                    if (written.Add(property.Name))
+                    if (!merged.ContainsKey(property.Name))
                     {
-                        property.WriteTo(writer);
+                        order.Add(property.Name);
                     }
+                    merged[property.Name] = property.Value.GetRawText();
                 }
+            }
+            writer.WriteStartObject();
+            foreach (string name in order)
+            {
+                writer.WritePropertyName(name);
+                using JsonDocument valueDoc = JsonDocument.Parse(merged[name]);
+                valueDoc.RootElement.WriteTo(writer);
             }
             writer.WriteEndObject();
         }

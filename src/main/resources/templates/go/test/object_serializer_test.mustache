@@ -4,6 +4,7 @@ package {{packageName}}
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -1358,5 +1359,67 @@ func TestNestedContainer_ArrayOfArrayDeepRoundTrips(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "\"matrix\":[[1,2,3],[4,5]]") {
 		t.Errorf("expected nested container re-serialized, got %s", string(data))
+	}
+}
+
+// ── canonical serde behaviours (cross-SDK) ──
+
+// A non-finite float (NaN, ±Inf) must reject on ENCODE as a *SerializationError,
+// matching the other SDKs. encoding/json's Marshal returns an
+// UnsupportedValueError for a non-finite float, which serialize wraps (RFC 8259
+// §6 has no NaN/Infinity token).
+func TestSerialize_NonFiniteFloatIsSerializationError(t *testing.T) {
+	t.Parallel()
+	for _, v := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err := serialize(v)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %v, got %T: %v", v, err, err)
+		}
+	}
+}
+
+// serialize(nil) emits the literal JSON null.
+func TestSerialize_NilEmitsNull(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "null" {
+		t.Errorf("expected \"null\" for nil, got %q", string(data))
+	}
+}
+
+// A bare JSON null body deserializes without error, leaving the target at its
+// zero value. Go has no nullable-model concept, so this is the equivalent of the
+// null/None the dynamically-typed SDKs return for a null body.
+func TestDeserialize_LiteralNullBodyIsNoError(t *testing.T) {
+	t.Parallel()
+	var category models.Category
+	if err := deserialize([]byte("null"), &category); err != nil {
+		t.Fatalf("expected a null body to deserialize without error, got %v", err)
+	}
+}
+
+// format:byte is base64-decoded by encoding/json, not in the serializer, so the
+// invalid-base64-throws case does not apply to the Go SDK.
+
+// A payload within the 1000-deep nesting cap decodes; one past it is rejected as
+// a *SerializationError (the jsonMaxDepth pre-flight guard).
+func TestDeserialize_DeepJSONDepthCap(t *testing.T) {
+	t.Parallel()
+	within := []byte(strings.Repeat("[", 600) + strings.Repeat("]", 600))
+	var shallow any
+	if err := deserialize(within, &shallow); err != nil {
+		t.Fatalf("payload within the depth cap must decode, got %v", err)
+	}
+
+	beyond := []byte(strings.Repeat("[", 1500) + strings.Repeat("]", 1500))
+	var deep any
+	err := deserialize(beyond, &deep)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for an over-deep payload, got %T: %v", err, err)
 	}
 }

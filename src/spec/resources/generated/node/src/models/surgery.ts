@@ -26,6 +26,8 @@ export class Surgery {
   procedureName!: string;
   @Expose({ name: "durationMinutes" })
   durationMinutes?: number;
+  @Expose({ name: "notes" })
+  notes?: string;
 
   constructor(data?: Partial<Surgery>) {
     Object.assign(this, data);
@@ -46,6 +48,9 @@ export class Surgery {
       throw new TypeError(
         `durationMinutes must be a number, got ${typeof this.durationMinutes}`,
       );
+    }
+    if (this.notes != null && typeof this.notes !== "string") {
+      throw new TypeError(`notes must be a string, got ${typeof this.notes}`);
     }
   }
 
@@ -78,6 +83,9 @@ export class Surgery {
         (other as Surgery).durationMinutes,
       )
     ) {
+      return false;
+    }
+    if (!Surgery.__deepEquals(this.notes, (other as Surgery).notes)) {
       return false;
     }
     return true;

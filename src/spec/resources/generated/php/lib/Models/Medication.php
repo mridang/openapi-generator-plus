@@ -23,13 +23,18 @@ class Medication
     #[SerializedName('dosage')]
     public ?string $dosage = null;
 
+    #[SerializedName('notes')]
+    public ?string $notes = null;
+
     /**
      */
     public function __construct(
         string $drugName,
         ?string $dosage = null,
+        ?string $notes = null,
     ) {
         $this->drugName = $drugName;
         $this->dosage = $dosage;
+        $this->notes = $notes;
     }
 }

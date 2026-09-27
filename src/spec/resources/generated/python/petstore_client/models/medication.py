@@ -19,6 +19,7 @@ class Medication(BaseModel):
 
     drug_name: StrictStr = Field(alias="drugName")
     dosage: Optional[StrictStr] = Field(default=None, alias="dosage")
+    notes: Optional[StrictStr] = Field(default=None, alias="notes")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

@@ -204,6 +204,43 @@ fn test_pet_treatment_retains_all_matching_variants_losslessly() {
 }
 
 #[test]
+fn test_pet_treatment_shared_property_collision_last_wins() {
+    /* anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+     * When a PetTreatment retains both members with DIFFERENT `notes` values,
+     * the merged encoding must keep the LAST-declared member's value (Surgery)
+     * and emit `notes` exactly once — never a duplicate JSON key (which a naive
+     * per-member `#[serde(flatten)]` would produce). */
+    let treatment = PetTreatment {
+        medication: Some(Medication {
+            drug_name: "Amoxicillin".to_string(),
+            notes: Some("from-medication".to_string()),
+            ..Default::default()
+        }),
+        surgery: Some(Surgery {
+            procedure_name: "Spay".to_string(),
+            notes: Some("from-surgery".to_string()),
+            ..Default::default()
+        }),
+    };
+
+    let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized PetTreatment");
+
+    // Surgery is the later-declared member, so its `notes` wins the collision.
+    assert_eq!(
+        parsed["notes"], "from-surgery",
+        "the last-declared member's notes must win, got: {data}"
+    );
+    // `notes` appears exactly once — no duplicate JSON key.
+    assert_eq!(
+        data.matches(r#""notes""#).count(),
+        1,
+        "`notes` must appear exactly once (no duplicate key), got: {data}"
+    );
+}
+
+#[test]
 fn test_pet_treatment_no_match_errors() {
     /* oneof-nondiscriminator-no-match-silent: a payload matching neither
      * Medication nor Surgery must surface as a deserialization error. anyOf

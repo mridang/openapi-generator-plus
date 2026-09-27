@@ -13,7 +13,8 @@ defmodule PetstoreClient.Models.Surgery do
 
   @type t :: %__MODULE__{
           procedure_name: String.t(),
-          duration_minutes: integer() | nil
+          duration_minutes: integer() | nil,
+          notes: String.t() | nil
         }
 
   @enforce_keys [
@@ -21,7 +22,8 @@ defmodule PetstoreClient.Models.Surgery do
   ]
   defstruct [
     :procedure_name,
-    :duration_minutes
+    :duration_minutes,
+    :notes
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -29,7 +31,8 @@ defmodule PetstoreClient.Models.Surgery do
   def attribute_map do
     %{
       procedure_name: "procedureName",
-      duration_minutes: "durationMinutes"
+      duration_minutes: "durationMinutes",
+      notes: "notes"
     }
   end
 
@@ -60,7 +63,8 @@ defmodule PetstoreClient.Models.Surgery do
   def openapi_types do
     %{
       procedure_name: "String.t()",
-      duration_minutes: "integer()"
+      duration_minutes: "integer()",
+      notes: "String.t()"
     }
   end
 end

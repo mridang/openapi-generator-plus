@@ -194,6 +194,39 @@ class ComposedSchemaTest {
             assertThat(serialized).contains("durationMinutes");
             assertThat(serialized).contains("45");
         }
+
+        @Test
+        @DisplayName("shared-property collision keeps the last variant's value, emitted once")
+        void testSharedPropertyCollisionLastWins() {
+            // Both members declare `notes`. When a PetTreatment retains a
+            // Medication AND a Surgery that each set `notes` to a different
+            // value, the merged encoding keeps the LAST-declared member's value
+            // (Surgery is declared after Medication) and emits `notes` exactly
+            // once — never a duplicate JSON key.
+            PetTreatment medication =
+                    Objects.requireNonNull(
+                            serializer.deserialize(
+                                    "{\"drugName\":\"Amoxicillin\",\"notes\":\"from-medication\"}",
+                                    PET_TREATMENT_TYPE));
+            PetTreatment surgery =
+                    Objects.requireNonNull(
+                            serializer.deserialize(
+                                    "{\"procedureName\":\"Spay\",\"notes\":\"from-surgery\"}",
+                                    PET_TREATMENT_TYPE));
+            PetTreatment combined =
+                    new PetTreatment(
+                            java.util.List.of(
+                                    Objects.requireNonNull(medication.getActualInstance()),
+                                    Objects.requireNonNull(surgery.getActualInstance())));
+
+            String serialized = serializer.serialize(combined);
+
+            // Surgery is the later member, so its `notes` wins the collision.
+            assertThat(serialized).contains("from-surgery");
+            assertThat(serialized).doesNotContain("from-medication");
+            // `notes` appears exactly once — no duplicate key.
+            assertThat(serialized.split("\"notes\"", -1)).hasSize(2);
+        }
     }
 
     @Nested

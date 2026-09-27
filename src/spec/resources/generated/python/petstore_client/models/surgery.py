@@ -19,6 +19,7 @@ class Surgery(BaseModel):
 
     procedure_name: StrictStr = Field(alias="procedureName")
     duration_minutes: Optional[StrictInt] = Field(default=None, alias="durationMinutes")
+    notes: Optional[StrictStr] = Field(default=None, alias="notes")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

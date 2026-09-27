@@ -55,6 +55,9 @@ public class Medication : IEquatable<Medication>
     [JsonPropertyName("dosage")]
     public string? Dosage { get; set; }
 
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
@@ -65,6 +68,7 @@ public class Medication : IEquatable<Medication>
                 ReferenceEquals(this, other)
                 || EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
                     && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage)
+                    && EqualityComparer<string?>.Default.Equals(this.Notes, other.Notes)
             );
     }
 
@@ -78,6 +82,7 @@ public class Medication : IEquatable<Medication>
         HashCode hash = default;
         hash.Add(this.DrugName);
         hash.Add(this.Dosage);
+        hash.Add(this.Notes);
         return hash.ToHashCode();
     }
 }

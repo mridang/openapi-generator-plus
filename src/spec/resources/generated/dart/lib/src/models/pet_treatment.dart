@@ -22,6 +22,12 @@ class PetTreatment {
 
   const PetTreatment._(this._values);
 
+  /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
+  /// the multi-instance constructors the other SDKs expose (e.g. Java's
+  /// `List<Object>` form) so a co-satisfying value can be built in code, not
+  /// only decoded.
+  factory PetTreatment.ofValues(List<Object?> values) = PetTreatment._;
+
   /// Returns the first decoded variant, for back-compat with single-variant
   /// callers. Use [values] or [valueOf] to reach every retained variant.
   Object? get value => _values.isEmpty ? null : _values.first;

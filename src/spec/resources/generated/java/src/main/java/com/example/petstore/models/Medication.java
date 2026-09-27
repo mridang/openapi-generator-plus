@@ -22,6 +22,11 @@ public class Medication {
   @Nullable
   public String dosage;
 
+  /** The {@code notes} property. */
+  @JsonProperty("notes")
+  @Nullable
+  public String notes;
+
   /* No-arg constructor required by deserialization/test tooling. It
    * intentionally leaves the @NonNull required fields uninitialized — the
    * @JsonCreator constructor below populates them on the deserialization path.
@@ -59,11 +64,12 @@ public class Medication {
       return false;
     }
     return java.util.Objects.equals(this.drugName, other.drugName)
-        && java.util.Objects.equals(this.dosage, other.dosage);
+        && java.util.Objects.equals(this.dosage, other.dosage)
+        && java.util.Objects.equals(this.notes, other.notes);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(drugName, dosage);
+    return java.util.Objects.hash(drugName, dosage, notes);
   }
 }

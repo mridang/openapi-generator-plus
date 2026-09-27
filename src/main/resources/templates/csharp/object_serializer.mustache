@@ -74,6 +74,15 @@ internal class ObjectSerializer
         {
             throw new SerializationException("Failed to serialize object to JSON", e);
         }
+        catch (ArgumentException e)
+        {
+            /* A non-finite float (NaN, ±Infinity) makes Utf8JsonWriter throw an
+               ArgumentException — "values such as positive and negative infinity
+               cannot be written as valid JSON" (RFC 8259 §6). Wrap it so the SDK
+               never leaks a native serde exception and non-finite floats reject
+               with the SDK's SerializationException, matching the other SDKs. */
+            throw new SerializationException("Failed to serialize object to JSON", e);
+        }
     }
 
     /// <summary>

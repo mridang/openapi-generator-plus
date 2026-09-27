@@ -268,9 +268,10 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 
         Each variant that the payload satisfied contributes its own WIRE
         fields; the union is emitted so co-satisfied data round-trips with no
-        silent drop. Variants are merged in declared order, so an earlier
-        variant's value wins on the (rare) shared key. Falls back to the single
-        `actual_instance` when no retain-all set was recorded.
+        silent drop. Variants are merged in declared order, so a later
+        variant's value wins on the (rare) shared key and each key appears
+        exactly once. Falls back to the single `actual_instance` when no
+        retain-all set was recorded.
         """
         instances = self.matched_instances or ([self.actual_instance] if self.actual_instance is not None else [])
         merged: Dict[str, Any] = {}
@@ -281,7 +282,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
                 part = instance
             if isinstance(part, dict):
                 for key, value in part.items():
-                    merged.setdefault(key, value)
+                    merged[key] = value
             else:
                 # A non-model variant (e.g. a primitive anyOf member) cannot be
                 # merged field-wise; return it directly as the sole payload.

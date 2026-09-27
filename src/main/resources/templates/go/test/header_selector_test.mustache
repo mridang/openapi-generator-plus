@@ -67,6 +67,17 @@ func TestHeaderSelector_SelectAcceptHeaderFiltersEmptyEntries(t *testing.T) {
 	}
 }
 
+func TestHeaderSelector_SelectAcceptHeaderDropsWhitespaceOnlyEntries(t *testing.T) {
+	t.Parallel()
+	hs := newHeaderSelector()
+
+	accept := hs.selectAcceptHeader([]string{"   ", "application/json"})
+
+	if accept != "application/json" {
+		t.Errorf("expected 'application/json', got %q", accept)
+	}
+}
+
 func TestHeaderSelector_SelectAcceptHeaderEmptyWhenNothingRemains(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()

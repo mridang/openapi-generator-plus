@@ -64,7 +64,7 @@ func (h *headerSelector) isJSONMIME(searchString string) bool {
 func (h *headerSelector) selectAcceptHeader(accept []string) string {
 	var filtered []string
 	for _, s := range accept {
-		if s != "" {
+		if strings.TrimSpace(s) != "" {
 			filtered = append(filtered, s)
 		}
 	}

@@ -68,7 +68,7 @@ defmodule PetstoreClient.HeaderSelector do
   defp select_accept_header(nil), do: ""
 
   defp select_accept_header(accept) do
-    filtered = Enum.filter(accept, fn s -> not is_nil(s) and s != "" end)
+    filtered = Enum.filter(accept, fn s -> not is_nil(s) and String.trim(s) != "" end)
 
     case filtered do
       [] -> ""

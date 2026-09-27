@@ -150,6 +150,27 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert serialized =~ "45"
     end
 
+    test "anyOf collision keeps the last-declared variant, emitted once" do
+      # anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+      # When a PetTreatment retains both members with DIFFERENT `notes` values,
+      # the merged encoding keeps the LAST-declared member's value (Surgery) and
+      # emits `notes` exactly once — never a duplicate JSON key.
+      composite = %PetstoreClient.AnyOfComposite{
+        instances: [
+          %PetstoreClient.Models.Medication{drug_name: "Amoxicillin", notes: "from-medication"},
+          %PetstoreClient.Models.Surgery{procedure_name: "Spay", notes: "from-surgery"}
+        ]
+      }
+
+      serialized = PetstoreClient.ObjectSerializer.serialize(composite)
+
+      # Surgery is the later-declared member, so its `notes` wins the collision.
+      assert serialized =~ "from-surgery"
+      refute serialized =~ "from-medication"
+      # `notes` appears exactly once — no duplicate key.
+      assert length(String.split(serialized, ~s("notes"))) == 2
+    end
+
     test "raises for anyOf payload matching no variant" do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty

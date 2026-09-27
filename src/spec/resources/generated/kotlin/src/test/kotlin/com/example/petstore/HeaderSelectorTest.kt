@@ -176,6 +176,18 @@ class HeaderSelectorTest {
         }
 
         @Test
+        @DisplayName("drops whitespace-only entries before joining")
+        fun dropsWhitespaceOnlyEntries() {
+            val headers =
+                selector.selectHeaders(
+                    arrayOf("   ", "application/json"),
+                    "application/json",
+                    false,
+                )
+            assertEquals("application/json", headers["Accept"])
+        }
+
+        @Test
         @DisplayName("returns null Accept when only blank entries")
         fun returnsNullAcceptWhenOnlyBlank() {
             val headers =

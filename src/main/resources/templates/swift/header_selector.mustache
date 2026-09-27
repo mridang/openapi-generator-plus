@@ -51,7 +51,7 @@ internal final class HeaderSelector: Sendable {
     }
 
     private func selectAcceptHeader(_ accept: [String]) -> String {
-        let filtered = accept.filter { !$0.isEmpty }
+        let filtered = accept.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         if filtered.isEmpty { return "" }
         return filtered.joined(separator: ", ")
     }

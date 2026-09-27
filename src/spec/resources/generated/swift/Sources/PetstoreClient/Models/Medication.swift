@@ -11,16 +11,19 @@ import Foundation
 public struct Medication: Codable, Sendable, Equatable, Hashable {
   public var drugName: String
   public var dosage: String?
+  public var notes: String?
 
   enum CodingKeys: String, CodingKey {
     case drugName = "drugName"
     case dosage = "dosage"
+    case notes = "notes"
   }
 
   /// Creates a new Medication instance.
-  public init(drugName: String, dosage: String? = nil) {
+  public init(drugName: String, dosage: String? = nil, notes: String? = nil) {
     self.drugName = drugName
     self.dosage = dosage
+    self.notes = notes
   }
 
   /// Decodes this instance from the given decoder.
@@ -37,6 +40,7 @@ public struct Medication: Codable, Sendable, Equatable, Hashable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.drugName = try container.decode(String.self, forKey: .drugName)
     self.dosage = try container.decodeIfPresent(String.self, forKey: .dosage)
+    self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -48,5 +52,6 @@ public struct Medication: Codable, Sendable, Equatable, Hashable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(drugName, forKey: .drugName)
     try container.encodeIfPresent(dosage, forKey: .dosage)
+    try container.encodeIfPresent(notes, forKey: .notes)
   }
 }

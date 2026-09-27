@@ -155,6 +155,34 @@ public class ComposedSchemaTest
     }
 
     [Fact]
+    public void AnyOfSharedPropertyCollisionLastWins()
+    {
+        // anyOf-collision-last-wins: both Medication and Surgery declare `notes`.
+        // When a PetTreatment retains both members with DIFFERENT `notes` values,
+        // the merged encoding must keep the LAST-declared member's value (Surgery)
+        // and emit `notes` exactly once — never a duplicate JSON key.
+        var medication = _serializer
+            .Deserialize<PetTreatment>(
+                "{\"drugName\":\"Amoxicillin\",\"notes\":\"from-medication\"}"
+            )!
+            .MatchedInstances.OfType<Medication>()
+            .Single();
+        var surgery = _serializer
+            .Deserialize<PetTreatment>("{\"procedureName\":\"Spay\",\"notes\":\"from-surgery\"}")!
+            .MatchedInstances.OfType<Surgery>()
+            .Single();
+        var combined = new PetTreatment(new List<object> { medication, surgery });
+
+        var serialized = _serializer.Serialize(combined);
+
+        // Surgery is the later-declared member, so its `notes` wins the collision.
+        Assert.Contains("from-surgery", serialized);
+        Assert.DoesNotContain("from-medication", serialized);
+        // `notes` appears exactly once — no duplicate key.
+        Assert.Equal(2, serialized.Split("\"notes\"").Length);
+    }
+
+    [Fact]
     public void AnyOfNoMatchThrows()
     {
         // oneof-nondiscriminator-no-match-silent: a payload matching neither

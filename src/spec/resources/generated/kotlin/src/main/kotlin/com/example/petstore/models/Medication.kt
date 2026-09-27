@@ -27,4 +27,9 @@ data class Medication(
      */
     @SerialName("dosage")
     val dosage: String? = null,
+    /**
+     * The `notes` property.
+     */
+    @SerialName("notes")
+    val notes: String? = null,
 )

@@ -55,6 +55,9 @@ public class Surgery : IEquatable<Surgery>
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
 
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+
     /// <summary>Value-equality based on all declared fields. Generated so
     /// model instances work correctly as HashSet/Dictionary keys and in
     /// test assertions.</summary>
@@ -68,6 +71,7 @@ public class Surgery : IEquatable<Surgery>
                         this.DurationMinutes,
                         other.DurationMinutes
                     )
+                    && EqualityComparer<string?>.Default.Equals(this.Notes, other.Notes)
             );
     }
 
@@ -81,6 +85,7 @@ public class Surgery : IEquatable<Surgery>
         HashCode hash = default;
         hash.Add(this.ProcedureName);
         hash.Add(this.DurationMinutes);
+        hash.Add(this.Notes);
         return hash.ToHashCode();
     }
 }

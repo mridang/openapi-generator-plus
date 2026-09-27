@@ -92,6 +92,18 @@ void main() {
       expect(headers['Accept'], equals('application/json'));
     });
 
+    test('selectHeaders drops whitespace-only entries', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(
+        ['   ', 'application/json'],
+        'application/json',
+        false,
+      );
+
+      expect(headers['Accept'], equals('application/json'));
+    });
+
     test('selectHeaders returns no Accept when all entries empty', () {
       final hs = HeaderSelector();
 

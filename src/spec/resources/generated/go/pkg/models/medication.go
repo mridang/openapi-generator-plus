@@ -18,6 +18,7 @@ import (
 type Medication struct {
 	DrugName string  `json:"drugName"`
 	Dosage   *string `json:"dosage,omitempty"`
+	Notes    *string `json:"notes,omitempty"`
 }
 
 // Equal reports whether this Medication is value-equal to other.
