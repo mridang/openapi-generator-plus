@@ -335,6 +335,30 @@ export abstract class BaseApi {
       contentType.startsWith("image/") ||
       contentType === "application/octet-stream"
     ) {
+      /* An operation that declares BOTH multipart/form-data and a raw binary
+       * content-type builds its body as a form-parts object for the multipart
+       * case. When the caller selects the raw binary type instead, the
+       * multipart envelope must be bypassed: send the single binary part's
+       * bytes directly. Without this the object falls through to the transport,
+       * which dispatches multipart on a plain-object body, so the octet-stream
+       * selection would silently still ship a multipart/form-data body. */
+      if (
+        body !== null &&
+        typeof body === "object" &&
+        !Buffer.isBuffer(body) &&
+        !(body instanceof Blob) &&
+        !(body instanceof Uint8Array)
+      ) {
+        for (const value of Object.values(body as Record<string, unknown>)) {
+          if (
+            Buffer.isBuffer(value) ||
+            value instanceof Blob ||
+            value instanceof Uint8Array
+          ) {
+            return value as Buffer;
+          }
+        }
+      }
       return body as Buffer;
     }
     if (contentType === "text/plain") {

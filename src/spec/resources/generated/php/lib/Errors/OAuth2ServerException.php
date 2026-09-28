@@ -21,6 +21,12 @@ namespace PetstoreClient\Errors;
  * describing the error. `rawBody` preserves the original response payload
  * for diagnostics when the body is not a well-formed OAuth2 error object.
  *
+ * The property is named `errorCode`, not `code` as in the other SDKs: PHP's
+ * SPL `\Exception` base already declares a `protected int $code`, so a
+ * `?string $code` here would clash with it and fail. The other SDKs' base
+ * error types have no such member and use `code`; this rename is language-forced
+ * and must not be "aligned" back to `code`.
+ *
  * @category Class
  * @package  PetstoreClient
  */

@@ -323,6 +323,9 @@ class BaseApi
                 : $encode;
             if (is_array($v)) {
                 foreach ($v as $vv) {
+                    if (is_null($vv)) {
+                        continue;
+                    }
                     $qs .= $key;
                     if (is_bool($vv)) {
                         $qs .= '=' . $encodeValue($vv ? 'true' : 'false');
@@ -334,12 +337,22 @@ class BaseApi
                     $qs .= '&';
                 }
             } else {
+                if (is_null($v)) {
+                    /* A null query value is dropped entirely (no key, no `=`).
+                     * Every other SDK skips null query entries the same way
+                     * (java `if (value != null)`, node `if (value == null)
+                     * continue`, python pre-filters, ruby `query_params.compact`,
+                     * dotnet `if (value != null)`). Without this `continue` the
+                     * `$qs .= $key` below still ran for a null value, emitting a
+                     * valueless `key&` token — a php-only malformed query string. */
+                    continue;
+                }
                 $qs .= $key;
                 if (is_bool($v)) {
                     $qs .= '=' . $encodeValue($v ? 'true' : 'false');
                 } elseif (is_scalar($v)) {
                     $qs .= '=' . $encodeValue((string) $v);
-                } elseif (!is_null($v)) {
+                } else {
                     $qs .= '=' . $encodeValue((string) json_encode($v, JSON_UNESCAPED_SLASHES));
                 }
                 $qs .= '&';

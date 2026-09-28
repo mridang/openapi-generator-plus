@@ -230,7 +230,9 @@ module Petstore::Client
         elsif content_type == 'text/plain'
           body.to_s
         elsif content_type == 'application/x-www-form-urlencoded'
-          URI.encode_www_form(body)
+          # Omit nil-valued fields entirely rather than emitting a valueless
+          # `key=` pair, matching the query builder and the other SDKs.
+          URI.encode_www_form(body.compact)
         else
           ::Petstore::Client::ObjectSerializer.serialize(body)
         end

@@ -7,20 +7,25 @@
 #nullable enable
 
 using System.Diagnostics;
-using System.Globalization;
 
 namespace PetstoreClient;
 
 /// <summary>
-/// Utility for injecting W3C Trace Context headers (<c>traceparent</c>, <c>tracestate</c>)
-/// into outgoing API requests when OpenTelemetry is available.
+/// Utility for injecting trace context headers (<c>traceparent</c>, <c>tracestate</c>)
+/// into outgoing API requests.
 ///
-/// If no <see cref="Activity.Current"/> is present, this class silently no-ops.
+/// <para>Delegates to the process-wide <see cref="DistributedContextPropagator.Current"/>,
+/// so whichever propagation format the host application configured — the W3C
+/// default, or a custom or composite propagator — is the one written to the
+/// request, rather than a hard-coded W3C header. This mirrors the other SDKs,
+/// which inject through their configured OpenTelemetry propagator. If no
+/// <see cref="Activity.Current"/> is present, this class silently no-ops.</para>
 /// </summary>
 public static class TraceContextUtil
 {
     /// <summary>
-    /// Inject the current OpenTelemetry trace context into the given headers dictionary.
+    /// Inject the current trace context into the given headers dictionary using
+    /// the configured <see cref="DistributedContextPropagator"/>.
     /// </summary>
     /// <param name="headers">mutable dictionary of request headers</param>
     public static void InjectTraceContext(Dictionary<string, string> headers)
@@ -33,17 +38,16 @@ public static class TraceContextUtil
             return;
         }
 
-        string traceId = activity.TraceId.ToString();
-        string spanId = activity.SpanId.ToString();
-        string traceFlags = ((int)activity.ActivityTraceFlags).ToString(
-            "x2",
-            CultureInfo.InvariantCulture
+        DistributedContextPropagator.Current.Inject(
+            activity,
+            headers,
+            static (carrier, key, value) =>
+            {
+                if (carrier is Dictionary<string, string> target)
+                {
+                    target[key] = value;
+                }
+            }
         );
-        headers["traceparent"] = $"00-{traceId}-{spanId}-{traceFlags}";
-
-        if (!string.IsNullOrEmpty(activity.TraceStateString))
-        {
-            headers["tracestate"] = activity.TraceStateString;
-        }
     }
 }

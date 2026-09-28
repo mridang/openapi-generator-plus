@@ -64,7 +64,7 @@ class ObjectSerializerTest {
         void dateTimeReturnsIso8601String() {
             OffsetDateTime dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC);
             String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.startsWith("2024-01-15T10:30:00"));
+            assertEquals("2024-01-15T10:30:00.000+00:00", result);
         }
 
         @Test
@@ -309,8 +309,7 @@ class ObjectSerializerTest {
         void utcDateTimeSerializesWithOffset() {
             OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00");
             String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: " + result);
-            assertTrue(result.contains("+00:00") || result.endsWith("Z"), "should contain UTC offset: " + result);
+            assertEquals("2024-01-01T12:30:45.000+00:00", result);
         }
 
         @Test
@@ -354,12 +353,11 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("serialized datetime string ends with an offset or Z")
+        @DisplayName("serialized datetime string ends with a numeric offset, never Z")
         void serializedDateTimeHasOffset() {
             OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
             String result = ObjectSerializer.stringify(dt);
-            assertTrue(result.endsWith("+00:00") || result.endsWith("Z") || result.matches(".*[+-]\\d{2}:\\d{2}$"),
-                "should end with offset: " + result);
+            assertEquals("2024-01-01T12:30:45.000+00:00", result);
         }
 
         @Test

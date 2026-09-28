@@ -33,7 +33,7 @@ describe('ObjectSerializer', () => {
       // machines), matching the fixed-offset behaviour of the other SDKs.
       const date = new Date('2024-01-01T12:30:45.000Z');
       const result = ObjectSerializer.stringify(date);
-      expect(result).toBe('2024-01-01T12:30:45+00:00');
+      expect(result).toBe('2024-01-01T12:30:45.000+00:00');
     });
 
     test('datetime serializes in UTC regardless of host timezone', () => {
@@ -72,12 +72,12 @@ describe('ObjectSerializer', () => {
       expect(back!.takenAt!.getTime()).toBe(takenAt.getTime());
     });
 
-    test('whole-second datetime omits the fractional component', () => {
+    test('whole-second datetime includes the fixed .000 fraction', () => {
       const date = new Date('2024-01-01T00:00:00.000Z');
       const result = ObjectSerializer.stringify(date);
-      // A zero-millisecond instant keeps its bare seconds shape.
-      expect(result).not.toMatch(/\.\d+/);
-      expect(result).toBe('2024-01-01T00:00:00+00:00');
+      // A whole-second instant still emits the fixed three-digit fraction.
+      expect(result).toMatch(/\.\d{3}/);
+      expect(result).toBe('2024-01-01T00:00:00.000+00:00');
     });
 
     test('serialized datetime string ends with an offset', () => {
@@ -317,7 +317,7 @@ describe('ObjectSerializer', () => {
 
     test('date-time returns ISO 8601 string', () => {
       const date = new Date('2024-01-15T10:30:00.000Z');
-      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00+00:00');
+      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00.000+00:00');
     });
 
     test('plain string passes through unchanged', () => {

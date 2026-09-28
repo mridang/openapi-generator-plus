@@ -203,8 +203,9 @@ final class ValueSerializer {
   /**
    * Serialize a deepObject-style query parameter.
    *
-   * <p>Produces a map of flattened keys in the form {@code paramName[key]} to URL-encoded string
-   * values, suitable for inclusion in a query string.
+   * <p>Produces a map of flattened keys in the form {@code paramName[key]} to stringified values,
+   * suitable for inclusion in a query string. The values are not percent-encoded here; the
+   * query-string builder encodes them.
    *
    * @param paramName the parameter name (e.g. "filter")
    * @param value the map value to serialize

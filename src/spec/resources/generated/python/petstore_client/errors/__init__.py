@@ -30,6 +30,9 @@ class ApiException(OpenAPIException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
+        # Forward the message to the base Exception so `args`, `str()` and
+        # standard logging/pickling behave like every other SDK's exceptions.
+        super().__init__(message)
         # Stored privately and exposed through read-only @property getters so
         # that a caught exception's fields cannot be mutated after the fact
         # (e.g. rewriting status_code on a re-raised error). The typed
