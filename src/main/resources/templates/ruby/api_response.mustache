@@ -10,7 +10,9 @@ module {{moduleName}}
     def initialize(status_code:, body:, headers:)
       @status_code = status_code
       @body = body
-      @headers = headers
+      # Frozen so a caller's hash cannot mutate the response headers after
+      # construction, matching ApiResult.
+      @headers = headers.freeze
     end
   end
 end

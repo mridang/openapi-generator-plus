@@ -1,5 +1,7 @@
 {{>api_info}}
 
+using System.Collections.ObjectModel;
+
 namespace {{packageName}};
 
 /// <summary>
@@ -7,7 +9,15 @@ namespace {{packageName}};
 /// </summary>
 public class ApiHttpResponse(int statusCode, string body, IReadOnlyDictionary<string, string> headers)
 {
+    /// <summary>The HTTP status code.</summary>
     public int StatusCode { get; } = statusCode;
+
+    /// <summary>The raw response body string.</summary>
     public string Body { get; } = body;
-    public IReadOnlyDictionary<string, string> Headers { get; } = headers;
+
+    /// <summary>The response headers (unmodifiable).</summary>
+    /* Defensive copy wrapped read-only, matching ApiResult: the caller's
+       dictionary cannot mutate the response headers after construction. */
+    public IReadOnlyDictionary<string, string> Headers { get; } =
+        new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(headers));
 }
