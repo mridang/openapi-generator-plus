@@ -7,6 +7,9 @@
 
 import { BearerAuthenticator } from "./bearer-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the serviceToken security scheme.
+ */
 export class ServiceTokenAuthenticator extends BearerAuthenticator {
   constructor(host: string, token: string) {
     super(host, token);

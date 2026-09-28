@@ -9,6 +9,8 @@ from .oauth2_password_authenticator import OAuth2PasswordAuthenticator
 
 
 class LegacyAuthPasswordAuthenticator(OAuth2PasswordAuthenticator):
+    """Scheme-specific authenticator for the legacyAuth security scheme."""
+
     def __init__(
         self,
         host: str,

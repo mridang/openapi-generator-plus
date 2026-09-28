@@ -22,7 +22,7 @@ public class ApiResult<T>(
     /// <summary>The deserialized response body (null for void responses).</summary>
     public T? Data { get; } = data;
 
-    /// <summary>The raw response body string (always populated; empty for an empty body).</summary>
+    /// <summary>The raw response body string (never null; empty for no body).</summary>
     public string RawBody { get; } = rawBody;
 
     /// <summary>The response headers (unmodifiable).</summary>

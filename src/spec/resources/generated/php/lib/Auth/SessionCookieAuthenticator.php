@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth;
 
 /**
- * Scheme-specific authenticator for the SessionCookieAuthenticator security scheme.
+ * Scheme-specific authenticator for the sessionCookie security scheme.
  */
 final class SessionCookieAuthenticator extends ApiKeyAuthenticator
 {

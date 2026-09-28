@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth;
 
 /**
- * Scheme-specific authenticator for the PetStoreBearerAuthenticator security scheme.
+ * Scheme-specific authenticator for the petStoreBearer security scheme.
  */
 final class PetStoreBearerAuthenticator extends BearerAuthenticator
 {

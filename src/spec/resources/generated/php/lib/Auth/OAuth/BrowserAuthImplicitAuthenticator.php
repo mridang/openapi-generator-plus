@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 /**
- * Scheme-specific authenticator for the BrowserAuthImplicitAuthenticator security scheme.
+ * Scheme-specific authenticator for the browserAuth security scheme.
  */
 final class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator
 {

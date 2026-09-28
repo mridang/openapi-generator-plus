@@ -20,8 +20,10 @@ namespace PetstoreClient;
 ///     .Build();
 /// </code>
 ///
-/// For servers with variables, pass overrides via
-/// <see cref="ServerConfiguration.GetUrl(Dictionary{string, string})"/>.
+/// For servers with variables, pass overrides:
+/// <code>
+/// var url = Servers.Server1.GetUrl(new() { ["environment"] = "staging" });
+/// </code>
 /// </summary>
 public static class Servers
 {

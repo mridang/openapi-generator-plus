@@ -91,7 +91,7 @@ class Client
      *
      * @param string $host API base URL.
      * @param string $accessToken Bearer token.
-     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
      * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
      * @return self Configured client instance.
      */
@@ -115,7 +115,7 @@ class Client
      * same transport configuration.
      *
      * @param Authenticator $authenticator Provides host URL and auth headers.
-     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
      * @param ApiClient|null $apiClient Optional custom transport (e.g. a {@see Psr18ApiClient}).
      * @return self Configured client instance.
      */

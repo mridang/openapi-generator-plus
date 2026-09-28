@@ -7,6 +7,9 @@
 
 import { OAuth2PasswordAuthenticator } from "./oauth2-password-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the legacyAuth security scheme.
+ */
 export class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
   constructor(
     host: string,

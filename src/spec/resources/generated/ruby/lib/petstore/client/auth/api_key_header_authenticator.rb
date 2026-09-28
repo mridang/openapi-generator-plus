@@ -9,7 +9,7 @@
 
 module Petstore::Client
   module Auth
-    # Scheme-specific authenticator for the ApiKeyHeaderAuthenticator security scheme.
+    # Scheme-specific authenticator for the apiKeyHeader security scheme.
     class ApiKeyHeaderAuthenticator < ApiKeyAuthenticator
       def initialize(host:, api_key:)
         super(

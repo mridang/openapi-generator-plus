@@ -17,6 +17,8 @@ class {{errorPrefix}}Exception(Exception):
 
 
 class ApiException({{errorPrefix}}Exception):
+    """Exception thrown when an API call fails."""
+
     def __init__(
         self,
         status_code: int = 0,

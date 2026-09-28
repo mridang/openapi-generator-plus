@@ -8,6 +8,9 @@
 import { ApiKeyAuthenticator } from "./api-key-authenticator.js";
 import { ApiKeyLocation } from "./api-key-location.js";
 
+/**
+ * Scheme-specific authenticator for the apiKeyHeader security scheme.
+ */
 export class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator {
   constructor(host: string, apiKey: string) {
     super(host, "X-API-Key", apiKey, ApiKeyLocation.HEADER);

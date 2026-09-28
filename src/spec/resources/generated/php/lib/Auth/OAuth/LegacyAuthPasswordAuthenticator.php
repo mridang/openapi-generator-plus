@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 /**
- * Scheme-specific authenticator for the LegacyAuthPasswordAuthenticator security scheme.
+ * Scheme-specific authenticator for the legacyAuth security scheme.
  */
 final class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
 {

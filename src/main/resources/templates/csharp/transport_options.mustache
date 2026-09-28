@@ -34,7 +34,7 @@ public sealed class TransportOptions
     /// <summary>
     /// Path to a custom CA certificate bundle for TLS verification.
     /// When set together with <see cref="VerifySsl"/>=<c>true</c>, the client trusts
-    /// certificates signed by this CA instead of the system trust store.
+    /// certificates signed by this CA in addition to (or instead of) the system trust store.
     /// <c>null</c> uses the system default.
     /// </summary>
     public string? CaCertPath { get; }
@@ -138,6 +138,8 @@ public sealed class TransportOptions
 ///   <item><description><c>VerifySsl</c> -- <c>true</c></description></item>
 ///   <item><description><c>FollowRedirects</c> -- <c>true</c></description></item>
 ///   <item><description><c>InjectRequestId</c> -- <c>false</c></description></item>
+///   <item><description><c>Timeout</c> -- <c>10000</c> (10 seconds)</description></item>
+///   <item><description><c>UserAgent</c> -- a package-specific default string</description></item>
 ///   <item><description>All other fields -- <c>null</c> or empty</description></item>
 /// </list>
 /// </summary>

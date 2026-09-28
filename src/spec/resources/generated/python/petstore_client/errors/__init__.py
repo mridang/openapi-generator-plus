@@ -22,6 +22,8 @@ class OpenAPIException(Exception):
 
 
 class ApiException(OpenAPIException):
+    """Exception thrown when an API call fails."""
+
     def __init__(
         self,
         status_code: int = 0,

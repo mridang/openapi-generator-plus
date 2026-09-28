@@ -9,7 +9,7 @@
 
 module Petstore::Client
   module Auth
-    # Scheme-specific authenticator for the AdminBasicAuthenticator security scheme.
+    # Scheme-specific authenticator for the adminBasic security scheme.
     class AdminBasicAuthenticator < BasicAuthenticator
       def initialize(host:, username:, password:)
         super(

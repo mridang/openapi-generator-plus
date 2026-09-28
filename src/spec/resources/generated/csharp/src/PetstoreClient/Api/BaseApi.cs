@@ -56,7 +56,7 @@ public abstract class BaseApi
     /// </summary>
     /// <param name="apiClient">The HTTP transport client.</param>
     /// <param name="config">API-level configuration (base URL and default headers).</param>
-    /// <param name="authenticator">Optional authenticator for per-request auth.</param>
+    /// <param name="authenticator">Default authenticator for operations without explicit auth.</param>
     protected BaseApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
     {
         ArgumentNullException.ThrowIfNull(apiClient);

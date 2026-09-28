@@ -9,5 +9,7 @@ from .bearer_authenticator import BearerAuthenticator
 
 
 class PetStoreBearerAuthenticator(BearerAuthenticator):
+    """Scheme-specific authenticator for the petStoreBearer security scheme."""
+
     def __init__(self, host: str, token: str):
         super().__init__(host, token)

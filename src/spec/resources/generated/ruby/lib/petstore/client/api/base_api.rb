@@ -45,6 +45,7 @@ module Petstore::Client
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
+      # @param authenticator [Authenticator, nil] default authenticator for operations without explicit auth
       def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
         @config = config
         @api_client = api_client || ::Petstore::Client::DefaultApiClient.new
@@ -54,6 +55,22 @@ module Petstore::Client
 
       protected
 
+      # Invoke an API operation and return the full result including status
+      # code, headers, and raw body alongside the deserialized data.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param return_type [String, nil] return type for deserialization (nil for void)
+      # @param auth [Object, nil] operation-specific auth resolution. Three states:
+      #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
+      #   client-level authenticator, and a real authenticator is a per-call override.
+      # @return [ApiResult] ApiResult containing deserialized data, status code, raw body, and headers
+      # @raise [Errors::ApiError] if the API call fails
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil
@@ -160,6 +177,21 @@ module Petstore::Client
         )
       end
 
+      # Invoke an API operation.
+      #
+      # @param method [String] HTTP method (GET, POST, PUT, DELETE, etc.)
+      # @param path [String] URL path (with path params already substituted)
+      # @param query_params [Hash] query parameters
+      # @param header_params [Hash] custom header parameters
+      # @param body [Object, nil] request body (model object or nil)
+      # @param accepts [Array<String>] acceptable response content types
+      # @param content_type [String, nil] request content type
+      # @param return_type [String, nil] return type for deserialization (nil for void)
+      # @param auth [Object, nil] operation-specific auth resolution. Three states:
+      #   NO_AUTH suppresses auth (security: [] operation), nil falls back to the
+      #   client-level authenticator, and a real authenticator is a per-call override.
+      # @return [Object, nil] deserialized response or nil
+      # @raise [Errors::ApiError] if the API call fails
       def invoke_api(
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil

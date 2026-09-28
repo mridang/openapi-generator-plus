@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth;
 
 /**
- * Scheme-specific authenticator for the ApiKeyHeaderAuthenticator security scheme.
+ * Scheme-specific authenticator for the apiKeyHeader security scheme.
  */
 final class ApiKeyHeaderAuthenticator extends ApiKeyAuthenticator
 {

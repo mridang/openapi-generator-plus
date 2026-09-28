@@ -9,5 +9,7 @@ from .basic_authenticator import BasicAuthenticator
 
 
 class AdminBasicAuthenticator(BasicAuthenticator):
+    """Scheme-specific authenticator for the adminBasic security scheme."""
+
     def __init__(self, host: str, username: str, password: str):
         super().__init__(host, username, password)

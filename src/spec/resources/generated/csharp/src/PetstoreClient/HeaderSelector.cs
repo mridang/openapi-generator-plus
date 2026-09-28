@@ -11,7 +11,8 @@ using System.Text.RegularExpressions;
 namespace PetstoreClient;
 
 /// <summary>
-/// Selects appropriate Content-Type and Accept headers for API requests.
+/// Selects Accept and Content-Type headers for API requests based on the MIME types
+/// declared in the OpenAPI specification.
 /// </summary>
 internal static partial class HeaderSelector
 {
@@ -21,6 +22,10 @@ internal static partial class HeaderSelector
     /// <summary>
     /// Select headers for an API request.
     /// </summary>
+    /// <param name="accept">array of acceptable MIME types for the response</param>
+    /// <param name="contentType">the Content-Type for the request body</param>
+    /// <param name="isMultipart">whether this is a multipart request</param>
+    /// <returns>map of header names to values</returns>
     public static Dictionary<string, string> SelectHeaders(
         string[] accept,
         string contentType,
@@ -48,13 +53,15 @@ internal static partial class HeaderSelector
     }
 
     /// <summary>
-    /// Check if a MIME type is a JSON type.
+    /// Return the header 'Accept' based on an array of Accept provided.
     /// </summary>
-    public static bool IsJsonMime(string? mimeType)
-    {
-        return mimeType != null && JsonMimePattern().IsMatch(mimeType);
-    }
-
+    /// <remarks>
+    /// Null and blank entries are removed and the remaining media types are joined, in their
+    /// original declaration order, with ", " (comma followed by a single space). No quality
+    /// weights are added and no reordering is performed.
+    /// </remarks>
+    /// <param name="accept">array of acceptable media types</param>
+    /// <returns>the Accept header value, or an empty string if there is nothing to send</returns>
     internal static string SelectAcceptHeader(string[]? accept)
     {
         if (accept == null || accept.Length == 0)
@@ -69,5 +76,15 @@ internal static partial class HeaderSelector
         }
 
         return string.Join(", ", filtered);
+    }
+
+    /// <summary>
+    /// Detects whether a string contains a valid JSON mime type.
+    /// </summary>
+    /// <param name="mimeType">the MIME type string to check</param>
+    /// <returns>true if the string represents a JSON MIME type</returns>
+    public static bool IsJsonMime(string? mimeType)
+    {
+        return mimeType != null && JsonMimePattern().IsMatch(mimeType);
     }
 }

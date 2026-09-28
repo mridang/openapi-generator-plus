@@ -10,6 +10,9 @@ namespace PetstoreClient;
 
 /// <summary>
 /// Interface for API HTTP transport.
+///
+/// Implementations handle the actual HTTP request/response cycle. The
+/// default implementation uses <see cref="System.Net.Http.HttpClient"/>.
 /// </summary>
 public interface IApiClient : IDisposable
 {

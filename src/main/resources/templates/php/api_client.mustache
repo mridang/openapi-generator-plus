@@ -2,7 +2,10 @@
 namespace {{invokerPackage}};
 
 /**
- * ApiClient Interface
+ * Interface for API HTTP transport.
+ *
+ * Implementations handle the actual HTTP request/response cycle. The
+ * default implementation uses Symfony's HttpClient.
  *
  * @category Interface
  * @package  {{invokerPackage}}

@@ -16,6 +16,9 @@ namespace PetstoreClient;
 
 /// <summary>
 /// Handles JSON serialization and deserialization for API requests and responses.
+/// All serde operations in the generated client route through this class.
+/// The parameter encoding methods provide consistent value conversion for
+/// URL path, query string, header, and form parameters.
 /// </summary>
 internal class ObjectSerializer
 {
@@ -196,6 +199,7 @@ internal class ObjectSerializer
 
     /// <summary>
     /// Convert a value to a representation suitable for use as a query parameter.
+    /// For collections, joins using the specified collection format delimiter.
     /// </summary>
     public static object? ToQueryValue(object? value, string? collectionFormat)
     {
@@ -265,7 +269,7 @@ internal class ObjectSerializer
     }
 
     /// <summary>
-    /// Resolve a oneOf schema by attempting deserialization against each candidate.
+    /// Resolve a oneOf schema by trying each candidate deserializer in order.
     /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result, or throws a
@@ -298,7 +302,8 @@ internal class ObjectSerializer
     }
 
     /// <summary>
-    /// Resolve an anyOf schema by attempting deserialization against each candidate.
+    /// Resolve an anyOf schema by trying each candidate deserializer in order.
+    /// Delegates to <see cref="ResolveOneOf"/>.
     /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
     /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result, or throws a

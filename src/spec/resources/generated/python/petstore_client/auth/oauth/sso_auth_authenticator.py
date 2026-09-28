@@ -9,6 +9,8 @@ from .openid_connect_authenticator import OpenIdConnectAuthenticator
 
 
 class SsoAuthAuthenticator(OpenIdConnectAuthenticator):
+    """Scheme-specific authenticator for the ssoAuth security scheme."""
+
     def __init__(
         self, host: str, client_id: str, client_secret: str, redirect_uri: str
     ):

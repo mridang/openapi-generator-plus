@@ -10,5 +10,7 @@ from .api_key_location import ApiKeyLocation
 
 
 class SessionCookieAuthenticator(ApiKeyAuthenticator):
+    """Scheme-specific authenticator for the sessionCookie security scheme."""
+
     def __init__(self, host: str, api_key: str):
         super().__init__(host, "SESSION_ID", api_key, ApiKeyLocation.COOKIE)

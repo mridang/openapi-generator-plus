@@ -10,8 +10,7 @@ namespace PetstoreClient.Auth;
 
 /// <summary>
 /// Interface for providing authentication credentials to the API client.
-/// Implementations supply the API host URL, authorization headers,
-/// query parameters, and cookie parameters.
+/// Implementations supply the API host URL and authorization headers.
 /// </summary>
 public interface IAuthenticator
 {

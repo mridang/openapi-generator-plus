@@ -7,6 +7,9 @@
 
 import { OpenIdConnectAuthenticator } from "./openid-connect-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the ssoAuth security scheme.
+ */
 export class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
   constructor(
     host: string,

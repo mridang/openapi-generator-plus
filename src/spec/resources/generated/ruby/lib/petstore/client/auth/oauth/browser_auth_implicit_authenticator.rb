@@ -10,7 +10,7 @@
 module Petstore::Client
   module Auth
     module OAuth
-      # Scheme-specific authenticator for the BrowserAuthImplicitAuthenticator security scheme.
+      # Scheme-specific authenticator for the browserAuth security scheme.
       class BrowserAuthImplicitAuthenticator < OAuth2ImplicitAuthenticator
         def initialize(host:, client_id:)
           super(

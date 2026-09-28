@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 /**
- * Scheme-specific authenticator for the MachineAuthClientCredentialsAuthenticator security scheme.
+ * Scheme-specific authenticator for the machineAuth security scheme.
  */
 final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator
 {

@@ -4,6 +4,9 @@
 import { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
 {{/imports}}
 
+/**
+ * Scheme-specific authenticator for the {{schemeName}} security scheme.
+ */
 export class {{className}} extends {{baseClass}} {
   constructor({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
     super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});

@@ -7,6 +7,9 @@
 
 import { OAuth2AuthorizationCodeAuthenticator } from "./oauth2-authorization-code-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the userAuth security scheme.
+ */
 export class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator {
   constructor(
     host: string,

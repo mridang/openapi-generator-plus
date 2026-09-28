@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 /**
- * Scheme-specific authenticator for the UserAuthAuthorizationCodeAuthenticator security scheme.
+ * Scheme-specific authenticator for the userAuth security scheme.
  */
 final class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator
 {

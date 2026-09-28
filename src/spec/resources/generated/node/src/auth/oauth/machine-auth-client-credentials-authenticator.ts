@@ -7,6 +7,9 @@
 
 import { OAuth2ClientCredentialsAuthenticator } from "./oauth2-client-credentials-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the machineAuth security scheme.
+ */
 export class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {
   constructor(host: string, clientId: string, clientSecret: string) {
     super(

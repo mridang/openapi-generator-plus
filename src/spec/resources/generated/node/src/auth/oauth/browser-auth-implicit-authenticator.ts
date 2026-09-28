@@ -7,6 +7,9 @@
 
 import { OAuth2ImplicitAuthenticator } from "./oauth2-implicit-authenticator.js";
 
+/**
+ * Scheme-specific authenticator for the browserAuth security scheme.
+ */
 export class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
   constructor(host: string, clientId: string) {
     super(host, clientId, "https://auth.example.com/authorize", ["read"]);

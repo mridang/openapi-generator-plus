@@ -11,6 +11,8 @@ from .oauth2_client_credentials_authenticator import (
 
 
 class MachineAuthClientCredentialsAuthenticator(OAuth2ClientCredentialsAuthenticator):
+    """Scheme-specific authenticator for the machineAuth security scheme."""
+
     def __init__(self, host: str, client_id: str, client_secret: str):
         super().__init__(
             host,

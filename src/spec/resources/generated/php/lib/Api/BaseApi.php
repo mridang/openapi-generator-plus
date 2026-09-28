@@ -45,9 +45,11 @@ class BaseApi
     protected readonly ?Authenticator $authenticator;
 
     /**
+     * Create an API instance.
+     *
      * @param ApiClient|null     $apiClient     API client instance
      * @param Configuration|null $config        Configuration instance
-     * @param Authenticator|null $authenticator Default authenticator for all operations
+     * @param Authenticator|null $authenticator Default authenticator for operations without explicit auth
      */
     public function __construct(
         ?ApiClient $apiClient = null,
@@ -61,9 +63,10 @@ class BaseApi
     }
 
     /**
-     * Invoke an API operation and return the full result.
+     * Invoke an API operation and return the full result including status code,
+     * headers, and raw body alongside the deserialized data.
      *
-     * @param string                $method       HTTP method
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param string                $path         URL path (with path params already substituted)
      * @param array<string, mixed>  $queryParams  Query parameters
      * @param array<string, string> $headerParams Custom header parameters
@@ -230,7 +233,7 @@ class BaseApi
     /**
      * Invoke an API operation.
      *
-     * @param string                $method       HTTP method
+     * @param string                $method       HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param string                $path         URL path (with path params already substituted)
      * @param array<string, mixed>  $queryParams  Query parameters
      * @param array<string, string> $headerParams Custom header parameters

@@ -9,7 +9,9 @@
 namespace PetstoreClient.Errors;
 
 /// <summary>
-/// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The
+/// Thrown when the OAuth2 token endpoint answers with a non-2xx status,
+/// including a 3xx redirect, which the token POST never follows. Typed
+/// representation of an RFC 6749 §5.2 OAuth2 error response. The
 /// <see cref="Code"/> property carries the OAuth2 error code (e.g.
 /// <c>invalid_grant</c>, <c>invalid_client</c>); <see cref="Description"/>
 /// and <see cref="Uri"/> are the optional human-readable description and a

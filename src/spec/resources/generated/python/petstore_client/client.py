@@ -51,10 +51,9 @@ class Client:
         discovery requests use the same proxy, TLS, and timeout settings.
 
         Args:
-            authenticator: Provides host URL and auth credentials.
+            authenticator: Provides host URL and auth headers.
             transport_options: HTTP transport configuration (proxy, TLS,
-                timeouts, etc.). If ``None``, default transport settings
-                are used.
+                timeouts, etc.).
         """
         if transport_options is None:
             transport_options = TransportOptions.builder().build()
@@ -65,7 +64,9 @@ class Client:
             authenticator.set_api_client(api_client)
 
         config = Configuration.builder().base_url(authenticator.get_host()).build()
+        # API operations for the PetApi group.
         self.pet: PetApi = PetApi(api_client, config, authenticator)
+        # API operations for the StoreApi group.
         self.store: StoreApi = StoreApi(api_client, config, authenticator)
 
     @classmethod
@@ -80,7 +81,8 @@ class Client:
         Args:
             host: API base URL.
             access_token: Bearer token.
-            transport_options: Optional transport configuration.
+            transport_options: Optional HTTP transport configuration (proxy,
+                TLS, timeouts, etc.).
 
         Returns:
             Configured client instance.
@@ -95,13 +97,17 @@ class Client:
     ) -> "Client":
         """Creates a client from a ready-made authenticator.
 
-        This is the generic entry point for bespoke authenticators (client
-        credentials, JWT private key, PAT, etc.). Construct the authenticator
-        yourself and pass it in.
+        This is the generic entry point for bespoke authentication strategies
+        such as OAuth2 client credentials, JWT private-key (service account),
+        or a personal access token (PAT). Supply any :class:`Authenticator`
+        implementation; if it also implements :class:`HttpAwareAuthenticator`,
+        the shared :class:`ApiClient` is injected so its HTTP calls reuse the
+        same transport configuration.
 
         Args:
-            authenticator: Provides host URL and auth credentials.
-            transport_options: Optional transport configuration.
+            authenticator: Provides host URL and auth headers.
+            transport_options: Optional HTTP transport configuration (proxy,
+                TLS, timeouts, etc.).
 
         Returns:
             Configured client instance.

@@ -9,5 +9,7 @@ from .bearer_authenticator import BearerAuthenticator
 
 
 class ServiceTokenAuthenticator(BearerAuthenticator):
+    """Scheme-specific authenticator for the serviceToken security scheme."""
+
     def __init__(self, host: str, token: str):
         super().__init__(host, token)

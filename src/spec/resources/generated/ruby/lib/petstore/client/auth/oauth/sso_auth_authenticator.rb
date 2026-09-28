@@ -10,7 +10,7 @@
 module Petstore::Client
   module Auth
     module OAuth
-      # Scheme-specific authenticator for the SsoAuthAuthenticator security scheme.
+      # Scheme-specific authenticator for the ssoAuth security scheme.
       class SsoAuthAuthenticator < OpenIdConnectAuthenticator
         def initialize(host:, client_id:, client_secret:, redirect_uri:)
           super(

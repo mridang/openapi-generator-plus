@@ -44,7 +44,7 @@ export abstract class BaseApi {
    *   When omitted a {@link DefaultApiClient} with default transport options is used.
    * @param config API-level configuration (base URL and default headers).
    *   When omitted the {@link Configuration.defaultConfiguration default configuration} is used.
-   * @param authenticator optional authenticator applied to all requests unless overridden per-call.
+   * @param authenticator default authenticator for operations without explicit auth.
    */
   protected constructor(
     apiClient?: ApiClient,
@@ -61,7 +61,7 @@ export abstract class BaseApi {
    * Invoke an API operation and return the full result including status code,
    * headers, and raw body alongside the deserialized data.
    *
-   * @param method HTTP method
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
    * @param path URL path (with path params already substituted)
    * @param queryParams query parameters
    * @param headerParams custom header parameters
@@ -256,7 +256,7 @@ export abstract class BaseApi {
   /**
    * Invoke an API operation.
    *
-   * @param method HTTP method
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
    * @param path URL path (with path params already substituted)
    * @param queryParams query parameters
    * @param headerParams custom header parameters

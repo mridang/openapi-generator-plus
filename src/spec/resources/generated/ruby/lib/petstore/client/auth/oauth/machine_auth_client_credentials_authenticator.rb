@@ -10,7 +10,7 @@
 module Petstore::Client
   module Auth
     module OAuth
-      # Scheme-specific authenticator for the MachineAuthClientCredentialsAuthenticator security scheme.
+      # Scheme-specific authenticator for the machineAuth security scheme.
       class MachineAuthClientCredentialsAuthenticator < OAuth2ClientCredentialsAuthenticator
         def initialize(host:, client_id:, client_secret:)
           super(

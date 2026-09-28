@@ -9,7 +9,7 @@
 
 module Petstore::Client
   module Auth
-    # Scheme-specific authenticator for the PetStoreBearerAuthenticator security scheme.
+    # Scheme-specific authenticator for the petStoreBearer security scheme.
     class PetStoreBearerAuthenticator < BearerAuthenticator
       def initialize(host:, token:)
         super(

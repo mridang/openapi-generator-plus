@@ -14,7 +14,7 @@ module Petstore::Client
   # request. Transport-level settings (TLS, proxy, timeouts) belong in
   # {TransportOptions} and are configured on the {DefaultApiClient}.
   #
-  # This class is immutable. Use {Configuration.builder} to create instances:
+  # This class is immutable and thread-safe. Use {Configuration.builder} to create instances:
   #
   #     config = ::Petstore::Client::Configuration.builder
   #       .base_url('https://api.example.com')
@@ -46,6 +46,9 @@ module Petstore::Client
     end
 
     # Return a {Configuration} with default values.
+    #
+    # A fresh instance every call: the SDK keeps no process-wide default a
+    # caller could swap out from under another caller.
     # @return [Configuration]
     def self.default_configuration
       builder.build

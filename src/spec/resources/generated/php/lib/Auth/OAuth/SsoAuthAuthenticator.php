@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth\OAuth;
 
 /**
- * Scheme-specific authenticator for the SsoAuthAuthenticator security scheme.
+ * Scheme-specific authenticator for the ssoAuth security scheme.
  */
 final class SsoAuthAuthenticator extends OpenIdConnectAuthenticator
 {

@@ -10,7 +10,7 @@ module {{moduleName}}
   module Auth
 {{#isOAuth}}
     module OAuth
-      # Scheme-specific authenticator for the {{className}} security scheme.
+      # Scheme-specific authenticator for the {{schemeName}} security scheme.
       class {{className}} < {{baseClass}}
         def initialize({{#constructorParams}}{{name}}:{{^-last}}, {{/-last}}{{/constructorParams}})
           super(
@@ -23,7 +23,7 @@ module {{moduleName}}
     end
 {{/isOAuth}}
 {{^isOAuth}}
-    # Scheme-specific authenticator for the {{className}} security scheme.
+    # Scheme-specific authenticator for the {{schemeName}} security scheme.
     class {{className}} < {{baseClass}}
       def initialize({{#constructorParams}}{{name}}:{{^-last}}, {{/-last}}{{/constructorParams}})
         super(

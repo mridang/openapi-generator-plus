@@ -9,7 +9,7 @@
 
 module Petstore::Client
   module Auth
-    # Scheme-specific authenticator for the SessionCookieAuthenticator security scheme.
+    # Scheme-specific authenticator for the sessionCookie security scheme.
     class SessionCookieAuthenticator < ApiKeyAuthenticator
       def initialize(host:, api_key:)
         super(

@@ -11,6 +11,8 @@ from .oauth2_authorization_code_authenticator import (
 
 
 class UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthenticator):
+    """Scheme-specific authenticator for the userAuth security scheme."""
+
     def __init__(
         self, host: str, client_id: str, client_secret: str, redirect_uri: str
     ):

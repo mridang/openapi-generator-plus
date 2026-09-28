@@ -14,7 +14,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Auth;
 
 /**
- * Scheme-specific authenticator for the ServiceTokenAuthenticator security scheme.
+ * Scheme-specific authenticator for the serviceToken security scheme.
  */
 final class ServiceTokenAuthenticator extends BearerAuthenticator
 {
