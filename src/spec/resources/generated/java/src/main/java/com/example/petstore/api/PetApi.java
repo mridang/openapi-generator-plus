@@ -30,6 +30,7 @@ import com.example.petstore.models.Photo;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.InputStream;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,6 +53,9 @@ public class PetApi extends BaseApi {
 
   private static final java.lang.reflect.Type downloadPetDocumentTypeRef =
       new TypeReference<InputStream>() {}.getType();
+
+  private static final java.lang.reflect.Type findPetsBornOnTypeRef =
+      new TypeReference<List<Pet>>() {}.getType();
 
   private static final java.lang.reflect.Type findPetsByStatusTypeRef =
       new TypeReference<List<Pet>>() {}.getType();
@@ -681,6 +685,50 @@ public class PetApi extends BaseApi {
         new String[] {"application/octet-stream"},
         "application/json",
         downloadPetDocumentTypeRef,
+        null);
+  }
+
+  /**
+   * List pets born on a given date
+   *
+   * @param bornOn Date of birth to match (required)
+   * @return {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Pet> findPetsBornOn(LocalDate bornOn) {
+    return requireBody(findPetsBornOnWithHttpInfo(bornOn), "findPetsBornOn");
+  }
+
+  /**
+   * List pets born on a given date
+   *
+   * @param bornOn Date of birth to match (required)
+   * @return the API result wrapping {@code List<Pet>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
+    if (bornOn == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'bornOn' when calling findPetsBornOn");
+    }
+    String path =
+        "/pet/born-on/{bornOn}"
+            .replace(
+                "{" + "bornOn" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "bornOn", bornOn, "path", "LocalDate", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        findPetsBornOnTypeRef,
         null);
   }
 

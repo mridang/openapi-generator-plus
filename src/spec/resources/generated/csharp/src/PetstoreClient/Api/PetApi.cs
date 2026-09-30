@@ -188,6 +188,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] DownloadPetDocumentAccepts = ["application/octet-stream"];
 
+    private static readonly string[] FindPetsBornOnAccepts = ["application/json"];
+
     private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
 
     private static readonly string[] GetExternalPetInfoAccepts = ["application/json"];
@@ -664,6 +666,77 @@ public class PetApi : BaseApi
                 DownloadPetDocumentAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// List pets born on a given date
+    /// </summary>
+    /// <param name="bornOn">Date of birth to match</param>
+    /// <returns><![CDATA[List<Pet>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Pet>> FindPetsBornOnAsync(DateOnly bornOn)
+    {
+        Task<ApiResult<List<Pet>>> task = FindPetsBornOnWithHttpInfoAsync(bornOn);
+        ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. */
+        if (string.IsNullOrEmpty(result.RawBody))
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a non-empty response body but none was returned",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// List pets born on a given date (with HTTP info)
+    /// </summary>
+    /// <param name="bornOn">Date of birth to match</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Pet>>> FindPetsBornOnWithHttpInfoAsync(DateOnly bornOn)
+    {
+        string path = "/pet/born-on/{bornOn}";
+        path = path.Replace(
+            "{" + nameof(bornOn) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(bornOn),
+                    bornOn,
+                    "path",
+                    "DateOnly",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<List<Pet>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                FindPetsBornOnAccepts,
+                "application/json",
+                typeof(List<Pet>),
                 null
             )
             .ConfigureAwait(false);

@@ -29,6 +29,7 @@ import com.example.petstore.models.PetPassport
 import com.example.petstore.models.PetTreatment
 import com.example.petstore.models.Photo
 import com.example.petstore.models.SetPetAvatarThumbnailRequest
+import java.time.LocalDate
 import kotlin.collections.List
 
 /**
@@ -406,6 +407,48 @@ class PetApi : BaseApi {
             headerParams,
             null,
             arrayOf("application/octet-stream"),
+            "application/json",
+            null,
+        )
+    }
+
+    /**
+     * List pets born on a given date
+     * @param bornOn Date of birth to match (required)
+
+     * @return List<Pet>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun findPetsBornOn(bornOn: LocalDate): List<Pet> =
+        findPetsBornOnWithHttpInfo(bornOn).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for findPetsBornOn but the server returned an empty body",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    suspend fun findPetsBornOnWithHttpInfo(bornOn: LocalDate): ApiResult<List<Pet>> {
+        requireNotNull(bornOn) {
+            "Missing the required parameter 'bornOn' when calling findPetsBornOn"
+        }
+        var path =
+            "/pet/born-on/{bornOn}"
+                .replace(
+                    "{" + "bornOn" + "}",
+                    ValueSerializer.serializeStyled("bornOn", bornOn, "path", "LocalDate", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        return invokeApiForResult<List<Pet>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
             "application/json",
             null,
         )

@@ -20,6 +20,7 @@ from petstore_client.models.photo import Photo
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest,
 )
+from datetime import date
 
 from ..api_client import ApiClient
 from ..api_result import ApiResult
@@ -582,6 +583,72 @@ class PetApi(BaseApi):
             ["application/octet-stream"],
             "application/json",
             "bytes",
+            None,
+        )
+
+    async def find_pets_born_on(
+        self,
+        born_on: date,
+    ) -> List[Pet]:
+        """List pets born on a given date
+        :param born_on: Date of birth to match (required)
+
+        :return: List[Pet]
+        :raises ApiException: if fails to make API call
+        """
+        if born_on is None:
+            raise ValueError("Missing the required parameter 'born_on'")
+
+        result = await self.find_pets_born_on_with_http_info(born_on)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body but the server returned none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def find_pets_born_on_with_http_info(
+        self,
+        born_on: date,
+    ) -> "ApiResult[List[Pet]]":
+        """List pets born on a given date (with HTTP info)
+        :param born_on: Date of birth to match (required)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if born_on is None:
+            raise ValueError("Missing the required parameter 'born_on'")
+
+        path = "/pet/born-on/{bornOn}"
+        path = path.replace(
+            "{" + "bornOn" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "bornOn", born_on, "path", "date", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Pet]",
             None,
         )
 

@@ -517,6 +517,61 @@ export class PetApi extends BaseApi {
   }
 
   /**
+   * List pets born on a given date
+   * @param bornOn Date of birth to match (required)
+   * @return Array<Pet>
+   * @throws {ApiError} if fails to make API call
+   */
+  async findPetsBornOn(bornOn: Date): Promise<Array<Pet>> {
+    const findPetsBornOnResult = await this.findPetsBornOnWithHttpInfo(bornOn);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (findPetsBornOnResult.data == null) {
+      throw new ApiError(
+        findPetsBornOnResult.statusCode,
+        "Expected a response body for findPetsBornOn but received none",
+        findPetsBornOnResult.headers,
+        findPetsBornOnResult.rawBody,
+        null,
+      );
+    }
+    return findPetsBornOnResult.data as Array<Pet>;
+  }
+
+  /**
+   * List pets born on a given date (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async findPetsBornOnWithHttpInfo(
+    bornOn: Date,
+  ): Promise<ApiResult<Array<Pet>>> {
+    if (bornOn == null) {
+      throw new TypeError(
+        'Missing required parameter "bornOn" when calling findPetsBornOn',
+      );
+    }
+    let path = `/pet/born-on/{bornOn}`;
+    path = path.replace(
+      `{${"bornOn"}}`,
+      ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate(bornOn)),
+    );
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
+      undefined,
+    );
+  }
+
+  /**
    * Finds Pets by status
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
    * @example Available only - available

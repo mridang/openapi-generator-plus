@@ -479,6 +479,92 @@ class PetApi extends BaseApi
     }
 
     /**
+     * List pets born on a given date
+     * @param \DateTime $bornOn Date of birth to match
+
+     * @return \Ds\Vector<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function findPetsBornOn(\DateTime $bornOn)
+    {
+        $apiResult = $this->findPetsBornOnWithHttpInfo($bornOn);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for findPetsBornOn but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\PetstoreClient\Models\Pet> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param \DateTime $bornOn Date of birth to match
+
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function findPetsBornOnWithHttpInfo(\DateTime $bornOn): ApiResult
+    {
+        $path = '/pet/born-on/{bornOn}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'bornOn',
+            $bornOn,
+            'path',
+            '\DateTime' . '|date',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'bornOn' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<Pet>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            null,
+            $allowReservedKeys
+        );
+        return $result;
+    }
+
+    /**
      * Finds Pets by status
 
      * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters

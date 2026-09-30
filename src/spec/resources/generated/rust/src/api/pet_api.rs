@@ -763,6 +763,103 @@ impl PetApi {
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
+    /// List pets born on a given date
+    /// * `born_on`: Date of birth to match
+    pub async fn find_pets_born_on(
+        &self,
+        born_on: chrono::NaiveDate,
+    ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.find_pets_born_on_with_http_info(born_on).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "empty response body for an operation that declares a response type".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the find_pets_born_on operation and returns the full API result.
+    pub async fn find_pets_born_on_with_http_info(
+        &self,
+        born_on: chrono::NaiveDate,
+    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+        // optional-request-content-type-selector: this operation declares
+        //  as request content-types.
+        // The public find_pets_born_on_with_http_info entry point keeps its original
+        // signature (no selector) and so always sends the FIRST declared type —
+        // application/json — exactly as before. The shared
+        // implementation below takes the resolved Content-Type as an argument so
+        // the find_pets_born_on_with_content_type variant (generated only when more
+        // than one content-type is declared) can override it.
+        self.find_pets_born_on_invoke(born_on, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the find_pets_born_on operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn find_pets_born_on_invoke(
+        &self,
+        born_on: chrono::NaiveDate,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/pet/born-on/{bornOn}".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "bornOn",
+            Some(&object_serializer::to_path_value(&born_on)),
+            None,
+            "path",
+            "chrono::NaiveDate",
+            "",
+            "simple",
+            false,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{bornOn}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Vec<Pet>",
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<Vec<Pet>>(params).await
+    }
+
     /// Finds Pets by status
     #[deprecated]
     /// See <https://example.com/docs/filtering> Find out more about filtering

@@ -570,16 +570,3 @@ public class BaseApi: @unchecked Sendable {
         }
     }
 }
-
-/// Formats a `format: date` value as YYYY-MM-DD using a fixed-locale,
-/// fixed-timezone formatter. Swift has only Date (no separate date-only
-/// type), so the codegen checks the spec format and routes through this
-/// helper to strip the time component; the spec calls for a date-only value,
-/// not a full date-time.
-func stringifyDate(_ value: Date) -> String {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd"
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    return formatter.string(from: value)
-}

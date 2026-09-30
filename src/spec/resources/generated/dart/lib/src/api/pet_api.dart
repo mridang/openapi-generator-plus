@@ -582,6 +582,76 @@ class PetApi extends BaseApi {
     );
   }
 
+  /// List pets born on a given date
+  /// `bornOn` Date of birth to match
+
+  Future<List<Pet>> findPetsBornOn(String bornOn) async {
+    final result = await findPetsBornOnWithHTTPInfo(bornOn);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Pet>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for findPetsBornOn but none was returned',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the findPetsBornOn operation and returns the full API result.
+  Future<ApiResult<List<Pet>>> findPetsBornOnWithHTTPInfo(String bornOn) async {
+    var path = '/pet/born-on/{bornOn}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
+    path = path.replaceAll(
+      '{'
+      'bornOn'
+      '}',
+      serializeStyled(
+        'bornOn',
+        bornOn,
+        'path',
+        'String',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Pet>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Pet>',
+      auth: null,
+
+      deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
+    );
+  }
+
   /// Finds Pets by status
   /// `status` Status values that need to be considered for filter
   /// `filter` Filter criteria as key-value pairs

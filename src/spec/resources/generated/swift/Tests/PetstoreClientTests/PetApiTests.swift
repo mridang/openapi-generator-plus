@@ -761,6 +761,26 @@ final class PetApiTests {
     #expect(mockClient.lastHeaders["Report-Date"] == "2024-01-01")
   }
 
+  // format-date-path: a `format: date` path param `bornOn` must appear as the
+  // date-only string 2024-01-01 in the URL path, with no time component.
+  @Test func testFormatDatePathParamIsDateOnly() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "[]"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.findPetsBornOn(bornOn: "2024-01-01")
+
+    #expect(
+      mockClient.lastURL.contains("/pet/born-on/2024-01-01"),
+      "path date must be date-only, got: \(mockClient.lastURL)")
+    #expect(
+      !mockClient.lastURL.contains("2024-01-01T"),
+      "path date must carry no time component, got: \(mockClient.lastURL)")
+  }
+
   // format-date-form: a `format: date` form field `renewalDate` must be sent as
   // the date-only string 2024-01-01 in the urlencoded body, with no time part.
   @Test func testFormatDateFormFieldIsDateOnly() async throws {

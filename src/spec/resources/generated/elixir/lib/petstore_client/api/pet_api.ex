@@ -846,6 +846,122 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
+  List pets born on a given date
+
+  ## Parameters
+    * `born_on` - Date.t() - Date of birth to match
+
+    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+
+  ## Returns
+
+    * `{:ok, [Pet]}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec find_pets_born_on(t(), Date.t(), keyword()) ::
+          {:ok, [PetstoreClient.Models.Pet.t()]} | {:error, Exception.t()}
+  def find_pets_born_on(%__MODULE__{} = api, born_on, opts \\ []) do
+    case find_pets_born_on_with_http_info(api, born_on, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for find_pets_born_on but received an empty body",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `find_pets_born_on`. Raises on error.
+  """
+  def find_pets_born_on!(%__MODULE__{} = api, born_on, opts \\ []) do
+    case find_pets_born_on(api, born_on, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `find_pets_born_on` but returns the full `ApiResult`.
+  """
+  @spec find_pets_born_on_with_http_info(t(), Date.t(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  def find_pets_born_on_with_http_info(%__MODULE__{} = api, born_on, opts \\ []) do
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = nil
+
+    if is_nil(born_on) do
+      raise ArgumentError,
+            "Missing the required parameter 'born_on' when calling PetApi.find_pets_born_on"
+    end
+
+    path = "/pet/born-on/{bornOn}"
+
+    path =
+      String.replace(
+        path,
+        "{bornOn}",
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "bornOn",
+          born_on,
+          :path,
+          "Date.t()",
+          nil,
+          "simple",
+          false
+        )
+        |> to_string()
+      )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or
+             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+      else
+        path
+      end
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "[Pet]",
+      auth
+    )
+  end
+
+  @doc """
   Finds Pets by status
 
   **Deprecated**: This operation is deprecated.

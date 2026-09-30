@@ -348,6 +348,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             OperationsMap objs, List<ModelMap> allModels) {
         final Map<String, Object> operations =
                 (Map<String, Object>) objs.get("operations");
+        boolean needsDateImport = false;
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -360,10 +361,42 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             op.consumes != null && op.consumes.size() > 1;
                     op.vendorExtensions.put(
                             "hasMultipleConsumes", hasMultipleConsumes);
+                    for (final CodegenParameter param : op.allParams) {
+                        if (param.isDate) {
+                            needsDateImport = true;
+                        }
+                    }
                 }
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap processed =
+                super.postProcessOperationsWithModels(objs, allModels);
+        // A format:date parameter (query, header, path, or form) types the
+        // method signature as `date`, but openapi-generator only collects
+        // model imports from body/response schemas, never from scalar
+        // parameters. Without this, `pet_api.py` would reference `date`
+        // without importing it (mypy name-defined / ruff F821). The options
+        // file gets the import for free via its model reference; the api file
+        // needs it added explicitly here. This runs *after* super, because the
+        // superclass's cleanupBadImports pass strips any import whose class
+        // name starts lowercase (a heuristic for bogus primitive imports), and
+        // `date` is a legitimate lowercase class name it would otherwise drop.
+        // Deduped against imports the model machinery already added.
+        if (needsDateImport) {
+            final List<Map<String, String>> imports =
+                    (List<Map<String, String>>) processed.get("imports");
+            if (imports != null) {
+                final String dateImport = "from datetime import date";
+                final boolean alreadyPresent = imports.stream()
+                        .anyMatch(m -> dateImport.equals(m.get("import")));
+                if (!alreadyPresent) {
+                    final Map<String, String> entry = new HashMap<>();
+                    entry.put("import", dateImport);
+                    imports.add(entry);
+                }
+            }
+        }
+        return processed;
     }
 
     /**

@@ -61,6 +61,8 @@ module Petstore::Client
       def delete_pet_with_http_info: (Integer pet_id, ?Options::DeletePetOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def download_pet_document: (Integer pet_id, Integer document_id) -> File
       def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::Petstore::Client::ApiResult[File]
+      def find_pets_born_on: (Date born_on) -> Array[Models::Pet]
+      def find_pets_born_on_with_http_info: (Date born_on) -> ::Petstore::Client::ApiResult[Array[Models::Pet]]
       def find_pets_by_status: (?Options::FindPetsByStatusOptions? options) -> Array[Models::Pet]
       def find_pets_by_status_with_http_info: (?Options::FindPetsByStatusOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Pet]]
       def get_external_pet_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> Models::Pet

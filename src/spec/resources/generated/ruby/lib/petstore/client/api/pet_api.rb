@@ -444,6 +444,58 @@ module Petstore::Client
         )
       end
 
+      # List pets born on a given date
+      # @param born_on [Date] Date of birth to match
+
+      # @return [Array<Pet>]
+      # @raise [ApiError] if fails to make API call
+      def find_pets_born_on(born_on)
+        if born_on.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'born_on' when calling PetApi.find_pets_born_on"
+        end
+
+        result = find_pets_born_on_with_http_info(born_on)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a non-empty response body but the server returned no decodable content',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def find_pets_born_on_with_http_info(born_on)
+        if born_on.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'born_on' when calling PetApi.find_pets_born_on"
+        end
+
+        path = '/pet/born-on/{bornOn}'
+        path = path.gsub('{bornOn}', ::Petstore::Client::ValueSerializer.serialize_styled('bornOn', born_on, :path, 'Date', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Array<Pet>',
+          nil
+        )
+      end
+
       # Finds Pets by status
 
       # @param options [FindPetsByStatusOptions] options for query, header, form, and cookie parameters

@@ -590,6 +590,90 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	}, nil
 }
 
+// FindPetsBornOn List pets born on a given date
+// param bornOn: Date of birth to match
+
+func (a *PetApi) FindPetsBornOn(bornOn string) (*[]Pet, error) {
+	result, err := a.FindPetsBornOnWithHTTPInfo(bornOn)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("FindPetsBornOn", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// FindPetsBornOnWithHTTPInfo performs the FindPetsBornOn operation and returns the full API result.
+func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], error) {
+	if err := requirePathParam("bornOn", bornOn); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.FindPetsBornOn", err)
+	}
+
+	path := "/pet/born-on/{bornOn}"
+	path = replacePathParam(path, "bornOn", encodePathSegment(stringifyDate(bornOn)))
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "[]Pet",
+		auth:         nil,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data []Pet
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *[]Pet
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, decErr
+			}
+			*bytesPtr = decoded
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[[]Pet]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
 // FindPetsByStatus Finds Pets by status
 // Deprecated: This operation is deprecated.
 // See https://example.com/docs/filtering Find out more about filtering

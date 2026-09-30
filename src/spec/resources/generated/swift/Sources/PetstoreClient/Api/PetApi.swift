@@ -405,6 +405,54 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Data.self)
   }
 
+  /// List pets born on a given date
+  ///
+  /// - Parameters:
+  ///   - bornOn: Date of birth to match
+
+  public func findPetsBornOn(bornOn: String) async throws -> [Pet] {
+    let result = try await findPetsBornOnWithHTTPInfo(bornOn: bornOn)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Server returned no body for findPetsBornOn",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the findPetsBornOn operation and returns the full API result.
+  public func findPetsBornOnWithHTTPInfo(bornOn: String) async throws -> ApiResult<[Pet]> {
+
+    var path = "/pet/born-on/{bornOn}"
+    path = path.replacingOccurrences(
+      of: "{" + "bornOn" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("bornOn", value: bornOn, location: "path", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Pet]",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: [Pet].self)
+  }
+
   /// Finds Pets by status
   @available(*, deprecated, message: "This operation is deprecated.")
   /// See https://example.com/docs/filtering Find out more about filtering

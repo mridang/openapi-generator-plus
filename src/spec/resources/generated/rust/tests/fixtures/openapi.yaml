@@ -133,6 +133,32 @@ paths:
         '400':
           description: Invalid status value
 
+  # Case 15 — format:date (date-only) PATH param. Must serialize as
+  # YYYY-MM-DD in the path segment, with no time component, in every SDK.
+  /pet/born-on/{bornOn}:
+    get:
+      tags:
+        - pet
+      summary: List pets born on a given date
+      operationId: findPetsBornOn
+      parameters:
+        - name: bornOn
+          in: path
+          required: true
+          description: Date of birth to match
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+
   /pet/{petId}:
     get:
       tags:
