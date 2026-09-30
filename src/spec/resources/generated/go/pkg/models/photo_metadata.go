@@ -11,14 +11,13 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // PhotoMetadata is a model class generated from the OpenAPI schema.
 type PhotoMetadata struct {
 	Caption   *string                `json:"caption,omitempty"`
 	IsPrimary *bool                  `json:"isPrimary,omitempty"`
-	TakenAt   *time.Time             `json:"takenAt,omitempty"`
+	TakenAt   *DateTime              `json:"takenAt,omitempty"`
 	Location  *PhotoMetadataLocation `json:"location,omitempty"`
 }
 

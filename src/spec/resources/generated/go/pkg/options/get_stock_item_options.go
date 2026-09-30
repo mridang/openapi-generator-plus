@@ -3,11 +3,11 @@
 package options
 
 import (
-	"time"
+	. "petstore/pkg/models"
 )
 
 // GetStockItemOptions carries the parameters for the GetStockItem operation.
 type GetStockItemOptions struct {
 	/* AsOf Only consider stock as of this instant */
-	AsOf *time.Time
+	AsOf *DateTime
 }

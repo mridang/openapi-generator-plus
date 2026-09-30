@@ -2,7 +2,7 @@
 #[derive(Debug, Clone, Default)]
 pub struct GetStockItemOptions {
     /// Only consider stock as of this instant
-    pub as_of: Option<chrono::DateTime<chrono::Utc>>,
+    pub as_of: Option<crate::date_time::DateTime>,
 }
 
 impl GetStockItemOptions {
@@ -12,7 +12,7 @@ impl GetStockItemOptions {
     }
 
     /// Sets the as_of field.
-    pub fn as_of(mut self, as_of: chrono::DateTime<chrono::Utc>) -> Self {
+    pub fn as_of(mut self, as_of: crate::date_time::DateTime) -> Self {
         self.as_of = Some(as_of);
         self
     }

@@ -1083,11 +1083,11 @@ mod tests {
     // operation ultimately drives) and asserts on the captured body bytes.
     #[test]
     fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
-        use chrono::{DateTime, Utc};
+        use crate::date_time::DateTime;
 
         // Build a PhotoMetadata exactly as a caller of add_pet_photos would,
         // with the canonical millisecond-precision instant.
-        let taken_at: DateTime<Utc> = "2020-01-02T03:04:05.123Z"
+        let taken_at: DateTime = "2020-01-02T03:04:05.123Z"
             .parse()
             .expect("reference instant must parse");
         let metadata = PhotoMetadata {

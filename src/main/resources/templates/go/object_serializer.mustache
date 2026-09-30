@@ -10,23 +10,9 @@ import (
 	"time"
 
 	errors_pkg "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/models"
 )
 
-// defaultDateTimeFormat is the canonical wire layout for `format: date-time`
-// values on the parameter wire (path/query/header/cookie): a fixed
-// three-digit millisecond fraction and a numeric offset, rendering a zero
-// offset as "+00:00" rather than the "Z" designator, e.g.
-// 2024-01-01T12:30:45.000+00:00. All twelve SDKs emit this shape.
-//
-// Three digits, not a variable-width fraction, because millisecond precision
-// is the common denominator across the SDKs; any sub-millisecond component is
-// truncated. The "-07:00" layout element (rather than "Z07:00") is what makes
-// a UTC value render "+00:00" instead of "Z".
-//
-// This layout governs the parameter path only. A time.Time inside a JSON body
-// is encoded by encoding/json's own time.Time marshaller (RFC 3339, "Z" for
-// UTC), which a template cannot override for the stdlib type.
-const defaultDateTimeFormat = "2006-01-02T15:04:05.000-07:00"
 const dateOnlyFormat = "2006-01-02"
 
 // stringifyDate formats a value as a date-only string (YYYY-MM-DD).
@@ -194,13 +180,20 @@ func stringify(value any) string {
 			return "true"
 		}
 		return "false"
+	case models.DateTime:
+		return v.String()
+	case *models.DateTime:
+		if v == nil {
+			return ""
+		}
+		return v.String()
 	case time.Time:
-		return v.Format(defaultDateTimeFormat)
+		return models.DateTime(v).String()
 	case *time.Time:
 		if v == nil {
 			return ""
 		}
-		return v.Format(defaultDateTimeFormat)
+		return models.DateTime(*v).String()
 	case string:
 		return v
 	case *string:

@@ -154,9 +154,10 @@ pub fn serialize_deep_object(
 /// * `param_name` - The parameter name
 /// * `value` - The value to serialize, or None
 /// * `location` - "path", "query", "header", "cookie"
-/// * `schema_type` - The parameter's Rust data type (a `chrono::DateTime` type
-///   marks a `format: date-time` parameter, which is rewritten to the canonical
-///   wire form)
+/// * `_schema_type` - The parameter's Rust data type. Currently unused: a
+///   `format: date-time` parameter is the SDK-owned `crate::date_time::DateTime`
+///   newtype, whose `Serialize` impl already yields the canonical wire form
+///   before it reaches this function, so no type-specific rewriting is needed.
 /// * `collection_format` - Legacy collection format
 /// * `style` - OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 /// * `explode` - Whether to explode array values
@@ -165,39 +166,11 @@ pub fn serialize_styled(
     value: Option<&str>,
     items: Option<&[String]>,
     location: &str,
-    schema_type: &str,
+    _schema_type: &str,
     _collection_format: &str,
     style: &str,
     explode: bool,
 ) -> Option<SerializedValue> {
-    /* A `format: date-time` parameter reaches this point as chrono's default
-     * RFC 3339 rendering (`Z` designator, variable-width fraction). Rewrite it
-     * to the canonical wire form (`+00:00` offset, fixed three-digit
-     * millisecond fraction) so it matches the request-body encoding and every
-     * other SDK. A value that does not parse is left untouched. */
-    let is_date_time = schema_type.contains("chrono::DateTime");
-    let canonical_value: Option<String> = if is_date_time {
-        value.map(|v| {
-            crate::object_serializer::canonicalize_date_time(v).unwrap_or_else(|| v.to_string())
-        })
-    } else {
-        None
-    };
-    let canonical_items: Option<Vec<String>> = if is_date_time {
-        items.map(|list| {
-            list.iter()
-                .map(|v| {
-                    crate::object_serializer::canonicalize_date_time(v)
-                        .unwrap_or_else(|| v.clone())
-                })
-                .collect()
-        })
-    } else {
-        None
-    };
-    let value = if is_date_time { canonical_value.as_deref() } else { value };
-    let items = if is_date_time { canonical_items.as_deref() } else { items };
-
     // Empty-string path guard. A required-path check lives in the operation
     // method; here we catch the empty-string case that slips through it.
     // panic is appropriate because this is a programmer error, not a

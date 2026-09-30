@@ -448,7 +448,7 @@ func TestStringify_NilStringPointer(t *testing.T) {
 func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
-	if got := stringify(ts); got != "2024-01-01T12:30:45.000+00:00" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.000+00:00" {
 		t.Errorf("expected '2024-01-01T12:30:45.000+00:00', got %q", got)
 	}
 }
@@ -456,7 +456,7 @@ func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
 func TestDateTimeOffset_UTCNeverRendersZ(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
-	got := stringify(ts)
+	got := stringify(models.DateTime(ts))
 	if strings.HasSuffix(got, "Z") {
 		t.Errorf("a UTC value must render +00:00, never the Z designator: %q", got)
 	}
@@ -469,7 +469,7 @@ func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
-	if got := stringify(ts); got != "2024-01-01T12:30:45.000+05:30" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.000+05:30" {
 		t.Errorf("expected '2024-01-01T12:30:45.000+05:30', got %q", got)
 	}
 }
@@ -478,7 +478,7 @@ func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("PST", -8*60*60)
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
-	if got := stringify(ts); got != "2024-01-01T12:30:45.000-08:00" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.000-08:00" {
 		t.Errorf("expected '2024-01-01T12:30:45.000-08:00', got %q", got)
 	}
 }
@@ -486,7 +486,7 @@ func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
 func TestDateTimeOffset_MillisecondsPreserved(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
-	if got := stringify(ts); got != "2024-01-01T12:30:45.123+00:00" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.123+00:00" {
 		t.Errorf("expected '2024-01-01T12:30:45.123+00:00', got %q", got)
 	}
 }
@@ -494,7 +494,7 @@ func TestDateTimeOffset_MillisecondsPreserved(t *testing.T) {
 func TestDateTimeOffset_WholeSecondsRenderFixedThreeDigitFraction(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
-	if got := stringify(ts); !strings.Contains(got, ":45.000+") {
+	if got := stringify(models.DateTime(ts)); !strings.Contains(got, ":45.000+") {
 		t.Errorf("a whole-second value must carry a fixed .000 fraction: %q", got)
 	}
 }
@@ -502,7 +502,7 @@ func TestDateTimeOffset_WholeSecondsRenderFixedThreeDigitFraction(t *testing.T) 
 func TestDateTimeOffset_SubMillisecondTruncatedToThreeDigits(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 12, 30, 45, 123456789, time.UTC)
-	if got := stringify(ts); got != "2024-01-01T12:30:45.123+00:00" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T12:30:45.123+00:00" {
 		t.Errorf("expected '2024-01-01T12:30:45.123+00:00', got %q", got)
 	}
 }
@@ -510,7 +510,7 @@ func TestDateTimeOffset_SubMillisecondTruncatedToThreeDigits(t *testing.T) {
 func TestDateTimeOffset_MidnightFormatted(t *testing.T) {
 	t.Parallel()
 	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
-	if got := stringify(ts); got != "2024-01-01T00:00:00.000+00:00" {
+	if got := stringify(models.DateTime(ts)); got != "2024-01-01T00:00:00.000+00:00" {
 		t.Errorf("expected '2024-01-01T00:00:00.000+00:00', got %q", got)
 	}
 }
@@ -519,13 +519,72 @@ func TestDateTimeOffset_RoundTrip(t *testing.T) {
 	t.Parallel()
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 	original := time.Date(2024, 1, 1, 12, 30, 45, 123000000, loc)
-	serialized := stringify(original)
+	serialized := stringify(models.DateTime(original))
 	parsed, err := time.Parse("2006-01-02T15:04:05.000-07:00", serialized)
 	if err != nil {
 		t.Fatalf("failed to parse serialized datetime %q: %v", serialized, err)
 	}
 	if !original.Equal(parsed) {
 		t.Errorf("round-trip mismatch: original=%v parsed=%v", original, parsed)
+	}
+}
+
+// A date-time serialises to the canonical wire form in every JSON position, not
+// only on the parameter path: a bare value, a pointer, a slice and a map.
+func TestDateTimeJSON_CanonicalInEveryPosition(t *testing.T) {
+	t.Parallel()
+	ts := models.DateTime(time.Date(2024, 1, 1, 12, 30, 45, 123456789, time.UTC))
+	const want = "2024-01-01T12:30:45.123+00:00"
+	payload := struct {
+		Direct  models.DateTime            `json:"direct"`
+		Pointer *models.DateTime           `json:"pointer"`
+		Slice   []models.DateTime          `json:"slice"`
+		Map     map[string]models.DateTime `json:"map"`
+	}{ts, &ts, []models.DateTime{ts}, map[string]models.DateTime{"k": ts}}
+	data, err := serialize(payload)
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	if got := strings.Count(string(data), want); got != 4 {
+		t.Errorf("expected the canonical %q in all 4 positions, found %d in %s", want, got, data)
+	}
+	if strings.Contains(string(data), "Z\"") {
+		t.Errorf("a UTC value must never render the Z designator: %s", data)
+	}
+}
+
+// Reading is lenient: Z or a numeric offset, and a 0/3/6/9-digit fraction.
+func TestDateTimeJSON_UnmarshalIsLenient(t *testing.T) {
+	t.Parallel()
+	inputs := []string{
+		"2024-01-01T12:30:45Z",
+		"2024-01-01T12:30:45+00:00",
+		"2024-01-01T12:30:45.123Z",
+		"2024-01-01T12:30:45.123000+00:00",
+		"2024-01-01T12:30:45.123000000Z",
+	}
+	for _, in := range inputs {
+		var got models.DateTime
+		if err := deserialize([]byte(`"`+in+`"`), &got); err != nil {
+			t.Errorf("%q: unexpected error: %v", in, err)
+			continue
+		}
+		want, _ := time.Parse(time.RFC3339Nano, in)
+		if !got.Time().Equal(want) {
+			t.Errorf("%q: got %v, want %v", in, got.Time(), want)
+		}
+	}
+	var bad models.DateTime
+	if err := deserialize([]byte(`"not-a-date"`), &bad); err == nil {
+		t.Error("expected an error for a malformed date-time")
+	}
+}
+
+func TestStringify_NilDateTimePointer(t *testing.T) {
+	t.Parallel()
+	var p *models.DateTime
+	if got := stringify(p); got != "" {
+		t.Errorf("expected empty string for nil *DateTime, got %q", got)
 	}
 }
 

@@ -44,6 +44,13 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
 
+    /**
+     * Matches a Go data type that names one of the generated {@code models} wrapper
+     * types ({@code DateTime}, {@code Duration}) as a whole word, including inside
+     * {@code []}, {@code *} and {@code map[...]} compositions.
+     */
+    private static final Pattern WRAPPER_TYPE = Pattern.compile("\\b(DateTime|Duration)\\b");
+
     protected String packageName = "openapiclient";
     protected String packageVersion = "1.0.0";
 
@@ -61,7 +68,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
      * Initializes type mappings, template paths, and reserved
      * words for the Go language. Type mappings convert OpenAPI
      * types to their Go equivalents (e.g. integer to int32,
-     * DateTime to time.Time). Reserved words are loaded from a
+     * DateTime to the generated models.DateTime wrapper). Reserved words are loaded from a
      * bundled word-list to avoid generating identifiers that
      * clash with Go keywords and predeclared identifiers.
      */
@@ -86,7 +93,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("number", "float64");
         typeMapping.put("decimal", "float64");
         typeMapping.put("date", "string");
-        typeMapping.put("DateTime", "time.Time");
+        // format:date-time maps to the generated models.DateTime, a time.Time
+        // whose JSON and parameter form is the canonical wire string
+        // (YYYY-MM-DDTHH:MM:SS.mmm+HH:MM: numeric offset, never "Z", and a
+        // fixed three-digit millisecond fraction). time.Time itself
+        // JSON-encodes as RFC 3339 with "Z" and a variable-width fraction.
+        typeMapping.put("DateTime", "DateTime");
         // 4.8: format:time maps to string: Go's stdlib has no civil-time
         // type, and cloud.google.com/go/civil would drag in a 100MB+ dep tree
         // just for a struct. The generated iso8601.go ships FormatTimeOfDay /
@@ -538,7 +550,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
                 new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"),
                 new SupportingFileSpec(
-                        "models/duration.mustache", "pkg/models", "duration.go"));
+                        "models/duration.mustache", "pkg/models", "duration.go"),
+                new SupportingFileSpec(
+                        "models/date_time.mustache", "pkg/models", "date_time.go"));
     }
 
     /**
@@ -589,7 +603,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected Map<String, String> getModelContextFlags() {
         return Map.of(
-                "type:time.Time", "hasTimeImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "oneOfAnyOf", "hasFmtImport",
                 "isEnum", "hasFmtImport",
@@ -604,7 +617,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getOperationContextFlags() {
         return Map.of(
                 "type:os.File", "hasOsImport",
-                "type:time.Time", "hasTimeImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport",
@@ -631,7 +643,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         boolean hasModelImport = false;
         boolean hasOsImport = false;
         boolean hasUuidImport = false;
-        boolean hasTimeImport = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -648,25 +659,29 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 param.put("description", p.description);
             }
             params.add(param);
-            // A date-time options param emits time.Time / *time.Time and needs an
-            // `import "time"` in the generated options file. Detected on the raw
-            // dataType (independent of the primitive check) so the import block
-            // fires regardless of how the type maps.
-            if (p.dataType != null && p.dataType.contains("time.Time")) {
-                hasTimeImport = true;
-            }
-            if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
+            // A date-time / duration options param emits the generated
+            // models.DateTime / models.Duration wrapper, which is reported as a
+            // primitive (or sits inside a map) and would otherwise skip the model
+            // import. Detected on the raw dataType, as a whole word so a user model
+            // that merely ends in "DateTime" does not match.
+            // Strip the []/* wrappers up front, before any of the checks below,
+            // so this string modification never follows a validation of the same
+            // value (avoids spotbugs MODIFICATION_AFTER_VALIDATION).
+            final String dataType = p.dataType;
+            final String baseType =
+                    dataType == null ? "" : dataType.replace("[]", "").replace("*", "");
+            if (dataType != null && WRAPPER_TYPE.matcher(dataType).find()) {
+                hasModelImport = true;
+            } else if (p.isFile || (dataType != null && dataType.contains("os.File"))) {
                 hasOsImport = true;
-            } else if (p.dataType != null && p.dataType.contains("uuid.UUID")) {
+            } else if (dataType != null && dataType.contains("uuid.UUID")) {
                 hasUuidImport = true;
-            } else if (!p.isPrimitiveType) {
-                String baseType = p.dataType.replace("[]", "").replace("*", "");
-                if (!goPrimitives.contains(baseType)
-                        && !baseType.startsWith("map[")
-                        && !baseType.equals("time.Time")
-                        && !baseType.equals("uuid.UUID")) {
-                    hasModelImport = true;
-                }
+            } else if (!p.isPrimitiveType
+                    && dataType != null
+                    && !goPrimitives.contains(baseType)
+                    && !baseType.startsWith("map[")
+                    && !baseType.equals("uuid.UUID")) {
+                hasModelImport = true;
             }
         }
 
@@ -691,9 +706,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasUuidImport) {
             context.put("hasUuidImport", true);
-        }
-        if (hasTimeImport) {
-            context.put("hasTimeImport", true);
         }
         if (op.hasAuthMethods && !optionsAuthenticatorWritten) {
             // Emit the shared mirror Authenticator interface exactly once, in its

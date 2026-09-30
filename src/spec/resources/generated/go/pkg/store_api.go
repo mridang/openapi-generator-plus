@@ -11,7 +11,6 @@ package petstore
 
 import (
 	"fmt"
-	"time"
 
 	. "petstore/pkg/models"
 	opts "petstore/pkg/options"
@@ -684,7 +683,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 
 	queryParams := make(map[string]any)
 	if options != nil && options.AsOf != nil {
-		queryParams["asOf"] = maybeAllowReserved(serializeStyled("asOf", options.AsOf, "query", "time.Time", "", "form", true), false)
+		queryParams["asOf"] = maybeAllowReserved(serializeStyled("asOf", options.AsOf, "query", "DateTime", "", "form", true), false)
 	}
 
 	headerParams := make(map[string]string)
@@ -903,7 +902,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 
 // GetTimestampGroups Returns timestamps grouped as an array of string-keyed maps.
 
-func (a *StoreApi) GetTimestampGroups() (*[]map[string]time.Time, error) {
+func (a *StoreApi) GetTimestampGroups() (*[]map[string]DateTime, error) {
 	result, err := a.GetTimestampGroupsWithHTTPInfo()
 	if err != nil {
 		return nil, err
@@ -918,7 +917,7 @@ func (a *StoreApi) GetTimestampGroups() (*[]map[string]time.Time, error) {
 }
 
 // GetTimestampGroupsWithHTTPInfo performs the GetTimestampGroups operation and returns the full API result.
-func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]time.Time], error) {
+func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]DateTime], error) {
 
 	path := "/store/timestamp-groups"
 
@@ -936,18 +935,18 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]tim
 		body:         requestBody,
 		accepts:      []string{"application/json"},
 		contentType:  "application/json",
-		returnType:   "[]map[string]time.Time",
+		returnType:   "[]map[string]DateTime",
 		auth:         noAuth,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	var data []map[string]time.Time
+	var data []map[string]DateTime
 	/* dataPtr stays nil when the response carried no body, so the convenience
 	 * method can distinguish "no content" from a zero-valued struct and raise
 	 * the typed empty-body ApiError (convenience-empty-body-handling). */
-	var dataPtr *[]map[string]time.Time
+	var dataPtr *[]map[string]DateTime
 	if response.Body != "" {
 		respContentType := ""
 		// Response header keys are normalised to lowercase by the transport.
@@ -972,7 +971,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]tim
 		dataPtr = &data
 	}
 
-	return &ApiResult[[]map[string]time.Time]{
+	return &ApiResult[[]map[string]DateTime]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,

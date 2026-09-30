@@ -156,7 +156,7 @@ pub struct {{classname}} {
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#required}}
-    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/vendorExtensions.isDuration}}{{#isDateTime}}, with = "crate::object_serializer::date_time"{{/isDateTime}}{{#isArray}}{{^uniqueItems}}{{#items}}{{#isDateTime}}, with = "crate::object_serializer::date_time::vec"{{/isDateTime}}{{/items}}{{/uniqueItems}}{{/isArray}})]
+    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, with = "crate::proto_duration"{{/isArray}}{{/vendorExtensions.isDuration}})]
     pub {{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
@@ -164,8 +164,13 @@ pub struct {{classname}} {
         too: serde's `with` overrides Option's built-in absent-as-None handling,
         so without `default` an OMITTED byte/duration field fails to deserialize
         with a "missing field" error instead of decoding to None. The enum
-        schema-default case already supplies its own `default = "default_..."`. }}
-    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, default, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, default, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, default, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}}{{#isDateTime}}, default, with = "crate::object_serializer::date_time::option"{{/isDateTime}}{{#isArray}}{{^uniqueItems}}{{#items}}{{#isDateTime}}, default, with = "crate::object_serializer::date_time::vec_option"{{/isDateTime}}{{/items}}{{/uniqueItems}}{{/isArray}})]
+        schema-default case already supplies its own `default = "default_..."`.
+        A `format: date-time` field needs no `with =` at all: its type is the
+        SDK-owned `crate::date_time::DateTime` newtype, which owns its own
+        `Serialize`/`Deserialize` (so `Option`, `Vec`, `HashSet` and map
+        positions are canonical too, and serde's built-in `Option` handling
+        already treats an omitted field as None). }}
+    #[serde(rename = "{{baseName}}"{{#defaultValue}}, default = "default_{{name}}"{{/defaultValue}}, skip_serializing_if = "Option::is_none"{{#isByteArray}}, default, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, default, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}}{{#vendorExtensions.isDuration}}{{^isArray}}, default, with = "crate::proto_duration::option"{{/isArray}}{{/vendorExtensions.isDuration}})]
     pub {{name}}: Option<{{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}>,
 {{/required}}
 {{/isDiscriminator}}

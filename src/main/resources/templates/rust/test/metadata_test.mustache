@@ -137,14 +137,14 @@ fn test_pet_location_free_form_json_round_trips() {
 
 // -- date-time serializes in the canonical wire form and round-trips --
 //
-// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. The canonical wire form is
+// `Metadata.createdAt` is the SDK's `date_time::DateTime`. The canonical wire form is
 // `YYYY-MM-DDTHH:MM:SS.mmm+00:00`: a numeric UTC offset (never `Z`) and a fixed
 // three-digit millisecond fraction. Parsing that representation back must yield
 // the same instant. A `Z`-suffixed input and a `+00:00` input denote the same
 // instant, so they must serialize identically after a round-trip.
 #[test]
 fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
-    use chrono::{DateTime, Utc};
+    use {{packageName}}::date_time::DateTime;
 
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00Z"}"#;
     let metadata: Metadata =
@@ -153,7 +153,7 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     let created = metadata
         .created_at
         .expect("expected createdAt to be present");
-    let expected: DateTime<Utc> = "2024-01-15T10:30:00Z"
+    let expected: DateTime = "2024-01-15T10:30:00Z"
         .parse()
         .expect("reference instant must parse");
     assert_eq!(created, expected, "deserialized instant mismatch");
@@ -172,7 +172,7 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
 
     // The wire form must itself parse back to the same instant: a stable,
     // self-consistent representation.
-    let reparsed: DateTime<Utc> = wire.parse().expect("serialized wire form must re-parse");
+    let reparsed: DateTime = wire.parse().expect("serialized wire form must re-parse");
     assert_eq!(reparsed, expected, "round-tripped instant must be unchanged");
 
     // A `+00:00`-suffixed input denotes the same instant and must serialize
@@ -188,7 +188,7 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
 
 // -- date-time serialization preserves sub-second precision --
 //
-// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. An instant carrying
+// `Metadata.createdAt` is the SDK's `date_time::DateTime`. An instant carrying
 // millisecond sub-second precision (2020-01-02T03:04:05.123Z) must serialize
 // WITH the `.123` fraction intact: the encoder must NOT truncate to whole
 // seconds while the decoder happily accepts fractions (a lossy, asymmetric
@@ -197,10 +197,10 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
 // string is asserted.
 #[test]
 fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
-    use chrono::{DateTime, Utc};
+    use {{packageName}}::date_time::DateTime;
 
     // The canonical instant with millisecond precision.
-    let instant: DateTime<Utc> = "2020-01-02T03:04:05.123Z"
+    let instant: DateTime = "2020-01-02T03:04:05.123Z"
         .parse()
         .expect("reference instant must parse");
 

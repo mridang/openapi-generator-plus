@@ -13,6 +13,10 @@ pub mod api_result;
 pub mod auth;
 pub mod client;
 pub mod configuration;
+// SDK-owned `format: date-time` newtype. Owns its `Serialize`/`Deserialize`, so the
+// canonical wire form (`+00:00` offset, fixed three-digit millisecond fraction) is
+// produced in every position a date-time appears.
+pub mod date_time;
 // Internal transport implementation. The public seam is the `ApiClient` trait
 // (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
 // free functions traffic in `reqwest` types and must not leak into the public

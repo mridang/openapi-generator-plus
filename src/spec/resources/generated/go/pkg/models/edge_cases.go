@@ -11,7 +11,6 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
@@ -28,7 +27,7 @@ type EdgeCases struct {
 	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
 	RetryAfter *Duration `json:"retryAfter,omitempty"`
 	/* ExpiresAt Absolute expiry instant */
-	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+	ExpiresAt *DateTime `json:"expiresAt,omitempty"`
 }
 
 // Equal reports whether this EdgeCases is value-equal to other.

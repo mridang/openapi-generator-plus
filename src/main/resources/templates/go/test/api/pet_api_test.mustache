@@ -748,9 +748,9 @@ func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 // multipart/form-data body must be serialised through the same encoding/json
 // path the model defines, so its JSON carries the WIRE property names declared
 // in the spec (isPrimary, takenAt) rather than Go field names or snake_case
-// variants, and a date-time field renders in RFC 3339 with sub-second
-// precision. This is the cross-cutting parity scenario: build a PhotoMetadata
-// with IsPrimary=true and TakenAt=2020-01-02T03:04:05.123Z, send it as the
+// variants, and a date-time field renders in the canonical wire form
+// (numeric offset, fixed three-digit millisecond fraction). This is the cross-cutting parity scenario: build a PhotoMetadata
+// with IsPrimary=true and TakenAt=2020-01-02T03:04:05.123+00:00, send it as the
 // "metadata" part, capture the outgoing part body, and assert the wire keys and
 // date-time string.
 func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
@@ -785,7 +785,7 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	f := newTempFile(t, "photo1")
 
 	isPrimary := true
-	takenAt := time.Date(2020, 1, 2, 3, 4, 5, 123000000, time.UTC)
+	takenAt := models.DateTime(time.Date(2020, 1, 2, 3, 4, 5, 123000000, time.UTC))
 	metadata := models.NewPhotoMetadata()
 	metadata.IsPrimary = &isPrimary
 	metadata.TakenAt = &takenAt
@@ -814,10 +814,10 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 		t.Errorf("metadata part must not contain snake_case key \"taken_at\", got %q", metadataPartBody)
 	}
 
-	// The date-time value must serialise in RFC 3339 with the millisecond
-	// fraction preserved, matching the model's encoding/json path.
-	if !strings.Contains(metadataPartBody, "2020-01-02T03:04:05.123Z") {
-		t.Errorf("expected metadata part to carry RFC 3339 date-time 2020-01-02T03:04:05.123Z, got %q", metadataPartBody)
+	// The date-time value must serialise in the canonical wire form: a numeric
+	// +00:00 offset (never Z) and a fixed three-digit millisecond fraction.
+	if !strings.Contains(metadataPartBody, "2020-01-02T03:04:05.123+00:00") {
+		t.Errorf("expected metadata part to carry canonical date-time 2020-01-02T03:04:05.123+00:00, got %q", metadataPartBody)
 	}
 
 	// The part must be valid JSON decodable back into the model with the same

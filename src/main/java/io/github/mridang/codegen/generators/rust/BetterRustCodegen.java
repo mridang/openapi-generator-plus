@@ -98,10 +98,18 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         // Use chrono for proper date / date-time semantics in
         // generated structs. The previous String mapping forced
         // callers to parse manually and lost serde validation on
-        // wire payloads. chrono::DateTime<Utc> serialises as an
-        // RFC-3339 string by default (compatible with OAS).
+        // wire payloads.
         typeMapping.put("date", "chrono::NaiveDate");
-        typeMapping.put("DateTime", "chrono::DateTime<chrono::Utc>");
+        // `format: date-time` maps to the SDK-owned `DateTime` newtype
+        // (src/date_time.rs) over `chrono::DateTime<chrono::FixedOffset>`.
+        // chrono's own serde impl emits a UTC value with the `Z` designator
+        // and a variable-width fraction, which is not the canonical wire form
+        // (`YYYY-MM-DDTHH:MM:SS.mmm+00:00`: numeric offset, fixed 3-digit
+        // milliseconds). The newtype owns its `Serialize`/`Deserialize`, so
+        // the canonical form is emitted in every position (fields, Option,
+        // Vec, HashSet, map values, oneOf/anyOf variants and top-level bodies)
+        // with no per-field `serde(with = ...)` attribute.
+        typeMapping.put("DateTime", "crate::date_time::DateTime");
         // Gap 4.8: `format: time` maps to `chrono::NaiveTime`, which serde-
         // serialises as an RFC-3339 partial-time string ("HH:MM:SS[.fff]")
         // out of the box (via the `serde` feature already enabled on
@@ -516,6 +524,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
                 new SupportingFileSpec(
                         "proto_duration.mustache", "src", "proto_duration.rs"),
+                new SupportingFileSpec("date_time.mustache", "src", "date_time.rs"),
                 new SupportingFileSpec("json_value.mustache", "src", "json_value.rs"),
                 new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
                 new SupportingFileSpec(
@@ -719,7 +728,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         /* `use super::*;` only earns its place when the file names another
          * generated model unqualified. The import list also carries collection
          * and library types (`Vec<u8>`, `std::collections::HashMap`,
-         * `chrono::DateTime<chrono::Utc>`), which the templates already write
+         * `crate::date_time::DateTime`), which the templates already write
          * out in full, so only a bare identifier counts. */
         result.put(
                 "hasModelImports",

@@ -8,13 +8,8 @@
 /// Metadata is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Metadata {
-    #[serde(
-        rename = "createdAt",
-        skip_serializing_if = "Option::is_none",
-        default,
-        with = "crate::object_serializer::date_time::option"
-    )]
-    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<crate::date_time::DateTime>,
     /// Additional properties not defined in the schema.
     #[serde(flatten)]
     pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,

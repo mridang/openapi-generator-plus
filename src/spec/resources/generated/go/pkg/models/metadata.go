@@ -11,12 +11,11 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // Metadata is a model class generated from the OpenAPI schema.
 type Metadata struct {
-	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	CreatedAt *DateTime `json:"createdAt,omitempty"`
 	/* AdditionalProperties holds any extra fields not defined in the schema. */
 	AdditionalProperties map[string]any `json:"-"`
 }

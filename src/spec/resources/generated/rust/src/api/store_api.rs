@@ -823,7 +823,7 @@ impl StoreApi {
                     Some(&object_serializer::stringify(val)),
                     None,
                     "query",
-                    "chrono::DateTime<chrono::Utc>",
+                    "crate::date_time::DateTime",
                     "",
                     "form",
                     true,
@@ -1033,7 +1033,7 @@ impl StoreApi {
     pub async fn get_timestamp_groups(
         &self,
     ) -> Result<
-        Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>,
+        Vec<std::collections::HashMap<String, crate::date_time::DateTime>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
         let result = self.get_timestamp_groups_with_http_info().await?;
@@ -1058,7 +1058,7 @@ impl StoreApi {
     pub async fn get_timestamp_groups_with_http_info(
         &self,
     ) -> Result<
-        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
         // optional-request-content-type-selector: this operation declares
@@ -1081,7 +1081,7 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<
-        ApiResult<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>,
+        ApiResult<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>,
         Box<dyn std::error::Error + Send + Sync>,
     > {
         let mut path = "/store/timestamp-groups".to_string();
@@ -1102,7 +1102,7 @@ impl StoreApi {
             multipart,
             accepts: vec!["application/json"],
             content_type: request_content_type,
-            return_type: "Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>",
+            return_type: "Vec<std::collections::HashMap<String, crate::date_time::DateTime>>",
             // security-none suppression: this operation is declared
             // `security: []` (explicitly unauthenticated). Pass the no-auth
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1111,7 +1111,7 @@ impl StoreApi {
             auth: Some(crate::api::base_api::no_auth_sentinel()),
         };
 
-        self.base.invoke_api_for_result::<Vec<std::collections::HashMap<String, chrono::DateTime<chrono::Utc>>>>(params).await
+        self.base.invoke_api_for_result::<Vec<std::collections::HashMap<String, crate::date_time::DateTime>>>(params).await
     }
 
     /// Returns a self-referential tree (recursive-type codegen fixture)

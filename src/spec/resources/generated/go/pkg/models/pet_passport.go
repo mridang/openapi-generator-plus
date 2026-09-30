@@ -11,7 +11,6 @@ package models
 
 import (
 	"encoding/json"
-	"time"
 )
 
 // PetPassport is a model class generated from the OpenAPI schema.
@@ -20,8 +19,8 @@ type PetPassport struct {
 	/* Thumbnail Base64-encoded primary thumbnail */
 	Thumbnail *[]byte `json:"thumbnail,omitempty"`
 	/* Scans Base64-encoded scans of each passport page */
-	Scans    *[][]byte  `json:"scans,omitempty"`
-	IssuedAt *time.Time `json:"issuedAt,omitempty"`
+	Scans    *[][]byte `json:"scans,omitempty"`
+	IssuedAt *DateTime `json:"issuedAt,omitempty"`
 	/* BiometricChip Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream */
 	BiometricChip *[]byte `json:"biometricChip,omitempty"`
 }
