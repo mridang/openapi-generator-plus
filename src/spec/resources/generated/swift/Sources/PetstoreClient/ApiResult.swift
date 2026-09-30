@@ -7,23 +7,24 @@
 
 import Foundation
 
-/// ApiResult represents a typed API response with deserialized data, status code,
-/// raw body, and headers. Returned by WithHTTPInfo methods.
+/// Represents a typed API response with deserialized data, status code,
+/// raw body, and headers. Returned by `WithHTTPInfo` methods.
+///
+/// `T` is the type of the deserialized response data.
 public struct ApiResult<T: Sendable>: Sendable {
   /// The HTTP status code of the response.
   public let statusCode: Int
 
-  /// The deserialized response body. May be nil if the operation
-  /// returned no content or if the response could not be deserialized.
+  /// The deserialized response body (nil for void responses).
   public let data: T?
 
-  /// The raw response body as a string.
+  /// The raw response body string (never nil; empty for no body).
   public let rawBody: String
 
   /// The response headers.
   public let headers: [String: String]
 
-  /// Creates a new ApiResult with the given values.
+  /// Creates an ApiResult.
   public init(statusCode: Int, data: T?, rawBody: String, headers: [String: String]) {
     self.statusCode = statusCode
     self.data = data

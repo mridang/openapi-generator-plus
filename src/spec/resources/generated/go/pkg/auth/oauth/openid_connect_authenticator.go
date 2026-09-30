@@ -46,7 +46,7 @@ func parseDiscoveryMaxAge(headers map[string]string) int {
 	return defaultDiscoveryMaxAgeSeconds
 }
 
-// OpenIdConnectAuthenticator provides OpenID Connect authentication.
+// OpenIdConnectAuthenticator is the authenticator for OpenID Connect.
 //
 // Fetches the OIDC discovery document to discover the authorization and
 // token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
@@ -85,8 +85,8 @@ func (a *OpenIdConnectAuthenticator) Host() string {
 	return a.host
 }
 
-// String implements fmt.Stringer so the default string/format representation
-// never leaks the client_secret. authenticator-secret-in-default-string-repr.
+// String returns a string representation that redacts the client secret so
+// credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *OpenIdConnectAuthenticator) String() string {
 	return fmt.Sprintf("OpenIdConnectAuthenticator{host: %q, openIDConnectURL: %q, clientID: %q, clientSecret: ***, redirectURI: %q}", a.host, a.openIDConnectURL, a.clientID, a.redirectURI)
 }
@@ -111,8 +111,8 @@ func (a *OpenIdConnectAuthenticator) BuildAuthorizationURL(state string) (string
 // ExchangeCode exchanges an authorization code for tokens using the
 // discovered token endpoint.
 func (a *OpenIdConnectAuthenticator) ExchangeCode(code string) error {
-	// oauth-exchangecode-no-empty-code-guard: reject an empty/whitespace code
-	// before fetching the discovery document or hitting the token endpoint.
+	// Reject an empty/whitespace code before fetching the discovery document or
+	// hitting the token endpoint.
 	if strings.TrimSpace(code) == "" {
 		return ErrAuthCodeEmpty
 	}
@@ -174,10 +174,9 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return nil, err
 	}
 
-	/* oauth-oidc-discovery-no-status-check: a non-2xx discovery response
-	 * (e.g. a 500 HTML error page) surfaces as the typed *ApiError for its
-	 * status rather than a misleading "invalid JSON" parse failure
-	 * downstream. */
+	/* A non-2xx discovery response (e.g. a 500 HTML error page) surfaces as
+	 * the typed *ApiError for its status rather than a misleading "invalid
+	 * JSON" parse failure downstream. */
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, errors_pkg.FromResponse(resp.StatusCode, resp.Headers, resp.Body)
 	}
@@ -190,11 +189,10 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return nil, errors_pkg.NewSerializationError("failed to parse OIDC discovery document", err)
 	}
 
-	/* oauth-oidc-missing-endpoint-guard: a discovery document missing
-	 * authorization_endpoint or token_endpoint must fail loud. Building the
-	 * delegate with empty endpoint URLs would silently produce malformed
-	 * authorization/token requests against the wrong (empty) URL. An
-	 * incomplete document is a *SerializationError. */
+	/* A discovery document missing authorization_endpoint or token_endpoint
+	 * must fail loud. Building the delegate with empty endpoint URLs would
+	 * silently produce malformed authorization/token requests against the
+	 * wrong (empty) URL. An incomplete document is a *SerializationError. */
 	if strings.TrimSpace(discovery.AuthorizationEndpoint) == "" {
 		return nil, errors_pkg.NewSerializationError("OIDC discovery document is missing 'authorization_endpoint'", nil)
 	}

@@ -7,7 +7,7 @@
 
 import 'api_exception.dart';
 
-/// ServerException represents an HTTP 5xx server error.
+/// Exception for HTTP 5xx server errors.
 class ServerException extends ApiException {
   const ServerException({
     required super.statusCode,

@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.ApiKeyQueryAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `apiKeyQuery` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.ApiKeyAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `ApiKeyQueryAuthenticator` authenticator.
+  Creates an authenticator for the `apiKeyQuery` security scheme.
   """
   def new(host, api_key) do
     PetstoreClient.Auth.ApiKeyAuthenticator.new(host, "api_key", api_key, :query)

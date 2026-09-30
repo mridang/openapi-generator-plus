@@ -9,10 +9,14 @@
 
 package errors
 
-// OpenAPIError is the branded root of the SDK error hierarchy: every error this
-// SDK throws satisfies it. It mirrors the unified error taxonomy used by the
-// other SDKs, where each language expresses the hierarchy in its own idiom —
-// class inheritance in the OO SDKs, interface conformance here.
+// OpenAPIError is the branded root of the SDK error hierarchy. Every error this
+// client returns — transport/API errors (ApiError and its 4xx/5xx subclasses),
+// (de)serialization errors (SerializationError), and OAuth2 token/server errors
+// raised during authentication — satisfies it, so a single errors.As against it
+// distinguishes errors originating in the SDK from unrelated runtime errors. It
+// mirrors the unified error taxonomy used by the other SDKs, where each language
+// expresses the hierarchy in its own idiom — class inheritance in the OO SDKs,
+// interface conformance here.
 //
 //	OpenAPIError                       (this interface)
 //	 ├─ ApiError                       (HTTP error: status code, message, headers, body)

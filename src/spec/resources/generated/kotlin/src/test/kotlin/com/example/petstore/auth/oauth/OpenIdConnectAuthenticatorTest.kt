@@ -54,7 +54,7 @@ class OpenIdConnectAuthenticatorTest {
     private fun createAuthenticator(): OpenIdConnectAuthenticator =
         OpenIdConnectAuthenticator(
             host = "https://api.example.com",
-            discoveryUrl = "https://auth.example.com/.well-known/openid-configuration",
+            openIdConnectUrl = "https://auth.example.com/.well-known/openid-configuration",
             clientId = "my-client-id",
             clientSecret = "my-client-secret",
             redirectUri = "https://app.example.com/callback",

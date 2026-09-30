@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// BearerAuthenticator provides HTTP Bearer token authentication.
+// BearerAuthenticator is the authenticator for HTTP Bearer token authentication.
 type BearerAuthenticator struct {
 	BaseAuthenticator
 	host  string
@@ -19,17 +19,21 @@ type BearerAuthenticator struct {
 // TAB (RFC 7230 §3.2.6). Match it with errors.Is.
 var ErrInvalidBearerToken = errors.New("invalid bearer token")
 
-// NewBearerAuthenticator creates a new Bearer authenticator.
+// NewBearerAuthenticator creates an HTTP Bearer token authenticator.
+//
+// Parameters:
+//   - host: the base URL of the API
+//   - token: the bearer token
 //
 // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. A value
 // outside printable ASCII + TAB would allow HTTP header injection from CR/LF
 // or silently-mangled non-ASCII bytes, so the constructor returns
 // ErrInvalidBearerToken instead.
 func NewBearerAuthenticator(host, token string) (*BearerAuthenticator, error) {
-	// bearer-no-empty-token-guard: an empty or whitespace-only token would
-	// produce the literal `Authorization: Bearer ` header and silently send
-	// the request unauthenticated. Reject it, matching the api-key
-	// authenticator's own empty guard.
+	// An empty or whitespace-only token would produce the literal
+	// `Authorization: Bearer ` header and silently send the request
+	// unauthenticated. Reject it, matching the api-key authenticator's own
+	// empty guard.
 	if strings.TrimSpace(token) == "" {
 		return nil, fmt.Errorf("%w: token must not be empty", ErrInvalidBearerToken)
 	}
@@ -49,10 +53,10 @@ func (a *BearerAuthenticator) Host() string {
 	return a.host
 }
 
-// String implements fmt.Stringer so the default string/format representation
-// never leaks the token. authenticator-secret-in-default-string-repr: without
-// this, fmt.Printf("%+v", auth) would reflect and print the unexported token
-// field into application logs.
+// String returns a string representation that redacts the token so credentials
+// never leak into logs or stack traces (matching the other SDKs). Without this,
+// fmt.Printf("%+v", auth) would reflect and print the unexported token field
+// into application logs.
 func (a *BearerAuthenticator) String() string {
 	return fmt.Sprintf("BearerAuthenticator{host: %q, token: ***}", a.host)
 }

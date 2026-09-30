@@ -14,52 +14,53 @@ import 'transport_options.dart';
 import 'api/pet_api.dart';
 import 'api/store_api.dart';
 
-/// Client is the unified entry point for all API services.
+/// Unified entry point for all API services.
 ///
 /// Takes an [Authenticator] and optionally [TransportOptions], then exposes
-/// each API group as a typed field. If the authenticator implements
-/// [HttpAwareAuthenticator], the shared HTTP client is injected so that
+/// each API group as a typed property. If the authenticator implements
+/// [HttpAwareAuthenticator], the shared `ApiClient` is injected so that
 /// authentication HTTP calls (token exchange, discovery) use the same
 /// transport configuration as regular API calls.
 ///
-/// Example with default transport:
+/// Usage:
 ///
 /// ```dart
+/// // Default transport
 /// final client = Client(authenticator: authenticator);
-/// ```
 ///
-/// Example with custom transport (proxy, timeouts, etc.):
-///
-/// ```dart
+/// // Custom transport (proxy, timeouts, etc.)
 /// final transport = TransportOptions.builder()
 ///   .proxy('http://proxy:3128')
 ///   .timeout(5000)
 ///   .build();
-/// final client = Client(
+/// final customClient = Client(
 ///   authenticator: authenticator,
 ///   transportOptions: transport,
 /// );
 /// ```
 class Client {
-  /// Provides methods for the Pet API group.
+  /// API operations for the PetApi group.
   final PetApi pet;
 
-  /// Provides methods for the Store API group.
+  /// API operations for the StoreApi group.
   final StoreApi store;
 
-  /// Creates a new client with the given authenticator and optional transport
-  /// options.
-  ///
-  /// A single shared [DefaultApiClient] is created and used by all API groups
-  /// and the authenticator (if it implements [HttpAwareAuthenticator]), so that
-  /// token exchange and discovery requests use the same proxy, TLS, and timeout
-  /// settings as regular API calls.
   Client._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
   }) : pet = _createPetApi(authenticator, apiClient),
        store = _createStoreApi(authenticator, apiClient);
 
+  /// Creates a new client with the given authenticator and transport options.
+  ///
+  /// If the authenticator implements [HttpAwareAuthenticator], the shared
+  /// `ApiClient` is injected so that token exchange and discovery requests
+  /// use the same proxy, TLS, and timeout settings.
+  ///
+  /// Parameters:
+  ///   - [authenticator]: provides host URL and auth headers
+  ///   - [transportOptions]: HTTP transport configuration (proxy, TLS,
+  ///     timeouts, etc.)
   factory Client({
     required Authenticator authenticator,
     TransportOptions? transportOptions,
@@ -96,6 +97,12 @@ class Client {
   }
 
   /// Creates a client authenticated with a static Bearer token.
+  ///
+  /// Parameters:
+  ///   - [host]: API base URL
+  ///   - [accessToken]: Bearer token
+  ///   - [transportOptions]: optional HTTP transport configuration (proxy,
+  ///     TLS, timeouts, etc.)
   factory Client.withToken({
     required String host,
     required String accessToken,
@@ -107,12 +114,18 @@ class Client {
     );
   }
 
-  /// Creates a client from any [Authenticator].
+  /// Creates a client from any [Authenticator] implementation.
   ///
-  /// This is the generic entry point for bespoke authenticators such as client
-  /// credentials, JWT private key, or personal access token (PAT) flows. Pass
-  /// optional [transportOptions] to share proxy, TLS, and timeout settings with
-  /// the authenticator's own HTTP calls.
+  /// This is the generic entry point for bespoke authentication strategies such
+  /// as OAuth2 client credentials, JWT private-key (service account), or a
+  /// personal access token (PAT). Supply any [Authenticator] implementation; if
+  /// it also implements [HttpAwareAuthenticator], the shared `ApiClient` is
+  /// injected so its HTTP calls reuse the same transport configuration.
+  ///
+  /// Parameters:
+  ///   - [authenticator]: provides host URL and auth headers
+  ///   - [transportOptions]: optional HTTP transport configuration (proxy,
+  ///     TLS, timeouts, etc.)
   static Client withAuthenticator(
     Authenticator authenticator, [
     TransportOptions? transportOptions,

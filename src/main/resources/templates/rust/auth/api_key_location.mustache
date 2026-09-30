@@ -1,14 +1,14 @@
 {{>api_info}}
 
-/// ApiKeyLocation specifies where the API key should be sent.
+/// Location where an API key credential is sent on a request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiKeyLocation {
-    /// Sends the API key as a request header.
+    /// The API key is sent as an HTTP request header.
     Header,
 
-    /// Sends the API key as a query parameter.
+    /// The API key is sent as a query parameter.
     Query,
 
-    /// Sends the API key as a cookie.
+    /// The API key is sent as a cookie.
     Cookie,
 }

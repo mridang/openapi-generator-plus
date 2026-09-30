@@ -5,13 +5,13 @@ use std::collections::HashMap;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::server_configuration::ServerConfiguration;
 
-/// Configuration holds API-level configuration for generated client classes.
+/// API-level configuration for generated client classes.
 ///
-/// It stores the base URL and default headers that are applied to every API
+/// Holds the base URL and default headers that are applied to every API
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// `TransportOptions` and are configured on the `DefaultApiClient`.
 ///
-/// Configuration is immutable once built. Use [`Configuration::builder`] to
+/// This struct is immutable and thread-safe. Use [`Configuration::builder`] to
 /// create instances:
 ///
 /// ```rust,no_run
@@ -23,19 +23,21 @@ use crate::server_configuration::ServerConfiguration;
 /// ```
 #[derive(Debug, Clone)]
 pub struct Configuration {
-    /// The base URL for all API requests. Defaults to the first server URL
-    /// from the OpenAPI specification.
+    /// The base URL for all API requests.
+    ///
+    /// Defaults to the first server URL from the OpenAPI specification.
     base_url: String,
 
-    /// Default headers included in every API request. These headers are
-    /// merged after transport-level headers from TransportOptions but before
-    /// operation-specific headers and authentication headers.
+    /// Default headers included in every API request.
+    ///
+    /// These headers are merged after transport-level headers from
+    /// `TransportOptions` but before operation-specific headers and
+    /// authentication headers.
     default_headers: HashMap<String, String>,
 }
 
 impl Configuration {
-    /// Returns a new [`ConfigurationBuilder`]. This is the entry point for
-    /// building a configuration.
+    /// Creates a new builder for constructing [`Configuration`] instances.
     pub fn builder() -> ConfigurationBuilder {
         ConfigurationBuilder::new()
     }
@@ -45,26 +47,34 @@ impl Configuration {
         &self.base_url
     }
 
-    /// Returns a copy of the default headers included in every API request.
+    /// Returns the default headers included in every API request.
+    ///
+    /// The headers are returned as an owned copy, so the caller cannot mutate
+    /// the configuration's own map.
     pub fn default_headers(&self) -> HashMap<String, String> {
         self.default_headers.clone()
     }
 }
 
 impl Default for Configuration {
+    /// Returns a [`Configuration`] with default values: the spec-defined base
+    /// URL and no default headers.
+    ///
+    /// A fresh instance every call: the SDK keeps no process-wide default a
+    /// caller could swap out from under another caller.
     fn default() -> Self {
         ConfigurationBuilder::new().build()
     }
 }
 
-/// ConfigurationBuilder builds immutable Configuration instances.
+/// Builder for creating immutable [`Configuration`] instances.
 pub struct ConfigurationBuilder {
     base_url: String,
     default_headers: HashMap<String, String>,
 }
 
 impl ConfigurationBuilder {
-    /// Creates a new builder for constructing Configuration instances.
+    /// Creates a new builder for constructing [`Configuration`] instances.
     pub fn new() -> Self {
         Self {
             base_url: "{{{basePath}}}".to_string(),
@@ -90,7 +100,12 @@ impl ConfigurationBuilder {
         self
     }
 
-    /// Sets the base URL from a server configuration with optional variable overrides.
+    /// Uses a server configuration with variable overrides to set the base URL.
+    ///
+    /// Resolves the server URL template with the given variable overrides and
+    /// uses the result as the base URL. Variables not present in the map use
+    /// their default values. Enum validation is performed by
+    /// [`ServerConfiguration::url`].
     ///
     /// # Errors
     ///
@@ -101,7 +116,7 @@ impl ConfigurationBuilder {
         Ok(self)
     }
 
-    /// Creates and returns an immutable Configuration instance.
+    /// Builds and returns an immutable [`Configuration`] instance.
     pub fn build(self) -> Configuration {
         Configuration {
             base_url: self.base_url,

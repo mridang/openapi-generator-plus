@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `browserAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `BrowserAuthImplicitAuthenticator` authenticator.
+  Creates an authenticator for the `browserAuth` security scheme.
   """
   def new(host, client_id) do
     PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(

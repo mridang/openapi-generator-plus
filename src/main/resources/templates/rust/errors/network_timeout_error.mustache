@@ -4,8 +4,9 @@ use std::fmt;
 
 use crate::errors::network_error::NetworkError;
 
-/// NetworkTimeoutError represents a request that timed out. The status code
-/// is 0 and the transport error is kept as the source.
+/// Error for a request that timed out before an HTTP response arrived. The
+/// status code is always 0 and the underlying transport error is kept as the
+/// source.
 #[derive(Debug, Clone)]
 pub struct NetworkTimeoutError {
     network_error: NetworkError,

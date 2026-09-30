@@ -9,7 +9,7 @@ use std::fmt;
 
 use crate::errors::api_error::ApiError;
 
-/// ServerError represents an HTTP 5xx server error.
+/// Error for HTTP 5xx server errors.
 #[derive(Debug, Clone)]
 pub struct ServerError {
     api_error: ApiError,

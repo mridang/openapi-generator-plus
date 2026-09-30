@@ -113,7 +113,7 @@ class DefaultApiClient extends AbstractApiClient {
   /// [GZipCodec] and [ZLibDecoder]. An empty encoding passes bytes through;
   /// an unknown encoding (`identity`, `br`, `zstd`) is passed through unchanged
   /// to match the canonical Java/Go/Ruby/PHP decompressors. A body advertised
-  /// as gzip/deflate that fails to decode surfaces a typed [ApiException] (Gap AL).
+  /// as gzip/deflate that fails to decode surfaces a typed [ApiException].
   @override
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) {
     if (bytes.isEmpty) return bytes;

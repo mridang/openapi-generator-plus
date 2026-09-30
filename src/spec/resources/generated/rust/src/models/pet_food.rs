@@ -20,7 +20,7 @@ use super::*;
 // discriminator value because the inner structs carry the
 // discriminator as a plain `String` (so any value parses). Instead
 // we read the discriminator field, match against the spec's
-// declared mapping, and return an `Err` on unknown values — Gap 4.7.
+// declared mapping, and return an `Err` on unknown values.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum PetFood {

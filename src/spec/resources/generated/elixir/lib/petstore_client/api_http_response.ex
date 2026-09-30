@@ -7,7 +7,7 @@
 
 defmodule PetstoreClient.ApiHttpResponse do
   @moduledoc """
-  Wraps an HTTP response with status code, body, and headers.
+  Represents an HTTP API response.
   """
 
   @type t :: %__MODULE__{

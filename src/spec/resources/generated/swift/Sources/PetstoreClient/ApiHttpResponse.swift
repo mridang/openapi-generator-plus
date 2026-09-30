@@ -7,17 +7,18 @@
 
 import Foundation
 
-/// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
+/// Represents an HTTP API response.
 public struct ApiHttpResponse: Sendable {
   /// The HTTP status code of the response.
   public let statusCode: Int
 
-  /// The raw response body as a string.
+  /// The response body.
   public let body: String
 
   /// The response headers.
   public let headers: [String: String]
 
+  /// Creates an ApiHttpResponse.
   public init(statusCode: Int, body: String, headers: [String: String]) {
     self.statusCode = statusCode
     self.body = body

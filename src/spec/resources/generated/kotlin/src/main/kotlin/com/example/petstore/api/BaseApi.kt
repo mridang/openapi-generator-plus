@@ -52,7 +52,7 @@ abstract class BaseApi {
     @PublishedApi
     internal val headerSelector: HeaderSelector
 
-    /** Optional authenticator for client-level auth (used as fallback when no per-call auth is provided). */
+    /** Default authenticator used when no per-operation auth is provided. */
     protected val authenticator: Authenticator?
 
     /**
@@ -80,7 +80,7 @@ abstract class BaseApi {
      *
      * @param apiClient     the HTTP transport client
      * @param config        API-level configuration (base URL and default headers)
-     * @param authenticator optional authenticator for client-level auth
+     * @param authenticator default authenticator for operations without explicit auth
      */
     constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) {
         this.apiClient = apiClient
@@ -205,8 +205,7 @@ abstract class BaseApi {
                         // content-type selection. Send the single binary part's raw
                         // bytes instead; the text metadata parts have no place on the
                         // wire for a raw stream and are dropped.
-                        val binaryPart = body.values.firstOrNull { it is ByteArray }
-                        binaryPart ?: body
+                        extractBinaryPart(body)
                     }
                     body is ByteArray ||
                         contentType.startsWith("image/") ||
@@ -261,7 +260,7 @@ abstract class BaseApi {
      * Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes the
      * response body using the [ObjectSerializer] when a return type is expected.
      *
-     * @param T          the return type
+     * @param T the return type
      * @param method     HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param path       URL path (with path params already substituted)
      * @param queryParams query parameters
@@ -331,6 +330,107 @@ abstract class BaseApi {
     }
 
     /**
+     * Extract the single binary payload from a form-style body Map when a
+     * raw-binary content-type (application/octet-stream or an image type) was
+     * selected for an operation that also declares multipart/form-data.
+     *
+     * The API layer always builds a form Map keyed by the operation's
+     * declared parts. For a raw-binary upload only the binary part travels on
+     * the wire — the auxiliary string parts (classification, notes, ...) belong
+     * to the multipart variant and are dropped. This returns the first
+     * binary-typed value (`ByteArray`) so the transport sends its raw bytes
+     * under the selected Content-Type rather than a multipart envelope.
+     *
+     * @param formBody the form-style body Map
+     * @return the binary part suitable for raw transmission
+     * @throws IllegalArgumentException if no binary part is present
+     */
+    private fun extractBinaryPart(formBody: Map<*, *>): Any {
+        for (value in formBody.values) {
+            if (value is ByteArray) {
+                return value
+            }
+        }
+        throw IllegalArgumentException(
+            "No binary payload found in request body for raw octet-stream upload",
+        )
+    }
+
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie name (token).
+     * Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
+     *
+     * Visible to generated API subclasses so that operation-level cookie
+     * parameters can be validated with the exact same RFC 6265 rule the
+     * auth-provided cookie path uses, rather than being interpolated into the
+     * Cookie header unchecked.
+     *
+     * @param name the cookie name to validate
+     * @return true when the name is a valid RFC 6265 token
+     */
+    protected fun isValidCookieName(name: String): Boolean {
+        if (name.isEmpty()) return false
+        return name.all { c ->
+            c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in "!#$%&'*+-.^_`|~"
+        }
+    }
+
+    /**
+     * Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*).
+     * Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+     * Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls.
+     * Empty value is allowed.
+     *
+     * Visible to generated API subclasses so that operation-level cookie
+     * parameters can be validated with the exact same RFC 6265 rule the
+     * auth-provided cookie path uses. This is what makes a CR/LF or
+     * control-char value fail closed instead of being smuggled into the Cookie
+     * request header (header injection).
+     *
+     * @param value the cookie value to validate
+     * @return true when the value contains only valid cookie-octets
+     */
+    protected fun isValidCookieValue(value: String): Boolean =
+        value.all { c ->
+            val code = c.code
+            code == 0x21 ||
+                code in 0x23..0x2B ||
+                code in 0x2D..0x3A ||
+                code in 0x3C..0x5B ||
+                code in 0x5D..0x7E
+        }
+
+    /**
+     * Mirror of the transport's text/binary content-type classification. The
+     * transport base64-encodes the response body for binary content types and
+     * leaves text content types (including JSON) as a decoded string, so
+     * binary return-type handling must apply the same rule to recover the raw
+     * bytes.
+     *
+     * Marked `@PublishedApi internal` because the public inline
+     * [invokeApiForResult] calls it; a `private` helper is not visible from an
+     * inlined function body.
+     *
+     * @param contentType the response Content-Type header value (possibly empty)
+     * @return true when the body was kept as decoded text by the transport
+     */
+    @PublishedApi
+    internal fun isTextResponseContentType(contentType: String): Boolean {
+        val mediaType =
+            contentType
+                .substringBefore(';')
+                .trim()
+                .lowercase()
+        if (mediaType.isEmpty()) return true
+        if (mediaType.startsWith("text/")) return true
+        return mediaType == "application/json" ||
+            mediaType == "application/xml" ||
+            mediaType == "application/javascript" ||
+            mediaType.endsWith("+json") ||
+            mediaType.endsWith("+xml")
+    }
+
+    /**
      * Build a query string from query parameters.
      *
      * @param queryParams the query parameters
@@ -366,7 +466,7 @@ abstract class BaseApi {
      * Encode a query-parameter value, preserving RFC 3986 reserved characters
      * when the parameter declared `allowReserved: true`.
      *
-     * @param value         the value to encode
+     * @param value the value to encode
      * @param allowReserved whether reserved characters are left literal
      * @return the encoded value
      */
@@ -376,72 +476,10 @@ abstract class BaseApi {
     ): String = if (allowReserved) ValueSerializer.encodeQueryAllowingReserved(value) else encode(value)
 
     /**
-     * URL-encode a string using application/x-www-form-urlencoded encoding.
+     * URL-encode a string.
      *
      * @param value the string to encode
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
-
-    /**
-     * Mirror of the transport's text/binary content-type classification. The
-     * transport base64-encodes the response body for binary content types and
-     * leaves text content types (including JSON) as a decoded string, so
-     * binary return-type handling must apply the same rule to recover the raw
-     * bytes. Returns true when the body was kept as decoded text.
-     *
-     * Marked `@PublishedApi internal` because the public inline
-     * [invokeApiForResult] calls it; a `private` helper is not visible from an
-     * inlined function body.
-     */
-    @PublishedApi
-    internal fun isTextResponseContentType(contentType: String): Boolean {
-        val mediaType =
-            contentType
-                .substringBefore(';')
-                .trim()
-                .lowercase()
-        if (mediaType.isEmpty()) return true
-        if (mediaType.startsWith("text/")) return true
-        return mediaType == "application/json" ||
-            mediaType == "application/xml" ||
-            mediaType == "application/javascript" ||
-            mediaType.endsWith("+json") ||
-            mediaType.endsWith("+xml")
-    }
-
-    /**
-     * RFC 6265 cookie-name validation (RFC 7230 token).
-     *
-     * Marked `protected` rather than `private` so generated subclasses can
-     * apply the same validation to operation-level cookie parameters before
-     * they are joined into the Cookie header, mirroring the auth-cookie path
-     * above. This prevents CR/LF and other control characters in a cookie
-     * name from being injected into the request headers.
-     */
-    protected fun isValidCookieName(name: String): Boolean {
-        if (name.isEmpty()) return false
-        return name.all { c ->
-            c in 'A'..'Z' || c in 'a'..'z' || c in '0'..'9' || c in "!#$%&'*+-.^_`|~"
-        }
-    }
-
-    /**
-     * RFC 6265 cookie-value validation (cookie-octet*).
-     *
-     * Marked `protected` rather than `private` so generated subclasses can
-     * apply the same validation to operation-level cookie parameters before
-     * they are joined into the Cookie header, mirroring the auth-cookie path
-     * above. This prevents CR/LF and other control characters in a cookie
-     * value from being injected into the request headers.
-     */
-    protected fun isValidCookieValue(value: String): Boolean =
-        value.all { c ->
-            val code = c.code
-            code == 0x21 ||
-                code in 0x23..0x2B ||
-                code in 0x2D..0x3A ||
-                code in 0x3C..0x5B ||
-                code in 0x5D..0x7E
-        }
 }

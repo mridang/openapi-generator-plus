@@ -9,6 +9,11 @@ package com.example.petstore.errors
 
 /**
  * Exception for HTTP 403 Forbidden.
+ *
+ * @param message the error message
+ * @param responseHeaders the HTTP response headers, if available
+ * @param responseBody the raw HTTP response body, if available
+ * @param errorBody the deserialized error body, if available
  */
 class ForbiddenException(
     message: String,

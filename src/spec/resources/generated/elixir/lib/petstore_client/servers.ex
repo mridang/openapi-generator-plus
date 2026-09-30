@@ -9,8 +9,8 @@ defmodule PetstoreClient.Servers do
   @moduledoc """
   Generated server configurations from the OpenAPI specification.
 
-  Each module attribute corresponds to a server entry defined in the spec's
-  `servers` array. Use these with `#{inspect(PetstoreClient.Configuration)}` to select a server:
+  Each function corresponds to a server entry defined in the spec's `servers`
+  array. Use these with `#{inspect(PetstoreClient.Configuration)}` to select a server:
 
       config = PetstoreClient.Configuration.new(
         base_url: PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()

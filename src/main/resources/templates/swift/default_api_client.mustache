@@ -6,7 +6,7 @@ import Security
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
-/* Apple platforms ship an importable `zlib` module in the SDK, so the Gap AL
+/* Apple platforms ship an importable `zlib` module in the SDK, so the gzip
    guard below can gunzip a body that still carries the gzip magic bytes with
    no extra Package.swift dependency. Linux Swift ships no importable
    `zlib`/`CZlib` module (only the C headers), so `canImport(zlib)` is false
@@ -17,11 +17,11 @@ import FoundationNetworking
 import zlib
 #endif
 
-/// DefaultApiClient is the default HTTP client implementation backed by URLSession.
+/// Default implementation of ``ApiClient`` using `URLSession`.
 ///
 /// Applies transport-level settings from ``TransportOptions``: TLS verification,
 /// custom CA certificates, proxy routing, timeouts, redirect handling,
-/// User-Agent injection, X-Request-ID injection, and transport-level
+/// `User-Agent` injection, `X-Request-ID` injection, and transport-level
 /// default headers.
 ///
 /// Header merge order (lowest to highest priority):
@@ -33,12 +33,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     private let transportOptions: TransportOptions
     private let session: URLSession
     private let sessionDelegate: SessionDelegate?
-    /* Gap T-D4: a closed-flag so that using the client after ``close()``
-       surfaces a uniform SDK ``ApiError`` instead of a foreign URLSession
-       "session invalidated" exception, matching the close-lifecycle
-       behaviour of the other SDKs. */
+    /* A closed-flag so that using the client after ``close()`` surfaces a
+       ``ConfigurationError`` instead of a foreign URLSession "session
+       invalidated" exception, matching the close-lifecycle behaviour of the
+       other SDKs. */
     private let closedFlag = LockedFlag()
-    /* Gap AK: URLSession's connectionProxyDictionary has no key for
+    /* URLSession's connectionProxyDictionary has no key for
      * proxy basic-auth credentials, so userinfo embedded in the proxy
      * URL (`http://user:pass@host:port`) is silently dropped by the
      * platform. Extract it here and inject as a Proxy-Authorization
@@ -63,7 +63,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Creates a client with the given transport settings.
     /// If transportOptions is nil, default transport settings are used.
     ///
-    /// Gap T4: when ``TransportOptions/caCertPath`` is set, the certificate
+    /// When ``TransportOptions/caCertPath`` is set, the certificate
     /// is read and parsed eagerly here. If it cannot be read or parsed, this
     /// initializer throws ``ConfigurationError/invalidCACertificate(_:)``
     /// rather than silently falling back to the system trust store — if the
@@ -187,8 +187,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Merges headers according to the priority order documented on the class,
     /// then dispatches via URLSession.
     public func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
-        /* Gap T-D4: using the client after close() must surface a uniform
-           SDK error, not a foreign URLSession invalidation exception. */
+        /* Using the client after close() must surface a ConfigurationError, not a
+           foreign URLSession invalidation exception. */
         if closedFlag.isSet {
             throw ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests")
         }
@@ -264,7 +264,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
            only this request's recorded refusal. */
         let task: URLSessionTask
         do {
-            /* Gap 3.2: when noRedirect is set (used by the OAuth2 token
+            /* When noRedirect is set (used by the OAuth2 token
              * endpoint POST), route through a dedicated, non-following
              * session so no redirect is followed; the first 3xx response
              * is returned to the caller as-is (status, body, headers). The
@@ -311,7 +311,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             throw refusal
         }
 
-        /* Gap BE+BF: response header keys are normalised to lowercase so
+        /* Response header keys are normalised to lowercase so
            callers can look them up consistently regardless of the casing
            the server used (HTTP header names are case-insensitive per
            RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the wire).
@@ -333,7 +333,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             }
         }
 
-        /* Gap AL: defend against a `Content-Encoding` lie WITHOUT mistaking a
+        /* Defend against a `Content-Encoding` lie WITHOUT mistaking a
            normal, already-decompressed response for one.
 
            URLSession transparently decompresses an encoding it negotiated, but
@@ -613,7 +613,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Decodes a gzip body that was left encoded on the wire (the caller has
     /// already confirmed the gzip magic bytes are present). Returns the
     /// decompressed bytes, or throws when the body is not a valid gzip stream
-    /// — the Gap AL guard converts that throw into the SDK's uniform
+    /// — the caller of this guard converts that throw into the SDK's uniform
     /// ``ApiError`` rather than handing corrupt, undecoded bytes back.
     ///
     /// On Apple platforms a `zlib` module is available, so we decompress with
@@ -817,7 +817,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
         /* A session delegate is used when SSL verification is disabled, a
          * custom CA certificate is configured, or redirect control is
-         * needed. Gap BH: we always need the delegate to strip sensitive
+         * needed. We always need the delegate to strip sensitive
          * headers on cross-origin redirects, so it is created
          * unconditionally when followRedirects is enabled. */
         let needsDelegate = !opts.verifySsl
@@ -840,7 +840,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     /// Builds an ephemeral session that does not follow any HTTP
     /// redirect; the 3xx response is returned to the caller as-is. Used
-    /// for the OAuth2 token-endpoint POST (Gap 3.2) so a credential-bearing
+    /// for the OAuth2 token-endpoint POST so a credential-bearing
     /// body is never silently replayed to a Location target — the token
     /// manager inspects and rejects the 3xx itself. TLS settings are
     /// inherited from ``TransportOptions`` so custom CA / verifySsl flags
@@ -867,13 +867,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     }
 
-    /// Gap T6: release the underlying URLSession's connection pool /
-    /// delegate queue. Calls `finishTasksAndInvalidate()` so in-flight
-    /// requests can complete and the session is permanently invalidated.
+    /// Releases the underlying URLSession's connection pool / delegate queue.
+    /// Calls `finishTasksAndInvalidate()` so in-flight requests can complete
+    /// and the session is permanently invalidated.
     /// Idempotent — safe to call multiple times. After close(), any further
-    /// ``sendRequest(method:url:headers:body:noRedirect:)`` throws a uniform
-    /// ``ApiError`` (Gap T-D4) rather than a foreign URLSession invalidation
-    /// exception.
+    /// ``sendRequest(method:url:headers:body:noRedirect:)`` throws
+    /// ``ConfigurationError/invalidState(_:)`` rather than a foreign
+    /// URLSession invalidation exception.
     public func close() {
         closedFlag.set()
         session.finishTasksAndInvalidate()
@@ -1026,14 +1026,14 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
             completionHandler(nil)
             return
         }
-        /* Gap BH: URLSession re-sends Authorization / Cookie /
+        /* URLSession re-sends Authorization / Cookie /
          * Proxy-Authorization across cross-origin 3xx redirects by
          * default, which leaks bearer tokens to attacker-controlled
          * hosts via malicious 302. Strip these headers when the next
          * request's origin (scheme + host + port) differs from the
          * originating request's origin.
          *
-         * Gap 3.1: the strip-set is extended at codegen time with
+         * The strip-set is extended at codegen time with
          * every `type=apiKey, in=header` scheme declared in the
          * OpenAPI spec, so app-specific credential headers
          * (X-API-Key, X-Internal-Token, …) are also stripped on
@@ -1047,7 +1047,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
             }
         }
 
-        /* Gap 3.3: refuse to replay a request body across an
+        /* Refuse to replay a request body across an
          * HTTPS -> HTTP transport downgrade. Replaying the body in
          * cleartext after the original was sent over TLS leaks
          * whatever the caller trusted to TLS to protect
@@ -1071,7 +1071,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
             return
         }
 
-        /* Gap 3.4: when the server returned 303 the spec requires
+        /* When the server returned 303 the spec requires
          * a GET with no body. URLSession coerces the method to GET
          * but does not always strip a stale `Content-Length: N`
          * carried over from the original POST/PUT/PATCH, which
@@ -1112,8 +1112,8 @@ extension DefaultApiClient {
     /// Header names that MUST NOT be replayed across a cross-origin
     /// 3xx redirect. The base set is the RFC-defined credential
     /// triple; the trailing entries are app-specific `apiKey-in-header`
-    /// scheme names extracted from the OpenAPI spec at codegen time
-    /// (Gap 3.1). Comparisons are case-insensitive — the redirect
+    /// scheme names extracted from the OpenAPI spec at codegen time.
+    /// Comparisons are case-insensitive — the redirect
     /// handler routes through `URLRequest.setValue(nil, forHTTPHeaderField:)`
     /// which is itself case-insensitive on header names.
     static let sensitiveRedirectHeaders: [String] = [
@@ -1138,7 +1138,7 @@ extension DefaultApiClient {
 }
 
 /// Thread-safe boolean flag used by ``DefaultApiClient`` to record that
-/// ``DefaultApiClient/close()`` has been called (Gap T-D4).
+/// ``DefaultApiClient/close()`` has been called.
 private final class LockedFlag: @unchecked Sendable {
     private var value: Bool = false
     private let lock = NSLock()

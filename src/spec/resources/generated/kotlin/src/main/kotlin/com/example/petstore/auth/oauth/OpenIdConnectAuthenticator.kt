@@ -25,10 +25,17 @@ import java.time.Instant
  * request and subsequent token exchange requests use the shared
  * [ApiClient] with the same transport configuration (proxy, TLS,
  * timeouts) as regular API calls.
+ *
+ * @param host API base URL
+ * @param openIdConnectUrl OIDC discovery document URL
+ * @param clientId OAuth2 client ID
+ * @param clientSecret OAuth2 client secret
+ * @param redirectUri redirect URI registered with the provider
+ * @param scopes requested scopes
  */
 open class OpenIdConnectAuthenticator(
     private val host: String,
-    private val discoveryUrl: String,
+    private val openIdConnectUrl: String,
     private val clientId: String,
     private val clientSecret: String,
     private val redirectUri: String,
@@ -45,6 +52,11 @@ open class OpenIdConnectAuthenticator(
     @Volatile
     private var discoveryExpiry: Instant = Instant.EPOCH
 
+    /**
+     * Inject the shared API client used for discovery and token requests.
+     *
+     * @param apiClient the shared API client instance
+     */
     override fun setApiClient(apiClient: ApiClient) {
         this.apiClient = apiClient
     }
@@ -72,11 +84,14 @@ open class OpenIdConnectAuthenticator(
                     "on HttpAwareAuthenticator before making API requests.",
             )
 
-        // Discovery is an HTTP call like any other: a transport failure
-        // propagates unchanged as NetworkException / NetworkTimeoutException.
+        /* Discovery is an HTTP call like any other: a transport failure
+         * propagates unchanged as NetworkException / NetworkTimeoutException. */
         val headers = mapOf("Accept" to "application/json")
-        val response = client.sendRequest("GET", discoveryUrl, headers, null)
-
+        val response = client.sendRequest("GET", openIdConnectUrl, headers, null)
+        /* Guard the HTTP status before parsing: a 5xx/4xx discovery
+         * response is typically an HTML/text error page, which would
+         * otherwise surface as a confusing "invalid JSON" error instead
+         * of the real "discovery failed" condition. */
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw ApiException.fromResponse(response.statusCode, response.headers, response.body)
         }
@@ -109,9 +124,14 @@ open class OpenIdConnectAuthenticator(
     }
 
     /**
-     * Extract a required endpoint URL from the discovery document. An absent,
-     * null, non-string or empty field makes the document unusable, which is
-     * a [SerializationException].
+     * Extract a required endpoint URL from the discovery document, validating
+     * that it is present and non-empty.
+     *
+     * @param discovery the parsed discovery document
+     * @param field the discovery field name (e.g. `token_endpoint`)
+     * @return the endpoint URL
+     * @throws SerializationException if the field is absent, null, not a
+     *   string, or empty
      */
     private fun requireEndpoint(
         discovery: kotlinx.serialization.json.JsonObject,
@@ -127,6 +147,7 @@ open class OpenIdConnectAuthenticator(
     /**
      * Parse `Cache-Control: max-age=<seconds>` from response headers.
      *
+     * @param headers the response headers
      * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if
      *   the header is absent or does not contain a `max-age` directive
      */
@@ -164,10 +185,13 @@ open class OpenIdConnectAuthenticator(
     override suspend fun getAuthHeaders(): Map<String, String> = resolveDelegate().getAuthHeaders()
 
     /**
-     * Redacts the client secret so it never leaks through the default
-     * string representation (logs, stack traces, debuggers).
+     * Returns a string representation that redacts the client secret so
+     * credentials never leak into logs or stack traces (matching the other
+     * SDKs).
+     *
+     * @return a redacted string representation
      */
     override fun toString(): String =
-        "${this::class.simpleName}(host=$host, discoveryUrl=$discoveryUrl, clientId=$clientId, " +
+        "${this::class.simpleName}(host=$host, openIdConnectUrl=$openIdConnectUrl, clientId=$clientId, " +
             "clientSecret=***, redirectUri=$redirectUri, scopes=$scopes)"
 }

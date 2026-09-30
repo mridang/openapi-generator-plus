@@ -13,14 +13,14 @@ use crate::auth::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::serialization_error::SerializationError;
 
-/// OpenIdConnectAuthenticator provides OpenID Connect authentication.
+/// Authenticator for OpenID Connect.
 ///
 /// Fetches the OIDC discovery document to discover the authorization and
-/// token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
+/// token endpoints, then delegates to an [`OAuth2AuthorizationCodeAuthenticator`].
 ///
-/// Implements HttpAwareAuthenticator so that both the discovery request and
-/// subsequent token exchange requests use the shared ApiClient with the same
-/// transport configuration (proxy, TLS, timeouts) as regular API calls.
+/// Implements [`HttpAwareAuthenticator`] so that both the discovery request and
+/// subsequent token exchange requests use the shared [`ApiClient`] with the
+/// same transport configuration (proxy, TLS, timeouts) as regular API calls.
 pub struct OpenIdConnectAuthenticator {
     host: String,
     openid_connect_url: String,
@@ -60,6 +60,11 @@ fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
 
 impl OpenIdConnectAuthenticator {
     /// Creates a new OpenID Connect authenticator.
+    ///
+    /// `host` is the API base URL, `openid_connect_url` the OIDC discovery
+    /// document URL, `client_id` and `client_secret` the OAuth2 client
+    /// credentials, `redirect_uri` the redirect URI registered with the
+    /// provider and `scopes` the requested scopes.
     pub fn new(
         host: &str,
         openid_connect_url: &str,
@@ -82,6 +87,8 @@ impl OpenIdConnectAuthenticator {
     }
 
     /// Builds the authorization URL using the discovered authorization endpoint.
+    ///
+    /// `state` is the CSRF state parameter.
     pub async fn build_authorization_url(
         &self,
         state: &str,
@@ -98,6 +105,8 @@ impl OpenIdConnectAuthenticator {
 
     /// Exchanges an authorization code for tokens using the discovered token
     /// endpoint.
+    ///
+    /// `code` is the authorization code from the callback.
     pub async fn exchange_code(
         &self,
         code: &str,
@@ -236,9 +245,10 @@ impl OpenIdConnectAuthenticator {
     }
 }
 
-/// Redacts the client secret so it never leaks through `{:?}` (Debug)
-/// formatting, stack traces, or error logs. The non-secret configuration
-/// fields are shown normally; the client secret is masked as `***`.
+/// Renders a representation that redacts the client secret so credentials never
+/// leak into logs or stack traces (`{:?}` formatting). The non-secret
+/// configuration fields are shown normally; the client secret is masked as
+/// `***`.
 impl std::fmt::Debug for OpenIdConnectAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OpenIdConnectAuthenticator")

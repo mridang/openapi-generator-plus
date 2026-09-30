@@ -7,7 +7,7 @@ package {{invokerPackage}}
  *
  * A server URL may contain template variables (e.g.
  * `"https://{env}.api.example.com/v{version}"`). Use [getUrl] to resolve the
- * URL with default variable values, or pass overrides to substitute specific
+ * URL with default variable values, or pass overrides to override specific
  * variables.
  *
  * This class is immutable and thread-safe.
@@ -19,15 +19,17 @@ class ServerConfiguration(
     val urlTemplate: String,
     /** Human-readable description of this server, or null if not specified. */
     val description: String?,
-    /** The server variables and their definitions. */
-    val variables: Map<String, ServerVariable>
+    variables: Map<String, ServerVariable>
 ) {
+    /** The server variables and their definitions (an unmodifiable copy). */
+    val variables: Map<String, ServerVariable> = variables.toMap()
+
     /**
      * Resolve the URL template, substituting the given variable overrides.
      *
-     * Variables not present in [overrides] use their default values. If a
-     * variable has an enum constraint, the override value is validated against
-     * the allowed values.
+     * Variables not present in [overrides] use their default values.
+     * If a variable has an enum constraint, the override value is validated
+     * against the allowed values.
      *
      * @param overrides variable name to value overrides
      * @return the fully resolved URL

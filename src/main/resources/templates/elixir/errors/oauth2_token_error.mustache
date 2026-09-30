@@ -2,11 +2,12 @@
 
 defmodule {{moduleName}}.Errors.OAuth2TokenError do
   @moduledoc """
-  Raised when the OAuth2 token endpoint returns a 2xx response the SDK cannot
-  use: a body that is not a JSON object, or one that is missing or has an
-  empty `access_token` field. Distinct from
-  `{{moduleName}}.Errors.OAuth2ServerError` (which represents any non-2xx
-  answer) so callers can `rescue` them separately.
+  Raised when the OAuth2 token endpoint returns a 2xx response that cannot be
+  used: a body that is not a JSON object, or one whose `access_token` field is
+  missing or empty. Distinct from `{{moduleName}}.Errors.OAuth2ServerError`
+  (which represents any non-2xx answer) so callers can recover differently -
+  typically a malformed-server-response bug needs operator attention rather
+  than a client-side retry.
   """
 
   @type t :: %__MODULE__{message: String.t()}

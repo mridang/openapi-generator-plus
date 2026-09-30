@@ -7,17 +7,22 @@
 
 defmodule PetstoreClient.Errors.OAuth2ServerError do
   @moduledoc """
-  Raised when the OAuth2 token endpoint answers with any non-2xx status,
-  including a refused 3xx redirect. Typed representation of an RFC 6749 §5.2
-  OAuth2 error response.
+  Raised when the OAuth2 token endpoint answers with a non-2xx status,
+  including a 3xx redirect, which the token POST never follows. Typed
+  representation of an RFC 6749 §5.2 OAuth2 error response. The `:code` field
+  carries the OAuth2 error code (e.g. `"invalid_grant"`, `"invalid_client"`);
+  `:description` and `:uri` are the optional human-readable description and a
+  URL to a page describing the error. `:raw_body` preserves the original
+  response payload for diagnostics when the body is not a well-formed OAuth2
+  error object.
 
   Fields:
 
-    * `:status_code` -- HTTP status code returned by the token endpoint.
-    * `:code` -- the OAuth2 error code (e.g. `"invalid_grant"`).
-    * `:description` -- optional human-readable description.
-    * `:uri` -- optional URI to a page describing the error.
-    * `:raw_body` -- the original response payload (for diagnostics).
+    * `:status_code` - The HTTP status code of the error response.
+    * `:code` - The RFC 6749 §5.2 error code, if present.
+    * `:description` - The human-readable error description, if present.
+    * `:uri` - A URI describing the error, if present.
+    * `:raw_body` - The original response payload.
   """
 
   @type t :: %__MODULE__{

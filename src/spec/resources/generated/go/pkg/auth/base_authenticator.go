@@ -9,9 +9,8 @@
 
 package auth
 
-// BaseAuthenticator is an abstract base struct providing default
-// implementations for optional Authenticator methods. Concrete authenticators
-// should embed this struct.
+// BaseAuthenticator provides default implementations for optional
+// Authenticator methods. Concrete authenticators should embed this struct.
 type BaseAuthenticator struct{}
 
 // QueryParams returns an empty map. Override in concrete authenticators if needed.

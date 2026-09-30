@@ -1,14 +1,14 @@
 {{>api_info}}
 package {{packageName}}
 
-// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
+// ApiHttpResponse represents an HTTP API response.
 type ApiHttpResponse struct {
-	/* StatusCode is the HTTP status code of the response. */
+	/* StatusCode is the HTTP status code. */
 	StatusCode int
 
-	/* Body is the raw response body as a string. */
+	/* Body is the response body. */
 	Body string
 
-	/* Headers contains the response headers. */
+	/* Headers are the response headers. */
 	Headers map[string]string
 }

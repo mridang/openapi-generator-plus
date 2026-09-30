@@ -9,7 +9,7 @@
 
 package errors
 
-// BadRequestError represents an HTTP 400 Bad Request error.
+// BadRequestError is the error for HTTP 400 Bad Request.
 type BadRequestError struct {
 	ClientError
 }

@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// NotFoundException represents an HTTP 404 Not Found error.
+/// Exception for HTTP 404 Not Found.
 class NotFoundException extends ClientException {
   const NotFoundException({
     required super.statusCode,

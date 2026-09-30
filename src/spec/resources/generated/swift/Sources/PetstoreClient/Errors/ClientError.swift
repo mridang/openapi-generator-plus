@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// ClientError represents an HTTP 4xx client error.
+/// Error for HTTP 4xx client errors.
 public class ClientError: ApiError, @unchecked Sendable {}

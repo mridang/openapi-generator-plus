@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// InternalServerError represents an HTTP 500 Internal Server Error.
+/// Error for HTTP 500 Internal Server Error.
 public class InternalServerError: ServerError, @unchecked Sendable {}

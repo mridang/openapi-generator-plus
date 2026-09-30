@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// BadRequestException represents an HTTP 400 Bad Request error.
+/// Exception for HTTP 400 Bad Request.
 class BadRequestException extends ClientException {
   const BadRequestException({
     required super.statusCode,

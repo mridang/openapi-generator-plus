@@ -7,10 +7,10 @@
 
 import 'api_exception.dart';
 
-/// NetworkException represents a request that got no HTTP response: the
-/// connection was refused, the host name did not resolve, the TLS handshake
-/// failed, or the connection was reset. The status code is always 0; the
-/// underlying error is kept as [underlyingError].
+/// Exception for a request that received no HTTP response: connection
+/// refused, DNS failure, TLS failure, or connection reset. The status code is
+/// always 0 and the underlying transport exception is kept as
+/// [underlyingError].
 class NetworkException extends ApiException {
   const NetworkException({required super.message, super.underlyingError})
     : super(statusCode: 0);

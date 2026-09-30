@@ -117,10 +117,9 @@ func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{
 		return {{#returnType}}nil, {{/returnType}}err
 	}
 {{#returnType}}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("{{operationId}}", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -147,7 +146,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		return nil, fmt.Errorf("%w when calling {{classname}}.{{operationId}}", err)
 	}
 {{/pathParams}}
-{{! required-nested-param-validation: query/header/form/cookie params live on
+{{! query/header/form/cookie params live on
     the Options object. A required one is a non-pointer field, so a nil options
     (or, for strings, an empty value) means the caller omitted it. Guard here so
     the caller gets a clear error instead of silently sending the zero value.
@@ -405,7 +404,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
 		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
 		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
-		{{! security-none-sentinel: an operation declared `security: []` has no auth
+		{{! An operation declared `security: []` has no auth
 		    methods. It must pass the noAuth sentinel (not nil) so base_api applies
 		    NO authentication instead of falling back to the client-level
 		    authenticator and leaking its credential. A secured op passes the
@@ -424,7 +423,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	var dataPtr *{{{.}}}
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}

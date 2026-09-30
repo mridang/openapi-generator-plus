@@ -17,7 +17,7 @@ import (
 // recover instead of being terminated by a panic.
 var ErrAuthCodeNotExchanged = errors.New("oauth2 authorization code: must call ExchangeCode before requesting auth headers")
 
-// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
+// OAuth2AuthorizationCodeAuthenticator is the authenticator for the OAuth2 Authorization Code flow.
 //
 // Implements HttpAwareAuthenticator so that token exchange requests use the
 // shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
@@ -67,8 +67,8 @@ func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
 	return a.host
 }
 
-// String implements fmt.Stringer so the default string/format representation
-// never leaks the client_secret. authenticator-secret-in-default-string-repr.
+// String returns a string representation that redacts the client secret so
+// credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
 	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI)
 }
@@ -109,9 +109,9 @@ var ErrAuthCodeEmpty = errors.New("oauth2 authorization code: code must not be e
 
 // ExchangeCode exchanges an authorization code for an access token.
 func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
-	// oauth-exchangecode-no-empty-code-guard: reject an empty/whitespace code
-	// before the token POST so the caller sees the precondition failure
-	// directly instead of a confusing token-endpoint error.
+	// Reject an empty/whitespace code before the token POST so the caller sees
+	// the precondition failure directly instead of a confusing token-endpoint
+	// error.
 	if strings.TrimSpace(code) == "" {
 		return ErrAuthCodeEmpty
 	}

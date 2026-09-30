@@ -7,15 +7,15 @@
 
 defmodule PetstoreClient.Auth.ApiKeyLocation do
   @moduledoc """
-  Location where the API key should be sent.
+  Location where an API key credential is sent on a request.
   """
 
-  @doc "API key in a request header."
+  @doc "The API key is sent as an HTTP request header."
   def header, do: :header
 
-  @doc "API key as a query parameter."
+  @doc "The API key is sent as a query parameter."
   def query, do: :query
 
-  @doc "API key in a cookie."
+  @doc "The API key is sent as a cookie."
   def cookie, do: :cookie
 end

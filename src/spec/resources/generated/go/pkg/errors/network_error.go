@@ -9,8 +9,9 @@
 
 package errors
 
-// NetworkError represents a request that produced no HTTP response: connection
-// refused, DNS failure, TLS failure or connection reset. The status code is 0.
+// NetworkError is the error for a request that got no HTTP response: connection
+// refused, DNS failure, TLS failure, or connection reset. The status code is
+// always 0; the underlying error is kept as the cause.
 type NetworkError struct {
 	ApiError
 }

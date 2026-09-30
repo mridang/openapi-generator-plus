@@ -12,8 +12,15 @@ defmodule PetstoreClient.ServerVariable do
   Server variables define substitution parameters in server URL templates.
   Each variable has a default value and may optionally restrict values to
   an enumerated set.
+
+  This struct is immutable.
   """
 
+  @typedoc """
+  * `default_value` - The default value used when no override is provided.
+  * `description` - Human-readable description of the variable, or `nil` if not specified.
+  * `enum_values` - Allowed values for this variable. An empty list means any value is accepted.
+  """
   @type t :: %__MODULE__{
           default_value: String.t(),
           description: String.t() | nil,
@@ -34,8 +41,15 @@ defmodule PetstoreClient.ServerConfiguration do
   `"https://{env}.api.example.com/v{version}"`). Use `url/2` to resolve the
   URL with default variable values, or with overrides to substitute
   specific variables.
+
+  This struct is immutable.
   """
 
+  @typedoc """
+  * `url_template` - The raw URL template before variable substitution.
+  * `description` - Human-readable description of this server, or `nil` if not specified.
+  * `variables` - The server variables and their definitions, keyed by variable name.
+  """
   @type t :: %__MODULE__{
           url_template: String.t(),
           description: String.t() | nil,
@@ -48,7 +62,7 @@ defmodule PetstoreClient.ServerConfiguration do
             variables: %{}
 
   @doc """
-  Resolve the URL template using default variable values or the given overrides.
+  Resolve the URL template, substituting variable values.
 
   Variables not present in `overrides` use their default values. If a
   variable has an enum constraint, the override value is validated against
@@ -57,11 +71,12 @@ defmodule PetstoreClient.ServerConfiguration do
   ## Parameters
 
     * `server_config` - The server configuration to resolve.
-    * `overrides` - Variable name to value overrides. Defaults to `%{}`.
+    * `overrides` - Variable name to value overrides. If omitted or empty, all
+      variables use their defaults.
 
   ## Returns
 
-    The fully resolved URL string.
+    The fully resolved URL.
 
   ## Raises
 
@@ -75,7 +90,7 @@ defmodule PetstoreClient.ServerConfiguration do
 
       if var.enum_values != [] and value not in var.enum_values do
         raise ArgumentError,
-              "Invalid value '#{value}' for variable '#{var_name}'. Allowed: #{inspect(var.enum_values)}"
+              "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: #{inspect(var.enum_values)}"
       end
 
       String.replace(acc, "{#{var_name}}", value)

@@ -16,23 +16,25 @@ use crate::header_selector::HeaderSelector;
 use crate::trace_context_util;
 use crate::utils::form_url_encode;
 
-/// No-auth sentinel for operations declared `security: []`.
+/// Sentinel authenticator that marks an operation as explicitly unauthenticated.
 ///
-/// Three-state auth contract shared by all generated SDKs:
-///   - `auth` IS the sentinel  -> the operation is explicitly unauthenticated
-///     (spec `security: []`); NO credential is applied and the client-level
-///     authenticator is NOT consulted (the bug this fixes: such operations
-///     used to fall back to the client authenticator and leak its credential
-///     on reflect-style endpoints like testEcho*).
+/// An operation declared with `security: []` in the spec opts out of all
+/// authentication. Its generated method passes this sentinel as the `auth`
+/// argument so that `BaseApi` can distinguish three states that a plain `None`
+/// could not:
+///
+///   - `auth` IS the sentinel  -> the operation is unauthenticated; the
+///     client-level authenticator must NOT be applied (no credential leak);
 ///   - `auth` is `None`        -> a secured operation with no per-call override;
-///     fall back to the client-level authenticator wired into the BaseApi.
+///     fall back to the client-level authenticator;
 ///   - `auth` is `Some(real)`  -> a per-call override; use it.
 ///
-/// `NoAuth` is a private zero-sized `Authenticator` whose host is empty and
-/// which contributes no headers, query params, or cookies. It is never handed
-/// to callers; the api template passes `no_auth_sentinel()` for `security: []`
-/// operations, and BaseApi recognises it by pointer identity (`is_no_auth`),
-/// distinct from any real authenticator and from `None`.
+/// This is a private, identity-comparable singleton; it returns empty
+/// header/query/cookie maps so that even if it were ever applied it would
+/// attach nothing. Callers never see it: the api template passes
+/// `no_auth_sentinel()` for `security: []` operations, and `BaseApi` recognises
+/// it by pointer identity (`is_no_auth`), distinct from any real authenticator
+/// and from `None`.
 struct NoAuth;
 
 impl Authenticator for NoAuth {
@@ -72,7 +74,7 @@ fn is_no_auth(auth: &dyn Authenticator) -> bool {
     std::ptr::eq(data_ptr, sentinel_ptr)
 }
 
-/// InvokeApiParams holds parameters for the invoke_api call.
+/// Parameters for the `invoke_api` call.
 pub(crate) struct InvokeApiParams<'a> {
     pub method: &'a str,
     pub path: &'a str,
@@ -99,16 +101,26 @@ pub(crate) struct InvokeApiParams<'a> {
     pub auth: Option<&'a dyn Authenticator>,
 }
 
-/// BaseApi provides common functionality for all API classes.
+/// Base struct for all API groups. Provides the `invoke_api` method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
 pub(crate) struct BaseApi {
+    /// API-level configuration (base URL and default headers).
     config: Configuration,
+
+    /// The HTTP transport client used for sending requests.
     api_client: Arc<dyn ApiClient>,
+
+    /// Content negotiation logic for Accept and Content-Type headers.
     header_selector: HeaderSelector,
+
+    /// Default authenticator used when no per-operation auth is provided.
     authenticator: Option<Arc<dyn Authenticator>>,
 }
 
 impl BaseApi {
-    /// Creates a new BaseApi instance.
+    /// Creates an API instance with a custom API client, configuration, and
+    /// default authenticator (used for operations without explicit auth).
     pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
         Self {
             config,
@@ -118,17 +130,18 @@ impl BaseApi {
         }
     }
 
-    /// Dispatches an API request and returns the full response.
+    /// Invokes an API operation and returns the raw HTTP response, after
+    /// building the URL, selecting headers, applying authentication, and
+    /// serializing the body. A non-2xx status is returned as an `ApiError`.
     pub async fn invoke_api(
         &self,
         params: InvokeApiParams<'_>,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         let mut request_url = params.path.to_string();
         if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
-            /* Strip trailing slash from baseUrl when path starts with `/`
-             * so baseUrl='https://x/' + path='/y' produces 'https://x/y',
-             * not 'https://x//y' which most servers route to 404. Matches
-             * Java/C#/Go/Swift/Dart/Kotlin which collapse via URI parsers. */
+            /* Strip trailing slash from baseUrl when the path starts with a
+             * slash so baseUrl='https://x/' + path='/y' yields 'https://x/y'
+             * rather than 'https://x//y', which most servers route to 404. */
             let base = self.config.base_url();
             let base_trimmed = if params.path.starts_with('/') {
                 base.trim_end_matches('/')
@@ -138,14 +151,10 @@ impl BaseApi {
             request_url = format!("{}{}", base_trimmed, params.path);
         }
 
-        /* Resolve the effective authenticator under the three-state contract:
-         *   - params.auth IS the no-auth sentinel -> the operation is declared
-         *     `security: []`; apply NO auth and do NOT fall back to the
-         *     client-level authenticator (prevents leaking the client
-         *     credential on unauthenticated endpoints).
-         *   - params.auth is None                 -> secured op with no per-call
-         *     override; fall back to the client-level authenticator.
-         *   - params.auth is Some(real)           -> per-call override; use it. */
+        /* Three-state auth resolution. The no-auth sentinel (security: [])
+         * suppresses the client authenticator; None falls back to it (secured
+         * op, no per-call override); any other instance is an explicit per-call
+         * override. Identity comparison against the sentinel -- never equals. */
         let mut query_params = params.query_params;
         let effective_auth: Option<&dyn Authenticator> = match params.auth {
             Some(a) if is_no_auth(a) => None,
@@ -186,11 +195,13 @@ impl BaseApi {
             for (k, v) in auth.try_auth_headers().await? {
                 headers.insert(k, v);
             }
-            /* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
-             * most cookie parsers don't URL-decode, so `=` (base64 padding) would
-             * arrive as literal `%3D` and break JWT/session cookies. Validate and
-             * pass through raw instead. Invalid input is a caller mistake,
-             * reported as ConfigurationError::InvalidArgument. */
+            /* RFC 6265 -- cookie name is a token (RFC 7230 s3.2.6); cookie
+             * value is *cookie-octet (US-ASCII excluding whitespace, DQUOTE,
+             * comma, semicolon, backslash, controls). DO NOT URL-encode here:
+             * most cookie parsers do not URL-decode, so `=` (base64 padding)
+             * would arrive as literal `%3D` and break JWT/session cookies.
+             * Validate and pass through raw instead. Invalid input is a caller
+             * mistake, reported as ConfigurationError::InvalidArgument. */
             let cookies = auth.cookie_params();
             if !cookies.is_empty() {
                 let mut cookie_parts: Vec<String> = Vec::with_capacity(cookies.len());
@@ -266,7 +277,8 @@ impl BaseApi {
         Ok(response)
     }
 
-    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    /// Invokes an API operation and returns the full result including status
+    /// code, headers, and raw body alongside the deserialized data.
     pub async fn invoke_api_for_result<T: DeserializeOwned>(
         &self,
         params: InvokeApiParams<'_>,
@@ -351,7 +363,8 @@ impl BaseApi {
         ))
     }
 
-    /// Dispatches an API request and returns an ApiResult with unit data (for operations with no return type).
+    /// Invokes an API operation with no return type and returns the full
+    /// result (status code, headers, and raw body) with unit data.
     pub async fn invoke_api_for_empty_result(
         &self,
         params: InvokeApiParams<'_>,
@@ -374,9 +387,8 @@ fn build_query_string(query_params: &[(String, String, bool)]) -> String {
     let parts: Vec<String> = query_params
         .iter()
         .map(|(k, v, allow_reserved)| {
-            /* OAS allowReserved: when set, the value's RFC 3986 reserved
-             * characters are left literal; otherwise the value is encoded
-             * normally (byte-identical to the previous behaviour). The key is
+            /* OAS allowReserved: a flagged value keeps RFC 3986 reserved
+             * characters literal instead of percent-encoding them; the key is
              * always encoded normally. */
             let encoded_value = if *allow_reserved {
                 crate::value_serializer::encode_query_allowing_reserved(v)
@@ -427,12 +439,12 @@ pub(crate) fn serialize_body(
     }
 
     if content_type == "application/x-www-form-urlencoded" {
-        /* The body arrives as a JSON array of `[key, value]` pairs in
+        /* Canonical form serialization (identical across every SDK). The body
+         * arrives as a JSON array of `[key, value]` pairs in
          * spec-declaration order (built by the operation template). Each value
          * is one of:
          *   - a JSON array  → emitted as REPEATED keys (`tags=a&tags=b`), the
-         *                     form-explode convention shared by all 12 SDKs
-         *                     (never a bracketed/joined `tags=[a, b]`);
+         *                     exploded form (never `tags=a,b` or `tags[]=`);
          *   - JSON null     → OMITTED entirely (an absent optional field must
          *                     not appear as an empty `note=` pair);
          *   - any scalar    → stringified and emitted as a single pair.
@@ -536,8 +548,8 @@ mod tests {
         assert_eq!(body_str, "name=alice", "expected URL-encoded form data, got: {}", body_str);
     }
 
-    // form-body-space-encoding (behavior 3): a space in an
-    // application/x-www-form-urlencoded value MUST be encoded as `+`, not `%20`.
+    // A space in an application/x-www-form-urlencoded value MUST be encoded
+    // as `+`, not `%20`.
     #[test]
     fn test_serialize_body_form_urlencoded_space_as_plus() {
         let json_bytes =
@@ -551,9 +563,8 @@ mod tests {
         assert!(!body_str.contains("%20"), "space must encode as +, not %20: {}", body_str);
     }
 
-    // form-array-repeated-keys (behavior 1): an array form field MUST serialize
-    // as repeated keys (`tags=a&tags=b`), never a bracketed/joined `tags=[a, b]`
-    // or `tags=a,b`.
+    // An array form field MUST serialize as repeated keys (`tags=a&tags=b`),
+    // never a bracketed/joined `tags=[a, b]` or `tags=a,b`.
     #[test]
     fn test_serialize_body_form_urlencoded_array_repeated_keys() {
         let json_bytes = encode_form_pairs(&[
@@ -574,8 +585,8 @@ mod tests {
         assert!(!body_str.contains("tags=fluffy,good"), "must not comma-join: {}", body_str);
     }
 
-    // form-optional-null-omitted (behavior 2): an optional field whose value is
-    // null/absent MUST be omitted entirely — no empty `note=` pair on the wire.
+    // An optional field whose value is null/absent MUST be omitted entirely,
+    // with no empty `note=` pair on the wire.
     #[test]
     fn test_serialize_body_form_urlencoded_null_field_omitted() {
         let json_bytes = encode_form_pairs(&[

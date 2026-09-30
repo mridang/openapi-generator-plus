@@ -9,7 +9,7 @@
 
 package errors
 
-// ClientError represents an HTTP 4xx client error.
+// ClientError is the error for HTTP 4xx client errors.
 type ClientError struct {
 	ApiError
 }

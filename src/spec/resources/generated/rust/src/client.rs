@@ -17,20 +17,21 @@ use crate::default_api_client::DefaultApiClient;
 use crate::errors::configuration_error::ConfigurationError;
 use crate::transport_options::TransportOptions;
 
-/// Client is the unified entry point for all API services.
+/// Unified entry point for all API services.
 ///
 /// Takes an [`Authenticator`] and optionally [`TransportOptions`], then exposes
-/// each API group as a typed field.
+/// each API group as a typed field. If the authenticator is HTTP-aware, the
+/// shared [`ApiClient`] is injected so that authentication HTTP calls (token
+/// exchange, discovery) use the same transport configuration as regular API
+/// calls.
 ///
-/// # Example with default transport
+/// Usage:
 ///
 /// ```rust,ignore
+/// // Default transport
 /// let client = Client::new(authenticator, None);
-/// ```
 ///
-/// # Example with custom transport (proxy, timeouts, etc.)
-///
-/// ```rust,ignore
+/// // Custom transport (proxy, timeouts, etc.)
 /// let transport = TransportOptions::builder()
 ///     .proxy("http://proxy:3128")
 ///     .timeout(Some(5000))
@@ -45,7 +46,12 @@ pub struct Client {
 }
 
 impl Client {
-    /// Creates a new client with the given authenticator and optional transport options.
+    /// Creates a new client with the given authenticator and transport options.
+    ///
+    /// When `transport_options` is `None`, default transport settings are used.
+    /// If the authenticator is HTTP-aware, the shared [`ApiClient`] is injected
+    /// so that token exchange and discovery requests use the same proxy, TLS,
+    /// and timeout settings.
     pub fn new(
         mut authenticator: Box<dyn Authenticator>,
         transport_options: Option<TransportOptions>,
@@ -79,6 +85,10 @@ impl Client {
 
     /// Creates a client authenticated with a static Bearer token.
     ///
+    /// `host` is the API base URL, `access_token` the Bearer token, and
+    /// `transport_options` optional HTTP transport configuration (proxy, TLS,
+    /// timeouts, etc.).
+    ///
     /// # Errors
     ///
     /// Returns [`ConfigurationError::InvalidArgument`] when the token is empty
@@ -94,11 +104,13 @@ impl Client {
         ))
     }
 
-    /// Creates a client from any pre-built [`Authenticator`].
+    /// Creates a client from any [`Authenticator`] implementation.
     ///
-    /// This is the generic entry point for bespoke authentication strategies
-    /// (client credentials, JWT private key, personal access tokens, etc.) that
-    /// are not covered by the convenience constructors.
+    /// This is the generic entry point for bespoke authentication strategies such as
+    /// OAuth2 client credentials, JWT private-key (service account), or a personal access
+    /// token (PAT). Supply any [`Authenticator`] implementation; if it is also HTTP-aware,
+    /// the shared [`ApiClient`] is injected so its HTTP calls reuse the same transport
+    /// configuration.
     pub fn with_authenticator(
         authenticator: Box<dyn Authenticator>,
         transport_options: Option<TransportOptions>,

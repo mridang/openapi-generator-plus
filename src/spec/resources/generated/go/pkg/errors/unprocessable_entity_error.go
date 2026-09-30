@@ -9,7 +9,7 @@
 
 package errors
 
-// UnprocessableEntityError represents an HTTP 422 Unprocessable Entity error.
+// UnprocessableEntityError is the error for HTTP 422 Unprocessable Entity.
 type UnprocessableEntityError struct {
 	ClientError
 }

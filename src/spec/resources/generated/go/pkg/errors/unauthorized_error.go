@@ -9,7 +9,7 @@
 
 package errors
 
-// UnauthorizedError represents an HTTP 401 Unauthorized error.
+// UnauthorizedError is the error for HTTP 401 Unauthorized.
 type UnauthorizedError struct {
 	ClientError
 }

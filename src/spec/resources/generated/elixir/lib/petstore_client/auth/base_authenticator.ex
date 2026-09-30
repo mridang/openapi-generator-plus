@@ -7,8 +7,8 @@
 
 defmodule PetstoreClient.Auth.BaseAuthenticator do
   @moduledoc """
-  Abstract base module providing default implementations for optional
-  Authenticator callbacks. Concrete authenticators should use this module.
+  Base module providing default implementations for optional `Authenticator`
+  callbacks. Concrete authenticators should `use` this module.
   """
 
   defmacro __using__(_opts) do

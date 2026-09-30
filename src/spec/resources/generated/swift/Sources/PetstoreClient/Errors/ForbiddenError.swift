@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// ForbiddenError represents an HTTP 403 Forbidden error.
+/// Error for HTTP 403 Forbidden.
 public class ForbiddenError: ClientError, @unchecked Sendable {}

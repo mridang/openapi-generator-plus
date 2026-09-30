@@ -9,7 +9,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// ForbiddenError represents an HTTP 403 Forbidden error.
+/// Error for HTTP 403 Forbidden.
 #[derive(Debug, Clone)]
 pub struct ForbiddenError {
     client_error: ClientError,

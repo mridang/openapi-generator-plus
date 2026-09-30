@@ -26,9 +26,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "UTC datetime serializes containing date-time and UTC offset" do
       dt = ~U[2024-01-01 12:30:45Z]
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      assert String.contains?(result, "2024-01-01")
-      assert String.contains?(result, "12:30:45")
-      assert String.contains?(result, "+00:00") or String.ends_with?(result, "Z")
+      assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
     test "positive timezone offset is preserved in serialized string" do
@@ -50,7 +48,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       }
 
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      assert String.contains?(result, "+05:30"), "should contain +05:30: #{result}"
+      assert result == "2024-01-01T12:30:45.000+05:30"
     end
 
     test "negative timezone offset is preserved in serialized string" do
@@ -72,7 +70,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       }
 
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      assert String.contains?(result, "-08:00"), "should contain -08:00: #{result}"
+      assert result == "2024-01-01T12:30:45.000-08:00"
     end
 
     test "date-time serialization preserves sub-second precision" do
@@ -81,16 +79,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
       # round-trips losslessly with the decoder, which accepts fractions.
       {:ok, dt, _} = DateTime.from_iso8601("2020-01-02T03:04:05.123Z")
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      assert String.contains?(result, ".123"), "milliseconds must survive: #{result}"
+      assert result == "2020-01-02T03:04:05.123+00:00"
 
       {:ok, parsed, _} = DateTime.from_iso8601(result)
       assert DateTime.compare(parsed, dt) == :eq
     end
 
-    test "whole-second datetime serializes without a fractional component" do
+    test "whole-second datetime serializes with a fixed three-digit fraction" do
       {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+00:00")
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-      refute String.contains?(result, ".123")
+      assert result == "2024-01-01T12:30:45.000+00:00"
     end
 
     test "date-only serializes as ISO 8601 date without time component" do
@@ -102,12 +100,8 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "serialized datetime string contains an offset marker" do
       dt = ~U[2024-01-01 12:30:45Z]
       result = PetstoreClient.ObjectSerializer.stringify(dt)
-
-      has_offset =
-        String.contains?(result, "+") or String.contains?(result, "-") or
-          String.ends_with?(result, "Z")
-
-      assert has_offset, "should contain timezone indicator: #{result}"
+      assert result == "2024-01-01T12:30:45.000+00:00"
+      refute String.ends_with?(result, "Z")
     end
 
     test "round-trip: serialize then deserialize yields equivalent datetime" do
@@ -125,7 +119,9 @@ defmodule PetstoreClient.ObjectSerializerTest do
       model = %PetstoreClient.Models.PhotoMetadata{taken_at: instant}
 
       json = PetstoreClient.ObjectSerializer.serialize(model)
-      assert String.contains?(json, ".123"), "milliseconds must survive in body: #{json}"
+
+      assert String.contains?(json, "\"takenAt\":\"2020-01-02T03:04:05.123+00:00\""),
+             "milliseconds must survive in body: #{json}"
 
       decoded = PetstoreClient.ObjectSerializer.deserialize(json, "PhotoMetadata")
       assert DateTime.compare(decoded.taken_at, instant) == :eq
@@ -160,7 +156,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       refute String.contains?(body, "taken_at"), "must use wire name takenAt: #{body}"
 
       # The date-time carries the proper ISO-8601 string with milliseconds.
-      assert String.contains?(body, "\"takenAt\":\"2020-01-02T03:04:05.123Z\""),
+      assert String.contains?(body, "\"takenAt\":\"2020-01-02T03:04:05.123+00:00\""),
              "takenAt must be the wire date-time string: #{body}"
     end
   end

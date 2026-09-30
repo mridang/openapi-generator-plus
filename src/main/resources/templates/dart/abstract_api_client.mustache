@@ -38,17 +38,16 @@ import 'transport_options.dart';
 abstract class AbstractApiClient implements ApiClient {
   final TransportOptions _transportOptions;
   final http.Client _httpClient;
-  /* Gap AK: dart:io's HttpClient has no API for proxy basic-auth
-   * credentials, so userinfo embedded in the proxy URL
-   * (`http://user:pass@host:port`) is silently dropped. Extract it
-   * once at construction and inject as a Proxy-Authorization header
-   * on every outbound request below, matching the Java/C# SDKs. */
+  /* dart:io's HttpClient has no API for proxy basic-auth credentials, so
+   * userinfo embedded in the proxy URL (`http://user:pass@host:port`) is
+   * silently dropped. Extract it once at construction and inject as a
+   * Proxy-Authorization header on every outbound request below, matching
+   * the Java/C# SDKs. */
   final String? _proxyAuthHeader;
 
-  /* Cross-cutting `close-lifecycle-three-way`: track a closed flag so that
-   * a request issued after [close] surfaces a uniform SDK error (ApiException)
-   * instead of leaking the underlying `http` package's "Client is already
-   * closed" ClientException. */
+  /* Track a closed flag so that a request issued after [close] surfaces a
+   * uniform error instead of leaking the underlying `http` package's
+   * "Client is already closed" ClientException. */
   bool _closed = false;
 
   /// Creates the base from the resolved transport settings, the platform
@@ -171,12 +170,12 @@ abstract class AbstractApiClient implements ApiClient {
     });
     http.BaseRequest request;
 
-    /* Gap BH: package:http's auto-redirect re-sends Authorization /
-     * Cookie / Proxy-Authorization across cross-origin 3xx redirects
-     * by default, leaking bearer tokens to attacker-controlled hosts.
-     * We disable auto-redirect on the underlying request and follow
-     * Location headers manually below, stripping sensitive headers
-     * when the next URL's origin differs from the original. */
+    /* package:http's auto-redirect re-sends Authorization / Cookie /
+     * Proxy-Authorization across cross-origin 3xx redirects by default,
+     * leaking bearer tokens to attacker-controlled hosts. We disable
+     * auto-redirect on the underlying request and follow Location headers
+     * manually below, stripping sensitive headers when the next URL's origin
+     * differs from the original. */
     if (body is Map<String, Object?>) {
       final multipartRequest = http.MultipartRequest(method, uri);
       multipartRequest.headers.addAll(merged);
@@ -188,12 +187,12 @@ abstract class AbstractApiClient implements ApiClient {
          * file part — NOT iterated as a repeated field. `Uint8List` satisfies
          * `value is List`, so the `List<int>` check has to come first;
          * otherwise each individual byte is stringified into its own numeric
-         * form field and the file content is destroyed (multipart-file-content-type). */
+         * form field and the file content is destroyed. */
         if (value is List<int>) {
           _addMultipartField(multipartRequest, name, value);
         } else if (value is List) {
           /* A non-binary array form field expands into one part per element
-           * (form-array-repeated-keys, multipart variant). */
+           * (repeated keys, as for the urlencoded form). */
           for (final item in value) {
             if (item == null) continue;
             _addMultipartField(multipartRequest, name, item as Object);
@@ -245,12 +244,12 @@ abstract class AbstractApiClient implements ApiClient {
           : await pendingResponse;
       if (_transportOptions.followRedirects && !noRedirect) {
         final maxRedirects = _transportOptions.maxRedirects ?? 20;
-        /* Gap 3.1: extend the cross-origin strip set with API-key header
-         * names declared in the spec. The standard `Authorization` /
-         * `Cookie` / `Proxy-Authorization` allowlist does not cover
-         * bespoke credentials carried in custom headers like
-         * `X-API-Key` or `X-Internal-Key`, so we add every spec-declared
-         * apiKey-in-header name (lowercased) here. */
+        /* Extend the cross-origin strip set with API-key header names declared
+         * in the spec. The standard `Authorization` / `Cookie` /
+         * `Proxy-Authorization` allowlist does not cover bespoke credentials
+         * carried in custom headers like `X-API-Key` or `X-Internal-Key`, so
+         * we add every spec-declared apiKey-in-header name (lowercased)
+         * here. */
         const sensitive = <String>{
           'authorization',
           'cookie',
@@ -272,11 +271,11 @@ abstract class AbstractApiClient implements ApiClient {
           if (location == null || location.isEmpty) break;
           final nextUri = currentUri.resolve(location);
           if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
-            /* Gap T-D3: a `Location:` pointing at a non-http(s) scheme
-             * (`file:`, `javascript:`, `data:`, ...) is a redirect-target
-             * smuggling vector. Refuse it loudly with a typed SDK error
-             * instead of silently returning the 3xx, matching the other
-             * SDKs that surface the offending URL. */
+            /* A `Location:` pointing at a non-http(s) scheme (`file:`,
+             * `javascript:`, `data:`, ...) is a redirect-target smuggling
+             * vector. Refuse it loudly with a typed SDK error instead of
+             * silently returning the 3xx, matching the other SDKs that
+             * surface the offending URL. */
             throw ApiException(
               statusCode: streamedResponse.statusCode,
               message:
@@ -287,7 +286,7 @@ abstract class AbstractApiClient implements ApiClient {
               && nextUri.scheme.toLowerCase() == 'http';
           final crossOrigin = !_sameOrigin(uri, nextUri);
 
-          /* Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
+          /* Pick follow-up method+body per RFC 7231 §6.4.4 / RFC 7538.
            *   307 + 308: preserve original method and body.
            *   303:       force GET, drop the body (and Content-Type/Length).
            *   301 + 302: historical browser behaviour — switch to GET for
@@ -310,17 +309,16 @@ abstract class AbstractApiClient implements ApiClient {
             nextBody = null;
           }
 
-          /* Gap 3.3 / Gap N1: refuse to replay a request body across an
-           * HTTPS→HTTP downgrade. A 307/308 from an HTTPS origin to plain
-           * HTTP preserves the original body (which may contain
-           * credentials, PII, or signed payloads), so re-emitting it over
-           * an unencrypted hop is a leak — raise a typed SDK error instead
-           * (T-D2). 301/302/303 coerce to GET and DROP the body above, so
-           * nothing is replayed and the redirect must proceed (the canonical
-           * N1 behaviour: guard 307/308 only). Checking the COERCED
-           * [nextBody] — not the original [currentBody] — is what
-           * distinguishes the two: it is null after a 301/302/303 body-drop
-           * and non-null only when the body would actually cross the wire. */
+          /* Refuse to replay a request body across an HTTPS→HTTP downgrade. A
+           * 307/308 from an HTTPS origin to plain HTTP preserves the original
+           * body (which may contain credentials, PII, or signed payloads), so
+           * re-emitting it over an unencrypted hop is a leak — raise a typed
+           * SDK error instead. 301/302/303 coerce to GET and DROP the body
+           * above, so nothing is replayed and the redirect must proceed (guard
+           * 307/308 only). Checking the COERCED [nextBody] — not the original
+           * [currentBody] — is what distinguishes the two: it is null after a
+           * 301/302/303 body-drop and non-null only when the body would
+           * actually cross the wire. */
           if (downgrade && nextBody != null) {
             throw ApiException(
               statusCode: streamedResponse.statusCode,
@@ -362,10 +360,10 @@ abstract class AbstractApiClient implements ApiClient {
               : await p;
           hops++;
         }
-        /* Gap T-D1: the redirect chain was followed up to `maxRedirects`
-         * hops but the final response is still a 3xx with a Location we
-         * could keep following. Surface this as a typed SDK error instead
-         * of silently returning the last 3xx as if it were the result. */
+        /* The redirect chain was followed up to `maxRedirects` hops but the
+         * final response is still a 3xx with a Location we could keep
+         * following. Surface this as a typed SDK error instead of silently
+         * returning the last 3xx as if it were the result. */
         if (hops >= maxRedirects && _isRedirectStatus(streamedResponse.statusCode)) {
           await streamedResponse.stream.drain<void>();
           throw ApiException(
@@ -374,12 +372,11 @@ abstract class AbstractApiClient implements ApiClient {
           );
         }
       }
-      /* Cross-cutting `response-body-read-error-not-wrapped`: read the
-       * response body INSIDE the transport try/catch so a connection
-       * reset, read timeout, or truncated-chunked failure that occurs
-       * AFTER the response headers arrive is wrapped in the uniform
-       * ApiException (statusCode 0, underlying preserved) — the same error
-       * type a send-phase failure produces. */
+      /* Read the response body INSIDE the transport try/catch so a
+       * connection reset, read timeout, or truncated-chunked failure that
+       * occurs AFTER the response headers arrive is wrapped in the same
+       * error type a send-phase failure produces (status code 0, underlying
+       * error preserved). */
       rawBytes = await streamedResponse.stream.toBytes();
     } on ApiException {
       /* SDK-typed errors raised inside the redirect loop (unsupported
@@ -446,7 +443,7 @@ abstract class AbstractApiClient implements ApiClient {
         ? _decodeText(responseBytes, contentType)
         : base64Encode(responseBytes);
 
-    /* Gap BE+BF: response header keys are normalised to lowercase so callers
+    /* Response header keys are normalised to lowercase so callers
        can look them up consistently regardless of the casing the server used
        (HTTP header names are case-insensitive per RFC 7230 section 3.2, and
        HTTP/2 mandates lowercase on the wire). Repeated header lines are
@@ -482,11 +479,10 @@ abstract class AbstractApiClient implements ApiClient {
     String name,
     Object value,
   ) {
-    /* W-new-2: validate the field name on every branch (string, number,
-     * boolean, JSON, binary) before it lands in Content-Disposition. The
+    /* Validate the field name on every branch (string, number, boolean,
+     * JSON, binary) before it lands in Content-Disposition. The
      * http.MultipartRequest builds the header from `name` directly, so
-     * CR/LF/NUL must be rejected even when the value is not Uint8List.
-     */
+     * CR/LF/NUL must be rejected even when the value is not Uint8List. */
     validateMultipartFieldName(name);
     if (value is Uint8List) {
       validateMultipartFilename(name);
@@ -531,7 +527,7 @@ abstract class AbstractApiClient implements ApiClient {
   /// UTF-8 would mangle those bytes or, for UTF-16, throw a FormatException.
   /// Dart's core library has no built-in UTF-16 codec, so UTF-16 is decoded
   /// via a BOM-aware, surrogate-pair-aware routine ([_decodeUtf16]) to reach
-  /// parity with the other 11 SDKs. Unknown charsets and malformed UTF-8 fall
+  /// parity with the other SDKs. Unknown charsets and malformed UTF-8 fall
   /// back to a lenient UTF-8 decode (`allowMalformed: true`) so an unfamiliar
   /// or mismatched server header can never break decoding — matching the
   /// documented 'fall back, never throw' contract.

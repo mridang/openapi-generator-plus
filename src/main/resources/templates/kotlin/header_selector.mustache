@@ -3,7 +3,8 @@
 package {{invokerPackage}}
 
 /**
- * Content negotiation logic for Accept and Content-Type headers.
+ * Selects `Accept` and `Content-Type` headers for API requests based on the MIME
+ * types declared in the OpenAPI specification.
  *
  * Internal transport machinery; not part of the public API.
  */
@@ -15,6 +16,14 @@ internal class HeaderSelector {
         RegexOption.IGNORE_CASE
     )
 
+    /**
+     * Select headers for an API request.
+     *
+     * @param accept array of acceptable MIME types for the response
+     * @param contentType the Content-Type for the request body
+     * @param isMultipart whether this is a multipart request
+     * @return map of header names to values
+     */
     fun selectHeaders(
         accept: Array<String>?,
         contentType: String?,
@@ -34,17 +43,33 @@ internal class HeaderSelector {
         return headers
     }
 
-    @PublishedApi
-    internal fun isJsonMime(searchString: String?): Boolean {
-        if (searchString == null) return false
-        return jsonMimePattern.containsMatchIn(searchString)
-    }
-
+    /**
+     * Return the header 'Accept' based on an array of Accept provided.
+     *
+     * Null and blank entries are removed and the remaining media types are joined, in their
+     * original declaration order, with ", " (comma followed by a single space). No quality weights
+     * are added and no reordering is performed.
+     *
+     * @param accept Array of acceptable media types
+     * @return the Accept header value, or an empty string if there is nothing to send
+     */
     @PublishedApi
     internal fun selectAcceptHeader(accept: Array<String>?): String {
         if (accept == null) return ""
         val filtered = accept.filter { it.isNotBlank() }
         if (filtered.isEmpty()) return ""
         return filtered.joinToString(", ")
+    }
+
+    /**
+     * Detects whether a string contains a valid JSON mime type.
+     *
+     * @param searchString the MIME type string to check
+     * @return true if the string represents a JSON MIME type
+     */
+    @PublishedApi
+    internal fun isJsonMime(searchString: String?): Boolean {
+        if (searchString == null) return false
+        return jsonMimePattern.containsMatchIn(searchString)
     }
 }

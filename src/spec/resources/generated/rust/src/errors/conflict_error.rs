@@ -9,7 +9,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// ConflictError represents an HTTP 409 Conflict error.
+/// Error for HTTP 409 Conflict.
 #[derive(Debug, Clone)]
 pub struct ConflictError {
     client_error: ClientError,

@@ -6,15 +6,17 @@ package {{packageName}}
 // Each variable corresponds to a server entry defined in the spec's
 // servers array. Use these with ConfigurationBuilder.Server to select a server:
 //
-//	config := {{packageName}}.NewConfigurationBuilder().
-//		Server({{packageName}}.Server0, nil).
-//		Build()
+//	builder, err := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server0, nil)
+//	if err != nil {
+//		return err
+//	}
+//	config := builder.Build()
 //
 // For servers with variables, pass overrides:
 //
-//	config := {{packageName}}.NewConfigurationBuilder().
-//		Server({{packageName}}.Server1, map[string]string{"environment": "staging"}).
-//		Build()
+//	builder, err := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server1, map[string]string{"environment": "staging"})
 var (
 {{#serverConfigs}}
 	/* Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}

@@ -10,7 +10,11 @@ package com.example.petstore.auth
 import java.util.Base64
 
 /**
- * Provides HTTP Basic authentication.
+ * Authenticator for HTTP Basic authentication.
+ *
+ * @param host the base URL of the API
+ * @param username the Basic auth user-id
+ * @param password the Basic auth password
  */
 open class BasicAuthenticator(
     private val host: String,
@@ -49,8 +53,10 @@ open class BasicAuthenticator(
     }
 
     /**
-     * Redacts the password so it never leaks through the default string
-     * representation (logs, stack traces, debuggers).
+     * Returns a string representation that redacts the password so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
      */
     override fun toString(): String = "${this::class.simpleName}(host=$host, username=$username, password=***)"
 }

@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `legacyAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `LegacyAuthPasswordAuthenticator` authenticator.
+  Creates an authenticator for the `legacyAuth` security scheme.
   """
   def new(host, client_id, client_secret, username, password) do
     PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(

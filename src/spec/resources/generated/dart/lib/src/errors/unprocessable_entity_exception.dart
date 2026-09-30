@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// UnprocessableEntityException represents an HTTP 422 Unprocessable Entity error.
+/// Exception for HTTP 422 Unprocessable Entity.
 class UnprocessableEntityException extends ClientException {
   const UnprocessableEntityException({
     required super.statusCode,

@@ -7,27 +7,32 @@ use std::pin::Pin;
 use super::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
 
-/// BearerAuthenticator provides HTTP Bearer token authentication.
+/// Authenticator for HTTP Bearer token authentication.
 pub struct BearerAuthenticator {
     host: String,
     token: String,
 }
 
 impl BearerAuthenticator {
-    /// Creates a new Bearer authenticator.
+    /// Creates an HTTP Bearer token authenticator.
+    ///
+    /// `host` is the base URL of the API and `token` the bearer token.
     ///
     /// # Errors
     ///
-    /// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text. A token
-    /// that is empty, whitespace-only, or holds a character outside printable
-    /// ASCII + TAB is rejected with [`ConfigurationError::InvalidArgument`]
-    /// rather than risking HTTP header injection from CR/LF or silently-
-    /// mangled non-ASCII bytes.
+    /// RFC 7230 §3.2.6: a field-value is HTAB / SP / VCHAR / obs-text. Anything
+    /// outside printable ASCII + TAB is rejected with
+    /// [`ConfigurationError::InvalidArgument`], so callers see a clear error
+    /// rather than (a) HTTP header injection from a CR/LF (common when reading
+    /// tokens from `.env` files with trailing newlines), or (b) silently
+    /// mangled non-ASCII bytes that different HTTP libs encode differently per
+    /// language. An empty or whitespace-only token is rejected too: it would
+    /// otherwise emit the literal `Authorization: Bearer ` header, sending the
+    /// request effectively unauthenticated.
     pub fn new(host: &str, token: &str) -> Result<Self, ConfigurationError> {
         // Reject empty / whitespace-only tokens: emitting a bare
         // `Authorization: Bearer ` header would send the request
-        // unauthenticated, mirroring the api-key authenticator's own empty
-        // guard. Fail closed.
+        // unauthenticated. Fail closed.
         if token.trim().is_empty() {
             return Err(ConfigurationError::InvalidArgument(
                 "Bearer token must not be empty or whitespace-only".to_string(),
@@ -46,9 +51,9 @@ impl BearerAuthenticator {
     }
 }
 
-/// Redacts the bearer token so it never leaks through `{:?}` (Debug)
-/// formatting, stack traces, or error logs. The host is shown normally; the
-/// token is masked as `***`.
+/// Renders a representation that redacts the token so credentials never leak
+/// into logs or stack traces (`{:?}` formatting). The host is shown normally;
+/// the token is masked as `***`.
 impl std::fmt::Debug for BearerAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BearerAuthenticator")
@@ -67,10 +72,9 @@ impl Authenticator for BearerAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens
-            // read from env files are commonly stored already-prefixed;
-            // emitting "Bearer Bearer xyz" would otherwise silently
-            // break auth.
+            // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+            // from env files are commonly stored already-prefixed; emitting
+            // "Bearer Bearer xyz" would otherwise silently break auth.
             let value: &str = if self.token.len() >= 7
                 && self.token.as_bytes()[..7].eq_ignore_ascii_case(b"Bearer ")
             {

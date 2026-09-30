@@ -16,7 +16,7 @@ import (
 	"petstore/pkg/models"
 )
 
-// 4.8: helpers for OAS `format: time` and `format: duration`. Go's stdlib
+// Helpers for OAS `format: time` and `format: duration`. Go's stdlib
 // has no civil-time type, so `format: time` is surfaced as `string` in
 // generated models; FormatTimeOfDay / ParseTimeOfDay convert it to and from
 // the time-of-day component of a `time.Time`.

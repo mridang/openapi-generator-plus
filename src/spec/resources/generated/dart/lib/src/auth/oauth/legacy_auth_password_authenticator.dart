@@ -7,7 +7,9 @@
 
 import 'oauth2_password_authenticator.dart';
 
+/// Authenticator for the `legacyAuth` security scheme.
 class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator {
+  /// Creates an authenticator for the `legacyAuth` security scheme.
   LegacyAuthPasswordAuthenticator({
     required super.host,
     required super.clientId,

@@ -7,6 +7,7 @@
 
 import Foundation
 
-/// NetworkTimeoutError represents a request that timed out. The status code
-/// is 0 and the `URLError` is kept as ``ApiError/underlyingError``.
+/// Error for a request that timed out before an HTTP response arrived. The
+/// status code is always 0 and the underlying transport error is kept as
+/// ``ApiError/underlyingError``.
 public class NetworkTimeoutError: NetworkError, @unchecked Sendable {}

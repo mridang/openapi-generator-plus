@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// UnauthorizedException represents an HTTP 401 Unauthorized error.
+/// Exception for HTTP 401 Unauthorized.
 class UnauthorizedException extends ClientException {
   const UnauthorizedException({
     required super.statusCode,

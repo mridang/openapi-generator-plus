@@ -13,18 +13,17 @@ use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 use crate::auth::Authenticator;
 use crate::errors::oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 
-/// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
-/// flow authentication.
+/// Authenticator for the OAuth2 Authorization Code flow.
 ///
-/// Implements HttpAwareAuthenticator so that token exchange requests use the
-/// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
-/// as regular API calls.
+/// Implements [`HttpAwareAuthenticator`] so that token exchange requests use
+/// the shared [`ApiClient`] with the same transport configuration (proxy, TLS,
+/// timeouts) as regular API calls.
 ///
 /// Usage:
 ///  1. Call `build_authorization_url` to get the authorization URL
 ///  2. Redirect the user to that URL
 ///  3. After the callback, call `exchange_code` with the auth code
-///  4. Use the authenticator normally -- tokens are managed automatically
+///  4. Use the authenticator normally: tokens are managed automatically
 pub struct OAuth2AuthorizationCodeAuthenticator {
     host: String,
     client_id: String,
@@ -43,7 +42,12 @@ pub struct OAuth2AuthorizationCodeAuthenticator {
 impl OAuth2AuthorizationCodeAuthenticator {
     /// Creates a new authorization code authenticator.
     ///
-    /// If `refresh_url` is empty, the `token_url` is used for refresh requests.
+    /// `host` is the API base URL, `client_id` and `client_secret` the OAuth2
+    /// client credentials, `authorization_url` the authorization endpoint URL,
+    /// `token_url` the token endpoint URL, `refresh_url` the refresh token
+    /// endpoint URL (falls back to `token_url` if empty), `redirect_uri` the
+    /// redirect URI registered with the OAuth2 provider and `scopes` the
+    /// requested scopes.
     pub fn new(
         host: &str,
         client_id: &str,
@@ -76,14 +80,11 @@ impl OAuth2AuthorizationCodeAuthenticator {
 
     /// Builds the authorization URL to redirect the user to.
     ///
-    /// The `state` parameter is optional and used for CSRF protection.
+    /// The optional `state` parameter is used for CSRF protection.
     ///
-    /// Each query parameter value is URL-encoded per RFC 3986 to avoid
-    /// breaking the URL when client_id / redirect_uri / scopes / state
-    /// contain reserved characters (`&`, `=`, `#`, space, etc.). The other
-    /// 11 SDKs do this via their language's url-encoder; Rust previously
-    /// used `format!()` directly which let attacker-controlled state
-    /// chars corrupt the URL.
+    /// Each query parameter value is URL-encoded per RFC 3986 so the URL is not
+    /// broken when client_id / redirect_uri / scopes / state contain reserved
+    /// characters (`&`, `=`, `#`, space, etc.).
     pub fn build_authorization_url(&self, state: &str) -> String {
         let mut params = vec![
             format!("response_type=code"),
@@ -104,6 +105,8 @@ impl OAuth2AuthorizationCodeAuthenticator {
     }
 
     /// Exchanges an authorization code for an access token.
+    ///
+    /// `code` is the authorization code from the callback.
     pub async fn exchange_code(
         &self,
         code: &str,
@@ -129,9 +132,10 @@ impl OAuth2AuthorizationCodeAuthenticator {
     }
 }
 
-/// Redacts the client secret so it never leaks through `{:?}` (Debug)
-/// formatting, stack traces, or error logs. The non-secret configuration
-/// fields are shown normally; the client secret is masked as `***`.
+/// Renders a representation that redacts the client secret so credentials never
+/// leak into logs or stack traces (`{:?}` formatting). The non-secret
+/// configuration fields are shown normally; the client secret is masked as
+/// `***`.
 impl std::fmt::Debug for OAuth2AuthorizationCodeAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OAuth2AuthorizationCodeAuthenticator")

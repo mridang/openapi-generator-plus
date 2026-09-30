@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.OAuth.SsoAuthAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `ssoAuth` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `SsoAuthAuthenticator` authenticator.
+  Creates an authenticator for the `ssoAuth` security scheme.
   """
   def new(host, client_id, client_secret, redirect_uri) do
     PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(

@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// NotFoundError represents an HTTP 404 Not Found error.
+/// Error for HTTP 404 Not Found.
 public class NotFoundError: ClientError, @unchecked Sendable {}

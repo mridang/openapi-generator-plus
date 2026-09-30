@@ -11,9 +11,23 @@ package com.example.petstore.errors
  * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
  * be used: a body that is not a JSON object, or one whose `access_token`
  * field is missing or empty. Distinct from [OAuth2ServerException] (which
- * represents any non-2xx answer) so callers can recover differently.
+ * represents any non-2xx answer) so callers can recover differently —
+ * typically a malformed-server-response bug needs operator attention rather
+ * than a client-side retry.
  */
 class OAuth2TokenException : OpenAPIException {
+    /**
+     * Creates a token error with the given detail message.
+     *
+     * @param message the detail message
+     */
     constructor(message: String) : super(message)
+
+    /**
+     * Creates a token error with the given detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying failure
+     */
     constructor(message: String, cause: Throwable) : super(message, cause)
 }

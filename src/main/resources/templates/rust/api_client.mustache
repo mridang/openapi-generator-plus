@@ -38,15 +38,15 @@ pub enum MultipartValue {
 
 /// Per-request options that complement the transport-wide `TransportOptions`.
 ///
-/// Gap 3.2: `no_redirect` lets a single caller (e.g. an OAuth2 token POST)
-/// refuse to follow body-preserving 307/308 redirects so the credentialed
-/// request body cannot be replayed to a redirect target chosen by the
-/// remote server. Other 3xx codes (301/302/303) drop the body per RFC 7231,
-/// so they are unaffected by this flag — only 307/308 are refused.
+/// `no_redirect` lets a single caller (e.g. an OAuth2 token POST) refuse to
+/// follow redirects, so a malicious or misconfigured server cannot replay the
+/// credentialed body to an attacker-controlled URL. Other 3xx codes
+/// (301/302/303) drop the body per RFC 7231, so they are unaffected by this
+/// flag; only the body-preserving 307/308 are refused.
 #[derive(Debug, Clone, Default)]
 pub struct RequestOptions {
-    /// When `true`, the client MUST NOT follow 307 or 308 redirects and
-    /// MUST surface the first such response to the caller as-is.
+    /// When `true`, the client must NOT follow 307 or 308 redirects and
+    /// must return the first such response to the caller as-is.
     pub no_redirect: bool,
 }
 
@@ -63,21 +63,24 @@ impl RequestOptions {
     }
 }
 
-/// ApiClient is the trait for HTTP clients. Implementations must provide
-/// `send_request` to perform the actual HTTP call.
+/// Interface for API HTTP transport.
+///
+/// Implementations handle the actual HTTP request/response cycle. The default
+/// implementation is `DefaultApiClient`, which uses reqwest.
 pub trait ApiClient: Send + Sync {
-    /// Sends an HTTP request and returns the response.
+    /// Send an HTTP request and return the response.
     ///
     /// # Arguments
     ///
     /// * `method` - HTTP method (GET, POST, PUT, DELETE, etc.)
     /// * `url` - Fully qualified URL
-    /// * `headers` - Caller-provided headers
-    /// * `body` - Request body as raw bytes, multipart form data, or None
+    /// * `headers` - HTTP headers
+    /// * `body` - Request body (raw bytes, or a map for multipart form data; may be `None`)
     ///
     /// # Returns
     ///
-    /// An `ApiHttpResponse` on success, or an error.
+    /// An `ApiHttpResponse` containing status code, body, and headers, or an
+    /// error if the request fails.
     fn send_request(
         &self,
         method: &str,
@@ -86,12 +89,18 @@ pub trait ApiClient: Send + Sync {
         body: Option<&RequestBody>,
     ) -> Pin<Box<dyn Future<Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>>;
 
-    /// Sends an HTTP request with per-request options that complement the
-    /// transport-wide `TransportOptions`.
+    /// Send an HTTP request, optionally refusing to follow redirects.
     ///
-    /// Default implementation ignores `options` and delegates to
-    /// `send_request`; implementations that honour `RequestOptions` (such
-    /// as `DefaultApiClient`) override this method.
+    /// When `options.no_redirect` is `true`, any 3xx response (including
+    /// 307/308) is returned to the caller as-is rather than being replayed to
+    /// the `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use
+    /// this guard so a malicious or misconfigured server cannot replay the
+    /// credentialed body to an attacker-controlled URL.
+    ///
+    /// The default implementation ignores `options` and delegates to
+    /// `send_request` for backwards compatibility; transport implementations
+    /// that own the redirect loop (such as `DefaultApiClient`) should override
+    /// this method and honour the flag.
     fn send_request_with_options(
         &self,
         method: &str,
@@ -104,10 +113,8 @@ pub trait ApiClient: Send + Sync {
     }
 
     /// Releases any resources held by this client (connection pool, sockets).
-    /// The default implementation is a no-op; implementations that own a
-    /// pooled HTTP client should override it and dispose of that client. On
-    /// the contract so a custom transport can be closed through the
-    /// abstraction rather than only through its concrete type.
+    /// Default implementation is a no-op; implementations that own a pooled
+    /// HTTP client should override and dispose of it.
     fn close(&self) {
         /* No-op by default. Implementations override to release resources. */
     }

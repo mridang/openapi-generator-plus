@@ -14,19 +14,23 @@ import (
 	"net/http"
 )
 
-// InjectTraceContext injects W3C Trace Context headers (traceparent, tracestate)
-// into outgoing API requests when OpenTelemetry is available.
+// InjectTraceContext injects the current OpenTelemetry trace context into the
+// given headers map, adding W3C Trace Context headers (traceparent, tracestate)
+// to outgoing API requests when OpenTelemetry is available.
 //
 // Go cannot discover an optional package at runtime, so the propagator is
 // registered by the application instead. If no propagator has been registered
 // with SetTraceContextPropagator, this function silently no-ops.
+//
+// The headers argument is the mutable map of request headers.
 func InjectTraceContext(headers map[string]string) {
 	if traceContextPropagator != nil {
 		traceContextPropagator(context.Background(), headers)
 	}
 }
 
-// TraceContextPropagatorFunc is a function that injects trace context into headers.
+// TraceContextPropagatorFunc is a function that injects trace context into a
+// mutable map of request headers.
 type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
 
 // traceContextPropagator holds the current propagator function.
@@ -52,18 +56,21 @@ func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
 	traceContextPropagator = fn
 }
 
-// headerCarrier adapts map[string]string to http.Header for use with
-// OpenTelemetry propagators that expect http.Header.
+// headerCarrier adapts a mutable map of request headers to the text-map carrier
+// shape (Get, Set, Keys) that OpenTelemetry propagators expect.
 type headerCarrier map[string]string
 
+// Get returns the value stored for the given header key, or an empty string.
 func (c headerCarrier) Get(key string) string {
 	return c[http.CanonicalHeaderKey(key)]
 }
 
+// Set stores the value for the given header key.
 func (c headerCarrier) Set(key, value string) {
 	c[key] = value
 }
 
+// Keys returns every header key currently stored.
 func (c headerCarrier) Keys() []string {
 	keys := make([]string, 0, len(c))
 	for k := range c {

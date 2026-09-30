@@ -14,7 +14,7 @@ defmodule PetstoreClient.Configuration do
   `#{inspect(PetstoreClient.TransportOptions)}` and are configured on the
   `#{inspect(PetstoreClient.DefaultApiClient)}`.
 
-  This struct is immutable by convention. Use `new/1` to create instances:
+  This struct is immutable. Use `new/1` to create instances:
 
       config = PetstoreClient.Configuration.new(
         base_url: "https://api.example.com",
@@ -22,6 +22,14 @@ defmodule PetstoreClient.Configuration do
       )
   """
 
+  @typedoc """
+  * `base_url` - The base URL for all API requests. Defaults to the first
+    server URL from the OpenAPI specification.
+  * `default_headers` - Default headers included in every API request. These
+    headers are merged after transport-level headers from
+    `#{inspect(PetstoreClient.TransportOptions)}` but before operation-specific
+    headers and authentication headers.
+  """
   @type t :: %__MODULE__{
           base_url: String.t(),
           default_headers: %{optional(String.t()) => String.t()}
@@ -38,7 +46,10 @@ defmodule PetstoreClient.Configuration do
 
     * `:base_url` - The base URL for all API requests. Defaults to the first
       server URL from the OpenAPI specification.
-    * `:default_headers` - Default headers included in every API request.
+    * `:default_headers` - Default headers included in every API request. These
+      headers are merged after transport-level headers from
+      `#{inspect(PetstoreClient.TransportOptions)}` but before operation-specific
+      headers and authentication headers.
 
   ## Examples
 
@@ -58,7 +69,18 @@ defmodule PetstoreClient.Configuration do
   end
 
   @doc """
-  Creates a new Configuration from a server configuration with optional variable overrides.
+  Creates a new Configuration from a server configuration with variable overrides.
+
+  Resolves the server URL template with the given variable overrides and uses
+  the result as the base URL. Variables not present in the map use their
+  default values. Enum validation is performed by
+  `#{inspect(PetstoreClient.ServerConfiguration)}.url/2`.
+
+  ## Parameters
+
+    * `server_config` - The server configuration to use.
+    * `variables` - Variable overrides (defaults to an empty map, so every
+      variable uses its default value).
   """
   @spec from_server(PetstoreClient.ServerConfiguration.t(), %{optional(String.t()) => String.t()}) ::
           t()
@@ -67,7 +89,10 @@ defmodule PetstoreClient.Configuration do
   end
 
   @doc """
-  Returns the default configuration instance.
+  Returns a Configuration with default values.
+
+  A fresh instance every call: the SDK keeps no process-wide default a caller
+  could swap out from under another caller.
   """
   @spec default() :: t()
   def default do

@@ -9,17 +9,17 @@
 
 package auth
 
-// ApiHttpResponse wraps an HTTP response from the API client.
+// ApiHttpResponse represents an HTTP API response.
 //
 // Mirrors the main package's ApiHttpResponse to avoid circular imports.
 type ApiHttpResponse struct {
-	/* StatusCode is the HTTP status code of the response. */
+	/* StatusCode is the HTTP status code. */
 	StatusCode int
 
-	/* Body is the raw response body as a string. */
+	/* Body is the response body. */
 	Body string
 
-	/* Headers contains the response headers. */
+	/* Headers are the response headers. */
 	Headers map[string]string
 }
 
@@ -35,7 +35,8 @@ type RequestOptions struct {
 	NoRedirect bool
 }
 
-// ApiClient is the interface for HTTP clients used by authentication components.
+// ApiClient is the interface for API HTTP transport, as used by authentication
+// components.
 //
 // Mirrors the main package's ApiClient to avoid circular imports between the
 // auth subpackage and the root module package.
@@ -50,8 +51,8 @@ type ApiClient interface {
 	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error)
 }
 
-// HttpAwareAuthenticator is implemented by authentication schemes that
-// require making HTTP requests (e.g. OAuth2 token exchange, OpenID
+// HttpAwareAuthenticator extends the Authenticator interface for authentication
+// schemes that require making HTTP requests (e.g. OAuth2 token exchange, OpenID
 // Connect discovery).
 //
 // Implementations receive a shared ApiClient instance so that
@@ -60,11 +61,12 @@ type ApiClient interface {
 // API calls.
 //
 // The ApiClient is injected by the Client constructor after
-// creation, via SetApiClient. Implementations must not make HTTP calls
+// construction, via SetApiClient. Implementations must not make HTTP calls
 // before the client is injected.
 //
 // Only OAuth2 and OpenID Connect authenticators implement this interface.
-// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
+// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access
+// and implement Authenticator directly.
 type HttpAwareAuthenticator interface {
 	/* Host returns the base URL of the API. */
 	Host() string
@@ -83,6 +85,6 @@ type HttpAwareAuthenticator interface {
 	 * Called by the Client constructor after the ApiClient has been
 	 * created with the user's TransportOptions. Implementations should store
 	 * this reference and use it for all outbound HTTP calls (token exchange,
-	 * discovery, etc.). */
+	 * discovery, etc.). The client argument is the shared API client instance. */
 	SetApiClient(client ApiClient)
 }

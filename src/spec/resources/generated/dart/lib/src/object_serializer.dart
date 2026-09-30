@@ -62,7 +62,9 @@ class UuidValue {
   int get hashCode => uuid.hashCode;
 }
 
-/// Converts an object to a JSON string.
+/// Serialize an object to a JSON string.
+///
+/// Throws [SerializationException] if serialization fails.
 String serialize(Object? object) {
   try {
     return jsonEncode(object);
@@ -71,23 +73,25 @@ String serialize(Object? object) {
   }
 }
 
-/// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string. RFC 8259 §8.1
-/// forbids it, but Windows-generated payloads often include one and
-/// jsonDecode rejects it. Strip silently for parity with Java Jackson /
-/// C# System.Text.Json which strip transparently.
+/// Strips a leading UTF-8 BOM (U+FEFF) from a JSON string.
+///
+/// RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
+/// Windows-generated payloads often include one and jsonDecode rejects it.
+/// Strip silently for parity with Java Jackson / C# System.Text.Json which
+/// strip transparently.
 String _stripBom(String data) =>
     data.startsWith('﻿') ? data.substring(1) : data;
 
-/// Maximum allowed JSON nesting depth. Dart's jsonDecode has no built-in
-/// cap and recurses through the Dart VM call stack, so a malicious
-/// 100k-deep `{"a":{"a":...}}` payload would crash the runtime. Matches
-/// the 1000-cap Java/Kotlin Jackson and Python json stdlib use; Go uses
-/// the same. C# is stricter (64). F5 follow-up.
+/// Maximum allowed JSON nesting depth. Dart's jsonDecode has no built-in cap
+/// and recurses through the Dart VM call stack, so a malicious 100k-deep
+/// `{"a":{"a":...}}` payload would crash the runtime. All twelve SDKs use the
+/// same cap.
 const int _kMaxJsonDepth = 1000;
 
-/// Returns the maximum nesting depth of `{`/`[` containers in the JSON
-/// text, ignoring characters inside string literals. Cheap pre-flight
-/// scan used to refuse a deeply-nested payload before invoking jsonDecode.
+/// Returns the maximum nesting depth of `{`/`[` containers.
+///
+/// Characters inside string literals are ignored. A cheap pre-flight scan
+/// used to refuse a deeply-nested payload before invoking `jsonDecode`.
 int _jsonMaxDepth(String s) {
   int depth = 0;
   int max = 0;
@@ -118,9 +122,13 @@ int _jsonMaxDepth(String s) {
   return max;
 }
 
-/// Parses a JSON text into a Dart value, refusing payloads that exceed
-/// the [_kMaxJsonDepth] nesting cap (DoS guard for malicious deeply-
-/// nested payloads — F5 follow-up, parity with Go/Java/Python).
+/// Parse JSON text into a plain Dart value.
+///
+/// Payloads that exceed the [_kMaxJsonDepth] nesting cap are refused (DoS
+/// guard for malicious deeply-nested payloads).
+///
+/// Throws [SerializationException] if the depth limit is exceeded or parsing
+/// fails.
 dynamic parseJson(String data) {
   final depth = _jsonMaxDepth(data);
   if (depth > _kMaxJsonDepth) {
@@ -136,8 +144,10 @@ dynamic parseJson(String data) {
   }
 }
 
-/// Parses a JSON string into a dynamic value.
-/// Returns null if data is empty.
+/// Deserialize a JSON string to an object of the specified type.
+///
+/// Returns null if [data] is empty. Throws [SerializationException] if
+/// deserialization fails.
 T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   data = _stripBom(data);
   if (data.isEmpty) {
@@ -161,8 +171,10 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   }
 }
 
-/// Parses a JSON string into a list of values.
-/// Returns null if data is empty.
+/// Deserialize a JSON string to a list of objects of the specified type.
+///
+/// Returns null if [data] is empty. Throws [SerializationException] if
+/// deserialization fails.
 List<T>? deserializeList<T>(
   String data,
   T Function(Map<String, dynamic>) fromJson,
@@ -191,13 +203,13 @@ List<T>? deserializeList<T>(
 /// Deserialize an already-decoded JSON array into a typed `List<T>`,
 /// applying [deserializeElement] to each element.
 ///
-/// recursive-container-deserialize: unlike [deserializeList], which parses a
-/// raw JSON string at the response boundary, this operates on a value that
-/// has already been decoded one container level up. It is the building block
-/// for nested generic containers — the per-element deserializer may itself
-/// re-enter [deserializeArray] / [deserializeMap], so the innermost models of
-/// a type like `List<Map<String, Category>>` are decoded into typed instances
-/// rather than left as raw maps.
+/// Unlike [deserializeList], which parses a raw JSON string at the response
+/// boundary, this operates on a value that has already been decoded one
+/// container level up. It is the building block for nested generic containers
+/// — the per-element deserializer may itself re-enter [deserializeArray] /
+/// [deserializeMap], so the innermost models of a type like
+/// `List<Map<String, Category>>` are decoded into typed instances rather than
+/// left as raw maps.
 List<T> deserializeArray<T>(
   Object? json,
   T Function(dynamic) deserializeElement,
@@ -213,9 +225,9 @@ List<T> deserializeArray<T>(
 /// Deserialize an already-decoded JSON object into a typed `Map<String, T>`,
 /// applying [deserializeValue] to each value.
 ///
-/// recursive-container-deserialize: the value deserializer may itself re-enter
-/// [deserializeArray] / [deserializeMap], so the leaves of a nested generic
-/// container become typed instances instead of raw maps.
+/// The value deserializer may itself re-enter [deserializeArray] /
+/// [deserializeMap], so the leaves of a nested generic container become typed
+/// instances instead of raw maps.
 Map<String, T> deserializeMap<T>(
   Object? json,
   T Function(dynamic) deserializeValue,
@@ -273,7 +285,9 @@ List<T>? deserializeArrayFromJson<T>(
   }
 }
 
-/// Parses a JSON string into a raw dynamic value.
+/// Deserialize a JSON string into a raw dynamic value.
+///
+/// Returns null if [data] is empty.
 dynamic deserializeRaw(String data) {
   data = _stripBom(data);
   if (data.isEmpty) return null;
@@ -285,11 +299,15 @@ dynamic deserializeRaw(String data) {
   }
 }
 
-/// Converts a single scalar value to its string representation.
+/// Convert a scalar value to its canonical string representation.
 ///
-/// This is the canonical type-conversion method used by all parameter
-/// encoding helpers ([toPathValue], [toQueryValue], etc.) and by
-/// ValueSerializer for transport formatting.
+/// This is the canonical type-conversion method used by all parameter encoding
+/// helpers ([toPathValue], [toQueryValue], etc.) and by ValueSerializer for
+/// transport formatting.
+///
+/// Booleans produce lowercase `true`/`false`. A [DateTime] is formatted with
+/// [formatDateTimeOffset] and a [Duration] with the protobuf-JSON duration
+/// form. Null returns the empty string. All other values use `toString()`.
 String stringify(Object? value) {
   if (value == null) return '';
 
@@ -303,13 +321,19 @@ String stringify(Object? value) {
   return value.toString();
 }
 
-/// Converts a value to a string suitable for use as a URL path parameter.
+/// Convert a value to a string suitable for use as a URL path parameter.
+///
+/// Returns the string representation, or the empty string if [value] is null.
 String toPathValue(Object? value) {
   return stringify(value);
 }
 
-/// Converts a value to a representation suitable for use as a query parameter.
+/// Convert a value to a representation suitable for use as a query parameter.
 /// For collections, joins using the specified collection format delimiter.
+///
+/// [collectionFormat] is one of csv, ssv, tsv, pipes, or multi. Returns the
+/// query value string, or a list for the multi format, or null if [value] is
+/// null.
 Object? toQueryValue(Object? value, String collectionFormat) {
   if (value == null) return null;
 
@@ -325,7 +349,9 @@ Object? toQueryValue(Object? value, String collectionFormat) {
   return stringify(value);
 }
 
-/// Converts a value to a string suitable for use as an HTTP header value.
+/// Convert a value to a string suitable for use as an HTTP header value.
+///
+/// Returns the string representation, or the empty string if [value] is null.
 String toHeaderValue(Object? value) {
   if (value == null) return '';
 
@@ -340,26 +366,29 @@ String toHeaderValue(Object? value) {
   return stringify(value);
 }
 
-/// Converts a value to a string suitable for use as an HTTP cookie value.
+/// Convert a value to a string suitable for use as an HTTP cookie value.
 /// Cookie values follow the same encoding rules as header values.
+///
+/// Returns the string representation, or the empty string if [value] is null.
 String toCookieValue(Object? value) {
   return toHeaderValue(value);
 }
 
-/// Converts a value to a representation suitable for use as a form parameter.
+/// Convert a value to a representation suitable for use as a form parameter.
+///
+/// Returns the string representation, or the empty string if [value] is null.
 String toFormValue(Object? value) {
   return stringify(value);
 }
 
-/// Resolve a oneOf schema by attempting deserialization against each candidate.
+/// Resolve a oneOf schema by trying each candidate deserializer in order.
+///
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result.
 ///
-/// Cross-cutting `oneof-nondiscriminator-no-match-silent`: when no candidate
-/// matches, throw a [SerializationException] rather than returning null. A silent
-/// null is a data-loss / type-confusion hazard — the wire shape did not match
-/// any declared variant and the caller must learn about it, matching the
-/// validate-each-variant-then-throw behaviour of the other SDKs.
+/// Throws [SerializationException] if no candidate matches the JSON — a
+/// payload satisfying none of the declared variants is a contract violation
+/// and must fail loudly rather than be silently dropped to null.
 T resolveOneOf<T>(
   Map<String, dynamic> data,
   List<T Function(Map<String, dynamic>)> fromJsonCandidates,
@@ -371,13 +400,15 @@ T resolveOneOf<T>(
       continue;
     }
   }
-  throw SerializationException('Data does not match any oneOf schema variant');
+  throw SerializationException('No oneOf/anyOf variant matched the JSON');
 }
 
-/// Resolve an anyOf schema by attempting deserialization against each candidate.
-/// Each entry in [fromJsonCandidates] is a factory function that attempts to
-/// deserialize the given map. Returns the first successful result, or throws a
-/// [SerializationException] when no variant matches.
+/// Resolve an anyOf schema by trying each candidate deserializer in order.
+///
+/// Delegates to [resolveOneOf].
+///
+/// Returns the first successful result. Throws [SerializationException] if no
+/// candidate matches the JSON.
 T resolveAnyOf<T>(
   Map<String, dynamic> data,
   List<T Function(Map<String, dynamic>)> fromJsonCandidates,
@@ -385,24 +416,20 @@ T resolveAnyOf<T>(
   return resolveOneOf(data, fromJsonCandidates);
 }
 
-/// Formats a DateTime as an ISO 8601 string preserving the original timezone
-/// offset instead of converting to UTC, matching the format used by Java,
-/// Kotlin, C#, and other language generators.
+/// Formats a [DateTime] as the canonical wire form for `format: date-time`
+/// values: a fixed three-digit millisecond fraction and a numeric offset
+/// (rendering a zero offset as `+00:00`, never the `Z` designator), e.g.
+/// `2024-01-01T12:30:45.000+00:00`. All twelve SDKs emit this exact shape so a
+/// value serialises to identical bytes in every language.
+///
+/// The original timezone offset is preserved rather than converting to UTC.
+/// Three digits — not a variable fraction — because millisecond precision is
+/// the cross-SDK common denominator (PHP's and Ruby's date types cannot carry
+/// more), so any microsecond component is truncated on encode.
 ///
 /// Public so model `toJson` bodies can share the exact same wire format as
 /// parameter serialization — a date-time value must serialize identically
 /// whether it travels in a path/query/header or in a request body.
-///
-/// Sub-second precision is preserved: [DateTime.parse] on the decode path
-/// accepts fractional seconds, so the encode path must emit them too,
-/// otherwise a value such as `2020-01-02T03:04:05.123Z` would round-trip
-/// lossily, silently truncating the milliseconds to whole seconds. The
-/// fraction is rendered with at least millisecond precision (3 digits) and
-/// extends to microsecond precision (6 digits) when the DateTime carries a
-/// non-zero microsecond component, mirroring Dart's own
-/// [DateTime.toIso8601String]. A value with no sub-second component emits no
-/// fractional part at all, keeping whole-second instants byte-identical to
-/// the previous output.
 String formatDateTimeOffset(DateTime date) {
   final y = date.year.toString().padLeft(4, '0');
   final mo = date.month.toString().padLeft(2, '0');
@@ -410,33 +437,12 @@ String formatDateTimeOffset(DateTime date) {
   final h = date.hour.toString().padLeft(2, '0');
   final mi = date.minute.toString().padLeft(2, '0');
   final s = date.second.toString().padLeft(2, '0');
-  final fraction = _formatSubSecond(date.millisecond, date.microsecond);
+  final ms = date.millisecond.toString().padLeft(3, '0');
   final offset = date.timeZoneOffset;
   final sign = offset.isNegative ? '-' : '+';
   final hh = offset.inHours.abs().toString().padLeft(2, '0');
   final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
-  return '$y-$mo-${d}T$h:$mi:$s$fraction$sign$hh:$mm';
-}
-
-/// Renders the fractional-second component of a date-time as it should appear
-/// after the seconds field, including the leading dot.
-///
-/// Returns an empty string when both [millisecond] and [microsecond] are zero
-/// (a whole-second instant carries no fraction). When only milliseconds are
-/// present the fraction is 3 digits (e.g. `.123`); when microseconds are also
-/// present it widens to 6 digits (e.g. `.123456`). Keeping at least
-/// millisecond precision matches the cross-SDK common denominator that every
-/// language's native date-time type can represent.
-String _formatSubSecond(int millisecond, int microsecond) {
-  if (millisecond == 0 && microsecond == 0) {
-    return '';
-  }
-  final millis = millisecond.toString().padLeft(3, '0');
-  if (microsecond == 0) {
-    return '.$millis';
-  }
-  final micros = microsecond.toString().padLeft(3, '0');
-  return '.$millis$micros';
+  return '$y-$mo-${d}T$h:$mi:$s.$ms$sign$hh:$mm';
 }
 
 Object? _joinCollection(List<String> items, String collectionFormat) {

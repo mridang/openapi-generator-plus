@@ -7,26 +7,25 @@
 
 use std::collections::HashMap;
 
-/// ApiResult represents a typed API response with deserialized data, status code,
+/// Represents a typed API response with deserialized data, status code,
 /// raw body, and headers. Returned by `with_http_info` methods.
 #[derive(Debug, Clone)]
 pub struct ApiResult<T> {
-    /// The HTTP status code of the response.
+    /// The HTTP status code.
     status_code: u16,
 
-    /// The deserialized response body. May be `None` if the operation
-    /// returned no content or if the response could not be deserialized.
+    /// The deserialized response body (`None` for void responses).
     data: Option<T>,
 
-    /// The raw response body as a string.
+    /// The raw response body string (never null; empty for no body).
     raw_body: String,
 
-    /// The response headers.
+    /// The response headers (unmodifiable; exposed only through a shared reference).
     headers: HashMap<String, String>,
 }
 
 impl<T> ApiResult<T> {
-    /// Creates a new ApiResult with the given values.
+    /// Creates an ApiResult with the given values.
     pub fn new(
         status_code: u16,
         data: Option<T>,

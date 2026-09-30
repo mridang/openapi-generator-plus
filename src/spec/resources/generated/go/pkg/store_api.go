@@ -91,10 +91,9 @@ func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptio
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetBySwatch", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -148,7 +147,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 	var dataPtr *Category
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -185,10 +184,9 @@ func (a *StoreApi) GetDefaults() (*Defaults, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetDefaults", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -228,7 +226,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 	var dataPtr *Defaults
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -265,10 +263,9 @@ func (a *StoreApi) GetDepartment() (*Department, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetDepartment", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -308,7 +305,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 	var dataPtr *Department
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -345,10 +342,9 @@ func (a *StoreApi) GetGroupedCategories() (*[]map[string]Category, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetGroupedCategories", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -388,7 +384,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 	var dataPtr *[]map[string]Category
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -425,10 +421,9 @@ func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetInventory", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -468,7 +463,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 	var dataPtr *map[string]int32
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -505,10 +500,9 @@ func (a *StoreApi) GetMatrix() (*[][]int32, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetMatrix", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -548,7 +542,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 	var dataPtr *[][]int32
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -586,10 +580,9 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetOrderById", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -637,7 +630,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 	var dataPtr *Order
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -675,10 +668,9 @@ func (a *StoreApi) GetStockItem(options *opts.GetStockItemOptions) (*StockItem, 
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetStockItem", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -721,7 +713,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 	var dataPtr *StockItem
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -758,10 +750,9 @@ func (a *StoreApi) GetSwatch() (*Swatch, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetSwatch", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -801,7 +792,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 	var dataPtr *Swatch
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -838,10 +829,9 @@ func (a *StoreApi) GetSwatchGroups() (*[]map[string]Swatch, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetSwatchGroups", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -881,7 +871,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 	var dataPtr *[]map[string]Swatch
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -918,10 +908,9 @@ func (a *StoreApi) GetTimestampGroups() (*[]map[string]time.Time, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetTimestampGroups", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -961,7 +950,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]tim
 	var dataPtr *[]map[string]time.Time
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -998,10 +987,9 @@ func (a *StoreApi) GetTree() (*TreeNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetTree", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1041,7 +1029,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 	var dataPtr *TreeNode
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1078,10 +1066,9 @@ func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("PlaceOrder", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1121,7 +1108,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 	var dataPtr *Order
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}

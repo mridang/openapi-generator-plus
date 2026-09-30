@@ -1,18 +1,22 @@
 {{>api_info}}
 import Foundation
 
-/// BasicAuthenticator provides HTTP Basic authentication.
+/// Authenticator for HTTP Basic authentication.
 public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let _host: String
     private let username: String
     private let password: String
 
-    /// Creates a new Basic authenticator.
+    /// Creates an HTTP Basic authenticator.
     ///
     /// Credentials are validated eagerly at construction, so a malformed
     /// credential is reported where it is supplied rather than lazily at
     /// first request.
     ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - username: The Basic auth user-id.
+    ///   - password: The Basic auth password.
     /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the
     ///   credentials would corrupt the Authorization header.
     public init(host: String, username: String, password: String) throws {
@@ -47,12 +51,12 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
         super.init()
     }
 
-    /// Returns the API base URL.
+    /// Returns the base URL of the API.
     override public func host() -> String {
         return _host
     }
 
-    /// Returns the Basic authentication header.
+    /// Returns the authentication headers to include in every request.
     override public func authHeaders() async -> [String: String] {
         let credentials = "\(username):\(password)"
         let encoded = Data(credentials.utf8).base64EncodedString()
@@ -61,14 +65,14 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
 }
 
 extension BasicAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
-    /// A description that redacts the password so it never leaks through
-    /// string interpolation, logging, or debugging output.
+    /// A string representation that redacts the password so credentials never
+    /// leak into logs or stack traces (matching the other SDKs).
     public var description: String {
         "\(type(of: self))(host: \(_host), username: \(username), password: ***)"
     }
 
-    /// A debug description that redacts the password so it never leaks through
-    /// string interpolation, logging, or debugging output.
+    /// A debug string representation that redacts the password so credentials
+    /// never leak into logs or stack traces (matching the other SDKs).
     public var debugDescription: String {
         description
     }

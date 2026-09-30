@@ -23,8 +23,21 @@ import '../value_serializer.dart';
 import '../trace_context_util.dart';
 import '../errors/api_exception.dart';
 
-/// BaseApi provides common functionality for all API classes.
+/// Base class for all API classes.
+///
+/// Provides the [invokeApi] method that handles URL construction, header
+/// selection, body serialization, request dispatch, and response
+/// deserialization.
 class BaseApi {
+  /// Create an API instance.
+  ///
+  /// Parameters:
+  ///   - [apiClient]: the HTTP transport client. When omitted a
+  ///     [DefaultApiClient] with default transport options is used.
+  ///   - [config]: API-level configuration (base URL and default headers).
+  ///     When omitted the default configuration is used.
+  ///   - [authenticator]: default authenticator for operations without
+  ///     explicit auth.
   BaseApi({
     ApiClient? apiClient,
     Configuration? config,
@@ -34,12 +47,34 @@ class BaseApi {
        _headerSelector = HeaderSelector(),
        _authenticator = authenticator;
 
-  final Configuration config;
+  /// The HTTP transport client used for sending requests.
   final ApiClient apiClient;
+
+  /// API-level configuration (base URL and default headers).
+  final Configuration config;
+
+  /// Content negotiation logic for Accept and Content-Type headers.
   final HeaderSelector _headerSelector;
+
+  /// Optional authenticator for request-level auth when not passed per-call.
   final Authenticator? _authenticator;
 
-  /// Dispatches an API request and returns the full result.
+  /// Invoke an API operation and return the raw HTTP response.
+  ///
+  /// Handles URL construction, header selection, authentication, body
+  /// serialization, and request dispatch. Throws an [ApiException] when the
+  /// response status is not 2xx.
+  ///
+  /// Parameters:
+  ///   - [method]: HTTP method (GET, POST, PUT, DELETE, etc.)
+  ///   - [path]: URL path (with path params already substituted)
+  ///   - [queryParams]: query parameters
+  ///   - [headerParams]: custom header parameters
+  ///   - [body]: request body
+  ///   - [accepts]: acceptable response content types
+  ///   - [contentType]: request content type
+  ///   - [returnType]: return type for deserialization (empty for void)
+  ///   - [auth]: optional authenticator for operation-specific auth
   Future<ApiHttpResponse> invokeApi({
     required String method,
     required String path,
@@ -67,17 +102,14 @@ class BaseApi {
     if (queryParams != null) {
       allQueryParams.addAll(queryParams);
     }
-    /* Three-state auth resolution (security-none suppression):
-     *   - auth IS the `noAuth` sentinel -> the operation is declared
-     *     `security: []`; apply NO authentication. Do NOT fall back to the
-     *     client-level authenticator (that would re-acquire and leak the
-     *     client credential on an unauthenticated endpoint).
-     *   - auth is null (no per-call override) -> fall back to the
-     *     client-level `_authenticator` (a secured op uses the configured
-     *     credential). UNCHANGED Wave A1 behavior.
-     *   - auth is any other Authenticator -> use it as a per-call override.
-     * The sentinel is compared by identity so it can never collide with a
-     * real authenticator. */
+    /* Three-state auth resolution (the no-auth sentinel is a distinct
+     * third state, so `null` is no longer overloaded):
+     *   - auth IS the `noAuth` sentinel  -> apply NO credentials; the
+     *     operation is `security: []` and must never pick up the
+     *     client-level authenticator.
+     *   - auth is null                   -> no per-call override; fall
+     *     back to the configured client authenticator (secured op).
+     *   - auth is a real authenticator   -> per-call override; use it. */
     final Authenticator? effectiveAuth = identical(auth, noAuth)
         ? null
         : (auth ?? _authenticator);
@@ -152,6 +184,9 @@ class BaseApi {
     } else {
       serializedBody = _serializeBody(body, contentType);
     }
+    if (serializedBody == null) {
+      headers.remove('Content-Type');
+    }
 
     final response = await apiClient.sendRequest(
       method,
@@ -171,11 +206,17 @@ class BaseApi {
     return response;
   }
 
-  /// Dispatches an API request and returns the full result including
-  /// deserialized data, status code, raw body, and headers.
+  /// Invoke an API operation and return the full result including status
+  /// code, headers, and raw body alongside the deserialized data.
   ///
   /// Calls [invokeApi] to get the raw [ApiHttpResponse], then deserializes
   /// the response body when [returnType] is not empty.
+  ///
+  /// Parameters are as for [invokeApi], plus [deserialize], the function that
+  /// converts the response body into the return type.
+  ///
+  /// Returns an [ApiResult] containing deserialized data, status code, raw
+  /// body, and headers.
   Future<ApiResult<T>> invokeApiForResult<T>({
     required String method,
     required String path,
@@ -218,14 +259,12 @@ class BaseApi {
           returnType == 'List<int>' || returnType == 'Uint8List';
       final isBinaryContentType = _isBinaryContentType(responseContentType);
       if (returnsBytes && _headerSelector.isJsonMime(responseContentType)) {
-        /* Top-level `format: byte` response carried as application/json
-         * (Case 13): the body is a JSON string LITERAL, e.g.
-         * `"dGVzdC1pbWFnZQ=="` (quotes included). JSON-parse it first to
-         * recover the inner base64 string, then base64-decode to raw bytes.
-         * Decoding the raw body directly would either choke on the quotes or
-         * (via the utf8 fallback) return the bytes of the quoted literal —
-         * both wrong. This mirrors python/go/java/rust, which parse then
-         * base64-decode. */
+        /* Top-level `format: byte` response carried as application/json: the
+         * body is a JSON string LITERAL, e.g. `"dGVzdC1pbWFnZQ=="` (quotes
+         * included). JSON-parse it first to recover the inner base64 string,
+         * then base64-decode to raw bytes. Decoding the raw body directly
+         * would either choke on the quotes or (via the utf8 fallback) return
+         * the bytes of the quoted literal — both wrong. */
         final inner = parseJson(response.body);
         if (inner is String) {
           data = base64Decode(inner) as T?;
@@ -272,6 +311,8 @@ class BaseApi {
     );
   }
 
+  /// Reports whether [contentType] names a binary media type (octet-stream,
+  /// image, audio, or video), whose response body the transport base64-encodes.
   bool _isBinaryContentType(String contentType) {
     final mediaType = contentType.split(';').first.trim().toLowerCase();
     if (mediaType.isEmpty) return false;
@@ -281,13 +322,15 @@ class BaseApi {
         mediaType.startsWith('video/');
   }
 
-  /* form-body-space-encoding: application/x-www-form-urlencoded requires a
-   * space to be encoded as `+` (WHATWG URL / HTML form-encoding), not `%20`.
-   * Dart's `Uri.encodeQueryComponent` implements exactly this form-encoding
-   * (space -> `+`, literal `+` -> `%2B`), so it is the correct primitive for
-   * both the key and the value of a form field. */
+  /// Encodes a form field key or value.
+  ///
+  /// `application/x-www-form-urlencoded` requires a space to be encoded as `+`
+  /// (WHATWG URL / HTML form-encoding), not `%20`. Dart's
+  /// `Uri.encodeQueryComponent` implements exactly this form-encoding (space
+  /// becomes `+`, literal `+` becomes `%2B`).
   String _encodeFormComponent(String s) => Uri.encodeQueryComponent(s);
 
+  /// Builds the query string from [queryParams], omitting null values.
   String _buildQueryString(Map<String, Object?> queryParams) {
     if (queryParams.isEmpty) return '';
 
@@ -331,6 +374,14 @@ class BaseApi {
         : Uri.encodeQueryComponent(value);
   }
 
+  /// Serialize the request body based on content type.
+  ///
+  /// Binary content types (image/* or application/octet-stream) pass the body
+  /// through as bytes, `text/plain` is stringified, and
+  /// `application/x-www-form-urlencoded` is encoded field by field. All other
+  /// content types are JSON-serialized. multipart/form-data bodies are
+  /// assembled separately by [_buildMultipartBody], so this returns null for
+  /// them.
   Uint8List? _serializeBody(Object? body, String contentType) {
     if (body == null) return null;
 
@@ -354,16 +405,12 @@ class BaseApi {
         final parts = <String>[];
         for (final entry in body.entries) {
           final value = entry.value;
-          /* form-optional-null-omitted: a null field is dropped entirely
-           * rather than emitted as `key=`. The operation method already
-           * skips absent optional fields; this guards any null that slips
-           * through (e.g. an explicitly-null required field). */
+          /* A null field is dropped entirely rather than emitted as `key=`. */
           if (value == null) continue;
           final encodedKey = _encodeFormComponent(entry.key);
           if (value is List) {
-            /* form-array-repeated-keys: `tags=[a,b]` serializes to
-             * `tags=a&tags=b` (one key per element), matching the other
-             * SDKs, NOT a single `tags=[a, b]` from List.toString(). */
+            /* Array values emit a REPEATED key (`tags=a&tags=b`), never a
+             * single `tags=[a, b]` from List.toString(). */
             for (final item in value) {
               if (item == null) continue;
               parts.add('$encodedKey=${_encodeFormComponent(stringify(item))}');
@@ -410,32 +457,31 @@ class BaseApi {
     return builder.toBytes();
   }
 
+  /// Appends one multipart field named [name] with [value] to [parts].
   void _appendMultipartField(
     List<List<int>> parts,
     String boundary,
     String name,
     Object? value,
   ) {
-    /* W-new-2: validate the field name on every branch (string, number,
-     * boolean, JSON, binary) before it lands in Content-Disposition. The name
-     * is interpolated directly into `Content-Disposition: form-data;
-     * name="..."`, so CR/LF/NUL must be rejected even when the value is not
-     * binary, and quote/backslash must be escaped so a malicious name cannot
-     * break out of the `name="..."` parameter.
-     */
+    /* Validate the field name on every branch (string, number, boolean,
+     * JSON, binary) before it lands in Content-Disposition. The name is
+     * interpolated directly into `Content-Disposition: form-data; name="..."`,
+     * so CR/LF/NUL must be rejected even when the value is not binary, and
+     * quote/backslash must be escaped so a malicious name cannot break out of
+     * the `name="..."` parameter. */
     validateMultipartFieldName(name);
     final safeName = escapeMultipartFieldName(name);
     if (value is List<int>) {
-      /* multipart-file-content-type: derive the part's Content-Type from the
-       * filename extension (`.png` -> `image/png`), falling back to
-       * `application/octet-stream` when the name carries no recognised
-       * extension. The form field name doubles as the filename here because
-       * the spec models a binary form field as raw bytes with no separate
-       * filename slot. */
+      /* Derive the part's Content-Type from the filename extension
+       * (`.png` -> `image/png`), falling back to `application/octet-stream`
+       * when the name carries no recognised extension. The form field name
+       * doubles as the filename here because the spec models a binary form
+       * field as raw bytes with no separate filename slot. */
       validateMultipartFilename(name);
       final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
-      /* multipart-rfc5987-filename: a non-ASCII filename must be emitted as an
-       * RFC 5987 `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII
+      /* A non-ASCII filename must be emitted as an RFC 5987
+       * `filename*=UTF-8''<pct-encoded>` parameter (with an ASCII
        * `filename="..."` fallback), not as raw UTF-8 bytes inside the quoted
        * `filename="..."` — the latter is non-conformant and mangled by strict
        * parsers. buildFilenameDirective emits the plain `filename="..."` for
@@ -471,6 +517,7 @@ class BaseApi {
     }
   }
 
+  /// Generates a random (version 4) UUID used as the multipart boundary.
   String _generateUuid() {
     final random = Random.secure();
     final bytes = List<int>.generate(16, (_) => random.nextInt(256));

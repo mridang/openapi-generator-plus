@@ -7,15 +7,18 @@
 
 import Foundation
 
-/// SerializationError is thrown when serialization or deserialization fails.
+/// Error raised when serialization or deserialization fails.
 ///
 /// It is `public` so callers can catch a serialization failure by type
 /// (`catch let error as SerializationError`), matching the public error types
 /// the other SDKs expose. It conforms to `Error` and `LocalizedError`.
 public struct SerializationError: OpenAPIError, LocalizedError {
+  /// The detail message.
   public let message: String
+  /// The underlying cause, if any.
   public let cause: Error?
 
+  /// Creates an error with a detail message and an optional cause.
   public init(message: String, cause: Error? = nil) {
     self.message = message
     self.cause = cause

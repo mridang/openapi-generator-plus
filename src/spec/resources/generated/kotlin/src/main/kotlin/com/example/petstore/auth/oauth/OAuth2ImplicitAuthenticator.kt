@@ -15,15 +15,20 @@ import java.nio.charset.StandardCharsets
 /**
  * Authenticator for the OAuth2 Implicit flow.
  *
- * Implements [HttpAwareAuthenticator] for interface consistency with other
- * OAuth2 authenticators. The implicit flow does not make token exchange
- * requests.
+ * Implements [HttpAwareAuthenticator] so that any token refresh
+ * requests use the shared [ApiClient] with the same transport
+ * configuration (proxy, TLS, timeouts) as regular API calls.
  *
  * Usage:
  * 1. Call [buildAuthorizationUrl] to get the authorization URL
  * 2. Redirect the user to that URL
  * 3. Extract the access token from the fragment and call [setAccessToken]
  * 4. Use the authenticator normally
+ *
+ * @param host API base URL
+ * @param clientId OAuth2 client ID
+ * @param authorizationUrl authorization endpoint URL
+ * @param scopes requested scopes
  */
 open class OAuth2ImplicitAuthenticator(
     private val host: String,
@@ -34,9 +39,14 @@ open class OAuth2ImplicitAuthenticator(
     @Volatile
     private var accessToken: String? = null
 
+    /**
+     * Inject the shared API client. The implicit flow makes no token exchange
+     * requests, so this is a no-op kept for interface consistency.
+     *
+     * @param apiClient the shared API client instance
+     */
     override fun setApiClient(apiClient: ApiClient) {
-        /* Implicit flow does not make token exchange requests,
-         * but implements the interface for consistency. */
+        // Implicit flow does not make token exchange requests.
     }
 
     /**
@@ -68,10 +78,11 @@ open class OAuth2ImplicitAuthenticator(
      * @param token the access token
      */
     fun setAccessToken(token: String) {
-        // F-A5-04: validate at set time to mirror BearerAuthenticator's
-        // RFC 7230 §3.2.6 check. Without this, a CR/LF-bearing token
-        // would be stashed and only fail at the next API call via the
-        // Authorization-header concat, allowing HTTP header injection.
+        // Validate at set time to mirror BearerAuthenticator's RFC 7230
+        // §3.2.6 check. setAccessToken would otherwise let a caller stash a
+        // CR/LF-bearing token and only fail at the next API call via the
+        // Authorization-header concat, allowing HTTP header injection from a
+        // redirect-fragment-derived value.
         for (c in token) {
             if (c != '\t' && (c.code < 0x20 || c.code >= 0x7F)) {
                 throw IllegalArgumentException(
@@ -94,9 +105,11 @@ open class OAuth2ImplicitAuthenticator(
     private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 
     /**
-     * Redacts the access token so it never leaks through the default string
-     * representation (logs, stack traces, debuggers). Non-secret fields stay
-     * visible.
+     * Returns a string representation that redacts the access token so the
+     * credential never leaks into logs or stack traces (matching the other
+     * SDKs). Non-secret fields stay visible.
+     *
+     * @return a redacted string representation
      */
     override fun toString(): String =
         "${this::class.simpleName}(host=$host, clientId=$clientId, " +

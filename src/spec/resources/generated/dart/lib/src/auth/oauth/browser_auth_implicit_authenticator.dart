@@ -7,7 +7,9 @@
 
 import 'oauth2_implicit_authenticator.dart';
 
+/// Authenticator for the `browserAuth` security scheme.
 class BrowserAuthImplicitAuthenticator extends OAuth2ImplicitAuthenticator {
+  /// Creates an authenticator for the `browserAuth` security scheme.
   BrowserAuthImplicitAuthenticator({
     required super.host,
     required super.clientId,

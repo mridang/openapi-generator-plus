@@ -54,11 +54,10 @@ class DefaultApiClient internal constructor(
     }
 
     /*
-     * Gap AK: Ktor's CIO engine has no API for proxy basic-auth
-     * credentials, so userinfo embedded in the proxy URL
-     * (`http://user:pass@host:port`) is silently dropped. Extract it
-     * once at construction and inject as a Proxy-Authorization header
-     * on every outbound request below, matching the Java/C# SDKs.
+     * Ktor's CIO engine has no API for proxy basic-auth credentials, so
+     * userinfo embedded in the proxy URL (`http://user:pass@host:port`) is
+     * silently dropped. Extract it once at construction and inject it as a
+     * Proxy-Authorization header on every outbound request below.
      */
     internal val proxyAuthHeader: String? = buildProxyAuthHeader(transportOptions.proxy)
 
@@ -114,6 +113,22 @@ class DefaultApiClient internal constructor(
      */
     constructor() : this(TransportOptions.builder().build())
 
+    /**
+     * Send an HTTP request and return the response.
+     *
+     * Merges transport-level headers, follows redirects manually (stripping
+     * sensitive headers on cross-origin hops), and maps transport failures to
+     * [NetworkException] / [NetworkTimeoutException].
+     *
+     * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param url Fully qualified URL
+     * @param headers HTTP headers
+     * @param body Request body (serialized JSON string, ByteArray for binary, or
+     *   `Map<String, Any?>` for multipart form data; may be null)
+     * @param noRedirect when `true`, do not follow 3xx responses
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
     override suspend fun sendRequest(
         method: String,
         url: String,
@@ -157,11 +172,11 @@ class DefaultApiClient internal constructor(
                 throw transportFailure(e)
             }
 
-        // Gap T1+T2: redirects are ALWAYS handled manually so we can strip
-        // sensitive headers (Authorization, Cookie, Proxy-Authorization) on
-        // cross-origin hops AND preserve the original verb+body per RFC 7231.
-        // When `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
-        // Gap 3.2: noRedirect=true (the OAuth2 token POST) means "do not follow
+        // Redirects are ALWAYS handled manually so we can strip sensitive
+        // headers (Authorization, Cookie, Proxy-Authorization) on cross-origin
+        // hops AND preserve the original verb+body per RFC 7231. When
+        // `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
+        // noRedirect=true (the OAuth2 token POST) means "do not follow
         // redirects; return the 3xx as-is" -- the loop is skipped and the first
         // 3xx surfaces verbatim. The token manager inspects and rejects the 3xx
         // itself, so a credential-bearing body is never silently replayed.
@@ -210,10 +225,10 @@ class DefaultApiClient internal constructor(
                     keysToRemove.forEach { redirectHeaders.remove(it) }
                 }
 
-                // Gap 3.3: refuse to replay a request body across an
-                // HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
-                // we only guard those: a TLS-protected payload (POST/PUT
-                // body) must not be silently re-sent in cleartext.
+                // Refuse to replay a request body across an HTTPS->HTTP
+                // downgrade. Only 307/308 preserve the body, so we only guard
+                // those: a TLS-protected payload (POST/PUT body) must not be
+                // silently re-sent in cleartext.
                 if (response.status.value in 307..308 &&
                     currentBody != null &&
                     "https".equals(originalUri.scheme, ignoreCase = true) &&
@@ -227,11 +242,11 @@ class DefaultApiClient internal constructor(
                     )
                 }
 
-                // Gap T2: pick follow-up method+body per RFC 7231 / 7538.
+                // Pick the follow-up method+body per RFC 7231 / 7538.
                 // 307 + 308: preserve the original method and body.
                 // 303:       force GET, drop the body (drop Content-Type/Length too).
                 // 301 + 302: historical browser behaviour — switch to GET for non-GET/HEAD
-                //            requests, drop the body. Matches all 11 other SDKs.
+                //            requests, drop the body.
                 val statusCode = response.status.value
                 val nextMethod: String
                 val nextBody: Any?
@@ -291,8 +306,7 @@ class DefaultApiClient internal constructor(
 
             // Redirect budget exhausted but the server is still returning a
             // 3xx: fail loud instead of silently handing the caller the last
-            // redirect response as if it were a normal result. Matches the
-            // "throw too many redirects" canonical adopted across the SDKs.
+            // redirect response as if it were a normal result.
             if (response.status.value in 300..399 && redirectsRemaining == 0) {
                 throw ApiException(
                     response.status.value,
@@ -303,7 +317,7 @@ class DefaultApiClient internal constructor(
             }
         }
 
-        // Gap BE+BF: response header keys are normalised to lowercase so
+        // Response header keys are normalised to lowercase so
         // callers can look them up consistently regardless of the casing
         // the server used (HTTP header names are case-insensitive per
         // RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
@@ -438,7 +452,7 @@ class DefaultApiClient internal constructor(
         fieldName: String,
         value: Any?,
     ) {
-        // W-new-2: validate the field name on every branch (string, number,
+        // Validate the field name on every branch (string, number,
         // boolean, JSON, binary) before it lands in Content-Disposition. Ktor's
         // FormBuilder.append interpolates the name directly, so CR/LF/NUL must
         // be rejected even when the value is not a ByteArray.

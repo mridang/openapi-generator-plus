@@ -7,7 +7,8 @@
 
 defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   @moduledoc """
-  Authenticator for API key authentication.
+  Authenticator for API key authentication. Supports sending the key
+  as a header, query parameter, or cookie.
   """
 
   use PetstoreClient.Auth.BaseAuthenticator
@@ -19,8 +20,8 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
           location: atom()
         }
 
-  # Redact the API key from the default Inspect representation so it is
-  # never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  # Redact the API key from the default Inspect representation so credentials
+  # never leak into logs or stack traces.
   @derive {Inspect, except: [:api_key]}
   defstruct [:host, :key_param_name, :api_key, :location]
 
@@ -30,16 +31,19 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   ## Parameters
 
     * `host` - API base URL.
-    * `key_param_name` - Name of the key parameter.
+    * `key_param_name` - The name of the header, query parameter, or cookie carrying the key.
     * `api_key` - The API key value.
-    * `location` - One of `:header`, `:query`, or `:cookie`.
+    * `location` - Where the API key is sent on each request: `:header`, `:query`, or `:cookie`.
 
   """
   @spec new(String.t(), String.t(), String.t(), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
-    # Validation applies to ALL locations: empty/whitespace API keys
-    # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
-    # printable-ASCII rule still applies to HEADER values.
+    # Validation applies to ALL locations: empty/whitespace API keys are
+    # always a programmer error; CR/LF/NUL would either inject HTTP headers
+    # (header location) or break URL/cookie construction (query/cookie - even
+    # though URL-encoded later, trapping at construction surfaces the bug
+    # clearly). RFC 7230 §3.2.6 printable-ASCII rule still applies to header
+    # values.
     if api_key == "" or String.trim(api_key) == "" do
       raise ArgumentError,
             "API key value for '#{key_param_name}' must not be empty"

@@ -36,17 +36,18 @@ defmodule {{moduleName}}.AnyOfComposite do
 end
 
 defmodule {{moduleName}}.ObjectSerializer do
-  @moduledoc false
-  # Internal serde plumbing: JSON serialization/deserialization and parameter
-  # value encoding for API requests and responses. Not part of the public API;
-  # all serde routes through here internally.
+  @moduledoc """
+  Handles JSON serialization and deserialization for API requests and responses.
 
-  # Maximum allowed JSON nesting depth. Elixir's Jason.decode recurses
-  # through the BEAM call stack; while BEAM stacks are heap-allocated and
-  # don't overflow as quickly as native ones, a 100k-deep payload still
-  # explodes memory + reduction budgets. Matches the 1000-cap Java/Kotlin
-  # Jackson and Python json stdlib use; Go uses the same. C# is stricter
-  # (64). F5 follow-up.
+  All serde operations in the generated client route through this module.
+  The parameter encoding functions provide consistent value conversion for
+  URL path, query string, header, and form parameters.
+  """
+
+  # Maximum allowed JSON nesting depth. A malicious 100k-deep
+  # `{"a":{"a":...}}` payload would otherwise recurse through the call stack
+  # (and explode memory and reduction budgets), so the cap is pinned here
+  # rather than left to the parser's default. Every SDK uses the same cap.
   @max_json_depth 1000
 
   # Returns the maximum nesting depth of `{`/`[` containers in the JSON
@@ -96,9 +97,19 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   @doc """
-  Parses a JSON text into an Elixir value, refusing payloads that exceed
-  the `@max_json_depth` nesting cap (DoS guard for malicious deeply-
-  nested payloads — F5 follow-up, parity with Go/Java/Python).
+  Parse JSON text into a plain Elixir value.
+
+  Payloads that exceed the maximum nesting depth are refused (DoS guard for
+  malicious deeply-nested payloads).
+
+  ## Parameters
+
+    * `data` - The raw JSON text.
+
+  ## Returns
+
+    `{:ok, value}` with the parsed value, or `{:error, reason}` if the depth
+    limit is exceeded or parsing fails.
   """
   @spec parse_json(binary()) :: {:ok, term()} | {:error, String.t() | Jason.DecodeError.t()}
   def parse_json(data) when is_binary(data) do
@@ -113,6 +124,18 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Serialize an object to a JSON string.
+
+  ## Parameters
+
+    * `object` - The object to serialize (may be `nil`).
+
+  ## Returns
+
+    The JSON string representation.
+
+  ## Raises
+
+    `#{inspect({{moduleName}}.Errors.SerializationError)}` if serialization fails.
   """
   @spec serialize(term()) :: String.t()
   def serialize(object) do
@@ -126,22 +149,34 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Deserialize a JSON string to an object of the specified type.
+
+  ## Parameters
+
+    * `json_string` - The JSON string to deserialize (may be `nil` or empty).
+    * `target_type` - The target type name.
+
+  ## Returns
+
+    The deserialized object, or `nil` if the JSON string is `nil` or empty.
+
+  ## Raises
+
+    `#{inspect({{moduleName}}.Errors.SerializationError)}` if deserialization fails.
   """
   @spec deserialize(String.t() | nil, String.t()) :: term()
   def deserialize(nil, _target_type), do: nil
   def deserialize("", _target_type), do: nil
 
-  # A "String" return type means "hand me the raw response body verbatim" —
+  # A "String" return type means "hand me the raw response body verbatim" -
   # never JSON-parse it (a JSON envelope body would otherwise decode to a map
-  # and fail String coercion). Matches the raw-body return of the other SDKs
-  # and is not a deserialize failure (a binary is always a valid String).
+  # and fail String coercion). A binary is always a valid String, so this is
+  # not a deserialize failure.
   def deserialize(body, "String") when is_binary(body), do: body
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
     # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
     # Windows-generated payloads often include one and Jason rejects it.
-    # Strip silently for parity with Java Jackson / C# System.Text.Json
-    # which strip transparently.
+    # Strip it silently.
     stripped =
       case json_string do
         <<0xEF, 0xBB, 0xBF, rest::binary>> -> rest
@@ -157,31 +192,41 @@ defmodule {{moduleName}}.ObjectSerializer do
   def deserialize(data, target_type), do: convert_to_type(data, target_type)
 
   @doc """
-  Convert a single scalar value to its string representation.
+  Convert a scalar value to its canonical string representation.
+
+  Booleans produce lowercase `"true"`/`"false"`. `nil` returns the empty
+  string. Dates, times and durations use their ISO-8601 (or protobuf-JSON)
+  wire forms. All other values use `to_string/1`.
 
   This is the canonical type-conversion function used by all parameter
   encoding helpers (`to_path_value`, `to_query_value`, etc.) and by
-  `ValueSerializer` for transport formatting.
+  `#{inspect({{moduleName}}.ValueSerializer)}` for transport formatting.
+
+  ## Parameters
+
+    * `value` - The value to stringify (may be `nil`).
+
+  ## Returns
+
+    The string representation, never `nil`.
   """
   @spec stringify(term()) :: String.t()
   def stringify(nil), do: ""
   def stringify(true), do: "true"
   def stringify(false), do: "false"
 
-  # Emit sub-second precision so the wire format round-trips losslessly with
-  # the DateTime decoder (DateTime.from_iso8601/1 accepts fractional seconds).
-  # Truncating to whole seconds here would silently drop the milliseconds the
-  # decoder is willing to parse — an asymmetric, lossy round-trip. A
-  # 2020-01-02T03:04:05.123Z instant keeps its ".123" on the wire; a
-  # whole-second instant still serializes without a fractional component.
-  def stringify(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  # format:date-time is emitted as YYYY-MM-DDTHH:MM:SS.mmm±HH:MM: a fixed
+  # three-digit millisecond fraction and a numeric offset, rendering a zero
+  # offset as "+00:00" rather than "Z". Sub-second precision is kept so the
+  # wire form round-trips with the DateTime decoder, which accepts fractions.
+  def stringify(%DateTime{} = dt), do: format_date_time(dt)
 
   def stringify(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
   def stringify(%Date{} = d), do: Date.to_iso8601(d)
-  # 4.8: ISO-8601 wire formatting for format:time (HH:MM:SS); protobuf-JSON
-  # wire formatting for format:duration ("<seconds>s"). Both round-trip
-  # through the matching `convert_to_type/2` clauses below.
+  # ISO-8601 wire formatting for format:time (HH:MM:SS); protobuf-JSON wire
+  # formatting for format:duration ("<seconds>s"). Both round-trip through the
+  # matching `convert_to_type/2` clauses below.
   def stringify(%Time{} = t), do: t |> Time.truncate(:second) |> Time.to_iso8601()
   def stringify(%Duration{} = d), do: format_protobuf_duration(d)
 
@@ -189,12 +234,33 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Convert a value to a string suitable for use as a URL path parameter.
+
+  ## Parameters
+
+    * `value` - The value to convert (may be `nil`).
+
+  ## Returns
+
+    The string representation, or the empty string if `nil`.
   """
   @spec to_path_value(term()) :: String.t()
   def to_path_value(value), do: stringify(value)
 
   @doc """
   Convert a value to a representation suitable for use as a query parameter.
+
+  For collections, joins using the specified collection format delimiter.
+
+  ## Parameters
+
+    * `value` - The value to convert (may be `nil`).
+    * `collection_format` - The format: `:csv`, `:ssv`, `:tsv`, `:pipes` or
+      `:multi` (may be `nil`).
+
+  ## Returns
+
+    The query value string, a list of strings for the `:multi` format, or `nil`
+    if the value is `nil`.
   """
   @spec to_query_value(term(), atom() | nil) :: String.t() | [String.t()] | nil
   def to_query_value(value, collection_format \\ nil)
@@ -217,6 +283,14 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Convert a value to a string suitable for use as an HTTP header value.
+
+  ## Parameters
+
+    * `value` - The value to convert (may be `nil`).
+
+  ## Returns
+
+    The string representation, or the empty string if `nil`.
   """
   @spec to_header_value(term()) :: String.t()
   def to_header_value(nil), do: ""
@@ -229,6 +303,7 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Convert a value to a string suitable for use as an HTTP cookie value.
+
   Cookie values follow the same encoding rules as header values.
   """
   @spec to_cookie_value(term()) :: String.t()
@@ -236,6 +311,14 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   @doc """
   Convert a value to a representation suitable for use as a form parameter.
+
+  ## Parameters
+
+    * `value` - The value to convert (may be `nil`).
+
+  ## Returns
+
+    The string representation, or the empty string if `nil`.
   """
   @spec to_form_value(term()) :: String.t()
   def to_form_value(value), do: stringify(value)
@@ -256,15 +339,14 @@ defmodule {{moduleName}}.ObjectSerializer do
   end
 
   def sanitize_for_serialization(%Date{} = d), do: Date.to_iso8601(d)
-  # Emit sub-second precision so the JSON body round-trips losslessly with the
-  # DateTime decoder, which accepts fractional seconds. Truncating to whole
-  # seconds here would drop the milliseconds the decoder parses back — a lossy,
-  # asymmetric round-trip. A 2020-01-02T03:04:05.123Z instant keeps its ".123".
-  def sanitize_for_serialization(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  # Emit the same fixed-width date-time wire form as `stringify/1`
+  # (YYYY-MM-DDTHH:MM:SS.mmm±HH:MM) so the JSON body round-trips with the
+  # DateTime decoder, which accepts fractional seconds.
+  def sanitize_for_serialization(%DateTime{} = dt), do: format_date_time(dt)
 
   def sanitize_for_serialization(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
-  # 4.8: serialize stdlib Time as an ISO-8601 string and Duration as a
+  # Serialize stdlib Time as an ISO-8601 string and Duration as a
   # protobuf-JSON "<seconds>s" string on the wire.
   def sanitize_for_serialization(%Time{} = t), do: t |> Time.truncate(:second) |> Time.to_iso8601()
   def sanitize_for_serialization(%Duration{} = d), do: format_protobuf_duration(d)
@@ -323,7 +405,7 @@ defmodule {{moduleName}}.ObjectSerializer do
           end
         end)
 
-      # 2.19 additionalProperties round-trip: re-emit any undeclared keys
+      # additionalProperties round-trip: re-emit any undeclared keys
       # captured into the struct's `additional_properties` map on deserialize,
       # so they survive serialization. Declared fields always win over a
       # captured extra of the same JSON key.
@@ -351,7 +433,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
   def sanitize_for_serialization(value), do: to_string(value)
 
-  # 2.1 format: byte — encode the native `binary()` bytes back to a
+  # format: byte - encode the native `binary()` bytes back to a
   # base64 string before they hit the JSON encoder. The struct's
   # openapi_types map tells us which fields carry byte semantics. A
   # scalar byte field is tagged "ByteArray"; an array-of-byte field is
@@ -374,7 +456,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     Enum.map(value, fn item -> sanitize_field_value(item, sub_type) end)
   end
 
-  # 2.18 named enum field — the field carries an atom whose name is the
+  # Named enum field - the field carries an atom whose name is the
   # lowercased constant, which is NOT necessarily the wire value (e.g.
   # `:great_dane` -> "GreatDane"). The enum module's `value/1` is the only
   # function that knows the true wire mapping, so route the atom through it.
@@ -399,9 +481,8 @@ defmodule {{moduleName}}.ObjectSerializer do
   @spec convert_to_type(term(), String.t()) :: term()
   def convert_to_type(nil, _return_type), do: nil
 
-  # Strict primitive type-check. Aligns Elixir with Java/Kotlin/C#/Go/
-  # Swift/Rust which throw on type mismatch — server bugs surface as
-  # ArgumentError instead of being silently coerced ("42" -> 42 etc).
+  # Strict primitive type-check: a type mismatch raises (server bugs surface as
+  # a SerializationError instead of being silently coerced, "42" -> 42 etc).
   # The strict primitive clauses match both the bare capitalized literal and
   # the Elixir typespec form ("String.t()", "integer()", "float()",
   # "boolean()") that `openapi_types/0` emits via the codegen's typeMapping,
@@ -436,7 +517,7 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   def convert_to_type(data, "Object"), do: data
 
-  # 2.1 format: byte — wire form is a base64 string; decoded to native
+  # format: byte - wire form is a base64 string; decoded to native
   # Elixir bytes (`binary()`). Matches the OpenAPI 3 spec which mandates
   # base64 transport for `format: byte`.
   def convert_to_type(data, "ByteArray") when is_binary(data) do
@@ -456,7 +537,7 @@ defmodule {{moduleName}}.ObjectSerializer do
         message: "Expected base64 String for ByteArray, got #{inspect(data)}"
       )
 
-  # 2.4 / 3.3: `format: byte` leaves carried inside a typespec descriptor
+  # `format: byte` leaves carried inside a typespec descriptor
   # arrive as `binary()` — either the element type of an array of bytes
   # (the codegen emits "[binary()]" and the array clause peels it to
   # "binary()") or a top-level bare byte response carried as
@@ -480,7 +561,7 @@ defmodule {{moduleName}}.ObjectSerializer do
         message: "Expected base64 String for binary(), got #{inspect(data)}"
       )
 
-  # 2.2 format: uuid — RFC 4122 canonical 8-4-4-4-12 hex form, case
+  # format: uuid - RFC 4122 canonical 8-4-4-4-12 hex form, case
   # insensitive. Validated at construction; invalid payloads surface as
   # SerializationError instead of silently propagating an arbitrary
   # String.
@@ -517,7 +598,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
-  # 4.8: format:time — ISO-8601 HH:MM:SS[.fff] decoded to stdlib `Time.t()`.
+  # format:time - ISO-8601 HH:MM:SS[.fff] decoded to stdlib `Time.t()`.
   # Matches both the bare name and the typespec form ("Time.t()") that
   # `openapi_types/0` emits via the codegen's typeMapping.
   def convert_to_type(data, type) when type in ["Time", "Time.t()"] do
@@ -527,7 +608,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
-  # 4.8: format:duration — google.protobuf.Duration protobuf-JSON
+  # format:duration - google.protobuf.Duration protobuf-JSON
   # ("<seconds>s") decoded to stdlib `Duration.t()` (Elixir 1.17+). Stdlib
   # floor is enforced via mix.exs `elixir: "~> 1.17"`.
   def convert_to_type(data, type) when type in ["Duration", "Duration.t()"] do
@@ -605,9 +686,9 @@ defmodule {{moduleName}}.ObjectSerializer do
   # wire values as an "Enum<a,b,c>" sentinel. An out-of-schema wire value is
   # spec drift; raise a SerializationError instead of silently passing the raw
   # string through as an invalid typed value (the struct's @type declares these
-  # as atoms). Matches the throwing behaviour of the other SDKs and of the
-  # standalone-enum-module path in atomize_enum/2. A valid value is returned as
-  # its atom form, consistent with the struct's declared type.
+  # as atoms). This matches the throwing behaviour of the standalone-enum-module
+  # path in atomize_enum/2. A valid value is returned as its atom form,
+  # consistent with the struct's declared type.
   def convert_to_type(data, "Enum<" <> rest) do
     allowed =
       rest
@@ -643,6 +724,24 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
+  # Format a DateTime as YYYY-MM-DDTHH:MM:SS.mmm±HH:MM: the sub-second part is
+  # always exactly three digits (truncated, never rounded) and the offset is
+  # always numeric, so a UTC instant renders as "+00:00" and never as "Z"
+  # (DateTime.to_iso8601/1 would emit "Z" and a variable-width fraction).
+  @spec format_date_time(DateTime.t()) :: String.t()
+  defp format_date_time(%DateTime{} = dt) do
+    {microsecond, _precision} = dt.microsecond
+    local = DateTime.to_naive(%{dt | microsecond: {div(microsecond, 1000) * 1000, 3}})
+
+    offset = dt.utc_offset + dt.std_offset
+    sign = if offset < 0, do: "-", else: "+"
+    abs_offset = abs(offset)
+    hours = abs_offset |> div(3600) |> Integer.to_string() |> String.pad_leading(2, "0")
+    minutes = abs_offset |> rem(3600) |> div(60) |> Integer.to_string() |> String.pad_leading(2, "0")
+
+    NaiveDateTime.to_iso8601(local) <> sign <> hours <> ":" <> minutes
+  end
+
   @spec raise_unparseable(term(), String.t()) :: no_return()
   defp raise_unparseable(data, format) do
     raise {{moduleName}}.Errors.SerializationError,
@@ -656,10 +755,10 @@ defmodule {{moduleName}}.ObjectSerializer do
     # rather than atomizing the raw wire value. The wire form may be
     # non-lowercase ("Available"), hyphenated ("on-hold"), or an integer for
     # an integer-backed enum — none of which equal the lowercased atom name,
-    # so the previous String.to_atom + membership check silently failed for
-    # every such enum. from_value/1 pattern-matches the declared wire values,
-    # so it never mints an arbitrary atom from untrusted input (no atom-table
-    # exhaustion) and raises only on genuine spec drift, matching the other SDKs.
+    # so a String.to_atom + membership check would silently fail for every
+    # such enum. from_value/1 pattern-matches the declared wire values, so it
+    # never mints an arbitrary atom from untrusted input (no atom-table
+    # exhaustion) and raises only on genuine spec drift.
     case module.from_value(data) do
       {:error, _} ->
         raise {{moduleName}}.Errors.SerializationError,
@@ -837,19 +936,16 @@ defmodule {{moduleName}}.ObjectSerializer do
     openapi_types = module.openapi_types()
     attr_map = module.attribute_map()
 
-    # Divergence #10: a required, non-nullable property that is absent or
-    # explicitly null in the wire payload is a contract violation. Fail
-    # loudly with a SerializationError instead of silently building a
-    # partial struct (which would surface as a confusing nil far from the
-    # actual fault). Aligns Elixir with Go/PHP/Kotlin/Swift/Rust, which
-    # all reject a missing/null required field on deserialize. Optional and
+    # A required, non-nullable property that is absent or explicitly null in
+    # the wire payload is a contract violation. Fail loudly with a
+    # SerializationError instead of silently building a partial struct (which
+    # would surface as a confusing nil far from the actual fault). Optional and
     # required-but-nullable fields are untouched.
     assert_required_present(data, module)
 
-    # Gap AX.1 / parity with Go: when the schema declares
-    # unevaluatedProperties:false (the codegen emits from_map_strict/1 only
-    # for such models), reject any wire key not declared by the model instead
-    # of silently dropping it, matching the other SDKs.
+    # When the schema declares unevaluatedProperties:false (the codegen emits
+    # from_map_strict/1 only for such models), reject any wire key not declared
+    # by the model instead of silently dropping it.
     if function_exported?(module, :from_map_strict, 1) do
       declared = attr_map |> Map.values() |> MapSet.new()
 
@@ -889,12 +985,11 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   defp deserialize_model(_data, _module), do: nil
 
-  # 2.19 additionalProperties round-trip: when the model declares
+  # additionalProperties round-trip: when the model declares
   # `additional_properties/0 == true`, undeclared wire keys are not discarded
   # but captured into the struct's `additional_properties` map so they survive
   # a deserialize/serialize round-trip. Values are type-converted through
   # `additional_properties_type/0` when the model declares a value type.
-  # Matches the round-trip behaviour of Python/Go/Java/Node/etc.
   defp capture_additional_properties(transformed, data, module, attr_map) do
     if function_exported?(module, :additional_properties, 0) and module.additional_properties() do
       declared = attr_map |> Map.values() |> MapSet.new()

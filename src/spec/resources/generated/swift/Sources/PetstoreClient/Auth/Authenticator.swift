@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Authenticator provides authentication credentials to the API client.
+/// Protocol for providing authentication credentials to the API client.
 /// Implementations supply the API host URL and authorization headers.
 public protocol Authenticator: Sendable {
   /// Returns the base URL of the API.

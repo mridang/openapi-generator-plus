@@ -19,7 +19,7 @@ var ErrInvalidAccessToken = errors.New("invalid access token")
 // before SetAccessToken. Match it with errors.Is.
 var ErrAccessTokenNotSet = errors.New("oauth2 implicit: must set access token before making API requests")
 
-// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
+// OAuth2ImplicitAuthenticator is the authenticator for the OAuth2 Implicit flow.
 //
 // Implements HttpAwareAuthenticator for interface consistency with other
 // OAuth2 authenticators. The implicit flow does not make token exchange
@@ -105,10 +105,9 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 }
 
 // String implements fmt.Stringer so the default string/format representation
-// never leaks the access token. authenticator-secret-in-default-string-repr:
-// without this, fmt.Printf("%+v", auth) would reflect and print the unexported
-// accessToken field into application logs. The token reads as *** once set and
-// stays empty before the authorization redirect.
+// never leaks the access token. Without this, fmt.Printf("%+v", auth) would
+// reflect and print the unexported accessToken field into application logs. The
+// token reads as *** once set and stays empty before the authorization redirect.
 func (a *OAuth2ImplicitAuthenticator) String() string {
 	token := ""
 	if a.accessToken != "" {

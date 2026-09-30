@@ -11,6 +11,12 @@ defmodule PetstoreClient.ApiResult do
   raw body, and headers. Returned by `_with_http_info` functions.
   """
 
+  @typedoc """
+  * `status_code` - The HTTP status code.
+  * `data` - The deserialized response body (`nil` for void responses).
+  * `raw_body` - The raw response body string (never `nil`; empty for no body).
+  * `headers` - The response headers.
+  """
   @type t :: %__MODULE__{
           status_code: integer(),
           data: term() | nil,

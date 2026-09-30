@@ -8,16 +8,32 @@
 package com.example.petstore.errors
 
 /**
- * Branded root of the exception hierarchy raised by this SDK.
+ * Root of the SDK exception hierarchy.
  *
- * Every exception thrown by generated code — transport/API failures
- * ([ApiException] and its typed subclasses) and serialization failures
- * ([SerializationException]) — is a [OpenAPIException]. Callers can catch
- * this single type to handle any SDK-originated error. It extends
- * [RuntimeException] (Kotlin exceptions are unchecked), and is `open` so the
- * SDK's own subclasses may extend it.
+ * Every error the SDK raises ultimately extends this single branded base, so
+ * a caller can write one `catch (e: com.example.petstore.errors.OpenAPIException)`
+ * and be certain it covers all SDK-originated failures — API/HTTP errors
+ * ([ApiException] and its typed subclasses), serialization failures, and
+ * OAuth2 token/server errors raised during authentication.
+ * Because the root extends [RuntimeException] the whole hierarchy is
+ * unchecked: callers are never forced to declare or catch SDK exceptions. The
+ * chain for a typed HTTP error is, for example:
+ * `UnauthorizedException → ClientException → ApiException →
+ * OpenAPIException → RuntimeException`.
  */
 open class OpenAPIException : RuntimeException {
+    /**
+     * Construct an exception with a detail message.
+     *
+     * @param message the detail message
+     */
     constructor(message: String) : super(message)
+
+    /**
+     * Construct an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause
+     */
     constructor(message: String, cause: Throwable) : super(message, cause)
 }

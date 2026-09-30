@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// ConflictError represents an HTTP 409 Conflict error.
+/// Error for HTTP 409 Conflict.
 public class ConflictError: ClientError, @unchecked Sendable {}

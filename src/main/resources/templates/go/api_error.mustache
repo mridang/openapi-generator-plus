@@ -6,8 +6,10 @@ import (
 	"fmt"
 )
 
-// ApiError represents an error returned by the API, including the HTTP status
-// code, response headers, and response body.
+// ApiError is the base error for all API (transport-level) errors, including
+// the HTTP status code, response headers, and response body. It satisfies the
+// branded {{errorPrefix}}Error root, so every error this SDK returns shares a
+// common ancestor.
 //
 // Its state is immutable: fields are unexported and set once at construction
 // via NewApiError (or the status factory FromResponse). Callers
@@ -22,7 +24,7 @@ type ApiError struct {
 	cause           error
 }
 
-// NewApiError constructs an ApiError. The state is fixed at construction and
+// NewApiError creates an ApiError. The state is fixed at construction and
 // thereafter read-only via the getter methods.
 func NewApiError(statusCode int, msg, responseBody string, responseHeaders map[string]string, errorBody any, cause error) *ApiError {
 	return &ApiError{
@@ -46,7 +48,7 @@ func (e *ApiError) As(target any) bool {
 	return false
 }
 
-// StatusCode returns the HTTP status code, or 0 for a pre-response transport failure.
+// StatusCode returns the HTTP status code (0 for a failure before any response).
 func (e *ApiError) StatusCode() int {
 	return e.statusCode
 }
@@ -56,24 +58,28 @@ func (e *ApiError) Msg() string {
 	return e.msg
 }
 
-// ResponseBody returns the raw response body.
+// ResponseBody returns the raw response body string, or an empty string when
+// the transport produced no body.
 func (e *ApiError) ResponseBody() string {
 	return e.responseBody
 }
 
-// ResponseHeaders returns the response headers. nil indicates a pre-response
-// transport failure, distinct from an empty (but present) header set.
+// ResponseHeaders returns the response headers, or nil when the transport
+// produced no headers (e.g. a send-phase failure before any response was
+// received). nil is distinct from an empty (but present) header set.
 func (e *ApiError) ResponseHeaders() map[string]string {
 	return e.responseHeaders
 }
 
-// ErrorBody returns the parsed response body, if JSON.
+// ErrorBody returns the deserialized error body, or nil if not available (for
+// example when the response body is not JSON).
 func (e *ApiError) ErrorBody() any {
 	return e.errorBody
 }
 
 // Cause returns the underlying transport error, if any. Set when wrapping a
-// network failure so callers can drill down via errors.Unwrap or errors.Is.
+// network failure so callers can drill down via errors.Unwrap or errors.Is
+// instead of losing the original error.
 func (e *ApiError) Cause() error {
 	return e.cause
 }
@@ -89,7 +95,9 @@ func (e *ApiError) Unwrap() error {
 // {{errorPrefix}}Error.
 func (e *ApiError) is{{errorPrefix}}Error() {}
 
-// Error implements the error interface.
+// Error builds a human-readable error message from the stored attributes: the
+// message, then the HTTP status code, response headers and response body where
+// present.
 func (e *ApiError) Error() string {
 	msg := e.msg
 	if msg == "" {
@@ -108,10 +116,12 @@ func (e *ApiError) Error() string {
 }
 
 // GetTypedErrorBody deserializes the raw response body into the given target
-// value. This is the one accessor for spec-declared error schemas — callers
-// pass a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
-// apiErr.GetTypedErrorBody(&e)`). An empty body leaves the target untouched
-// and reports no error.
+// value.
+//
+// Useful when the API returns a structured error body that you want to access
+// in a strongly-typed way: pass a pointer to the generated model struct you
+// expect (e.g. `var e MyErrorBody; apiErr.GetTypedErrorBody(&e)`). An empty
+// body leaves the target untouched and reports no error.
 func (e *ApiError) GetTypedErrorBody(target any) error {
 	if e.responseBody == "" {
 		return nil
@@ -119,27 +129,29 @@ func (e *ApiError) GetTypedErrorBody(target any) error {
 	return json.Unmarshal([]byte(e.responseBody), target)
 }
 
-// NewNetworkError builds the error returned when a request produced no HTTP
-// response: connection refused, DNS failure, TLS failure or connection reset.
-// The status code is 0 and the transport error is kept as the cause, so
-// errors.Is and errors.As still reach it.
+// NewNetworkError creates the error for a request that got no HTTP response:
+// connection refused, DNS failure, TLS failure, or connection reset. The status
+// code is always 0; the underlying error is kept as the cause, so errors.Is and
+// errors.As still reach it.
 func NewNetworkError(msg string, cause error) *NetworkError {
 	return &NetworkError{ApiError: ApiError{msg: msg, cause: cause}}
 }
 
-// NewNetworkTimeoutError builds the error returned when a request timed out.
-// The status code is 0 and the transport error is kept as the cause.
+// NewNetworkTimeoutError creates the error for a request that timed out. The
+// status code is always 0; the underlying error is kept as the cause.
 func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
 	return &NetworkTimeoutError{NetworkError: NetworkError{ApiError: ApiError{msg: msg, cause: cause}}}
 }
 
-// FromResponse builds the error for a non-2xx HTTP response: the most specific
-// type for the status code, sharing one immutable ApiError as the embedded
-// base. 400-499 produces a *ClientError (or a recognised subclass); 500-599 a
-// *ServerError (or a recognised subclass); anything else the bare *ApiError.
-// A JSON body is also parsed into the error body. Every generated operation and
-// the OpenID Connect discovery request build their HTTP errors here, so this is
-// the one place the status-to-error mapping lives.
+// FromResponse is the one status-to-error mapping in the SDK: the error a
+// non-2xx response with this status returns. The API classes and the OpenID
+// Connect discovery both use it, so this is the one place the mapping lives.
+//
+// Returns the status-specific subclass where there is one (for example
+// *NotFoundError for 404), else *ClientError for any other 4xx, *ServerError for
+// any other 5xx, and the bare *ApiError for everything else. The statusCode is
+// the HTTP status code of the response, headers the response headers, and body
+// the raw response body; a JSON body is also parsed into the error body.
 func FromResponse(statusCode int, headers map[string]string, body string) error {
 	var errorBody any
 	if body != "" {

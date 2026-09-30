@@ -1305,7 +1305,7 @@ void main() {
         // SDK's canonical ISO-8601 string (millisecond precision, UTC).
         expect(receivedBody, contains('"isPrimary":true'),
             reason: 'isPrimary must serialize as a JSON boolean, got: $receivedBody');
-        expect(receivedBody, contains('2020-01-02T03:04:05.123'),
+        expect(receivedBody, contains('2020-01-02T03:04:05.123+00:00'),
             reason: 'takenAt must carry the SDK date-time string, got: $receivedBody');
       } finally {
         await server.close();

@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// UnauthorizedError represents an HTTP 401 Unauthorized error.
+/// Error for HTTP 401 Unauthorized.
 #[derive(Debug, Clone)]
 pub struct UnauthorizedError {
     client_error: ClientError,

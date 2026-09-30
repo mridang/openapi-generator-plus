@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// UnprocessableEntityError represents an HTTP 422 Unprocessable Entity error.
+/// Error for HTTP 422 Unprocessable Entity.
 #[derive(Debug, Clone)]
 pub struct UnprocessableEntityError {
     client_error: ClientError,

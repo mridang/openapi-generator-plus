@@ -7,13 +7,17 @@
 
 import Foundation
 
-/// OpenAPIError is the branded root of the SDK's error hierarchy.
+/// Root of the SDK error hierarchy.
 ///
-/// Every error thrown by the generated SDK conforms to `OpenAPIError`, so a
-/// caller can catch any SDK-originated failure with a single
-/// `catch let error as OpenAPIError` (or `error is OpenAPIError`) without
-/// having to enumerate the concrete error types. It refines Swift's `Error`
+/// Every error the SDK raises ultimately conforms to this single branded
+/// protocol, so a caller can write one `catch let error as OpenAPIError`
+/// and be certain it covers all SDK-originated failures — API/HTTP errors
+/// (``ApiError`` and its typed subclasses), serialization failures, and OAuth2
+/// token/server errors raised during authentication. It refines Swift's `Error`
 /// and adds no requirements of its own: it is a marker protocol used purely to
-/// brand the hierarchy. Both the `ApiError` class tree (and its typed HTTP
-/// subclasses) and the `SerializationError` value type conform to it.
+/// brand the hierarchy. The chain for a typed HTTP error is, for example:
+/// `UnauthorizedError -> ClientError -> ApiError -> OpenAPIError`.
+///
+/// Caller mistakes (``ConfigurationError``) are deliberately not part of this
+/// hierarchy.
 public protocol OpenAPIError: Error {}

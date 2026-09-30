@@ -7,15 +7,16 @@
 
 use std::collections::HashMap;
 
-/// Injects W3C Trace Context headers (traceparent, tracestate)
+/// Utility for injecting W3C Trace Context headers (`traceparent`, `tracestate`)
 /// into outgoing API requests when OpenTelemetry is available.
 ///
-/// When the `opentelemetry` feature is enabled, this function uses the
-/// globally configured `TextMapPropagator` to inject the current span's
-/// trace context into the given headers map.
+/// Injects the current OpenTelemetry trace context into the given (mutable)
+/// headers map. When the `opentelemetry` feature is enabled, this function uses
+/// the globally configured `TextMapPropagator` to inject the current span's
+/// trace context.
 ///
-/// When the `opentelemetry` feature is not enabled, this function is a
-/// safe no-op.
+/// If the OpenTelemetry integration is not installed (the `opentelemetry`
+/// feature is not enabled), this function silently no-ops.
 ///
 /// To enable trace context propagation, add the following to your `Cargo.toml`:
 ///

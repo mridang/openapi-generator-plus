@@ -7,9 +7,9 @@
 
 import 'server_configuration.dart';
 
-/// Configuration holds API-level configuration for generated client classes.
+/// API-level configuration for generated client classes.
 ///
-/// It stores the base URL and default headers that are applied to every API
+/// Holds the base URL and default headers that are applied to every API
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// [TransportOptions] and are configured on the [DefaultApiClient].
 ///
@@ -22,13 +22,16 @@ import 'server_configuration.dart';
 ///   .build();
 /// ```
 class Configuration {
-  /// The base URL for all API requests. Defaults to the first server URL
-  /// from the OpenAPI specification.
+  /// The base URL for all API requests.
+  ///
+  /// Defaults to the first server URL from the OpenAPI specification.
   final String baseUrl;
 
-  /// Default headers included in every API request. These headers are
-  /// merged after transport-level headers from [TransportOptions] but before
-  /// operation-specific headers and authentication headers.
+  /// Default headers included in every API request.
+  ///
+  /// These headers are merged after transport-level headers from
+  /// [TransportOptions] but before operation-specific headers and
+  /// authentication headers.
   final Map<String, String> _defaultHeaders;
 
   Configuration._({
@@ -36,44 +39,55 @@ class Configuration {
     required Map<String, String> defaultHeaders,
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
-  /// Returns a copy of the default headers included in every API request.
+  /// Default headers included in every API request.
+  ///
+  /// Returns a copy of the headers, so modifying it does not affect this
+  /// configuration.
   Map<String, String> get defaultHeaders =>
       Map<String, String>.from(_defaultHeaders);
 
-  /// Creates a new builder for constructing [Configuration] instances.
+  /// Create a new builder for constructing [Configuration] instances.
   static ConfigurationBuilder builder() => ConfigurationBuilder();
 
-  /// Returns a [Configuration] with default values.
+  /// Return a [Configuration] with default values.
+  ///
+  /// A fresh instance every call: the SDK keeps no process-wide default a
+  /// caller could swap out from under another caller.
   factory Configuration.defaultConfiguration() {
     return ConfigurationBuilder().build();
   }
 }
 
-/// Builds immutable [Configuration] instances.
+/// Builder for creating immutable [Configuration] instances.
 class ConfigurationBuilder {
   String _baseUrl = '/api/v3';
   final Map<String, String> _defaultHeaders = {};
 
-  /// Sets the base URL for all API requests.
+  /// Set the base URL for all API requests.
   ConfigurationBuilder baseUrl(String val) {
     _baseUrl = val;
     return this;
   }
 
-  /// Adds a single default header to include in every API request.
+  /// Add a single default header to include in every API request.
   ConfigurationBuilder defaultHeader(String name, String value) {
     _defaultHeaders[name] = value;
     return this;
   }
 
-  /// Adds multiple default headers to include in every API request.
+  /// Add multiple default headers to include in every API request.
   ConfigurationBuilder defaultHeaders(Map<String, String> headers) {
     _defaultHeaders.addAll(headers);
     return this;
   }
 
-  /// Sets the base URL from a server configuration with optional variable
-  /// overrides.
+  /// Set the base URL by resolving a server configuration with optional
+  /// variable overrides.
+  ///
+  /// This is a convenience method that calls [ServerConfiguration.url] with
+  /// the given [variables] and stores the result as the base URL. If the user
+  /// also calls [baseUrl] after this method, the explicit base URL wins.
+  /// Variables not present in [variables] use their default values.
   ConfigurationBuilder server(
     ServerConfiguration server, [
     Map<String, String>? variables,
@@ -82,7 +96,7 @@ class ConfigurationBuilder {
     return this;
   }
 
-  /// Creates and returns an immutable [Configuration] instance.
+  /// Build and return an immutable [Configuration] instance.
   Configuration build() {
     return Configuration._(
       baseUrl: _baseUrl,

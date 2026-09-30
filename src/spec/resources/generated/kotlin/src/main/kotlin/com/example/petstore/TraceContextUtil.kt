@@ -8,7 +8,7 @@
 package com.example.petstore
 
 /**
- * Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+ * Utility for injecting W3C Trace Context headers (`traceparent`, `tracestate`)
  * into outgoing API requests when OpenTelemetry is available.
  *
  * If the OpenTelemetry API is not installed, this class silently no-ops.

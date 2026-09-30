@@ -86,9 +86,9 @@ fn test_metadata_additional_properties_round_trip_preserves_free_form_json() {
     assert!(nested.is_object(), "expected nested to be a JSON object");
 
     // Re-serialize and confirm the free-form JSON fields are preserved
-    // verbatim. (The typed `createdAt` field is excluded because chrono
-    // normalises the datetime representation, which is unrelated to the
-    // free-form JsonValue round-trip under test.)
+    // verbatim. (The typed `createdAt` field is excluded because it is
+    // normalised to the canonical date-time wire form, which is unrelated to
+    // the free-form JsonValue round-trip under test.)
     let reserialized: serde_json::Value =
         serde_json::from_str(&serde_json::to_string(&metadata).expect("failed to serialize"))
             .expect("re-parsed JSON");
@@ -135,14 +135,13 @@ fn test_pet_location_free_form_json_round_trips() {
     );
 }
 
-// -- date-time serializes in a consistent UTC-offset form and round-trips
-// (behavior 8) --
+// -- date-time serializes in the canonical wire form and round-trips --
 //
-// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. The wire form must be a
-// single, consistent RFC-3339 representation carrying an explicit UTC offset
-// (`+00:00`/`Z`), and parsing that representation back must yield the same
-// instant. A `Z`-suffixed input and a `+00:00` input denote the same instant,
-// so they must serialize identically after a round-trip.
+// `Metadata.createdAt` is a `chrono::DateTime<Utc>`. The canonical wire form is
+// `YYYY-MM-DDTHH:MM:SS.mmm+00:00`: a numeric UTC offset (never `Z`) and a fixed
+// three-digit millisecond fraction. Parsing that representation back must yield
+// the same instant. A `Z`-suffixed input and a `+00:00` input denote the same
+// instant, so they must serialize identically after a round-trip.
 #[test]
 fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     use chrono::{DateTime, Utc};
@@ -166,10 +165,9 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
     let wire = parsed["createdAt"]
         .as_str()
         .expect("createdAt must serialize as a JSON string");
-    assert!(
-        wire.ends_with('Z') || wire.ends_with("+00:00"),
-        "date-time must carry an explicit UTC offset, got: {}",
-        wire
+    assert_eq!(
+        wire, "2024-01-15T10:30:00.000+00:00",
+        "date-time must use the canonical wire form"
     );
 
     // The wire form must itself parse back to the same instant: a stable,
@@ -192,12 +190,11 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
 //
 // `Metadata.createdAt` is a `chrono::DateTime<Utc>`. An instant carrying
 // millisecond sub-second precision (2020-01-02T03:04:05.123Z) must serialize
-// WITH the `.123` fraction intact — the encoder must NOT truncate to whole
+// WITH the `.123` fraction intact: the encoder must NOT truncate to whole
 // seconds while the decoder happily accepts fractions (a lossy, asymmetric
 // round-trip). Milliseconds (3 digits) are the cross-SDK common denominator
-// every language's native date-time type supports, so `.123` is asserted
-// exactly. chrono's serde `Serialize` emits the smallest fractional form that
-// preserves the value, so a millisecond instant round-trips losslessly.
+// every language's native date-time type supports, so the exact canonical
+// string is asserted.
 #[test]
 fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
     use chrono::{DateTime, Utc};
@@ -218,10 +215,9 @@ fn test_metadata_date_time_serialization_preserves_sub_second_precision() {
     let wire = parsed["createdAt"]
         .as_str()
         .expect("createdAt must serialize as a JSON string");
-    assert!(
-        wire.contains(".123"),
-        "date-time encoder must preserve millisecond precision, got: {}",
-        wire
+    assert_eq!(
+        wire, "2020-01-02T03:04:05.123+00:00",
+        "date-time encoder must preserve millisecond precision in the canonical wire form"
     );
 
     // (2) Deserializing that JSON back must yield a date-time equal to the

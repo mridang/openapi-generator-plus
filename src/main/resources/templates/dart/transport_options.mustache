@@ -1,6 +1,5 @@
 {{>api_info}}
-/// TransportOptions holds immutable HTTP transport configuration for
-/// [DefaultApiClient].
+/// Immutable HTTP transport configuration for [DefaultApiClient].
 ///
 /// Controls low-level HTTP behavior such as TLS verification, proxy routing,
 /// timeouts, redirect handling, and automatic header injection. These settings
@@ -19,37 +18,61 @@
 /// ```
 class TransportOptions {
   /// Whether TLS certificate verification is enabled.
+  ///
+  /// When true (the default), the client verifies server certificates. Set to
+  /// false to accept any certificate (not recommended for production).
   final bool verifySsl;
 
   /// Path to a custom CA certificate bundle for TLS verification.
+  ///
+  /// When set together with `verifySsl: true`, the client trusts certificates
+  /// signed by this CA in addition to (or instead of) the system trust store.
   final String? caCertPath;
 
-  /// HTTP or HTTPS proxy URL for all outbound requests, or null if none.
+  /// HTTP or HTTPS proxy URL for all outbound requests.
+  ///
+  /// Example: `http://proxy.corp.example.com:3128`. Null means direct
+  /// connections (no proxy).
   final Uri? proxy;
 
-  /// End-to-end request timeout in milliseconds. Covers the entire request
-  /// lifecycle: connection, TLS handshake, sending the request body, and
-  /// reading the response. A null value means no timeout.
+  /// End-to-end request timeout in milliseconds.
+  ///
+  /// Covers the entire request lifecycle: connection, TLS handshake, sending
+  /// the request body, and reading the response. Defaults to 10 seconds. Set
+  /// to null to disable the timeout (wait indefinitely).
   final int? timeout;
 
-  /// Whether the client follows HTTP 3xx redirects.
+  /// Whether the client follows HTTP 3xx redirects automatically.
+  ///
+  /// When true (the default), redirects are followed. Set to false to return
+  /// the redirect response as-is.
   final bool followRedirects;
 
   /// Maximum number of consecutive redirects to follow.
-  /// Only meaningful when [followRedirects] is true. A null value uses the
-  /// HTTP client's built-in default. A value of 0 means zero redirects.
+  ///
+  /// Only meaningful when [followRedirects] is true. Null uses the HTTP
+  /// client's built-in default.
   final int? maxRedirects;
 
-  /// Custom User-Agent header value, or null to omit the User-Agent header.
+  /// Custom `User-Agent` header value.
+  ///
+  /// When set, this value is sent as the `User-Agent` header on every request
+  /// unless the caller explicitly provides one. Null means no custom user
+  /// agent is injected.
   final String? userAgent;
 
   /// Transport-level default headers included in every request.
-  /// These have the lowest priority: API-level headers, operation-specific
-  /// headers, and authentication headers all take precedence.
+  ///
+  /// These headers have the lowest priority: API-level headers from
+  /// [Configuration.defaultHeaders], operation-specific headers, and
+  /// authentication headers all take precedence.
   final Map<String, String> _defaultHeaders;
 
-  /// Whether to auto-inject an X-Request-ID header with a unique UUID on
+  /// Whether to auto-inject an `X-Request-ID` header with a unique UUID on
   /// every request.
+  ///
+  /// Useful for distributed tracing and log correlation. The header is only
+  /// injected if the caller has not already set one.
   final bool injectRequestId;
 
   TransportOptions._({
@@ -64,14 +87,36 @@ class TransportOptions {
     required this.injectRequestId,
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
-  /// Returns a copy of the transport-level default headers.
+  /// Transport-level default headers included in every request.
+  ///
+  /// Returns a copy of the headers, so modifying it does not affect these
+  /// options.
   Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 
-  /// Creates a new builder for constructing [TransportOptions] instances.
+  /// Create a new builder for constructing [TransportOptions] instances.
   static TransportOptionsBuilder builder() => TransportOptionsBuilder();
 }
 
-/// Builds immutable [TransportOptions] instances.
+/// Builder for creating immutable [TransportOptions] instances.
+///
+/// All fields have sensible defaults:
+///
+/// - `verifySsl` -- true
+/// - `followRedirects` -- true
+/// - `injectRequestId` -- false
+/// - `timeout` -- 10000 (10 seconds)
+/// - `userAgent` -- a package-specific default string
+/// - All other fields -- null or empty
+///
+/// Example:
+///
+/// ```dart
+/// final transport = TransportOptions.builder()
+///   .verifySsl(false)
+///   .proxy('http://proxy:3128')
+///   .timeout(5000)
+///   .build();
+/// ```
 class TransportOptionsBuilder {
   bool _verifySsl = true;
   String? _caCertPath;
@@ -84,25 +129,30 @@ class TransportOptionsBuilder {
   final Map<String, String> _defaultHeaders = {};
   bool _injectRequestId = false;
 
-  /// Enables or disables TLS certificate verification.
+  /// Enable or disable TLS certificate verification.
+  ///
+  /// Pass true to verify (default), false to skip.
   TransportOptionsBuilder verifySsl(bool val) {
     _verifySsl = val;
     return this;
   }
 
-  /// Sets the path to a custom CA certificate bundle.
+  /// Set the path to a custom CA certificate bundle.
+  ///
+  /// Pass the file path to a PEM-encoded CA certificate, or null.
   TransportOptionsBuilder caCertPath(String? val) {
     _caCertPath = val;
     return this;
   }
 
-  /// Sets the HTTP/HTTPS proxy URL.
+  /// Set the HTTP/HTTPS proxy URL.
   ///
-  /// Only HTTP and HTTPS proxy URLs are supported.
+  /// Pass a proxy URL (e.g. `http://proxy:3128`), or null (or an empty
+  /// string) for no proxy. Only HTTP and HTTPS proxy URLs are supported.
   ///
   /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL.
-  TransportOptionsBuilder proxy(String val) {
-    if (val.isEmpty) {
+  TransportOptionsBuilder proxy(String? val) {
+    if (val == null || val.isEmpty) {
       _proxy = null;
     } else {
       final parsed = Uri.tryParse(val);
@@ -120,51 +170,60 @@ class TransportOptionsBuilder {
     return this;
   }
 
-  /// Sets the end-to-end request timeout in milliseconds.
-  TransportOptionsBuilder timeout(int val) {
+  /// Set the end-to-end request timeout in milliseconds.
+  ///
+  /// Pass the timeout in milliseconds, or null for no timeout.
+  TransportOptionsBuilder timeout(int? val) {
     _timeout = val;
     return this;
   }
 
-  /// Enables or disables automatic redirect following.
+  /// Enable or disable automatic redirect following.
+  ///
+  /// Pass true to follow (default), false to stop.
   TransportOptionsBuilder followRedirects(bool val) {
     _followRedirects = val;
     return this;
   }
 
-  /// Sets the maximum number of redirects to follow.
+  /// Set the maximum number of redirects to follow.
+  ///
+  /// Pass the maximum redirect hops, or null for the client default. A value
+  /// of 0 means zero redirects.
   TransportOptionsBuilder maxRedirects(int? val) {
     _maxRedirects = val;
     return this;
   }
 
-  /// Sets a custom User-Agent header value.
+  /// Set a custom User-Agent header value.
   ///
-  /// Pass null to omit the User-Agent header entirely.
+  /// Pass the user agent string, or null to omit.
   TransportOptionsBuilder userAgent(String? val) {
     _userAgent = val;
     return this;
   }
 
-  /// Adds a single transport-level default header.
+  /// Add a single transport-level default header.
   TransportOptionsBuilder defaultHeader(String name, String value) {
     _defaultHeaders[name] = value;
     return this;
   }
 
-  /// Adds multiple transport-level default headers.
+  /// Add multiple transport-level default headers.
   TransportOptionsBuilder defaultHeaders(Map<String, String> headers) {
     _defaultHeaders.addAll(headers);
     return this;
   }
 
-  /// Enables or disables automatic X-Request-ID header injection.
+  /// Enable or disable automatic `X-Request-ID` header injection.
+  ///
+  /// Pass true to inject, false to skip (default).
   TransportOptionsBuilder injectRequestId(bool val) {
     _injectRequestId = val;
     return this;
   }
 
-  /// Creates and returns an immutable [TransportOptions] instance.
+  /// Build and return an immutable [TransportOptions] instance.
   TransportOptions build() {
     return TransportOptions._(
       verifySsl: _verifySsl,

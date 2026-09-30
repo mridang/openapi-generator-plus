@@ -7,7 +7,7 @@
 
 import 'api_exception.dart';
 
-/// ClientException represents an HTTP 4xx client error.
+/// Exception for HTTP 4xx client errors.
 class ClientException extends ApiException {
   const ClientException({
     required super.statusCode,

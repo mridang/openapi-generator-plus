@@ -7,8 +7,9 @@
 
 defmodule PetstoreClient.Errors.NetworkTimeoutError do
   @moduledoc """
-  Exception for a request that timed out. The status code is 0 and the
-  transport exception, if any, is kept as `cause`.
+  Exception for a request that timed out before an HTTP response arrived. The
+  status code is always 0 and the underlying transport exception is kept as the
+  `cause`.
   """
 
   alias PetstoreClient.Errors.ApiError

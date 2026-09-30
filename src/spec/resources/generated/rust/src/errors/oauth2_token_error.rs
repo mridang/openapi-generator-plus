@@ -7,11 +7,13 @@
 
 use std::fmt;
 
-/// Returned when the OAuth2 token endpoint returns a 2xx response the SDK
-/// cannot use: a body that is not JSON, or one that is missing or has an empty
-/// `access_token` field. Distinct from
+/// Returned when the OAuth2 token endpoint returns a 2xx response that cannot
+/// be used: a body that is not a JSON object, or one whose `access_token` field
+/// is missing or empty. Distinct from
 /// [`OAuth2ServerError`](crate::errors::OAuth2ServerError) (which represents any
-/// non-2xx answer) so callers can recover differently via `downcast_ref`.
+/// non-2xx answer) so callers can recover differently: typically a
+/// malformed-server-response bug needs operator attention rather than a
+/// client-side retry.
 #[derive(Debug)]
 pub struct OAuth2TokenError {
     message: String,

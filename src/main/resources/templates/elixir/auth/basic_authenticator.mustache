@@ -13,8 +13,8 @@ defmodule {{moduleName}}.Auth.BasicAuthenticator do
           password: String.t()
         }
 
-  # Redact the password from the default Inspect representation so it is
-  # never leaked into logs via `inspect/1` / `IO.inspect` / Logger.
+  # Redact the password from the default Inspect representation so credentials
+  # never leak into logs or stack traces.
   @derive {Inspect, except: [:password]}
   defstruct [:host, :username, :password]
 

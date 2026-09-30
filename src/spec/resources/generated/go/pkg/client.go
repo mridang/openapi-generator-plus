@@ -21,11 +21,12 @@ import (
 // authentication HTTP calls (token exchange, discovery) use the same
 // transport configuration as regular API calls.
 //
-// Example with default transport:
+// Usage:
 //
+//	// Default transport
 //	client := petstore.NewClient(authenticator, nil)
 //
-// Example with custom transport (proxy, timeouts, etc.):
+//	// Custom transport (proxy, timeouts, etc.)
 //
 //	timeout := 5000
 //	transport, err := petstore.NewTransportOptionsBuilder().
@@ -37,13 +38,17 @@ import (
 //	}
 //	client := petstore.NewClient(authenticator, transport)
 type Client struct {
-	/* Pet provides methods for the Pet API group. */
+	/* Pet holds the API operations for the PetApi group. */
 	Pet *PetApi
-	/* Store provides methods for the Store API group. */
+	/* Store holds the API operations for the StoreApi group. */
 	Store *StoreApi
 }
 
-// NewClient creates a new client with the given authenticator and optional transport options.
+// NewClient creates a new client with the given authenticator and transport options.
+//
+// The authenticator provides the host URL and auth headers. The transport
+// options carry the HTTP transport configuration (proxy, TLS, timeouts, etc.);
+// nil selects the default transport settings.
 //
 // If the authenticator implements auth.HttpAwareAuthenticator, the shared ApiClient
 // is injected so that token exchange and discovery requests use the same proxy,
@@ -70,6 +75,10 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 
 // NewClientWithToken creates a client authenticated with a static Bearer token.
 //
+// The host is the API base URL and the accessToken is the Bearer token. The
+// optional transport options carry the HTTP transport configuration (proxy,
+// TLS, timeouts, etc.).
+//
 // Returns auth.ErrInvalidBearerToken when the token is empty or contains a
 // character that cannot be sent in a header.
 func NewClientWithToken(host, accessToken string, transportOptions *TransportOptions) (*Client, error) {
@@ -80,12 +89,15 @@ func NewClientWithToken(host, accessToken string, transportOptions *TransportOpt
 	return NewClient(authenticator, transportOptions), nil
 }
 
-// NewClientWithAuthenticator creates a client from a ready-made Authenticator.
+// NewClientWithAuthenticator creates a client from any Authenticator implementation.
 //
-// This is the generic entry point for bespoke authenticators such as client
-// credentials, JWT private key, or personal access token (PAT) flows. The
-// optional transport options are applied to both API calls and any
-// authentication HTTP calls the authenticator performs.
+// This is the generic entry point for bespoke authentication strategies such as
+// OAuth2 client credentials, JWT private-key (service account), or a personal
+// access token (PAT). Supply any Authenticator implementation; if it also
+// implements auth.HttpAwareAuthenticator, the shared ApiClient is injected so
+// its HTTP calls reuse the same transport configuration. The optional transport
+// options are applied to both API calls and any authentication HTTP calls the
+// authenticator performs.
 func NewClientWithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions) *Client {
 	return NewClient(authenticator, transportOptions)
 }

@@ -8,7 +8,9 @@
 import 'api_key_authenticator.dart';
 import 'api_key_location.dart';
 
+/// Authenticator for the `apiKeyQuery` security scheme.
 class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator {
+  /// Creates an authenticator for the `apiKeyQuery` security scheme.
   ApiKeyQueryAuthenticator({required super.host, required super.apiKey})
     : super(keyParamName: 'api_key', location: ApiKeyLocation.query);
 }

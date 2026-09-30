@@ -9,9 +9,27 @@ package com.example.petstore
 
 /**
  * Generated server configurations from the OpenAPI specification.
+ *
+ * Each constant corresponds to a server entry defined in the spec's
+ * `servers` array. Use these constants with
+ * [Configuration.Builder.baseUrl] to select a server:
+ * ```
+ * val config = Configuration.builder()
+ *     .baseUrl(Servers.SERVER_0.getUrl())
+ *     .build()
+ * ```
+ *
+ * For servers with variables, pass overrides:
+ * ```
+ * val url = Servers.SERVER_1.getUrl(mapOf("environment" to "staging"))
+ * ```
  */
 object Servers {
-    /** Server 0: /api/v3 - Relative URL (no variables) */
+    /**
+     * Server 0: `/api/v3`
+     *
+     * Relative URL (no variables)
+     */
     val SERVER_0: ServerConfiguration =
         ServerConfiguration(
             "/api/v3",
@@ -19,7 +37,11 @@ object Servers {
             emptyMap(),
         )
 
-    /** Server 1: https://{environment}.example.com/api/{version} - Main API server with variables */
+    /**
+     * Server 1: `https://{environment}.example.com/api/{version}`
+     *
+     * Main API server with variables
+     */
     val SERVER_1: ServerConfiguration =
         ServerConfiguration(
             "https://{environment}.example.com/api/{version}",

@@ -23,7 +23,7 @@ import javax.net.ssl.X509ExtendedTrustManager
 import javax.net.ssl.X509TrustManager
 
 /*
- * Gap AM: when verifySsl=false we must skip BOTH certificate-chain
+ * When verifySsl=false we must skip BOTH certificate-chain
  * validation AND hostname identification (curl -k semantics). Ktor's
  * CIO engine unconditionally calls
  * `SSLEngine.setEndpointIdentificationAlgorithm("HTTPS")`, which
@@ -116,7 +116,7 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
             }
         }
 
-        // Gap T1: redirects are ALWAYS handled manually in DefaultApiClient.sendRequest
+        // Redirects are ALWAYS handled manually in DefaultApiClient.sendRequest
         // so that sensitive headers (Authorization, Cookie, Proxy-Authorization)
         // are stripped on cross-origin hops. Ktor's stock HttpRedirect plugin does
         // not strip credentials cross-origin, so we never install it here.

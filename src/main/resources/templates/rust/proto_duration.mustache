@@ -1,6 +1,6 @@
 {{>api_info}}
 
-// Gap 4.8: serde helper for round-tripping `chrono::Duration` as a
+// Serde helper for round-tripping `chrono::Duration` as a
 // protobuf-JSON `google.protobuf.Duration` string (e.g. `3600s`, `1.5s`,
 // `3600.000000001s`). chrono's own serde impl encodes `Duration` as
 // integer milliseconds, not a string, so it cannot satisfy a

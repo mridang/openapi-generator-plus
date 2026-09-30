@@ -7,6 +7,8 @@
 
 import 'bearer_authenticator.dart';
 
+/// Authenticator for the `serviceToken` security scheme.
 class ServiceTokenAuthenticator extends BearerAuthenticator {
+  /// Creates an authenticator for the `serviceToken` security scheme.
   ServiceTokenAuthenticator({required super.host, required super.token});
 }

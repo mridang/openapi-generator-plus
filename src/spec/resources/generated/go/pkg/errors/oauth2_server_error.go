@@ -11,13 +11,13 @@ package errors
 
 import "fmt"
 
-// OAuth2ServerError is returned when the OAuth2 token endpoint answers with any
-// non-2xx status, including a refused 3xx redirect. It is the typed
-// representation of an RFC 6749 §5.2 OAuth2 error response. The code carries
-// the OAuth2 error code (e.g. "invalid_grant", "invalid_client"); description
-// and URI are the optional human-readable description and a URL to a page
-// describing the error. rawBody preserves the original response payload for diagnostics
-// when the body is not a well-formed OAuth2 error object.
+// OAuth2ServerError is returned when the OAuth2 token endpoint answers with a
+// non-2xx status, including a 3xx redirect, which the token POST never follows.
+// Typed representation of an RFC 6749 §5.2 OAuth2 error response. The code field
+// carries the OAuth2 error code (e.g. "invalid_grant", "invalid_client");
+// description and uri are the optional human-readable description and a URL to a
+// page describing the error. rawBody preserves the original response payload for
+// diagnostics when the body is not a well-formed OAuth2 error object.
 //
 // Its state is immutable: fields are set once at construction via
 // NewOAuth2ServerError and read through the getter methods.
@@ -29,7 +29,7 @@ type OAuth2ServerError struct {
 	rawBody     string
 }
 
-// NewOAuth2ServerError constructs an OAuth2ServerError with fixed state.
+// NewOAuth2ServerError creates an OAuth2ServerError with fixed state.
 func NewOAuth2ServerError(statusCode int, code, description, uri, rawBody string) *OAuth2ServerError {
 	return &OAuth2ServerError{
 		statusCode:  statusCode,
@@ -40,22 +40,23 @@ func NewOAuth2ServerError(statusCode int, code, description, uri, rawBody string
 	}
 }
 
-// StatusCode returns the HTTP status code of the token endpoint response.
+// StatusCode returns the HTTP status code.
 func (e *OAuth2ServerError) StatusCode() int {
 	return e.statusCode
 }
 
-// Code returns the RFC 6749 §5.2 OAuth2 error code (e.g. "invalid_grant").
+// Code returns the RFC 6749 §5.2 error code, or an empty string if absent.
 func (e *OAuth2ServerError) Code() string {
 	return e.code
 }
 
-// Description returns the optional human-readable error description.
+// Description returns the human-readable error description, or an empty string
+// if absent.
 func (e *OAuth2ServerError) Description() string {
 	return e.description
 }
 
-// URI returns the optional URL describing the error.
+// URI returns a URI describing the error, or an empty string if absent.
 func (e *OAuth2ServerError) URI() string {
 	return e.uri
 }
@@ -68,12 +69,13 @@ func (e *OAuth2ServerError) RawBody() string {
 // isOpenAPIError brands OAuth2ServerError as a OpenAPIError.
 func (e *OAuth2ServerError) isOpenAPIError() {}
 
+// Error implements the error interface.
 func (e *OAuth2ServerError) Error() string {
 	if e.code == "" {
-		return fmt.Sprintf("token request failed with status %d: %s", e.statusCode, e.rawBody)
+		return fmt.Sprintf("Token request failed with status %d: %s", e.statusCode, e.rawBody)
 	}
 	if e.description != "" {
-		return fmt.Sprintf("token request failed with status %d: %s — %s", e.statusCode, e.code, e.description)
+		return fmt.Sprintf("Token request failed with status %d: %s -- %s", e.statusCode, e.code, e.description)
 	}
-	return fmt.Sprintf("token request failed with status %d: %s", e.statusCode, e.code)
+	return fmt.Sprintf("Token request failed with status %d: %s", e.statusCode, e.code)
 }

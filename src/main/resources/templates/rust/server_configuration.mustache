@@ -4,11 +4,15 @@ use std::collections::HashMap;
 
 use crate::errors::configuration_error::ConfigurationError;
 
-/// ServerVariable represents a server variable from the OpenAPI specification.
+/// Represents a server variable from the OpenAPI specification.
 ///
 /// Server variables define substitution parameters in server URL templates.
 /// Each variable has a default value and may optionally restrict values to
 /// an enumerated set.
+///
+/// This struct is immutable and thread-safe.
+///
+/// See also [`ServerConfiguration`].
 #[derive(Debug, Clone)]
 pub struct ServerVariable {
     /// The default value for this variable.
@@ -24,6 +28,11 @@ pub struct ServerVariable {
 
 impl ServerVariable {
     /// Creates a new server variable.
+    ///
+    /// `default_value` is the value used when no override is provided,
+    /// `description` a human-readable description of the variable (empty when
+    /// not specified), and `enum_values` the allowed values (empty if any value
+    /// is accepted).
     pub fn new(default_value: String, description: String, enum_values: Vec<String>) -> Self {
         Self {
             default_value,
@@ -32,29 +41,34 @@ impl ServerVariable {
         }
     }
 
-    /// Returns the default value for this variable.
+    /// The default value for this variable.
     pub fn default_value(&self) -> &str {
         &self.default_value
     }
 
-    /// Returns the human-readable description of this variable.
+    /// Human-readable description of this variable (empty when not specified).
     pub fn description(&self) -> &str {
         &self.description
     }
 
-    /// Returns the allowed values for this variable. An empty slice means any
-    /// value is accepted.
+    /// The allowed values for this variable.
+    ///
+    /// An empty slice means any value is accepted.
     pub fn enum_values(&self) -> &[String] {
         &self.enum_values
     }
 }
 
-/// ServerConfiguration represents a single server entry from the OpenAPI specification.
+/// Represents a single server entry from the OpenAPI specification.
 ///
 /// A server URL may contain template variables (e.g.
-/// `https://{env}.api.example.com/v{version}`). Use `url` to resolve the URL
-/// with default variable values, or `url` with overrides to substitute specific
-/// variables.
+/// `https://{env}.api.example.com/v{version}`). Use [`ServerConfiguration::url`]
+/// to resolve the URL: pass an empty map for the default variable values, or
+/// overrides for specific variables.
+///
+/// This struct is immutable and thread-safe.
+///
+/// See also [`ServerVariable`].
 #[derive(Debug, Clone)]
 pub struct ServerConfiguration {
     /// The raw URL template before variable substitution.
@@ -69,6 +83,11 @@ pub struct ServerConfiguration {
 
 impl ServerConfiguration {
     /// Creates a new server configuration.
+    ///
+    /// `url_template` is the URL template, possibly containing `{variable}`
+    /// placeholders, `description` a human-readable description of this server
+    /// (empty when not specified), and `variables` a map of variable names to
+    /// their definitions.
     pub fn new(
         url_template: String,
         description: String,
@@ -81,25 +100,26 @@ impl ServerConfiguration {
         }
     }
 
-    /// Returns the raw URL template before variable substitution.
+    /// The raw URL template before variable substitution.
     pub fn url_template(&self) -> &str {
         &self.url_template
     }
 
-    /// Returns the human-readable description of this server.
+    /// Human-readable description of this server (empty when not specified).
     pub fn description(&self) -> &str {
         &self.description
     }
 
-    /// Returns the server variables and their definitions.
+    /// The server variables and their definitions.
     pub fn variables(&self) -> &HashMap<String, ServerVariable> {
         &self.variables
     }
 
-    /// Resolves the URL template using default variable values or the given overrides.
+    /// Resolves the URL template, substituting the given variable overrides.
     ///
-    /// Variables not present in overrides use their default values. If a variable
-    /// has an enum constraint, the override value is validated against the allowed values.
+    /// Variables not present in `overrides` use their default values.
+    /// If a variable has an enum constraint, the override value is validated
+    /// against the allowed values.
     ///
     /// # Errors
     ///

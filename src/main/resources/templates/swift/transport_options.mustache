@@ -1,7 +1,7 @@
 {{>api_info}}
 import Foundation
 
-/// TransportOptions holds immutable HTTP transport configuration for ``DefaultApiClient``.
+/// Immutable HTTP transport configuration for ``DefaultApiClient``.
 ///
 /// Controls low-level HTTP behavior such as TLS verification, proxy routing,
 /// timeouts, redirect handling, and automatic header injection. These settings
@@ -20,43 +20,68 @@ import Foundation
 ///     .build()
 /// ```
 public final class TransportOptions: Sendable {
-    /// Controls whether TLS certificate verification is enabled.
+    /// Whether TLS certificate verification is enabled.
+    ///
+    /// True if the client verifies server certificates (default), false to
+    /// accept any certificate.
     public let verifySsl: Bool
 
     /// Path to a custom CA certificate bundle for TLS verification.
+    ///
+    /// When set together with `verifySsl == true`, the client trusts
+    /// certificates signed by this CA in addition to (or instead of) the
+    /// system trust store. `nil` uses the system default.
     public let caCertPath: String?
 
     /// HTTP or HTTPS proxy URL for all outbound requests.
+    ///
+    /// Example: `"http://proxy.corp.example.com:3128"`. `nil` means direct
+    /// connections.
     public let proxy: URL?
 
-    /// End-to-end request timeout in milliseconds. Covers the entire request
-    /// lifecycle: connection, TLS handshake, sending the request body, and
-    /// reading the response. A `nil` value means no timeout.
+    /// End-to-end request timeout in milliseconds.
+    ///
+    /// Covers the entire request lifecycle: connection, TLS handshake,
+    /// sending the request body, and reading the response. Defaults to
+    /// 10000 ms (10 seconds) when the builder does not set a value. A `nil`
+    /// value means no timeout.
     public let timeout: Int?
 
-    /// Controls whether the client follows HTTP 3xx redirects.
+    /// Whether the client follows HTTP 3xx redirects automatically.
+    ///
+    /// True to follow redirects (default), false to return the redirect
+    /// response as-is.
     public let followRedirects: Bool
 
     /// Maximum number of consecutive redirects to follow.
-    /// Only meaningful when ``followRedirects`` is true. A nil value uses the
-    /// HTTP client's built-in default. A value of 0 means zero redirects.
+    ///
+    /// Only meaningful when ``followRedirects`` is true. A value of `nil` uses
+    /// the HTTP client's built-in default. A value of 0 means zero redirects.
     public let maxRedirects: Int?
 
-    /// Custom User-Agent header value, or nil to omit.
+    /// Custom `User-Agent` header value.
+    ///
+    /// When set, this value is sent as the `User-Agent` header on every
+    /// request unless the caller explicitly provides one. `nil` to omit.
     public let userAgent: String?
 
     /// Transport-level default headers included in every request.
-    /// These have the lowest priority: API-level headers, operation-specific headers,
-    /// and authentication headers all take precedence.
+    ///
+    /// These headers have the *lowest* priority: API-level headers from
+    /// ``Configuration/defaultHeaders``, operation-specific headers, and
+    /// authentication headers all take precedence.
     private let _defaultHeaders: [String: String]
 
-    /// Returns a copy of the transport-level default headers.
+    /// A copy of the transport-level default headers.
     public var defaultHeaders: [String: String] {
         return _defaultHeaders
     }
 
-    /// Controls whether to auto-inject an X-Request-ID header
-    /// with a unique UUID on every request.
+    /// Whether to auto-inject an `X-Request-ID` header with a unique UUID on
+    /// every request.
+    ///
+    /// Useful for distributed tracing and log correlation. The header is only
+    /// injected if the caller has not already set one.
     public let injectRequestID: Bool
 
     fileprivate init(
@@ -81,14 +106,23 @@ public final class TransportOptions: Sendable {
         self.injectRequestID = injectRequestID
     }
 
-    /// Returns a new ``TransportOptionsBuilder``. This is the entry point for
-    /// building transport options.
+    /// Create a new builder for constructing ``TransportOptions`` instances.
+    ///
+    /// - Returns: A new builder with sensible defaults.
     public static func builder() -> TransportOptionsBuilder {
         return TransportOptionsBuilder()
     }
 }
 
-/// TransportOptionsBuilder builds immutable ``TransportOptions`` instances.
+/// Builder for creating immutable ``TransportOptions`` instances.
+///
+/// All fields have sensible defaults:
+/// - `verifySsl`: `true`
+/// - `followRedirects`: `true`
+/// - `injectRequestID`: `false`
+/// - `timeout`: `10000` (10 seconds)
+/// - `userAgent`: a package-specific default string
+/// - All other fields: `nil` or empty
 public final class TransportOptionsBuilder {
     private var verifySsl: Bool = true
     private var caCertPath: String? = nil
@@ -100,24 +134,23 @@ public final class TransportOptionsBuilder {
     private var defaultHeaders: [String: String] = [:]
     private var injectRequestID: Bool = false
 
-    /// Creates a new builder with sensible defaults.
     public init() {}
 
-    /// Enables or disables TLS certificate verification.
+    /// Enable or disable TLS certificate verification.
     @discardableResult
     public func verifySsl(_ val: Bool) -> TransportOptionsBuilder {
         self.verifySsl = val
         return self
     }
 
-    /// Sets the path to a custom CA certificate bundle.
+    /// Set the path to a custom CA certificate bundle.
     @discardableResult
     public func caCertPath(_ val: String?) -> TransportOptionsBuilder {
         self.caCertPath = val
         return self
     }
 
-    /// Sets the HTTP/HTTPS proxy URL.
+    /// Set the HTTP/HTTPS proxy URL.
     ///
     /// Only HTTP and HTTPS proxy URLs are supported.
     ///
@@ -143,42 +176,42 @@ public final class TransportOptionsBuilder {
         return self
     }
 
-    /// Sets the end-to-end request timeout in milliseconds.
+    /// Set the end-to-end request timeout in milliseconds (`nil` for no timeout).
     @discardableResult
     public func timeout(_ val: Int?) -> TransportOptionsBuilder {
         self.timeout = val
         return self
     }
 
-    /// Enables or disables automatic redirect following.
+    /// Enable or disable automatic redirect following.
     @discardableResult
     public func followRedirects(_ val: Bool) -> TransportOptionsBuilder {
         self.followRedirects = val
         return self
     }
 
-    /// Sets the maximum number of redirects to follow.
+    /// Set the maximum number of redirects to follow (`nil` for the client default).
     @discardableResult
     public func maxRedirects(_ val: Int?) -> TransportOptionsBuilder {
         self.maxRedirects = val
         return self
     }
 
-    /// Sets a custom User-Agent header value, or nil to omit.
+    /// Set a custom User-Agent header value (`nil` to omit).
     @discardableResult
     public func userAgent(_ val: String?) -> TransportOptionsBuilder {
         self.userAgent = val
         return self
     }
 
-    /// Adds a single transport-level default header.
+    /// Add a single transport-level default header.
     @discardableResult
     public func defaultHeader(name: String, value: String) -> TransportOptionsBuilder {
         self.defaultHeaders[name] = value
         return self
     }
 
-    /// Adds multiple transport-level default headers.
+    /// Add multiple transport-level default headers.
     @discardableResult
     public func defaultHeaders(_ headers: [String: String]) -> TransportOptionsBuilder {
         for (k, v) in headers {
@@ -187,14 +220,14 @@ public final class TransportOptionsBuilder {
         return self
     }
 
-    /// Enables or disables automatic X-Request-ID header injection.
+    /// Enable or disable automatic `X-Request-ID` header injection.
     @discardableResult
     public func injectRequestID(_ val: Bool) -> TransportOptionsBuilder {
         self.injectRequestID = val
         return self
     }
 
-    /// Creates and returns an immutable TransportOptions instance.
+    /// Build and return an immutable ``TransportOptions`` instance.
     public func build() -> TransportOptions {
         return TransportOptions(
             verifySsl: verifySsl,

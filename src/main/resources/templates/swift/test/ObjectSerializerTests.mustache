@@ -275,8 +275,7 @@ import Testing
         formatter.formatOptions = [.withInternetDateTime]
         let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
         let result = ObjectSerializer.stringify(date)
-        #expect(result.contains("2024-01-01"), "should contain date: \(result)")
-        #expect(result.contains("12:30:45"), "should contain time: \(result)")
+        #expect(result == "2024-01-01T12:30:45.000+00:00")
     }
 
     @Test func testDateTimeSerializedStringContainsOffset() {
@@ -284,16 +283,14 @@ import Testing
         formatter.formatOptions = [.withInternetDateTime]
         let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
         let result = ObjectSerializer.stringify(date)
-        let hasOffset = result.hasSuffix("Z") ||
-            result.contains("+") ||
-            (result.last?.isNumber == true && result.contains("-"))
-        #expect(hasOffset, "should contain timezone offset: \(result)")
+        #expect(result == "2024-01-01T12:30:45.000+00:00")
+        #expect(!result.hasSuffix("Z"), "a zero offset must render as +00:00, never Z: \(result)")
     }
 
     // date-time serialization preserves sub-second precision (canonical
-    // cross-SDK regression for finding H4). The encoder once truncated to whole
-    // seconds (format `yyyy-MM-dd'T'HH:mm:ssxxx`) while the decoder accepted
-    // fractions — a lossy, asymmetric round-trip. The instant
+    // cross-SDK behaviour). The encoder must not truncate to whole seconds
+    // while the decoder accepts fractions — a lossy, asymmetric round-trip.
+    // The instant
     // 2020-01-02T03:04:05.123Z carries MILLISECOND precision (the cross-SDK
     // common denominator); serializing the PhotoMetadata model that holds it
     // must keep the `.123` fraction on the wire, and decoding that JSON back
@@ -307,8 +304,8 @@ import Testing
         let json = try ObjectSerializer.serialize(metadata)
 
         // (1) the millisecond fraction must survive on the wire.
-        #expect(json.contains(".123"),
-            "date-time must serialize WITH the .123 fraction (not truncated to whole seconds), got: \(json)")
+        #expect(json.contains("2020-01-02T03:04:05.123+00:00"),
+            "date-time must serialize as the exact canonical form with the .123 fraction, got: \(json)")
 
         // (2) decoding the JSON back must yield the same millisecond instant.
         let decoded = try ObjectSerializer.deserialize(json, as: PhotoMetadata.self)
@@ -330,23 +327,21 @@ import Testing
         #expect(result.contains("2024-01-01"), "should contain date: \(result)")
     }
 
-    @Test func testDateTimeEndsWithOffsetOrZ() {
+    @Test func testDateTimeEndsWithNumericOffsetNeverZ() {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
         let result = ObjectSerializer.stringify(date)
-        let matchesPattern = result.hasSuffix("Z") ||
-            result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
-        #expect(matchesPattern, "should end with offset or Z: \(result)")
+        #expect(result == "2024-01-01T12:30:45.000+00:00")
+        #expect(!result.hasSuffix("Z"), "a zero offset must render as +00:00, never Z: \(result)")
     }
 
-    @Test func testDateTimePositiveOffsetPreservedIfFormatterUsesLocalZone() {
-        // This test verifies the formatter uses the date's timezone, not always UTC
-        // The exact offset depends on the test environment, but the result must be valid ISO 8601
-        let date = Date(timeIntervalSince1970: 1704100245) // 2024-01-01 some time
+    @Test func testDateTimeZoneIsPinnedToUtc() {
+        // The zone is pinned to UTC, so the wire value never depends on the
+        // device's local zone: the offset is always +00:00.
+        let date = Date(timeIntervalSince1970: 1704100245) // 2024-01-01 09:10:45 UTC
         let result = ObjectSerializer.stringify(date)
-        #expect(!result.isEmpty, "result should not be empty")
-        #expect(result.contains("T"), "result should contain T separator: \(result)")
+        #expect(result == "2024-01-01T09:10:45.000+00:00")
     }
 
     @Test func testDateTimeRoundTrip() throws {

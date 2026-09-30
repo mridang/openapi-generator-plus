@@ -18,27 +18,35 @@ type RequestOptions struct {
 	NoRedirect bool
 }
 
-// ApiClient is the interface for HTTP clients. Implementations must provide
-// SendRequest to perform the actual HTTP call.
+// ApiClient is the interface for API HTTP transport.
+//
+// Implementations handle the actual HTTP request/response cycle. The default
+// implementation uses net/http.
 type ApiClient interface {
 	/* SendRequest sends an HTTP request and returns the response.
 	 *
 	 * Parameters:
 	 *   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
 	 *   - url: fully qualified URL
-	 *   - headers: caller-provided headers
-	 *   - body: request body as []byte, map[string]any for multipart
-	 *           form data, or nil
+	 *   - headers: HTTP headers
+	 *   - body: request body ([]byte for a serialized JSON or binary body,
+	 *           or map[string]any for multipart form data; may be nil)
 	 *
-	 * Returns an ApiHttpResponse and any error that occurred. */
+	 * Returns an ApiHttpResponse containing status code, body, and headers,
+	 * and any error that occurred. */
 	SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error)
 
-	/* SendRequestWithOptions sends an HTTP request applying the supplied
-	 * per-request RequestOptions on top of the transport-level defaults.
+	/* SendRequestWithOptions sends an HTTP request, applying the supplied
+	 * per-request RequestOptions on top of the transport-level defaults
+	 * (for example, refusing to follow redirects).
+	 *
 	 * Implementations MUST treat a nil opts the same as a zero-value
-	 * RequestOptions. Used by OAuth2TokenManager to force NoRedirect on
-	 * token endpoint POSTs without polluting the package-level
-	 * TransportOptions. */
+	 * RequestOptions. The OAuth2 token manager uses this to force NoRedirect
+	 * on token endpoint POSTs without polluting the package-level
+	 * TransportOptions.
+	 *
+	 * Parameters are those of SendRequest, plus opts: the per-request
+	 * transport overrides (may be nil). */
 	SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error)
 
 	/* Close releases any resources held by this client (connection pool,

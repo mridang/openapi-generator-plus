@@ -7,7 +7,9 @@
 
 import 'basic_authenticator.dart';
 
+/// Authenticator for the `petStoreBasic` security scheme.
 class PetStoreBasicAuthenticator extends BasicAuthenticator {
+  /// Creates an authenticator for the `petStoreBasic` security scheme.
   PetStoreBasicAuthenticator({
     required super.host,
     required super.username,

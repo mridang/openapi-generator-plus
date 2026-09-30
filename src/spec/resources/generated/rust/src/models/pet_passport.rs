@@ -29,7 +29,12 @@ pub struct PetPassport {
         with = "super::base64_serde::vec_option"
     )]
     pub scans: Option<Vec<Vec<u8>>>,
-    #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "issuedAt",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::date_time::option"
+    )]
     pub issued_at: Option<chrono::DateTime<chrono::Utc>>,
     /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
     #[serde(

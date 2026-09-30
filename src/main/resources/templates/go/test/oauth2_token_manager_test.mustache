@@ -647,6 +647,10 @@ func TestOAuth2TokenManager_TokenResponseMissingAccessTokenThrowsTypedError(t *t
 	if !errors.As(err, &typed) {
 		t.Fatalf("expected *OAuth2TokenError, got %T: %v", err, err)
 	}
+	want := "Token response missing or empty access_token field"
+	if typed.Error() != want {
+		t.Errorf("expected message %q, got %q", want, typed.Error())
+	}
 }
 
 func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *testing.T) {
@@ -682,6 +686,10 @@ func TestOAuth2TokenManager_TokenEndpointErrorResponseParsedToTypedError(t *test
 	}
 	if typed.URI() != "https://docs.example.com/errors/invalid_grant" {
 		t.Errorf("unexpected URI: %q", typed.URI())
+	}
+	want := "Token request failed with status 400: invalid_grant -- refresh token expired"
+	if typed.Error() != want {
+		t.Errorf("expected message %q, got %q", want, typed.Error())
 	}
 }
 

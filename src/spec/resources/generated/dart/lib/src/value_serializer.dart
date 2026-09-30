@@ -8,13 +8,64 @@
 import 'dart:convert';
 import 'object_serializer.dart';
 
-/// RFC 3986 §3.3 path-segment encoder. Dart's `Uri.encodeComponent`
-/// percent-encodes the sub-delims (`!$&'()*+,;=`), `:`, and `@`, which
-/// are legal inside a path segment. Re-encoding them produces URLs that
-/// disagree with Java / Kotlin / C# / Go and break servers that match
-/// on the raw segment (e.g. `tag:abc`, `1+2`, `a,b`). Encode the bytes
-/// per RFC 3986 — unreserved + sub-delims + `:` + `@` pass through, all
-/// other bytes percent-encode.
+/// Serializes parameter values for HTTP requests based on their location and
+/// format.
+///
+/// Converts values into their string representations suitable for HTTP
+/// request paths, query strings, and headers. Handles null values,
+/// collections with various collection formats, and URL encoding.
+///
+/// The serialization strategy depends on [location]:
+///   - path: scalar values are stringified and URL-encoded
+///   - query: nulls are omitted (returns null); collections are formatted
+///     according to [collectionFormat]
+///   - header: collections are joined with commas; nulls become empty strings
+///   - any other location: nulls become empty strings, scalars are stringified
+///
+/// Parameters:
+///   - [value]: the value to serialize (may be null)
+///   - [location]: where the parameter appears: "path", "query", "header", or
+///     "cookie"
+///   - [schemaType]: the OpenAPI schema type of the parameter
+///   - [collectionFormat]: the collection format: "csv", "ssv", "tsv",
+///     "pipes", or "multi"
+///
+/// Returns the serialized string, a list of strings (for the "multi" format),
+/// or null to omit the parameter.
+Object? serializeValue(
+  Object? value,
+  String location,
+  String schemaType,
+  String collectionFormat,
+) {
+  if (value == null) {
+    return _serializeNil(location);
+  }
+
+  final items = _toStringList(value);
+  if (items != null) {
+    return _serializeArray(items, location, collectionFormat);
+  }
+
+  final strVal = stringify(value);
+  if (location == 'path') {
+    return encodePathSegment(strVal);
+  }
+  return strVal;
+}
+
+/// Percent-encodes a value for use as a URL path segment.
+///
+/// Dart's `Uri.encodeComponent` percent-encodes the sub-delimiters
+/// (`!$&'()*+,;=`), `:` and `@`, which are legal inside a path segment (RFC
+/// 3986 §3.3). Re-encoding them produces URLs that disagree with the other
+/// SDKs and break servers that match on the raw segment (e.g. `tag:abc`,
+/// `1+2`, `a,b`). The bytes are therefore encoded per RFC 3986: unreserved,
+/// sub-delimiters, `:` and `@` pass through and every other byte is
+/// percent-encoded. The preserved sub-delimiters include the `;`, `=` and `,`
+/// that OAS 3.0 matrix/label/simple styles use as structural separators.
+///
+/// Returns the percent-encoded path segment.
 String encodePathSegment(String s) {
   const hex = '0123456789ABCDEF';
   final bytes = utf8.encode(s);
@@ -81,13 +132,42 @@ String encodePathSegment(String s) {
   return out.toString();
 }
 
-/// RFC 3986 query encoder that leaves reserved characters literal
-/// (OAS `allowReserved: true`). Everything that is neither unreserved
-/// nor RFC 3986 reserved — spaces, control bytes, non-ASCII — is still
-/// percent-encoded, so the result is always a valid query segment; only
-/// the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the
-/// unreserved `~`) passes through. In particular a space becomes `%20`,
-/// never `+`.
+/// Wraps a query value so the query-string builder preserves RFC 3986
+/// reserved characters (OAS `allowReserved: true`) instead of
+/// percent-encoding them. Produced by [maybeAllowReserved] and unwrapped when
+/// the query string is assembled.
+class AllowReservedValue {
+  /// Creates a marker carrying the serialized query [value], a [String] or a
+  /// `List<String>` for exploded parameters.
+  const AllowReservedValue(this.value);
+
+  /// The serialized query value carried through to the query-string builder.
+  final Object value;
+}
+
+/// Wraps [value] in an [AllowReservedValue] when the parameter declares
+/// `allowReserved: true`; otherwise returns it unchanged.
+///
+/// [allowReserved] is whether the parameter preserves reserved characters.
+/// Returns the value, wrapped iff [allowReserved] is true and the value is not
+/// null.
+Object? maybeAllowReserved(Object? value, bool allowReserved) {
+  if (value == null || !allowReserved) {
+    return value;
+  }
+  return AllowReservedValue(value);
+}
+
+/// Percent-encodes a query value while leaving RFC 3986 reserved characters
+/// literal (OAS `allowReserved: true`).
+///
+/// Everything that is not RFC 3986 reserved or unreserved — spaces, control
+/// characters, non-ASCII — is still percent-encoded, so the result is always a
+/// valid URL query segment. Only the reserved set
+/// `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved `~`) is left
+/// literal. A space becomes `%20`, never `+`.
+///
+/// Returns the encoded value with reserved characters preserved.
 String encodeQueryAllowingReserved(String s) {
   const hex = '0123456789ABCDEF';
   final bytes = utf8.encode(s);
@@ -174,86 +254,23 @@ String encodeQueryAllowingReserved(String s) {
   return out.toString();
 }
 
-/// Wraps a query value so the query-string builder preserves RFC 3986
-/// reserved characters (OAS `allowReserved: true`). The wrapped [value]
-/// is either a [String] or a `List<String>` for exploded parameters.
-class AllowReservedValue {
-  /// Creates a marker carrying the serialized query [value].
-  const AllowReservedValue(this.value);
-
-  /// The serialized query value carried through to the query-string builder.
-  final Object value;
-}
-
-/// Wraps [value] in an [AllowReservedValue] when the parameter declares
-/// `allowReserved: true`; otherwise returns it unchanged.
-Object? maybeAllowReserved(Object? value, bool allowReserved) {
-  if (value == null || !allowReserved) {
-    return value;
-  }
-  return AllowReservedValue(value);
-}
-
-/// Serializes a parameter value for HTTP requests based on its location.
+/// Serializes a value with OAS 3.0 parameter style formatting.
 ///
-/// Parameters:
-///   - [value]: the value to serialize
-///   - [location]: "path", "query", "header", or "cookie"
-///   - [schemaType]: the schema type (e.g. "string", "array")
-///   - [collectionFormat]: legacy collection format (e.g. "csv", "ssv",
-///     "tsv", "pipes", "multi")
-///
-/// Returns the serialized value.
-Object? serializeValue(
-  Object? value,
-  String location,
-  String schemaType,
-  String collectionFormat,
-) {
-  if (value == null) {
-    return _serializeNil(location);
-  }
-
-  final items = _toStringList(value);
-  if (items != null) {
-    return _serializeArray(items, location, collectionFormat);
-  }
-
-  final strVal = stringify(value);
-  if (location == 'path') {
-    return encodePathSegment(strVal);
-  }
-  return strVal;
-}
-
-/// Serializes a deepObject-style query parameter.
-///
-/// Produces a map of flattened keys in the form `paramName[key]` to
-/// stringified values.
-Map<String, String> serializeDeepObject(
-  String paramName,
-  Map<String, Object?>? value,
-) {
-  final result = <String, String>{};
-  if (value == null) return result;
-
-  for (final entry in value.entries) {
-    result['$paramName[${entry.key}]'] = stringify(entry.value);
-  }
-  return result;
-}
-
-/// Serializes a parameter value according to OAS 3.0 style and explode rules.
+/// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+/// styles. deepObject is handled separately by [serializeDeepObject]. An empty
+/// [style] delegates to [serializeValue].
 ///
 /// Parameters:
 ///   - [paramName]: the parameter name
-///   - [value]: the value to serialize
-///   - [location]: "path", "query", "header", "cookie"
-///   - [schemaType]: the schema type
-///   - [collectionFormat]: legacy collection format
-///   - [style]: OAS 3.0 style (e.g. "matrix", "label", "form", "simple",
-///     "spaceDelimited", "pipeDelimited")
-///   - [explode]: whether to explode array values
+///   - [value]: the value to serialize (may be null)
+///   - [location]: where the parameter appears: "path", "query", "header", or
+///     "cookie"
+///   - [schemaType]: the OpenAPI schema type
+///   - [collectionFormat]: the collection format
+///   - [style]: the OAS 3.0 parameter style (may be empty)
+///   - [explode]: whether to explode arrays
+///
+/// Returns the serialized value, or null to omit the parameter.
 Object? serializeStyled(
   String paramName,
   Object? value,
@@ -280,14 +297,10 @@ Object? serializeStyled(
   final rawItems = _toStringList(value);
   final isArray = rawItems != null;
 
-  /* Per RFC 6570 / OAS 3.0: in `path` parameters each item must be
-   * percent-encoded BEFORE being joined with the structural separator
-   * (',' for simple/label/matrix-no-explode, '.' for label-explode, etc.).
-   * Otherwise an item containing '/', '?', '#', space, ... would leak through
-   * and produce a malformed URL. The separators themselves (`,`, `;`, `=`)
-   * are sub-delimiters and must remain literal, so we encode the items here,
-   * never the joined output. Uri.encodeComponent (not encodeFull) is the
-   * correct primitive — it percent-encodes reserved chars inside a segment. */
+  /* For path styles, percent-encode each individual item BEFORE applying
+   * the structural separators (";", "=", ".", ",") that the style defines.
+   * This ensures reserved characters inside the value are escaped while the
+   * style's structural punctuation remains literal. */
   final items = isArray && location == 'path'
       ? rawItems.map(encodePathSegment).toList()
       : rawItems;
@@ -352,13 +365,38 @@ Object? serializeStyled(
   }
 }
 
-/// Formats a `format: date` value as YYYY-MM-DD using the DateTime's
-/// own calendar fields (UTC if the DateTime is UTC, local otherwise).
-/// Dart has only DateTime (no Date-only type), so the codegen routes
-/// `format: date` path params through this helper to strip the time
-/// component. Without this, a date param would go out as a full
-/// ISO+offset string, mismatching the 6 SDKs (Java/Kotlin/C#/Python/
-/// Ruby/Elixir) with native LocalDate types.
+/// Serializes a deepObject-style query parameter.
+///
+/// Produces a map of flattened keys in the form `paramName[key]` to
+/// stringified values, suitable for inclusion in a query string. The values
+/// are not percent-encoded here; the query-string builder encodes them.
+///
+/// Parameters:
+///   - [paramName]: the parameter name (e.g. "filter")
+///   - [value]: the map value to serialize
+///
+/// Returns a map of expanded keys to serialized values, or an empty map if
+/// [value] is null.
+Map<String, String> serializeDeepObject(
+  String paramName,
+  Map<String, Object?>? value,
+) {
+  final result = <String, String>{};
+  if (value == null) return result;
+
+  for (final entry in value.entries) {
+    result['$paramName[${entry.key}]'] = stringify(entry.value);
+  }
+  return result;
+}
+
+/// Formats a `format: date` value as YYYY-MM-DD.
+///
+/// Uses the DateTime's own calendar fields (UTC if the DateTime is UTC, local
+/// otherwise). Dart has only DateTime (no date-only type), so the codegen
+/// routes `format: date` path params through this helper to strip the time
+/// component. Without this, a date param would go out as a full ISO date-time
+/// string, mismatching the SDKs with native date-only types.
 String stringifyDate(DateTime value) {
   final y = value.year.toString().padLeft(4, '0');
   final m = value.month.toString().padLeft(2, '0');

@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.ServiceTokenAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `serviceToken` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.BearerAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `ServiceTokenAuthenticator` authenticator.
+  Creates an authenticator for the `serviceToken` security scheme.
   """
   def new(host, token) do
     PetstoreClient.Auth.BearerAuthenticator.new(host, token)

@@ -652,10 +652,11 @@ class PetApiTest {
             assertTrue(body.contains("\"takenAt\""), "model part must use wire key takenAt")
             assertFalse(body.contains("is_primary"), "model part must NOT use snake_case is_primary")
             assertFalse(body.contains("taken_at"), "model part must NOT use snake_case taken_at")
-            // The contextual OffsetDateTime serializer renders an ISO-8601
-            // date-time string, not a struct/epoch.
+            // The contextual OffsetDateTime serializer renders the canonical
+            // date-time string (fixed millisecond fraction, numeric offset), not
+            // a struct/epoch.
             assertTrue(
-                body.contains("2020-01-02T03:04:05.123Z"),
+                body.contains("2020-01-02T03:04:05.123+00:00"),
                 "takenAt must carry the SDK date-time string",
             )
         }

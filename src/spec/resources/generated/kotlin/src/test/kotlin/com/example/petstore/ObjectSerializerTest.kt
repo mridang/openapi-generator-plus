@@ -40,12 +40,11 @@ class ObjectSerializerTest {
     @DisplayName("DateTimeOffsetPreservationTests")
     inner class DateTimeOffsetPreservationTests {
         @Test
-        @DisplayName("UTC datetime serializes containing date-time and offset")
+        @DisplayName("UTC datetime serializes as the canonical wire string with a +00:00 offset")
         fun utcDateTimeSerializesWithOffset() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00")
             val result = serializer.stringify(dt)
-            assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: $result")
-            assertTrue(result.contains("+00:00") || result.endsWith("Z"), "should contain UTC offset: $result")
+            assertEquals("2024-01-01T12:30:45.000+00:00", result)
         }
 
         @Test
@@ -53,7 +52,7 @@ class ObjectSerializerTest {
         fun positiveOffsetPreserved() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
             val result = serializer.stringify(dt)
-            assertTrue(result.contains("+05:30"), "should contain +05:30 offset: $result")
+            assertEquals("2024-01-01T12:30:45.000+05:30", result)
         }
 
         @Test
@@ -61,7 +60,7 @@ class ObjectSerializerTest {
         fun negativeOffsetPreserved() {
             val dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00")
             val result = serializer.stringify(dt)
-            assertTrue(result.contains("-08:00"), "should contain -08:00 offset: $result")
+            assertEquals("2024-01-01T12:30:45.000-08:00", result)
         }
 
         @Test
@@ -73,7 +72,7 @@ class ObjectSerializerTest {
             // decoder, which accepts it, is not handed a lossy whole-second value.
             val dt = OffsetDateTime.parse("2020-01-02T03:04:05.123Z")
             val result = serializer.stringify(dt)
-            assertTrue(result.contains(".123"), "milliseconds should be preserved: $result")
+            assertEquals("2020-01-02T03:04:05.123+00:00", result)
             // Lossless round-trip: re-parsing yields the same instant.
             val parsed = OffsetDateTime.parse(result)
             assertEquals(dt.toInstant(), parsed.toInstant(), "instant should match after round-trip: $result")
@@ -88,14 +87,12 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("serialized datetime string ends with an offset or Z")
+        @DisplayName("serialized datetime string uses a numeric offset and never the Z designator")
         fun serializedDateTimeHasOffset() {
             val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
-            assertTrue(
-                result.endsWith("+00:00") || result.endsWith("Z") || result.matches(Regex(".*[+-]\\d{2}:\\d{2}$")),
-                "should end with offset: $result",
-            )
+            assertEquals("2024-01-01T12:30:45.000+00:00", result)
+            assertFalse(result.endsWith("Z"), "must not use the Z designator: $result")
         }
 
         @Test
@@ -545,6 +542,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("Duration returns a protobuf-JSON duration string")
+        fun durationReturnsProtobufJsonString() {
+            assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
+            assertEquals("-1.500s", serializer.stringify(java.time.Duration.ofMillis(-1500)))
+        }
+
+        @Test
         @DisplayName("integer returns string representation")
         fun integerReturnsString() {
             assertEquals("42", serializer.stringify(42))
@@ -567,7 +571,7 @@ class ObjectSerializerTest {
         fun offsetDateTimeReturnsIso8601() {
             val dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
             val result = serializer.stringify(dt)
-            assertTrue(result.startsWith("2024-01-15T10:30:00"))
+            assertEquals("2024-01-15T10:30:00.000+00:00", result)
         }
 
         @Test
@@ -1071,7 +1075,7 @@ class ObjectSerializerTest {
                     .PhotoMetadata(takenAt = takenAt)
             val json = serializer.serialize(item)
             assertTrue(
-                json.contains(".123"),
+                json.contains("\"takenAt\":\"2020-01-02T03:04:05.123+00:00\""),
                 "milliseconds must NOT be truncated from the body date-time, got: $json",
             )
 

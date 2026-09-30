@@ -7,8 +7,10 @@
 
 import 'oauth2_authorization_code_authenticator.dart';
 
+/// Authenticator for the `userAuth` security scheme.
 class UserAuthAuthorizationCodeAuthenticator
     extends OAuth2AuthorizationCodeAuthenticator {
+  /// Creates an authenticator for the `userAuth` security scheme.
   UserAuthAuthorizationCodeAuthenticator({
     required super.host,
     required super.clientId,

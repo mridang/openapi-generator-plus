@@ -24,7 +24,7 @@ use crate::errors::configuration_error::ConfigurationError;
 use crate::errors::{NetworkError, NetworkTimeoutError};
 use crate::transport_options::TransportOptions;
 
-/// Gap 3.1: lowercased credential-bearing header names that must be stripped
+/// Lowercased credential-bearing header names that must be stripped
 /// from cross-origin redirects. The fixed entries (`authorization`, `cookie`,
 /// `proxy-authorization`) are joined at codegen time by every `apiKey, in:
 /// header` security scheme declared in the OpenAPI spec, so a custom
@@ -39,31 +39,31 @@ pub const SENSITIVE_HEADER_NAMES: &[&str] = &[
     "x-internal-key",
 ];
 
-/// DefaultApiClient is the default HTTP client implementation backed by reqwest.
+/// Default implementation of [`ApiClient`] using reqwest.
 ///
-/// Applies transport-level settings from TransportOptions: TLS verification,
-/// custom CA certificates, proxy routing, timeouts, redirect handling,
-/// User-Agent injection, X-Request-ID injection, and transport-level
-/// default headers.
+/// Applies transport-level settings from [`TransportOptions`]: TLS
+/// verification, custom CA certificates, proxy routing, timeouts, redirect
+/// handling, `User-Agent` injection, `X-Request-ID` injection, and
+/// transport-level default headers.
 ///
 /// Header merge order (lowest to highest priority):
-///  1. TransportOptions default_headers -- transport-level defaults
-///  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
-///  3. TransportOptions user_agent -- injected if not already set
-///  4. TransportOptions inject_request_id -- injected if not already set
+///  1. `TransportOptions::default_headers` -- transport-level defaults
+///  2. Caller-provided headers (from `BaseApi` -- includes config defaults, auth, operation headers)
+///  3. `TransportOptions::user_agent` -- injected if not already set
+///  4. `TransportOptions::inject_request_id` -- injected if not already set
 pub struct DefaultApiClient {
     transport_options: TransportOptions,
     http_client: Client,
-    /// Gap T6: close-lifecycle flag. Set by `close()`; once set, any further
+    /// Close-lifecycle flag. Set by `close()`; once set, any further
     /// `send_request*` call fails fast with an `ApiError` instead of leaking a
-    /// foreign reqwest error or silently succeeding. Unified across all 12 SDKs
-    /// (closed-flag + SDK error on use-after-close).
+    /// foreign reqwest error or silently succeeding.
     closed: Arc<AtomicBool>,
 }
 
 impl DefaultApiClient {
     /// Creates a client with the given transport settings.
-    /// If `transport_options` is None, default transport settings are used.
+    ///
+    /// If `transport_options` is `None`, default transport settings are used.
     pub fn new(transport_options: Option<TransportOptions>) -> Self {
         let opts = transport_options.unwrap_or_default();
         let http_client = build_http_client(&opts);
@@ -74,7 +74,7 @@ impl DefaultApiClient {
         }
     }
 
-    /// Gap T6: explicit close hook. Marks the client closed so that any
+    /// Explicit close hook. Marks the client closed so that any
     /// subsequent request fails fast with a uniform SDK `ApiError`
     /// ("client is closed"). `reqwest::Client` additionally releases its
     /// connection pool / executor threads when the last clone is dropped
@@ -90,7 +90,7 @@ impl DefaultApiClient {
 }
 
 impl Drop for DefaultApiClient {
-    /// Gap T6: explicit `Drop` impl documents the lifecycle of the
+    /// Explicit `Drop` impl documents the lifecycle of the
     /// underlying `reqwest::Client`. Reqwest tears the pool down via its
     /// own `Drop` once the last `Arc` clone is released; this impl exists
     /// to make that contract discoverable to readers and to give us a hook
@@ -101,7 +101,7 @@ impl Drop for DefaultApiClient {
 }
 
 impl ApiClient for DefaultApiClient {
-    /// Gap T6: releases the underlying transport. Delegates to the inherent
+    /// Releases the underlying transport. Delegates to the inherent
     /// [`DefaultApiClient::close`], so closing through the trait object and
     /// closing through the concrete type do the same thing.
     fn close(&self) {
@@ -128,7 +128,7 @@ impl ApiClient for DefaultApiClient {
         self.send_request_with_options(method, url, headers, body, &RequestOptions::default())
     }
 
-    /// Gap 3.2: extended `send_request` that honours per-request options.
+    /// Extended `send_request` that honours per-request options.
     /// Set `options.no_redirect=true` (e.g. on OAuth2 token POSTs) to skip
     /// redirect following entirely; the first 3xx response is returned to the
     /// caller as-is. The token manager inspects and rejects the 3xx itself, so
@@ -154,7 +154,7 @@ impl ApiClient for DefaultApiClient {
         let options = options.clone();
 
         Box::pin(async move {
-            // Gap T6: use-after-close is a wrong call order, reported as
+            // Use-after-close is a wrong call order, reported as
             // ConfigurationError::InvalidState rather than a foreign library
             // error or a silent success.
             if self.closed.load(Ordering::SeqCst) {
@@ -265,8 +265,8 @@ impl ApiClient for DefaultApiClient {
 
             let mut response = request_builder.send().await.map_err(transport_error)?;
 
-            // Gap BH: manual redirect loop with cross-origin header strip.
-            // Gap 3.2: options.no_redirect (the OAuth2 token POST) means "do
+            // Manual redirect loop with cross-origin header strip.
+            // Options.no_redirect (the OAuth2 token POST) means "do
             // not follow redirects; return the 3xx as-is". The loop is skipped
             // and the first 3xx surfaces verbatim. The token manager inspects
             // and rejects the 3xx itself, so a credential-bearing body is never
@@ -297,7 +297,7 @@ impl ApiClient for DefaultApiClient {
                         None => break,
                     };
                     if next_url.scheme() != "http" && next_url.scheme() != "https" {
-                        // Gap T-D3: a `Location:` pointing at a non-http(s)
+                        // A `Location:` pointing at a non-http(s)
                         // scheme (file:, javascript:, data:, ...) must be
                         // refused loudly, not silently returned as the 3xx
                         // response. Unified across the 12 SDKs.
@@ -317,7 +317,7 @@ impl ApiClient for DefaultApiClient {
                         None => true,
                     };
 
-                    // Gap 3.3: refuse to replay a request body across an
+                    // Refuse to replay a request body across an
                     // HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
                     // we only guard those: a TLS-protected payload (POST/PUT
                     // body) must not be silently re-sent in cleartext.
@@ -342,7 +342,7 @@ impl ApiClient for DefaultApiClient {
                         )) as Box<dyn std::error::Error + Send + Sync>);
                     }
 
-                    // Gap T3: pick follow-up method+body per RFC 7231 §6.4.4 /
+                    // Pick follow-up method+body per RFC 7231 §6.4.4 /
                     // RFC 7538.
                     //   307 + 308: preserve original method and body.
                     //   303:       force GET, drop the body (and Content-Type/Length).
@@ -400,7 +400,7 @@ impl ApiClient for DefaultApiClient {
                     hops += 1;
                 }
 
-                // Gap T-D1: exceeding the redirect cap must fail loudly rather
+                // Exceeding the redirect cap must fail loudly rather
                 // than silently returning the last 3xx as a normal response.
                 // Unified across the 12 SDKs ("too many redirects").
                 if is_redirect_status(response.status().as_u16()) && hops >= max {
@@ -415,7 +415,7 @@ impl ApiClient for DefaultApiClient {
             }
 
             let status_code = response.status().as_u16();
-            // Gap BE+BF: response header keys are normalised to lowercase so
+            // Response header keys are normalised to lowercase so
             // callers can look them up consistently regardless of the casing
             // the server used (HTTP header names are case-insensitive per
             // RFC 7230 section 3.2, and HTTP/2 mandates lowercase on the
@@ -535,7 +535,7 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     // decoded is told apart from a body that never fully arrived. Brotli is
     // intentionally not advertised.
 
-    // Gap AM: `verify_ssl=false` must skip BOTH the certificate-chain check
+    // `verify_ssl=false` must skip BOTH the certificate-chain check
     // and the hostname check, matching `curl -k` and the other SDKs. reqwest
     // gates these independently: `danger_accept_invalid_certs` alone still
     // enforces hostname verification, so a `verify_ssl=false` client would
@@ -544,7 +544,7 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
     builder = builder.danger_accept_invalid_hostnames(!opts.verify_ssl());
 
-    // Gap T4: the CA bundle was read and parsed by TransportOptionsBuilder::build,
+    // The CA bundle was read and parsed by TransportOptionsBuilder::build,
     // which reports an unreadable file as ConfigurationError::InvalidCaCertificate
     // rather than silently falling back to the system trust store.
     if let Some(pem) = opts.ca_cert_pem() {
@@ -566,7 +566,7 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         builder = builder.timeout(Duration::from_millis(timeout_ms));
     }
 
-    // Gap BH: reqwest re-sends Authorization / Cookie / Proxy-Authorization
+    // Reqwest re-sends Authorization / Cookie / Proxy-Authorization
     // across cross-origin 3xx redirects by default, which leaks bearer
     // tokens to attacker-controlled hosts via malicious 302. We disable
     // reqwest's built-in redirect following entirely and implement a manual
@@ -582,7 +582,7 @@ fn is_redirect_status(code: u16) -> bool {
     matches!(code, 301 | 302 | 303 | 307 | 308)
 }
 
-/// Gap 3.3: returns `true` when following the redirect would replay the
+/// Returns `true` when following the redirect would replay the
 /// in-flight request body across an HTTPS->HTTP downgrade. Only 307/308
 /// preserve the body per RFC 7231 §6.4.7 / RFC 7538, so the predicate is
 /// false for 301/302/303 even when the schemes differ.
@@ -927,7 +927,7 @@ mod tests {
     use crate::models::PhotoMetadata;
     use crate::object_serializer;
 
-    // ── HTTPS->HTTP body-replay predicate (Gap 3.3) ──
+    // ── HTTPS->HTTP body-replay predicate ──
     //
     // The predicate gates the body-replay guard in `send_request_with_options`
     // and traffics in `reqwest::Url`, so it can only be exercised in-crate.
@@ -988,7 +988,7 @@ mod tests {
         assert!(!is_https_to_http_body_replay(307, None, &http, true));
     }
 
-    // ── Per-part MIME sniffing (Gap J) ──
+    // ── Per-part MIME sniffing ──
 
     #[test]
     fn test_mime_for_filename_png() {
@@ -1115,7 +1115,8 @@ mod tests {
     // the part JSON carries the WIRE property names declared by the schema
     // (`isPrimary`, `takenAt`) rather than the snake_case Rust field idents
     // (`is_primary`, `taken_at`), and the `format: date-time` field is rendered
-    // with chrono's RFC 3339 wire form (millisecond fraction preserved). The
+    // with the canonical date-time wire form (`+00:00` offset, fixed
+    // three-digit millisecond fraction). The
     // object part also advertises `Content-Type: application/json` (its OAS
     // `encoding.contentType`) so the server parses it as JSON, not text/plain.
     // This test reconstructs the operation's part-building path end-to-end
@@ -1170,11 +1171,12 @@ mod tests {
             body_str
         );
 
-        // (2) The `format: date-time` field must carry the proper RFC 3339
-        // wire form, with millisecond precision preserved (not truncated).
+        // (2) The `format: date-time` field must carry the canonical wire
+        // form: a numeric `+00:00` offset (never `Z`) and a fixed three-digit
+        // millisecond fraction.
         assert!(
-            body_str.contains("2020-01-02T03:04:05.123"),
-            "takenAt must serialize as an RFC 3339 date-time with millis, body: {}",
+            body_str.contains("\"takenAt\":\"2020-01-02T03:04:05.123+00:00\""),
+            "takenAt must serialize in the canonical date-time wire form, body: {}",
             body_str
         );
 
@@ -1246,7 +1248,7 @@ mod tests {
         );
     }
 
-    // ── Multipart filename directive (Gap BI / Gap F) ──
+    // ── Multipart filename directive ──
 
     #[test]
     fn test_build_filename_directive_non_ascii_emits_rfc5987() {
@@ -1289,7 +1291,7 @@ mod tests {
         );
     }
 
-    /// Gap BI: non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
+    /// Non-ASCII multipart filenames must use RFC 5987 filename*=UTF-8''<pct>
     /// rather than raw UTF-8 inside the quoted filename="" form.
     #[test]
     fn test_multipart_filename_non_ascii_emits_rfc5987() {
@@ -1311,7 +1313,7 @@ mod tests {
         );
     }
 
-    /// Gap BI: ASCII-only filenames must NOT emit a filename*= parameter.
+    /// ASCII-only filenames must NOT emit a filename*= parameter.
     #[test]
     fn test_multipart_filename_ascii_only_omits_filename_star() {
         let directive = build_filename_directive("file.png");
@@ -1323,7 +1325,7 @@ mod tests {
         );
     }
 
-    // ── Multipart filename / field-name validation (Gap F / W-new-2) ──
+    // ── Multipart filename / field-name validation ──
 
     #[test]
     fn test_validate_multipart_filename_rejects_crlf() {
@@ -1339,7 +1341,7 @@ mod tests {
         assert!(validate_multipart_filename("a\u{0}b.pdf").is_err());
     }
 
-    /// Gap F: filenames containing CR/LF/NUL must be rejected to prevent
+    /// Filenames containing CR/LF/NUL must be rejected to prevent
     /// Content-Disposition header injection.
     #[test]
     fn test_multipart_filename_crlf_rejected() {
@@ -1392,7 +1394,7 @@ mod tests {
         }
     }
 
-    // ── Response charset decoding (Gap H) ──
+    // ── Response charset decoding ──
 
     #[test]
     fn test_decode_text_body_iso_8859_1() {
@@ -1480,9 +1482,9 @@ mod tests {
         assert_eq!(decoded, "Tag");
     }
 
-    // ── Sensitive-header allowlist (Gap 3.1) ──
+    // ── Sensitive-header allowlist ──
 
-    /// Gap 3.1: API-key header names declared in the OpenAPI spec must be added
+    /// API-key header names declared in the OpenAPI spec must be added
     /// to the cross-origin redirect strip allowlist. The static base set
     /// (authorization / cookie / proxy-authorization) must always be present.
     #[test]
@@ -1508,7 +1510,7 @@ mod tests {
         }
     }
 
-    // ── Gap 3.1: spec-declared API-key header names are sensitive ──
+    // ── spec-declared API-key header names are sensitive ──
 
     #[test]
     fn test_sensitive_header_allowlist_includes_spec_api_key_headers() {

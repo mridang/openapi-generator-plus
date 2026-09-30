@@ -22,11 +22,10 @@ type WetFood struct {
 
 // Equal reports whether this WetFood is value-equal to other.
 //
-// model-equality-swift-go: models may carry map / slice fields (e.g.
-// additionalProperties), so the built-in `==` operator panics at runtime on
-// such values. Comparing the canonical JSON encodings gives a value-equality
-// contract that works for every field shape, matching the equality semantics
-// of the other SDKs.
+// Models may carry map / slice fields (e.g. additionalProperties), so the
+// built-in `==` operator panics at runtime on such values. Comparing the
+// canonical JSON encodings gives a value-equality contract that works for every
+// field shape, matching the equality semantics of the other SDKs.
 func (o WetFood) Equal(other WetFood) bool {
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
@@ -76,9 +75,9 @@ func (o *WetFood) UnmarshalJSON(data []byte) error {
 	} else if string(rawVal) == "null" {
 		return fmt.Errorf("required field 'volumeMl' must not be null in WetFood")
 	}
-	/* default-on-deserialize: an absent field carrying a schema default is
-	 * populated with that default so the deserialized model matches the spec,
-	 * consistent with the other SDKs. */
+	/* An absent field carrying a schema default is populated with that default
+	 * so the deserialized model matches the spec, consistent with the other
+	 * SDKs. */
 	*o = WetFood(*aux)
 	return nil
 }

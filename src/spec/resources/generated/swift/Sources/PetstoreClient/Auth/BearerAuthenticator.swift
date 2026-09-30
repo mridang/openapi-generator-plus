@@ -7,13 +7,16 @@
 
 import Foundation
 
-/// BearerAuthenticator provides HTTP Bearer token authentication.
+/// Authenticator for HTTP Bearer token authentication.
 public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
   private let _host: String
   private let token: String
 
-  /// Creates a new Bearer authenticator.
+  /// Creates an HTTP Bearer token authenticator.
   ///
+  /// - Parameters:
+  ///   - host: The base URL of the API.
+  ///   - token: The bearer token.
   /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the token is
   ///   empty or holds a character that cannot be sent in a header.
   public init(host: String, token: String) throws {
@@ -42,12 +45,12 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
     super.init()
   }
 
-  /// Returns the API base URL.
+  /// Returns the base URL of the API.
   override public func host() -> String {
     return _host
   }
 
-  /// Returns the Bearer authentication header.
+  /// Returns the authentication headers to include in every request.
   override public func authHeaders() async -> [String: String] {
     /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
        from env files are commonly stored already-prefixed; emitting
@@ -64,14 +67,14 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
 }
 
 extension BearerAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
-  /// A description that redacts the bearer token so it never leaks through
-  /// string interpolation, logging, or debugging output.
+  /// A string representation that redacts the token so credentials never
+  /// leak into logs or stack traces (matching the other SDKs).
   public var description: String {
     "\(type(of: self))(host: \(_host), token: ***)"
   }
 
-  /// A debug description that redacts the bearer token so it never leaks
-  /// through string interpolation, logging, or debugging output.
+  /// A debug string representation that redacts the token so credentials
+  /// never leak into logs or stack traces (matching the other SDKs).
   public var debugDescription: String {
     description
   }

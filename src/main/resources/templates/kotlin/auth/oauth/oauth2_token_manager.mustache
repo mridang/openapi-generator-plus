@@ -38,6 +38,13 @@ class OAuth2TokenManager {
     }
 
     private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * The shared API client used for making token requests.
+     *
+     * Injected by the [{{invokerPackage}}.auth.HttpAwareAuthenticator.setApiClient] call that the
+     * client constructor makes; it must be set before any token requests are made.
+     */
     var apiClient: ApiClient? = null
 
     /**
@@ -67,8 +74,15 @@ class OAuth2TokenManager {
     /**
      * Get a valid access token, fetching or refreshing as necessary.
      *
+     * Concurrent callers are serialized by a single-flight lock to prevent
+     * concurrent token requests.
+     *
+     * Accepts additional HTTP headers (e.g. an `Authorization` header for HTTP
+     * Basic client authentication per RFC 6749 §2.3.1).
+     *
      * @param tokenUrl the OAuth2 token endpoint URL
-     * @param params   the token request parameters (grant_type, client_id, etc.)
+     * @param params the token request parameters (grant_type, client_id, etc.)
+     * @param extraHeaders additional headers to include on the token request
      * @return a valid access token
      * @throws IllegalStateException if no API client has been injected
      */
@@ -151,7 +165,7 @@ class OAuth2TokenManager {
             apiClient
                 ?: throw IllegalStateException(
                     "ApiClient has not been injected. " +
-                        "Ensure the client constructor calls setApiClient() " +
+                        "Ensure the {{clientClassName}} constructor calls setApiClient() " +
                         "on HttpAwareAuthenticator before making API requests.",
                 )
 
@@ -165,13 +179,13 @@ class OAuth2TokenManager {
             "Accept" to "application/json",
         ) + extraHeaders
 
-        // Gap 3.2: refuse ANY 3xx redirect on the token endpoint (RFC 6749
-        // §3.2 forbids redirects there). 307/308 would silently replay client
-        // credentials (client_secret, refresh_token, password) in the form
-        // body to a redirect target; 301/302/303 are rejected too so a
-        // misconfigured or malicious server cannot bounce the request at all.
-        // A transport failure propagates unchanged as NetworkException /
-        // NetworkTimeoutException.
+        /* Refuse to follow 307/308 (and other 3xx) redirects on OAuth2 token
+         * POSTs. The token endpoint receives the client's credentials (or
+         * refresh token) in the request body — replaying that body to an
+         * attacker-controlled Location target would leak the credential. The
+         * ApiClient honours noRedirect=true by surfacing the first 3xx
+         * straight to us. A transport failure propagates unchanged as
+         * NetworkException / NetworkTimeoutException. */
         val response: ApiHttpResponse = client.sendRequest("POST", tokenUrl, headers, body, noRedirect = true)
         if (response.statusCode < 200 || response.statusCode >= 300) {
             /* Any non-2xx answer, a refused 3xx included, is an
@@ -190,13 +204,13 @@ class OAuth2TokenManager {
              * IllegalArgumentException, as does .jsonObject on a non-object. */
             throw OAuth2TokenException("Token response is not a JSON object: ${e.message}", e)
         }
-        val accessTokenValue = jsonObject["access_token"]?.jsonPrimitive?.contentOrNull
-        if (accessTokenValue.isNullOrEmpty()) {
+        val accessTokenElement = jsonObject["access_token"] as? JsonPrimitive
+        if (accessTokenElement == null || !accessTokenElement.isString || accessTokenElement.content.isEmpty()) {
             throw OAuth2TokenException("Token response missing or empty access_token field")
         }
-        this.accessToken = accessTokenValue
+        this.accessToken = accessTokenElement.content
         if (jsonObject.containsKey("refresh_token")) {
-            val newRefreshToken = jsonObject["refresh_token"]?.jsonPrimitive?.content
+            val newRefreshToken = (jsonObject["refresh_token"] as? JsonPrimitive)?.contentOrNull
             if (!newRefreshToken.isNullOrEmpty()) {
                 this.refreshToken = newRefreshToken
             }
@@ -224,6 +238,10 @@ class OAuth2TokenManager {
      * Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
      * [OAuth2ServerException]. Falls back to a generic error using the raw body
      * when the body is not a valid OAuth2 error object.
+     *
+     * @param statusCode the HTTP status code of the error response
+     * @param body the raw response body
+     * @return the typed OAuth2 error
      */
     private fun parseOAuth2ServerError(statusCode: Int, body: String): OAuth2ServerException {
         try {
@@ -244,8 +262,11 @@ class OAuth2TokenManager {
      * Defensive parse of the `expires_in` field per RFC 6749 §5.1.
      *
      * Returns `0` (caller skips caching) when the value is missing,
-     * unparseable, or non-positive. Accepts integers, floors floats,
-     * and parses digit strings (e.g. `"3600"` from Salesforce).
+     * unparseable, or non-positive. Accepts integers, floors floats, and
+     * parses digit strings (e.g. `"3600"` from Salesforce).
+     *
+     * @param element the JSON element holding `expires_in`
+     * @return the parsed lifetime in seconds, or `0` when unusable
      */
     private fun parseExpiresIn(element: JsonElement?): Long {
         if (element == null || element is JsonNull) {

@@ -1,12 +1,15 @@
+{{>api_info}}
+
 use super::{{baseClass}};
 
-/// {{className}} is a scheme-specific authenticator generated from the
-/// OpenAPI security scheme. Delegates to [`{{baseClass}}`].
+/// Scheme-specific authenticator for the {{schemeName}} security scheme.
+///
+/// Delegates to [`{{baseClass}}`].
 pub struct {{className}}({{baseClass}});
 
 impl {{className}} {
 {{#fallible}}
-    /// Creates a new `{{className}}`.
+    /// Creates an authenticator for the {{schemeName}} security scheme.
     ///
     /// # Errors
     ///
@@ -21,7 +24,7 @@ impl {{className}} {
     }
 {{/fallible}}
 {{^fallible}}
-    /// Creates a new `{{className}}`.
+    /// Creates an authenticator for the {{schemeName}} security scheme.
     pub fn new({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) -> Self {
         Self({{baseClass}}::new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}}))
     }

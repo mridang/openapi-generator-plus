@@ -7,6 +7,8 @@
 
 defmodule PetstoreClient.Errors.ApiError do
   @moduledoc """
+  Exception raised when an API call fails.
+
   Represents an error returned by the API, including the HTTP status code,
   response headers, and response body.
   """
@@ -50,7 +52,7 @@ defmodule PetstoreClient.Errors.ApiError do
 
     %__MODULE__{
       message: msg,
-      status_code: Map.get(opts, :status_code),
+      status_code: Map.get(opts, :status_code, 0),
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body),
@@ -63,7 +65,7 @@ defmodule PetstoreClient.Errors.ApiError do
 
     %__MODULE__{
       message: msg,
-      status_code: Keyword.get(opts, :status_code),
+      status_code: Keyword.get(opts, :status_code, 0),
       response_headers: Keyword.get(opts, :response_headers),
       response_body: Keyword.get(opts, :response_body),
       error_body: Keyword.get(opts, :error_body),
@@ -72,32 +74,56 @@ defmodule PetstoreClient.Errors.ApiError do
   end
 
   def exception(msg) when is_binary(msg) do
-    %__MODULE__{message: msg}
+    %__MODULE__{message: msg, status_code: 0}
   end
 
+  # Renders the message followed by whatever response context was captured, one
+  # labelled field per line.
   @impl true
   def message(%__MODULE__{} = error) do
     msg = error.message || "Error message: the server returns an error"
-    msg = if error.status_code, do: msg <> "\nHTTP status code: #{error.status_code}", else: msg
 
     msg =
-      if error.response_headers,
-        do: msg <> "\nResponse headers: #{inspect(error.response_headers)}",
-        else: msg
+      if error.status_code in [nil, 0],
+        do: msg,
+        else: msg <> "\nHTTP status code: #{error.status_code}"
 
-    msg = if error.response_body, do: msg <> "\nResponse body: #{error.response_body}", else: msg
+    msg =
+      if error.response_headers in [nil, %{}],
+        do: msg,
+        else: msg <> "\nResponse headers: #{inspect(error.response_headers)}"
+
+    msg =
+      if error.response_body in [nil, ""],
+        do: msg,
+        else: msg <> "\nResponse body: #{error.response_body}"
+
     msg
   end
 
   @doc """
-  Builds the error for a non-2xx HTTP response: the specific error for a
-  recognised status (`PetstoreClient.Errors.NotFoundError` for 404,
-  `PetstoreClient.Errors.InternalServerError` for 500, ...),
-  `PetstoreClient.Errors.ClientError` or `PetstoreClient.Errors.ServerError`
-  for any other 400-499 or 500-599, and an `ApiError` for anything else. A JSON body
-  is also parsed into `error_body`. Every generated operation and the OpenID
-  Connect discovery request build their HTTP errors here, so this is the one
-  place the status-to-error mapping lives.
+  Map an HTTP response that was not a success to the error for its status.
+
+  400, 401, 403, 404, 409 and 422 map to their named
+  `PetstoreClient.Errors.ClientError` specialisations and any other 4xx to
+  `PetstoreClient.Errors.ClientError`; 500 maps to
+  `PetstoreClient.Errors.InternalServerError` and any other 5xx to
+  `PetstoreClient.Errors.ServerError`; any other status maps to `ApiError`
+  itself. A JSON body is decoded and exposed through `error_body`; a body that
+  is not JSON leaves `error_body` as `nil`.
+
+  This is the one status-to-error mapping in the SDK: every generated operation
+  and the OpenID Connect discovery request build their HTTP errors here.
+
+  ## Parameters
+
+    * `status_code` - The HTTP status code of the response.
+    * `headers` - The HTTP response headers, if available.
+    * `body` - The raw HTTP response body, if available.
+
+  ## Returns
+
+    The error for the status; the caller raises it.
   """
   @spec from_response(integer(), %{optional(String.t()) => String.t()} | nil, String.t() | nil) ::
           Exception.t()
@@ -122,8 +148,8 @@ defmodule PetstoreClient.Errors.ApiError do
 
   defp exception_module(_status_code), do: __MODULE__
 
-  # F5: route through ObjectSerializer.parse_json so the @max_json_depth guard
-  # rejects malicious 100k-deep error payloads before Jason recurses.
+  # Route through ObjectSerializer.parse_json so the nesting-depth cap refuses a
+  # deeply-nested error payload before it can recurse through the call stack.
   defp parse_error_body(body) when is_binary(body) and body != "" do
     case PetstoreClient.ObjectSerializer.parse_json(body) do
       {:ok, data} -> data
@@ -134,13 +160,16 @@ defmodule PetstoreClient.Errors.ApiError do
   defp parse_error_body(_body), do: nil
 
   @doc """
-  Deserialize the raw response body into a typed error object. This is the one
-  accessor for spec-declared error schemas.
+  Deserialize the raw response body into a typed error object.
+
+  Useful when the API returns a structured error body that you want to access
+  in a strongly-typed way. This is the one accessor for spec-declared error
+  schemas.
 
   ## Parameters
 
     * `error` - The ApiError instance.
-    * `type_name` - The target type name for deserialization.
+    * `type_name` - The target type name to deserialize the error body into.
 
   ## Returns
 

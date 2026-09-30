@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::api_error::ApiError;
 
-/// ClientError represents an HTTP 4xx client error.
+/// Error for HTTP 4xx client errors.
 #[derive(Debug, Clone)]
 pub struct ClientError {
     api_error: ApiError,

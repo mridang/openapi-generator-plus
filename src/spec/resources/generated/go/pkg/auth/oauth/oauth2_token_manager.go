@@ -24,9 +24,9 @@ import (
 	errors_pkg "petstore/pkg/errors"
 )
 
-// expirySafetyMargin is applied to token expiry checks so that we refresh
-// slightly before the token actually expires, avoiding a race against the
-// server clock.
+// expirySafetyMargin is the safety margin applied to token expiry checks so that
+// we refresh slightly before the token actually expires, avoiding a race
+// against the server clock.
 const expirySafetyMargin = 60 * time.Second
 
 // ErrApiClientNotInjected is returned when an OAuth2 or OpenID Connect
@@ -36,7 +36,8 @@ var ErrApiClientNotInjected = errors.New("API client has not been injected; " +
 	"ensure the Client constructor calls SetApiClient on " +
 	"HttpAwareAuthenticator before making API requests")
 
-// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+// OAuth2TokenManager manages the OAuth2 token lifecycle, including fetching,
+// caching, and refreshing tokens.
 //
 // Uses the shared ApiClient instance so that token exchange requests honour
 // the same transport configuration (proxy, TLS, timeouts) as regular API calls.
@@ -72,14 +73,20 @@ func (m *OAuth2TokenManager) RefreshToken() string {
 
 // GetAccessToken returns a valid access token, fetching or refreshing as necessary.
 //
-// This method is synchronized to prevent concurrent token requests.
+// This method is synchronized to prevent concurrent token requests. The
+// tokenURL is the OAuth2 token endpoint URL and params are the token request
+// parameters (grant_type, client_id, etc.). Returns ErrApiClientNotInjected if
+// no API client has been injected.
 func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]string) (string, error) {
 	return m.GetAccessTokenWithHeaders(tokenURL, params, nil)
 }
 
 // GetAccessTokenWithHeaders returns a valid access token, fetching or refreshing
-// as necessary, with additional HTTP headers (e.g. Authorization for HTTP Basic
-// client authentication per RFC 6749 §2.3.1) included on the token request.
+// as necessary.
+//
+// This variant accepts additional HTTP headers (e.g. an Authorization header for
+// HTTP Basic client authentication per RFC 6749 §2.3.1), given as extraHeaders,
+// to include on the token request.
 func (m *OAuth2TokenManager) GetAccessTokenWithHeaders(tokenURL string, params map[string]string, extraHeaders map[string]string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -192,11 +199,11 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		/* A 2xx answer the SDK cannot use is an *OAuth2TokenError. */
-		return errors_pkg.NewOAuth2TokenError(fmt.Sprintf("failed to parse token response: %v", err))
+		return errors_pkg.NewOAuth2TokenError(fmt.Sprintf("Token response is not valid JSON: %v", err))
 	}
 
 	if parsed.AccessToken == "" {
-		return errors_pkg.NewOAuth2TokenError("token response missing or empty access_token field")
+		return errors_pkg.NewOAuth2TokenError("Token response missing or empty access_token field")
 	}
 	m.accessToken = parsed.AccessToken
 	if parsed.RefreshToken != "" {

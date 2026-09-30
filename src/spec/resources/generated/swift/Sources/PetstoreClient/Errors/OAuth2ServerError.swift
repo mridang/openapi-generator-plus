@@ -7,21 +7,27 @@
 
 import Foundation
 
-/// Thrown when the OAuth2 token endpoint answers with any non-2xx status,
-/// including a refused 3xx redirect. Typed representation of an RFC 6749
-/// §5.2 OAuth2 error response. The
+/// Thrown when the OAuth2 token endpoint answers with a non-2xx status,
+/// including a 3xx redirect, which the token POST never follows. Typed
+/// representation of an RFC 6749 §5.2 OAuth2 error response. The
 /// `code` field carries the OAuth2 error code (e.g. `invalid_grant`,
 /// `invalid_client`); `description` and `uri` are the optional
 /// human-readable description and a URL to a page describing the error.
 /// `rawBody` preserves the original response payload for diagnostics when
 /// the body is not a well-formed OAuth2 error object.
 public struct OAuth2ServerError: OpenAPIError, Equatable {
+  /// The HTTP status code of the error response.
   public let statusCode: Int
+  /// The RFC 6749 §5.2 error code, if present.
   public let code: String?
+  /// The human-readable error description, if present.
   public let description: String?
+  /// A URI describing the error, if present.
   public let uri: String?
+  /// The original response payload.
   public let rawBody: String
 
+  /// Creates a typed OAuth2 error response.
   public init(statusCode: Int, code: String?, description: String?, uri: String?, rawBody: String) {
     self.statusCode = statusCode
     self.code = code

@@ -10,26 +10,27 @@ use std::sync::Arc;
 use super::Authenticator;
 use crate::api_client::ApiClient;
 
-/// HttpAwareAuthenticator extends Authenticator for authentication schemes
-/// that require making HTTP requests (e.g. OAuth2 token exchange, OpenID
-/// Connect discovery).
+/// Extension of [`Authenticator`] for authentication schemes that require
+/// making HTTP requests (e.g. OAuth2 token exchange, OpenID Connect discovery).
 ///
-/// Implementations receive a shared ApiClient instance so that
+/// Implementations receive a shared [`ApiClient`] instance so that
 /// authentication-related HTTP calls (token endpoints, discovery documents)
 /// use the same transport configuration (proxy, TLS, timeouts) as regular
 /// API calls.
 ///
-/// The ApiClient is injected by the Client constructor after
-/// creation, via `set_api_client`. Implementations must not make HTTP calls
-/// before the client is injected.
+/// The [`ApiClient`] is injected by the `Client` constructor after
+/// construction, via [`HttpAwareAuthenticator::set_api_client`]. Implementations
+/// must not make HTTP calls before the client is injected.
 ///
 /// Only OAuth2 and OpenID Connect authenticators implement this trait.
-/// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
+/// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access
+/// and implement [`Authenticator`] directly.
 pub trait HttpAwareAuthenticator: Authenticator {
-    /// Injects the shared API client for making HTTP requests.
+    /// Inject the shared API client for making HTTP requests.
     ///
-    /// Called by the client constructor after the `ApiClient` has been created
-    /// with the user's `TransportOptions`. OAuth2 and OpenID Connect
-    /// authenticators store the client for token exchange or discovery.
+    /// Called by the `Client` constructor after the [`ApiClient`]
+    /// has been created with the user's `TransportOptions`. Implementations
+    /// should store this reference and use it for all outbound HTTP calls
+    /// (token exchange, discovery, etc.).
     fn set_api_client(&mut self, client: Arc<dyn ApiClient>);
 }

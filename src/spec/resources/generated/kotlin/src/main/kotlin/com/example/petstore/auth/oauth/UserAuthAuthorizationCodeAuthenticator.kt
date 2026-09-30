@@ -1,7 +1,18 @@
 
 package com.example.petstore.auth.oauth
 
+/**
+ * Authenticator for the `userAuth` security scheme.
+ */
 class UserAuthAuthorizationCodeAuthenticator : OAuth2AuthorizationCodeAuthenticator {
+    /**
+     * Creates an authenticator for the `userAuth` security scheme.
+     *
+     * @param host the host credential
+     * @param clientId the clientId credential
+     * @param clientSecret the clientSecret credential
+     * @param redirectUri the redirectUri credential
+     */
     constructor(
         host: String,
         clientId: String,

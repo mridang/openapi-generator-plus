@@ -9,7 +9,7 @@
 
 package errors
 
-// NotFoundError represents an HTTP 404 Not Found error.
+// NotFoundError is the error for HTTP 404 Not Found.
 type NotFoundError struct {
 	ClientError
 }

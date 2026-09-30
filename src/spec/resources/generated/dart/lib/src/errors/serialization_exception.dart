@@ -7,16 +7,20 @@
 
 import 'open_api_exception.dart';
 
-/// SerializationException is thrown when serialization or deserialization fails.
+/// Exception raised when serialization or deserialization fails.
 ///
-/// Extends [OpenAPIException], the branded root of the exception hierarchy, so
-/// that `serializationError is OpenAPIException` holds alongside the API
-/// errors.
+/// Extends [OpenAPIException], the branded root of the exception
+/// hierarchy, so that `serializationError is OpenAPIException` holds
+/// alongside the API errors.
 class SerializationException extends OpenAPIException {
+  /// The detail message.
   @override
   final String message;
+
+  /// The underlying cause, if any.
   final Object? cause;
 
+  /// Creates an exception with a detail message and an optional cause.
   const SerializationException(this.message, [this.cause]);
 
   @override

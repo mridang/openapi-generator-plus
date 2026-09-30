@@ -30,25 +30,25 @@ var ErrMissingRequiredParameter = errors.New("missing required parameter")
 // value containing characters RFC 6265 forbids. Match it with errors.Is.
 var ErrInvalidCookie = errors.New("invalid cookie")
 
-/* noAuthSentinel is the dedicated no-auth marker for this SDK. It is a tiny
- * Authenticator whose sole purpose is to be identity-compared against in
- * invokeApiForResult: when an operation declared `security: []` in the spec
- * (an explicitly unauthenticated operation), the generated api method passes
- * this sentinel as the auth argument instead of nil. base_api then knows to
- * apply NO authentication, rather than falling back to the client-level
- * authenticator (the bug this fixes: a `security: []` op was wrongly
- * re-acquiring the client credential and leaking it on the wire).
- *
- * Three-state contract for invokeApiParams.auth:
- *   - noAuth (this sentinel)  -> NO auth applied; do NOT fall back to client auth
- *   - nil                     -> fall back to the client-level authenticator
- *                                (secured op with no per-call override)
- *   - a real Authenticator    -> use it (per-call override)
- *
- * It is identity-comparable (a pointer to an empty struct) and is kept internal
- * to the generated client — callers never see or construct it. Its methods are
- * never invoked because the sentinel is detected and stripped before any auth
- * material is read; they return empty values purely to satisfy the interface. */
+// noAuthSentinel is the sentinel authenticator that marks an operation as
+// explicitly unauthenticated.
+//
+// An operation declared with `security: []` in the spec opts out of all
+// authentication. Its generated method passes this sentinel as the auth argument
+// so that invokeApiForResult can distinguish three states that a plain nil
+// could not:
+//
+//   - auth == noAuth: the operation is unauthenticated; the client-level
+//     authenticator must NOT be applied (no credential leak);
+//   - auth == nil: a secured operation with no per-call override; fall back to
+//     the client-level authenticator (unchanged behaviour);
+//   - auth is any other instance: a per-call override; use it (unchanged
+//     behaviour).
+//
+// This is an internal, identity-comparable singleton (a pointer to an empty
+// struct); it returns empty header/query/cookie maps so that even if it were
+// ever applied it would attach nothing. Callers never see or construct it, and
+// it is never exposed in any public signature.
 type noAuthSentinel struct{}
 
 func (noAuthSentinel) Host() string                    { return "" }
@@ -56,21 +56,30 @@ func (noAuthSentinel) AuthHeaders() map[string]string  { return nil }
 func (noAuthSentinel) QueryParams() map[string]string  { return nil }
 func (noAuthSentinel) CookieParams() map[string]string { return nil }
 
-/* noAuth is the single shared instance of the no-auth sentinel. Identity
- * comparison against this value (auth == noAuth) is what distinguishes an
- * explicitly-unauthenticated operation from one that should fall back to the
- * client authenticator. */
+// noAuth is the single shared instance of the no-auth sentinel. Identity
+// comparison against this value (auth == noAuth) is what distinguishes an
+// explicitly-unauthenticated operation from one that should fall back to the
+// client authenticator.
 var noAuth Authenticator = &noAuthSentinel{}
 
-// baseApi provides common functionality for all API classes.
+// baseApi is the base for all API classes. Provides the invokeApi method that
+// handles URL construction, header selection, body serialization, and request
+// dispatch.
 type baseApi struct {
-	config         *Configuration
-	apiClient      ApiClient
-	headerSelector *headerSelector
-	authenticator  Authenticator
+	config         *Configuration  // API-level configuration (base URL and default headers)
+	apiClient      ApiClient       // the HTTP transport client used for sending requests
+	headerSelector *headerSelector // content negotiation logic for Accept and Content-Type headers
+	authenticator  Authenticator   // default authenticator used when no per-operation auth is provided
 }
 
-// newBaseApi creates a new baseApi instance.
+// newBaseApi creates an API instance with a custom API client, configuration,
+// and authenticator.
+//
+// Parameters:
+//   - apiClient: the HTTP transport client (nil selects a default client)
+//   - config: API-level configuration: base URL and default headers (nil selects
+//     the default configuration)
+//   - authenticator: default authenticator for operations without explicit auth
 func newBaseApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *baseApi {
 	if apiClient == nil {
 		apiClient = NewDefaultApiClient(nil)
@@ -86,20 +95,24 @@ func newBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 	}
 }
 
-// invokeApiParams holds parameters for the invokeApi call.
+// invokeApiParams holds the parameters for an invokeApi call.
 type invokeApiParams struct {
-	method      string
-	path        string
-	queryParams map[string]any
-	headerParams map[string]string
-	body        any
-	accepts     []string
-	contentType string
-	returnType  string
-	auth        Authenticator
+	method       string            // HTTP method (GET, POST, PUT, DELETE, etc.)
+	path         string            // URL path (with path params already substituted)
+	queryParams  map[string]any    // query parameters
+	headerParams map[string]string // custom header parameters
+	body         any               // request body (model object or nil)
+	accepts      []string          // acceptable response content types
+	contentType  string            // request content type
+	returnType   string            // return type for deserialization (empty for void)
+	auth         Authenticator     // optional authenticator for operation-specific auth
 }
 
-// invokeApiForResult dispatches an API request and returns the full result.
+// invokeApiForResult invokes an API operation and returns the full response,
+// including the status code, headers, and raw body.
+//
+// Returns the response, or an error if the API call fails (a non-2xx status is
+// returned as the matching *ApiError subclass).
 func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, error) {
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
@@ -163,10 +176,10 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 
 	/* Merge auth headers */
 	if effectiveAuth != nil {
-		/* oauth-cc-authheaders-error-swallow: prefer AuthHeadersOrError when the
-		 * authenticator exposes it, so a token-fetch failure surfaces as the real
-		 * OAuth error instead of being swallowed into an empty header map (which
-		 * would send the request unauthenticated and produce a confusing 401). */
+		/* Prefer AuthHeadersOrError when the authenticator exposes it, so a
+		 * token-fetch failure surfaces as the real OAuth error instead of being
+		 * swallowed into an empty header map (which would send the request
+		 * unauthenticated and produce a confusing 401). */
 		var authHeaders map[string]string
 		if p, ok := effectiveAuth.(interface {
 			AuthHeadersOrError() (map[string]string, error)
@@ -254,11 +267,16 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	return response, nil
 }
 
-// invokeApi dispatches an API request and returns just the response.
+// invokeApi invokes an API operation.
+//
+// Returns the response, or an error if the API call fails.
 func (b *baseApi) invokeApi(params invokeApiParams) (*ApiHttpResponse, error) {
 	return b.invokeApiForResult(params)
 }
 
+// buildQueryString builds a query string from query parameters.
+//
+// Returns the encoded query string.
 func buildQueryString(queryParams map[string]any) string {
 	if len(queryParams) == 0 {
 		return ""
@@ -296,9 +314,11 @@ func buildQueryString(queryParams map[string]any) string {
 	return strings.Join(parts, "&")
 }
 
-// encodeQueryValue percent-encodes a query-parameter value, preserving RFC 3986
-// reserved characters when the parameter declared allowReserved: true. The
-// default path is byte-identical to url.QueryEscape.
+// encodeQueryValue encodes a query-parameter value, preserving RFC 3986 reserved
+// characters when the parameter declared allowReserved: true. The default path
+// is byte-identical to url.QueryEscape.
+//
+// Returns the encoded value.
 func encodeQueryValue(value string, allowReserved bool) string {
 	if allowReserved {
 		return encodeQueryAllowingReserved(value)
@@ -306,6 +326,9 @@ func encodeQueryValue(value string, allowReserved bool) string {
 	return url.QueryEscape(value)
 }
 
+// serializeBody serializes a request body according to the request content type.
+//
+// Returns the serialized bytes, or nil when there is no body to send.
 func serializeBody(body any, contentType string) ([]byte, error) {
 	if body == nil {
 		return nil, nil
@@ -348,7 +371,7 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 
 	if contentType == "application/x-www-form-urlencoded" {
 		if params, ok := body.(map[string]any); ok {
-			/* application/x-www-form-urlencoded wire-format parity:
+			/* application/x-www-form-urlencoded wire format:
 			 *  - array fields are exploded into repeated keys
 			 *    (tags=a&tags=b), never a single bracketed/joined value;
 			 *  - nil/absent optional fields are omitted entirely;
@@ -375,9 +398,9 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 	return serialize(body)
 }
 
-/* buildMultipartBody constructs a multipart/form-data request body from
- * a map of form fields. Each value may be a string, number, boolean,
- * slice (repeated field), map (serialized as JSON part), or nil (skipped). */
+// buildMultipartBody constructs a multipart/form-data request body from a map of
+// form fields. Each value may be a string, number, boolean, slice (repeated
+// field), map (serialized as JSON part), or nil (skipped).
 func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, error) {
 	var buf strings.Builder
 	writer := multipart.NewWriter(&buf)
@@ -411,6 +434,9 @@ func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, err
 	return []byte(buf.String()), nil
 }
 
+// writeMultipartField writes one form field to the multipart body, choosing the
+// part encoding from the value's type: a plain text field, a file part, or a
+// JSON part.
 func writeMultipartField(writer *multipart.Writer, name string, value any) error {
 	if value == nil {
 		return nil
@@ -449,10 +475,9 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 	case map[string]any:
 		return writeJSONMultipartPart(writer, name, v)
 	default:
-		/* multipart-object-part-contenttype-go: object/model/map form values are
-		 * serialised as JSON, so the part must advertise
-		 * Content-Type: application/json (matching the other 11 SDKs). Scalars
-		 * keep the plain text-field encoding. */
+		/* Object/model/map form values are serialised as JSON, so the part must
+		 * advertise Content-Type: application/json (matching the other SDKs).
+		 * Scalars keep the plain text-field encoding. */
 		if isJSONObjectValue(v) {
 			return writeJSONMultipartPart(writer, name, v)
 		}
@@ -460,10 +485,10 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 	}
 }
 
-/* isJSONObjectValue reports whether a multipart form value should be emitted as
- * a JSON part (with Content-Type: application/json) rather than a plain text
- * field — i.e. it is a struct, map, or pointer to one (an object/model), as
- * opposed to a scalar. */
+// isJSONObjectValue reports whether a multipart form value should be emitted as
+// a JSON part (with Content-Type: application/json) rather than a plain text
+// field — i.e. it is a struct, map, or pointer to one (an object/model), as
+// opposed to a scalar.
 func isJSONObjectValue(value any) bool {
 	if value == nil {
 		return false
@@ -483,11 +508,11 @@ func isJSONObjectValue(value any) bool {
 	}
 }
 
-/* writeJSONMultipartPart writes value as a JSON multipart part carrying an
- * explicit Content-Type: application/json header. multipart.Writer's
- * CreateFormField sets only Content-Disposition, which would leave the JSON
- * part to be treated as text/plain by content-type-dispatching servers, so the
- * part header is built manually here. */
+// writeJSONMultipartPart writes value as a JSON multipart part carrying an
+// explicit Content-Type: application/json header. multipart.Writer's
+// CreateFormField sets only Content-Disposition, which would leave the JSON
+// part to be treated as text/plain by content-type-dispatching servers, so the
+// part header is built manually here.
 func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) error {
 	jsonBytes, err := json.Marshal(value)
 	if err != nil {
@@ -507,11 +532,10 @@ func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) er
 	return err
 }
 
-/* decodeBinaryResponse decodes the transport's base64-encoded response body
- * back to its original raw bytes. The DefaultApiClient base64-encodes any
- * non-text response so that the body can be carried as a string in
- * ApiHttpResponse; this helper reverses that encoding for callers that expect
- * a []byte return type. */
+// decodeBinaryResponse decodes the transport's base64-encoded response body back
+// to its original raw bytes. The DefaultApiClient base64-encodes any non-text
+// response so that the body can be carried as a string in ApiHttpResponse; this
+// helper reverses that encoding for callers that expect a []byte return type.
 func decodeBinaryResponse(body string) ([]byte, error) {
 	if body == "" {
 		return []byte{}, nil
@@ -519,10 +543,10 @@ func decodeBinaryResponse(body string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(body)
 }
 
-/* mimeTypeForFilename returns a Content-Type guess derived from the file
- * extension. Falls back to application/octet-stream when the extension is
- * unknown or absent. Used by multipart writers so that each file part
- * advertises a meaningful Content-Type rather than the generic default. */
+// mimeTypeForFilename returns a Content-Type guess derived from the file
+// extension. Falls back to application/octet-stream when the extension is
+// unknown or absent. Used by multipart writers so that each file part
+// advertises a meaningful Content-Type rather than the generic default.
 func mimeTypeForFilename(filename string) string {
 	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
@@ -547,12 +571,12 @@ func mimeTypeForFilename(filename string) string {
 	return "application/octet-stream"
 }
 
-/* createMultipartFilePart creates a multipart file part with a Content-Type
- * derived from the filename extension. multipart.Writer.CreateFormFile
- * always uses application/octet-stream which loses the per-part media type
- * for typed uploads (e.g. PNG, PDF). For non-ASCII filenames it emits an
- * RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
- * receive the original filename intact rather than mangled UTF-8. */
+// createMultipartFilePart creates a multipart file part with a Content-Type
+// derived from the filename extension. multipart.Writer.CreateFormFile
+// always uses application/octet-stream which loses the per-part media type
+// for typed uploads (e.g. PNG, PDF). For non-ASCII filenames it emits an
+// RFC 5987 filename*= parameter alongside an ASCII fallback so that servers
+// receive the original filename intact rather than mangled UTF-8.
 func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
 	if err := validateMultipartFilename(fileName); err != nil {
 		return nil, err
@@ -565,16 +589,16 @@ func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName strin
 	return writer.CreatePart(header)
 }
 
-/* escapeQuotes backslash-escapes characters that would otherwise terminate a
- * quoted-string in a multipart header. */
+// escapeQuotes backslash-escapes characters that would otherwise terminate a
+// quoted-string in a multipart header.
 func escapeQuotes(s string) string {
 	r := strings.NewReplacer("\\", "\\\\", `"`, `\"`)
 	return r.Replace(s)
 }
 
-/* validateMultipartFilename rejects filenames that would allow Content-Disposition
- * header injection or smuggling. Returns an error if the filename contains
- * CR, LF, or NUL characters. */
+// validateMultipartFilename rejects filenames that would allow Content-Disposition
+// header injection or smuggling. Returns an error if the filename contains
+// CR, LF, or NUL characters.
 func validateMultipartFilename(filename string) error {
 	for _, c := range filename {
 		if c == '\r' || c == '\n' || c == 0 {
@@ -584,11 +608,11 @@ func validateMultipartFilename(filename string) error {
 	return nil
 }
 
-/* Gap W2: validateMultipartFieldName rejects multipart field names that
- * would allow Content-Disposition header injection. Returns an error if
- * the name contains CR, LF, or NUL characters. The caller still needs
- * to backslash-escape `"` and `\` via escapeQuotes when interpolating
- * the field name into a quoted-string parameter. */
+// validateMultipartFieldName rejects multipart field names that would allow
+// Content-Disposition header injection. Returns an error if the name contains
+// CR, LF, or NUL characters. The caller still needs to backslash-escape `"` and
+// `\` via escapeQuotes when interpolating the field name into a quoted-string
+// parameter.
 func validateMultipartFieldName(name string) error {
 	for _, c := range name {
 		if c == '\r' || c == '\n' || c == 0 {
@@ -598,11 +622,11 @@ func validateMultipartFieldName(name string) error {
 	return nil
 }
 
-/* buildFilenameDirective builds the filename=... directive for a multipart part.
- * For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
- * For non-ASCII filenames it additionally emits an RFC 5987
- * filename*=UTF-8''<percent-encoded> parameter alongside an ASCII fallback
- * (non-ASCII bytes replaced with '_'). */
+// buildFilenameDirective builds the filename=... directive for a multipart part.
+// For ASCII-only filenames it emits filename="..." with quote/backslash escaping.
+// For non-ASCII filenames it additionally emits an RFC 5987
+// filename*=UTF-8''<percent-encoded> parameter alongside an ASCII fallback
+// (non-ASCII bytes replaced with '_').
 func buildFilenameDirective(filename string) string {
 	escaped := escapeQuotes(filename)
 	ascii := true
@@ -628,8 +652,8 @@ func buildFilenameDirective(filename string) string {
 	return fmt.Sprintf(`filename="%s"; filename*=UTF-8''%s`, asciiFallback, encoded)
 }
 
-/* rfc5987EncodeValue percent-encodes every byte that is not an RFC 3986 §2.3
- * unreserved character, producing the value-chars production of RFC 5987 §3.2.1. */
+// rfc5987EncodeValue percent-encodes every byte that is not an RFC 3986 §2.3
+// unreserved character, producing the value-chars production of RFC 5987 §3.2.1.
 func rfc5987EncodeValue(s string) string {
 	const hex = "0123456789ABCDEF"
 	b := []byte(s)
@@ -648,10 +672,10 @@ func rfc5987EncodeValue(s string) string {
 	return string(out)
 }
 
-/* newEmptyBodyError builds the typed ApiError returned by a convenience
- * (non-WithHTTPInfo) method when a body-returning operation receives no
- * decodable body. convenience-empty-body-handling: the empty-body condition
- * must surface as a catchable, typed error instead of a silent nil/zero-value. */
+// newEmptyBodyError builds the typed ApiError returned by a convenience
+// (non-WithHTTPInfo) method when a body-returning operation receives no
+// decodable body. The empty-body condition must surface as a catchable, typed
+// error instead of a silent nil/zero-value.
 func newEmptyBodyError(operationID string, statusCode int, rawBody string, headers map[string]string) error {
 	return errors_pkg.NewApiError(
 		statusCode,
@@ -663,11 +687,14 @@ func newEmptyBodyError(operationID string, statusCode int, rawBody string, heade
 	)
 }
 
+// throwAPIError converts a non-2xx response into the matching typed error via
+// the one status-to-error mapping, errors_pkg.FromResponse.
 func throwAPIError(response *ApiHttpResponse) error {
 	return errors_pkg.FromResponse(response.StatusCode, response.Headers, response.Body)
 }
 
-// isValidCookieName checks RFC 6265 cookie-name (RFC 7230 token).
+// isValidCookieName returns true if the value is a valid RFC 6265 cookie name
+// (token). Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
 func isValidCookieName(name string) bool {
 	if name == "" {
 		return false
@@ -682,7 +709,10 @@ func isValidCookieName(name string) bool {
 	return true
 }
 
-// isValidCookieValue checks RFC 6265 cookie-octet* validity.
+// isValidCookieValue returns true if the value is a valid RFC 6265 cookie value
+// (cookie-octet*). Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+// Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls. Empty
+// value is allowed.
 func isValidCookieValue(value string) bool {
 	for _, c := range value {
 		ok := c == 0x21 ||

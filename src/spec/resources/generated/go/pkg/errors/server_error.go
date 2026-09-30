@@ -9,7 +9,7 @@
 
 package errors
 
-// ServerError represents an HTTP 5xx server error.
+// ServerError is the error for HTTP 5xx server errors.
 type ServerError struct {
 	ApiError
 }

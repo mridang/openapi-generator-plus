@@ -8,16 +8,19 @@
 package com.example.petstore.auth
 
 /**
- * Provides HTTP Bearer token authentication.
+ * Authenticator for HTTP Bearer token authentication.
+ *
+ * @param host the base URL of the API
+ * @param token the bearer token
  */
 open class BearerAuthenticator(
     private val host: String,
     private val token: String,
 ) : BaseAuthenticator() {
     init {
-        // Reject an empty or whitespace-only token: it would otherwise emit a
-        // bare "Authorization: Bearer " header that carries no credential,
-        // failing open. Mirrors the api-key authenticator's own empty guard.
+        // Reject an empty or whitespace-only token: it would otherwise emit the
+        // literal "Authorization: Bearer " header, sending the request
+        // effectively unauthenticated.
         if (token.isBlank()) {
             throw IllegalArgumentException("Bearer token must not be empty or blank")
         }
@@ -52,8 +55,10 @@ open class BearerAuthenticator(
     }
 
     /**
-     * Redacts the bearer token so it never leaks through the default
-     * string representation (logs, stack traces, debuggers).
+     * Returns a string representation that redacts the token so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
      */
     override fun toString(): String = "${this::class.simpleName}(host=$host, token=***)"
 }

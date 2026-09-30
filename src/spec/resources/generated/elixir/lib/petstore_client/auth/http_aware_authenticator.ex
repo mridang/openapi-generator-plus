@@ -15,16 +15,22 @@ defmodule PetstoreClient.Auth.HttpAwareAuthenticator do
   use the same transport configuration (proxy, TLS, timeouts) as regular
   API calls.
 
-  The `ApiClient` is injected by the `Client` after construction,
-  via `set_api_client/2`. Implementations must not make HTTP calls before
-  the client is injected.
+  The `ApiClient` is injected by the `Client` after
+  construction, via `set_api_client/2`. Implementations must not make HTTP
+  calls before the client is injected.
 
   Only OAuth2 and OpenID Connect authenticators implement this behaviour.
-  Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
+  Simple authenticators (Basic, Bearer, API Key) do not need HTTP access and
+  implement `Authenticator` directly.
   """
 
   @doc """
   Inject the shared API client for making HTTP requests.
+
+  Called by the `Client` constructor after the `ApiClient` has
+  been created with the user's `TransportOptions`. Implementations should
+  store this reference and use it for all outbound HTTP calls (token
+  exchange, discovery, etc.).
   """
   @callback set_api_client(term(), term()) :: term()
 end

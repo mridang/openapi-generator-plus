@@ -16,11 +16,10 @@ import (
 
 var jsonMIMEPattern = regexp.MustCompile(`(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)`)
 
-// headerSelector selects Accept and Content-Type headers for API requests
-// based on the MIME types declared in the OpenAPI specification.
+// headerSelector selects the Accept and Content-Type headers for API requests.
 type headerSelector struct{}
 
-// newHeaderSelector creates a new headerSelector instance.
+// newHeaderSelector creates a new header selector.
 func newHeaderSelector() *headerSelector {
 	return &headerSelector{}
 }
@@ -51,16 +50,13 @@ func (h *headerSelector) selectHeaders(accept []string, contentType string, isMu
 	return headers
 }
 
-// isJSONMIME detects whether a string contains a valid JSON MIME type.
-func (h *headerSelector) isJSONMIME(searchString string) bool {
-	if searchString == "" {
-		return false
-	}
-	return jsonMIMEPattern.MatchString(searchString)
-}
-
-// selectAcceptHeader builds the Accept request header by joining the declared
-// media types in their original order, after filtering out empty entries.
+// selectAcceptHeader returns the header 'Accept' based on the accept values provided.
+//
+// Empty and blank entries are removed and the remaining media types are joined, in their
+// original declaration order, with ", " (comma followed by a single space). No quality weights
+// are added and no reordering is performed.
+//
+// Returns the Accept header value, or an empty string if there is nothing to send.
 func (h *headerSelector) selectAcceptHeader(accept []string) string {
 	var filtered []string
 	for _, s := range accept {
@@ -74,4 +70,14 @@ func (h *headerSelector) selectAcceptHeader(accept []string) string {
 	}
 
 	return strings.Join(filtered, ", ")
+}
+
+// isJSONMIME detects whether a string contains a valid JSON mime type.
+//
+// Returns true if the string represents a JSON MIME type.
+func (h *headerSelector) isJSONMIME(searchString string) bool {
+	if searchString == "" {
+		return false
+	}
+	return jsonMIMEPattern.MatchString(searchString)
 }

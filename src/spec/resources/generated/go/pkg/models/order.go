@@ -69,11 +69,10 @@ type Order struct {
 
 // Equal reports whether this Order is value-equal to other.
 //
-// model-equality-swift-go: models may carry map / slice fields (e.g.
-// additionalProperties), so the built-in `==` operator panics at runtime on
-// such values. Comparing the canonical JSON encodings gives a value-equality
-// contract that works for every field shape, matching the equality semantics
-// of the other SDKs.
+// Models may carry map / slice fields (e.g. additionalProperties), so the
+// built-in `==` operator panics at runtime on such values. Comparing the
+// canonical JSON encodings gives a value-equality contract that works for every
+// field shape, matching the equality semantics of the other SDKs.
 func (o Order) Equal(other Order) bool {
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
@@ -101,10 +100,10 @@ func (o Order) MarshalJSON() ([]byte, error) {
 func (o *Order) UnmarshalJSON(data []byte) error {
 	type Alias Order
 	aux := &Alias{}
-	/* default-on-deserialize: pre-seed optional fields that declare a schema
-	 * default. json.Unmarshal leaves a struct field untouched when its key is
-	 * absent from the payload, so a pre-set default survives while a present
-	 * value overwrites it — matching the default-application of the other SDKs. */
+	/* json.Unmarshal leaves a struct field untouched when its key is absent
+	 * from the payload, so we pre-seed optional fields that declare a schema
+	 * default before decoding: a present value overwrites the default while an
+	 * absent one keeps it, matching the default-application of the other SDKs. */
 	var defaultStatus OrderStatusEnum = "placed"
 	aux.Status = &defaultStatus
 	if err := json.Unmarshal(data, aux); err != nil {

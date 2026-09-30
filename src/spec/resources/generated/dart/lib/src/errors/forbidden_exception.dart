@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// ForbiddenException represents an HTTP 403 Forbidden error.
+/// Exception for HTTP 403 Forbidden.
 class ForbiddenException extends ClientException {
   const ForbiddenException({
     required super.statusCode,

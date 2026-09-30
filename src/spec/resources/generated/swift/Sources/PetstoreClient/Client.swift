@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// Client is the unified entry point for all API services.
+/// Unified entry point for all API services.
 ///
 /// Takes an ``Authenticator`` and optionally ``TransportOptions``, then exposes
 /// each API group as a typed property. If the authenticator conforms to
@@ -15,32 +15,37 @@ import Foundation
 /// authentication HTTP calls (token exchange, discovery) use the same
 /// transport configuration as regular API calls.
 ///
-/// Example with default transport:
+/// Usage:
 ///
 /// ```swift
-/// let client = Client(authenticator: authenticator)
-/// ```
+/// // Default transport
+/// let client = try Client(authenticator: authenticator)
 ///
-/// Example with custom transport (proxy, timeouts, etc.):
-///
-/// ```swift
-/// let transport = TransportOptions.builder()
+/// // Custom transport (proxy, timeouts, etc.)
+/// let transport = try TransportOptions.builder()
 ///     .proxy("http://proxy:3128")
-///     .timeout(5)
+///     .timeout(5000)
 ///     .build()
-/// let client = Client(authenticator: authenticator, transportOptions: transport)
+/// let client = try Client(authenticator: authenticator, transportOptions: transport)
 /// ```
 public final class Client: Sendable {
-  /// Provides methods for the Pet API group.
+  /// API operations for the PetApi group.
   public let pet: PetApi
-  /// Provides methods for the Store API group.
+  /// API operations for the StoreApi group.
   public let store: StoreApi
 
-  /// Creates a new client with the given authenticator and optional transport options.
+  /// Creates a new client with the given authenticator and transport options.
   ///
   /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
   /// ``ApiClient`` is injected so that token exchange and discovery requests use
   /// the same proxy, TLS, and timeout settings.
+  ///
+  /// - Parameters:
+  ///   - authenticator: Provides host URL and auth headers.
+  ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+  ///     default transport settings when omitted.
+  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+  ///   be read or parsed.
   public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) throws {
     let opts = transportOptions ?? TransportOptionsBuilder().build()
     let apiClient = try DefaultApiClient(transportOptions: opts)
@@ -58,6 +63,13 @@ public final class Client: Sendable {
   }
 
   /// Creates a client authenticated with a static Bearer token.
+  ///
+  /// - Parameters:
+  ///   - host: API base URL.
+  ///   - accessToken: Bearer token.
+  ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+  ///   be read or parsed.
   public convenience init(
     host: String, accessToken: String, transportOptions: TransportOptions? = nil
   ) throws {

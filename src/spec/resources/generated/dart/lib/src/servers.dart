@@ -9,9 +9,9 @@ import 'server_configuration.dart';
 
 /// Generated server configurations from the OpenAPI specification.
 ///
-/// Each variable corresponds to a server entry defined in the spec's
-/// servers array. Use these with [ConfigurationBuilder.server] to select a
-/// server:
+/// Each constant corresponds to a server entry defined in the spec's
+/// `servers` array. Use these constants with [ConfigurationBuilder.server] to
+/// select a server:
 ///
 /// ```dart
 /// final config = Configuration.builder()
@@ -27,7 +27,8 @@ import 'server_configuration.dart';
 ///   .build();
 /// ```
 
-/// Server configuration for: /api/v3
+/// Server 0: `/api/v3`
+///
 /// Relative URL (no variables)
 final server0 = ServerConfiguration(
   urlTemplate: '/api/v3',
@@ -35,7 +36,8 @@ final server0 = ServerConfiguration(
   variables: {},
 );
 
-/// Server configuration for: https://{environment}.example.com/api/{version}
+/// Server 1: `https://{environment}.example.com/api/{version}`
+///
 /// Main API server with variables
 final server1 = ServerConfiguration(
   urlTemplate: 'https://{environment}.example.com/api/{version}',

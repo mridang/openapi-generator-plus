@@ -8,7 +8,13 @@
 package com.example.petstore.auth
 
 /**
- * Provides API key authentication.
+ * Authenticator for API key authentication. Supports sending the key
+ * as a header, query parameter, or cookie.
+ *
+ * @param host the base URL of the API
+ * @param keyParamName the name of the header, query parameter, or cookie carrying the key
+ * @param apiKey the API key value
+ * @param location where the API key is sent on each request
  */
 open class ApiKeyAuthenticator(
     private val host: String,
@@ -18,9 +24,11 @@ open class ApiKeyAuthenticator(
 ) : BaseAuthenticator() {
     init {
         // Validation applies to ALL locations: empty/whitespace API keys
-        // and CR/LF/NUL are always programmer errors regardless of where
-        // the key ends up (header, query, cookie). RFC 7230 §3.2.6
-        // printable-ASCII rule still applies to HEADER values.
+        // are always a programmer error; CR/LF/NUL would either inject
+        // HTTP headers (HEADER location) or break URL/cookie construction
+        // (QUERY/COOKIE — even though URL-encoded later, trapping at
+        // construction surfaces the bug clearly). RFC 7230 §3.2.6 printable-
+        // ASCII rule still applies to HEADER values.
         if (apiKey.isEmpty() || apiKey.isBlank()) {
             throw IllegalArgumentException(
                 "API key value for '$keyParamName' must not be empty",
@@ -51,8 +59,10 @@ open class ApiKeyAuthenticator(
         if (location == ApiKeyLocation.COOKIE) mapOf(keyParamName to apiKey) else emptyMap()
 
     /**
-     * Redacts the API key so it never leaks through the default string
-     * representation (logs, stack traces, debuggers).
+     * Returns a string representation that redacts the API key so credentials
+     * never leak into logs or stack traces (matching the other SDKs).
+     *
+     * @return a redacted string representation
      */
     override fun toString(): String = "${this::class.simpleName}(host=$host, keyParamName=$keyParamName, apiKey=***, location=$location)"
 }

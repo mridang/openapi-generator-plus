@@ -1,21 +1,21 @@
 {{>api_info}}
 import 'base_authenticator.dart';
 
-/// BearerAuthenticator provides HTTP Bearer token authentication.
+/// Authenticator for HTTP Bearer token authentication.
 class BearerAuthenticator extends BaseAuthenticator {
   final String _host;
   final String _token;
 
-  /// Creates a new Bearer authenticator.
+  /// Creates an HTTP Bearer token authenticator.
+  ///
+  /// [host] is the base URL of the API and [token] is the bearer token.
   BearerAuthenticator({
     required String host,
     required String token,
   })  : _host = host,
         _token = token {
-    /* Cross-cutting `bearer-no-empty-token-guard`: reject an empty or
-     * whitespace-only token up front. Otherwise the authenticator would
-     * emit a bare `Authorization: Bearer ` header — an unauthenticated
-     * request masquerading as an authenticated one. Mirrors the api-key
+    /* Reject an empty or whitespace-only token up front so the SDK never
+     * emits a bare `Authorization: Bearer ` header, matching the api-key
      * authenticator's own empty guard. */
     if (token.trim().isEmpty) {
       throw ArgumentError('Bearer token must not be empty or whitespace');

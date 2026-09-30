@@ -13,11 +13,23 @@ import com.example.petstore.ObjectSerializer
  * Exception thrown when an API call fails.
  */
 open class ApiException : OpenAPIException {
+    /** The HTTP status code. */
     val statusCode: Int
+
+    /** The HTTP response headers, if available. */
     val responseHeaders: Map<String, String>?
+
+    /** The raw HTTP response body, if available. */
     val responseBody: String?
+
+    /** The deserialized error body, or null if not available. */
     val errorBody: Any?
 
+    /**
+     * Construct an exception with a detail message and no response context.
+     *
+     * @param message the detail message
+     */
     constructor(message: String) : super(message) {
         this.statusCode = 0
         this.responseHeaders = null
@@ -25,6 +37,17 @@ open class ApiException : OpenAPIException {
         this.errorBody = null
     }
 
+    /**
+     * Construct an exception that preserves the underlying transport cause.
+     *
+     * Used when a send/read failure (connection reset, read timeout,
+     * DNS failure) is wrapped: the original exception is retained as the
+     * [cause] so callers can inspect the root error
+     * rather than only a stringified message.
+     *
+     * @param message the detail message
+     * @param cause the underlying transport exception
+     */
     constructor(message: String, cause: Throwable) : super(message, cause) {
         this.statusCode = 0
         this.responseHeaders = null
@@ -34,9 +57,14 @@ open class ApiException : OpenAPIException {
 
     /**
      * Construct an exception for a response that arrived but could not be
-     * used, such as a body whose Content-Encoding cannot be decoded. The
-     * status code is the real status of the response that arrived, and the
-     * underlying failure is kept as the cause.
+     * used, such as a body whose Content-Encoding cannot be decoded.
+     *
+     * The status code is the real status of the response that arrived,
+     * and the underlying failure is kept as the [cause].
+     *
+     * @param statusCode the HTTP status code of the response that arrived
+     * @param message the detail message
+     * @param cause the underlying failure
      */
     constructor(statusCode: Int, message: String, cause: Throwable) : super(message, cause) {
         this.statusCode = statusCode
@@ -45,6 +73,15 @@ open class ApiException : OpenAPIException {
         this.errorBody = null
     }
 
+    /**
+     * Construct an exception with full response context.
+     *
+     * @param statusCode the HTTP status code
+     * @param message the detail message
+     * @param responseHeaders the HTTP response headers, if available
+     * @param responseBody the raw HTTP response body, if available
+     * @param errorBody the deserialized error body, if available
+     */
     constructor(
         statusCode: Int,
         message: String,
@@ -53,20 +90,28 @@ open class ApiException : OpenAPIException {
         errorBody: Any? = null,
     ) : super(message) {
         this.statusCode = statusCode
-        this.responseHeaders = responseHeaders
+        // Defensive immutable copy so the stored headers cannot be mutated by
+        // the caller after construction.
+        this.responseHeaders = responseHeaders?.toMap()
         this.responseBody = responseBody
         this.errorBody = errorBody
     }
 
     companion object {
         /**
-         * Map an HTTP response that was not a success to the exception for its
-         * status: 400, 401, 403, 404, 409 and 422 map to their named
-         * [ClientException] subclasses and any other 4xx to [ClientException];
-         * 500 maps to [InternalServerErrorException] and any other 5xx to
-         * [ServerException]; any other status maps to [ApiException] itself. A
-         * JSON body is parsed into [errorBody]; a body that is not JSON leaves
-         * [errorBody] null. The caller throws the returned exception.
+         * Map an HTTP response that was not a success to the exception for its status.
+         *
+         * 400, 401, 403, 404, 409 and 422 map to their named [ClientException]
+         * subclasses and any other 4xx to [ClientException]; 500 maps to
+         * [InternalServerErrorException] and any other 5xx to [ServerException];
+         * any other status maps to `ApiException` itself. A JSON body is decoded
+         * and exposed through [errorBody]; a body that is not JSON leaves
+         * the error body `null`.
+         *
+         * @param statusCode the HTTP status code of the response
+         * @param responseHeaders the HTTP response headers, if available
+         * @param responseBody the raw HTTP response body, if available
+         * @return the exception for the status; the caller throws it
          */
         @JvmStatic
         fun fromResponse(
@@ -107,7 +152,10 @@ open class ApiException : OpenAPIException {
      * Deserialize the raw response body into the given type.
      *
      * Useful when the API returns a structured error body that you want to
-     * access in a strongly-typed way. Returns null if the body is empty.
+     * access in a strongly-typed way.
+     *
+     * @param T the type to deserialize the error body into
+     * @return the deserialized error body, or null if the body is empty
      */
     inline fun <reified T> getTypedErrorBody(): T? {
         val body = responseBody
@@ -123,6 +171,8 @@ open class ApiException : OpenAPIException {
      *
      * [message] is deliberately not overridden: it keeps returning the detail
      * message the exception was constructed with.
+     *
+     * @return the human-readable rendering of this exception
      */
     override fun toString(): String {
         val detail = message

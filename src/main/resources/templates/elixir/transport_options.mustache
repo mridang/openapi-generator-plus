@@ -9,7 +9,7 @@ defmodule {{moduleName}}.TransportOptions do
   are independent of API-level concerns (base URL, authentication headers)
   which belong in `#{inspect({{moduleName}}.Configuration)}`.
 
-  This struct is immutable by convention. Use `new/1` to create instances:
+  This struct is immutable. Use `new/1` to create instances:
 
       transport = {{moduleName}}.TransportOptions.new(
         verify_ssl: false,
@@ -19,6 +19,39 @@ defmodule {{moduleName}}.TransportOptions do
       )
   """
 
+  @typedoc """
+  * `verify_ssl` - Whether TLS certificate verification is enabled. When `true`
+    (the default), the client verifies server certificates. Set to `false` to
+    accept any certificate (not recommended for production).
+  * `ca_cert_path` - Path to a custom CA certificate bundle for TLS
+    verification. When set together with `verify_ssl: true`, the client trusts
+    certificates signed by this CA in addition to (or instead of) the system
+    trust store.
+  * `proxy` - HTTP or HTTPS proxy URL for all outbound requests (e.g.
+    `"http://proxy.corp.example.com:3128"`). `nil` means direct connections (no
+    proxy).
+  * `timeout` - End-to-end request timeout in milliseconds. Covers the entire
+    request lifecycle: connection, TLS handshake, sending the request body, and
+    reading the response. Defaults to 10 seconds. Set to `nil` to disable the
+    timeout (wait indefinitely).
+  * `follow_redirects` - Whether the client follows HTTP 3xx redirects
+    automatically. When `true` (the default), redirects are followed. Set to
+    `false` to return the redirect response as-is.
+  * `max_redirects` - Maximum number of consecutive redirects to follow. Only
+    meaningful when `follow_redirects` is `true`. `nil` uses the HTTP client's
+    built-in default.
+  * `user_agent` - Custom `User-Agent` header value. When set, this value is
+    sent as the `User-Agent` header on every request unless the caller
+    explicitly provides one. `nil` means no custom user agent is injected.
+  * `default_headers` - Transport-level default headers included in every
+    request. These headers have the lowest priority: API-level headers from
+    `#{inspect({{moduleName}}.Configuration)}`, operation-specific headers, and
+    authentication headers all take precedence.
+  * `inject_request_id` - Whether to auto-inject an `X-Request-ID` header with a
+    unique UUID on every request. Useful for distributed tracing and log
+    correlation. The header is only injected if the caller has not already set
+    one.
+  """
   @type t :: %__MODULE__{
           verify_ssl: boolean(),
           ca_cert_path: String.t() | nil,
@@ -44,17 +77,30 @@ defmodule {{moduleName}}.TransportOptions do
   @doc """
   Creates a new TransportOptions with the given options.
 
+  All fields have sensible defaults:
+
+    * `:verify_ssl` - `true`
+    * `:follow_redirects` - `true`
+    * `:inject_request_id` - `false`
+    * `:timeout` - `10_000` (10 seconds)
+    * `:user_agent` - a package-specific default string
+    * all other fields - `nil` or empty
+
   ## Options
 
-    * `:verify_ssl` - Whether TLS certificate verification is enabled. Defaults to `true`.
+    * `:verify_ssl` - Whether TLS certificate verification is enabled.
     * `:ca_cert_path` - Path to a custom CA certificate bundle for TLS verification.
     * `:proxy` - HTTP or HTTPS proxy URL for all outbound requests.
-    * `:timeout` - End-to-end request timeout in milliseconds. Defaults to `10_000` (10 seconds).
-    * `:follow_redirects` - Whether the client follows HTTP 3xx redirects. Defaults to `true`.
-    * `:max_redirects` - Maximum number of consecutive redirects to follow.
-    * `:user_agent` - Custom User-Agent header value.
+    * `:timeout` - End-to-end request timeout in milliseconds, or `nil` for no timeout.
+    * `:follow_redirects` - Whether the client follows HTTP 3xx redirects.
+    * `:max_redirects` - Maximum number of consecutive redirects to follow, or `nil` for the client default.
+    * `:user_agent` - Custom User-Agent header value, or `nil` to omit.
     * `:default_headers` - Transport-level default headers.
-    * `:inject_request_id` - Whether to auto-inject an X-Request-ID header. Defaults to `false`.
+    * `:inject_request_id` - Whether to auto-inject an X-Request-ID header.
+
+  ## Raises
+
+    `ArgumentError` if the proxy URL is not a valid URL with an http or https scheme and a host.
 
   """
   @spec new(keyword()) :: t()
@@ -66,12 +112,12 @@ defmodule {{moduleName}}.TransportOptions do
 
       unless parsed.scheme in ["http", "https"] do
         raise ArgumentError,
-              "invalid proxy URL #{inspect(result.proxy)}: must use http or https scheme"
+              "Invalid proxy URL (must use http or https scheme): #{result.proxy}"
       end
 
       if is_nil(parsed.host) or parsed.host == "" do
         raise ArgumentError,
-              "invalid proxy URL #{inspect(result.proxy)}: missing host"
+              "Invalid proxy URL (missing host): #{result.proxy}"
       end
     end
 

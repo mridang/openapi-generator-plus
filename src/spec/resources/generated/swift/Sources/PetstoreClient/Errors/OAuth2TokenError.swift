@@ -7,14 +7,15 @@
 
 import Foundation
 
-/// Thrown when the OAuth2 token endpoint returns a 2xx response the SDK
-/// cannot use: a body that is missing or has an empty `access_token` field,
-/// or that is not a token JSON object. Distinct from ``OAuth2ServerError``
-/// (which represents any non-2xx answer) so callers can recover differently
-/// via `catch`.
+/// Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+/// be used: a body that is not a JSON object, or one whose `access_token`
+/// field is missing or empty. Distinct from ``OAuth2ServerError`` (which
+/// represents any non-2xx answer) so callers can recover differently —
+/// typically a malformed-server-response bug needs operator attention rather
+/// than a client-side retry.
 public enum OAuth2TokenError: OpenAPIError, Equatable {
+  /// The token endpoint's 2xx body has a missing or empty `access_token`.
   case missingAccessToken(String)
-  /// Thrown when the token endpoint's 2xx body is not UTF-8 or not a
-  /// token JSON object.
+  /// The token endpoint's 2xx body is not UTF-8 or not a token JSON object.
   case invalidResponse(String)
 }

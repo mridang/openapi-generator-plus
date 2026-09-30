@@ -1,18 +1,31 @@
 {{>api_info}}
 import Foundation
 
-/// ValueSerializer serializes parameter values for HTTP requests based on
-/// their location and style.
+/// Serializes parameter values for HTTP requests based on their location and format.
+///
+/// Converts values into their string representations suitable for HTTP request
+/// paths, query strings, and headers. Handles nil values, collections with various
+/// collection formats, and URL encoding.
 internal enum ValueSerializer {
 
-    /// Serializes a parameter value for HTTP requests based on its location.
+    /// Serialize a value for use in an HTTP request parameter.
+    ///
+    /// The serialization strategy depends on the `location`:
+    /// - path: scalar values are stringified and URL-encoded
+    /// - query: nils are omitted (returns `nil`); collections are formatted
+    ///   according to `collectionFormat`
+    /// - header: collections are joined with commas; nils become empty strings
+    /// - any other location: nils become empty strings, scalars are stringified
     ///
     /// - Parameters:
-    ///   - value: The value to serialize.
-    ///   - location: "path", "query", "header", or "cookie".
-    ///   - schemaType: The schema type (e.g. "string", "array").
-    ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
-    /// - Returns: The serialized value.
+    ///   - value: The value to serialize (may be nil).
+    ///   - location: Where the parameter appears: "path", "query", "header", or "cookie".
+    ///   - schemaType: The OpenAPI schema type (currently unused, reserved for
+    ///     future format-aware serialization).
+    ///   - collectionFormat: The collection format: "multi", "csv", "ssv", "tsv",
+    ///     or "pipes" (only relevant for query parameters).
+    /// - Returns: The serialized value: a `String`, a `[String]` (for "multi"
+    ///   query collections), or `nil` to omit the parameter.
     static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
         guard let value = value else {
             return serializeNil(location: location)
@@ -29,26 +42,28 @@ internal enum ValueSerializer {
         return strVal
     }
 
-    /// Serializes a deepObject-style query parameter.
+    /// Percent-encodes a value for use as a URL path segment.
     ///
-    /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
-    static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
-        guard let value = value else { return [:] }
-
-        var result: [String: String] = [:]
-        for (key, val) in value {
-            result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
-        }
-        return result
+    /// Encodes characters that are not allowed in a URI path segment per RFC 3986,
+    /// but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.)
+    /// that OAS 3.0 matrix/label/simple styles use as structural separators in
+    /// the styled value.
+    ///
+    /// The preserved set matches the canonical encoding used by Node, C#, Java, etc.:
+    /// `; = , : @ ! $ & ' ( ) * +`. The RFC 3986 unreserved `~` is also preserved.
+    static func encodePathSegment(_ value: String) -> String {
+        guard !value.isEmpty else { return value }
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
     /// Wraps a query value so the query-string builder preserves RFC 3986
-    /// reserved characters (OAS `allowReserved: true`).
+    /// reserved characters (OAS `allowReserved: true`) instead of
+    /// percent-encoding them. Produced by ``maybeAllowReserved(_:allowReserved:)``
+    /// and unwrapped when the query string is assembled.
     ///
-    /// `BaseApi.buildQueryString` recognizes this marker, unwraps it, and
-    /// encodes the inner value with a reserved-preserving allowed set instead
-    /// of the default unreserved-only set. The wrapped value is a `String`, or
-    /// a `[String]` for exploded/multi query parameters.
+    /// The wrapped value is a `String`, or a `[String]` for exploded parameters.
     struct AllowReservedValue {
         let value: Any
     }
@@ -57,9 +72,9 @@ internal enum ValueSerializer {
     /// `allowReserved: true`; otherwise returns it unchanged.
     ///
     /// - Parameters:
-    ///   - value: The serialized query value (a `String`, a `[String]`, or nil).
+    ///   - value: The serialized query value.
     ///   - allowReserved: Whether the parameter preserves reserved characters.
-    /// - Returns: The value, wrapped iff `allowReserved` is true and `value` is non-nil.
+    /// - Returns: The value, wrapped iff `allowReserved` is true.
     static func maybeAllowReserved(_ value: Any?, allowReserved: Bool) -> Any? {
         guard let value = value, allowReserved else {
             return value
@@ -83,17 +98,20 @@ internal enum ValueSerializer {
         }
     }
 
-    /// Serializes a parameter value according to OAS 3.0 style and explode rules.
+    /// Serialize a value with OAS 3.0 parameter style formatting.
+    ///
+    /// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+    /// styles. deepObject is handled separately by ``serializeDeepObject(_:value:)``.
     ///
     /// - Parameters:
     ///   - paramName: The parameter name.
-    ///   - value: The value to serialize.
-    ///   - location: "path", "query", "header", "cookie".
-    ///   - schemaType: The schema type.
-    ///   - collectionFormat: Legacy collection format.
-    ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
-    ///   - explode: Whether to explode array values.
-    /// - Returns: The serialized value.
+    ///   - value: The value to serialize (may be nil).
+    ///   - location: Where the parameter appears: "path", "query", "header", or "cookie".
+    ///   - schemaType: The OpenAPI schema type.
+    ///   - collectionFormat: The collection format (may be empty).
+    ///   - style: The OAS 3.0 parameter style (may be empty).
+    ///   - explode: Whether to explode arrays.
+    /// - Returns: The serialized value, or `nil` to omit the parameter.
     static func serializeStyled(
         _ paramName: String,
         value: Any?,
@@ -186,13 +204,25 @@ internal enum ValueSerializer {
         }
     }
 
-    /// Percent-encodes a string for use as a path segment, preserving
-    /// sub-delimiters that OAS 3.0 path styles use as structural separators.
-    static func encodePathSegment(_ value: String) -> String {
-        guard !value.isEmpty else { return value }
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
-        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    /// Serialize a deepObject-style query parameter.
+    ///
+    /// Produces a dictionary of flattened keys in the form `paramName[key]` to
+    /// stringified values, suitable for inclusion in a query string. The values
+    /// are not percent-encoded here; the query-string builder encodes them.
+    ///
+    /// - Parameters:
+    ///   - paramName: The parameter name (e.g. "filter").
+    ///   - value: The dictionary value to serialize.
+    /// - Returns: A dictionary of expanded keys to serialized values, or an
+    ///   empty dictionary if value is nil.
+    static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
+        guard let value = value else { return [:] }
+
+        var result: [String: String] = [:]
+        for (key, val) in value {
+            result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
+        }
+        return result
     }
 
     private static func serializeNil(location: String) -> Any? {

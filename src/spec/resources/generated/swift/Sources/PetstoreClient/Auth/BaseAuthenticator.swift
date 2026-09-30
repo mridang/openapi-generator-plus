@@ -8,8 +8,9 @@
 import Foundation
 
 /// Abstract base class providing default implementations for optional
-/// Authenticator methods. Concrete authenticators should extend this class.
+/// ``Authenticator`` methods. Concrete authenticators should extend this class.
 open class BaseAuthenticator: Authenticator, @unchecked Sendable {
+  /// Creates a new authenticator.
   public init() {}
 
   /// Returns the base URL of the API. Concrete authenticators must override.

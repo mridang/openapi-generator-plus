@@ -7,18 +7,23 @@
 
 import Foundation
 
-/// Internal no-auth sentinel.
+/// Sentinel authenticator that marks an operation as explicitly unauthenticated.
 ///
-/// An operation declared `security: []` in the spec is explicitly
-/// unauthenticated and must NOT pick up the client-level authenticator. A
-/// plain `nil` auth argument cannot express that intent because `nil` already
-/// means "no per-call override — fall back to the client authenticator". To
-/// distinguish the two cases the generated api methods pass this dedicated
-/// sentinel for unauthenticated operations.
+/// An operation declared with `security: []` in the spec opts out of all
+/// authentication. Its generated method passes this sentinel as the `auth`
+/// argument so that `BaseApi.invokeAPI` can distinguish three states that a
+/// plain `nil` could not:
 ///
-/// It is a reference type so it can be compared by identity (`===`) against
-/// `BaseApi.noAuthSentinel`; it never contributes any headers, query params,
-/// or cookies. It is internal to the generated client — callers never see it.
+/// - `auth` is the sentinel: the operation is unauthenticated; the
+///   client-level authenticator must NOT be applied (no credential leak);
+/// - `auth == nil`: a secured operation with no per-call override; fall back
+///   to the client-level authenticator (unchanged behaviour);
+/// - `auth` is any other instance: a per-call override; use it (unchanged
+///   behaviour).
+///
+/// This is an internal, identity-comparable (`===`) reference type; it returns
+/// empty header/query/cookie maps so that even if it were ever applied it
+/// would attach nothing. Callers never see it.
 final class NoAuth: Authenticator, @unchecked Sendable {
   func host() -> String { return "" }
   func authHeaders() async throws -> [String: String] { return [:] }
@@ -26,21 +31,37 @@ final class NoAuth: Authenticator, @unchecked Sendable {
   func cookieParams() -> [String: String] { return [:] }
 }
 
-/// BaseApi provides common functionality for all API classes.
+/// Base class for all API classes. Provides the `invokeAPI` method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
 public class BaseApi: @unchecked Sendable {
+  /// The HTTP transport client used for sending requests.
+  let apiClient: ApiClient
+
+  /// API-level configuration (base URL and default headers).
+  let config: Configuration
+
+  /// Content negotiation logic for Accept and Content-Type headers.
+  let headerSelector: HeaderSelector
+
+  /// Default authenticator used when no per-operation auth is provided.
+  let authenticator: Authenticator?
+
   /// The single shared no-auth sentinel instance. Identity-comparable.
   /// Generated api methods for `security: []` operations pass this value as
   /// the `auth` argument; `invokeAPI` recognizes it and suppresses all
   /// authentication (it does not fall back to the client authenticator).
   static let noAuthSentinel: Authenticator = NoAuth()
 
-  let config: Configuration
-  let apiClient: ApiClient
-  let headerSelector: HeaderSelector
-  let authenticator: Authenticator?
-
-  /// Creates a new BaseApi instance. Internal: consumers construct the
+  /// Create an API instance with a custom API client, configuration, and
+  /// authenticator. Every argument is optional: the default transport and
+  /// configuration are used when omitted. Internal: consumers construct the
   /// concrete `*API` subclasses, which expose their own public initializer.
+  ///
+  /// - Parameters:
+  ///   - apiClient: The HTTP transport client.
+  ///   - config: API-level configuration (base URL and default headers).
+  ///   - authenticator: Default authenticator for operations without explicit auth.
   init(
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
   ) {
@@ -50,7 +71,11 @@ public class BaseApi: @unchecked Sendable {
     self.authenticator = authenticator
   }
 
-  /// Parameters for an API invocation.
+  /// Parameters for an API invocation: HTTP method, URL path (with path
+  /// params already substituted), query parameters, custom header parameters,
+  /// request body (model object or nil), acceptable response content types,
+  /// request content type, return type name, and optional authenticator for
+  /// operation-specific auth.
   struct InvokeAPIParams {
     let method: String
     let path: String
@@ -63,7 +88,12 @@ public class BaseApi: @unchecked Sendable {
     let auth: Authenticator?
   }
 
-  /// Dispatches an API request and returns the raw response.
+  /// Invoke an API operation and return the raw response, handling URL
+  /// construction, header selection, body serialization and request dispatch.
+  ///
+  /// - Parameter params: The invocation parameters.
+  /// - Returns: The raw HTTP response.
+  /// - Throws: ``ApiError`` if the API call fails.
   func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
     var requestURL = params.path
     if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
@@ -198,9 +228,17 @@ public class BaseApi: @unchecked Sendable {
     return response
   }
 
-  /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+  /// Invoke an API operation and return the full result including status code,
+  /// headers, and raw body alongside the deserialized data.
+  ///
   /// Binary endpoints (return type `Data`) get the raw response bytes; JSON endpoints
   /// run through `ObjectSerializer.deserialize`.
+  ///
+  /// - Parameters:
+  ///   - params: The invocation parameters.
+  ///   - type: The return type for deserialization.
+  /// - Returns: ``ApiResult`` containing deserialized data, status code, raw body, and headers.
+  /// - Throws: ``ApiError`` if the API call fails.
   func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws
     -> ApiResult<T>
   {
@@ -230,8 +268,7 @@ public class BaseApi: @unchecked Sendable {
     } else if !response.body.isEmpty {
       /* Default to JSON when Content-Type is missing — matches the other
          11 SDKs which all assume JSON for empty/missing Content-Type. Some
-         servers strip Content-Type from JSON responses; Swift previously
-         returned nil in that case, leaving callers with no data. */
+         servers strip Content-Type from JSON responses. */
       if isJsonResponse {
         data = try ObjectSerializer.deserialize(response.body, as: type)
       } else {
@@ -246,7 +283,12 @@ public class BaseApi: @unchecked Sendable {
     )
   }
 
-  /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
+  /// Invoke an API operation with no return type and return the full result
+  /// (status code, headers and raw body) with no deserialized data.
+  ///
+  /// - Parameter params: The invocation parameters.
+  /// - Returns: ``ApiResult`` with `nil` data, status code, raw body, and headers.
+  /// - Throws: ``ApiError`` if the API call fails.
   func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
     let response = try await invokeAPI(params)
     return ApiResult<Void>(
@@ -282,6 +324,10 @@ public class BaseApi: @unchecked Sendable {
     return allowed
   }()
 
+  /// Build a query string from query parameters.
+  ///
+  /// - Parameter queryParams: The query parameters.
+  /// - Returns: Encoded query string, or an empty string when there are none.
   static func buildQueryString(_ queryParams: [String: Any?]) -> String {
     guard !queryParams.isEmpty else { return "" }
 
@@ -321,6 +367,12 @@ public class BaseApi: @unchecked Sendable {
     return parts.joined(separator: "&")
   }
 
+  /// Serialize a request body according to its content type.
+  ///
+  /// - Parameters:
+  ///   - body: The request body (model object or nil).
+  ///   - contentType: The request content type.
+  /// - Returns: The encoded body bytes, or nil when there is no body to send.
   static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
     guard let body = body else { return nil }
 
@@ -348,8 +400,7 @@ public class BaseApi: @unchecked Sendable {
          * `+` (not `%20`). Percent-encode with the unreserved set —
          * which turns a literal `+` in the value into `%2B` — then map
          * the remaining `%20` (space) to `+` so the wire bytes match
-         * the 9-SDK majority (Java/Go/Python/Ruby/Kotlin/Dart/Elixir/
-         * Node/Rust). */
+         * the other SDKs. */
         let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
         func formEncode(_ s: String) -> String {
           let pct = s.addingPercentEncoding(withAllowedCharacters: formSafe) ?? s
@@ -527,7 +578,8 @@ public class BaseApi: @unchecked Sendable {
     }
   }
 
-  /// RFC 6265 cookie-name validation (RFC 7230 token).
+  /// Returns true if the value is a valid RFC 6265 cookie name (token).
+  /// Allowed chars: ALPHA / DIGIT / "!#$%&'*+-.^_`|~".
   static func isValidCookieName(_ name: String) -> Bool {
     if name.isEmpty { return false }
     let allowed = CharacterSet(
@@ -535,7 +587,10 @@ public class BaseApi: @unchecked Sendable {
     return name.unicodeScalars.allSatisfy { allowed.contains($0) }
   }
 
-  /// RFC 6265 cookie-value validation (cookie-octet*).
+  /// Returns true if the value is a valid RFC 6265 cookie value (cookie-octet*).
+  /// Allowed: %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+  /// Excludes whitespace, DQUOTE, comma, semicolon, backslash, controls.
+  /// Empty value is allowed.
   static func isValidCookieValue(_ value: String) -> Bool {
     return value.unicodeScalars.allSatisfy { s in
       let v = s.value
@@ -551,9 +606,8 @@ public class BaseApi: @unchecked Sendable {
 /// Formats a `format: date` value as YYYY-MM-DD using a fixed-locale,
 /// fixed-timezone formatter. Swift has only Date (no separate date-only
 /// type), so the codegen checks the spec format and routes through this
-/// helper to strip the time component. Without this, a date param goes
-/// out as a full ISO+offset string, which mismatches the 6 SDKs with
-/// native LocalDate types — the spec calls for date-only.
+/// helper to strip the time component; the spec calls for a date-only value,
+/// not a full date-time.
 func stringifyDate(_ value: Date) -> String {
   let formatter = DateFormatter()
   formatter.dateFormat = "yyyy-MM-dd"

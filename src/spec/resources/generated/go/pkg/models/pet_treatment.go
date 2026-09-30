@@ -15,7 +15,8 @@ import (
 )
 
 // PetTreatment A treatment that can match a medication, a surgery, or both
-// anyOf-retain-all: a non-discriminated anyOf is documented as matching ANY
+//
+// A non-discriminated anyOf is documented as matching ANY
 // subset of its variants — including SEVERAL at once. A first-match union
 // would keep only the first variant that decoded and silently drop the fields
 // of every other co-satisfied variant on re-encode, losing data. To make the

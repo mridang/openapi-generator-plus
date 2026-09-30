@@ -11,10 +11,10 @@ use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
 
-/// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
+/// Authenticator for the OAuth2 Implicit flow.
 ///
-/// Implements HttpAwareAuthenticator for interface consistency with other
-/// OAuth2 authenticators. The implicit flow does not make token exchange
+/// Implements [`HttpAwareAuthenticator`] for interface consistency with the
+/// other OAuth2 authenticators. The implicit flow does not make token exchange
 /// requests.
 ///
 /// Usage:
@@ -35,6 +35,10 @@ pub struct OAuth2ImplicitAuthenticator {
 
 impl OAuth2ImplicitAuthenticator {
     /// Creates a new implicit flow authenticator.
+    ///
+    /// `host` is the API base URL, `client_id` the OAuth2 client ID,
+    /// `authorization_url` the authorization endpoint URL and `scopes` the
+    /// requested scopes.
     pub fn new(
         host: &str,
         client_id: &str,
@@ -52,9 +56,9 @@ impl OAuth2ImplicitAuthenticator {
 
     /// Sets the access token obtained from the authorization redirect fragment.
     ///
-    /// F-A5-04: validate at set time to mirror BearerAuthenticator's RFC 7230
-    /// §3.2.6 check. Without it, a CR/LF-bearing token would be stashed and
-    /// only fail at the next API call via the Authorization-header concat,
+    /// The token is validated at set time to mirror `BearerAuthenticator`'s
+    /// RFC 7230 §3.2.6 check. Without it, a CR/LF-bearing token would be stashed
+    /// and only fail at the next API call via the Authorization-header concat,
     /// allowing HTTP header injection from a redirect-fragment-derived value.
     ///
     /// # Errors
@@ -96,10 +100,10 @@ impl OAuth2ImplicitAuthenticator {
     }
 }
 
-/// Redacts the access token so it never leaks through `{:?}` (Debug)
-/// formatting, stack traces, or error logs. The host, client id,
-/// authorization URL, and scopes are shown normally; the access token is
-/// masked as `***` when set and `None` before the redirect.
+/// Renders a representation that redacts the access token so the credential
+/// never leaks into logs or stack traces (`{:?}` formatting). The host, client
+/// id, authorization URL, and scopes stay visible; the access token is masked
+/// as `***` when set and `None` before the redirect.
 impl std::fmt::Debug for OAuth2ImplicitAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token = self.access_token.lock().unwrap();

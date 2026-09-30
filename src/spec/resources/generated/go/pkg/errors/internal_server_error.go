@@ -9,7 +9,7 @@
 
 package errors
 
-// InternalServerError represents an HTTP 500 Internal Server Error.
+// InternalServerError is the error for HTTP 500 Internal Server Error.
 type InternalServerError struct {
 	ServerError
 }

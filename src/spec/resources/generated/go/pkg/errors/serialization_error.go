@@ -11,9 +11,11 @@ package errors
 
 import "fmt"
 
-// SerializationError is returned when a value cannot be encoded to, or decoded
-// from, its wire form: malformed JSON, a wrong primitive type, a missing
-// required field, an unknown enum value or a malformed date, time or duration.
+// SerializationError is returned when serialization or deserialization fails: a
+// value cannot be encoded to, or decoded from, its wire form (malformed JSON, a
+// wrong primitive type, a missing required field, an unknown enum value or a
+// malformed date, time or duration). It satisfies the branded OpenAPIError
+// root, so it shares a common ancestor with the transport-level ApiError hierarchy.
 //
 // Its state is immutable: fields are set once at construction via
 // NewSerializationError and read through the Message and Cause getters.
@@ -22,7 +24,7 @@ type SerializationError struct {
 	cause   error
 }
 
-// NewSerializationError builds a SerializationError. The underlying decode or
+// NewSerializationError creates a SerializationError. The underlying decode or
 // encode error is kept as the cause, so errors.Is and errors.As still reach it.
 func NewSerializationError(message string, cause error) *SerializationError {
 	return &SerializationError{message: message, cause: cause}
@@ -41,6 +43,7 @@ func (e *SerializationError) Cause() error {
 // isOpenAPIError brands SerializationError as a OpenAPIError.
 func (e *SerializationError) isOpenAPIError() {}
 
+// Error implements the error interface.
 func (e *SerializationError) Error() string {
 	if e.cause != nil {
 		return fmt.Sprintf("%s: %v", e.message, e.cause)

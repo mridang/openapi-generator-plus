@@ -13,10 +13,8 @@ use super::Authenticator;
 use crate::auth::api_key_location::ApiKeyLocation;
 use crate::errors::configuration_error::ConfigurationError;
 
-/// ApiKeyAuthenticator provides API key authentication.
-///
-/// The API key can be sent as a header, query parameter, or cookie,
-/// depending on the location specified at construction.
+/// Authenticator for API key authentication. Supports sending the key as a
+/// header, query parameter, or cookie.
 pub struct ApiKeyAuthenticator {
     host: String,
     key_param_name: String,
@@ -25,14 +23,14 @@ pub struct ApiKeyAuthenticator {
 }
 
 impl ApiKeyAuthenticator {
-    /// Creates a new API key authenticator.
+    /// Creates an API key authenticator.
     ///
     /// # Arguments
     ///
-    /// * `host` - API base URL
-    /// * `key_param_name` - name of the key parameter
+    /// * `host` - the base URL of the API
+    /// * `key_param_name` - the name of the header, query parameter, or cookie carrying the key
     /// * `api_key` - the API key value
-    /// * `location` - where to send the key (header, query, or cookie)
+    /// * `location` - where the API key is sent on each request
     ///
     /// # Errors
     ///
@@ -45,8 +43,11 @@ impl ApiKeyAuthenticator {
         location: ApiKeyLocation,
     ) -> Result<Self, ConfigurationError> {
         // Validation applies to ALL locations: empty/whitespace API keys
-        // and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
-        // printable-ASCII rule still applies to HEADER values.
+        // are always a caller mistake; CR/LF/NUL would either inject HTTP
+        // headers (header location) or break URL/cookie construction
+        // (query/cookie), so trapping them at construction surfaces the bug
+        // clearly. The RFC 7230 §3.2.6 printable-ASCII rule still applies to
+        // header values.
         if api_key.trim().is_empty() {
             return Err(ConfigurationError::InvalidArgument(format!(
                 "API key value for '{}' must not be empty",
@@ -78,9 +79,9 @@ impl ApiKeyAuthenticator {
     }
 }
 
-/// Redacts the API key so it never leaks through `{:?}` (Debug) formatting,
-/// stack traces, or error logs. The host, parameter name, and location are
-/// shown normally; the API key is masked as `***`.
+/// Renders a representation that redacts the API key so credentials never leak
+/// into logs or stack traces (`{:?}` formatting). The host, parameter name, and
+/// location are shown normally; the API key is masked as `***`.
 impl std::fmt::Debug for ApiKeyAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ApiKeyAuthenticator")

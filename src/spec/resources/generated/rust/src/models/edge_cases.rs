@@ -36,7 +36,12 @@ pub struct EdgeCases {
     )]
     pub retry_after: Option<chrono::Duration>,
     /// Absolute expiry instant
-    #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "expiresAt",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::date_time::option"
+    )]
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 

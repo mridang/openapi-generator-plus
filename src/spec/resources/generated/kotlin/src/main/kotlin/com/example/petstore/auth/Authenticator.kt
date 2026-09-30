@@ -9,14 +9,35 @@ package com.example.petstore.auth
 
 /**
  * Interface for providing authentication credentials to the API client.
+ * Implementations supply the API host URL and authorization headers.
  */
 interface Authenticator {
+    /**
+     * Returns the base URL of the API.
+     *
+     * @return the base URL of the API
+     */
     fun getHost(): String
 
+    /**
+     * Returns the authentication headers to include in every request.
+     *
+     * @return the authentication headers, keyed by header name
+     */
     suspend fun getAuthHeaders(): Map<String, String>
 
+    /**
+     * Returns query parameters to include for authentication.
+     *
+     * @return the authentication query parameters, keyed by parameter name
+     */
     fun getQueryParams(): Map<String, String> = emptyMap()
 
+    /**
+     * Returns cookie parameters to include for authentication.
+     *
+     * @return the authentication cookie parameters, keyed by cookie name
+     */
     fun getCookieParams(): Map<String, String> = emptyMap()
 }
 

@@ -40,7 +40,7 @@ defmodule PetstoreClient.Client do
   ]
 
   @doc """
-  Creates a new client with the given authenticator and optional transport options.
+  Creates a new client with the given authenticator and transport options.
 
   If the authenticator implements `HttpAwareAuthenticator`, the shared
   `ApiClient` is injected so that token exchange and discovery requests
@@ -49,7 +49,8 @@ defmodule PetstoreClient.Client do
   ## Parameters
 
     * `authenticator` - Provides host URL and auth headers.
-    * `transport_options` - HTTP transport configuration (optional).
+    * `transport_options` - HTTP transport configuration (proxy, TLS, timeouts,
+      etc.).
 
   """
   @spec new(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
@@ -75,41 +76,47 @@ defmodule PetstoreClient.Client do
   end
 
   @doc """
-  Creates a client from a ready-made authenticator.
-
-  This is the generic entry point for bespoke authenticators such as client
-  credentials, JWT private key, or personal access token (PAT). Pass any
-  authenticator that implements `#{inspect(PetstoreClient.Auth.Authenticator)}`
-  and, optionally, transport options.
-
-  ## Parameters
-
-    * `authenticator` - Provides host URL and auth headers.
-    * `transport_options` - HTTP transport configuration (optional).
-
-  ## Returns
-
-    A configured `#{inspect(__MODULE__)}` instance.
-  """
-  @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
-  def with_authenticator(authenticator, transport_options \\ nil) do
-    new(authenticator, transport_options)
-  end
-
-  @doc """
   Creates a client authenticated with a static Bearer token.
 
   ## Parameters
 
     * `host` - API base URL.
     * `access_token` - Bearer token.
+    * `transport_options` - Optional HTTP transport configuration (proxy, TLS,
+      timeouts, etc.).
 
   ## Returns
 
-    A configured `#{inspect(__MODULE__)}` instance.
+    A configured client instance.
   """
   @spec with_token(String.t(), String.t(), PetstoreClient.TransportOptions.t() | nil) :: t()
   def with_token(host, access_token, transport_options \\ nil) do
     new(PetstoreClient.Auth.BearerAuthenticator.new(host, access_token), transport_options)
+  end
+
+  @doc """
+  Creates a client from a ready-made authenticator.
+
+  This is the generic entry point for bespoke authentication strategies such as
+  OAuth2 client credentials, JWT private-key (service account), or a personal
+  access token (PAT). Supply any `#{inspect(PetstoreClient.Auth.Authenticator)}`
+  implementation; if it also implements
+  `#{inspect(PetstoreClient.Auth.HttpAwareAuthenticator)}`, the shared
+  `ApiClient` is injected so its HTTP calls reuse the same transport
+  configuration.
+
+  ## Parameters
+
+    * `authenticator` - Provides host URL and auth headers.
+    * `transport_options` - Optional HTTP transport configuration (proxy, TLS,
+      timeouts, etc.).
+
+  ## Returns
+
+    A configured client instance.
+  """
+  @spec with_authenticator(term(), PetstoreClient.TransportOptions.t() | nil) :: t()
+  def with_authenticator(authenticator, transport_options \\ nil) do
+    new(authenticator, transport_options)
   end
 end

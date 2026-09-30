@@ -32,7 +32,7 @@ impl serde::ser::Error for NonFiniteError {
 ///
 /// `serde_json` silently encodes a NaN or ±Infinity float as JSON `null`
 /// (RFC 8259 §6 has no such token), which would corrupt the wire form and
-/// diverge from the 11 other SDKs that reject non-finite floats. Walking the
+/// diverge from the other SDKs, which reject non-finite floats. Walking the
 /// value first lets [`serialize`] fail loudly with a [`SerializationError`].
 /// Every scalar is a no-op except `serialize_f32`/`serialize_f64`, which error
 /// on a non-finite value; the compound impls recurse so a float nested in a
@@ -228,11 +228,11 @@ impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
 
 /// Serializes an object to a JSON string.
 ///
-/// Rejects a non-finite float (NaN or ±Infinity) before encoding: `serde_json`
-/// would otherwise write it as JSON `null`, silently corrupting the wire value
+/// Returns a [`SerializationError`] if serialization fails. Rejects a
+/// non-finite float (NaN or ±Infinity) before encoding: `serde_json` would
+/// otherwise write it as JSON `null`, silently corrupting the wire value
 /// (RFC 8259 §6 has no NaN/Infinity token). The pre-flight [`FiniteFloatCheck`]
-/// walk surfaces such a value as a [`SerializationError`], matching the other
-/// SDKs (python `allow_nan=False`, node, etc.).
+/// walk surfaces such a value as a [`SerializationError`].
 pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
     if value.serialize(FiniteFloatCheck).is_err() {
         return Err(SerializationError::new(
@@ -249,15 +249,17 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> 
 }
 
 /// Deserializes a JSON byte slice into the target type.
-/// Returns None if data is empty.
+///
+/// Returns `None` if the data is empty, and a [`SerializationError`] if
+/// deserialization fails.
 pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, SerializationError> {
     if data.is_empty() {
         return Ok(None);
     }
-    // RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text, but
-    // Windows-generated payloads often include one and serde_json rejects
-    // it. Strip silently for parity with Java Jackson / C# System.Text.Json
-    // which strip transparently.
+    /* Strip a leading UTF-8 BOM (U+FEFF) before parsing. RFC 8259 §8.1
+     * forbids a BOM at the start of JSON text, but Windows-generated payloads
+     * often include one and serde_json rejects it, so the very first token
+     * would otherwise fail. */
     let stripped: &[u8] = if data.len() >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
         &data[3..]
     } else {
@@ -271,11 +273,141 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
         ))
 }
 
+/// `chrono` format string for the canonical `format: date-time` wire form.
+///
+/// A fixed three-digit millisecond fraction and a numeric offset (rendering a
+/// zero offset as `+00:00`, never the `Z` designator), e.g.
+/// `2024-01-01T12:30:45.000+00:00`. All SDKs emit this exact shape so a value
+/// serialises to identical bytes in every language.
+///
+/// Three digits (not a variable 0/3/6/9 fraction) because millisecond
+/// precision is the cross-SDK common denominator, so any sub-millisecond
+/// component is truncated on encode. The `%:z` specifier is what forbids the
+/// `Z` form: chrono's default RFC 3339 output emits `Z` for UTC and a variable
+/// fraction, and would diverge from the other SDKs.
+const DATE_TIME_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.3f%:z";
+
+/// Formats a date-time in the canonical wire form
+/// (`YYYY-MM-DDTHH:MM:SS.mmm±HH:MM`).
+///
+/// A zero offset is rendered as `+00:00`, never `Z`, and the fraction is
+/// always exactly three digits.
+pub fn format_date_time<Tz: chrono::TimeZone>(value: &chrono::DateTime<Tz>) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    value.format(DATE_TIME_FORMAT).to_string()
+}
+
+/// Rewrites an RFC 3339 date-time string into the canonical wire form.
+///
+/// The offset is preserved (a `Z` designator becomes `+00:00`). Returns `None`
+/// when `text` is not an RFC 3339 date-time, so the caller can leave it as is.
+pub fn canonicalize_date_time(text: &str) -> Option<String> {
+    chrono::DateTime::parse_from_rfc3339(text)
+        .ok()
+        .map(|parsed| format_date_time(&parsed))
+}
+
+/// Serde helpers that (de)serialise `format: date-time` model fields in the
+/// canonical wire form (see [`format_date_time`]).
+///
+/// The generated models apply `#[serde(with = "crate::object_serializer::date_time")]`
+/// (or the `option`, `vec` and `vec_option` submodules for optional and array
+/// fields) to a `chrono::DateTime<chrono::Utc>` property, because chrono's own
+/// serde impl writes a UTC value with the `Z` designator and a variable-width
+/// fraction. Decoding accepts any RFC 3339 date-time.
+pub mod date_time {
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    /// Serializes a `DateTime<Utc>` in the canonical wire form.
+    pub fn serialize<S: Serializer>(value: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&super::format_date_time(value))
+    }
+
+    /// Deserializes an RFC 3339 date-time string into a `DateTime<Utc>`.
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<DateTime<Utc>, D::Error> {
+        DateTime::<Utc>::deserialize(d)
+    }
+
+    /// Canonical wire form for `Option<DateTime<Utc>>`.
+    pub mod option {
+        use chrono::{DateTime, Utc};
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        /// Serializes an optional `DateTime<Utc>` in the canonical wire form.
+        pub fn serialize<S: Serializer>(
+            value: &Option<DateTime<Utc>>,
+            s: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(v) => s.serialize_str(&super::super::format_date_time(v)),
+                None => s.serialize_none(),
+            }
+        }
+
+        /// Deserializes an optional RFC 3339 date-time string.
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            d: D,
+        ) -> Result<Option<DateTime<Utc>>, D::Error> {
+            Option::<DateTime<Utc>>::deserialize(d)
+        }
+    }
+
+    /// Canonical wire form for `Vec<DateTime<Utc>>`.
+    pub mod vec {
+        use chrono::{DateTime, Utc};
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        /// Serializes a list of `DateTime<Utc>` in the canonical wire form.
+        pub fn serialize<S: Serializer>(value: &[DateTime<Utc>], s: S) -> Result<S::Ok, S::Error> {
+            s.collect_seq(value.iter().map(super::super::format_date_time))
+        }
+
+        /// Deserializes a list of RFC 3339 date-time strings.
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            d: D,
+        ) -> Result<Vec<DateTime<Utc>>, D::Error> {
+            Vec::<DateTime<Utc>>::deserialize(d)
+        }
+    }
+
+    /// Canonical wire form for `Option<Vec<DateTime<Utc>>>`.
+    pub mod vec_option {
+        use chrono::{DateTime, Utc};
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        /// Serializes an optional list of `DateTime<Utc>` in the canonical wire form.
+        pub fn serialize<S: Serializer>(
+            value: &Option<Vec<DateTime<Utc>>>,
+            s: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(items) => {
+                    s.collect_seq(items.iter().map(super::super::format_date_time))
+                }
+                None => s.serialize_none(),
+            }
+        }
+
+        /// Deserializes an optional list of RFC 3339 date-time strings.
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            d: D,
+        ) -> Result<Option<Vec<DateTime<Utc>>>, D::Error> {
+            Option::<Vec<DateTime<Utc>>>::deserialize(d)
+        }
+    }
+}
+
 /// Converts a single scalar value to its string representation.
 ///
 /// This is the canonical type-conversion method used by all parameter
-/// encoding helpers (to_path_value, to_query_value, etc.) and by
-/// ValueSerializer for transport formatting.
+/// encoding helpers (`to_path_value`, `to_query_value`, etc.) and by
+/// `value_serializer` for transport formatting.
+///
+/// Booleans produce lowercase `"true"`/`"false"`, null produces the empty
+/// string, and strings pass through unquoted.
 pub fn stringify<T: Serialize>(value: &T) -> String {
     match serde_json::to_value(value) {
         Ok(serde_json::Value::String(s)) => s,
@@ -518,9 +650,9 @@ mod tests {
 
     #[test]
     fn test_unknown_fields_tolerated_on_deserialize() {
-        /* Cross-language parity: by default, all 12 SDKs accept and ignore
-         * additional fields the server includes that aren't declared in the
-         * schema. Without this, server-side additions break clients. */
+        /* By default the SDK accepts and ignores additional fields the server
+         * includes that are not declared in the schema. Without this,
+         * server-side additions break clients. */
         let payload = br#"{"id":7,"name":"Cats","unrecognised_field":"ignore me","another":42}"#;
         let result: Option<Category> = object_serializer::deserialize(payload)
             .expect("deserialize must tolerate unknown fields");
@@ -544,7 +676,7 @@ mod tests {
         assert_eq!(cat.name, Some("Dogs".to_string()));
     }
 
-    // -- DIVERGENCE #10: required, non-nullable fields must HARD-FAIL --
+    // -- required, non-nullable fields must HARD-FAIL --
     //
     // A required field that is non-`Option` is generated without
     // `#[serde(default)]`, so serde's derived `Deserialize` returns an
@@ -829,36 +961,48 @@ mod tests {
     }
 
     // DateTimeOffsetPreservationTests
-    // Note: Rust's serde_json serializes chrono DateTime with offset via chrono feature.
-    // These tests verify the serialize/deserialize round-trip with RFC3339 strings.
+    // The canonical `format: date-time` wire form is
+    // `YYYY-MM-DDTHH:MM:SS.mmm±HH:MM`: a numeric offset (`+00:00`, never `Z`)
+    // and a fixed three-digit millisecond fraction.
+
+    fn parse_date_time(text: &str) -> chrono::DateTime<chrono::FixedOffset> {
+        chrono::DateTime::parse_from_rfc3339(text).expect("reference instant must parse")
+    }
 
     #[test]
     fn test_datetime_utc_serializes_with_offset_marker() {
-        let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("2024-01-01T12:30:45"), "should contain datetime: {serialized}");
-        assert!(serialized.contains("+00:00") || serialized.contains("Z"), "should contain offset: {serialized}");
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45+00:00"));
+        assert_eq!(result, "2024-01-01T12:30:45.000+00:00");
     }
 
     #[test]
     fn test_datetime_positive_offset_preserved() {
-        let json_value = serde_json::json!("2024-01-01T12:30:45+05:30");
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("+05:30"), "should contain +05:30: {serialized}");
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45+05:30"));
+        assert_eq!(result, "2024-01-01T12:30:45.000+05:30");
     }
 
     #[test]
     fn test_datetime_negative_offset_preserved() {
-        let json_value = serde_json::json!("2024-01-01T12:30:45-08:00");
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(serialized.contains("-08:00"), "should contain -08:00: {serialized}");
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45-08:00"));
+        assert_eq!(result, "2024-01-01T12:30:45.000-08:00");
     }
 
     #[test]
-    fn test_datetime_subseconds_not_present_in_no_subseconds_input() {
-        let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        assert!(!serialized.contains(".123"), "subseconds should not appear: {serialized}");
+    fn test_datetime_subseconds_preserved_as_three_digit_milliseconds() {
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45.123+00:00"));
+        assert_eq!(result, "2024-01-01T12:30:45.123+00:00");
+    }
+
+    #[test]
+    fn test_datetime_subseconds_truncated_to_milliseconds() {
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45.123456789+00:00"));
+        assert_eq!(result, "2024-01-01T12:30:45.123+00:00");
+    }
+
+    #[test]
+    fn test_datetime_no_subseconds_input_emits_zero_milliseconds() {
+        let result = object_serializer::format_date_time(&parse_date_time("2024-01-01T12:30:45+00:00"));
+        assert!(result.contains(".000"), "fixed three-digit fraction expected: {result}");
     }
 
     #[test]
@@ -869,21 +1013,82 @@ mod tests {
     }
 
     #[test]
-    fn test_datetime_string_contains_offset_marker() {
-        let json_value = serde_json::json!("2024-01-01T12:30:45+00:00");
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        let has_offset = serialized.contains('+') || serialized.contains('-') || serialized.contains('Z');
-        assert!(has_offset, "should contain timezone indicator: {serialized}");
+    fn test_datetime_string_ends_with_numeric_offset_never_z() {
+        let utc: chrono::DateTime<chrono::Utc> = "2024-01-01T12:30:45Z"
+            .parse()
+            .expect("valid reference instant");
+        let result = object_serializer::format_date_time(&utc);
+        assert_eq!(result, "2024-01-01T12:30:45.000+00:00");
+        assert!(!result.ends_with('Z'), "must not use the Z designator: {result}");
     }
 
     #[test]
     fn test_datetime_round_trip() {
-        let original = "2024-01-01T12:30:45+05:30";
-        let json_value = serde_json::json!(original);
-        let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
-        // The serialized string (with quotes) should contain the original datetime
-        assert!(serialized.contains("2024-01-01T12:30:45"), "round-trip should preserve datetime");
-        assert!(serialized.contains("+05:30"), "round-trip should preserve offset");
+        let original = parse_date_time("2024-01-01T12:30:45+05:30");
+        let serialized = object_serializer::format_date_time(&original);
+        let parsed = parse_date_time(&serialized);
+        assert_eq!(original, parsed, "round-trip should yield the same instant");
+    }
+
+    #[test]
+    fn test_canonicalize_date_time_rewrites_z_to_numeric_offset() {
+        assert_eq!(
+            object_serializer::canonicalize_date_time("2024-01-01T12:30:45Z").as_deref(),
+            Some("2024-01-01T12:30:45.000+00:00")
+        );
+    }
+
+    #[test]
+    fn test_canonicalize_date_time_rejects_non_date_time() {
+        assert_eq!(object_serializer::canonicalize_date_time("not-a-date"), None);
+        assert_eq!(object_serializer::canonicalize_date_time("2024-01-01"), None);
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct DateTimeFields {
+        #[serde(with = "object_serializer::date_time")]
+        required: chrono::DateTime<chrono::Utc>,
+        #[serde(default, with = "object_serializer::date_time::option")]
+        optional: Option<chrono::DateTime<chrono::Utc>>,
+        #[serde(with = "object_serializer::date_time::vec")]
+        list: Vec<chrono::DateTime<chrono::Utc>>,
+        #[serde(default, with = "object_serializer::date_time::vec_option")]
+        optional_list: Option<Vec<chrono::DateTime<chrono::Utc>>>,
+    }
+
+    #[test]
+    fn test_date_time_serde_helpers_emit_canonical_wire_form() {
+        let instant: chrono::DateTime<chrono::Utc> = "2024-01-01T12:30:45Z"
+            .parse()
+            .expect("reference instant must parse");
+        let fields = DateTimeFields {
+            required: instant,
+            optional: Some(instant),
+            list: vec![instant],
+            optional_list: Some(vec![instant]),
+        };
+        let json = object_serializer::serialize(&fields).expect("serialize failed");
+        assert_eq!(
+            json,
+            r#"{"required":"2024-01-01T12:30:45.000+00:00","optional":"2024-01-01T12:30:45.000+00:00","list":["2024-01-01T12:30:45.000+00:00"],"optional_list":["2024-01-01T12:30:45.000+00:00"]}"#
+        );
+        let restored: DateTimeFields = object_serializer::deserialize(json.as_bytes())
+            .expect("deserialize failed")
+            .expect("expected Some value");
+        assert_eq!(restored.required, instant);
+        assert_eq!(restored.optional, Some(instant));
+        assert_eq!(restored.list, vec![instant]);
+        assert_eq!(restored.optional_list, Some(vec![instant]));
+    }
+
+    #[test]
+    fn test_date_time_serde_helpers_accept_absent_optionals() {
+        let json = r#"{"required":"2024-01-01T12:30:45Z","list":[]}"#;
+        let restored: DateTimeFields = object_serializer::deserialize(json.as_bytes())
+            .expect("deserialize failed")
+            .expect("expected Some value");
+        assert_eq!(restored.optional, None);
+        assert_eq!(restored.optional_list, None);
     }
 
     // NonAsciiSerializationTests
@@ -936,7 +1141,7 @@ mod tests {
     }
 
     // UuidSerializationTests
-    // Gap 2.2 — `format: uuid` maps to `uuid::Uuid` rather than raw `String`.
+    // `format: uuid` maps to `uuid::Uuid` rather than raw `String`.
     // The `uuid` crate's `serde` feature provides transparent (de)serialization
     // to/from the RFC-4122 string form, so derived `Serialize`/`Deserialize`
     // impls on generated models containing a Uuid field "just work".
@@ -1085,7 +1290,7 @@ mod tests {
         );
     }
 
-    // Gap K — a subtype constructed via `new()` (without the discriminator)
+    // A subtype constructed via `new()` (without the discriminator)
     // must still emit it on serialize because `new()` initialises food_type
     // to its oneOf mapping value ("dry"/"wet").
 
@@ -1125,42 +1330,36 @@ mod tests {
         }
     }
 
-    // Gap AJ (fleet-wide regression guard) — JSON `null` on a required,
-    // non-nullable field must HARD-FAIL deserialization. The canonical payload
-    // `{"name": null, "photoUrls": ["u"]}` sets the required `name` (a plain
-    // `String`, not `Option<String>`) to JSON null. serde's derived
-    // `Deserialize` rejects the null because the field is non-Option, surfacing
-    // the SDK's SerializationError rather than silently constructing a Pet with
-    // an empty/partial `name`. go/python/kotlin were the buggy SDKs; Rust is
-    // already correct, so this asserts GREEN. Input/expected match the AUDIT.md
-    // canonical exactly.
+    // JSON `null` on a required, non-nullable field must HARD-FAIL
+    // deserialization. The payload `{"name": null, "photoUrls": ["u"]}` sets
+    // the required `name` (a plain `String`, not `Option<String>`) to JSON
+    // null. serde's derived `Deserialize` rejects the null because the field is
+    // non-Option, surfacing the SDK's SerializationError rather than silently
+    // constructing a Pet with an empty/partial `name`.
     #[test]
-    fn test_aj_null_on_required_field_rejected() {
+    fn test_null_on_required_field_rejected() {
         let payload = br#"{"name":null,"photoUrls":["u"]}"#;
         let result: Result<Option<Pet>, SerializationError> =
             object_serializer::deserialize(payload);
         assert!(
             result.is_err(),
-            "Gap AJ: null on the required non-nullable `name` must be rejected"
+            "null on the required non-nullable `name` must be rejected"
         );
     }
 
-    // Gap AU-residual (fleet-wide regression guard) — a discriminated oneOf
-    // payload that omits the discriminator property must HARD-FAIL, not wrap the
-    // raw object in a union container. The canonical payload `{"weightKg": 5.0}`
-    // omits `foodType`; PetFood's hand-rolled Deserialize reads the
-    // discriminator field and returns an Err when it is absent (rather than
-    // serde-untagged's "try every variant" fall-through). python/php were the
-    // buggy SDKs; Rust is already correct, so this asserts GREEN. Input/expected
-    // match the AUDIT.md canonical exactly.
+    // A discriminated oneOf payload that omits the discriminator property must
+    // HARD-FAIL, not wrap the raw object in a union container. The payload
+    // `{"weightKg": 5.0}` omits `foodType`; PetFood's hand-rolled Deserialize
+    // reads the discriminator field and returns an Err when it is absent
+    // (rather than serde-untagged's "try every variant" fall-through).
     #[test]
-    fn test_au_residual_missing_discriminator_rejected() {
+    fn test_missing_discriminator_rejected() {
         let payload = br#"{"weightKg":5.0}"#;
         let result: Result<Option<PetFood>, SerializationError> =
             object_serializer::deserialize(payload);
         assert!(
             result.is_err(),
-            "Gap AU-resid: PetFood missing the `foodType` discriminator must be rejected"
+            "PetFood missing the `foodType` discriminator must be rejected"
         );
     }
 {{/generateTests}}

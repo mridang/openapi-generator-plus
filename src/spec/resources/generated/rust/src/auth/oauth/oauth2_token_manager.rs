@@ -191,7 +191,7 @@ impl OAuth2TokenManager {
             .collect::<Vec<_>>()
             .join("&");
 
-        /* Gap 3.2: refuse 307/308 redirects on the token POST. The body
+        /* Refuse 307/308 redirects on the token POST. The body
          * carries the client_secret / refresh_token / authorization code;
          * a 307/308 from a compromised or misconfigured IdP would replay
          * those credentials verbatim to an attacker-chosen URL. 301/302/303

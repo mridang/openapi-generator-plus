@@ -7,7 +7,7 @@
 
 import 'client_exception.dart';
 
-/// ConflictException represents an HTTP 409 Conflict error.
+/// Exception for HTTP 409 Conflict.
 class ConflictException extends ClientException {
   const ConflictException({
     required super.statusCode,

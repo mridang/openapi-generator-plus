@@ -4,11 +4,11 @@ import Foundation
 /// Generated server configurations from the OpenAPI specification.
 ///
 /// Each constant corresponds to a server entry defined in the spec's
-/// servers array. Use these with ``ConfigurationBuilder/server(_:variables:)``
-/// to select a server:
+/// `servers` array. Use these constants with
+/// ``ConfigurationBuilder/server(_:variables:)`` to select a server:
 ///
 /// ```swift
-/// let config = ConfigurationBuilder()
+/// let config = try Configuration.builder()
 ///     .server(Servers.server0)
 ///     .build()
 /// ```
@@ -16,13 +16,12 @@ import Foundation
 /// For servers with variables, pass overrides:
 ///
 /// ```swift
-/// let config = ConfigurationBuilder()
-///     .server(Servers.server1, variables: ["environment": "staging"])
-///     .build()
+/// let url = try Servers.server1.url(variables: ["environment": "staging"])
 /// ```
 public enum Servers {
 {{#serverConfigs}}
-    /// Server configuration for: {{serverUrl}}{{#serverDescription}}
+    /// Server {{serverIndex}}: `{{serverUrl}}`{{#serverDescription}}
+    ///
     /// {{serverDescription}}{{/serverDescription}}
     public static let server{{serverIndex}} = ServerConfiguration(
         urlTemplate: "{{{serverUrl}}}",

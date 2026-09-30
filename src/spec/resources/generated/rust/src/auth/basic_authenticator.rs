@@ -15,7 +15,7 @@ use base64::Engine;
 use super::Authenticator;
 use crate::errors::configuration_error::ConfigurationError;
 
-/// BasicAuthenticator provides HTTP Basic authentication.
+/// Authenticator for HTTP Basic authentication.
 pub struct BasicAuthenticator {
     host: String,
     username: String,
@@ -23,14 +23,20 @@ pub struct BasicAuthenticator {
 }
 
 impl BasicAuthenticator {
-    /// Creates a new Basic authenticator.
+    /// Creates an HTTP Basic authenticator.
+    ///
+    /// `host` is the base URL of the API, `username` the Basic auth user-id and
+    /// `password` the Basic auth password.
     ///
     /// # Errors
     ///
-    /// Credentials are validated eagerly at construction, so a malformed
-    /// credential (colon in user-id, or CR/LF/NUL in either field per
-    /// RFC 7617 §2) is reported where it is supplied rather than lazily at
-    /// first use, as [`ConfigurationError::InvalidArgument`].
+    /// RFC 7617 §2: the user-id must not contain `:` (it is the field
+    /// separator) and neither user-id nor password may carry CR/LF/NUL
+    /// (header-injection / smuggling vectors common when credentials are read
+    /// from `.env` files or interactive prompts). Credentials are validated
+    /// eagerly at construction, so a malformed credential is reported where it
+    /// is supplied rather than lazily at first use, as
+    /// [`ConfigurationError::InvalidArgument`].
     pub fn new(host: &str, username: &str, password: &str) -> Result<Self, ConfigurationError> {
         if let Some(problem) = credential_problem(username, password) {
             return Err(ConfigurationError::InvalidArgument(format!(
@@ -66,9 +72,9 @@ fn credential_problem(username: &str, password: &str) -> Option<&'static str> {
     None
 }
 
-/// Redacts the password so it never leaks through `{:?}` (Debug) formatting,
-/// stack traces, or error logs. The host and username are shown normally; the
-/// password is masked as `***`.
+/// Renders a representation that redacts the password so credentials never leak
+/// into logs or stack traces (`{:?}` formatting). The host and username are
+/// shown normally; the password is masked as `***`.
 impl std::fmt::Debug for BasicAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BasicAuthenticator")

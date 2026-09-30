@@ -7,12 +7,12 @@
 
 defmodule PetstoreClient.Auth.AdminBasicAuthenticator do
   @moduledoc """
-  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Authenticator for the `adminBasic` security scheme.
   Delegates to `#{inspect(PetstoreClient.Auth.BasicAuthenticator)}`.
   """
 
   @doc """
-  Creates a new `AdminBasicAuthenticator` authenticator.
+  Creates an authenticator for the `adminBasic` security scheme.
   """
   def new(host, username, password) do
     PetstoreClient.Auth.BasicAuthenticator.new(host, username, password)

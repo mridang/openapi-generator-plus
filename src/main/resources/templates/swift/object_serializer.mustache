@@ -1,39 +1,39 @@
 {{>api_info}}
 import Foundation
 
-/// ObjectSerializer provides JSON serialization and deserialization using
-/// Foundation's JSONEncoder and JSONDecoder.
+/// Handles JSON serialization and deserialization for API requests and responses.
+///
+/// All serde operations in the generated client route through this class.
+/// The parameter encoding methods provide consistent value conversion for
+/// URL path, query string, header, and form parameters.
 internal enum ObjectSerializer {
-    /// Canonical encoder format: RFC 3339 with millisecond fractional seconds
-    /// and a numeric UTC offset, used for every Date we *emit* (model encoding,
-    /// path/query/header stringify).
+    /// Maximum allowed JSON nesting depth. A malicious 100k-deep
+    /// `{"a":{"a":...}}` payload must be refused rather than recurse
+    /// through the call stack, so the cap is pinned here rather than left to
+    /// the parser's default. All twelve SDKs use the same cap.
+    static let maxJsonDepth = 1000
+
+    /// Canonical wire format for `format: date-time` values: a fixed
+    /// three-digit millisecond fraction and a numeric offset (rendering a zero
+    /// offset as `+00:00`, never the `Z` designator). All twelve SDKs emit this
+    /// exact shape so a value serialises to identical bytes in every language.
     ///
-    /// The `.SSS` fractional-second field is REQUIRED for a lossless round-trip:
-    /// `parseDate` accepts fractional seconds on the way in (via
-    /// `iso8601WithFractional`), so the encoder must also emit them. Without it
-    /// an instant like `2020-01-02T03:04:05.123Z` would serialize to whole
-    /// seconds (`2020-01-02T03:04:05+00:00`), silently dropping the `.123`
-    /// milliseconds — a lossy, asymmetric encode/decode. Millisecond precision
-    /// is the cross-SDK common denominator every native date-time type supports.
+    /// Three digits — not a variable 0/3/6/9 fraction — because millisecond
+    /// precision is the cross-SDK common denominator (PHP's and Ruby's date
+    /// types cannot carry more), so any sub-millisecond component is truncated
+    /// on encode. The `xxx` pattern is what forbids the `Z` form. The zone is
+    /// pinned to UTC because `DateFormatter` otherwise defaults to the device's
+    /// local zone and would emit THAT offset, making the wire value depend on
+    /// the device.
     private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        /* Pin the zone to UTC so an absolute instant always serializes with a
-         * `+00:00` offset. DateFormatter defaults an unset timeZone to the
-         * device's local zone, and the `xxx` specifier would then emit THAT
-         * offset — making the wire value depend on the device and contradicting
-         * the "numeric UTC offset" contract above. Mirrors `dateOnlyFormatter`. */
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter
     }()
 
-    /// Parses an RFC 3339 / ISO 8601 date string, accepting the full range of
-    /// shapes a server may emit: a literal `Z` zone, a numeric `+hh:mm` offset,
-    /// optional fractional seconds, and a bare `yyyy-MM-dd` date-only value. A
-    /// single rigid `DateFormatter` cannot match all of these, so try the
-    /// ISO8601 strategies first (handling `Z`, offsets and fractional seconds)
-    /// and fall back to a date-only formatter.
+    /// Date-only (`yyyy-MM-dd`) fallback used by ``parseDate(_:)``.
     private static let dateOnlyFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -54,6 +54,12 @@ internal enum ObjectSerializer {
         return formatter
     }()
 
+    /// Parses an RFC 3339 / ISO 8601 date string, accepting the full range of
+    /// shapes a server may emit: a literal `Z` zone, a numeric `+hh:mm` offset,
+    /// optional fractional seconds, and a bare `yyyy-MM-dd` date-only value. A
+    /// single rigid `DateFormatter` cannot match all of these, so try the
+    /// ISO8601 strategies first (handling `Z`, offsets and fractional seconds)
+    /// and fall back to a date-only formatter.
     static func parseDate(_ string: String) -> Date? {
         if let date = iso8601WithFractional.date(from: string) {
             return date
@@ -90,9 +96,8 @@ internal enum ObjectSerializer {
 
     /// Encodes an Encodable value to JSON `Data` using the shared,
     /// date-strategy-configured encoder. Used by oneOf/anyOf union types to
-    /// round-trip a parsed payload through the SAME RFC 3339 date strategy as
-    /// every other model, instead of a bare `JSONEncoder()` whose default
-    /// `.deferredToDate` strategy would diverge on any Date-bearing variant.
+    /// round-trip a parsed payload through the same date-time wire format as
+    /// every other model.
     static func encodeToData<T: Encodable>(_ object: T) throws -> Data {
         return try encoder.encode(object)
     }
@@ -104,7 +109,11 @@ internal enum ObjectSerializer {
         return try decoder.decode(type, from: data)
     }
 
-    /// Serializes an Encodable object to a JSON string.
+    /// Serialize an object to a JSON string.
+    ///
+    /// Throws ``SerializationError`` when the value cannot be serialized to JSON.
+    /// The underlying native encoder failure is preserved as the cause so the
+    /// SDK never leaks `Foundation` encoding types out of its public surface.
     static func serialize<T: Encodable>(_ object: T) throws -> String {
         do {
             let data = try encoder.encode(object)
@@ -143,14 +152,6 @@ internal enum ObjectSerializer {
         }
     }
 
-    /// Maximum allowed JSON nesting depth. Foundation's JSONDecoder /
-    /// JSONSerialization have no built-in cap and recurse through the
-    /// native call stack, so a malicious 100k-deep payload would
-    /// stack-overflow. Matches the 1000-cap Java/Kotlin Jackson and
-    /// Python json stdlib use; Go uses the same. C# is stricter (64).
-    /// F5 follow-up.
-    static let maxJsonDepth = 1000
-
     /// Returns the maximum nesting depth of `{`/`[` containers in the
     /// JSON bytes, ignoring characters inside string literals. Cheap
     /// pre-flight scan used to refuse a deeply-nested payload before
@@ -186,16 +187,20 @@ internal enum ObjectSerializer {
         return max
     }
 
-    /// Deserializes JSON data into a Decodable value.
+    /// Deserialize JSON data into a value of the specified type.
     /// Returns nil if data is empty.
+    ///
+    /// Throws ``SerializationError`` when the JSON is malformed, does not match
+    /// the target type, or nests deeper than ``maxJsonDepth``. The underlying
+    /// native decoder failure is preserved as the cause so the SDK never leaks
+    /// `Foundation` decoding types out of its public surface.
     static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
         if data.isEmpty {
             return nil
         }
-        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-           but Windows-generated payloads often include one and Foundation's
-           JSONDecoder rejects it. Strip silently for parity with Java
-           Jackson / C# System.Text.Json which strip transparently. */
+        /* Strip a leading UTF-8 BOM before parsing. Foundation's JSONDecoder
+           rejects it, so the very first token would otherwise fail. Other SDKs
+           in this family all strip it. */
         let stripped: Data = (data.count >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF)
             ? data.subdata(in: 3..<data.count)
             : data
@@ -215,7 +220,7 @@ internal enum ObjectSerializer {
         }
     }
 
-    /// Deserializes a JSON string into a Decodable value.
+    /// Deserialize a JSON string to a value of the specified type.
     /// Returns nil if the string is empty.
     static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
         if string.isEmpty {
@@ -227,10 +232,13 @@ internal enum ObjectSerializer {
         return try deserialize(data, as: type)
     }
 
-    /// Converts a single scalar value to its string representation.
+    /// Convert a scalar value to its canonical string representation.
     ///
-    /// This is the canonical type-conversion method used by all parameter
-    /// encoding helpers and by ``ValueSerializer`` for transport formatting.
+    /// Booleans produce lowercase `"true"`/`"false"`. `Date` values are
+    /// formatted as `YYYY-MM-DDTHH:MM:SS.mmm+00:00`. Enums use their declared
+    /// wire value. Nil returns the empty string. This is the canonical
+    /// type-conversion method used by all parameter encoding helpers and by
+    /// ``ValueSerializer`` for transport formatting.
     static func stringify(_ value: Any?) -> String {
         guard let value = value else { return "" }
 
@@ -281,7 +289,7 @@ internal enum ObjectSerializer {
         }
     }
 
-    /// Converts a value to a string suitable for use as a URL path parameter.
+    /// Convert a value to a string suitable for use as a URL path parameter.
     static func toPathValue(_ value: Any?) -> String {
         return stringify(value)
     }
@@ -303,7 +311,7 @@ internal enum ObjectSerializer {
         return try parseProtobufDuration(literal)
     }
 
-    /// Converts a value to a representation suitable for use as a query parameter.
+    /// Convert a value to a representation suitable for use as a query parameter.
     /// For collections, joins using the specified collection format delimiter.
     static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
         guard let value = value else { return nil }
@@ -318,7 +326,7 @@ internal enum ObjectSerializer {
         return stringify(value)
     }
 
-    /// Converts a value to a string suitable for use as an HTTP header value.
+    /// Convert a value to a string suitable for use as an HTTP header value.
     static func toHeaderValue(_ value: Any?) -> String {
         guard let value = value else { return "" }
 
@@ -331,13 +339,13 @@ internal enum ObjectSerializer {
         return stringify(value)
     }
 
-    /// Converts a value to a string suitable for use as an HTTP cookie value.
+    /// Convert a value to a string suitable for use as an HTTP cookie value.
     /// Cookie values follow the same encoding rules as header values.
     static func toCookieValue(_ value: Any?) -> String {
         return toHeaderValue(value)
     }
 
-    /// Converts a value to a representation suitable for use as a form parameter.
+    /// Convert a value to a representation suitable for use as a form parameter.
     static func toFormValue(_ value: Any?) -> String {
         return stringify(value)
     }
@@ -362,11 +370,13 @@ internal enum ObjectSerializer {
         return nil
     }
 
-    /// Resolve a oneOf schema by attempting deserialization against each candidate.
-    /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
-    /// Returns the first successful result, or throws a ``SerializationError`` when no
-    /// candidate matches — a payload satisfying none of the declared variants is a
-    /// contract violation and must fail loudly rather than be silently dropped to nil.
+    /// Resolve a oneOf schema by trying each candidate deserializer in order.
+    /// Each candidate is a function that accepts parsed JSON (`Any`) and returns
+    /// a deserialized value, or throws on failure.
+    /// Returns the first successful deserialization result, or throws a
+    /// ``SerializationError`` when no candidate matches — a payload that
+    /// satisfies none of the declared variants is a contract violation and must
+    /// fail loudly rather than be silently dropped to nil.
     static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
         for candidate in candidates {
             if let result = try? candidate(json) {
@@ -376,9 +386,12 @@ internal enum ObjectSerializer {
         throw SerializationError(message: "No oneOf/anyOf variant matched the JSON")
     }
 
-    /// Resolve an anyOf schema by attempting deserialization against each candidate.
-    /// Returns the first successful result, or throws a ``SerializationError`` when no
-    /// candidate matches.
+    /// Resolve an anyOf schema by trying each candidate deserializer in order.
+    /// Delegates to ``resolveOneOf(_:candidates:)``.
+    /// Each candidate is a function that accepts parsed JSON (`Any`) and returns
+    /// a deserialized value, or throws on failure.
+    /// Returns the first successful deserialization result, or throws a
+    /// ``SerializationError`` when no candidate matches.
     static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) throws -> T {
         return try resolveOneOf(json, candidates: candidates)
     }

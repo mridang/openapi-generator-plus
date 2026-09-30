@@ -7,11 +7,14 @@
 
 package com.example.petstore.auth
 
-/**
- * Location where the API key is sent.
- */
+/** Location where an API key credential is sent on a request. */
 enum class ApiKeyLocation {
+    /** The API key is sent as an HTTP request header. */
     HEADER,
+
+    /** The API key is sent as a query parameter. */
     QUERY,
+
+    /** The API key is sent as a cookie. */
     COOKIE,
 }

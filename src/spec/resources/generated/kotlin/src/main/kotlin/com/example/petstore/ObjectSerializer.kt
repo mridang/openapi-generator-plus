@@ -223,6 +223,10 @@ internal object StrictBooleanSerializer : KSerializer<Boolean> {
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
  *
+ * All serde operations in the generated client route through this class.
+ * The parameter encoding methods provide consistent value conversion for
+ * URL path, query string, header, and form parameters.
+ *
  * This type is internal transport machinery and is not part of the public API.
  * The underlying kotlinx-serialization [Json] instance is never exposed publicly.
  */
@@ -246,6 +250,13 @@ internal class ObjectSerializer(
     @PublishedApi
     internal constructor() : this(createDefaultJson())
 
+    /**
+     * Serialize an object to a JSON string.
+     *
+     * @param obj the object to serialize (may be null)
+     * @return JSON string representation, or "null" if object is null
+     * @throws SerializationException if serialization fails
+     */
     fun serialize(obj: Any?): String {
         if (obj == null) return "null"
         val unwrapped =
@@ -280,9 +291,9 @@ internal class ObjectSerializer(
         // explicitNulls = true, would emit `"field":null` for an explicitly
         // nulled optional whose default is non-null — violating (2). So after
         // encoding we strip JsonNull object entries recursively, regardless of
-        // each field's kotlinx default. This is the post-encode null filter the
-        // findings call for and keeps Kotlin byte-compatible with the other 11
-        // SDKs for both default-valued and explicitly-nulled fields.
+        // each field's kotlinx default. This post-encode null filter keeps the
+        // wire output identical to the other SDKs for both default-valued and
+        // explicitly-nulled fields.
         val encoded =
             try {
                 json.parseToJsonElement(
@@ -387,6 +398,14 @@ internal class ObjectSerializer(
         }
     }
 
+    /**
+     * Deserialize a JSON string to an object of the specified type.
+     *
+     * @param T the type to deserialize to
+     * @param jsonString the JSON string to deserialize (may be null or empty)
+     * @return the deserialized object, or null if jsonString is null or empty
+     * @throws SerializationException if deserialization fails
+     */
     @PublishedApi
     internal inline fun <reified T> deserialize(jsonString: String?): T? {
         if (jsonString.isNullOrEmpty()) return null
@@ -480,17 +499,30 @@ internal class ObjectSerializer(
             null
         }
 
+    /**
+     * Convert a scalar value to its canonical string representation.
+     *
+     * Booleans produce lowercase `"true"`/`"false"`. Temporal
+     * types are formatted with the canonical date-time wire form
+     * (`yyyy-MM-dd'T'HH:mm:ss.SSSxxx`). Durations are formatted as protobuf-JSON
+     * duration strings. Null returns the empty string. All other values
+     * use [toString].
+     *
+     * @param value the value to stringify (may be null)
+     * @return the string representation, never null
+     */
     fun stringify(value: Any?): String {
         if (value == null) return ""
         return when (value) {
             is Boolean -> if (value) "true" else "false"
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
-            // ISO_OFFSET_DATE_TIME preserves sub-second precision on the
-            // query/path/header parameter wire form, matching the JSON-body
-            // encoder above. The prior `yyyy-MM-dd'T'HH:mm:ssxxx` pattern dropped
-            // milliseconds (no fractional-second field), so a date-time param
-            // carrying .123 was silently truncated to whole seconds.
-            is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
+            is Duration -> formatDuration(value)
+            // format:date-time is emitted as YYYY-MM-DDTHH:mm:ss.SSS±HH:MM: a
+            // fixed three-digit millisecond fraction and a numeric offset,
+            // rendering a zero offset as "+00:00" rather than "Z". This is the
+            // canonical shape shared by all twelve SDKs; the "xxx" pattern
+            // never emits the "Z" designator.
+            is TemporalAccessor -> DATE_TIME_FORMATTER.format(value)
             is Uuid -> value.toString()
             is Url -> value.toString()
             is Enum<*> -> {
@@ -505,8 +537,22 @@ internal class ObjectSerializer(
         }
     }
 
+    /**
+     * Convert a value to a string suitable for use as a URL path parameter.
+     *
+     * @param value the value to convert (may be null)
+     * @return string representation, or empty string if null
+     */
     fun toPathValue(value: Any?): String = stringify(value)
 
+    /**
+     * Convert a value to a representation suitable for use as a query parameter.
+     * For collections, joins using the specified collection format delimiter.
+     *
+     * @param value the value to convert (may be null)
+     * @param collectionFormat the format: csv, ssv, tsv, pipes, or multi (may be null)
+     * @return the query value string, or a List for multi format, or null if value is null
+     */
     fun toQueryValue(
         value: Any?,
         collectionFormat: String?,
@@ -527,6 +573,12 @@ internal class ObjectSerializer(
         return stringify(value)
     }
 
+    /**
+     * Convert a value to a string suitable for use as an HTTP header value.
+     *
+     * @param value the value to convert (may be null)
+     * @return string representation, or empty string if null
+     */
     fun toHeaderValue(value: Any?): String {
         if (value == null) return ""
         if (value is Collection<*>) {
@@ -538,17 +590,29 @@ internal class ObjectSerializer(
     /**
      * Convert a value to a string suitable for use as an HTTP cookie value.
      * Cookie values follow the same encoding rules as header values.
+     *
+     * @param value the value to convert (may be null)
+     * @return string representation, or empty string if null
      */
     fun toCookieValue(value: Any?): String = toHeaderValue(value)
 
+    /**
+     * Convert a value to a representation suitable for use as a form parameter.
+     *
+     * @param value the value to convert (may be null)
+     * @return string representation, or empty string if null
+     */
     fun toFormValue(value: Any?): String = stringify(value)
 
     /**
-     * Resolve a oneOf schema by attempting deserialization against each candidate.
-     * Each candidate is a function that takes a JSON string and returns a deserialized value.
-     * Returns the first successful result, or throws [SerializationException] when no
-     * variant matches — a payload that satisfies none of the declared oneOf members is
-     * spec drift and must fail loud rather than be silently stored as a raw value.
+     * Resolve a oneOf schema by trying each candidate deserializer in order.
+     *
+     * @param jsonString the JSON string to deserialize
+     * @param candidates list of deserializer functions that accept a JSON string
+     * @return the first non-null successful result
+     * @throws SerializationException if no candidate matches the JSON — a payload
+     *   satisfying none of the declared variants is a contract violation and
+     *   must fail loudly rather than be silently dropped to null
      */
     fun resolveOneOf(
         jsonString: String,
@@ -568,8 +632,14 @@ internal class ObjectSerializer(
     }
 
     /**
-     * Resolve an anyOf schema by attempting deserialization against each candidate.
-     * Returns the first successful result, or throws [SerializationException] when none match.
+     * Resolve an anyOf schema by trying each candidate deserializer in order.
+     *
+     * Delegates to [resolveOneOf].
+     *
+     * @param jsonString the JSON string to deserialize
+     * @param candidates list of deserializer functions that accept a JSON string
+     * @return the first non-null successful result
+     * @throws SerializationException if no candidate matches the JSON
      */
     fun resolveAnyOf(
         jsonString: String,
@@ -578,12 +648,29 @@ internal class ObjectSerializer(
 
     companion object {
         /**
-         * Maximum allowed JSON nesting depth. kotlinx-serialization's parser
-         * recurses through the JVM call stack and has no cap of its own, so a
-         * malicious 100k-deep `{"a":{"a":...}}` payload would overflow it.
-         * All twelve SDKs use the same cap.
+         * Maximum allowed JSON nesting depth. A malicious 100k-deep
+         * `{"a":{"a":...}}` payload would otherwise recurse through the JVM
+         * call stack, so the cap is pinned here rather than left to the parser's
+         * default. All twelve SDKs use the same cap.
          */
         internal const val MAX_JSON_DEPTH = 1000
+
+        /**
+         * Canonical wire format for `format: date-time` values: a fixed
+         * three-digit millisecond fraction and a numeric offset (rendering a zero
+         * offset as `+00:00`, never the `Z` designator). All twelve SDKs emit
+         * this exact shape so a value serialises to identical bytes in every
+         * language.
+         *
+         * Three digits — not a variable 0/3/6/9 fraction — because millisecond
+         * precision is the cross-SDK common denominator (PHP's and Ruby's date
+         * types cannot carry more), so any sub-millisecond component is truncated
+         * on encode. The `xxx` pattern is what forbids the `Z` form:
+         * `ISO_OFFSET_DATE_TIME`, used previously, emitted `Z` for UTC and
+         * diverged from the other eleven SDKs.
+         */
+        internal val DATE_TIME_FORMATTER: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSxxx")
 
         /**
          * Returns the maximum nesting depth of `{`/`[` containers in the JSON
@@ -619,26 +706,22 @@ internal class ObjectSerializer(
         private object OffsetDateTimeSerializer : KSerializer<OffsetDateTime> {
             override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
 
-            // Encode with ISO_OFFSET_DATE_TIME so sub-second precision survives
-            // the round-trip. The previous fixed `yyyy-MM-dd'T'HH:mm:ssxxx`
-            // pattern carried no fractional-second field, so a value like
-            // 2020-01-02T03:04:05.123Z was truncated to whole seconds on the
-            // wire even though deserialize() (also ISO_OFFSET_DATE_TIME) happily
-            // accepts the fraction — a lossy, asymmetric encode. ISO_OFFSET_DATE_TIME
-            // emits the fraction only when non-zero (e.g. ".123") and keeps the
-            // offset form (`Z` for UTC, `+05:30` otherwise) the decoder accepts.
+            // Encode with the canonical date-time wire form (DATE_TIME_FORMATTER):
+            // a fixed three-digit millisecond fraction and a numeric offset.
+            // Decoding stays lenient: ISO_OFFSET_DATE_TIME accepts both the
+            // canonical form and a `Z` designator or a variable fraction.
             override fun serialize(
                 encoder: Encoder,
                 value: OffsetDateTime,
-            ) = encoder.encodeString(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value))
+            ) = encoder.encodeString(DATE_TIME_FORMATTER.format(value))
 
             override fun deserialize(decoder: Decoder): OffsetDateTime =
                 OffsetDateTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME)
         }
 
-        // Gap I (decimal half): preserve arbitrary precision through
-        // serialize via JsonUnquotedLiteral (raw JSON Number token) and
-        // through deserialize via reading the raw element source.
+        // Preserve arbitrary precision through serialize via
+        // JsonUnquotedLiteral (raw JSON Number token) and through deserialize
+        // via reading the raw element source.
         private object BigDecimalSerializer : KSerializer<BigDecimal> {
             override val descriptor = PrimitiveSerialDescriptor("BigDecimal", PrimitiveKind.STRING)
 
@@ -675,7 +758,7 @@ internal class ObjectSerializer(
                 LocalDate.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_DATE)
         }
 
-        /* 2.2: OpenAPI `format: uuid` is represented as kotlin.uuid.Uuid in
+        /* OpenAPI `format: uuid` is represented as kotlin.uuid.Uuid in
          * generated models. The stdlib Uuid type is graduated from
          * @ExperimentalUuidApi in newer Kotlin releases; we opt in at the
          * file level for forward compatibility. Round-trips through the
@@ -729,73 +812,98 @@ internal class ObjectSerializer(
         private object DurationSerializer : KSerializer<Duration> {
             override val descriptor = PrimitiveSerialDescriptor("Duration", PrimitiveKind.STRING)
 
-            private val durationRegex = Regex("-?\\d+(\\.\\d{1,9})?s")
-
             override fun serialize(
                 encoder: Encoder,
                 value: Duration,
-            ) = encoder.encodeString(format(value))
+            ) = encoder.encodeString(formatDuration(value))
 
-            override fun deserialize(decoder: Decoder): Duration = parse(decoder.decodeString())
-
-            private fun format(value: Duration): String {
-                // Derive whole seconds and a non-negative nanosecond remainder
-                // from Duration.abs() so the sign stays coherent (mirrors the
-                // protobuf-JSON encoders in the other SDKs). Using getSeconds() /
-                // getNano() — NOT toNanos() — avoids the ArithmeticException
-                // toNanos() throws once the duration exceeds ~292 years (Long
-                // nanosecond overflow); parse() accepts arbitrarily large second
-                // counts, so a value that deserializes fine must also re-serialize.
-                val sign = if (value.isNegative) "-" else ""
-                val abs = value.abs()
-                val secs = abs.seconds
-                val nanos = abs.nano.toLong()
-                if (nanos == 0L) {
-                    return "$sign${secs}s"
-                }
-                // Zero-pad to nine digits, then trim trailing zeros down to the
-                // nearest 3/6/9-digit boundary so every significant digit
-                // survives.
-                var frac = nanos.toString().padStart(9, '0')
-                frac =
-                    when {
-                        frac.endsWith("000000") -> frac.substring(0, 3)
-                        frac.endsWith("000") -> frac.substring(0, 6)
-                        else -> frac
-                    }
-                return "$sign$secs.${frac}s"
-            }
-
-            private fun parse(value: String): Duration {
-                if (!durationRegex.matches(value)) {
-                    throw SerializationException(
-                        "Could not parse '$value' as a protobuf-JSON duration",
-                    )
-                }
-                var body = value.dropLast(1) // strip trailing 's'
-                val sign = if (body.startsWith("-")) -1L else 1L
-                body = body.trimStart('-')
-                val secsStr: String
-                val fracStr: String
-                val dot = body.indexOf('.')
-                if (dot >= 0) {
-                    secsStr = body.substring(0, dot)
-                    fracStr = body.substring(dot + 1)
-                } else {
-                    secsStr = body
-                    fracStr = ""
-                }
-                val secs =
-                    secsStr.toLongOrNull()
-                        ?: throw SerializationException(
-                            "Duration '$value' is out of range",
-                        )
-                val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
-                return Duration.ofSeconds(sign * secs, sign * nanos)
-            }
+            override fun deserialize(decoder: Decoder): Duration = parseDuration(decoder.decodeString())
         }
 
-        /* Gap AZ: contextual serializer for raw `Any` so properties
+        private val durationRegex = Regex("-?\\d+(\\.\\d{1,9})?s")
+
+        /**
+         * Format a [Duration] as a protobuf-JSON duration string.
+         *
+         * Follows the `google.protobuf.Duration` JSON mapping: a decimal
+         * count of seconds suffixed with `"s"`. Fractional seconds, when
+         * present, are emitted with 3, 6, or 9 digits — the smallest of those that
+         * preserves every non-zero nanosecond digit (e.g. `"3600s"`,
+         * `"3600.000000001s"`, `"-1.500s"`). `Duration` normalises
+         * a negative value into a non-negative nanosecond remainder, so the sign is
+         * derived from the whole duration and applied to absolute parts.
+         *
+         * @param value the duration to format
+         * @return the protobuf-JSON duration string
+         */
+        internal fun formatDuration(value: Duration): String {
+            // Derive whole seconds and a non-negative nanosecond remainder
+            // from Duration.abs() so the sign stays coherent. Using getSeconds() /
+            // getNano() — NOT toNanos() — avoids the ArithmeticException
+            // toNanos() throws once the duration exceeds ~292 years (Long
+            // nanosecond overflow); parseDuration() accepts arbitrarily large second
+            // counts, so a value that deserializes fine must also re-serialize.
+            val sign = if (value.isNegative) "-" else ""
+            val abs = value.abs()
+            val secs = abs.seconds
+            val nanos = abs.nano.toLong()
+            if (nanos == 0L) {
+                return "$sign${secs}s"
+            }
+            // Zero-pad to nine digits, then trim trailing zeros down to the
+            // nearest 3/6/9-digit boundary so every significant digit
+            // survives.
+            var frac = nanos.toString().padStart(9, '0')
+            frac =
+                when {
+                    frac.endsWith("000000") -> frac.substring(0, 3)
+                    frac.endsWith("000") -> frac.substring(0, 6)
+                    else -> frac
+                }
+            return "$sign$secs.${frac}s"
+        }
+
+        /**
+         * Parse a protobuf-JSON duration string into a [Duration].
+         *
+         * Accepts the `google.protobuf.Duration` JSON form
+         * (`^-?\d+(\.\d{1,9})?s$`). The fractional part is right-padded to
+         * nine digits to obtain nanoseconds, and the sign is applied to the whole
+         * value.
+         *
+         * @param value the protobuf-JSON duration string
+         * @return the parsed duration
+         * @throws SerializationException if the text is not a valid duration string
+         */
+        internal fun parseDuration(value: String): Duration {
+            if (!durationRegex.matches(value)) {
+                throw SerializationException(
+                    "Invalid protobuf duration: $value",
+                )
+            }
+            var body = value.dropLast(1) // strip trailing 's'
+            val sign = if (body.startsWith("-")) -1L else 1L
+            body = body.trimStart('-')
+            val secsStr: String
+            val fracStr: String
+            val dot = body.indexOf('.')
+            if (dot >= 0) {
+                secsStr = body.substring(0, dot)
+                fracStr = body.substring(dot + 1)
+            } else {
+                secsStr = body
+                fracStr = ""
+            }
+            val secs =
+                secsStr.toLongOrNull()
+                    ?: throw SerializationException(
+                        "Duration '$value' is out of range",
+                    )
+            val nanos = if (fracStr.isEmpty()) 0L else fracStr.padEnd(9, '0').toLong()
+            return Duration.ofSeconds(sign * secs, sign * nanos)
+        }
+
+        /* Contextual serializer for raw `Any` so properties
          * generated from OAS 3.1 prefixItems (downgraded to
          * `items: {}` by NormalizePrefixItemsRule) compile and
          * (de)serialize without `@Serializer` lookup failures.
@@ -890,27 +998,24 @@ internal class ObjectSerializer(
             Json {
                 ignoreUnknownKeys = true
                 // encodeDefaults = true so schema defaults are written on the wire,
-                // matching all 11 other SDKs (e.g. a default-constructed Order
+                // matching the other SDKs (e.g. a default-constructed Order
                 // serializes `"status":"placed"`, not `{}`). Optional null-field
                 // omission is handled separately by stripJsonNulls() in serialize(),
                 // NOT by encodeDefaults, because the two contracts are independent:
                 // a field equal to its non-null default must be emitted, while a
                 // field explicitly set to null must be omitted.
                 encodeDefaults = true
-                // Gap AJ: removed `explicitNulls = false` so deserialization
+                // explicitNulls stays at its default (true) so deserialization
                 // throws on `{"name": null}` for a required non-nullable field
-                // instead of silently assigning null. Aligns with the 9 SDKs
-                // that throw; Python and Go also tightened in this cycle.
-                // explicitNulls defaults to true.
-                // primitive-type-coercion-lenient: isLenient=true let the parser
-                // coerce a quoted scalar (e.g. "42") into a numeric field, masking
-                // a payload type mismatch. Strict parsing (the kotlinx default)
-                // rejects wrong-typed primitives, matching the validate-and-throw
+                // instead of silently assigning null.
+                // isLenient stays false: lenient parsing would coerce a quoted
+                // scalar (e.g. "42") into a numeric field, masking a payload type
+                // mismatch. Strict parsing (the kotlinx default) rejects
+                // wrong-typed primitives, matching the validate-and-throw
                 // behaviour of the other SDKs.
                 isLenient = false
-                // Gap AJ: removed `coerceInputValues = true` for the same
-                // reason — coercing missing values to defaults masked the
-                // required-field violation. Default is false (strict).
+                // coerceInputValues stays at its default (false): coercing missing
+                // values to defaults would mask a required-field violation.
                 serializersModule = contextualSerializersModule
             }
     }

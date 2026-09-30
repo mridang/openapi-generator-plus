@@ -7,7 +7,9 @@
 
 import 'basic_authenticator.dart';
 
+/// Authenticator for the `adminBasic` security scheme.
 class AdminBasicAuthenticator extends BasicAuthenticator {
+  /// Creates an authenticator for the `adminBasic` security scheme.
   AdminBasicAuthenticator({
     required super.host,
     required super.username,

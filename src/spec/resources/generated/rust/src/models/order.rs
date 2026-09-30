@@ -41,7 +41,12 @@ pub struct Order {
     /// Example: `7`
     #[serde(rename = "quantity", skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i32>,
-    #[serde(rename = "shipDate", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "shipDate",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::date_time::option"
+    )]
     pub ship_date: Option<chrono::DateTime<chrono::Utc>>,
     /// Order Status
     /// Example: `approved`

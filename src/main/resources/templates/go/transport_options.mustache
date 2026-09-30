@@ -26,7 +26,8 @@ var ErrInvalidCACertificate = errors.New("invalid CA certificate")
 // are independent of API-level concerns (base URL, authentication headers)
 // which belong in Configuration.
 //
-// Use NewTransportOptionsBuilder to create instances:
+// TransportOptions is immutable and safe for concurrent use. Use
+// NewTransportOptionsBuilder to create instances:
 //
 //	timeout := 5000
 //	userAgent := "MyApp/1.0"
@@ -40,72 +41,95 @@ var ErrInvalidCACertificate = errors.New("invalid CA certificate")
 //		// ErrInvalidProxyURL or ErrInvalidCACertificate
 //	}
 type TransportOptions struct {
-	/* verifySsl controls whether TLS certificate verification is enabled. */
-	verifySsl bool
-
-	/* caCertPath is the path to a custom CA certificate bundle for TLS verification. */
-	caCertPath string
-
-	/* caCertPool holds the certificates read from caCertPath by Build, or nil
-	 * when no custom CA bundle is configured. */
-	caCertPool *x509.CertPool
-
-	/* proxy is the HTTP or HTTPS proxy URL for all outbound requests. */
-	proxy *url.URL
-
-	/* timeout is the end-to-end request timeout in milliseconds. Covers the
-	 * entire request lifecycle: connection, TLS handshake, sending the request
-	 * body, and reading the response. A nil value means no timeout (wait
-	 * indefinitely); a zero value means 0ms timeout. */
-	timeout *int
-
-	/* followRedirects controls whether the client follows HTTP 3xx redirects. */
+	verifySsl       bool
+	caCertPath      string
+	caCertPool      *x509.CertPool // certificates read from caCertPath by Build; nil when none
+	proxy           *url.URL
+	timeout         *int
 	followRedirects bool
-
-	/* maxRedirects is the maximum number of consecutive redirects to follow.
-	 * Only meaningful when followRedirects is true. A nil value uses the
-	 * HTTP client's built-in default; a zero value means no redirects. */
-	maxRedirects *int
-
-	/* userAgent is the custom User-Agent header value, or nil to omit the
-	 * User-Agent header entirely. */
-	userAgent *string
-
-	/* defaultHeaders are transport-level default headers included in every request.
-	 * These have the lowest priority: API-level headers, operation-specific headers,
-	 * and authentication headers all take precedence. */
-	defaultHeaders map[string]string
-
-	/* injectRequestID controls whether to auto-inject an X-Request-ID header
-	 * with a unique UUID on every request. */
+	maxRedirects    *int
+	userAgent       *string
+	defaultHeaders  map[string]string
 	injectRequestID bool
 }
 
+// NewTransportOptionsBuilder creates a new builder for constructing TransportOptions
+// instances, with sensible defaults.
+//
+// All fields have sensible defaults:
+//   - verifySsl: true
+//   - followRedirects: true
+//   - injectRequestID: false
+//   - timeout: 10000 (10 seconds); call Timeout with an explicit value to
+//     override it, or with nil for no timeout
+//   - userAgent: "{{userAgentDefault}}"; call UserAgent to override it or pass
+//     nil to omit it
+//   - all other fields: nil or empty
+func NewTransportOptionsBuilder() *TransportOptionsBuilder {
+	defaultTimeout := 10000
+	defaultUserAgent := "{{userAgentDefault}}"
+	return &TransportOptionsBuilder{
+		verifySsl:       true,
+		followRedirects: true,
+		userAgent:       &defaultUserAgent,
+		defaultHeaders:  make(map[string]string),
+		timeout:         &defaultTimeout,
+	}
+}
+
 // VerifySsl returns whether TLS certificate verification is enabled.
+//
+// Returns true if the client verifies server certificates (default), false to
+// accept any certificate.
 func (t *TransportOptions) VerifySsl() bool { return t.verifySsl }
 
-// CACertPath returns the path to a custom CA certificate bundle.
+// CACertPath returns the path to a custom CA certificate bundle for TLS verification.
+//
+// When set together with VerifySsl, the client trusts certificates signed by
+// this CA in addition to (or instead of) the system trust store. Returns an
+// empty string to use the system default.
 func (t *TransportOptions) CACertPath() string { return t.caCertPath }
 
-// Proxy returns the proxy URL, or nil if no proxy is configured.
+// Proxy returns the HTTP or HTTPS proxy URL for all outbound requests.
+//
+// Example: "http://proxy.corp.example.com:3128". Returns nil for direct
+// connections.
 func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 
-// Timeout returns the end-to-end request timeout in milliseconds,
-// or nil if no timeout is configured (wait indefinitely).
+// Timeout returns the end-to-end request timeout in milliseconds.
+//
+// Covers the entire request lifecycle: connection, TLS handshake, sending the
+// request body, and reading the response. Defaults to 10000 ms (10 seconds)
+// when the builder does not set a value. Returns nil for no timeout (wait
+// indefinitely); a zero value means a 0ms timeout.
 func (t *TransportOptions) Timeout() *int { return t.timeout }
 
-// FollowRedirects returns whether the client follows HTTP 3xx redirects.
+// FollowRedirects returns whether the client follows HTTP 3xx redirects
+// automatically.
+//
+// Returns true to follow redirects (default), false to return the redirect
+// response as-is.
 func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
 
-// MaxRedirects returns the maximum number of consecutive redirects to follow,
-// or nil if the default should be used.
+// MaxRedirects returns the maximum number of consecutive redirects to follow.
+//
+// Only meaningful when FollowRedirects is true. A nil value uses the HTTP
+// client's built-in default; a zero value means no redirects.
 func (t *TransportOptions) MaxRedirects() *int { return t.maxRedirects }
 
-// UserAgent returns the custom User-Agent header value, or nil if no
-// User-Agent header should be sent.
+// UserAgent returns the custom User-Agent header value.
+//
+// When set, this value is sent as the User-Agent header on every request unless
+// the caller explicitly provides one. Returns nil to omit the User-Agent header
+// entirely.
 func (t *TransportOptions) UserAgent() *string { return t.userAgent }
 
-// DefaultHeaders returns a copy of the transport-level default headers.
+// DefaultHeaders returns the transport-level default headers included in every request.
+//
+// These headers have the lowest priority: API-level headers from
+// Configuration.DefaultHeaders, operation-specific headers, and authentication
+// headers all take precedence. The returned map is a copy, so modifying it does
+// not affect the TransportOptions.
 func (t *TransportOptions) DefaultHeaders() map[string]string {
 	result := make(map[string]string, len(t.defaultHeaders))
 	for k, v := range t.defaultHeaders {
@@ -114,7 +138,11 @@ func (t *TransportOptions) DefaultHeaders() map[string]string {
 	return result
 }
 
-// InjectRequestID returns whether X-Request-ID injection is enabled.
+// InjectRequestID returns whether to auto-inject an X-Request-ID header with a
+// unique UUID on every request.
+//
+// Useful for distributed tracing and log correlation. The header is only
+// injected if the caller has not already set one.
 func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
 
 // TransportOptionsBuilder builds immutable TransportOptions instances.
@@ -131,38 +159,28 @@ type TransportOptionsBuilder struct {
 	injectRequestID bool
 }
 
-// NewTransportOptionsBuilder creates a new builder with sensible defaults.
-//
-// The default request timeout is 10 seconds (10000 ms). Call Timeout with an
-// explicit value to override it, or with nil for no timeout. The User-Agent
-// header defaults to "{{userAgentDefault}}"; call UserAgent to override it or
-// pass nil to omit it.
-func NewTransportOptionsBuilder() *TransportOptionsBuilder {
-	defaultTimeout := 10000
-	defaultUserAgent := "{{userAgentDefault}}"
-	return &TransportOptionsBuilder{
-		verifySsl:       true,
-		followRedirects: true,
-		userAgent:       &defaultUserAgent,
-		defaultHeaders:  make(map[string]string),
-		timeout:         &defaultTimeout,
-	}
-}
-
 // VerifySsl enables or disables TLS certificate verification.
+//
+// Pass true to verify (default), false to skip.
 func (b *TransportOptionsBuilder) VerifySsl(val bool) *TransportOptionsBuilder {
 	b.verifySsl = val
 	return b
 }
 
 // CACertPath sets the path to a custom CA certificate bundle.
+//
+// The val is the file path to a PEM-encoded CA certificate, or empty. An
+// unreadable file is reported by Build as ErrInvalidCACertificate.
 func (b *TransportOptionsBuilder) CACertPath(val string) *TransportOptionsBuilder {
 	b.caCertPath = val
 	return b
 }
 
-// Proxy sets the HTTP/HTTPS proxy URL. An invalid URL is reported by Build
-// as ErrInvalidProxyURL.
+// Proxy sets the HTTP/HTTPS proxy URL.
+//
+// The val is the proxy URL (e.g. "http://proxy:3128"), or empty. A URL that does
+// not parse, that uses a scheme other than http or https, or that has no host is
+// reported by Build as ErrInvalidProxyURL.
 func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 	b.proxy = nil
 	b.proxyErr = nil
@@ -183,29 +201,34 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 	return b
 }
 
-// Timeout sets the end-to-end request timeout in milliseconds. Pass nil for no
-// timeout; a value of 0 means a 0ms timeout.
+// Timeout sets the end-to-end request timeout in milliseconds.
+//
+// Pass nil for no timeout; a value of 0 means a 0ms timeout.
 func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {
 	b.timeout = val
 	return b
 }
 
 // FollowRedirects enables or disables automatic redirect following.
+//
+// Pass true to follow (default), false to stop.
 func (b *TransportOptionsBuilder) FollowRedirects(val bool) *TransportOptionsBuilder {
 	b.followRedirects = val
 	return b
 }
 
 // MaxRedirects sets the maximum number of redirects to follow.
-// Pass 0 to disallow all redirects; use nil (do not call this method)
-// to use the HTTP client's built-in default.
+//
+// Pass 0 to disallow all redirects; do not call this method to use the HTTP
+// client's built-in default.
 func (b *TransportOptionsBuilder) MaxRedirects(val int) *TransportOptionsBuilder {
 	b.maxRedirects = &val
 	return b
 }
 
-// UserAgent sets a custom User-Agent header value. Pass nil to omit the
-// User-Agent header entirely.
+// UserAgent sets a custom User-Agent header value.
+//
+// Pass nil to omit the User-Agent header entirely.
 func (b *TransportOptionsBuilder) UserAgent(val *string) *TransportOptionsBuilder {
 	b.userAgent = val
 	return b
@@ -226,16 +249,19 @@ func (b *TransportOptionsBuilder) DefaultHeaders(headers map[string]string) *Tra
 }
 
 // InjectRequestID enables or disables automatic X-Request-ID header injection.
+//
+// Pass true to inject, false to skip (default).
 func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBuilder {
 	b.injectRequestID = val
 	return b
 }
 
-// Build validates the configuration and returns an immutable TransportOptions
-// instance. It returns ErrInvalidProxyURL when the proxy URL is invalid, and
+// Build builds and returns an immutable TransportOptions instance.
+//
+// It returns ErrInvalidProxyURL when the proxy URL is invalid, and
 // ErrInvalidCACertificate when the CA certificate file cannot be read or holds
-// no PEM certificate. Both are configuration mistakes, reported here rather
-// than on the first request.
+// no PEM certificate. Both are caller mistakes, reported here rather than on
+// the first request.
 func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.proxyErr != nil {
 		return nil, b.proxyErr

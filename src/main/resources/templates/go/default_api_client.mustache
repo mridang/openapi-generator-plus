@@ -59,10 +59,10 @@ type noRedirectContextKey struct{}
 type DefaultApiClient struct {
 	transportOptions *TransportOptions
 	httpClient       *http.Client
-	/* closed is set by Close(). close-lifecycle-three-way: once closed, any
-	 * further SendRequest must fail with a uniform SDK error rather than
-	 * silently succeeding (or leaking a foreign library error), matching the
-	 * use-after-close contract of the other SDKs. */
+	/* closed is set by Close(). Once closed, any further SendRequest must fail
+	 * with a uniform SDK error rather than silently succeeding (or leaking a
+	 * foreign library error), matching the use-after-close contract of the
+	 * other SDKs. */
 	closed atomic.Bool
 }
 
@@ -81,7 +81,8 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 	}
 }
 
-// SendRequest sends an HTTP request with transport-level settings applied.
+// SendRequest sends an HTTP request and returns the response, with
+// transport-level settings applied.
 //
 // Convenience wrapper that delegates to SendRequestWithOptions with no
 // per-request overrides.
@@ -182,9 +183,9 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	}
 	defer resp.Body.Close()
 
-	// response-body-read-error-not-wrapped: a failure reading the body AFTER
-	// headers were received (connection reset, truncated chunked encoding, a
-	// timeout) is a transport failure like a send-phase one.
+	// A failure reading the body AFTER headers were received (connection reset,
+	// truncated chunked encoding, a timeout) is a transport failure like a
+	// send-phase one.
 	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, newTransportError(fmt.Sprintf("failed to read response body: %s", err.Error()), err)
@@ -248,8 +249,10 @@ func newTransportError(msg string, err error) error {
 	return errors_pkg.NewNetworkError(msg, err)
 }
 
-// Close releases idle TCP/TLS connections held by the underlying
-// http.Transport. After Close the client should not be reused.
+// Close releases any resources held by this client: the idle TCP/TLS
+// connections of the underlying http.Transport (connection pool, sockets).
+// After Close the client cannot be reused; a further request returns
+// ErrClientClosed.
 func (c *DefaultApiClient) Close() error {
 	c.closed.Store(true)
 	if transport, ok := c.httpClient.Transport.(*http.Transport); ok {
@@ -499,9 +502,8 @@ func decodeBodyByCharset(body []byte, contentType string) string {
 
 // decodeUtf16 decodes UTF-16 byte sequences (with optional BOM) to a UTF-8
 // string. Handles surrogate pairs per Unicode 15. bigEndian selects byte
-// order when no BOM is present. Aligns Go with Java/Kotlin/Swift/etc which
-// decode UTF-16 via native charset support — previously Go silently
-// reinterpreted UTF-16 bytes as UTF-8, mangling all non-ASCII data.
+// order when no BOM is present. Matches the other SDKs, which decode UTF-16
+// via native charset support.
 func decodeUtf16(body []byte, bigEndian bool) string {
 	if len(body) < 2 {
 		return string(body)

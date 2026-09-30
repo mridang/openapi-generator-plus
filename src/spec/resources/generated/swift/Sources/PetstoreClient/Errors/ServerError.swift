@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// ServerError represents an HTTP 5xx server error.
+/// Error for HTTP 5xx server errors.
 public class ServerError: ApiError, @unchecked Sendable {}

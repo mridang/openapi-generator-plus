@@ -18,6 +18,18 @@ package com.example.petstore.errors
  * share the branded [OpenAPIException] root.
  */
 class SerializationException : OpenAPIException {
+    /**
+     * Creates an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause
+     */
     constructor(message: String, cause: Throwable) : super(message, cause)
+
+    /**
+     * Creates an exception with a detail message.
+     *
+     * @param message the detail message
+     */
     constructor(message: String) : super(message)
 }

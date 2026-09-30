@@ -149,10 +149,9 @@ func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("AddPet", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -198,7 +197,7 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -236,10 +235,9 @@ func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("AddPetPhotos", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -298,7 +296,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 	var dataPtr *[]Photo
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -335,10 +333,9 @@ func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("AddPetTreatment", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -392,7 +389,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 	var dataPtr *PetTreatment
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -505,10 +502,9 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, er
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("DownloadPetDocument", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -564,7 +560,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -609,10 +605,9 @@ func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("FindPetsByStatus", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -665,7 +660,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 	var dataPtr *[]Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -702,10 +697,9 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetExternalPetInfo", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -759,7 +753,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -796,10 +790,9 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetMultiServerPetInfo", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -853,7 +846,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -891,10 +884,9 @@ func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetAvatar", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -942,7 +934,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -980,10 +972,9 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetAvatarThumbnail", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1031,7 +1022,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1075,10 +1066,9 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetById", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1132,7 +1122,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1169,10 +1159,9 @@ func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetByName", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1229,7 +1218,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1267,10 +1256,9 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetPassport", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1318,7 +1306,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 	var dataPtr *PetPassport
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1356,10 +1344,9 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetPhoto", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1415,7 +1402,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	var dataPtr *[]byte
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1453,10 +1440,9 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagO
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetPetTag", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1529,7 +1515,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1566,10 +1552,9 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("GetStagingPetInfo", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1623,7 +1608,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1791,10 +1776,9 @@ func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesO
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("SetPetPreferences", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1858,7 +1842,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 	var dataPtr *ApiResponse
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1897,10 +1881,9 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("UpdatePet", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -1948,7 +1931,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 	var dataPtr *Pet
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -1986,10 +1969,9 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertif
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("UploadPetCertificate", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -2047,7 +2029,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 	var dataPtr *ApiResponse
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}
@@ -2085,10 +2067,9 @@ func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentO
 	if err != nil {
 		return nil, err
 	}
-	/* convenience-empty-body-handling: a body-returning operation that receives
-	 * no decodable body must surface a typed ApiError rather than hand back a
-	 * silent nil / zero-value, matching the throw-on-empty canonical of the
-	 * other SDKs. */
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
 	if result.Data == nil {
 		return nil, newEmptyBodyError("UploadPetDocument", result.StatusCode, result.RawBody, result.Headers)
 	}
@@ -2183,7 +2164,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	var dataPtr *ApiResponse
 	if response.Body != "" {
 		respContentType := ""
-		// Headers are lowercase-normalised per Gap BE.
+		// Response header keys are normalised to lowercase by the transport.
 		if ct, ok := response.Headers["content-type"]; ok {
 			respContentType = ct
 		}

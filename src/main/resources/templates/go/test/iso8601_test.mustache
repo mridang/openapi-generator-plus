@@ -11,7 +11,7 @@ import (
 	"{{packageName}}/pkg"
 )
 
-// 4.8: format:duration ↔ time.Duration protobuf-JSON round-trip helpers.
+// format:duration ↔ time.Duration protobuf-JSON round-trip helpers.
 
 func TestMarshalDurationProtoJSON_Zero(t *testing.T) {
 	t.Parallel()
@@ -206,7 +206,7 @@ func TestMarshalDurationProtoJSON_SubMilliNoScientificNotation(t *testing.T) {
 	}
 }
 
-// 4.8: format:time ↔ time-of-day helpers.
+// format:time ↔ time-of-day helpers.
 
 func TestFormatTimeOfDay_Basic(t *testing.T) {
 	t.Parallel()

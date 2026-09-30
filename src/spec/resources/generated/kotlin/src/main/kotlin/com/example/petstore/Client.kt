@@ -16,11 +16,11 @@ import com.example.petstore.auth.HttpAwareAuthenticator
 /**
  * Unified entry point for all API services.
  *
- * Takes an [Authenticator] and optionally [TransportOptions], then exposes each
- * API group as a typed property. If the authenticator implements
- * [HttpAwareAuthenticator], the shared [ApiClient] is injected so that
- * authentication HTTP calls (token exchange, discovery) use the same transport
- * configuration as regular API calls.
+ * Takes an [Authenticator] and optionally [TransportOptions],
+ * then exposes each API group as a typed property. If the authenticator
+ * implements [HttpAwareAuthenticator], the shared [ApiClient]
+ * is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
  *
  * Usage:
  * ```kotlin
@@ -45,7 +45,9 @@ class Client {
     /**
      * Creates a new client with the given authenticator and default transport settings.
      *
-     * @param authenticator provides host URL and auth credentials
+     * @param authenticator provides host URL and auth headers
+     * @throws IllegalArgumentException if the transport cannot be configured (never
+     *   thrown for default transport, which configures no custom CA certificate)
      */
     constructor(authenticator: Authenticator) : this(authenticator, TransportOptions.builder().build())
 
@@ -56,8 +58,9 @@ class Client {
      * [ApiClient] is injected so that token exchange and discovery requests
      * use the same proxy, TLS, and timeout settings.
      *
-     * @param authenticator provides host URL and auth credentials
+     * @param authenticator provides host URL and auth headers
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
      */
     constructor(authenticator: Authenticator, transportOptions: TransportOptions) {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
@@ -78,12 +81,13 @@ class Client {
 
     companion object {
         /**
-         * Creates a client authenticated with a static Bearer token and default transport.
+         * Creates a client authenticated with a static Bearer token.
          *
          * @param host API base URL
          * @param accessToken Bearer token
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
+         * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
          */
         fun withToken(
             host: String,
@@ -99,13 +103,16 @@ class Client {
         /**
          * Creates a client from any [Authenticator] implementation.
          *
-         * This is the generic entry point for bespoke authenticators such as
-         * client credentials, JWT private key, or personal access token (PAT)
-         * flows. Use [withToken] instead for a static Bearer token.
+         * This is the generic entry point for bespoke authentication strategies such as
+         * OAuth2 client credentials, JWT private-key (service account), or a personal access
+         * token (PAT). Supply any [Authenticator] implementation; if it also implements
+         * [HttpAwareAuthenticator], the shared [ApiClient] is injected so its HTTP
+         * calls reuse the same transport configuration.
          *
-         * @param authenticator provides host URL and auth credentials
+         * @param authenticator provides host URL and auth headers
          * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
+         * @throws IllegalArgumentException if a configured custom CA certificate cannot be read or parsed
          */
         fun withAuthenticator(
             authenticator: Authenticator,

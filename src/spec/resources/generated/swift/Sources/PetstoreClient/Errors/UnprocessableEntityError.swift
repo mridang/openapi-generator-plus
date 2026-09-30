@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// UnprocessableEntityError represents an HTTP 422 Unprocessable Entity error.
+/// Error for HTTP 422 Unprocessable Entity.
 public class UnprocessableEntityError: ClientError, @unchecked Sendable {}

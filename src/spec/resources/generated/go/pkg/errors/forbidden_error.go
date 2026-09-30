@@ -9,7 +9,7 @@
 
 package errors
 
-// ForbiddenError represents an HTTP 403 Forbidden error.
+// ForbiddenError is the error for HTTP 403 Forbidden.
 type ForbiddenError struct {
 	ClientError
 }

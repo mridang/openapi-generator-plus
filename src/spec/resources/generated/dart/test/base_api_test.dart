@@ -1493,7 +1493,7 @@ void main() {
           );
           expect(
             receivedBody,
-            contains('2020-01-02T03:04:05.123'),
+            contains('2020-01-02T03:04:05.123+00:00'),
             reason:
                 'takenAt must carry the SDK date-time string, got: $receivedBody',
           );

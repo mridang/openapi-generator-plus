@@ -55,8 +55,8 @@ pub(crate) enum TransportFailure {
     Timeout,
 }
 
-/// ApiError represents an error returned by the API, including the HTTP status
-/// code, response headers, and response body.
+/// Error returned when an API call fails, including the HTTP status code,
+/// response headers, and response body.
 #[derive(Debug, Clone)]
 pub struct ApiError {
     /// The HTTP status code.
@@ -65,26 +65,27 @@ pub struct ApiError {
     /// The error message.
     message: String,
 
-    /// The raw response body (None if the transport failed before producing one).
+    /// The raw HTTP response body, if available (`None` if the transport failed
+    /// before producing one).
     response_body: Option<String>,
 
-    /// The response headers (None if the transport failed before producing them).
+    /// The HTTP response headers, if available (`None` if the transport failed
+    /// before producing them).
     response_headers: Option<HashMap<String, String>>,
 
-    /// The parsed response body, if JSON. Crate-internal: exposing the
-    /// `serde_json::Value` AST would leak `serde_json` into the public API.
-    /// Callers should use [`ApiError::typed_error_body`] for a typed view of the
-    /// body instead.
+    /// The deserialized error body, if available (parsed from the response body
+    /// when it is JSON). Crate-internal: exposing the `serde_json::Value` AST
+    /// would leak `serde_json` into the public API. Callers should use
+    /// [`ApiError::typed_error_body`] for a typed view of the body instead.
     pub(crate) error_body: Option<serde_json::Value>,
 
     /// The underlying transport-level error that caused this ApiError, if any.
     ///
-    /// apierror-drops-transport-cause: rather than stringifying and discarding
-    /// the originating error (DNS/connect/TLS/IO/body-read failure), it is
-    /// preserved here and exposed via [`std::error::Error::source`], so callers
-    /// can downcast the cause and inspect it — matching the 10 other SDKs that
-    /// retain `cause` / `Unwrap` / `__cause__` / `InnerException`. Stored as an
-    /// `Arc` so `ApiError` stays `Clone`.
+    /// Used when a send/read failure (connection reset, read timeout, DNS
+    /// failure) is wrapped: the original error is retained as the
+    /// [`std::error::Error::source`] so callers can inspect the root error
+    /// rather than only a stringified message. Stored as an `Arc` so `ApiError`
+    /// stays `Clone`.
     source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 
     /// Set when the request produced no HTTP response; `None` otherwise.
@@ -92,7 +93,7 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    /// Creates a new ApiError with no preserved transport cause.
+    /// Creates an error with response context but no preserved transport cause.
     ///
     /// The parsed-JSON view (`error_body`) is derived internally from
     /// `response_body`; callers do not supply a `serde_json::Value`.
@@ -114,9 +115,8 @@ impl ApiError {
         }
     }
 
-    /// Creates a new ApiError that preserves the underlying transport `source`
-    /// error so callers can inspect the original cause via
-    /// [`std::error::Error::source`].
+    /// Creates an error that preserves the underlying transport `source`, so
+    /// callers can inspect the original cause via [`std::error::Error::source`].
     ///
     /// The parsed-JSON view (`error_body`) is derived internally from
     /// `response_body`; callers do not supply a `serde_json::Value`.
@@ -157,12 +157,16 @@ impl ApiError {
         }
     }
 
-    /// Builds the error for a non-2xx HTTP response: the concrete 4xx/5xx type
-    /// for a recognised status ([`NotFoundError`], [`InternalServerError`], ...),
-    /// [`ClientError`] or [`ServerError`] for any other 400-499 or 500-599, and
-    /// a plain `ApiError` for anything else. Every generated operation and the OpenID
-    /// Connect discovery request build their HTTP errors here, so this is the
-    /// one place the status-to-error mapping lives.
+    /// Maps an HTTP response that was not a success to the error for its status.
+    ///
+    /// 400, 401, 403, 404, 409 and 422 map to their named [`ClientError`]
+    /// wrappers and any other 4xx to [`ClientError`]; 500 maps to
+    /// [`InternalServerError`] and any other 5xx to [`ServerError`]; any other
+    /// status maps to a plain `ApiError`. A JSON body is decoded and exposed
+    /// internally as the error body; a body that is not JSON leaves the error
+    /// body `None`. Every generated operation and the OpenID Connect discovery
+    /// request build their HTTP errors here, so this is the one place the
+    /// status-to-error mapping lives.
     pub fn from_response(
         status_code: u16,
         headers: &HashMap<String, String>,
@@ -199,34 +203,33 @@ impl ApiError {
         Box::new(base_err)
     }
 
-    /// Returns the HTTP status code.
+    /// The HTTP status code.
     pub fn status_code(&self) -> u16 {
         self.status_code
     }
 
-    /// Returns the error message.
+    /// The error message.
     pub fn message(&self) -> &str {
         &self.message
     }
 
-    /// Returns the raw response body, if the transport produced one.
+    /// The raw HTTP response body, if available.
     pub fn response_body(&self) -> Option<&str> {
         self.response_body.as_deref()
     }
 
-    /// Returns the response headers, if the transport produced them.
+    /// The HTTP response headers, if available.
     pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
         self.response_headers.as_ref()
     }
 
-    /// Deserializes the raw response body into the target type `T`.
+    /// Deserializes the raw response body into the given type `T`.
     ///
-    /// Returns `Ok(None)` when the error did not carry a response body
-    /// (e.g. transport-level failures, or the server emitted no payload).
-    /// Returns `Err` when the body is present but cannot be parsed into `T`.
-    ///
-    /// This is the one accessor for spec-declared error schemas, mirroring the
-    /// `getTypedErrorBody` helper the other SDKs expose.
+    /// Useful when the API returns a structured error body that you want to
+    /// access in a strongly-typed way. Returns `Ok(None)` when the error did
+    /// not carry a response body (e.g. transport-level failures, or the server
+    /// emitted no payload), and `Err` when the body is present but cannot be
+    /// parsed into `T`.
     pub fn typed_error_body<T: serde::de::DeserializeOwned>(
         &self,
     ) -> Result<Option<T>, SerializationError> {
@@ -235,6 +238,8 @@ impl ApiError {
 }
 
 impl fmt::Display for ApiError {
+    /// Renders the error as the message followed by whatever response context
+    /// was captured, one labelled field per line.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut msg = if self.message.is_empty() {
             "Error message: the server returns an error".to_string()
@@ -270,7 +275,7 @@ impl std::error::Error for ApiError {
     }
 }
 
-/// ApiErrorFields carries the per-variant payload for ApiErrorKind.
+/// The per-variant payload for [`ApiErrorKind`].
 ///
 /// Each per-status enum variant wraps an instance of this struct so callers
 /// can `match` on the HTTP status while still accessing the body, headers,
@@ -332,12 +337,11 @@ impl From<ApiError> for ApiErrorFields {
     }
 }
 
-/// ApiErrorKind is a per-status enum view of an error returned by the API.
+/// A per-status enum view of an error returned by the API.
 ///
 /// Provides idiomatic Rust pattern matching for callers that want to react
 /// to specific HTTP statuses without downcasting to per-status struct types.
-/// Cross-language parity: mirrors the per-status subclass hierarchies emitted
-/// by the Java, Kotlin, C#, PHP, Python, Node, and Ruby SDKs.
+/// It mirrors the per-status class hierarchy the other SDKs declare.
 ///
 /// Convert from a plain [`ApiError`] via [`ApiErrorKind::from`].
 #[derive(Debug)]

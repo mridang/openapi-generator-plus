@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// NotFoundError represents an HTTP 404 Not Found error.
+/// Error for HTTP 404 Not Found.
 #[derive(Debug, Clone)]
 pub struct NotFoundError {
     client_error: ClientError,

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ApiKeyAuthenticator provides API key authentication.
+// ApiKeyAuthenticator is the authenticator for API key authentication.
 //
 // The API key can be sent as a header, query parameter, or cookie,
 // depending on the location specified at construction.
@@ -66,8 +66,8 @@ func (a *ApiKeyAuthenticator) Host() string {
 	return a.host
 }
 
-// String implements fmt.Stringer so the default string/format representation
-// never leaks the API key. authenticator-secret-in-default-string-repr.
+// String returns a string representation that redacts the API key so
+// credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *ApiKeyAuthenticator) String() string {
 	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***}", a.host, a.keyParamName)
 }

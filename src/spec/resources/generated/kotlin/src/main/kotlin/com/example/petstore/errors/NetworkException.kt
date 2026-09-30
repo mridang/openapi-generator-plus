@@ -11,6 +11,9 @@ package com.example.petstore.errors
  * Exception for a request that received no HTTP response: connection refused,
  * DNS failure, TLS failure, or connection reset. The status code is always 0
  * and the underlying transport exception is kept as the cause.
+ *
+ * @param message the error message
+ * @param cause the underlying transport exception
  */
 open class NetworkException(
     message: String,

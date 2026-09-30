@@ -4,8 +4,8 @@ defmodule {{moduleName}}.Servers do
   @moduledoc """
   Generated server configurations from the OpenAPI specification.
 
-  Each module attribute corresponds to a server entry defined in the spec's
-  `servers` array. Use these with `#{inspect({{moduleName}}.Configuration)}` to select a server:
+  Each function corresponds to a server entry defined in the spec's `servers`
+  array. Use these with `#{inspect({{moduleName}}.Configuration)}` to select a server:
 
       config = {{moduleName}}.Configuration.new(
         base_url: {{moduleName}}.Servers.server_0() |> {{moduleName}}.ServerConfiguration.url()

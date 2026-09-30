@@ -21,7 +21,10 @@ actual object TraceContextUtil {
                     headers,
                 ) { carrier, key, value -> carrier?.put(key, value) }
         } catch (_: LinkageError) {
+            // Trace-context injection is strictly best-effort: when the
+            // OpenTelemetry API is absent (LinkageError) the request proceeds untraced.
         } catch (_: RuntimeException) {
+            // No active context exists (RuntimeException): the request proceeds untraced.
         }
     }
 }

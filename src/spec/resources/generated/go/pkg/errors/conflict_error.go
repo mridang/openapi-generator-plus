@@ -9,7 +9,7 @@
 
 package errors
 
-// ConflictError represents an HTTP 409 Conflict error.
+// ConflictError is the error for HTTP 409 Conflict.
 type ConflictError struct {
 	ClientError
 }

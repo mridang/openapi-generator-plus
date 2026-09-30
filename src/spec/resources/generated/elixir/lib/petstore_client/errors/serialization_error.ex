@@ -9,6 +9,7 @@ defmodule PetstoreClient.Errors.SerializationError do
   @moduledoc """
   Exception raised when serialization or deserialization fails.
   """
+
   @type t :: %__MODULE__{message: String.t(), cause: Exception.t() | nil}
 
   defexception [:message, :cause]

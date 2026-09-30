@@ -8,11 +8,66 @@ import (
 	"strings"
 )
 
-// encodePathSegment percent-encodes a string for use as a URL path segment,
-// while preserving the RFC 3986 sub-delimiters that OAS 3.0 parameter styles
-// use as structural separators: ; = , : @ ! $ & ' ( ) * +
+// serializeValue serializes a value for use in an HTTP request parameter.
 //
-// This matches the canonical encoding used by Java, Node, C#, Swift, etc.
+// The serialization strategy depends on the location:
+//   - path: scalar values are stringified and percent-encoded
+//   - query: nil values are omitted (returns nil); collections are formatted
+//     according to collectionFormat
+//   - header: collections are joined with commas; nil values become empty strings
+//   - any other location: nil values become empty strings, scalars are stringified
+//
+// Parameters:
+//   - value: the value to serialize (may be nil)
+//   - location: where the parameter appears: "path", "query", "header", or "cookie"
+//   - schemaType: the OpenAPI schema type (currently unused, reserved for
+//     future format-aware serialization)
+//   - collectionFormat: the collection format: "multi", "csv", "ssv", "tsv",
+//     or "pipes" (only relevant for query parameters)
+//
+// Returns the serialized value: a string, a []string (for "multi" query
+// collections), or nil to omit the parameter.
+func serializeValue(value any, location, schemaType, collectionFormat string) any {
+	if value == nil {
+		return serializeNil(location)
+	}
+
+	if items, ok := toStringSlice(value); ok {
+		if location == "query" {
+			switch collectionFormat {
+			case "multi":
+				return items
+			case "ssv":
+				return strings.Join(items, " ")
+			case "tsv":
+				return strings.Join(items, "\t")
+			case "pipes":
+				return strings.Join(items, "|")
+			default:
+				return strings.Join(items, ",")
+			}
+		}
+		return strings.Join(items, ",")
+	}
+
+	strVal := stringify(value)
+	if location == "path" {
+		return encodePathSegment(strVal)
+	}
+	return strVal
+}
+
+// encodePathSegment percent-encodes a value for use as a URL path segment.
+//
+// Encodes characters that are not allowed in a URI path segment per RFC 3986,
+// but preserves the sub-delimiters (including ";", "=", ",", ":", etc.) that
+// OAS 3.0 matrix/label/simple styles use as structural separators in the
+// styled value.
+//
+// The preserved set matches the canonical encoding used by Java, Node, C#,
+// Swift, etc.: ; = , : @ ! $ & ' ( ) * +
+//
+// Returns the percent-encoded path segment.
 func encodePathSegment(value string) string {
 	if value == "" {
 		return value
@@ -91,49 +146,17 @@ func maybeAllowReserved(value any, allowReserved bool) any {
 	return allowReservedValue{value: value}
 }
 
-// serializeValue serializes a parameter value for HTTP requests based on its location.
-//
-// Parameters:
-//   - value: the value to serialize
-//   - location: "path", "query", "header", or "cookie"
-//   - schemaType: the schema type (e.g. "string", "array")
-//   - collectionFormat: legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
-//
-// Returns the serialized string value.
-func serializeValue(value any, location, schemaType, collectionFormat string) any {
-	if value == nil {
-		return serializeNil(location)
-	}
-
-	if items, ok := toStringSlice(value); ok {
-		if location == "query" {
-			switch collectionFormat {
-			case "multi":
-				return items
-			case "ssv":
-				return strings.Join(items, " ")
-			case "tsv":
-				return strings.Join(items, "\t")
-			case "pipes":
-				return strings.Join(items, "|")
-			default:
-				return strings.Join(items, ",")
-			}
-		}
-		return strings.Join(items, ",")
-	}
-
-	strVal := stringify(value)
-	if location == "path" {
-		return encodePathSegment(strVal)
-	}
-	return strVal
-}
-
 // serializeDeepObject serializes a deepObject-style query parameter.
 //
-// Produces a map of flattened keys in the form paramName[key] to stringified values.
-// Accepts map[string]any, map[string]string, or pointers to these types.
+// Produces a map of flattened keys in the form paramName[key] to stringified
+// values, suitable for inclusion in a query string. Accepts map[string]any,
+// map[string]string, or pointers to these types.
+//
+// Parameters:
+//   - paramName: the parameter name (e.g. "filter")
+//   - value: the map value to serialize
+//
+// Returns a map of expanded keys to serialized values, or an empty map if value is nil.
 func serializeDeepObject(paramName string, value any) map[string]string {
 	result := make(map[string]string)
 	if value == nil {
@@ -192,16 +215,21 @@ func requirePathParam(paramName string, value any) error {
 	return nil
 }
 
-// serializeStyled serializes a parameter value according to OAS 3.0 style and explode rules.
+// serializeStyled serializes a value with OAS 3.0 parameter style formatting.
+//
+// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+// styles. deepObject is handled separately by serializeDeepObject.
 //
 // Parameters:
 //   - paramName: the parameter name
-//   - value: the value to serialize
-//   - location: "path", "query", "header", "cookie"
-//   - schemaType: the schema type
-//   - collectionFormat: legacy collection format
-//   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
-//   - explode: whether to explode array values
+//   - value: the value to serialize (may be nil)
+//   - location: where the parameter appears: "path", "query", "header", or "cookie"
+//   - schemaType: the OpenAPI schema type
+//   - collectionFormat: the collection format (may be empty)
+//   - style: the OAS 3.0 parameter style (may be empty)
+//   - explode: whether to explode arrays
+//
+// Returns the serialized value, or nil to omit the parameter.
 func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
 	if style == "" {
 		return serializeValue(value, location, schemaType, collectionFormat)
@@ -321,6 +349,8 @@ func serializeStyled(paramName string, value any, location, schemaType, collecti
 	}
 }
 
+// serializeNil returns the serialized form of a nil value: nil (omit the
+// parameter) for a query parameter, an empty string for every other location.
 func serializeNil(location string) any {
 	if location == "query" {
 		return nil
@@ -328,7 +358,8 @@ func serializeNil(location string) any {
 	return ""
 }
 
-// toStringSlice attempts to convert an any to a []string.
+// toStringSlice attempts to convert a value to a []string.
+//
 // Returns the string slice and true if the conversion was successful.
 //
 // The fast-path type switches cover the common []string / []any shapes. For

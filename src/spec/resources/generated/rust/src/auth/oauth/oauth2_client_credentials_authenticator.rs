@@ -20,12 +20,11 @@ use crate::utils::form_url_encode;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine as _;
 
-/// OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials
-/// flow authentication.
+/// Authenticator for the OAuth2 Client Credentials flow.
 ///
-/// Implements HttpAwareAuthenticator so that token exchange requests use the
-/// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
-/// as regular API calls.
+/// Implements [`HttpAwareAuthenticator`] so that token exchange requests use
+/// the shared [`ApiClient`] with the same transport configuration (proxy, TLS,
+/// timeouts) as regular API calls.
 pub struct OAuth2ClientCredentialsAuthenticator {
     host: String,
     client_id: String,
@@ -37,7 +36,12 @@ pub struct OAuth2ClientCredentialsAuthenticator {
 }
 
 impl OAuth2ClientCredentialsAuthenticator {
-    /// Creates a new client credentials authenticator.
+    /// Creates a new client credentials authenticator using the default
+    /// [`ClientAuthMethod::Body`] client authentication method.
+    ///
+    /// `host` is the API base URL, `client_id` and `client_secret` the OAuth2
+    /// client credentials, `token_url` the token endpoint URL and `scopes` the
+    /// requested scopes.
     pub fn new(
         host: &str,
         client_id: &str,
@@ -56,7 +60,7 @@ impl OAuth2ClientCredentialsAuthenticator {
         }
     }
 
-    /// Sets how the client credentials are transmitted to the token endpoint
+    /// Sets how to transmit the client credentials to the token endpoint
     /// (RFC 6749 §2.3.1). Builder-style; returns the receiver.
     pub fn with_client_auth_method(mut self, method: ClientAuthMethod) -> Self {
         self.client_auth_method = method;
@@ -64,9 +68,10 @@ impl OAuth2ClientCredentialsAuthenticator {
     }
 }
 
-/// Redacts the client secret so it never leaks through `{:?}` (Debug)
-/// formatting, stack traces, or error logs. The non-secret configuration
-/// fields are shown normally; the client secret is masked as `***`.
+/// Renders a representation that redacts the client secret so credentials never
+/// leak into logs or stack traces (`{:?}` formatting). The non-secret
+/// configuration fields are shown normally; the client secret is masked as
+/// `***`.
 impl std::fmt::Debug for OAuth2ClientCredentialsAuthenticator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OAuth2ClientCredentialsAuthenticator")

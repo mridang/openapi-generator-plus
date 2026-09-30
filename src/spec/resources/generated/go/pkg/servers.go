@@ -14,15 +14,17 @@ package petstore
 // Each variable corresponds to a server entry defined in the spec's
 // servers array. Use these with ConfigurationBuilder.Server to select a server:
 //
-//	config := petstore.NewConfigurationBuilder().
-//		Server(petstore.Server0, nil).
-//		Build()
+//	builder, err := petstore.NewConfigurationBuilder().
+//		Server(petstore.Server0, nil)
+//	if err != nil {
+//		return err
+//	}
+//	config := builder.Build()
 //
 // For servers with variables, pass overrides:
 //
-//	config := petstore.NewConfigurationBuilder().
-//		Server(petstore.Server1, map[string]string{"environment": "staging"}).
-//		Build()
+//	builder, err := petstore.NewConfigurationBuilder().
+//		Server(petstore.Server1, map[string]string{"environment": "staging"})
 var (
 	/* Server0 is the server configuration for: /api/v3
 	 * Relative URL (no variables) */

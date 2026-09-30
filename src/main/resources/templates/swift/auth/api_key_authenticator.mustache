@@ -1,23 +1,21 @@
 {{>api_info}}
 import Foundation
 
-/// ApiKeyAuthenticator provides API key authentication.
-///
-/// The API key can be sent as a header, query parameter, or cookie,
-/// depending on the location specified at construction.
+/// Authenticator for API key authentication. Supports sending the key
+/// as a header, query parameter, or cookie.
 public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let _host: String
     private let keyParamName: String
     private let apiKey: String
     private let location: ApiKeyLocation
 
-    /// Creates a new API key authenticator.
+    /// Creates an API key authenticator.
     ///
     /// - Parameters:
-    ///   - host: API base URL
-    ///   - keyParamName: Name of the key parameter
-    ///   - apiKey: The API key value
-    ///   - location: Where to send the key (header, query, or cookie)
+    ///   - host: The base URL of the API.
+    ///   - keyParamName: The name of the header, query parameter, or cookie carrying the key.
+    ///   - apiKey: The API key value.
+    ///   - location: Where the API key is sent on each request.
     /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the key
     ///   cannot be sent safely.
     public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) throws {
@@ -50,7 +48,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
         super.init()
     }
 
-    /// Returns the API base URL.
+    /// Returns the base URL of the API.
     override public func host() -> String {
         return _host
     }
@@ -81,14 +79,14 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
 }
 
 extension ApiKeyAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
-    /// A description that redacts the API key so it never leaks through string
-    /// interpolation, logging, or debugging output.
+    /// A string representation that redacts the API key so credentials never
+    /// leak into logs or stack traces (matching the other SDKs).
     public var description: String {
         "\(type(of: self))(host: \(_host), keyParamName: \(keyParamName), apiKey: ***, location: \(location))"
     }
 
-    /// A debug description that redacts the API key so it never leaks through
-    /// string interpolation, logging, or debugging output.
+    /// A debug string representation that redacts the API key so credentials
+    /// never leak into logs or stack traces (matching the other SDKs).
     public var debugDescription: String {
         description
     }

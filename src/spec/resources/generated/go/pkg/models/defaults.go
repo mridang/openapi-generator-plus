@@ -64,11 +64,10 @@ type Defaults struct {
 
 // Equal reports whether this Defaults is value-equal to other.
 //
-// model-equality-swift-go: models may carry map / slice fields (e.g.
-// additionalProperties), so the built-in `==` operator panics at runtime on
-// such values. Comparing the canonical JSON encodings gives a value-equality
-// contract that works for every field shape, matching the equality semantics
-// of the other SDKs.
+// Models may carry map / slice fields (e.g. additionalProperties), so the
+// built-in `==` operator panics at runtime on such values. Comparing the
+// canonical JSON encodings gives a value-equality contract that works for every
+// field shape, matching the equality semantics of the other SDKs.
 func (o Defaults) Equal(other Defaults) bool {
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
@@ -100,10 +99,10 @@ func (o Defaults) MarshalJSON() ([]byte, error) {
 func (o *Defaults) UnmarshalJSON(data []byte) error {
 	type Alias Defaults
 	aux := &Alias{}
-	/* default-on-deserialize: pre-seed optional fields that declare a schema
-	 * default. json.Unmarshal leaves a struct field untouched when its key is
-	 * absent from the payload, so a pre-set default survives while a present
-	 * value overwrites it — matching the default-application of the other SDKs. */
+	/* json.Unmarshal leaves a struct field untouched when its key is absent
+	 * from the payload, so we pre-seed optional fields that declare a schema
+	 * default before decoding: a present value overwrites the default while an
+	 * absent one keeps it, matching the default-application of the other SDKs. */
 	var defaultRetries int32 = 3
 	aux.Retries = &defaultRetries
 	var defaultMode DefaultsModeEnum = "medium"

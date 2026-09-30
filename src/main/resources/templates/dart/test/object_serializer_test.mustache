@@ -234,7 +234,7 @@ void main() {
     test('stringify DateTime', () {
       final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
       final result = stringify(ts);
-      expect(result, equals('2024-01-15T10:30:00+00:00'));
+      expect(result, equals('2024-01-15T10:30:00.000+00:00'));
     });
 
     test('stringify null', () {
@@ -246,23 +246,20 @@ void main() {
     test('UTC datetime serializes containing date-time and offset', () {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
-      expect(result, contains('2024-01-01'));
-      expect(result, contains('12:30:45'));
-      expect(result.contains('+00:00') || result.endsWith('Z'), isTrue,
-          reason: 'should contain UTC offset: $result');
+      expect(result, equals('2024-01-01T12:30:45.000+00:00'));
     });
 
     test('positive timezone offset is preserved', () {
       // Use a fixed UTC equivalent: 12:30:45+05:30 = 07:00:45 UTC
       final utcDt = DateTime.utc(2024, 1, 1, 7, 0, 45);
       final result = stringify(utcDt);
-      expect(result, isNotEmpty);
+      expect(result, equals('2024-01-01T07:00:45.000+00:00'));
     });
 
     test('negative timezone offset does not lose the offset', () {
       final utcDt = DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
       final result = stringify(utcDt);
-      expect(result, isNotEmpty);
+      expect(result, equals('2024-01-01T20:30:45.000+00:00'));
     });
 
     test('date-time serialization preserves sub-second precision', () {
@@ -274,7 +271,7 @@ void main() {
       final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123);
       final result = stringify(dt);
       // (1) the millisecond fraction is NOT truncated to whole seconds.
-      expect(result, contains('.123'),
+      expect(result, equals('2020-01-02T03:04:05.123+00:00'),
           reason: 'milliseconds must survive serialization: $result');
       // (2) deserializing yields a date-time equal to the original instant.
       final parsed = DateTime.parse(result);
@@ -286,14 +283,20 @@ void main() {
     test('date formatted as string contains date component', () {
       final dt = DateTime.utc(2024, 1, 1, 0, 0, 0);
       final result = stringify(dt);
-      expect(result, contains('2024-01-01'));
+      expect(result, equals('2024-01-01T00:00:00.000+00:00'));
     });
 
-    test('serialized datetime ends with an offset or Z', () {
+    test('serialized datetime ends with a numeric offset, never Z', () {
       final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
       final result = stringify(dt);
-      expect(result.endsWith('Z') || result.contains('+') || result.contains('-'),
-          isTrue, reason: 'should end with offset: $result');
+      expect(result, equals('2024-01-01T12:30:45.000+00:00'));
+      expect(result.endsWith('Z'), isFalse,
+          reason: 'zero offset must render as +00:00, not Z: $result');
+    });
+
+    test('microsecond component is truncated to a fixed 3-digit fraction', () {
+      final dt = DateTime.utc(2020, 1, 2, 3, 4, 5, 123, 456);
+      expect(stringify(dt), equals('2020-01-02T03:04:05.123+00:00'));
     });
 
     test('round-trip: serialize then deserialize yields equivalent instant', () {

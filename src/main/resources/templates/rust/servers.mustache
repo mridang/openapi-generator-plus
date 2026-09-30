@@ -7,7 +7,7 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// Generated server configurations from the OpenAPI specification.
 ///
 /// Each function corresponds to a server entry defined in the spec's
-/// servers array. Use these with `ConfigurationBuilder::server` to select a server:
+/// `servers` array. Use these with `ConfigurationBuilder::server` to select a server:
 ///
 /// ```rust,no_run
 /// # use std::collections::HashMap;
@@ -31,8 +31,9 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 ///     .build();
 /// ```
 {{#serverConfigs}}
-/// Server configuration for: {{serverUrl}}
+/// Server {{serverIndex}}: `{{serverUrl}}`
 {{#serverDescription}}
+///
 /// {{serverDescription}}
 {{/serverDescription}}
 pub fn server_{{serverIndex}}() -> ServerConfiguration {
@@ -57,7 +58,7 @@ pub fn server_{{serverIndex}}() -> ServerConfiguration {
 }
 {{/serverConfigs}}
 
-/// Returns all server configurations in declaration order.
+/// All server configurations in declaration order.
 pub fn all_servers() -> Vec<ServerConfiguration> {
     vec![
 {{#serverConfigs}}

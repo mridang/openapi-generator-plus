@@ -13,8 +13,12 @@ pub enum SerializedValue {
     Multi(Vec<String>),
 }
 
-/// Percent-encodes a path segment value, preserving RFC 3986 sub-delimiters
-/// (`;`, `=`, `,`, `:`, `@`, `!`, `$`, `&`, `'`, `(`, `)`, `*`, `+`).
+/// Percent-encodes a value for use as a URL path segment.
+///
+/// Encodes characters that are not allowed in a URI path segment per RFC 3986,
+/// but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.) that
+/// OAS 3.0 matrix/label/simple styles use as structural separators in the
+/// styled value: `; = , : @ ! $ & ' ( ) * +`.
 fn encode_path_segment(s: &str) -> String {
     urlencoding::encode(s)
         .into_owned()
@@ -80,14 +84,21 @@ pub fn encode_query_allowing_reserved(s: &str) -> String {
         .replace("%3D", "=")
 }
 
-/// Serializes a parameter value for HTTP requests based on its location.
+/// Serializes a value for use in an HTTP request parameter.
+///
+/// The serialization strategy depends on the `location`: for `path`, scalar
+/// values are stringified and URL-encoded; for `query`, a missing value is
+/// omitted (returns `None`); for any other location a missing value becomes the
+/// empty string.
 ///
 /// # Arguments
 ///
-/// * `value` - The value to serialize, or None
-/// * `location` - "path", "query", "header", or "cookie"
-/// * `schema_type` - The schema type (e.g. "string", "array")
-/// * `collection_format` - Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
+/// * `value` - The value to serialize, or `None`
+/// * `location` - Where the parameter appears: "path", "query", "header", or "cookie"
+/// * `schema_type` - The OpenAPI schema type (currently unused, reserved for
+///   future format-aware serialization)
+/// * `collection_format` - The collection format: "multi", "csv", "ssv", "tsv",
+///   or "pipes" (only relevant for query parameters)
 pub fn serialize_value(
     value: Option<&str>,
     location: &str,
@@ -106,7 +117,10 @@ pub fn serialize_value(
     }
 }
 
-/// Serializes an array value for HTTP requests based on its location.
+/// Serializes an array value for use in an HTTP request parameter.
+///
+/// For `query`, the items are formatted according to `collection_format`; for
+/// any other location they are joined with commas.
 pub fn serialize_array_value(
     items: &[String],
     location: &str,
@@ -140,7 +154,9 @@ pub fn serialize_deep_object(
 /// * `param_name` - The parameter name
 /// * `value` - The value to serialize, or None
 /// * `location` - "path", "query", "header", "cookie"
-/// * `schema_type` - The schema type
+/// * `schema_type` - The parameter's Rust data type (a `chrono::DateTime` type
+///   marks a `format: date-time` parameter, which is rewritten to the canonical
+///   wire form)
 /// * `collection_format` - Legacy collection format
 /// * `style` - OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 /// * `explode` - Whether to explode array values
@@ -149,11 +165,39 @@ pub fn serialize_styled(
     value: Option<&str>,
     items: Option<&[String]>,
     location: &str,
-    _schema_type: &str,
+    schema_type: &str,
     _collection_format: &str,
     style: &str,
     explode: bool,
 ) -> Option<SerializedValue> {
+    /* A `format: date-time` parameter reaches this point as chrono's default
+     * RFC 3339 rendering (`Z` designator, variable-width fraction). Rewrite it
+     * to the canonical wire form (`+00:00` offset, fixed three-digit
+     * millisecond fraction) so it matches the request-body encoding and every
+     * other SDK. A value that does not parse is left untouched. */
+    let is_date_time = schema_type.contains("chrono::DateTime");
+    let canonical_value: Option<String> = if is_date_time {
+        value.map(|v| {
+            crate::object_serializer::canonicalize_date_time(v).unwrap_or_else(|| v.to_string())
+        })
+    } else {
+        None
+    };
+    let canonical_items: Option<Vec<String>> = if is_date_time {
+        items.map(|list| {
+            list.iter()
+                .map(|v| {
+                    crate::object_serializer::canonicalize_date_time(v)
+                        .unwrap_or_else(|| v.clone())
+                })
+                .collect()
+        })
+    } else {
+        None
+    };
+    let value = if is_date_time { canonical_value.as_deref() } else { value };
+    let items = if is_date_time { canonical_items.as_deref() } else { items };
+
     // Empty-string path guard. A required-path check lives in the operation
     // method; here we catch the empty-string case that slips through it.
     // panic is appropriate because this is a programmer error, not a
@@ -921,7 +965,7 @@ mod tests {
         assert_eq!(unwrap_single(result), "a%20b,c%3Fd");
     }
 
-    // Gap W1 regression: every per-item path value in a styled array must be
+    // Regression: every per-item path value in a styled array must be
     // percent-encoded BEFORE being joined with the structural separator.
     // Otherwise '/', '?', '#', space leak into the URL.
     #[test]

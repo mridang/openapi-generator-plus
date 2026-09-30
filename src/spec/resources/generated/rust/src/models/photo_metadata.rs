@@ -14,7 +14,12 @@ pub struct PhotoMetadata {
     pub caption: Option<String>,
     #[serde(rename = "isPrimary", skip_serializing_if = "Option::is_none")]
     pub is_primary: Option<bool>,
-    #[serde(rename = "takenAt", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "takenAt",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::date_time::option"
+    )]
     pub taken_at: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
     pub location: Option<PhotoMetadataLocation>,

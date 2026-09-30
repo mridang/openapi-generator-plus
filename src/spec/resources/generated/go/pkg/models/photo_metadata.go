@@ -24,11 +24,10 @@ type PhotoMetadata struct {
 
 // Equal reports whether this PhotoMetadata is value-equal to other.
 //
-// model-equality-swift-go: models may carry map / slice fields (e.g.
-// additionalProperties), so the built-in `==` operator panics at runtime on
-// such values. Comparing the canonical JSON encodings gives a value-equality
-// contract that works for every field shape, matching the equality semantics
-// of the other SDKs.
+// Models may carry map / slice fields (e.g. additionalProperties), so the
+// built-in `==` operator panics at runtime on such values. Comparing the
+// canonical JSON encodings gives a value-equality contract that works for every
+// field shape, matching the equality semantics of the other SDKs.
 func (o PhotoMetadata) Equal(other PhotoMetadata) bool {
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)

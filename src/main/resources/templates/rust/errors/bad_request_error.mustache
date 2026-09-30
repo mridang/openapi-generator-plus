@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::client_error::ClientError;
 
-/// BadRequestError represents an HTTP 400 Bad Request error.
+/// Error for HTTP 400 Bad Request.
 #[derive(Debug, Clone)]
 pub struct BadRequestError {
     client_error: ClientError,

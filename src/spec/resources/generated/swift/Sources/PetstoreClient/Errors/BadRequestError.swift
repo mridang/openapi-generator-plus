@@ -7,5 +7,5 @@
 
 import Foundation
 
-/// BadRequestError represents an HTTP 400 Bad Request error.
+/// Error for HTTP 400 Bad Request.
 public class BadRequestError: ClientError, @unchecked Sendable {}

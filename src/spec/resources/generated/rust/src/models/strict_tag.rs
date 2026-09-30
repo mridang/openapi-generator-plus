@@ -7,7 +7,7 @@
 
 /// StrictTag is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
-// Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+// OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
 // `deny_unknown_fields` makes serde return an error containing the unknown
 // field name when deserializing, surfacing strict-mode violations.
 #[serde(deny_unknown_fields)]

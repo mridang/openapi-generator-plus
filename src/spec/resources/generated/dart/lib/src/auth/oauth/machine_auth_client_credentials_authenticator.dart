@@ -7,8 +7,10 @@
 
 import 'oauth2_client_credentials_authenticator.dart';
 
+/// Authenticator for the `machineAuth` security scheme.
 class MachineAuthClientCredentialsAuthenticator
     extends OAuth2ClientCredentialsAuthenticator {
+  /// Creates an authenticator for the `machineAuth` security scheme.
   MachineAuthClientCredentialsAuthenticator({
     required super.host,
     required super.clientId,

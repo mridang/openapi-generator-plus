@@ -1,7 +1,7 @@
 {{>api_info}}
 import Foundation
 
-/// Utility for injecting W3C Trace Context headers (traceparent, tracestate)
+/// Utility for injecting W3C Trace Context headers (`traceparent`, `tracestate`)
 /// into outgoing API requests when OpenTelemetry is available.
 ///
 /// Swift cannot discover an optional package at runtime (unlike Python's
@@ -24,14 +24,14 @@ import Foundation
 public enum TraceContextUtil {
 
     /// The propagator function used to inject trace context headers.
+    ///
     /// Set this at application startup to enable trace context propagation.
     /// When nil (the default), ``injectTraceContext(headers:)`` is a no-op.
     public static var propagator: ((_ headers: inout [String: String]) -> Void)?
 
-    /// Inject the current OpenTelemetry trace context into the given headers
-    /// dictionary.
+    /// Inject the current OpenTelemetry trace context into the given headers map.
     ///
-    /// - Parameter headers: mutable dictionary of request headers
+    /// - Parameter headers: Mutable map of request headers.
     public static func injectTraceContext(headers: inout [String: String]) {
         propagator?(&headers)
     }

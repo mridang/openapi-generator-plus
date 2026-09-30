@@ -2,21 +2,21 @@
 
 use std::collections::HashMap;
 
-/// ApiHttpResponse wraps an HTTP response with status code, body, and headers.
+/// Represents an HTTP API response.
 #[derive(Debug, Clone)]
 pub struct ApiHttpResponse {
-    /// The HTTP status code of the response.
+    /// The HTTP status code.
     status_code: u16,
 
-    /// The raw response body as a string.
+    /// The raw response body string.
     body: String,
 
-    /// The response headers.
+    /// The response headers (unmodifiable; exposed only through a shared reference).
     headers: HashMap<String, String>,
 }
 
 impl ApiHttpResponse {
-    /// Creates a new ApiHttpResponse with the given values.
+    /// Creates an ApiHttpResponse with the given values.
     pub fn new(status_code: u16, body: String, headers: HashMap<String, String>) -> Self {
         Self {
             status_code,

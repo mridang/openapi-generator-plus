@@ -7,7 +7,9 @@
 
 import 'openid_connect_authenticator.dart';
 
+/// Authenticator for the `ssoAuth` security scheme.
 class SsoAuthAuthenticator extends OpenIdConnectAuthenticator {
+  /// Creates an authenticator for the `ssoAuth` security scheme.
   SsoAuthAuthenticator({
     required super.host,
     required super.clientId,

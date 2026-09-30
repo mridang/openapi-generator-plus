@@ -27,7 +27,7 @@ var ErrBasicAuthUsernameColon = errors.New("basic auth username must not contain
 // password contains CR, LF, or NUL (RFC 7617 §2 header-injection / smuggling).
 var ErrBasicAuthPasswordControlChar = errors.New("basic auth password must not contain CR, LF, or NUL characters")
 
-// BasicAuthenticator provides HTTP Basic authentication.
+// BasicAuthenticator is the authenticator for HTTP Basic authentication.
 type BasicAuthenticator struct {
 	BaseAuthenticator
 	host     string
@@ -35,7 +35,12 @@ type BasicAuthenticator struct {
 	password string
 }
 
-// NewBasicAuthenticator creates a new Basic authenticator.
+// NewBasicAuthenticator creates an HTTP Basic authenticator.
+//
+// Parameters:
+//   - host: the base URL of the API
+//   - username: the Basic auth user-id
+//   - password: the Basic auth password
 //
 // Credentials are validated eagerly at construction, so a malformed
 // credential is reported where it is supplied rather than lazily at first
@@ -68,8 +73,8 @@ func (a *BasicAuthenticator) Host() string {
 	return a.host
 }
 
-// String implements fmt.Stringer so the default string/format representation
-// never leaks the password. authenticator-secret-in-default-string-repr.
+// String returns a string representation that redacts the password so
+// credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *BasicAuthenticator) String() string {
 	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
 }

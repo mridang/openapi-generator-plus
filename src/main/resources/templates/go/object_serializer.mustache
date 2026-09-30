@@ -12,16 +12,21 @@ import (
 	errors_pkg "{{packageName}}/pkg/errors"
 )
 
-// defaultDateTimeFormat is the layout used to render `format: date-time`
-// values on the parameter wire (path/query/header/cookie). It is
-// time.RFC3339Nano so sub-second precision is preserved end-to-end: a
-// time.Time carrying milliseconds (e.g. .123) serialises WITH the fraction
-// rather than being truncated to whole seconds, matching what the JSON body
-// path (encoding/json's time.Time marshaller) emits and what the decoder
-// accepts. RFC3339Nano also renders UTC as the "Z" designator (a literal
-// numeric "+00:00" only appears for genuinely offset zones), keeping the
-// wire form aligned with the body path and the other SDKs.
-const defaultDateTimeFormat = "2006-01-02T15:04:05.999999999Z07:00"
+// defaultDateTimeFormat is the canonical wire layout for `format: date-time`
+// values on the parameter wire (path/query/header/cookie): a fixed
+// three-digit millisecond fraction and a numeric offset, rendering a zero
+// offset as "+00:00" rather than the "Z" designator, e.g.
+// 2024-01-01T12:30:45.000+00:00. All twelve SDKs emit this shape.
+//
+// Three digits, not a variable-width fraction, because millisecond precision
+// is the common denominator across the SDKs; any sub-millisecond component is
+// truncated. The "-07:00" layout element (rather than "Z07:00") is what makes
+// a UTC value render "+00:00" instead of "Z".
+//
+// This layout governs the parameter path only. A time.Time inside a JSON body
+// is encoded by encoding/json's own time.Time marshaller (RFC 3339, "Z" for
+// UTC), which a template cannot override for the stdlib type.
+const defaultDateTimeFormat = "2006-01-02T15:04:05.000-07:00"
 const dateOnlyFormat = "2006-01-02"
 
 // stringifyDate formats a value as a date-only string (YYYY-MM-DD).
@@ -63,8 +68,10 @@ type oneOfUnwrapper interface {
 	GetActualInstance() any
 }
 
-// serialize converts an object to a JSON byte slice.
-// Unwraps oneOf/anyOf wrapper types before serialization.
+// serialize serializes an object to a JSON byte slice.
+//
+// Unwraps oneOf/anyOf wrapper types before serialization. Returns a
+// *SerializationError if serialization fails.
 func serialize(object any) ([]byte, error) {
 	if wrapper, ok := object.(oneOfUnwrapper); ok {
 		object = wrapper.GetActualInstance()
@@ -87,6 +94,9 @@ func serialize(object any) ([]byte, error) {
 const maxJSONDepth = 1000
 
 // deserialize parses a JSON byte slice into the target value.
+//
+// An empty slice leaves the target untouched. Returns a *SerializationError if
+// the nesting depth limit is exceeded or parsing fails.
 func deserialize(data []byte, target any) error {
 	if len(data) == 0 {
 		return nil
@@ -170,9 +180,9 @@ func formatFloat(v float64) string {
 
 // stringify converts a single scalar value to its string representation.
 //
-// This is the canonical type-conversion method used by all parameter
-// encoding helpers (toPathValue, toQueryValue, etc.) and by
-// the value serializer for transport formatting.
+// This is the canonical scalar-to-string conversion used by all parameter
+// encoding methods. Handles nil, booleans and times, and falls back to the
+// value's own string form for everything else. Returns an empty string for nil.
 func stringify(value any) string {
 	if value == nil {
 		return ""
@@ -216,12 +226,17 @@ func stringify(value any) string {
 }
 
 // toPathValue converts a value to a string suitable for use as a URL path parameter.
+//
+// Returns the string representation, or an empty string if nil.
 func toPathValue(value any) string {
 	return stringify(value)
 }
 
 // toQueryValue converts a value to a representation suitable for use as a query parameter.
 // For collections, joins using the specified collection format delimiter.
+//
+// The collectionFormat is one of csv, ssv, tsv, pipes, or multi. Returns the query value,
+// or nil if the value is nil.
 func toQueryValue(value any, collectionFormat string) any {
 	if value == nil {
 		return nil
@@ -242,6 +257,8 @@ func toQueryValue(value any, collectionFormat string) any {
 }
 
 // toHeaderValue converts a value to a string suitable for use as an HTTP header value.
+//
+// Returns the string representation, or an empty string if nil.
 func toHeaderValue(value any) string {
 	if value == nil {
 		return ""
@@ -263,19 +280,24 @@ func toHeaderValue(value any) string {
 
 // toCookieValue converts a value to a string suitable for use as an HTTP cookie value.
 // Cookie values follow the same encoding rules as header values.
+//
+// Returns the string representation, or an empty string if nil.
 func toCookieValue(value any) string {
 	return toHeaderValue(value)
 }
 
 // toFormValue converts a value to a representation suitable for use as a form parameter.
+//
+// Returns the string representation, or an empty string if nil.
 func toFormValue(value any) string {
 	return stringify(value)
 }
 
-// resolveOneOf attempts deserialization against each candidate factory function.
-// Each factory receives parsed JSON (map/slice/primitive) and returns a deserialized
-// value or an error. Returns the first successful result, or a non-nil error when no
-// candidate matches — a payload satisfying none of the declared variants is a
+// resolveOneOf resolves a oneOf schema by trying each candidate deserializer in order.
+//
+// Each candidate receives parsed JSON (map/slice/primitive) and returns a deserialized
+// value or an error. Returns the first successful result, or a *SerializationError if no
+// candidate matches the JSON — a payload satisfying none of the declared variants is a
 // contract violation and must fail loudly rather than be silently dropped to nil.
 func resolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 	for _, candidate := range candidates {
@@ -287,12 +309,18 @@ func resolveOneOf(data any, candidates []func(any) (any, error)) (any, error) {
 	return nil, newSerializationError("No oneOf/anyOf variant matched the JSON", nil)
 }
 
-// resolveAnyOf attempts deserialization against each candidate factory function.
-// Returns the first successful result, or a non-nil error when no candidate matches.
+// resolveAnyOf resolves an anyOf schema by trying each candidate deserializer in order.
+// Delegates to resolveOneOf.
+//
+// Returns the first successful result, or a *SerializationError if no candidate matches
+// the JSON.
 func resolveAnyOf(data any, candidates []func(any) (any, error)) (any, error) {
 	return resolveOneOf(data, candidates)
 }
 
+// joinCollection joins already-stringified collection items using the delimiter of
+// the given collection format (csv, ssv, tsv, pipes, or multi). The multi format
+// returns the items unjoined so each becomes its own repeated parameter.
 func joinCollection(items []string, collectionFormat string) any {
 	switch collectionFormat {
 	case "ssv":

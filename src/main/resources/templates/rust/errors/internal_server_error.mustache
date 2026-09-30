@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::errors::server_error::ServerError;
 
-/// InternalServerError represents an HTTP 500 Internal Server Error.
+/// Error for HTTP 500 Internal Server Error.
 #[derive(Debug, Clone)]
 pub struct InternalServerError {
     server_error: ServerError,

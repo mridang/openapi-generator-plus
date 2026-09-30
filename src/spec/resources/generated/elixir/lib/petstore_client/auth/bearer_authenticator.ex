@@ -17,9 +17,8 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
           token: String.t()
         }
 
-  # Redact the bearer token from the default Inspect representation so
-  # `inspect/1`, `IO.inspect`, and Logger interpolation never leak the
-  # secret into logs.
+  # Redact the token from the default Inspect representation so credentials
+  # never leak into logs or stack traces.
   @derive {Inspect, except: [:token]}
   defstruct [:host, :token]
 
@@ -35,17 +34,17 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
   @spec new(String.t(), String.t()) :: t()
   def new(host, token) do
     # Reject empty/whitespace-only tokens up front: an empty token would
-    # otherwise emit a bare `Authorization: Bearer ` header, silently
-    # sending an unauthenticated request. Mirrors the api-key
-    # authenticator's own empty guard.
+    # otherwise emit the literal `Authorization: Bearer ` header, sending the
+    # request effectively unauthenticated.
     if token == "" or String.trim(token) == "" do
       raise ArgumentError, "Bearer token must not be empty"
     end
 
-    # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-    # Reject anything outside printable ASCII + TAB so callers see a
-    # clear error rather than HTTP header injection from CR/LF or
-    # silently-mangled non-ASCII bytes.
+    # RFC 7230 §3.2.6 - field-value is HTAB / SP / VCHAR / obs-text. Reject
+    # anything outside printable ASCII + TAB so callers see a clear error
+    # rather than (a) HTTP header injection from a CR/LF (common when reading
+    # tokens from .env / files with trailing newlines), or (b) silently-mangled
+    # non-ASCII bytes.
     if token =~ ~r/[^\t\x20-\x7E]/ do
       raise ArgumentError,
             "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"

@@ -7,7 +7,7 @@
 
 import Foundation
 
-/// NetworkError represents a request that produced no HTTP response:
-/// connection refused, DNS failure, TLS failure or connection reset. The
-/// status code is 0 and the `URLError` is kept as ``ApiError/underlyingError``.
+/// Error for a request that received no HTTP response: connection refused,
+/// DNS failure, TLS failure, or connection reset. The status code is always 0
+/// and the underlying transport error is kept as ``ApiError/underlyingError``.
 public class NetworkError: ApiError, @unchecked Sendable {}

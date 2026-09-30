@@ -7,23 +7,27 @@ use regex::Regex;
 
 static JSON_MIME_RE: OnceLock<Regex> = OnceLock::new();
 
-/// HeaderSelector selects Accept and Content-Type headers for API requests
-/// based on the MIME types declared in the OpenAPI specification.
+/// Selects `Accept` and `Content-Type` headers for API requests based on the
+/// MIME types declared in the OpenAPI specification.
 pub struct HeaderSelector;
 
 impl HeaderSelector {
-    /// Creates a new HeaderSelector instance.
+    /// Creates a new header selector.
     pub fn new() -> Self {
         Self
     }
 
-    /// Selects the Accept and Content-Type headers for an API request.
+    /// Select headers for an API request.
     ///
     /// # Arguments
     ///
-    /// * `accept` - Acceptable MIME types for the response
+    /// * `accept` - Slice of acceptable MIME types for the response
     /// * `content_type` - The Content-Type for the request body
     /// * `is_multipart` - Whether this is a multipart request
+    ///
+    /// # Returns
+    ///
+    /// A map of header names to values.
     pub fn select_headers(
         &self,
         accept: &[&str],
@@ -49,21 +53,14 @@ impl HeaderSelector {
         headers
     }
 
-    /// Detects whether a string contains a valid JSON MIME type.
-    pub fn is_json_mime(&self, search_string: &str) -> bool {
-        if search_string.is_empty() {
-            return false;
-        }
-        let pattern = JSON_MIME_RE.get_or_init(|| {
-            Regex::new(r"(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)").unwrap()
-        });
-        pattern.is_match(search_string)
-    }
-
-    /// Builds the `Accept` request header by joining the acceptable media types
-    /// in their original declaration order, separated by `", "`. Empty entries
-    /// are filtered out. No quality weights are applied and no reordering is
-    /// performed.
+    /// Return the `Accept` header based on the slice of Accept values provided.
+    ///
+    /// Blank entries are removed and the remaining media types are joined, in
+    /// their original declaration order, with `", "` (comma followed by a single
+    /// space). No quality weights are added and no reordering is performed.
+    ///
+    /// Returns the Accept header value, or an empty string if there is nothing
+    /// to send.
     fn select_accept_header(&self, accept: &[&str]) -> String {
         let filtered: Vec<&str> = accept.iter().filter(|s| !s.trim().is_empty()).copied().collect();
 
@@ -72,6 +69,19 @@ impl HeaderSelector {
         }
 
         filtered.join(", ")
+    }
+
+    /// Detects whether a string contains a valid JSON mime type.
+    ///
+    /// Returns `true` if the string represents a JSON MIME type.
+    pub fn is_json_mime(&self, search_string: &str) -> bool {
+        if search_string.is_empty() {
+            return false;
+        }
+        let pattern = JSON_MIME_RE.get_or_init(|| {
+            Regex::new(r"(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)").unwrap()
+        });
+        pattern.is_match(search_string)
     }
 }
 

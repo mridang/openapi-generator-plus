@@ -9,7 +9,8 @@
 
 package errors
 
-// NetworkTimeoutError represents a request that timed out. The status code is 0.
+// NetworkTimeoutError is the error for a request that timed out. The status code
+// is always 0; the underlying error is kept as the cause.
 type NetworkTimeoutError struct {
 	NetworkError
 }

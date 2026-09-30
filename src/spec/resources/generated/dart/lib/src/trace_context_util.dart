@@ -38,10 +38,11 @@ class TraceContextUtil {
   /// When null (the default), [injectTraceContext] is a no-op.
   static void Function(Map<String, String> headers)? propagator;
 
-  /// Injects W3C Trace Context headers into the given [headers] map.
+  /// Inject the current OpenTelemetry trace context into the given [headers]
+  /// map.
   ///
   /// If a [propagator] has been configured, it is called to inject
-  /// traceparent and tracestate headers. Otherwise this is a no-op.
+  /// `traceparent` and `tracestate` headers. Otherwise this is a no-op.
   ///
   /// The propagator writes into a scratch map, and only its non-empty entries
   /// reach [headers]. The W3C propagator always writes `tracestate`, empty or
