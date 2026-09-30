@@ -161,3 +161,86 @@ real client and run THAT client's own CI gates, not just the golden's tests. Kno
    bootstrap builds both fixtures through a container that overrides `createContainerConfig`
    to set `ExposedPorts` for every requested port (each value an empty object). If you add
    a published port to any fixture, expose it there too, and verify on CI, not just locally.
+
+## Forced divergences — do not "align" these away
+
+These twelve-language differences are **required by a named language feature**. They read
+as inconsistencies, but collapsing them re-introduces a real bug. Each entry names the
+feature so you can tell a forced divergence from a defect.
+
+**`responseHeaders` null vs empty is a signal, not sloppiness.** `null`/`nil`/`None`
+response headers mean *no HTTP response arrived* — a transport failure (refused, DNS,
+TLS, reset, timeout). An **empty map** means a response arrived carrying no headers. The
+distinction is documented in the python and swift error sources and asserted by python's
+`test_none_headers_and_body_mark_transport_no_response`. Do **not** default the field to
+an empty map "for consistency": it erases the transport-failure signal. The HTTP-response
+path never leaks a null because `ApiHttpResponse.headers` is a non-nullable map in every
+language (go/elixir build it with `make(map…)`/`%{}`), and `fromResponse` passes that real
+map straight through; java/csharp's `null ? null : copy(...)` only preserves an incoming
+null, never converts empty→null. Null is reachable only via the transport-failure
+constructor, which is exactly the point.
+
+**php names the error-body code `errorCode`, not `code`.** PHP's `\Exception` base owns
+`$code`/`getCode()`, and the base constructor is `(message, code, previous)` — the SDK
+passes `statusCode` as that inherited `$code`. A second property called `code` would
+shadow it, so the error-body field is `errorCode`. Proven by phpstan.
+
+**csharp uses `IDisposable`/`Dispose()` where others use `close()`.** Deterministic
+cleanup in .NET is the `IDisposable` contract that `using` requires. Java uses
+`AutoCloseable`/`close()`, python a context manager, etc. Same lifecycle, language-forced
+spelling.
+
+**Configuration construction** is a fluent `Configuration.builder()….build()` in eleven
+of the twelve. **elixir** is the sole language with no builder — `new/1` takes a
+keyword-options map, because Elixir has immutable data and no mutable object/instance
+methods to chain. Within the eleven builders, these variations are forced: **php** keeps
+the builder in its own `ConfigurationBuilder.php` (PSR-4 one-class-per-file, no nested
+classes); **python**'s frozen `@dataclass` also exposes a public `__init__` (no private
+constructors); **go** builds via a package-level `NewConfigurationBuilder()` (no static
+methods on types); **rust**/**swift** expose the default config via `Default`/`default()`
+(Rust `Default` trait idiom).
+
+**`ServerVariable` lives in its own file in java, php and ruby** — each has a
+one-public-constant-per-file autoloading rule: java's compiler (one public top-level class
+per `.java`), php's PSR-4, and ruby's Zeitwerk-style path↔constant convention, which the
+ruby golden enforces with a test (`declares exactly the constant each lib file path
+names`). The other nine co-locate it in `server_configuration`. Do **not** fold the ruby
+one in "to match the majority" — the constant-per-file test fails and real autoloading
+breaks. (This looks like an alignable split but is not; a read-only audit that never runs
+the ruby suite will mislabel it.)
+
+**Auth-header method shape tracks the concurrency model.** Sync-only languages
+(java, php, python, ruby, go, elixir — synchronous HTTP clients) expose a single
+`getAuthHeaders`. Keyword-colored-async languages fold sync and async into one method
+(kotlin `suspend`, swift `async throws`, rust `async fn`). Value-wrapped-async languages
+carry a distinct `…Async` alongside the sync one (csharp `Task`, node `Promise`, dart
+`Future` — the TAP "Async suffix" convention). Rust additionally has `try_auth_headers`
+(a `Result` variant — no exceptions) and `as_http_aware_mut` (an explicit downcast hook —
+trait objects have no RTTI). The `NO_AUTH` sentinel exists in all twelve; its shape is
+forced (elixir a unique atom, rust pointer-identity, ruby a frozen object, php its own
+file per PSR-4).
+
+## Known-thin gates (WONTFIX)
+
+Audited: every language's lint/format/type-check runs in **check mode** with honestly
+scoped config — no `|| true`, no write-mode-posing-as-check, near-zero inline
+suppressions (all named single rules). These few gates are real but deliberately thin;
+they are accepted as-is, so don't "discover" them as defects or over-strengthen them into
+a cascade of golden fixes:
+
+- **go** `.golangci.yml` is bare `version: "2"` (golangci default linters only). Not
+  vacuous: the same spec already runs `go vet` and `staticcheck` separately, so
+  golangci adds only errcheck/ineffassign/unused on top.
+- **python** ruff runs its default ruleset (E4/E7/E9 + F) with no extra `select`, and
+  mypy runs non-strict. Adequate for fully-annotated generated code; it will not flag a
+  *missing* annotation.
+- **ruby** steep's `:lib` target is full strength (checks lib against the `.rbs` sigs);
+  the `:test` target disables the core type diagnostics because the minitest DSL has no
+  sigs to check against.
+- **swift** `.swiftlint.yml` is committed but **not** run by CI (no Linux SwiftLint
+  binary); the gate is still real via `swift-format lint --strict` + `swift build
+  -warnings-as-errors`. The client's local `make lint` does run SwiftLint.
+- The client test-run specs assert on the runner's **exit code**, not on a
+  test-count > 0 — a runner that green-exits on an empty suite would pass unnoticed
+  (pytest's `testpaths`/collection-error behaviour covers python, but the guard is not
+  general).
