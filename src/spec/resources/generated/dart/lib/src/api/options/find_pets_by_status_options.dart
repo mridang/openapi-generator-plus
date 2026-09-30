@@ -7,5 +7,16 @@ class FindPetsByStatusOptions {
   /// Filter criteria as key-value pairs
   final Map<String, String>? filter;
 
-  const FindPetsByStatusOptions({this.status, this.filter});
+  /// Only return pets born on or after this date
+  final String? bornAfter;
+
+  /// Reference date for the report
+  final String? reportDate;
+
+  const FindPetsByStatusOptions({
+    this.status,
+    this.filter,
+    this.bornAfter,
+    this.reportDate,
+  });
 }

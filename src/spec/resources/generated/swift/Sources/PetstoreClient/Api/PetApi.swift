@@ -412,6 +412,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - status: Status values that need to be considered for filter
   ///   - filter: Filter criteria as key-value pairs
+  ///   - bornAfter: Only return pets born on or after this date
+  ///   - reportDate: Reference date for the report
 
   /// ### `status` — Available only
   /// Show only pets currently in stock
@@ -459,8 +461,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
         }
       }
     }
+    if let options = options, let val = options.bornAfter {
+      queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "bornAfter", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
 
-    let headerParams: [String: String] = [:]
+    var headerParams: [String: String] = [:]
+    if let options = options, let val = options.reportDate {
+      headerParams["Report-Date"] =
+        "\(ValueSerializer.serializeStyled("Report-Date", value: val, location: "header", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    }
 
     let requestBody: Any? = nil
     let params = InvokeAPIParams(
@@ -1212,6 +1224,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
     if let val = options.note {
       formBody["note"] = val
+    }
+    if let val = options.renewalDate {
+      formBody["renewalDate"] = val
     }
 
     let requestBody: Any? = formBody

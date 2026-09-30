@@ -9,4 +9,8 @@ type FindPetsByStatusOptions struct {
 	Status *string
 	/* Filter Filter criteria as key-value pairs */
 	Filter *map[string]string
+	/* BornAfter Only return pets born on or after this date */
+	BornAfter *string
+	/* ReportDate Reference date for the report */
+	ReportDate *string
 }

@@ -4,6 +4,7 @@ pub struct SetPetPreferencesOptions {
     pub nickname: String,
     pub tags: Option<Vec<String>>,
     pub note: Option<String>,
+    pub renewal_date: Option<chrono::NaiveDate>,
 }
 
 impl SetPetPreferencesOptions {
@@ -17,6 +18,7 @@ impl SetPetPreferencesOptions {
             nickname,
             tags: None,
             note: None,
+            renewal_date: None,
         }
     }
 
@@ -29,6 +31,12 @@ impl SetPetPreferencesOptions {
     /// Sets the note field.
     pub fn note(mut self, note: String) -> Self {
         self.note = Some(note);
+        self
+    }
+
+    /// Sets the renewal_date field.
+    pub fn renewal_date(mut self, renewal_date: chrono::NaiveDate) -> Self {
+        self.renewal_date = Some(renewal_date);
         self
     }
 }

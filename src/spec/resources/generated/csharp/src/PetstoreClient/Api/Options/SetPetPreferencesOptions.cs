@@ -12,4 +12,6 @@ public sealed class SetPetPreferencesOptions
     public List<string>? Tags { get; init; }
 
     public string? Note { get; init; }
+
+    public DateOnly? RenewalDate { get; init; }
 }

@@ -741,7 +741,35 @@ public class PetApi : BaseApi
                 queryParams[entry.Key] = entry.Value;
             }
         }
+        if (options != null && options.BornAfter != null)
+        {
+            queryParams["bornAfter"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "bornAfter",
+                    options.BornAfter,
+                    "query",
+                    "DateOnly",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
         Dictionary<string, string> headerParams = [];
+        if (options != null && options.ReportDate != null)
+        {
+            headerParams["Report-Date"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "Report-Date",
+                    options.ReportDate,
+                    "header",
+                    "DateOnly",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
         return await InvokeApiForResultAsync<List<Pet>>(
                 "GET",
                 path,
@@ -1924,6 +1952,10 @@ public class PetApi : BaseApi
         if (options != null && options.Note != null)
         {
             formBody["note"] = options.Note;
+        }
+        if (options != null && options.RenewalDate != null)
+        {
+            formBody["renewalDate"] = options.RenewalDate;
         }
         return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",

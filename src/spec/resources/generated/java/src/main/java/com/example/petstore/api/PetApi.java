@@ -755,7 +755,28 @@ public class PetApi extends BaseApi {
     if (options != null && options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
     }
+    if (options != null && options.bornAfter() != null) {
+      queryParams.put(
+          "bornAfter",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "bornAfter", options.bornAfter(), "query", "LocalDate", null, "form", true),
+              false));
+    }
     Map<String, String> headerParams = new HashMap<>();
+    if (options != null && options.reportDate() != null) {
+      headerParams.put(
+          "Report-Date",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "Report-Date",
+                  options.reportDate(),
+                  "header",
+                  "LocalDate",
+                  null,
+                  "simple",
+                  false));
+    }
     return invokeApiForResult(
         "GET",
         path,
@@ -1679,6 +1700,9 @@ public class PetApi extends BaseApi {
     }
     if (options.note() != null) {
       formBody.put("note", options.note());
+    }
+    if (options.renewalDate() != null) {
+      formBody.put("renewalDate", options.renewalDate());
     }
 
     return invokeApiForResult(

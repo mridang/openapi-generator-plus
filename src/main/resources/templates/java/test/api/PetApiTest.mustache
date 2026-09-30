@@ -3,6 +3,7 @@
 package {{apiPackage}};
 
 import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.ChasmContainer;
@@ -30,7 +31,10 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.sun.net.httpserver.HttpServer;
@@ -822,5 +826,77 @@ class PetApiTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    @Test
+    void testFindPetsByStatusSerialisesDateParamsWithoutTimeComponent() throws Exception {
+        // format:date params (bornAfter query, Report-Date header) are typed
+        // LocalDate and must hit the wire as a bare YYYY-MM-DD, never as a
+        // date-time (no T00:00:00 / offset suffix).
+        String[] capturedUrl = new String[1];
+        Map<String, String> capturedHeaders = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedUrl[0] = url;
+            capturedHeaders.putAll(headers);
+            return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        mockedApi.findPetsByStatus(new FindPetsByStatusOptions()
+                .status("available")
+                .bornAfter(LocalDate.of(2024, 1, 1))
+                .reportDate(LocalDate.of(2024, 1, 1)));
+
+        assertThat(capturedUrl[0]).contains("bornAfter=2024-01-01");
+        assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01T");
+        assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01%");
+        String reportDate = capturedHeaders.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("Report-Date"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+        assertThat(reportDate).isEqualTo("2024-01-01");
+    }
+
+    @Test
+    void testSetPetPreferencesSerialisesRenewalDateWithoutTimeComponent() throws Exception {
+        // The format:date form field renewalDate must be sent as YYYY-MM-DD in
+        // the x-www-form-urlencoded body, with no time component.
+        Object[] capturedBody = new Object[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedBody[0] = body;
+            return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        mockedApi.setPetPreferences(
+                1L, new SetPetPreferencesOptions("Rex").renewalDate(LocalDate.of(2024, 1, 1)));
+
+        assertThat(capturedBody[0]).isNotNull();
+        String wire = capturedBody[0].toString();
+        assertThat(wire).contains("renewalDate=2024-01-01");
+        assertThat(wire).doesNotContain("renewalDate=2024-01-01T");
+        assertThat(wire).doesNotContain("renewalDate=2024-01-01%");
+    }
+
+    @Test
+    void testGetPetAvatarThumbnailDecodesMockedJsonBase64() throws Exception {
+        // Deterministic (no live server) guard for the byte-over-JSON path: the
+        // body is the JSON string literal "dGVzdC1pbWFnZQ==". It must be
+        // JSON-parsed then base64-decoded to the raw bytes "test-image".
+        ApiClient recording = (method, url, headers, body) ->
+                new ApiHttpResponse(
+                        200, "\"dGVzdC1pbWFnZQ==\"", Map.of("Content-Type", "application/json"));
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build());
+
+        byte[] result = mockedApi.getPetAvatarThumbnail(1L);
+
+        assertThat(result).isEqualTo("test-image".getBytes(StandardCharsets.UTF_8));
     }
 }

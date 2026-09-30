@@ -13,4 +13,10 @@ public sealed class FindPetsByStatusOptions
 
     /// <summary>Filter criteria as key-value pairs</summary>
     public Dictionary<string, string>? Filter { get; init; }
+
+    /// <summary>Only return pets born on or after this date</summary>
+    public DateOnly? BornAfter { get; init; }
+
+    /// <summary>Reference date for the report</summary>
+    public DateOnly? ReportDate { get; init; }
 }

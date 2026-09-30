@@ -791,6 +791,79 @@ async fn test_set_pet_preferences_sends_form_content_type() {
     );
 }
 
+// -- format: date parameters serialise as date-only (YYYY-MM-DD), no time --
+//
+// `format: date` maps to `chrono::NaiveDate`, whose serde form is `YYYY-MM-DD`.
+// These drive the real generated operations and inspect what reaches the wire
+// for each position: query (`bornAfter`), header (`Report-Date`) and
+// form-urlencoded body (`renewalDate`). None may carry a time component.
+#[tokio::test]
+async fn test_date_query_param_serialises_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = FindPetsByStatusOptions::new().born_after(date);
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("bornAfter=2024-01-01"),
+        "expected bornAfter=2024-01-01, got: {}",
+        url
+    );
+    assert!(
+        !url.contains("bornAfter=2024-01-01T") && !url.contains("bornAfter=2024-01-01%20"),
+        "date-only query param must carry no time component, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
+async fn test_date_header_param_serialises_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = FindPetsByStatusOptions::new().report_date(date);
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("Report-Date").map(String::as_str),
+        Some("2024-01-01"),
+        "date-only header must be exactly YYYY-MM-DD with no time"
+    );
+}
+
+#[tokio::test]
+async fn test_date_form_param_serialises_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = SetPetPreferencesOptions::new("Rex".to_string()).renewal_date(date);
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str
+            .split('&')
+            .any(|pair| pair == "renewalDate=2024-01-01"),
+        "expected renewalDate=2024-01-01 pair, got: {}",
+        body_str
+    );
+    assert!(
+        !body_str.contains("2024-01-01T"),
+        "date-only form field must carry no time: {}",
+        body_str
+    );
+}
+
 // -- 418 Teapot (unrecognized status) --
 
 #[tokio::test]
@@ -1344,6 +1417,32 @@ async fn test_binary_response_json_parsed_to_object() {
     let api = PetApi::new(client, config, None);
     // The API may not deserialize cleanly to a Pet, but should not panic
     let _ = api.get_pet_by_id(42, None).await;
+}
+
+#[tokio::test]
+async fn test_byte_over_json_response_decodes_to_bytes() {
+    /* `getPetAvatarThumbnail` returns a top-level `format: byte` schema served
+     * as `application/json`: the body is a JSON STRING of base64
+     * (`"dGVzdC1pbWFnZQ=="`, quotes included). base_api must JSON-parse it and
+     * then base64-decode to the raw bytes, not surface the base64 text. */
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "\"dGVzdC1pbWFnZQ==\"".to_string(),
+        content_type: "application/json".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+
+    let bytes: Vec<u8> = api
+        .get_pet_avatar_thumbnail(1)
+        .await
+        .expect("byte-over-JSON response must decode to Ok");
+    assert_eq!(
+        bytes,
+        b"test-image".to_vec(),
+        "JSON base64 string must decode to raw bytes"
+    );
 }
 
 #[tokio::test]

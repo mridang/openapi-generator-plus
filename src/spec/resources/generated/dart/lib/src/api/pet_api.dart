@@ -585,6 +585,8 @@ class PetApi extends BaseApi {
   /// Finds Pets by status
   /// `status` Status values that need to be considered for filter
   /// `filter` Filter criteria as key-value pairs
+  /// `bornAfter` Only return pets born on or after this date
+  /// `reportDate` Reference date for the report
 
   /// ### `status` — Available only
   /// Show only pets currently in stock
@@ -648,8 +650,26 @@ class PetApi extends BaseApi {
         queryParams[k] = v;
       });
     }
+    if (options != null && options.bornAfter != null) {
+      queryParams['bornAfter'] = maybeAllowReserved(
+        serializeStyled(
+          'bornAfter',
+          options.bornAfter,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
 
     final headerParams = <String, String>{};
+    if (options != null && options.reportDate != null) {
+      headerParams['Report-Date'] =
+          '${serializeStyled('Report-Date', options.reportDate, 'header', 'String', '', 'simple', false)}';
+    }
 
     final Object? requestBody = null;
 
@@ -1757,6 +1777,9 @@ class PetApi extends BaseApi {
     }
     if (options.note != null) {
       formBody['note'] = options.note;
+    }
+    if (options.renewalDate != null) {
+      formBody['renewalDate'] = options.renewalDate;
     }
     final Object requestBody = formBody;
 

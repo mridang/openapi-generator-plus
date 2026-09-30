@@ -243,6 +243,9 @@ public abstract class BaseApi
                  *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
                  *     tags[]=);
                  *   - null/absent fields are omitted entirely;
+                 *   - scalars go through ObjectSerializer.Stringify so a
+                 *     format:date value (DateOnly) is YYYY-MM-DD — never a
+                 *     culture-dependent ToString() or a date-time;
                  *   - FormUrlEncode uses application/x-www-form-urlencoded
                  *     rules, so a space becomes '+'. */
                 List<string> parts = [];
@@ -264,12 +267,14 @@ public abstract class BaseApi
                             {
                                 continue;
                             }
-                            parts.Add(key + "=" + FormUrlEncode(element.ToString() ?? ""));
+                            parts.Add(
+                                key + "=" + FormUrlEncode(ObjectSerializer.Stringify(element))
+                            );
                         }
                     }
                     else
                     {
-                        parts.Add(key + "=" + FormUrlEncode(kv.Value.ToString() ?? ""));
+                        parts.Add(key + "=" + FormUrlEncode(ObjectSerializer.Stringify(kv.Value)));
                     }
                 }
 

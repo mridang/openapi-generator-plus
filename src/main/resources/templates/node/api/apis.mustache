@@ -249,26 +249,26 @@ export class {{classname}} extends BaseApi {
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
     if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved({{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}){{/isDate}}, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
     if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = ValueSerializer.maybeAllowReserved({{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}}){{/isDate}}, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.param.queryStyled}}
 {{/queryParams}}
     const headerParams: Record<string, string> = {};
 {{#headerParams}}
     if (options?.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string;
+      headerParams['{{baseName}}'] = {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string{{/isDate}};
     }
 {{/headerParams}}
 {{#hasCookieParams}}
     const cookieParts: string[] = [];
 {{#cookieParams}}
     if (options?.{{paramName}} != null) {
-      const {{paramName}}CookieValue = `${ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}})}`;
+      const {{paramName}}CookieValue = `${ {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}}){{/isDate}} }`;
       /* RFC 6265 — reject CR/LF and other control characters in the
        * serialized cookie value before it is joined into the Cookie
        * header. This mirrors the validation the auth-cookie path applies
@@ -290,7 +290,7 @@ export class {{classname}} extends BaseApi {
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
     if (options?.{{paramName}} != null) {
-      formBody['{{baseName}}'] = options.{{paramName}};
+      formBody['{{baseName}}'] = {{#isDate}}ValueSerializer.stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}};
     }
 {{/formParams}}
 {{#vendorExtensions.op.hasContentTypeSelector}}

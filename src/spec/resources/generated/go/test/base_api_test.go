@@ -654,6 +654,23 @@ func TestBaseApi_QueryParamSerialization(t *testing.T) {
 	}
 }
 
+// Case 14: `format: date` maps to a plain string in Go (no time.Time), so a date
+// query parameter must reach the wire verbatim as YYYY-MM-DD with no time part.
+func TestBaseApi_DateQueryParamIsPlainDate(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	bornAfter := "2024-01-01"
+	_, _ = api.FindPetsByStatus(&options.FindPetsByStatusOptions{BornAfter: &bornAfter})
+	if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
+		t.Errorf("expected URL to contain bornAfter=2024-01-01, got %q", client.capturedURL)
+	}
+	if strings.Contains(client.capturedURL, "T00") {
+		t.Errorf("date query param must not carry a time component, got %q", client.capturedURL)
+	}
+}
+
 func TestBaseApi_CollapsesDoubleSlashWhenBaseURLHasTrailingSlash(t *testing.T) {
 	t.Parallel()
 	// baseUrl='http://localhost/' + path='/pet/1' must produce
@@ -1142,6 +1159,30 @@ func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
 	}
 	if !bytes.Equal(*got, original) {
 		t.Fatalf("image/png binary roundtrip mismatch: got %v, want %v", *got, original)
+	}
+}
+
+func TestBinaryResponse_JsonWrappedByteDecodedToRawBytes(t *testing.T) {
+	t.Parallel()
+	/* A top-level `format: byte` value carried as application/json arrives as a
+	 * JSON string literal with its quotes included ("dGVzdC1pbWFnZQ=="). It must
+	 * be JSON-parsed (stripping the quotes) and THEN base64-decoded, yielding the
+	 * raw bytes -- not the quoted literal's bytes and not an error. */
+	client := &binaryResponseApiClient{
+		responseBody:        `"dGVzdC1pbWFnZQ=="`,
+		responseContentType: "application/json",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	got, err := api.GetPetAvatarThumbnail(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil []byte result for JSON-wrapped base64")
+	}
+	if !bytes.Equal(*got, []byte("test-image")) {
+		t.Fatalf("JSON-wrapped byte mismatch: got %q, want %q", *got, "test-image")
 	}
 }
 

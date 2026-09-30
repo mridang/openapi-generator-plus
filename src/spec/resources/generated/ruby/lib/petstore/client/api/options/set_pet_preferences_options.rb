@@ -14,13 +14,15 @@ module Petstore::Client
       # @param nickname [String]
       # @param tags [Array<String>]
       # @param note [String]
+      # @param renewal_date [Date]
       class SetPetPreferencesOptions
-        attr_reader :nickname, :tags, :note
+        attr_reader :nickname, :tags, :note, :renewal_date
 
-        def initialize(nickname:, tags: nil, note: nil)
+        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil)
           @nickname = nickname
           @tags = tags
           @note = note
+          @renewal_date = renewal_date
           freeze
         end
       end

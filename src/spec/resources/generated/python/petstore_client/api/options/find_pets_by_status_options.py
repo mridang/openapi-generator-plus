@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pydantic import StrictStr
 from typing import Optional, Dict
 
@@ -19,3 +20,5 @@ class FindPetsByStatusOptions:
     # .. deprecated:: This parameter is deprecated.
     status: Optional[StrictStr] = None
     filter: Optional[Dict[str, StrictStr]] = None
+    born_after: Optional[date] = None
+    report_date: Optional[date] = None

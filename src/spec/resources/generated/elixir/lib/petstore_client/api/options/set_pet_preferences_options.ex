@@ -13,10 +13,12 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
   @type t :: %__MODULE__{
           nickname: String.t(),
           tags: list(String.t()) | nil,
-          note: String.t() | nil
+          note: String.t() | nil,
+          renewal_date: Date.t() | nil
         }
 
   defstruct nickname: nil,
             tags: nil,
-            note: nil
+            note: nil,
+            renewal_date: nil
 end

@@ -1015,4 +1015,124 @@ public class PetApiTest
         Assert.DoesNotContain("note", wire);
         Assert.DoesNotContain("%20", wire);
     }
+
+    private sealed class DateWireCapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+        public object? CapturedBody { get; private set; }
+        public string ResponseBody { get; set; } = "[]";
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            CapturedUrl = url;
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
+            return Task.FromResult(
+                new PetstoreClient.ApiHttpResponse(
+                    200,
+                    ResponseBody,
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task FormatDateQueryAndHeaderParamsEmitDateOnlyWithNoTime()
+    {
+        /* Case 14: a format:date query param (bornAfter) and header param
+           (Report-Date) must serialise as YYYY-MM-DD with no time component,
+           regardless of the ambient culture. */
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(
+            "en-US"
+        );
+        try
+        {
+            var client = new DateWireCapturingApiClient();
+            var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+            var api = new PetApi(client, config);
+
+            await api.FindPetsByStatusAsync(
+                new FindPetsByStatusOptions
+                {
+                    BornAfter = new DateOnly(2024, 1, 1),
+                    ReportDate = new DateOnly(2024, 1, 1),
+                }
+            );
+
+            Assert.Contains("bornAfter=2024-01-01", client.CapturedUrl!.Query);
+            Assert.DoesNotContain("bornAfter=2024-01-01T", client.CapturedUrl.Query);
+            Assert.Equal("2024-01-01", client.CapturedHeaders["Report-Date"]);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
+    public async Task FormatDateFormParamEmitsDateOnlyWithNoTime()
+    {
+        /* Case 14: a format:date form field (renewalDate) must serialise as
+           YYYY-MM-DD, never a culture-dependent DateOnly.ToString() such as
+           01/01/2024 and never a date-time. */
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo(
+            "en-US"
+        );
+        try
+        {
+            var client = new DateWireCapturingApiClient
+            {
+                /* setPetPreferences returns an ApiResponse object, so the mock
+                   must reply with a valid ApiResponse JSON (the default "[]"
+                   array would fail to deserialize). */
+                ResponseBody = "{\"code\":200,\"type\":\"ok\",\"message\":\"updated\"}",
+            };
+            var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+            var api = new PetApi(client, config);
+
+            await api.SetPetPreferencesWithHttpInfoAsync(
+                1L,
+                new SetPetPreferencesOptions
+                {
+                    Nickname = "rex",
+                    RenewalDate = new DateOnly(2024, 1, 1),
+                }
+            );
+
+            string wire = client.CapturedBody!.ToString()!;
+            Assert.Contains("renewalDate=2024-01-01", wire);
+            Assert.DoesNotContain("renewalDate=2024-01-01T", wire);
+            Assert.DoesNotContain("renewalDate=2024-01-01%", wire);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Fact]
+    public async Task GetPetAvatarThumbnailByteOverJsonDecodesBase64ToRawBytes()
+    {
+        /* Case 13: a top-level format:byte response carried as
+           application/json arrives as a JSON string literal. The SDK must
+           JSON-parse it and base64-decode it to the raw bytes, not return the
+           UTF-8 bytes of the quoted literal or the un-decoded base64 text. */
+        var client = new DateWireCapturingApiClient { ResponseBody = "\"dGVzdC1pbWFnZQ==\"" };
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        byte[] result = await api.GetPetAvatarThumbnailAsync(1L);
+
+        Assert.Equal("test-image", System.Text.Encoding.UTF8.GetString(result));
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes("test-image"), result);
+    }
 }

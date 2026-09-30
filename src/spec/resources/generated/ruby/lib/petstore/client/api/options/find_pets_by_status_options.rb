@@ -14,12 +14,16 @@ module Petstore::Client
       # @param status [String] Status values that need to be considered for filter (deprecated)
       # @deprecated This parameter is deprecated.
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs
+      # @param born_after [Date] Only return pets born on or after this date
+      # @param report_date [Date] Reference date for the report
       class FindPetsByStatusOptions
-        attr_reader :status, :filter
+        attr_reader :status, :filter, :born_after, :report_date
 
-        def initialize(status: nil, filter: nil)
+        def initialize(status: nil, filter: nil, born_after: nil, report_date: nil)
           @status = status
           @filter = filter
+          @born_after = born_after
+          @report_date = report_date
           freeze
         end
       end

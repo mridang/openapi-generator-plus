@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.time.LocalDate
 import java.time.OffsetDateTime
 
 class PetApiTest {
@@ -1059,6 +1060,92 @@ class PetApiTest {
                 "Content-Type must be application/x-www-form-urlencoded, got: $capturedContentType",
             )
             assertEquals("nickname=a+b&tags=x&tags=y", capturedBody)
+        }
+
+        @Test
+        @DisplayName("format:date query, header and form params serialize as YYYY-MM-DD with no time")
+        fun testFormatDateParamsAreDateOnly() {
+            // Case 14: a date-only (`format: date`) value must reach the wire as
+            // YYYY-MM-DD with no time component, in the query string, a header
+            // and a urlencoded form field alike.
+            var capturedUrl: String? = null
+            var capturedHeader: String? = null
+            var capturedBody: String? = null
+            val engine =
+                MockEngine { request ->
+                    if (request.method.value == "GET") {
+                        capturedUrl = request.url.toString()
+                        capturedHeader = request.headers["Report-Date"]
+                        respond(
+                            content = "[]",
+                            status = HttpStatusCode.OK,
+                            headers = headersOf("Content-Type", "application/json"),
+                        )
+                    } else {
+                        capturedBody = String(request.body.toByteArray(), Charsets.UTF_8)
+                        respond(
+                            content = """{"code":200,"type":"ok","message":"saved"}""",
+                            status = HttpStatusCode.OK,
+                            headers = headersOf("Content-Type", "application/json"),
+                        )
+                    }
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val date = LocalDate.of(2024, 1, 1)
+
+            runBlocking {
+                api.findPetsByStatus(
+                    FindPetsByStatusOptions(bornAfter = date, reportDate = date),
+                )
+                api.setPetPreferences(
+                    1L,
+                    SetPetPreferencesOptions(nickname = "rex", renewalDate = date),
+                )
+            }
+
+            assertTrue(
+                capturedUrl!!.contains("bornAfter=2024-01-01"),
+                "bornAfter query must be date-only, got: $capturedUrl",
+            )
+            assertFalse(capturedUrl!!.contains("bornAfter=2024-01-01T"), "bornAfter must carry no time")
+            assertEquals("2024-01-01", capturedHeader)
+            assertTrue(
+                capturedBody!!.contains("renewalDate=2024-01-01"),
+                "renewalDate form field must be date-only, got: $capturedBody",
+            )
+            assertFalse(capturedBody!!.contains("renewalDate=2024-01-01T"), "renewalDate must carry no time")
+        }
+
+        @Test
+        @DisplayName("getPetAvatarThumbnail decodes a base64 string sent as application/json to raw bytes")
+        fun testGetPetAvatarThumbnailByteOverJson() {
+            // Case 13: a top-level `format: byte` response is a JSON string
+            // literal. The SDK must JSON-parse it (dropping the quotes) and then
+            // base64-decode the inner string to the original bytes.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "\"dGVzdC1pbWFnZQ==\"",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val result = runBlocking { api.getPetAvatarThumbnail(1L) }
+
+            assertEquals("test-image", String(result, Charsets.UTF_8))
+            assertArrayEquals("test-image".toByteArray(Charsets.UTF_8), result)
         }
 
         @Test

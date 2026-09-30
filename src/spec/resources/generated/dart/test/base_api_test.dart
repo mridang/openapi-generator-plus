@@ -1239,6 +1239,98 @@ void main() {
       }
     });
 
+    /* date-only-serialization (Case 14): `format: date` parameters are typed
+     * as a plain String in Dart (typeMapping date -> String), so the caller's
+     * `YYYY-MM-DD` value must reach the wire verbatim as a date-only string
+     * with NO time component, in the query (`bornAfter`), the header
+     * (`Report-Date`) and the form body (`renewalDate`) — never an ISO
+     * date-time like `2024-01-01T00:00:00.000Z`. */
+    test(
+      'format:date query and header params serialize as YYYY-MM-DD',
+      () async {
+        String? capturedQuery;
+        String? capturedHeader;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          capturedHeader = request.headers.value('report-date');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.findPetsByStatus(
+            const FindPetsByStatusOptions(
+              bornAfter: '2024-01-01',
+              reportDate: '2024-01-01',
+            ),
+          );
+
+          final decoded = Uri.decodeQueryComponent(capturedQuery ?? '');
+          expect(decoded, contains('bornAfter=2024-01-01'));
+          expect(
+            decoded,
+            isNot(contains('bornAfter=2024-01-01T')),
+            reason: 'date-only query value must carry no time, got: $decoded',
+          );
+          expect(capturedHeader, equals('2024-01-01'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test('format:date form field serializes as YYYY-MM-DD', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String receivedBody = '';
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"code":200,"type":"","message":"ok"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetPreferences(
+          1,
+          const SetPetPreferencesOptions(
+            nickname: 'Rex',
+            renewalDate: '2024-01-01',
+          ),
+        );
+
+        expect(receivedBody, contains('renewalDate=2024-01-01'));
+        expect(
+          receivedBody,
+          isNot(contains('renewalDate=2024-01-01T')),
+          reason: 'date-only form value must carry no time, got: $receivedBody',
+        );
+        expect(
+          receivedBody,
+          isNot(contains('%3A')),
+          reason:
+              'a time component would add an encoded colon, got: $receivedBody',
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     /* multipart-file-content-type: a binary multipart part derives its
      * Content-Type from the field/filename extension (`.png` -> image/png)
      * via the live operation path (uploadFile uses field name `file` -> no
@@ -1779,6 +1871,37 @@ void main() {
         await server.close();
       }
     });
+
+    /* byte-response-top-level (Case 13): getPetAvatarThumbnail returns a
+     * top-level `format: byte` schema as application/json, so the body is a
+     * JSON string literal carrying base64 (`"dGVzdC1pbWFnZQ=="`, quotes
+     * included). base_api must JSON-parse it, then base64-decode the inner
+     * string to raw bytes — not base64-decode the quoted literal directly. */
+    test(
+      'byte response over application/json is JSON-parsed then base64-decoded',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('"dGVzdC1pbWFnZQ=="')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final bytes = await api.getPetAvatarThumbnail(1);
+          expect(bytes, equals(utf8.encode('test-image')));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('application/json response parsed to object', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

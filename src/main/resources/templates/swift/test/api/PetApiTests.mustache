@@ -406,6 +406,17 @@ final class PetApiTests {
         #expect(result != nil)
     }
 
+    // byte-over-json: `format: byte` returned as application/json arrives as a JSON
+    // string literal ("dGVzdC1pbWFnZQ=="). It must be JSON-parsed and then
+    // base64-decoded into the raw bytes — not handed back as the utf8 bytes of the
+    // quoted base64 text.
+    @Test func testGetPetAvatarThumbnailDecodesJsonBase64String() async throws {
+        let mockApi = petApiForMock(
+            statusCode: 200, body: "\"dGVzdC1pbWFnZQ==\"", contentType: "application/json")
+        let result = try await mockApi.getPetAvatarThumbnail(petId: 1)
+        #expect(result == Data("test-image".utf8))
+    }
+
     @Test func testUploadMultipartMock() async throws {
         let mockApi = petApiForMock(statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
         let fakeCert = Data("fake-cert".utf8)
@@ -683,6 +694,46 @@ final class PetApiTests {
 
         #expect(mockClient.lastURL.contains("status="),
             "explicit empty allowEmptyValue param must send the key, got: \(mockClient.lastURL)")
+    }
+
+    // format-date-query-header: `format: date` (date-only) params are typed
+    // String in Swift (only date-time maps to Date), so the caller's value is sent
+    // as-is: query `bornAfter` and header `Report-Date` must be the date-only
+    // string 2024-01-01 with no time component.
+    @Test func testFormatDateQueryAndHeaderAreDateOnly() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.findPetsByStatus(
+            options: FindPetsByStatusOptions(bornAfter: "2024-01-01", reportDate: "2024-01-01"))
+
+        #expect(mockClient.lastURL.contains("bornAfter=2024-01-01"),
+            "query date must be date-only, got: \(mockClient.lastURL)")
+        #expect(!mockClient.lastURL.contains("bornAfter=2024-01-01T"),
+            "query date must carry no time component, got: \(mockClient.lastURL)")
+        #expect(mockClient.lastHeaders["Report-Date"] == "2024-01-01")
+    }
+
+    // format-date-form: a `format: date` form field `renewalDate` must be sent as
+    // the date-only string 2024-01-01 in the urlencoded body, with no time part.
+    @Test func testFormatDateFormFieldIsDateOnly() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.setPetPreferences(
+            petId: 1, options: SetPetPreferencesOptions(nickname: "Rex", renewalDate: "2024-01-01"))
+
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        let pairs = body.split(separator: "&").map(String.init)
+        #expect(pairs.contains("renewalDate=2024-01-01"), "form date must be date-only, got: \(body)")
     }
 
     // options-immutable-readback: an Options value is built once via its init

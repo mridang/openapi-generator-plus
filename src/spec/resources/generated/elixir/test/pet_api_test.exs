@@ -677,6 +677,103 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
   end
 
+  # A module-style api_client that answers every request with a canned
+  # response (taken from the test process dictionary) and records the URL,
+  # headers and body it was handed, so the tests below can assert both what
+  # went on the wire and how a given response body is decoded.
+  defmodule StubResponseApiClient do
+    use Agent
+
+    def start(status_code, body, content_type) do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+
+      {:ok, _pid} =
+        Agent.start_link(
+          fn ->
+            %{
+              request: nil,
+              response: %PetstoreClient.ApiHttpResponse{
+                status_code: status_code,
+                body: body,
+                headers: %{"Content-Type" => content_type}
+              }
+            }
+          end,
+          name: name
+        )
+
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1.request)
+
+    def send_request(method, url, headers, body) do
+      name = Process.get(__MODULE__)
+
+      Agent.get_and_update(name, fn state ->
+        {state.response,
+         %{state | request: %{method: method, url: url, headers: headers, body: body}}}
+      end)
+    end
+  end
+
+  # getPetAvatarThumbnail returns a top-level `format: byte` value as
+  # application/json, so the wire body is a JSON string literal of base64
+  # (quotes included). It must be JSON-parsed first (stripping the quotes) and
+  # only then base64-decoded to the raw bytes; decoding the quoted literal
+  # directly would fail base64 and hand back the quoted string.
+  test "get_pet_avatar_thumbnail JSON-parses then base64-decodes a byte body over JSON" do
+    {:ok, name} = StubResponseApiClient.start(200, ~s("dGVzdC1pbWFnZQ=="), "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    assert {:ok, "test-image"} = PetstoreClient.Api.PetApi.get_pet_avatar_thumbnail(api, 5)
+
+    Agent.stop(name)
+  end
+
+  # format: date parameters must serialise as YYYY-MM-DD (Elixir's native Date
+  # renders through Date.to_iso8601/1) in the query string, in a header and in
+  # a form-urlencoded body.
+  test "find_pets_by_status serialises date params as YYYY-MM-DD in query and header" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{
+      status: "available",
+      born_after: ~D[2024-01-01],
+      report_date: ~D[2024-02-03]
+    }
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
+
+    captured = StubResponseApiClient.captured(name)
+    assert captured.url =~ "bornAfter=2024-01-01"
+    assert captured.headers["Report-Date"] == "2024-02-03"
+
+    Agent.stop(name)
+  end
+
+  test "set_pet_preferences serialises the date form field as YYYY-MM-DD" do
+    {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SetPetPreferencesOptions{
+      nickname: "rex",
+      renewal_date: ~D[2025-12-31]
+    }
+
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_preferences(api, 5, options)
+
+    captured = StubResponseApiClient.captured(name)
+    assert captured.body =~ "renewalDate=2025-12-31"
+
+    Agent.stop(name)
+  end
+
   test "set_pet_avatar streams raw bytes with declared content type" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

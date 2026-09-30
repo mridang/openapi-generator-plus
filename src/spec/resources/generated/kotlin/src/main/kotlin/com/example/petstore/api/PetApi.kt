@@ -444,7 +444,18 @@ class PetApi : BaseApi {
         if (options?.filter != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options!!.filter))
         }
+        if (options?.bornAfter != null) {
+            queryParams["bornAfter"] =
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("bornAfter", options!!.bornAfter, "query", "LocalDate", null, "form", true),
+                    false,
+                )
+        }
         val headerParams = mutableMapOf<String, String>()
+        if (options?.reportDate != null) {
+            headerParams["Report-Date"] =
+                ValueSerializer.serializeStyled("Report-Date", options!!.reportDate, "header", "LocalDate", null, "simple", false) as String
+        }
         return invokeApiForResult<List<Pet>>(
             "GET",
             path,
@@ -1178,6 +1189,9 @@ class PetApi : BaseApi {
         }
         if (options.note != null) {
             formBody["note"] = options.note
+        }
+        if (options.renewalDate != null) {
+            formBody["renewalDate"] = options.renewalDate
         }
 
         return invokeApiForResult<ApiResponse>(

@@ -10,6 +10,7 @@ require 'test_helper'
 require 'stringio'
 require 'socket'
 require 'base64'
+require 'date'
 
 describe Petstore::Client::Api::PetApi do
   parallelize_me!
@@ -18,6 +19,40 @@ describe Petstore::Client::Api::PetApi do
     @api = Petstore::Client::Api::PetApi.new(nil, TEST_CONFIGURATION)
     @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
     @auth = Petstore::Client::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+  end
+
+  # Starts a one-shot TCP server that records the real outgoing request line,
+  # headers (lower-cased names) and body off the wire, then answers 200 with
+  # the given JSON +response_body+. The returned Queue receives one
+  # { request_line:, headers:, body: } Hash. Exercises the operation, the
+  # serializers and the transport end-to-end against a canned response.
+  def capture_wire_request(response_body)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      client = begin
+        server.accept
+      rescue StandardError
+        next
+      end
+      request_line = client.gets.to_s.strip
+      headers = {}
+      while (line = client.gets)
+        break if line.strip.empty?
+
+        name, value = line.split(':', 2)
+        headers[name.to_s.strip.downcase] = value.to_s.strip
+      end
+      length = headers.fetch('content-length', '0').to_i
+      captured << { request_line: request_line, headers: headers,
+                    body: length.positive? ? client.read(length).to_s : '' }
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
+      client.close
+    end
+    config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+    [Petstore::Client::Api::PetApi.new(nil, config), server, thread, captured]
   end
 
   describe '#add_pet' do
@@ -43,6 +78,30 @@ describe Petstore::Client::Api::PetApi do
       _(result).must_be_kind_of(Array)
       _(result).wont_be_empty
       _(result.first).must_be_kind_of(Petstore::Client::Models::Pet)
+    end
+
+    # Case 14 — `format: date` parameters (query `bornAfter`, header
+    # `Report-Date`) are date-only: they must go out as YYYY-MM-DD with no
+    # time component, never an ISO date-time like 2024-01-01T00:00:00Z.
+    it 'serializes format:date query and header parameters as YYYY-MM-DD' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(
+          Petstore::Client::Api::Options::FindPetsByStatusOptions.new(
+            born_after: Date.new(2024, 1, 1),
+            report_date: Date.new(2024, 1, 1)
+          )
+        )
+        request = captured.pop
+
+        _(request[:request_line]).must_include 'bornAfter=2024-01-01'
+        _(request[:request_line]).wont_include 'T00'
+        _(request[:request_line]).wont_include '2024-01-01T'
+        _(request[:headers]['report-date']).must_equal '2024-01-01'
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 
@@ -217,6 +276,25 @@ describe Petstore::Client::Api::PetApi do
       _(result).wont_be_nil
       _(result).must_be_kind_of(String)
       _(result).must_equal('test-image')
+    end
+
+    # Same regression pinned against a canned wire response so it does not
+    # depend on the mock's example: a JSON string literal of the base64 text
+    # must be JSON-parsed and then base64-decoded to the raw bytes.
+    it 'decodes a JSON-encoded base64 string response body to raw bytes' do
+      api, server, thread, captured = capture_wire_request('"dGVzdC1pbWFnZQ=="')
+      begin
+        result = api.get_pet_avatar_thumbnail(1)
+        captured.pop
+
+        _(result).must_be_kind_of(String)
+        _(result.b).must_equal 'test-image'.b
+        _(result).wont_equal 'dGVzdC1pbWFnZQ=='
+        _(result).wont_include '"'
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 
@@ -935,6 +1013,26 @@ describe Petstore::Client::Api::PetApi do
         _(sent).must_equal 'nickname=Rex'
         _(sent).wont_include 'tags'
         _(sent).wont_include 'note'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    # Case 14 — a `format: date` form field serializes date-only (YYYY-MM-DD),
+    # never as a date-time.
+    it 'serializes a format:date form property as YYYY-MM-DD' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', renewal_date: Date.new(2024, 1, 1)
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'renewalDate=2024-01-01'
+        _(sent).wont_include '2024-01-01T'
+        _(sent).wont_include '2024-01-01%20'
+        _(sent).wont_include '00%3A00'
       ensure
         server.close
         thread.join(2)

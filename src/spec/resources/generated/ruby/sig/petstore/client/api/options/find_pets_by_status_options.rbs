@@ -8,7 +8,9 @@ module Petstore::Client
       class FindPetsByStatusOptions
         attr_reader status: String?
         attr_reader filter: Hash[String, String]?
-        def initialize: (?status: String?, ?filter: Hash[String, String]?) -> void
+        attr_reader born_after: Date?
+        attr_reader report_date: Date?
+        def initialize: (?status: String?, ?filter: Hash[String, String]?, ?born_after: Date?, ?report_date: Date?) -> void
       end
     end
   end

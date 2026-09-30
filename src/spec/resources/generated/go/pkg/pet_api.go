@@ -595,6 +595,8 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 // See https://example.com/docs/filtering Find out more about filtering
 // param status: Status values that need to be considered for filter
 // param filter: Filter criteria as key-value pairs
+// param bornAfter: Only return pets born on or after this date
+// param reportDate: Reference date for the report
 
 // Example for `status` — Available only: available
 
@@ -633,8 +635,14 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 			queryParams[k] = v
 		}
 	}
+	if options != nil && options.BornAfter != nil {
+		queryParams["bornAfter"] = maybeAllowReserved(serializeStyled("bornAfter", options.BornAfter, "query", "string", "", "form", true), false)
+	}
 
 	headerParams := make(map[string]string)
+	if options != nil && options.ReportDate != nil {
+		headerParams["Report-Date"] = fmt.Sprintf("%v", serializeStyled("Report-Date", options.ReportDate, "header", "string", "", "simple", false))
+	}
 
 	var requestBody any
 
@@ -1816,6 +1824,9 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 		}
 		if options.Note != nil {
 			formBody["note"] = *options.Note
+		}
+		if options.RenewalDate != nil {
+			formBody["renewalDate"] = *options.RenewalDate
 		}
 	}
 	var requestBody any = formBody

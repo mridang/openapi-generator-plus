@@ -522,6 +522,8 @@ export class PetApi extends BaseApi {
    * @example Available only - available
    * @example Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
+   * @param options.bornAfter Only return pets born on or after this date (optional)
+   * @param options.reportDate Reference date for the report (optional)
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.
@@ -577,7 +579,18 @@ export class PetApi extends BaseApi {
       );
       Object.assign(queryParams, deepObj);
     }
+    if (options?.bornAfter != null) {
+      queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.stringifyDate(options.bornAfter),
+        false,
+      );
+    }
     const headerParams: Record<string, string> = {};
+    if (options?.reportDate != null) {
+      headerParams["Report-Date"] = ValueSerializer.stringifyDate(
+        options.reportDate,
+      );
+    }
     return await this.invokeApiForResult(
       "GET",
       path,
@@ -1531,6 +1544,7 @@ export class PetApi extends BaseApi {
    * @param options.nickname  (required)
    * @param options.tags  (optional)
    * @param options.note  (optional)
+   * @param options.renewalDate  (optional)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1599,6 +1613,11 @@ export class PetApi extends BaseApi {
     }
     if (options?.note != null) {
       formBody["note"] = options.note;
+    }
+    if (options?.renewalDate != null) {
+      formBody["renewalDate"] = ValueSerializer.stringifyDate(
+        options.renewalDate,
+      );
     }
 
     return await this.invokeApiForResult(

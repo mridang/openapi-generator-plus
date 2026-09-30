@@ -768,6 +768,8 @@ impl PetApi {
     /// See <https://example.com/docs/filtering> Find out more about filtering
     /// * `status`: Status values that need to be considered for filter
     /// * `filter`: Filter criteria as key-value pairs
+    /// * `born_after`: Only return pets born on or after this date
+    /// * `report_date`: Reference date for the report
     /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
@@ -862,8 +864,49 @@ impl PetApi {
                 }
             }
         }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.born_after {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "bornAfter",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "chrono::NaiveDate",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("bornAfter".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("bornAfter".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let mut header_params: HashMap<String, String> = HashMap::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.report_date {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "Report-Date",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "chrono::NaiveDate",
+                    "",
+                    "simple",
+                    false,
+                ) {
+                    header_params.insert("Report-Date".to_string(), v);
+                }
+            }
+        }
 
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<HashMap<String, MultipartValue>> = None;
@@ -2407,6 +2450,9 @@ impl PetApi {
             }
             if let Some(ref val) = opts.note {
                 form_pairs.push(("note".to_string(), serde_json::to_value(val)?));
+            }
+            if let Some(ref val) = opts.renewal_date {
+                form_pairs.push(("renewalDate".to_string(), serde_json::to_value(val)?));
             }
         }
         let request_body = Some(serde_json::to_vec(&form_pairs)?);

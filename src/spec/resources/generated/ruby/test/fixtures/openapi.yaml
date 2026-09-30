@@ -103,6 +103,24 @@ paths:
             type: object
             additionalProperties:
               type: string
+        # Case 14 — format:date (date-only) params in query and header. A
+        # date-only value must serialize as YYYY-MM-DD with no time component,
+        # in every SDK, regardless of whether the language shares one type for
+        # date and date-time.
+        - name: bornAfter
+          in: query
+          description: Only return pets born on or after this date
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: Report-Date
+          in: header
+          description: Reference date for the report
+          required: false
+          schema:
+            type: string
+            format: date
       responses:
         '200':
           description: Successful operation
@@ -544,6 +562,11 @@ paths:
                     type: string
                 note:
                   type: string
+                # Case 14 — format:date (date-only) form field. Must serialize
+                # as YYYY-MM-DD, never a date-time.
+                renewalDate:
+                  type: string
+                  format: date
       responses:
         '200':
           description: Successful operation

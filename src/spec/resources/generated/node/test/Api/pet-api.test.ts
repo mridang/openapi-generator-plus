@@ -230,6 +230,51 @@ describe("PetApi", () => {
     }
   });
 
+  // date-only serialization: node types `format: date` as `Date` (same as
+  // date-time), so the codegen must route such params through `stringifyDate`.
+  // findPetsByStatus takes `bornAfter` (query) and `Report-Date` (header),
+  // both `format: date`; each must reach the wire as YYYY-MM-DD with NO time
+  // component (java's LocalDate wire form), never a full ISO date-time. The
+  // Date carries a non-midnight time so a leaked time would be visible.
+  test("findPetsByStatus serializes date-only query and header params as YYYY-MM-DD", async () => {
+    let capturedUrl: string | undefined;
+    let capturedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url;
+      capturedHeader = req.headers["report-date"];
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("[]");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const addr = server.address() as { port: number };
+      const cfg = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .defaultHeader("Authorization", "Bearer test-token")
+        .build();
+      const dateApi = new PetApi(undefined, cfg);
+
+      await dateApi.findPetsByStatus({
+        status: PetStatusEnum.Available,
+        bornAfter: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+        reportDate: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+      });
+
+      expect(capturedUrl).toBeDefined();
+      const query = new URL(capturedUrl!, "http://localhost").searchParams;
+      expect(query.get("bornAfter")).toBe("2024-01-01");
+      expect(capturedHeader).toBe("2024-01-01");
+      // No time component may leak into either location.
+      expect(capturedUrl).not.toContain("T13");
+      expect(capturedUrl).not.toContain("00Z");
+      expect(String(capturedHeader)).not.toContain("T");
+    } finally {
+      server.close();
+    }
+  });
+
   test("getExternalPetInfo uses the per-operation server", async () => {
     /* The operation's own server wins over the client's base URL: the
      * client points at a closed port, the per-operation server at the mock. */
@@ -381,6 +426,25 @@ describe("PetApi error handling", () => {
     try {
       const result = await mockApi.getPetAvatar(1);
       expect(result).toBeDefined();
+    } finally {
+      close();
+    }
+  });
+
+  // A top-level `type: string, format: byte` value carried as application/json
+  // arrives as a JSON string literal (quotes included). The SDK must JSON-parse
+  // it and then base64-decode the inner string to the raw bytes.
+  test("getPetAvatarThumbnail decodes a JSON string literal as base64 bytes", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      '"dGVzdC1pbWFnZQ=="',
+    );
+    try {
+      const result = await mockApi.getPetAvatarThumbnail(1);
+      expect(Buffer.isBuffer(result)).toBe(true);
+      expect(result).toEqual(Buffer.from("test-image"));
+      expect(result.toString("utf8")).toBe("test-image");
     } finally {
       close();
     }
@@ -754,6 +818,26 @@ describe("PetApi form-urlencoded body serialization", () => {
       expect(body).toContain("nickname=good+boy");
       expect(body).toContain("note=very+fast");
       expect(body).not.toContain("%20");
+    } finally {
+      close();
+    }
+  });
+
+  // #4 — a `format: date` form field (renewalDate) is date-only on the wire:
+  // renewalDate=2024-01-01, with no time component (java's LocalDate form).
+  test("#4 date-only form field serializes as YYYY-MM-DD", async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = {
+        nickname: "Rex",
+        renewalDate: new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+      };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      const params = new URLSearchParams(body);
+      expect(params.get("renewalDate")).toBe("2024-01-01");
+      expect(body).not.toContain("T13");
+      expect(body).not.toContain("%3A");
     } finally {
       close();
     }

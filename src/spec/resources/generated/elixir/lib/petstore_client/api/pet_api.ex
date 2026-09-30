@@ -970,7 +970,50 @@ defmodule PetstoreClient.Api.PetApi do
         query_params
       end
 
+    query_params =
+      if not is_nil(options) and not is_nil(options.born_after) and options.born_after != [] do
+        Map.put(
+          query_params,
+          "bornAfter",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "bornAfter",
+              options.born_after,
+              :query,
+              "Date.t()",
+              nil,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
     header_params = %{}
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.report_date) do
+        Map.put(
+          header_params,
+          "Report-Date",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "Report-Date",
+            options.report_date,
+            :header,
+            "Date.t()",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -2771,6 +2814,11 @@ defmodule PetstoreClient.Api.PetApi do
     request_body =
       if not is_nil(options) and not is_nil(options.note),
         do: Map.put(request_body, "note", options.note),
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.renewal_date),
+        do: Map.put(request_body, "renewalDate", options.renewal_date),
         else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(

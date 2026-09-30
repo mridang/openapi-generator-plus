@@ -25,6 +25,8 @@ class FindPetsByStatusOptions
         /** @deprecated This parameter is deprecated. */
         public readonly ?string $status = null,
         public readonly ?array $filter = null,
+        public readonly ?\DateTime $bornAfter = null,
+        public readonly ?\DateTime $reportDate = null,
     ) {
     }
 }

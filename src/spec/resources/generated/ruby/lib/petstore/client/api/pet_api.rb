@@ -484,8 +484,16 @@ module Petstore::Client
             )
         end
         query_params.merge!(::Petstore::Client::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
+        unless options.nil? || options.born_after.nil?
+          query_params['bornAfter'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('bornAfter', options.born_after, :query, 'Date', nil, 'form', true),
+              false
+            )
+        end
         # @type var header_params: Hash[String, String]
         header_params = {}
+        header_params['Report-Date'] = ::Petstore::Client::ValueSerializer.serialize_styled('Report-Date', options.report_date, :header, 'Date', nil, 'simple', false).to_s unless options.nil? || options.report_date.nil?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
@@ -1340,6 +1348,7 @@ module Petstore::Client
         request_body['nickname'] = options.nickname
         request_body['tags'] = options.tags unless options.tags.nil?
         request_body['note'] = options.note unless options.note.nil?
+        request_body['renewalDate'] = options.renewal_date unless options.renewal_date.nil?
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],

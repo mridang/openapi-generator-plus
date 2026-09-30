@@ -196,6 +196,18 @@ test('get pet avatar thumbnail', function (): void {
     expect($result)->not->toBeNull();
 });
 
+test('get pet avatar thumbnail decodes a byte value carried as a json string', function (): void {
+    /* A top-level `format: byte` value returned as application/json arrives as
+     * a JSON string literal (quotes included). It must be JSON-parsed and then
+     * base64-decoded to the raw bytes: neither the still-encoded base64 text nor
+     * the quoted literal may be returned. */
+    $api = newPetApiForMock(200, 'application/json', '"dGVzdC1pbWFnZQ=="');
+
+    $result = $api->getPetAvatarThumbnail(1);
+
+    expect($result)->toBe('test-image');
+});
+
 test('set pet avatar thumbnail', function (): void {
     $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
 
@@ -491,6 +503,72 @@ test('form body encodes space as plus not percent twenty', function (): void {
     expect($captured->body)->toContain('nickname=Good+Boy');
     expect($captured->body)->toContain('note=likes+long+walks');
     expect($captured->body)->not->toContain('%20');
+});
+
+/* -- format: date (date-ONLY) params serialise as YYYY-MM-DD in every position --
+ *
+ * PHP types format:date and format:date-time alike as \DateTimeInterface, so
+ * the generated operation code marks date-only params with a '|date' schema
+ * type marker (query/header/cookie) or formats them at insertion (form). The
+ * value carries a non-midnight time-of-day and a non-UTC offset so that any
+ * leak of the time component (or an offset-shifted day) fails the assertion. */
+
+test('date only query param serialises without time component', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(
+            bornAfter: new \DateTime('2024-01-01T10:30:45+00:00'),
+        ));
+    } catch (\Throwable) {
+        /* The capturing client returns a canned non-list body; the URL is
+         * captured during sendRequest, before any deserialization. */
+    }
+
+    expect($captured->url)->toContain('bornAfter=2024-01-01');
+    expect($captured->url)->not->toContain('bornAfter=2024-01-01T');
+    expect($captured->url)->not->toContain('bornAfter=2024-01-01%20');
+    expect($captured->url)->not->toContain('10:30');
+    expect($captured->url)->not->toContain('10%3A30');
+});
+
+test('date only header param serialises without time component', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsByStatus(new FindPetsByStatusOptions(
+            reportDate: new \DateTime('2024-01-01T10:30:45+00:00'),
+        ));
+    } catch (\Throwable) {
+        /* Only the captured request headers matter here. */
+    }
+
+    /** @var array<string, string> $headers */
+    $headers = array_change_key_case($captured->headers, CASE_LOWER);
+    expect($headers)->toHaveKey('report-date');
+    expect($headers['report-date'])->toBe('2024-01-01');
+});
+
+test('date only form field serialises without time component', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Rex',
+        renewalDate: new \DateTime('2024-01-01T10:30:45+00:00'),
+    ));
+
+    expect($captured->body)->toContain('renewalDate=2024-01-01');
+    expect($captured->body)->not->toContain('renewalDate=2024-01-01T');
+    expect($captured->body)->not->toContain('renewalDate=2024-01-01+');
+    expect($captured->body)->not->toContain('10%3A30');
+});
+
+test('date only form field omitted when unset', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(nickname: 'Rex'));
+
+    expect($captured->body)->not->toContain('renewalDate');
 });
 
 // -- Canonical: a type:string format:binary body streams raw, not JSON --

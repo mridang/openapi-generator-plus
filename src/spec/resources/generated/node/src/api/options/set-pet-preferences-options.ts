@@ -5,4 +5,5 @@ export interface SetPetPreferencesOptions {
   readonly nickname: string;
   readonly tags?: Array<string>;
   readonly note?: string;
+  readonly renewalDate?: Date;
 }

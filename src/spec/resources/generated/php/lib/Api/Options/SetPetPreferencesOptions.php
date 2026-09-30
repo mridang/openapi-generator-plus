@@ -25,6 +25,7 @@ class SetPetPreferencesOptions
         public readonly string $nickname,
         public readonly ?array $tags = null,
         public readonly ?string $note = null,
+        public readonly ?\DateTime $renewalDate = null,
     ) {
     }
 }

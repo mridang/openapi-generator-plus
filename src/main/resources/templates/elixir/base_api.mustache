@@ -257,7 +257,12 @@ defmodule {{moduleName}}.Api.BaseApi do
               # A 2xx body that does not match the declared schema is a
               # contract violation; propagate the decode error to the
               # caller instead of silently substituting the raw body
-              # string (which would yield type confusion).
+              # string (which would yield type confusion). For a binary
+              # return type (a top-level `format: byte` value carried as
+              # application/json) the body is a JSON string literal of base64,
+              # quotes included: deserialize/2 JSON-parses it first and the
+              # "binary()" conversion then base64-decodes the inner string, so
+              # the quoted literal is never base64-decoded directly.
               {{moduleName}}.ObjectSerializer.deserialize(response.body, return_type)
 
             return_type == "binary()" ->

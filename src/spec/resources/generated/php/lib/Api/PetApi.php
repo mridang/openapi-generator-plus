@@ -537,7 +537,31 @@ class PetApi extends BaseApi
         if ($options !== null && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
+        if ($options !== null && $options->bornAfter !== null) {
+            $queryParams['bornAfter'] = ValueSerializer::serializeStyled(
+                'bornAfter',
+                $options->bornAfter,
+                'query',
+                '\DateTime' . '|date',
+                null,
+                'form',
+                true,
+            );
+        }
         $headerParams = [];
+        if ($options !== null && $options->reportDate !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled(
+                'Report-Date',
+                $options->reportDate,
+                'header',
+                '\DateTime' . '|date',
+                null,
+                'simple',
+                false,
+            );
+            $headerParams['Report-Date'] = $headerValue;
+        }
         $requestBody = null;
 
         /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>> $result */
@@ -1743,6 +1767,9 @@ class PetApi extends BaseApi
         }
         if ($options->note !== null) {
             $requestBody['note'] = $options->note;
+        }
+        if ($options->renewalDate !== null) {
+            $requestBody['renewalDate'] = ValueSerializer::formatDateOnly($options->renewalDate);
         }
 
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */

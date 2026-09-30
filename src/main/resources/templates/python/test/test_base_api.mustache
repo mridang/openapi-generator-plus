@@ -1,11 +1,13 @@
 {{>api_info}}
 import pytest
+import datetime
 from typing import Any, Optional, Union
 
 from {{packageName}}.api.base_api import BaseApi, NO_AUTH, _NoAuth
 from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from {{packageName}}.api.options.set_pet_preferences_options import SetPetPreferencesOptions
 from {{packageName}}.models.pet import Pet
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
@@ -629,6 +631,69 @@ class TestContentTypeDeserialization:
                                  ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['title'] == 'Not Found'
+
+
+class ByteJsonApiClient(CapturingApiClient):
+    """API client returning a top-level `format: byte` value as application/json."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None, no_redirect: bool = False) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(status_code=200, body='"dGVzdC1pbWFnZQ=="', headers={'Content-Type': 'application/json'})
+
+
+class TestByteOverJsonResponse:
+    """A `format: byte` schema served as application/json is a JSON string
+    holding base64. The SDK must JSON-parse it, then base64-decode it."""
+
+    async def test_get_pet_avatar_thumbnail_decodes_json_base64_to_bytes(self) -> None:
+        client = ByteJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        result = await api.get_pet_avatar_thumbnail(1)
+        assert result == b'test-image'
+
+    async def test_byte_return_type_over_json_decodes_base64(self) -> None:
+        client = ByteJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/test/echo', {}, {}, None,
+                                 ['application/json'], 'application/json', 'bytes')
+        assert result == b'test-image'
+
+
+class TestDateOnlyParamsSerializeWithoutTime:
+    """`format: date` params are typed datetime.date and must go on the wire
+    as YYYY-MM-DD with no time component, in query, header and form."""
+
+    async def test_query_and_header_date_params_emit_date_only(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions(
+                born_after=datetime.date(2024, 1, 1),
+                report_date=datetime.date(2024, 1, 1),
+            ))
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured request
+        assert 'bornAfter=2024-01-01' in client.captured_url, client.captured_url
+        assert 'bornAfter=2024-01-01T' not in client.captured_url, client.captured_url
+        assert client.captured_headers['Report-Date'] == '2024-01-01'
+
+    async def test_form_date_param_emits_date_only(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.set_pet_preferences(1, SetPetPreferencesOptions(
+                nickname='rex',
+                renewal_date=datetime.date(2024, 1, 1),
+            ))
+        except Exception:
+            pass  # Response handling may fail; we only care about the captured request
+        body = str(client.captured_body)
+        assert 'renewalDate=2024-01-01' in body, body
+        assert 'renewalDate=2024-01-01T' not in body, body
 
 
 class TestMalformedSuccessBodyFailsLoud:

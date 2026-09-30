@@ -641,7 +641,26 @@ class PetApi(BaseApi):
             query_params.update(
                 ValueSerializer.serialize_deep_object("filter", options.filter)
             )
+        if options is not None and options.born_after is not None:
+            query_params["bornAfter"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "bornAfter", options.born_after, "query", "date", None, "form", True
+                ),
+                False,
+            )
         header_params: Dict[str, str] = {}
+        if options is not None and options.report_date is not None:
+            header_params["Report-Date"] = str(
+                ValueSerializer.serialize_styled(
+                    "Report-Date",
+                    options.report_date,
+                    "header",
+                    "date",
+                    None,
+                    "simple",
+                    False,
+                )
+            )
         body = None
 
         return await self._invoke_api_for_result(
@@ -1698,6 +1717,8 @@ class PetApi(BaseApi):
             body["tags"] = options.tags
         if options is not None and options.note is not None:
             body["note"] = options.note
+        if options is not None and options.renewal_date is not None:
+            body["renewalDate"] = options.renewal_date
 
         return await self._invoke_api_for_result(
             "POST",

@@ -13,9 +13,13 @@ defmodule PetstoreClient.Api.Options.FindPetsByStatusOptions do
   @type t :: %__MODULE__{
           # @deprecated This parameter is deprecated.
           status: String.t() | nil,
-          filter: map() | nil
+          filter: map() | nil,
+          born_after: Date.t() | nil,
+          report_date: Date.t() | nil
         }
 
   defstruct status: nil,
-            filter: nil
+            filter: nil,
+            born_after: nil,
+            report_date: nil
 end

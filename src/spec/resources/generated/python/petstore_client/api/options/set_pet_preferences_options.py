@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from pydantic import StrictStr
 from typing import Optional, List
 
@@ -19,3 +20,4 @@ class SetPetPreferencesOptions:
     nickname: StrictStr
     tags: Optional[List[StrictStr]] = None
     note: Optional[StrictStr] = None
+    renewal_date: Optional[date] = None
