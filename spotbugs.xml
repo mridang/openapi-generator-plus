@@ -3,4 +3,13 @@
   <Match>
     <Bug pattern="CRLF_INJECTION_LOGS"/>
   </Match>
+  <!-- ContentEncodingRule normalises ASCII-only contentEncoding values
+       from JSON Schema 2020-12 (RFC 4648: base64/base64url/base16/binary/
+       7bit/8bit/quoted-printable). String.equalsIgnoreCase and Locale.ROOT
+       comparisons are both safe for ASCII, but SpotBugs flags any case
+       transformation as IMPROPER_UNICODE. -->
+  <Match>
+    <Class name="io.github.mridang.codegen.rules.ContentEncodingRule"/>
+    <Bug pattern="IMPROPER_UNICODE"/>
+  </Match>
 </FindBugsFilter>

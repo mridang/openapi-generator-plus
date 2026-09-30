@@ -1,0 +1,45 @@
+{{>api_info}}
+
+"""Generated server configurations from the OpenAPI specification.
+
+Each constant corresponds to a server entry defined in the spec's
+``servers`` array. Use these constants with
+``Configuration.builder().base_url(...)`` to select a server::
+
+    config = Configuration.builder() \\
+        .base_url(SERVER_0.get_url()) \\
+        .build()
+
+For servers with variables, pass overrides::
+
+    url = SERVER_1.get_url({'environment': 'staging'})
+"""
+
+from typing import List
+
+from {{packageName}}.server_configuration import ServerConfiguration{{#hasAnyServerVariables}}, ServerVariable{{/hasAnyServerVariables}}
+
+
+{{#serverConfigs}}
+SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
+    url_template='{{{serverUrl}}}',
+    {{#serverDescription}}description='{{{serverDescription}}}',{{/serverDescription}}{{^serverDescription}}description=None,{{/serverDescription}}
+    {{#hasVariables}}variables={
+{{#serverVariables}}        '{{varName}}': ServerVariable(
+            default_value='{{{varDefault}}}',
+            {{#varDescription}}description='{{{varDescription}}}',{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
+            {{#hasEnumValues}}enum_values=[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}],{{/hasEnumValues}}{{^hasEnumValues}}enum_values=[],{{/hasEnumValues}}
+        ),
+{{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
+)
+"""Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+
+{{{serverDescription}}}{{/serverDescription}}
+"""
+
+{{/serverConfigs}}
+
+ALL: List[ServerConfiguration] = [
+{{#serverConfigs}}    SERVER_{{serverIndex}},
+{{/serverConfigs}}]
+"""All server configurations in declaration order."""

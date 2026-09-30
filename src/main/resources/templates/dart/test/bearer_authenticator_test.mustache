@@ -1,0 +1,48 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('BearerAuthenticator', () {
+    test('raw token is prefixed with Bearer', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      final headers = auth.authHeaders();
+      expect(headers['Authorization'], equals('Bearer xyz'));
+    });
+
+    test('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('redacts the token in toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored token.
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      expect(auth.toString(), isNot(contains('xyz')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+}
+{{/generateTests}}

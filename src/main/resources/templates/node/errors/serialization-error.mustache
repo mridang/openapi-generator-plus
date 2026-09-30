@@ -1,0 +1,18 @@
+{{>api_info}}
+
+import { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
+
+/**
+ * Exception raised when serialization or deserialization fails. Extends the
+ * branded {@link {{errorPrefix}}Error} root so it shares a common `instanceof
+ * {{errorPrefix}}Error` ancestor with the transport-level {@link ApiError} hierarchy.
+ */
+export class SerializationError extends {{errorPrefix}}Error {
+  public readonly cause?: Error;
+
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = 'SerializationError';
+    this.cause = cause;
+  }
+}

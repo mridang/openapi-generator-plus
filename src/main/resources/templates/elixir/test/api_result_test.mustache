@@ -1,0 +1,37 @@
+{{#generateTests}}
+defmodule {{moduleName}}.ApiResultTest do
+  use ExUnit.Case, async: true
+
+  alias {{moduleName}}.ApiResult
+
+  describe "ApiResult struct" do
+    test "carries data, status, raw body, and headers" do
+      result = %ApiResult{
+        status_code: 200,
+        data: %{"id" => 1},
+        raw_body: ~s({"id":1}),
+        headers: %{"content-type" => "application/json"}
+      }
+
+      assert result.status_code == 200
+      assert result.data == %{"id" => 1}
+      assert result.raw_body == ~s({"id":1})
+      assert result.headers == %{"content-type" => "application/json"}
+    end
+
+    test "data and raw_body default to nil and an empty string" do
+      result = %ApiResult{status_code: 204}
+
+      assert result.status_code == 204
+      assert result.data == nil
+      assert result.raw_body == ""
+    end
+
+    test "headers defaults to an empty map" do
+      result = %ApiResult{status_code: 200}
+
+      assert result.headers == %{}
+    end
+  end
+end
+{{/generateTests}}

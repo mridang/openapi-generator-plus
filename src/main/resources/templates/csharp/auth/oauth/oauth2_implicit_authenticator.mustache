@@ -1,0 +1,132 @@
+{{>api_info}}
+
+namespace {{packageName}}.Auth.OAuth;
+
+/// <summary>
+/// Authenticator for the OAuth2 Implicit flow.
+///
+/// Implements <see cref="IHttpAwareAuthenticator"/> so that the interface contract
+/// is satisfied for consistency. The implicit flow does not make token exchange
+/// requests, so the injected <see cref="IApiClient"/> is not used.
+///
+/// Usage:
+/// <list type="number">
+///   <item><description>Call <see cref="BuildAuthorizationUrl"/> to get the authorization URL.</description></item>
+///   <item><description>Redirect the user to that URL.</description></item>
+///   <item><description>Extract the access token from the fragment and call <see cref="SetAccessToken"/>.</description></item>
+///   <item><description>Use the authenticator normally.</description></item>
+/// </list>
+/// </summary>
+public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+{
+    private readonly string _host;
+    private readonly string _clientId;
+    private readonly Uri _authorizationUrl;
+    private readonly string[] _scopes;
+    private string? _accessToken;
+
+    /// <summary>
+    /// Create a new implicit flow authenticator.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">OAuth2 client identifier.</param>
+    /// <param name="authorizationUrl">Authorization endpoint URL.</param>
+    /// <param name="scopes">Requested scopes.</param>
+    public OAuth2ImplicitAuthenticator(string host, string clientId, Uri authorizationUrl, string[] scopes)
+    {
+        _host = host;
+        _clientId = clientId;
+        _authorizationUrl = authorizationUrl;
+        _scopes = [.. scopes];
+    }
+
+    /// <inheritdoc/>
+    public void SetApiClient(IApiClient apiClient) { }
+
+    /// <summary>
+    /// Builds the URL to redirect the user to for implicit authorization.
+    /// </summary>
+    /// <param name="state">Optional CSRF state parameter.</param>
+    /// <returns>The authorization URL.</returns>
+    public Uri BuildAuthorizationUrl(string? state = null)
+    {
+        Dictionary<string, string> parameters = new() { ["response_type"] = "token" };
+        parameters["client_id"] = _clientId;
+        if (_scopes.Length > 0)
+        {
+            parameters["scope"] = string.Join(" ", _scopes);
+        }
+
+        if (state is not null)
+        {
+            parameters["state"] = state;
+        }
+
+        string query = string.Join(
+            "&",
+            parameters.Select(p =>
+                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+            )
+        );
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component. Use '&' as the separator when one is already
+         * present so existing params are preserved, '?' otherwise. */
+        string authUrl = _authorizationUrl.ToString();
+        string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return new Uri(authUrl + separator + query);
+    }
+
+    /// <summary>
+    /// Sets the access token obtained from the authorization redirect.
+    /// </summary>
+    /// <param name="token">The access token.</param>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the token contains characters outside RFC 7230 §3.2.6's
+    /// printable-ASCII + HTAB range (F-A5-04). Mirrors BearerAuthenticator.
+    /// </exception>
+    public void SetAccessToken(string token)
+    {
+        if (token is not null)
+        {
+            foreach (char c in token)
+            {
+                if (c != '\t' && (c < 0x20 || c >= 0x7F))
+                {
+                    throw new ArgumentException(
+                        "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                        nameof(token));
+                }
+            }
+        }
+        _accessToken = token;
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        return _accessToken is null
+            ? throw new InvalidOperationException(
+                "Must call SetAccessToken() before making API requests"
+            )
+            : new() { ["Authorization"] = "Bearer " + _accessToken };
+    }
+
+    /// <summary>
+    /// Returns a string representation with the access token redacted so the
+    /// credential never leaks into logs, stack traces, or debugger output.
+    /// Non-secret fields stay visible.
+    /// </summary>
+    public override string ToString()
+    {
+        string token = _accessToken is null ? "null" : "***";
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, "
+            + $"AuthorizationUrl={_authorizationUrl}, Scopes=[{string.Join(", ", _scopes)}], "
+            + $"AccessToken={token})";
+    }
+}

@@ -1,0 +1,151 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+
+use crate::errors::configuration_error::ConfigurationError;
+
+/// Represents a server variable from the OpenAPI specification.
+///
+/// Server variables define substitution parameters in server URL templates.
+/// Each variable has a default value and may optionally restrict values to
+/// an enumerated set.
+///
+/// This struct is immutable and thread-safe.
+///
+/// See also [`ServerConfiguration`].
+#[derive(Debug, Clone)]
+pub struct ServerVariable {
+    /// The default value for this variable.
+    default_value: String,
+
+    /// A human-readable description of this variable.
+    description: String,
+
+    /// The allowed values for this variable. An empty vec means any value
+    /// is accepted.
+    enum_values: Vec<String>,
+}
+
+impl ServerVariable {
+    /// Creates a new server variable.
+    ///
+    /// `default_value` is the value used when no override is provided,
+    /// `description` a human-readable description of the variable (empty when
+    /// not specified), and `enum_values` the allowed values (empty if any value
+    /// is accepted).
+    pub fn new(default_value: String, description: String, enum_values: Vec<String>) -> Self {
+        Self {
+            default_value,
+            description,
+            enum_values,
+        }
+    }
+
+    /// The default value for this variable.
+    pub fn default_value(&self) -> &str {
+        &self.default_value
+    }
+
+    /// Human-readable description of this variable (empty when not specified).
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// The allowed values for this variable.
+    ///
+    /// An empty slice means any value is accepted.
+    pub fn enum_values(&self) -> &[String] {
+        &self.enum_values
+    }
+}
+
+/// Represents a single server entry from the OpenAPI specification.
+///
+/// A server URL may contain template variables (e.g.
+/// `https://{env}.api.example.com/v{version}`). Use [`ServerConfiguration::url`]
+/// to resolve the URL: pass an empty map for the default variable values, or
+/// overrides for specific variables.
+///
+/// This struct is immutable and thread-safe.
+///
+/// See also [`ServerVariable`].
+#[derive(Debug, Clone)]
+pub struct ServerConfiguration {
+    /// The raw URL template before variable substitution.
+    url_template: String,
+
+    /// A human-readable description of this server.
+    description: String,
+
+    /// The server variables and their definitions.
+    variables: HashMap<String, ServerVariable>,
+}
+
+impl ServerConfiguration {
+    /// Creates a new server configuration.
+    ///
+    /// `url_template` is the URL template, possibly containing `{variable}`
+    /// placeholders, `description` a human-readable description of this server
+    /// (empty when not specified), and `variables` a map of variable names to
+    /// their definitions.
+    pub fn new(
+        url_template: String,
+        description: String,
+        variables: HashMap<String, ServerVariable>,
+    ) -> Self {
+        Self {
+            url_template,
+            description,
+            variables,
+        }
+    }
+
+    /// The raw URL template before variable substitution.
+    pub fn url_template(&self) -> &str {
+        &self.url_template
+    }
+
+    /// Human-readable description of this server (empty when not specified).
+    pub fn description(&self) -> &str {
+        &self.description
+    }
+
+    /// The server variables and their definitions.
+    pub fn variables(&self) -> &HashMap<String, ServerVariable> {
+        &self.variables
+    }
+
+    /// Resolves the URL template, substituting the given variable overrides.
+    ///
+    /// Variables not present in `overrides` use their default values.
+    /// If a variable has an enum constraint, the override value is validated
+    /// against the allowed values.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConfigurationError::InvalidServerVariable`] if an override value
+    /// is not in the variable's enum constraint.
+    pub fn url(&self, overrides: &HashMap<String, String>) -> Result<String, ConfigurationError> {
+        let mut result = self.url_template.clone();
+        for (var_name, variable) in &self.variables {
+            let value = overrides
+                .get(var_name)
+                .unwrap_or(&variable.default_value)
+                .clone();
+
+            if !variable.enum_values.is_empty()
+                && !variable.enum_values.contains(&value)
+            {
+                return Err(ConfigurationError::InvalidServerVariable(format!(
+                    "invalid value '{}' for variable '{}'; allowed: {:?}",
+                    value, var_name, variable.enum_values
+                )));
+            }
+
+{{=<% %>=}}
+            result = result.replace(&format!("{{{}}}", var_name), &value);
+<%={{ }}=%>
+        }
+        Ok(result)
+    }
+}

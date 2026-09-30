@@ -29,6 +29,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_FILTER_PATHS = "FILTER_PATHS";
     private static final String RULE_GARBAGE_COLLECT = "GARBAGE_COLLECT_COMPONENTS";
     private static final String RULE_SCRIPTABLE = "RUN_SCRIPT";
+    private static final String RULE_CONTENT_ENCODING = "CONTENT_ENCODING";
     @Nullable
     private final Logger customLogger;
     private final Map<String, String> customRules;
@@ -84,6 +85,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         super.normalize();
         getLogger().info("Default normalization complete. Applying custom rules...");
 
+        applyRule(RULE_CONTENT_ENCODING, new ContentEncodingRule());
         applyRule(RULE_STRIP_PARAMS, new StripParametersRule());
         applyRule(RULE_CLEAN_EMPTY_REQUEST_BODIES, new CleanEmptyRequestBodiesRule());
         applyRule(RULE_ONLY_ALLOW_JSON, new OnlyAllowJsonRule());

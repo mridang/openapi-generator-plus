@@ -1,0 +1,15 @@
+{{>api_info}}
+
+defmodule {{package}}.{{className}} do
+  @moduledoc """
+  Authenticator for the `{{{schemeName}}}` security scheme.
+  Delegates to `#{inspect({{package}}.{{baseClass}})}`.
+  """
+
+  @doc """
+  Creates an authenticator for the `{{{schemeName}}}` security scheme.
+  """
+  def new({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) do
+    {{package}}.{{baseClass}}.new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})
+  end
+end

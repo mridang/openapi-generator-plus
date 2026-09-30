@@ -1,0 +1,103 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
+  @moduledoc """
+  Branded grouping for every exception this SDK can raise.
+
+  Elixir exceptions are plain `defexception` structs and have no
+  inheritance, so there is no literal "root" class the way the
+  object-oriented SDKs express it. Instead, membership in the
+  SDK error family is expressed explicitly and
+  idiomatically:
+
+    * `exceptions/0` returns the canonical list of every SDK
+      exception module. Use it directly in a single `rescue` clause
+      to catch *any* SDK-thrown error:
+
+          try do
+            {{moduleName}}.SomeApi.some_call(client)
+          rescue
+            e in {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions() ->
+              # `e` is guaranteed to be an SDK error
+              handle(e)
+          end
+
+    * `{{errorPrefixSnake}}_error?/1` is a membership predicate that returns
+      `true` for any SDK exception struct and `false` for anything
+      else (including unrelated `RuntimeError`/`ArgumentError`
+      raised by the BEAM itself):
+
+          rescue
+            e -> if {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(e), do: ..., else: reraise(e, __STACKTRACE__)
+
+  The taxonomy mirrors the object-oriented SDKs:
+
+      Any SDK error  (this grouping)
+       ├─ {{moduleName}}.Errors.ApiError  (message, status_code,
+       │      response_headers, response_body, error_body, cause)
+       │   ├─ 4xx: BadRequest(400) Unauthorized(401) Forbidden(403)
+       │   │       NotFound(404) Conflict(409) UnprocessableEntity(422)
+       │   │       (and the {{moduleName}}.Errors.ClientError grouping)
+       │   ├─ 5xx: InternalServerError(500)
+       │   │       (and the {{moduleName}}.Errors.ServerError grouping)
+       │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
+       ├─ {{moduleName}}.Errors.SerializationError  (every encode/decode failure)
+       ├─ {{moduleName}}.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
+       └─ {{moduleName}}.Errors.OAuth2TokenError   (token endpoint answered unusably)
+
+  The list is the single source of truth: every SDK exception module
+  must appear in `exceptions/0`, and both the predicate and the type
+  union below are derived from it.
+  """
+
+  @exceptions [
+    {{moduleName}}.Errors.ApiError,
+    {{moduleName}}.Errors.ClientError,
+    {{moduleName}}.Errors.ServerError,
+    {{moduleName}}.Errors.BadRequestError,
+    {{moduleName}}.Errors.UnauthorizedError,
+    {{moduleName}}.Errors.ForbiddenError,
+    {{moduleName}}.Errors.NotFoundError,
+    {{moduleName}}.Errors.ConflictError,
+    {{moduleName}}.Errors.UnprocessableEntityError,
+    {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.Errors.NetworkError,
+    {{moduleName}}.Errors.NetworkTimeoutError,
+    {{moduleName}}.Errors.SerializationError,
+    {{moduleName}}.Errors.OAuth2ServerError,
+    {{moduleName}}.Errors.OAuth2TokenError
+  ]
+
+  @type t ::
+          {{moduleName}}.Errors.ApiError.t()
+          | {{moduleName}}.Errors.ClientError.t()
+          | {{moduleName}}.Errors.ServerError.t()
+          | {{moduleName}}.Errors.BadRequestError.t()
+          | {{moduleName}}.Errors.UnauthorizedError.t()
+          | {{moduleName}}.Errors.ForbiddenError.t()
+          | {{moduleName}}.Errors.NotFoundError.t()
+          | {{moduleName}}.Errors.ConflictError.t()
+          | {{moduleName}}.Errors.UnprocessableEntityError.t()
+          | {{moduleName}}.Errors.InternalServerError.t()
+          | {{moduleName}}.Errors.NetworkError.t()
+          | {{moduleName}}.Errors.NetworkTimeoutError.t()
+          | {{moduleName}}.Errors.SerializationError.t()
+          | {{moduleName}}.Errors.OAuth2ServerError.t()
+          | {{moduleName}}.Errors.OAuth2TokenError.t()
+
+  @doc """
+  Returns the canonical list of every exception module this SDK can
+  raise. Suitable for use directly in a `rescue e in ... ->` clause
+  to catch any SDK error.
+  """
+  @spec exceptions() :: [module(), ...]
+  def exceptions, do: @exceptions
+
+  @doc """
+  Returns `true` if `term` is an instance of any SDK exception,
+  `false` otherwise.
+  """
+  @spec {{errorPrefixSnake}}_error?(term()) :: boolean()
+  def {{errorPrefixSnake}}_error?(%module{}), do: module in @exceptions
+  def {{errorPrefixSnake}}_error?(_term), do: false
+end

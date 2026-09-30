@@ -1,0 +1,133 @@
+{{>api_info}}
+import pytest
+
+from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
+from {{packageName}}.auth.api_key_location import ApiKeyLocation
+
+
+class TestApiKeyAuthenticator:
+
+    def test_valid_header_key_passes(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='abc123',
+            location=ApiKeyLocation.HEADER,
+        )
+        assert auth.get_auth_headers()['X-API-Key'] == 'abc123'
+
+    def test_valid_query_key_passes(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='api_key',
+            api_key='abc123',
+            location=ApiKeyLocation.QUERY,
+        )
+        assert auth.get_query_params()['api_key'] == 'abc123'
+
+    def test_query_accepts_non_ascii(self) -> None:
+        # Non-header locations accept arbitrary chars.
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='api_key',
+            api_key='kéy',
+            location=ApiKeyLocation.QUERY,
+        )
+        assert auth.get_query_params() == {'api_key': 'kéy'}
+
+    def test_empty_key_header_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='X-API-Key',
+                api_key='',
+                location=ApiKeyLocation.HEADER,
+            )
+
+    def test_empty_key_query_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='api_key',
+                api_key='',
+                location=ApiKeyLocation.QUERY,
+            )
+
+    def test_empty_key_cookie_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='session',
+                api_key='',
+                location=ApiKeyLocation.COOKIE,
+            )
+
+    def test_whitespace_only_key_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='X-API-Key',
+                api_key='   ',
+                location=ApiKeyLocation.HEADER,
+            )
+
+    def test_crlf_in_query_key_rejected_at_construction(self) -> None:
+        # CR/LF is a forbidden control character in ALL locations.
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='api_key',
+                api_key='abc\r\n',
+                location=ApiKeyLocation.QUERY,
+            )
+
+    def test_crlf_in_cookie_key_rejected_at_construction(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='session',
+                api_key='abc\n',
+                location=ApiKeyLocation.COOKIE,
+            )
+
+    def test_header_rejects_crlf(self) -> None:
+        # RFC 7230 §3.2.6 — HEADER location must reject anything outside
+        # printable ASCII + TAB to prevent header injection (\r\n).
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='X-Api-Key',
+                api_key='abc\r\nInjected: yes',
+                location=ApiKeyLocation.HEADER,
+            )
+
+    def test_header_rejects_non_ascii(self) -> None:
+        with pytest.raises(ValueError):
+            ApiKeyAuthenticator(
+                host='https://api.example.com',
+                key_param_name='X-Api-Key',
+                api_key='kéy',
+                location=ApiKeyLocation.HEADER,
+            )
+
+    def test_api_key_is_not_leaked_in_repr(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='topsecretkey',
+            location=ApiKeyLocation.HEADER,
+        )
+        assert 'topsecretkey' not in repr(auth)
+        assert 'topsecretkey' not in str(auth)
+
+    def test_redacts_secret(self) -> None:
+        """The repr masks the API key as ``***`` and never leaks its value."""
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='abc123',
+            location=ApiKeyLocation.HEADER,
+        )
+        rendered = repr(auth)
+        assert 'abc123' not in rendered
+        assert '***' in rendered

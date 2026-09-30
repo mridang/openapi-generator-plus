@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "declaration": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "paths": {
+      "#transport": ["./src/default-api-client.ts"]
+    }
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules", "dist"]
+}

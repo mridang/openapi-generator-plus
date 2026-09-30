@@ -1,0 +1,204 @@
+{{#generateTests}}
+defmodule {{moduleName}}.ApiErrorTest do
+  use ExUnit.Case, async: true
+
+  test "exposes status_code, response_body, response_headers and error_body" do
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        status_code: 404,
+        message: "not found",
+        response_headers: %{"content-type" => "application/json"},
+        response_body: ~s({"id":7,"name":"missing"}),
+        error_body: nil
+      )
+
+    assert err.status_code == 404
+    assert err.response_body == ~s({"id":7,"name":"missing"})
+    assert err.response_headers["content-type"] == "application/json"
+    assert err.error_body == nil
+  end
+
+  test "nil headers and body mark transport-no-response" do
+    # apierror-responsebody-headers-nullable-split: nil is distinct from an
+    # empty header map / empty body so a pre-response transport failure can
+    # be encoded.
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        status_code: 0,
+        message: "connection reset",
+        response_headers: nil,
+        response_body: nil
+      )
+
+    assert err.response_headers == nil
+    assert err.response_body == nil
+  end
+
+  test "is an exception with a message" do
+    err = {{moduleName}}.Errors.ApiError.exception(status_code: 500, message: "boom")
+
+    assert %{{moduleName}}.Errors.ApiError{} = err
+    assert {{moduleName}}.Errors.ApiError.message(err) != ""
+  end
+
+  test "typed_error_body deserializes the body into the typed model" do
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        status_code: 400,
+        response_body: ~s({"id":42,"name":"Dogs"}),
+        response_headers: %{}
+      )
+
+    body = {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category")
+    assert %{{moduleName}}.Models.Category{} = body
+    assert body.id == 42
+    assert body.name == "Dogs"
+  end
+
+  test "typed_error_body returns nil when there is no response body" do
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        status_code: 500,
+        response_body: "",
+        response_headers: %{}
+      )
+
+    assert {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category") == nil
+  end
+
+  test "typed_error_body ignores extraneous fields not on the model" do
+    err =
+      {{moduleName}}.Errors.ApiError.exception(
+        status_code: 422,
+        response_body: ~s({"id":1,"name":"Cat","extra":"drop-me"}),
+        response_headers: %{}
+      )
+
+    body = {{moduleName}}.Errors.ApiError.typed_error_body(err, "Category")
+    assert %{{moduleName}}.Models.Category{} = body
+    assert body.id == 1
+    assert body.name == "Cat"
+  end
+
+  describe "SDK error grouping" do
+    test "ApiError, a typed error and the Serialization error are all recognised" do
+      api_error = {{moduleName}}.Errors.ApiError.exception(status_code: 500, message: "boom")
+      typed_error = {{moduleName}}.Errors.BadRequestError.exception(%{message: "nope"})
+      serialization_error = %{{moduleName}}.Errors.SerializationError{message: "bad json"}
+
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(api_error)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(typed_error)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(serialization_error)
+    end
+
+    test "every SDK exception module is listed in exceptions/0" do
+      modules = {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions()
+
+      assert {{moduleName}}.Errors.ApiError in modules
+      assert {{moduleName}}.Errors.BadRequestError in modules
+      assert {{moduleName}}.Errors.SerializationError in modules
+    end
+
+    test "a rescued SDK error is recognised via exceptions/0" do
+      # Elixir's `rescue e in [...]` clause needs a compile-time literal list
+      # of exception modules, so a runtime list cannot be spliced in. The
+      # idiomatic equivalent is to rescue the error and assert membership in
+      # the canonical `exceptions/0` list, which is the single source of truth.
+      caught =
+        try do
+          raise {{moduleName}}.Errors.BadRequestError, %{message: "nope"}
+        rescue
+          e -> e
+        end
+
+      assert caught.__struct__ in {{moduleName}}.Errors.{{errorPrefix}}Error.exceptions()
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(caught)
+    end
+
+    test "network and OAuth errors are recognised" do
+      for err <- [
+            {{moduleName}}.Errors.NetworkError.exception(message: "refused"),
+            {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out"),
+            %{{moduleName}}.Errors.OAuth2TokenError{message: "no access_token"},
+            %{{moduleName}}.Errors.OAuth2ServerError{status_code: 400, message: "invalid_grant"}
+          ] do
+        assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(err)
+      end
+    end
+
+    # Elixir exceptions have no inheritance, so the family predicates express
+    # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
+    # 500 is an InternalServerError, a ServerError and an ApiError; a
+    # NetworkTimeoutError is a NetworkError and an ApiError.
+    test "family predicates express the error hierarchy" do
+      not_found = {{moduleName}}.Errors.NotFoundError.exception(%{message: "missing", status_code: 404})
+      assert {{moduleName}}.Errors.ClientError.client_error?(not_found)
+      refute {{moduleName}}.Errors.ServerError.server_error?(not_found)
+      refute {{moduleName}}.Errors.NetworkError.network_error?(not_found)
+      assert {{moduleName}}.Errors.ApiError.api_error?(not_found)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(not_found)
+
+      internal = {{moduleName}}.Errors.InternalServerError.exception(%{message: "boom", status_code: 500})
+      assert {{moduleName}}.Errors.ServerError.server_error?(internal)
+      refute {{moduleName}}.Errors.ClientError.client_error?(internal)
+      assert {{moduleName}}.Errors.ApiError.api_error?(internal)
+      assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(internal)
+
+      timeout = {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out")
+      assert {{moduleName}}.Errors.NetworkError.network_error?(timeout)
+      assert {{moduleName}}.Errors.ApiError.api_error?(timeout)
+      refute {{moduleName}}.Errors.NetworkError.network_error?({{moduleName}}.Errors.ApiError.exception(message: "x"))
+
+      serialization = %{{moduleName}}.Errors.SerializationError{message: "bad"}
+      refute {{moduleName}}.Errors.ApiError.api_error?(serialization)
+      refute {{moduleName}}.Errors.ApiError.api_error?(%ArgumentError{message: "unrelated"})
+    end
+
+    # The public status factory every generated operation and the OpenID
+    # Connect discovery request use: the most specific error for each status,
+    # with the status, headers and body kept and a JSON body parsed.
+    test "from_response maps every status to its error" do
+      headers = %{"x-request-id" => "abc"}
+
+      for {status, module} <- [
+            {400, {{moduleName}}.Errors.BadRequestError},
+            {401, {{moduleName}}.Errors.UnauthorizedError},
+            {403, {{moduleName}}.Errors.ForbiddenError},
+            {404, {{moduleName}}.Errors.NotFoundError},
+            {409, {{moduleName}}.Errors.ConflictError},
+            {422, {{moduleName}}.Errors.UnprocessableEntityError},
+            {418, {{moduleName}}.Errors.ClientError},
+            {500, {{moduleName}}.Errors.InternalServerError},
+            {503, {{moduleName}}.Errors.ServerError},
+            {302, {{moduleName}}.Errors.ApiError},
+            # A status outside 400-599 is neither a ClientError nor a
+            # ServerError: the 5xx arm stops at 599, so 600 is an ApiError.
+            {600, {{moduleName}}.Errors.ApiError}
+          ] do
+        err = {{moduleName}}.Errors.ApiError.from_response(status, headers, ~s({"k":"v"}))
+
+        assert err.__struct__ == module
+        assert err.status_code == status
+        assert err.response_headers == headers
+        assert err.response_body == ~s({"k":"v"})
+        assert err.error_body == %{"k" => "v"}
+        assert {{moduleName}}.Errors.ApiError.api_error?(err)
+        assert {{moduleName}}.Errors.ClientError.client_error?(err) == (status in 400..499)
+        assert {{moduleName}}.Errors.ServerError.server_error?(err) == (status in 500..599)
+      end
+    end
+
+    test "network errors carry status 0" do
+      assert {{moduleName}}.Errors.NetworkError.exception(message: "refused").status_code == 0
+      assert {{moduleName}}.Errors.NetworkTimeoutError.exception(message: "timed out").status_code == 0
+    end
+
+    test "non-SDK exceptions are not recognised" do
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%RuntimeError{message: "unrelated"})
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%ArgumentError{message: "unrelated"})
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(:not_an_exception)
+      refute {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(%{message: "plain map"})
+    end
+  end
+end
+{{/generateTests}}

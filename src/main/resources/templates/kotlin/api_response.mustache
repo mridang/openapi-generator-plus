@@ -1,0 +1,16 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * Represents an HTTP API response.
+ *
+ * @property statusCode the HTTP status code
+ * @property body the response body
+ * @property headers the response headers
+ */
+data class ApiHttpResponse(
+    val statusCode: Int,
+    val body: String,
+    val headers: Map<String, String>
+)

@@ -1,0 +1,19 @@
+{{>api_info}}
+package errors
+
+// NetworkError is the error for a request that got no HTTP response: connection
+// refused, DNS failure, TLS failure, or connection reset. The status code is
+// always 0; the underlying error is kept as the cause.
+type NetworkError struct {
+	ApiError
+}
+
+// As lets errors.As match a subclass such as *NetworkTimeoutError against *NetworkError,
+// and a *NetworkError against *ApiError.
+func (e *NetworkError) As(target any) bool {
+	if t, ok := target.(**NetworkError); ok {
+		*t = e
+		return true
+	}
+	return e.ApiError.As(target)
+}

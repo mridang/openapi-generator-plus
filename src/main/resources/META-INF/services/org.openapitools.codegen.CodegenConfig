@@ -1,6 +1,12 @@
-io.github.mridang.codegen.CustomRubyClientCodegen
+io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen
+io.github.mridang.codegen.generators.dart.BetterDartCodegen
+io.github.mridang.codegen.generators.elixir.BetterElixirCodegen
+io.github.mridang.codegen.generators.go.BetterGoCodegen
 io.github.mridang.codegen.generators.java.BetterJavaCodegen
+io.github.mridang.codegen.generators.kotlin.BetterKotlinCodegen
 io.github.mridang.codegen.generators.node.BetterNodeCodegen
 io.github.mridang.codegen.generators.php.BetterPHPCodegen
 io.github.mridang.codegen.generators.python.BetterPythonCodegen
 io.github.mridang.codegen.generators.ruby.BetterRubyCodegen
+io.github.mridang.codegen.generators.rust.BetterRustCodegen
+io.github.mridang.codegen.generators.swift.BetterSwiftCodegen

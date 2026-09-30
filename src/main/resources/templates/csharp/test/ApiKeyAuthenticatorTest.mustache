@@ -1,0 +1,117 @@
+{{>api_info}}
+
+using {{packageName}}.Auth;
+using Xunit;
+
+namespace Test;
+
+public class ApiKeyAuthenticatorTest
+{
+    [Fact]
+    public void ValidHeaderKeyPasses()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+        var headers = auth.GetAuthHeaders();
+        Assert.Equal("abc123", headers["X-API-Key"]);
+    }
+
+    [Fact]
+    public void ValidQueryKeyPasses()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.Query);
+        var queryParams = auth.GetQueryParams();
+        Assert.Equal("abc123", queryParams["api_key"]);
+    }
+
+    [Fact]
+    public void QueryAcceptsNonAscii()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "kéy", ApiKeyLocation.Query);
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["api_key"] = "kéy" },
+            auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void HeaderRejectsCrlfAndNonAscii()
+    {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's Header location must reject anything
+        // outside printable ASCII + TAB to prevent header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // auth-validation-timing: validation runs eagerly at construction.
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.Header));
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-Api-Key", "kéy", ApiKeyLocation.Header));
+    }
+
+    [Fact]
+    public void EmptyKeyHeaderThrowsAtConstruction()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "", ApiKeyLocation.Header));
+        Assert.Contains("must not be empty", ex.Message);
+    }
+
+    [Fact]
+    public void EmptyKeyQueryThrowsAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "api_key", "", ApiKeyLocation.Query));
+    }
+
+    [Fact]
+    public void EmptyKeyCookieThrowsAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "session", "", ApiKeyLocation.Cookie));
+    }
+
+    [Fact]
+    public void WhitespaceOnlyKeyThrowsAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "   ", ApiKeyLocation.Header));
+    }
+
+    [Fact]
+    public void CrlfInQueryKeyThrowsAtConstruction()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.Query));
+        Assert.Contains("forbidden control", ex.Message);
+    }
+
+    [Fact]
+    public void CrlfInCookieKeyThrowsAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "session", "abc\n", ApiKeyLocation.Cookie));
+    }
+
+    [Fact]
+    public void CrlfInHeaderKeyThrowsAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "abc\rdef", ApiKeyLocation.Header));
+    }
+
+    /// <summary>
+    /// The default ToString() must mask the stored API key: the secret value
+    /// must be absent and a *** redaction marker present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+        string repr = auth.ToString();
+        Assert.DoesNotContain("abc123", repr);
+        Assert.Contains("***", repr);
+    }
+}

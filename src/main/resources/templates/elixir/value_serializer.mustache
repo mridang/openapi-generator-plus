@@ -1,0 +1,402 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.ValueSerializer do
+  @moduledoc """
+  Serializes parameter values for HTTP requests based on their location and format.
+
+  Converts values into their string representations suitable for HTTP request
+  paths, query strings, and headers. Handles `nil` values, collections with
+  various collection formats, and URL encoding.
+  """
+
+  @doc """
+  Serialize a value for use in an HTTP request parameter.
+
+  The serialization strategy depends on the `location`:
+
+    * `:path` - scalar values are stringified and URL-encoded
+    * `:query` - nils are omitted (returns `nil`); collections are formatted
+      according to the collection format
+    * `:header` - collections are joined with commas; nils become empty strings
+    * any other location - nils become empty strings, scalars are stringified
+
+  ## Parameters
+
+    * `value` - The value to serialize (may be `nil`).
+    * `location` - Where the parameter appears: `:path`, `:query`, `:header` or `:form`.
+    * `schema_type` - The OpenAPI schema type (e.g. `"string"`, `"array"`); used
+      to resolve a named enum to its declared wire value.
+    * `opts` - Keyword list with optional `:collection_format`: `:multi`,
+      `:csv`, `:ssv`, `:tsv` or `:pipes` (only relevant for query parameters).
+
+  ## Returns
+
+    The serialized value: a string, a list of strings (for `:multi` query
+    collections), or `nil` to omit the parameter.
+  """
+  @spec serialize(term(), atom(), String.t(), keyword()) :: String.t() | [String.t()] | nil
+  def serialize(value, location, schema_type, opts \\ []) do
+    collection_format = Keyword.get(opts, :collection_format)
+
+    cond do
+      is_nil(value) ->
+        serialize_nil(location)
+
+      is_list(value) ->
+        serialize_array(value, location, collection_format)
+
+      true ->
+        # A named enum param: the atom name is the lowercased constant, which
+        # is not necessarily the wire value. When `schema_type` names a
+        # generated enum module, route the atom through its `value/1` to emit
+        # the declared wire value instead of `to_string(atom)`.
+        str_val = enum_wire_value(value, schema_type) || {{moduleName}}.ObjectSerializer.stringify(value)
+
+        if location == :path do
+          encode_path_segment(str_val)
+        else
+          str_val
+        end
+    end
+  end
+
+  # Returns the wire-value string for `value` when `schema_type` resolves to a
+  # generated enum module that maps the atom via `value/1`; otherwise nil so
+  # the caller falls back to `stringify/1`.
+  defp enum_wire_value(value, schema_type)
+       when is_atom(value) and is_binary(schema_type) and value not in [nil, true, false] do
+    module = {{moduleName}}.ObjectSerializer.resolve_model_module(schema_type)
+
+    if function_exported?(module, :value, 1) do
+      to_string(module.value(value))
+    else
+      nil
+    end
+  rescue
+    _ -> nil
+  end
+
+  defp enum_wire_value(_value, _schema_type), do: nil
+
+  @doc """
+  Percent-encodes a value for use as a URL path segment.
+
+  Encodes characters that are not allowed in a URI path segment per RFC 3986,
+  but preserves the unreserved characters and the sub-delimiters (including `;`,
+  `=`, `,`, `:`, etc.) that OAS 3.0 matrix/label/simple styles use as structural
+  separators in the styled value: `; = , : @ ! $ & ' ( ) * +`. Everything else
+  is percent-encoded (notably spaces become `%20`, `?` becomes `%3F`, `#`
+  becomes `%23` and `/` becomes `%2F`).
+
+  ## Parameters
+
+    * `value` - The raw value to encode.
+
+  ## Returns
+
+    The percent-encoded path segment.
+  """
+  @spec encode_path_segment(String.t()) :: String.t()
+  def encode_path_segment(value) do
+    URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c"!$&'()*+,;=:@" end)
+  end
+
+  @doc """
+  Wrap a query value so the query-string builder preserves RFC 3986 reserved
+  characters (OAS `allowReserved: true`) instead of percent-encoding them.
+
+  Returns the value unchanged when it is `nil` or when `allow_reserved` is
+  `false`; otherwise tags it with `:allow_reserved`, which the query-string
+  builder unwraps and encodes with `encode_query_allowing_reserved/1` when the
+  query string is assembled.
+
+  ## Parameters
+
+    * `value` - The serialized query value.
+    * `allow_reserved` - Whether the parameter preserves reserved characters.
+
+  ## Returns
+
+    The value, wrapped iff `allow_reserved` is `true`.
+  """
+  @spec maybe_allow_reserved(term(), boolean()) :: term()
+  def maybe_allow_reserved(nil, _allow_reserved), do: nil
+  def maybe_allow_reserved(value, true), do: {:allow_reserved, value}
+  def maybe_allow_reserved(value, false), do: value
+
+  @doc """
+  Percent-encode a query value while leaving RFC 3986 reserved characters
+  literal (OAS `allowReserved: true`).
+
+  Everything that is not RFC 3986 reserved or unreserved — spaces, control
+  characters, non-ASCII — is still percent-encoded, so the result is always a
+  valid URL query segment. In particular a space becomes `%20` (not `+`). Only
+  the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved
+  characters) is kept literal.
+  """
+  @spec encode_query_allowing_reserved(String.t()) :: String.t()
+  def encode_query_allowing_reserved(value) do
+    URI.encode(value, fn c -> URI.char_unreserved?(c) or c in ~c":/?#[]@!$&'()*+,;=" end)
+  end
+
+  @doc """
+  Serialize a value with OAS 3.0 parameter style formatting.
+
+  Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+  styles. deepObject is handled separately by `serialize_deep_object/2`.
+
+  ## Parameters
+
+    * `param_name` - The parameter name.
+    * `value` - The value to serialize (may be `nil`).
+    * `location` - Where the parameter appears: `:path`, `:query`, `:header` or `:cookie`.
+    * `schema_type` - The OpenAPI schema type.
+    * `collection_format` - The collection format (may be `nil`).
+    * `style` - The OAS 3.0 parameter style (may be `nil` or empty).
+    * `explode` - Whether to explode arrays.
+
+  ## Returns
+
+    The serialized value, or `nil` to omit the parameter.
+
+  ## Raises
+
+    `ArgumentError` if a path parameter is the empty string.
+
+  """
+  @spec serialize_styled(String.t(), term(), atom(), String.t(), atom() | nil, String.t() | nil, boolean()) ::
+          String.t() | [String.t()] | nil
+  # Path parameters are required components of the URL - accepting an empty
+  # string would silently produce a malformed URL like `/resource//details`,
+  # which most servers route to 404 instead of surfacing the bug at the call
+  # site. The required-non-nil check lives in the operation method; here we
+  # catch the empty-string case that slips through it. This clause must precede
+  # the others so Elixir's pattern matcher selects it first.
+  def serialize_styled(param_name, "", :path, _schema_type, _collection_format, _style, _explode) do
+    raise ArgumentError, "Path parameter '#{param_name}' must not be empty"
+  end
+
+  def serialize_styled(_param_name, value, location, schema_type, collection_format, nil, _explode) do
+    serialize(value, location, schema_type, collection_format: collection_format)
+  end
+
+  def serialize_styled(_param_name, value, location, schema_type, collection_format, "", _explode) do
+    serialize(value, location, schema_type, collection_format: collection_format)
+  end
+
+  def serialize_styled(param_name, value, location, schema_type, collection_format, style, explode) do
+    # Named enum param: resolve enum atoms to their declared wire value
+    # via the enum module's `value/1` before the style helpers stringify them,
+    # so a sanitized atom name (`:great_dane`) emits the wire value
+    # ("GreatDane") rather than `to_string(atom)`. Scalars and arrays of enums
+    # are both covered; non-enum values pass through untouched.
+    value = resolve_enum_wire_values(value, schema_type)
+
+    case style do
+      "matrix" ->
+        serialize_matrix(param_name, value, location, explode)
+
+      "label" ->
+        serialize_label(value, location, explode)
+
+      "spaceDelimited" ->
+        serialize_delimited(value, location, " ", explode)
+
+      "pipeDelimited" ->
+        serialize_delimited(value, location, "|", explode)
+
+      "form" ->
+        serialize_form(value, location, explode)
+
+      "simple" ->
+        serialize_simple(value, location)
+
+      _ ->
+        serialize(value, location, schema_type, collection_format: collection_format)
+    end
+  end
+
+  # When `schema_type` (or, for an array param, its element type) names a
+  # generated enum module exporting `value/1`, replace each enum atom with its
+  # wire-value string. Returns the value unchanged when no enum module matches.
+  defp resolve_enum_wire_values(value, schema_type) when is_list(value) do
+    element_type = enum_element_type(schema_type)
+    Enum.map(value, fn v -> resolve_enum_wire_values(v, element_type) end)
+  end
+
+  defp resolve_enum_wire_values(value, schema_type) do
+    enum_wire_value(value, schema_type) || value
+  end
+
+  # Peels one Elixir array-container level ("[Inner]") to recover the element
+  # type used for per-item enum resolution; non-array descriptors pass through.
+  defp enum_element_type("[" <> rest) when is_binary(rest) do
+    String.replace_suffix(rest, "]", "")
+  end
+
+  defp enum_element_type(schema_type), do: schema_type
+
+  defp serialize_nil(:query), do: nil
+  defp serialize_nil(_location), do: ""
+
+  defp serialize_array(value, :query, collection_format) do
+    items = Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)
+
+    case collection_format do
+      :multi -> items
+      :ssv -> Enum.join(items, " ")
+      :tsv -> Enum.join(items, "\t")
+      :pipes -> Enum.join(items, "|")
+      _ -> Enum.join(items, ",")
+    end
+  end
+
+  defp serialize_array(value, :header, _collection_format) do
+    Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_array(value, _location, _collection_format) do
+    Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_matrix(_param_name, nil, :query, _explode), do: nil
+  defp serialize_matrix(_param_name, nil, _location, _explode), do: ""
+
+  defp serialize_matrix(param_name, value, :path, explode) when is_list(value) do
+    if explode do
+      Enum.map_join(value, "", fn v ->
+        str_val = encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v))
+        ";#{param_name}=#{str_val}"
+      end)
+    else
+      joined = Enum.map_join(value, ",", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)
+      ";#{param_name}=#{joined}"
+    end
+  end
+
+  defp serialize_matrix(param_name, value, :path, _explode) do
+    str_val = encode_path_segment({{moduleName}}.ObjectSerializer.stringify(value))
+    ";#{param_name}=#{str_val}"
+  end
+
+  defp serialize_matrix(param_name, value, _location, explode) when is_list(value) do
+    if explode do
+      Enum.map_join(value, "", fn v ->
+        str_val = {{moduleName}}.ObjectSerializer.stringify(v)
+        ";#{param_name}=#{str_val}"
+      end)
+    else
+      joined = Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)
+      ";#{param_name}=#{joined}"
+    end
+  end
+
+  defp serialize_matrix(param_name, value, _location, _explode) do
+    str_val = {{moduleName}}.ObjectSerializer.stringify(value)
+    ";#{param_name}=#{str_val}"
+  end
+
+  defp serialize_label(nil, :query, _explode), do: nil
+  defp serialize_label(nil, _location, _explode), do: ""
+
+  defp serialize_label(value, :path, explode) when is_list(value) do
+    if explode do
+      ".#{Enum.map_join(value, ".", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)}"
+    else
+      ".#{Enum.map_join(value, ",", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)}"
+    end
+  end
+
+  defp serialize_label(value, :path, _explode) do
+    str_val = encode_path_segment({{moduleName}}.ObjectSerializer.stringify(value))
+    ".#{str_val}"
+  end
+
+  defp serialize_label(value, _location, explode) when is_list(value) do
+    if explode do
+      ".#{Enum.map_join(value, ".", &{{moduleName}}.ObjectSerializer.stringify/1)}"
+    else
+      ".#{Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)}"
+    end
+  end
+
+  defp serialize_label(value, _location, _explode) do
+    str_val = {{moduleName}}.ObjectSerializer.stringify(value)
+    ".#{str_val}"
+  end
+
+  defp serialize_delimited(nil, :query, _delimiter, _explode), do: nil
+  defp serialize_delimited(nil, _location, _delimiter, _explode), do: ""
+
+  defp serialize_delimited(value, _location, _delimiter, true) when is_list(value) do
+    Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_delimited(value, _location, delimiter, _explode) when is_list(value) do
+    Enum.map_join(value, delimiter, &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_delimited(value, _location, _delimiter, _explode) do
+    {{moduleName}}.ObjectSerializer.stringify(value)
+  end
+
+  defp serialize_form(nil, :query, _explode), do: nil
+  defp serialize_form(nil, _location, _explode), do: ""
+
+  defp serialize_form(value, _location, explode) when is_list(value) do
+    if explode do
+      Enum.map(value, &{{moduleName}}.ObjectSerializer.stringify/1)
+    else
+      Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)
+    end
+  end
+
+  defp serialize_form(value, _location, _explode) do
+    {{moduleName}}.ObjectSerializer.stringify(value)
+  end
+
+  defp serialize_simple(nil, :query), do: nil
+  defp serialize_simple(nil, _location), do: ""
+
+  defp serialize_simple(value, :path) when is_list(value) do
+    Enum.map_join(value, ",", fn v -> encode_path_segment({{moduleName}}.ObjectSerializer.stringify(v)) end)
+  end
+
+  defp serialize_simple(value, :path) do
+    encode_path_segment({{moduleName}}.ObjectSerializer.stringify(value))
+  end
+
+  defp serialize_simple(value, _location) when is_list(value) do
+    Enum.map_join(value, ",", &{{moduleName}}.ObjectSerializer.stringify/1)
+  end
+
+  defp serialize_simple(value, _location) do
+    {{moduleName}}.ObjectSerializer.stringify(value)
+  end
+
+  @doc """
+  Serialize a deepObject-style query parameter.
+
+  Produces a map of flattened keys in the form `param_name[key]` to
+  stringified values, suitable for inclusion in a query string. The values are
+  not percent-encoded here; the query-string builder encodes them.
+
+  ## Parameters
+
+    * `param_name` - The parameter name (e.g. `"filter"`).
+    * `value` - The map value to serialize.
+
+  ## Returns
+
+    A map of expanded keys to serialized values, or an empty map if the value
+    is `nil`.
+  """
+  @spec serialize_deep_object(String.t(), map() | nil) :: %{optional(String.t()) => String.t()}
+  def serialize_deep_object(_param_name, nil), do: %{}
+
+  def serialize_deep_object(param_name, value) when is_map(value) do
+    Map.new(value, fn {key, val} ->
+      {"#{param_name}[#{key}]", {{moduleName}}.ObjectSerializer.stringify(val)}
+    end)
+  end
+end
