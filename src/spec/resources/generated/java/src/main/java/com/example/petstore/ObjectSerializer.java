@@ -32,6 +32,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
@@ -391,6 +392,16 @@ public final class ObjectSerializer {
         .enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING)
         .addModule(new JavaTimeModule())
         /* Registered after JavaTimeModule so it overrides that module's
+        OffsetDateTime serializer. JavaTimeModule's default uses
+        ISO_OFFSET_DATE_TIME, which emits "Z" for a zero offset and a
+        variable-width (0/3/6/9-digit) fraction — the exact divergence
+        DATE_TIME_FORMATTER was introduced to kill. stringify() already
+        uses DATE_TIME_FORMATTER for the param path; this binds the same
+        formatter into the JSON-body path so a value serialises to the
+        canonical ".SSS+00:00" shape in bodies too, matching the other
+        eleven SDKs. */
+        .addModule(dateTimeModule())
+        /* Registered after JavaTimeModule so it overrides that module's
         Duration handling: protobuf-JSON (any google.protobuf.Duration
         field) requires google.protobuf.Duration's decimal-seconds string
         form ("3600s"), not JavaTimeModule's numeric/ISO-8601 form. */
@@ -403,6 +414,29 @@ public final class ObjectSerializer {
         .addModule(nonFiniteNumberModule())
         .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
         .build();
+  }
+
+  /**
+   * Build a Jackson module that serializes {@link OffsetDateTime} with {@link #DATE_TIME_FORMATTER}
+   * so JSON bodies carry the canonical {@code YYYY-MM-DDTHH:mm:ss.SSS+00:00} shape (fixed
+   * three-digit millis, numeric offset, never {@code Z}) — identical to the parameter path and the
+   * other eleven SDKs. Deserialization is left to {@code JavaTimeModule}.
+   *
+   * @return the date-time module
+   */
+  private static SimpleModule dateTimeModule() {
+    SimpleModule module = new SimpleModule();
+    module.addSerializer(
+        OffsetDateTime.class,
+        new JsonSerializer<OffsetDateTime>() {
+          @Override
+          public void serialize(
+              OffsetDateTime value, JsonGenerator gen, SerializerProvider provider)
+              throws IOException {
+            gen.writeString(DATE_TIME_FORMATTER.format(value));
+          }
+        });
+    return module;
   }
 
   /**

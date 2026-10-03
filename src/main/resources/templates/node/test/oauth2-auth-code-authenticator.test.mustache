@@ -70,7 +70,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     expect(url).toContain('https://auth.example.com/authorize?');
     expect(url).toContain('client_id=my-client-id');
     expect(url).toContain('redirect_uri=' + encodeURIComponent('https://myapp.example.com/callback'));
-    expect(url).toContain('scope=read+write');
+    expect(url).toContain('scope=read%20write');
     expect(url).toContain('response_type=code');
   });
 

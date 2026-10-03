@@ -258,7 +258,7 @@ Each API group is exposed as a typed field on the client (e.g., `client.{{#apiIn
 
 ## Models
 
-Models are generated as Java classes with public fields and a no-argument constructor in the `{{modelPackage}}` package.
+Models are generated as Java classes in the `{{modelPackage}}` package.
 
 ```java
 {{#models}}{{#model}}{{#-first}}import {{modelPackage}}.{{classname}};

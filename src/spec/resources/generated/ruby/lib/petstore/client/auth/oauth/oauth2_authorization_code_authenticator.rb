@@ -78,7 +78,9 @@ module Petstore::Client
           # a query component. Use '&' as the separator when one is already
           # present so existing params are preserved, '?' otherwise.
           separator = @authorization_url.include?('?') ? '&' : '?'
-          "#{@authorization_url}#{separator}#{URI.encode_www_form(params)}"
+          # URI.encode_www_form emits '+' for a space; RFC 3986 requires %20 in a
+          # query component (a strict server reads '+' as a literal plus).
+          "#{@authorization_url}#{separator}#{URI.encode_www_form(params).gsub('+', '%20')}"
         end
 
         # Exchange an authorization code for an access token.

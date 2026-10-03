@@ -128,10 +128,6 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
         grant_type: "refresh_token",
         refresh_token: this.tokenManager.getRefreshToken()!,
       };
-      if (this.clientAuthMethod !== ClientAuthMethod.Basic) {
-        params.client_id = this.clientId;
-        params.client_secret = this.clientSecret;
-      }
     } else {
       url = this.tokenUrl;
       params = {

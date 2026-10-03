@@ -97,6 +97,10 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         Dictionary<string, string> parameters;
         if (_tokenManager.RefreshToken is not null)
         {
+            /* RFC 6749 §6: the refresh grant carries only grant_type and
+             * refresh_token — client_id/client_secret and scope belong to the
+             * initial password grant, matching the auth-code refresh path and
+             * the other SDKs. */
             url = _refreshUrl;
             parameters = new()
             {
@@ -113,6 +117,15 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
                 ["username"] = _username,
                 ["password"] = _password,
             };
+            if (_clientAuthMethod != ClientAuthMethod.Basic)
+            {
+                parameters["client_id"] = _clientId;
+                parameters["client_secret"] = _clientSecret;
+            }
+            if (_scopes.Length > 0)
+            {
+                parameters["scope"] = string.Join(" ", _scopes);
+            }
         }
         Dictionary<string, string>? extraHeaders = null;
         if (_clientAuthMethod == ClientAuthMethod.Basic)
@@ -127,15 +140,6 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
                 System.Text.Encoding.UTF8.GetBytes(encodedId + ":" + encodedSecret)
             );
             extraHeaders = new() { ["Authorization"] = "Basic " + credentials };
-        }
-        else
-        {
-            parameters["client_id"] = _clientId;
-            parameters["client_secret"] = _clientSecret;
-        }
-        if (_scopes.Length > 0)
-        {
-            parameters["scope"] = string.Join(" ", _scopes);
         }
 
         string token = await _tokenManager

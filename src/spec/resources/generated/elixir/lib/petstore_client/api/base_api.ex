@@ -426,7 +426,7 @@ defmodule PetstoreClient.Api.BaseApi do
   defp query_string_pairs(_k, value, _allow_reserved) when is_nil(value) or value == [], do: []
 
   defp query_string_pairs(k, values, allow_reserved) when is_list(values) do
-    encoded_key = URI.encode_www_form(to_string(k))
+    encoded_key = encode_query_component(to_string(k))
 
     Enum.map(values, fn val ->
       "#{encoded_key}=#{encode_query_value(PetstoreClient.ObjectSerializer.to_query_value(val, nil), allow_reserved)}"
@@ -434,7 +434,7 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   defp query_string_pairs(k, value, allow_reserved) do
-    encoded_key = URI.encode_www_form(to_string(k))
+    encoded_key = encode_query_component(to_string(k))
 
     [
       "#{encoded_key}=#{encode_query_value(PetstoreClient.ObjectSerializer.to_query_value(value, nil), allow_reserved)}"
@@ -447,11 +447,20 @@ defmodule PetstoreClient.Api.BaseApi do
   defp unwrap_allow_reserved(value), do: {false, value}
 
   # Encode a query-parameter value, preserving RFC 3986 reserved characters when
-  # the parameter declared `allowReserved: true`; otherwise encode as today.
+  # the parameter declared `allowReserved: true`; otherwise percent-encode with
+  # a %20 space.
   defp encode_query_value(value, true),
     do: PetstoreClient.ValueSerializer.encode_query_allowing_reserved(value)
 
-  defp encode_query_value(value, false), do: URI.encode_www_form(value)
+  defp encode_query_value(value, false), do: encode_query_component(value)
+
+  # Percent-encode a query key/value. URI.encode_www_form emits '+' for a space
+  # (application/x-www-form-urlencoded rules), but RFC 3986 requires %20 in a
+  # query component (a strict server reads '+' as a literal plus), so normalise
+  # the space. A literal '+' is already %2B at this point. The form-urlencoded
+  # body path keeps URI.encode_www_form's '+'. Matches the other SDKs.
+  defp encode_query_component(value),
+    do: value |> URI.encode_www_form() |> String.replace("+", "%20")
 
   defp serialize_body(nil, _content_type), do: nil
 

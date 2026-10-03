@@ -233,7 +233,7 @@ The client implements `IDisposable`. Use `using` statements or call `Dispose()` 
 
 Each API group is exposed as a typed property on the client (e.g., `client.Pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods are asynchronous; invoke them with `await`.
+All API methods are asynchronous; call them with `await`.
 
 ## Models
 

@@ -244,3 +244,35 @@ a cascade of golden fixes:
   test-count > 0 — a runner that green-exits on an empty suite would pass unnoticed
   (pytest's `testpaths`/collection-error behaviour covers python, but the guard is not
   general).
+
+## Second parity-audit tail — assessed and closed (do not re-open as defects)
+
+A second read-only cross-language audit surfaced six more "divergences". Each was
+investigated directly (not just from the audit's summary, which overstated several) and
+found **not** to be a clean fixable defect. They are closed; do not spend another pass
+"fixing" them without new evidence.
+
+- **kotlin strict-key (`unevaluatedProperties: false`).** The strict-deserialize path is
+  only exercised by the petstore fixture model `StrictTag`; no real client spec needs it.
+  Forcing it on kotlin's production deserialize path needs a marker interface + reflection
+  routing against kotlinx-serialization — risk with no wire benefit. Fixture-only.
+- **free-form null retention.** node's serializer drops `null` entries from a free-form
+  map while java/kotlin keep them. Reachable only through a petstore free-form-map fixture
+  edge; aligning it needs per-field metadata the schema doesn't carry. Fixture-only.
+- **multipart filename.** go/ruby/php send a real filename + sniffed MIME via file-handle
+  Options types; the other nine send the field name + `application/octet-stream`.
+  "Aligning to the nine" is a codegen type-mapping change that **breaks ruby's and php's
+  published client Options APIs** — a real regression, not a cleanup.
+- **kotlin multipart test depth.** Ktor's multipart body is a black box to the test, so
+  the assertion is structural, not byte-level. Test-coverage nicety, no wire impact.
+- **swift dual multipart builder.** `BaseApi` and `DefaultApiClient` both carry
+  `buildMultipartBody`/`appendMultipartField`; the helpers are interdependent and the
+  tests call `DefaultApiClient`'s directly while `BaseApi`'s are `private`. Deduping is a
+  visibility+test-repoint tangle with no wire impact. (Auth-method shape itself is already
+  covered under "Forced divergences".)
+- **date-time input strictness.** The audit called python "lenient" — it is not; python
+  already rejects naive/offset-less datetimes. And **swift cannot be made strict**: it
+  maps both `format: date` and `format: date-time` to one `Foundation.Date`, so it needs
+  the date-only parse fallback. Clean twelve-language parity here is impossible, and the
+  partial "fix" would only regress input handling in a few languages while swift stays
+  lenient regardless.

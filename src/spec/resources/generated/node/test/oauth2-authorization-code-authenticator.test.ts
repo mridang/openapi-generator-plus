@@ -78,7 +78,7 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       "redirect_uri=" +
         encodeURIComponent("https://myapp.example.com/callback"),
     );
-    expect(url).toContain("scope=read+write");
+    expect(url).toContain("scope=read%20write");
     expect(url).toContain("response_type=code");
   });
 

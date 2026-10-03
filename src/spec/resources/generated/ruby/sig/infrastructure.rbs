@@ -185,6 +185,10 @@ module Petstore::Client
 
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
+    module QueryParamsEncoder
+      def self.encode: (untyped) -> String?
+      def self.decode: (String?) -> untyped
+    end
     def initialize: (?TransportOptions?) -> void
     def send_request: (Symbol | String, String, Hash[String, String], untyped, ?no_redirect: bool) -> ApiHttpResponse
     def close: () -> void

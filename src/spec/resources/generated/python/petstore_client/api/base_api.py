@@ -7,7 +7,7 @@
 
 import asyncio
 from typing import Any, Dict, List, Optional, TypeVar, Union
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote, urlencode
 
 from ..api_client import ApiClient
 from ..api_http_response import ApiHttpResponse
@@ -210,7 +210,11 @@ class BaseApi:
                         target[k] = self._object_serializer.stringify(v)
                 parts: list[str] = []
                 if normalized:
-                    parts.append(urlencode(normalized, doseq=True))
+                    # quote_via=quote emits %20 for a space (not '+'); RFC 3986
+                    # requires %20 in a query component, and the other SDKs
+                    # encode query spaces as %20 too. The form-urlencoded body
+                    # path below keeps the default '+' via quote_plus.
+                    parts.append(urlencode(normalized, doseq=True, quote_via=quote))
                 if reserved:
                     reserved_parts: list[str] = []
                     for reserved_key, reserved_value in reserved.items():
@@ -219,7 +223,7 @@ class BaseApi:
                             if isinstance(reserved_value, list)
                             else [reserved_value]
                         )
-                        encoded_key = quote_plus(reserved_key)
+                        encoded_key = quote(reserved_key, safe="")
                         for reserved_item in reserved_items:
                             reserved_parts.append(
                                 encoded_key

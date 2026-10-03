@@ -41,7 +41,7 @@ void main() {
 
       final url = auth.buildAuthorizationUrl();
 
-      expect(url, contains('scope=read+write'));
+      expect(url, contains('scope=read%20write'));
     });
 
     test('builds authorization URL with state', () {

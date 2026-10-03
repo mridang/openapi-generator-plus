@@ -109,7 +109,9 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 	if strings.Contains(a.authorizationURL, "?") {
 		separator = "&"
 	}
-	return a.authorizationURL + separator + params.Encode()
+	// url.Values.Encode emits '+' for a space; RFC 3986 requires %20 in a query
+	// component (a strict server reads '+' as a literal plus), matching the other SDKs.
+	return a.authorizationURL + separator + strings.ReplaceAll(params.Encode(), "+", "%20")
 }
 
 // String implements fmt.Stringer so the default string/format representation

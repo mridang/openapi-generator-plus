@@ -70,16 +70,14 @@ open class OAuth2PasswordAuthenticator(
         }
         val params =
             if (currentRefreshToken != null) {
-                val p =
-                    mutableMapOf(
-                        "grant_type" to "refresh_token",
-                        "refresh_token" to currentRefreshToken,
-                    )
-                if (clientAuthMethod != ClientAuthMethod.BASIC) {
-                    p["client_id"] = clientId
-                    p["client_secret"] = clientSecret
-                }
-                p
+                // RFC 6749 §6: the refresh grant carries only grant_type and
+                // refresh_token — client_id/client_secret and scope belong to the
+                // initial password grant, matching the auth-code refresh path and
+                // the other SDKs.
+                mutableMapOf(
+                    "grant_type" to "refresh_token",
+                    "refresh_token" to currentRefreshToken,
+                )
             } else {
                 mutableMapOf(
                     "grant_type" to "password",

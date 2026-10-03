@@ -238,7 +238,7 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 ## Models
 
-Models are generated as Java classes with public fields and a no-argument constructor in the `com.example.petstore.models` package.
+Models are generated as Java classes in the `com.example.petstore.models` package.
 
 ```java
 import com.example.petstore.models.ApiResponse;

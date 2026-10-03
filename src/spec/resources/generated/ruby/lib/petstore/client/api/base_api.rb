@@ -214,7 +214,10 @@ module Petstore::Client
 
       def build_query_string(query_params)
         pairs = query_params.compact.flat_map do |k, v|
-          encoded_key = CGI.escape(k.to_s)
+          # CGI.escape emits '+' for a space; RFC 3986 requires %20 in a query
+          # component (a strict server reads '+' as a literal plus), so normalise
+          # it. A literal '+' is already %2B. Matches the other SDKs.
+          encoded_key = CGI.escape(k.to_s).gsub('+', '%20')
           # OAS allowReserved: a wrapped value keeps RFC 3986 reserved
           # characters literal instead of percent-encoding them.
           allow_reserved = v.is_a?(::Petstore::Client::ValueSerializer::AllowReservedValue)
@@ -238,7 +241,7 @@ module Petstore::Client
         if allow_reserved
           ::Petstore::Client::ValueSerializer.encode_query_allowing_reserved(str)
         else
-          CGI.escape(str)
+          CGI.escape(str).gsub('+', '%20')
         end
       end
 

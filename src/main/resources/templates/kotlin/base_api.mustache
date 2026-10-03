@@ -439,7 +439,7 @@ abstract class BaseApi {
                 allowReserved = true
             }
             if (value != null) {
-                val encodedKey = encode(key)
+                val encodedKey = encodeQuery(key)
                 if (value is List<*>) {
                     for (item in value) {
                         parts.add("$encodedKey=${encodeQueryValue(item.toString(), allowReserved)}")
@@ -461,13 +461,24 @@ abstract class BaseApi {
      * @return the encoded value
      */
     private fun encodeQueryValue(value: String, allowReserved: Boolean): String =
-        if (allowReserved) ValueSerializer.encodeQueryAllowingReserved(value) else encode(value)
+        if (allowReserved) ValueSerializer.encodeQueryAllowingReserved(value) else encodeQuery(value)
 
     /**
-     * URL-encode a string.
+     * URL-encode a string for an `application/x-www-form-urlencoded` body, where
+     * a space is `+` (WHATWG form rules). Used by the form-body serializer.
      *
      * @param value the string to encode
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
+
+    /**
+     * URL-encode a string for a URI query component, where a space is `%20`
+     * (RFC 3986), not `+`: a strict server reads `+` as a literal plus, and the
+     * other SDKs encode query spaces as `%20` too.
+     *
+     * @param value the string to encode
+     * @return URL-encoded string
+     */
+    internal fun encodeQuery(value: String): String = value.encodeURLQueryComponent(spaceToPlus = false)
 }

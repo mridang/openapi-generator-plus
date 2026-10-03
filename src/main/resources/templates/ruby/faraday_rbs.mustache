@@ -41,5 +41,11 @@ module Faraday
     def timeout=: (Numeric?) -> void
     def open_timeout=: (Numeric?) -> void
     def write_timeout=: (Numeric?) -> void
+    def params_encoder=: (untyped) -> void
+  end
+
+  module NestedParamsEncoder
+    def self.encode: (untyped) -> String
+    def self.decode: (String?) -> untyped
   end
 end

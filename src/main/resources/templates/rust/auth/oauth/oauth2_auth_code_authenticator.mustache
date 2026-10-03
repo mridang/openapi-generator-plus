@@ -225,11 +225,9 @@ impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {
 }
 
 /// RFC 3986 query component percent-encoder (unreserved + `~` only).
-/// Mirrors the form_url_encode helpers in oauth2_token_manager and
-/// oauth2_client_credentials so query params and form bodies use the
-/// same escape set. `+` is used for space per application/x-www-form-
-/// urlencoded convention; the authorization URL is a query string so
-/// the browser/server will decode `+` → space identically.
+/// A space is encoded as `%20`, not `+`: RFC 3986 requires `%20` in a query
+/// component (a strict server reads `+` as a literal plus), matching the other
+/// SDKs' authorization-URL and query encoding.
 fn url_query_encode(s: &str) -> String {
     let mut result = String::new();
     for byte in s.bytes() {
@@ -237,7 +235,7 @@ fn url_query_encode(s: &str) -> String {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
                 result.push(byte as char);
             }
-            b' ' => result.push('+'),
+            b' ' => result.push_str("%20"),
             _ => {
                 result.push_str(&format!("%{:02X}", byte));
             }

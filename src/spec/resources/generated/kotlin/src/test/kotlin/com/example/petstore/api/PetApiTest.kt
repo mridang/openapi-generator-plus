@@ -787,7 +787,7 @@ class PetApiTest {
             // black]", which would percent-encode to %5Bblue%2C+black%5D). Each
             // element is joined by the param's declared separator and then
             // URL-encoded once: colors -> "blue|black" -> colors=blue%7Cblack,
-            // sizes -> "S M" -> sizes=S+M. We capture the outbound query string
+            // sizes -> "S M" -> sizes=S%20M. We capture the outbound query string
             // and assert both the styled form is present and the debug blob is
             // absent.
             var capturedQuery: String? = null
@@ -827,7 +827,7 @@ class PetApiTest {
                 "colors must serialize as the pipeDelimited styled value, query was: $query",
             )
             assertTrue(
-                query.contains("sizes=S+M"),
+                query.contains("sizes=S%20M"),
                 "sizes must serialize as the spaceDelimited styled value, query was: $query",
             )
             // The language-debug rendering of the collection must NOT appear:

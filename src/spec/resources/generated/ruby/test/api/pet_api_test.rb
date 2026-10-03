@@ -734,8 +734,8 @@ describe Petstore::Client::Api::PetApi do
         # colors is pipeDelimited -> "blue|black"; the pipe is percent-encoded
         # to %7C by CGI on the way out.
         _(request_line).must_include 'colors=blue%7Cblack'
-        # sizes is spaceDelimited -> "S M"; the space encodes to '+'.
-        _(request_line).must_include 'sizes=S+M'
+        # sizes is spaceDelimited -> "S M"; the space percent-encodes to %20.
+        _(request_line).must_include 'sizes=S%20M'
 
         # The Array#inspect / to_s debug forms must NOT appear: no literal
         # brackets, no quoted-element list, no `, ` joiner from Array#to_s.

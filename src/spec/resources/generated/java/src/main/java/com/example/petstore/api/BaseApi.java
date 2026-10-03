@@ -558,6 +558,12 @@ public abstract class BaseApi {
    * @return URL-encoded string
    */
   String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    /* Percent-encode a URI query key/value. URLEncoder applies
+     * application/x-www-form-urlencoded rules and emits '+' for a space,
+     * but RFC 3986 requires %20 in a query component (a strict server reads
+     * '+' as a literal plus), so map '+' back to %20. A literal '+' in the
+     * input is already escaped to %2B by URLEncoder, so only spaces are
+     * rewritten. The other SDKs emit %20 here too. */
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
   }
 }

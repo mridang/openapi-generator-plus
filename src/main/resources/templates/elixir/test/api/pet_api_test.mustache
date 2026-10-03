@@ -245,10 +245,10 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert String.contains?(url, "colors=blue%7Cblack"),
       "Expected pipe-delimited colors=blue|black on the wire, got: #{url}"
 
-    # sizes is spaceDelimited -> "S M"; the space is encoded as + by
-    # form-encoding. Both element values must be present, space-joined.
-    assert String.contains?(url, "sizes=S+M"),
-      "Expected space-delimited sizes=S M on the wire, got: #{url}"
+    # sizes is spaceDelimited -> "S M"; the space is percent-encoded as %20
+    # (RFC 3986 query component). Both element values must be present, space-joined.
+    assert String.contains?(url, "sizes=S%20M"),
+      "Expected space-delimited sizes=S%20M on the wire, got: #{url}"
 
     # The serialiser must NOT leak an Elixir list/inspect debug form. None of
     # the bracketed / quoted / comma-blob shapes a naive `inspect` or

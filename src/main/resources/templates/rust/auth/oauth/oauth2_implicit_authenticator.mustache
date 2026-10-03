@@ -83,14 +83,14 @@ impl OAuth2ImplicitAuthenticator {
     /// The `state` parameter is optional and used for CSRF protection.
     pub fn build_authorization_url(&self, state: &str) -> String {
         let mut params = vec![
-            format!("response_type=token"),
-            format!("client_id={}", &self.client_id),
+            "response_type=token".to_string(),
+            format!("client_id={}", url_query_encode(&self.client_id)),
         ];
         if !self.scopes.is_empty() {
-            params.push(format!("scope={}", self.scopes.join(" ")));
+            params.push(format!("scope={}", url_query_encode(&self.scopes.join(" "))));
         }
         if !state.is_empty() {
-            params.push(format!("state={}", state));
+            params.push(format!("state={}", url_query_encode(state)));
         }
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
@@ -172,4 +172,24 @@ impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
     fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
         /* Implicit flow does not make token exchange requests. */
     }
+}
+
+/// RFC 3986 query component percent-encoder (unreserved + `~` only).
+/// A space is encoded as `%20`, not `+`: RFC 3986 requires `%20` in a query
+/// component (a strict server reads `+` as a literal plus), matching the other
+/// SDKs' authorization-URL and query encoding.
+fn url_query_encode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            b' ' => result.push_str("%20"),
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
 }

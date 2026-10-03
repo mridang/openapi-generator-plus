@@ -54,7 +54,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url).must_include 'response_type=code'
     _(url).must_include 'client_id=my_client_id'
     _(url).must_include 'redirect_uri='
-    _(url).must_include 'scope=read+write'
+    _(url).must_include 'scope=read%20write'
   end
 
   it 'builds authorization URL with state' do

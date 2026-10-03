@@ -695,8 +695,9 @@ class DefaultApiClientUnitTest {
         part.contains("is_enabled"),
         "model part must NOT snake_case the wire name to is_enabled, got: " + part);
     assertTrue(
-        part.contains("\"recordedAt\":\"2020-01-02T03:04:05.123Z\""),
-        "model part must use the wire name recordedAt with the ISO-8601 date-time string, got: "
+        part.contains("\"recordedAt\":\"2020-01-02T03:04:05.123+00:00\""),
+        "model part must use the wire name recordedAt with the canonical date-time string"
+            + " (numeric +00:00 offset, never Z), got: "
             + part);
     assertFalse(
         part.contains("recorded_at"),

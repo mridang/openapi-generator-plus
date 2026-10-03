@@ -102,7 +102,8 @@ open class OAuth2ImplicitAuthenticator(
         return mapOf("Authorization" to "Bearer $token")
     }
 
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    // RFC 3986 query component: a space is %20, not '+' (URLEncoder's form rule).
+    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
 
     /**
      * Returns a string representation that redacts the access token so the

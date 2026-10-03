@@ -98,7 +98,9 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
      * a query component. Use '&' as the separator when one is already
      * present so existing params are preserved, '?' otherwise. */
     const separator = this.authorizationUrl.includes("?") ? "&" : "?";
-    return `${this.authorizationUrl}${separator}${params.toString()}`;
+    /* URLSearchParams encodes a space as '+'; RFC 3986 requires %20 in a query
+     * component (a strict server reads '+' as a literal plus), matching the other SDKs. */
+    return `${this.authorizationUrl}${separator}${params.toString().replace(/\+/g, "%20")}`;
   }
 
   /**

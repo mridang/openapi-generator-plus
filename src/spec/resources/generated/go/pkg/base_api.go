@@ -305,7 +305,7 @@ func buildQueryString(queryParams map[string]any) string {
 		if v == nil {
 			continue
 		}
-		encodedKey := url.QueryEscape(k)
+		encodedKey := strings.ReplaceAll(url.QueryEscape(k), "+", "%20")
 
 		switch val := v.(type) {
 		case []string:
@@ -324,14 +324,16 @@ func buildQueryString(queryParams map[string]any) string {
 
 // encodeQueryValue encodes a query-parameter value, preserving RFC 3986 reserved
 // characters when the parameter declared allowReserved: true. The default path
-// is byte-identical to url.QueryEscape.
+// is url.QueryEscape with the space normalised from "+" to "%20": RFC 3986
+// requires %20 in a query component (a strict server reads "+" as a literal
+// plus), matching the other SDKs.
 //
 // Returns the encoded value.
 func encodeQueryValue(value string, allowReserved bool) string {
 	if allowReserved {
 		return encodeQueryAllowingReserved(value)
 	}
-	return url.QueryEscape(value)
+	return strings.ReplaceAll(url.QueryEscape(value), "+", "%20")
 }
 
 // serializeBody serializes a request body according to the request content type.

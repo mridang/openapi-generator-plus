@@ -238,7 +238,7 @@ final client = Client(
 
 Each API group is exposed as a typed field on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods are asynchronous; await the returned `Future`.
+All API methods are asynchronous; call them with `await`.
 
 ## Models
 

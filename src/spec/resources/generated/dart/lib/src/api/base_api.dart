@@ -348,7 +348,7 @@ class BaseApi {
         allowReserved = true;
       }
 
-      final encodedKey = Uri.encodeQueryComponent(key);
+      final encodedKey = Uri.encodeQueryComponent(key).replaceAll('+', '%20');
       if (value is List<String>) {
         for (final item in value) {
           parts.add('$encodedKey=${_encodeQueryValue(item, allowReserved)}');
@@ -367,11 +367,14 @@ class BaseApi {
 
   /// Encodes a query-parameter value, preserving RFC 3986 reserved
   /// characters when the parameter declared `allowReserved: true` and
-  /// otherwise applying the standard form-component encoding.
+  /// otherwise percent-encoding with a `%20` space. `Uri.encodeQueryComponent`
+  /// emits `+` for a space (form-encoding), but RFC 3986 requires `%20` in a
+  /// query component (a strict server reads `+` as a literal plus), so the
+  /// space is normalised. A literal `+` is already `%2B`. Matches the other SDKs.
   String _encodeQueryValue(String value, bool allowReserved) {
     return allowReserved
         ? encodeQueryAllowingReserved(value)
-        : Uri.encodeQueryComponent(value);
+        : Uri.encodeQueryComponent(value).replaceAll('+', '%20');
   }
 
   /// Serialize the request body based on content type.

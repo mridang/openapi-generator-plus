@@ -109,7 +109,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
     # present so existing params are preserved, '?' otherwise.
     separator = if String.contains?(self.authorization_url, "?"), do: "&", else: "?"
 
-    "#{self.authorization_url}#{separator}#{URI.encode_query(params)}"
+    # URI.encode_query emits '+' for a space; RFC 3986 requires %20 in a query
+    # component (a strict server reads '+' as a literal plus).
+    "#{self.authorization_url}#{separator}#{URI.encode_query(params) |> String.replace("+", "%20")}"
   end
 
   @impl PetstoreClient.Auth.Authenticator

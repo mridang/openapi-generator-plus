@@ -59,7 +59,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'response_type=code'
     _(url).must_include 'client_id=my_client_id'
     _(url).must_include 'state=state_abc'
-    _(url).must_include 'scope=openid+profile'
+    _(url).must_include 'scope=openid%20profile'
   end
 
   it 'fetches discovery document' do

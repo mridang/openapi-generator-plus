@@ -69,8 +69,9 @@ class OAuth2TokenManager:
             A valid access token.
 
         Raises:
-            RuntimeError: If no API client has been injected or token
-                fetch fails.
+            RuntimeError: If no API client has been injected.
+            OAuth2TokenException: If the token endpoint answers 2xx but the
+                response carries no usable access token.
         """
         with self._lock:
             if self._access_token and (
@@ -97,7 +98,7 @@ class OAuth2TokenManager:
                     pass
             self._fetch_token(token_url, params, extra_headers)
             if self._access_token is None:
-                raise RuntimeError("Token fetch did not return an access token")
+                raise OAuth2TokenException("Token fetch did not return an access token")
             return self._access_token
 
     def invalidate_access_token(self) -> None:
@@ -194,8 +195,9 @@ class OAuth2TokenManager:
                 "Token response missing or empty access_token field"
             )
         self._access_token = access_token
-        if token_data.get("refresh_token"):
-            self._refresh_token = token_data["refresh_token"]
+        new_refresh_token = token_data.get("refresh_token")
+        if isinstance(new_refresh_token, str) and new_refresh_token:
+            self._refresh_token = new_refresh_token
         if "expires_in" in token_data and token_data["expires_in"] is not None:
             # RFC 6749 §5.1 says expires_in is a JSON number, but real-world
             # providers (Salesforce, some Apigee deployments) send a quoted

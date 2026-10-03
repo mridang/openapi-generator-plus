@@ -452,16 +452,18 @@ class TestPetApi:
 
         path = captured.get("path", "")
         # The raw query string, percent-decoded so the pipe separator is literal.
-        # unquote (not unquote_plus) leaves '+' as '+', which is the wire form of
-        # a space in a query string, so the spaceDelimited value reads as 'S+M'.
+        # A space in a query component is percent-encoded as %20 (RFC 3986), so
+        # unquote turns the spaceDelimited value back into 'S M'.
         decoded = unquote(path)
         # colors is pipeDelimited (explode false): one key, values joined by '|'.
         assert "colors=blue|black" in decoded, (
             f"expected pipeDelimited colors=blue|black, got: {decoded}"
         )
         # sizes is spaceDelimited (explode false): one key, values joined by a
-        # space, urlencoded as '+'.
-        assert "sizes=S+M" in path, f"expected spaceDelimited sizes=S+M, got: {path}"
+        # space, percent-encoded as %20.
+        assert "sizes=S%20M" in path, (
+            f"expected spaceDelimited sizes=S%20M, got: {path}"
+        )
         # Hard guard: the Python list-repr debug blob must never reach the wire,
         # in either its encoded form or its decoded form.
         assert "%5B" not in path and "[" not in decoded, (

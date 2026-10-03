@@ -65,6 +65,16 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void WholeNumberDoubleKeepsDecimalPoint()
+        {
+            // A whole-number float stringifies as "1.0", not "1", matching the
+            // other SDKs (Go/Java/Kotlin/Python/...). C#'s default "G" drops the
+            // ".0", so ObjectSerializer restores it.
+            Assert.Equal("1.0", ObjectSerializer.Stringify(1.0));
+            Assert.Equal("1.0", ObjectSerializer.Stringify(1.0f));
+        }
+
+        [Fact]
         public void LongReturnsStringRepresentation()
         {
             Assert.Equal("9007199254740993", ObjectSerializer.Stringify(9007199254740993L));

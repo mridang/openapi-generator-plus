@@ -221,7 +221,7 @@ client = Client(authenticator, transport)
 
 Each API group is exposed as a typed attribute on the client (e.g., `client.pet`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
 
-All API methods are asynchronous; await them.
+All API methods are asynchronous; call them with `await`.
 
 ## Models
 

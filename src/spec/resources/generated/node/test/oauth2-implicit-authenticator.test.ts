@@ -33,7 +33,7 @@ describe("OAuth2ImplicitAuthenticator", () => {
 
   test("builds authorization URL with scopes", () => {
     const url = authenticator.buildAuthorizationUrl();
-    expect(url).toContain("scope=read+write");
+    expect(url).toContain("scope=read%20write");
   });
 
   test("builds authorization URL with state", () => {

@@ -75,9 +75,11 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
     if (state.isNotEmpty) {
       params['state'] = state;
     }
+    /* Uri.encodeQueryComponent encodes a space as '+'; RFC 3986 requires %20
+     * in a query component (a strict server reads '+' as a literal plus). */
     final query = params.entries
         .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            '${Uri.encodeQueryComponent(e.key).replaceAll('+', '%20')}=${Uri.encodeQueryComponent(e.value).replaceAll('+', '%20')}')
         .join('&');
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
      * a query component. Use '&' as the separator when one is already

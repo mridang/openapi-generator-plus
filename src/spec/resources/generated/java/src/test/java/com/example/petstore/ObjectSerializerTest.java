@@ -364,6 +364,20 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("JSON body serializes date-time in the canonical offset form, never Z")
+    void bodyDateTimeUsesCanonicalOffsetForm() {
+      // The JSON-body path (objectMapper.writeValueAsString) must emit the
+      // SAME canonical shape as the parameter path: a fixed three-digit
+      // millisecond fraction and a numeric offset, never the "Z" form.
+      // JavaTimeModule's default OffsetDateTime serializer renders a UTC
+      // whole-second value as "2024-01-01T12:30:45Z" with no fraction, so
+      // this asserts the body path is bound to DATE_TIME_FORMATTER instead.
+      OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
+      String json = new ObjectSerializer().serialize(dt);
+      assertEquals("\"2024-01-01T12:30:45.000+00:00\"", json);
+    }
+
+    @Test
     @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
     void roundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");

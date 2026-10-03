@@ -59,7 +59,7 @@ void main() {
       expect(url, contains('response_type=code'));
       expect(url, contains('client_id=my-client-id'));
       expect(url, contains('redirect_uri='));
-      expect(url, contains('scope=read+write'));
+      expect(url, contains('scope=read%20write'));
       expect(url, startsWith('https://auth.example.com/authorize?'));
     });
 

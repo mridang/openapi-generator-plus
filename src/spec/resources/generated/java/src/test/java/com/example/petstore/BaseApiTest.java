@@ -1668,8 +1668,8 @@ class BaseApiTest {
    * getPetTag declares two optional array query params:
    *   - colors: style=pipeDelimited, explode=false  ->  blue|black
    *   - sizes:  style=spaceDelimited, explode=false  ->  S M
-   * After URL-encoding the delimiter (`|` -> %7C, space -> +) the wire form
-   * is colors=blue%7Cblack and sizes=S+M. We assert those appear and that the
+   * After URL-encoding the delimiter (`|` -> %7C, space -> %20) the wire form
+   * is colors=blue%7Cblack and sizes=S%20M. We assert those appear and that the
    * debug-blob form does NOT.
    */
   @Nested
@@ -1696,10 +1696,10 @@ class BaseApiTest {
       assertTrue(
           client.capturedUrl.contains("colors=blue%7Cblack"),
           "Expected pipeDelimited colors=blue%7Cblack but got: " + client.capturedUrl);
-      // spaceDelimited sizes -> "S M", URL-encoded as S+M
+      // spaceDelimited sizes -> "S M", URL-encoded as S%20M
       assertTrue(
-          client.capturedUrl.contains("sizes=S+M"),
-          "Expected spaceDelimited sizes=S+M but got: " + client.capturedUrl);
+          client.capturedUrl.contains("sizes=S%20M"),
+          "Expected spaceDelimited sizes=S%20M but got: " + client.capturedUrl);
 
       // The collection must NOT leak as a language-native debug rendering
       // (e.g. List.toString() -> "[blue, black]" -> %5Bblue%2C+black%5D).

@@ -159,9 +159,29 @@ internal class ObjectSerializer
             DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
             DateTime dt => new DateTimeOffset(dt.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(dt, DateTimeKind.Utc) : dt).ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", System.Globalization.CultureInfo.InvariantCulture),
             Enum e => StringifyEnum(e),
+            double d => FormatRealNumber(d, ((IFormattable)d).ToString(null, System.Globalization.CultureInfo.InvariantCulture)),
+            float fl => FormatRealNumber(fl, ((IFormattable)fl).ToString(null, System.Globalization.CultureInfo.InvariantCulture)),
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
+    }
+
+    /// <summary>
+    /// Keeps a ".0" on a whole-number float so it stringifies like the other
+    /// SDKs (Go's formatFloat, Java's String.valueOf, ...) rather than collapsing
+    /// to "1": C#'s default "G" format drops the fraction. Non-whole and
+    /// non-finite values keep their "G" rendering unchanged.
+    /// </summary>
+    private static string FormatRealNumber(double value, string formatted)
+    {
+        if (double.IsFinite(value)
+            && !formatted.Contains('.', StringComparison.Ordinal)
+            && !formatted.Contains('E', StringComparison.Ordinal)
+            && !formatted.Contains('e', StringComparison.Ordinal))
+        {
+            return formatted + ".0";
+        }
+        return formatted;
     }
 
     /// <summary>

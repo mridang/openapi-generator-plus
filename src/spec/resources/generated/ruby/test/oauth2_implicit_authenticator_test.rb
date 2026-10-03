@@ -36,7 +36,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
 
   it 'builds authorization URL with scopes' do
     url = auth.build_authorization_url
-    _(url).must_include 'scope=read+write'
+    _(url).must_include 'scope=read%20write'
   end
 
   it 'builds authorization URL with state' do

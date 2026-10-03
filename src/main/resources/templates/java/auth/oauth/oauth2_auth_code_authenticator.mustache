@@ -156,7 +156,9 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     }
 
     private static String encode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        /* RFC 3986 query component: a space is %20, not '+'. URLEncoder emits
+         * '+' (form rules), so map it back; a literal '+' is already %2B. */
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     /**

@@ -55,6 +55,23 @@ module Petstore::Client
     # so the cross-origin filter can compare case-insensitively.
     EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
+    # Faraday's default params encoder emits '+' for a space (the
+    # application/x-www-form-urlencoded convention). RFC 3986 requires %20 in a
+    # URL query component, and a strict server reads '+' as a literal plus.
+    # Delegate to Faraday's encoder, then normalise the space-derived '+' to
+    # %20 -- a literal '+' is already %2B, so it is left untouched. Every other
+    # character keeps Faraday's encoding; only spaces change. This matches the
+    # other SDKs, whose query builders all emit %20.
+    module QueryParamsEncoder
+      def self.encode(params)
+        ::Faraday::NestedParamsEncoder.encode(params)&.gsub('+', '%20')
+      end
+
+      def self.decode(query)
+        ::Faraday::NestedParamsEncoder.decode(query)
+      end
+    end
+
     # Create a client with default transport settings.
     #
     # Equivalent to +DefaultApiClient.new(TransportOptions.builder.build)+.
@@ -425,6 +442,9 @@ module Petstore::Client
 
     def build_connection
       Faraday.new do |f|
+        # Emit %20 (not '+') for spaces in the query component. See
+        # {QueryParamsEncoder}.
+        f.options.params_encoder = QueryParamsEncoder
         f.proxy = @transport_options.proxy if @transport_options.proxy
         f.ssl.verify = @transport_options.verify_ssl
         f.ssl.ca_file = @transport_options.ca_cert_path if @transport_options.ca_cert_path
