@@ -70,15 +70,19 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.7.0")
-                implementation("org.brotli:dec:0.1.2")
-                implementation("com.github.luben:zstd-jni:1.5.6-4")
             }
         }
         val jvmMain by getting {
             kotlin.srcDirs("src/jvmMain/kotlin")
             dependencies {
                 implementation("io.ktor:ktor-client-cio:3.5.0")
-                implementation("io.opentelemetry:opentelemetry-api:1.62.0")
+                // Optional: the trace util reaches OpenTelemetry via GlobalOpenTelemetry
+                // and catches LinkageError when it is absent, so compileOnly lets a
+                // consumer omit it (matching the java SDK). The br/zstd codecs need no
+                // compile dependency at all — they are reached purely by reflection
+                // (DefaultApiClient.decodeViaInputStream) and advertised in
+                // Accept-Encoding only when present — so they appear only in jvmTest.
+                compileOnly("io.opentelemetry:opentelemetry-api:1.62.0")
             }
         }
         val jvmTest by getting {
@@ -93,6 +97,10 @@ kotlin {
                 implementation("com.fasterxml.jackson.core:jackson-databind:2.22.0")
                 implementation("io.opentelemetry:opentelemetry-sdk:1.62.0")
                 implementation("io.opentelemetry:opentelemetry-sdk-testing:1.62.0")
+                // Optional codecs are compileOnly in main; the compression tests
+                // exercise the br/zstd decode paths, so provide them to the test runtime.
+                implementation("org.brotli:dec:0.1.2")
+                implementation("com.github.luben:zstd-jni:1.5.6-4")
                 implementation("org.testcontainers:testcontainers:1.21.4")
             }
         }

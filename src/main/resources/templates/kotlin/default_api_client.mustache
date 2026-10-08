@@ -144,7 +144,7 @@ class DefaultApiClient internal constructor(
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
         if ("Accept-Encoding" !in mergedHeaders) {
-            mergedHeaders["Accept-Encoding"] = "gzip, deflate, br, zstd"
+            mergedHeaders["Accept-Encoding"] = supportedEncodings()
         }
         if (proxyAuthHeader != null) {
             mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
@@ -494,11 +494,30 @@ class DefaultApiClient internal constructor(
     }
 }
 
+/** True when [className] is on the runtime classpath (optional codec libraries). */
+internal fun isCodecClassPresent(className: String): Boolean =
+    runCatching { Class.forName(className) }.isSuccess
+
+/**
+ * The Accept-Encoding value this client advertises. gzip and deflate are always
+ * supported (JDK built-ins); br and zstd are advertised only when their optional
+ * libraries (`org.brotli:dec`, `com.github.luben:zstd-jni`) are on the classpath,
+ * so a server never sends a codec this client cannot decode. Matches java.
+ */
+internal fun supportedEncodings(): String = buildString {
+    append("gzip, deflate")
+    if (isCodecClassPresent("org.brotli.dec.BrotliInputStream")) append(", br")
+    if (isCodecClassPresent("com.github.luben.zstd.ZstdInputStream")) append(", zstd")
+}
+
 /**
  * Decodes a response body according to its `Content-Encoding` header
- * (`gzip`, `x-gzip` and `deflate`; any other value is returned unchanged).
- * Throws [java.io.IOException] when the body is not valid for the declared
- * encoding.
+ * (`gzip`, `x-gzip` and `deflate`; `br`/`zstd` when their optional libraries are
+ * present; any other value is returned unchanged). Throws [java.io.IOException]
+ * when the body is not valid for the declared encoding. br/zstd are reached
+ * through reflection so the optional libraries can be `compileOnly` — an absent
+ * library decodes to the raw bytes (the codec is never advertised, so a
+ * conformant server will not have sent it).
  */
 internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): ByteArray {
     if (data.isEmpty()) return data
@@ -507,11 +526,29 @@ internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): By
             java.util.zip.GZIPInputStream(data.inputStream()).use { it.readBytes() }
         "deflate" ->
             java.util.zip.InflaterInputStream(data.inputStream()).use { it.readBytes() }
-        "br" ->
-            org.brotli.dec.BrotliInputStream(data.inputStream()).use { it.readBytes() }
-        "zstd" ->
-            com.github.luben.zstd.ZstdInputStream(data.inputStream()).use { it.readBytes() }
+        "br" -> decodeViaInputStream(data, "org.brotli.dec.BrotliInputStream")
+        "zstd" -> decodeViaInputStream(data, "com.github.luben.zstd.ZstdInputStream")
         else -> data
+    }
+}
+
+/**
+ * Decode [data] through an optional codec whose decompressing `InputStream` class
+ * is [className] and wraps a source `InputStream`. Returns the raw bytes when the
+ * class is absent; wraps any reflective/IO failure in an [java.io.IOException].
+ */
+private fun decodeViaInputStream(data: ByteArray, className: String): ByteArray {
+    val cls = try {
+        Class.forName(className)
+    } catch (_: ClassNotFoundException) {
+        return data
+    }
+    return try {
+        val stream = cls.getConstructor(java.io.InputStream::class.java)
+            .newInstance(data.inputStream()) as java.io.InputStream
+        stream.use { it.readBytes() }
+    } catch (e: ReflectiveOperationException) {
+        throw java.io.IOException("Failed to decompress $className response", e)
     }
 }
 
