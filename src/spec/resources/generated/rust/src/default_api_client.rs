@@ -179,7 +179,7 @@ impl ApiClient for DefaultApiClient {
             if !merged.contains_key("Accept-Encoding") {
                 merged.insert(
                     "Accept-Encoding".to_string(),
-                    "gzip, deflate, zstd".to_string(),
+                    "gzip, deflate, br, zstd".to_string(),
                 );
             }
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
@@ -504,6 +504,9 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
         "deflate" => {
             flate2::read::ZlibDecoder::new(raw).read_to_end(&mut decoded)?;
         }
+        "br" => {
+            brotli::Decompressor::new(raw, 4096).read_to_end(&mut decoded)?;
+        }
         "zstd" => {
             decoded = zstd::stream::decode_all(raw)?;
         }
@@ -532,8 +535,8 @@ fn build_http_client(opts: &TransportOptions) -> Client {
 
     // F-W5-5: response bodies are decompressed by `decompress_body` after the
     // raw bytes are read, not by reqwest, so a body that arrived but cannot be
-    // decoded is told apart from a body that never fully arrived. Brotli is
-    // intentionally not advertised.
+    // decoded is told apart from a body that never fully arrived. gzip, deflate,
+    // br and zstd are all advertised and decoded (see `decompress_body`).
 
     // `verify_ssl=false` must skip BOTH the certificate-chain check
     // and the hostname check, matching `curl -k` and the other SDKs. reqwest

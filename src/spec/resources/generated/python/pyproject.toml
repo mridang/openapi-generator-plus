@@ -15,8 +15,9 @@ dependencies = [
 # brotli and zstandard behind try/except ImportError and advertises a codec in
 # Accept-Encoding only when its package is installed. Keeping them out of the
 # mandatory dependency set lets a consumer slim the install; enable them with
-# `pip install petstore-client[compression]`. Mirrors java/ruby/php/node/rust,
-# which all treat these as optional.
+# `pip install petstore-client[compression]`. Mirrors java/kotlin/ruby/php/node,
+# which treat these as optional/probed. (go and rust compile br+zstd in as
+# mandatory crate/module deps; csharp/dart/swift use stdlib/transport codecs.)
 compression = [
     "brotli>=1.0.0",
     "zstandard>=0.19.0",

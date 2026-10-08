@@ -44,7 +44,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T3-3** docs: java/kotlin emit wrong operation externalDocs description text.
 - [x] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
 - [-] **T3-5** → **FORCED.** elixir struct fields have no per-field doc slot (only `@moduledoc`); the moduledoc already carries the model description, named examples and (now) externalDocs. Per-field descriptions/deprecation can't attach to a defstruct field. Not a defect.
-- [ ] **T3-6** rust advertises zstd but not brotli.
+- [x] **T3-6** rust advertises zstd but not brotli.
 - [x] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
 - [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
 - [ ] **T3-9** no field-dumping toString/repr on java/csharp/php/node/dart models.
