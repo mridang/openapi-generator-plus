@@ -24,3 +24,14 @@ pub use oauth2_implicit_authenticator::*;
 
 mod openid_connect_authenticator;
 pub use openid_connect_authenticator::*;
+
+pub mod machine_auth_client_credentials_authenticator;
+pub use machine_auth_client_credentials_authenticator::*;
+pub mod legacy_auth_password_authenticator;
+pub use legacy_auth_password_authenticator::*;
+pub mod user_auth_authorization_code_authenticator;
+pub use user_auth_authorization_code_authenticator::*;
+pub mod browser_auth_implicit_authenticator;
+pub use browser_auth_implicit_authenticator::*;
+pub mod sso_auth_authenticator;
+pub use sso_auth_authenticator::*;

@@ -35,3 +35,12 @@ pub use oauth2_implicit_authenticator::*;
 mod openid_connect_authenticator;
 pub use openid_connect_authenticator::*;
 {{/hasOpenIdConnect}}
+
+{{! Per-scheme (named) OAuth authenticators generated from the spec's security
+    schemes, e.g. machine_auth_client_credentials_authenticator. Rust needs an
+    explicit `mod` for each or cargo drops the file as dead source; the list is
+    populated during generation (perSchemeOAuthModules). }}
+{{#perSchemeOAuthModules}}
+pub mod {{module}};
+pub use {{module}}::*;
+{{/perSchemeOAuthModules}}

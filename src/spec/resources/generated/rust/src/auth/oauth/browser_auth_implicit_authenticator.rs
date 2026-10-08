@@ -15,7 +15,12 @@ pub struct BrowserAuthImplicitAuthenticator(OAuth2ImplicitAuthenticator);
 impl BrowserAuthImplicitAuthenticator {
     /// Creates an authenticator for the browserAuth security scheme.
     pub fn new(host: &str, client_id: &str) -> Self {
-        Self(OAuth2ImplicitAuthenticator::new(host, client_id, "https://auth.example.com/authorize", vec![]))
+        Self(OAuth2ImplicitAuthenticator::new(
+            host,
+            client_id,
+            "https://auth.example.com/authorize",
+            vec![],
+        ))
     }
 }
 
@@ -36,9 +41,7 @@ impl crate::auth::Authenticator for BrowserAuthImplicitAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

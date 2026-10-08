@@ -45,9 +45,7 @@ impl crate::auth::Authenticator for ServiceTokenAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

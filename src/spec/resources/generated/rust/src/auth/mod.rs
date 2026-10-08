@@ -24,3 +24,20 @@ pub mod api_key_location;
 pub use api_key_location::*;
 
 pub mod oauth;
+
+pub mod pet_store_basic_authenticator;
+pub use pet_store_basic_authenticator::*;
+pub mod admin_basic_authenticator;
+pub use admin_basic_authenticator::*;
+pub mod pet_store_bearer_authenticator;
+pub use pet_store_bearer_authenticator::*;
+pub mod service_token_authenticator;
+pub use service_token_authenticator::*;
+pub mod api_key_header_authenticator;
+pub use api_key_header_authenticator::*;
+pub mod internal_api_key_authenticator;
+pub use internal_api_key_authenticator::*;
+pub mod api_key_query_authenticator;
+pub use api_key_query_authenticator::*;
+pub mod session_cookie_authenticator;
+pub use session_cookie_authenticator::*;

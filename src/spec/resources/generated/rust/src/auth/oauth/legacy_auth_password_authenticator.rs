@@ -14,8 +14,23 @@ pub struct LegacyAuthPasswordAuthenticator(OAuth2PasswordAuthenticator);
 
 impl LegacyAuthPasswordAuthenticator {
     /// Creates an authenticator for the legacyAuth security scheme.
-    pub fn new(host: &str, client_id: &str, client_secret: &str, username: &str, password: &str) -> Self {
-        Self(OAuth2PasswordAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", username, password, vec![], "https://auth.example.com/oauth/refresh"))
+    pub fn new(
+        host: &str,
+        client_id: &str,
+        client_secret: &str,
+        username: &str,
+        password: &str,
+    ) -> Self {
+        Self(OAuth2PasswordAuthenticator::new(
+            host,
+            client_id,
+            client_secret,
+            "https://auth.example.com/oauth/token",
+            username,
+            password,
+            vec![],
+            "https://auth.example.com/oauth/refresh",
+        ))
     }
 }
 
@@ -36,9 +51,7 @@ impl crate::auth::Authenticator for LegacyAuthPasswordAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

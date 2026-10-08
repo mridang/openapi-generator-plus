@@ -15,7 +15,14 @@ pub struct SsoAuthAuthenticator(OpenIdConnectAuthenticator);
 impl SsoAuthAuthenticator {
     /// Creates an authenticator for the ssoAuth security scheme.
     pub fn new(host: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
-        Self(OpenIdConnectAuthenticator::new(host, "https://auth.example.com/.well-known/openid-configuration", client_id, client_secret, redirect_uri, vec![]))
+        Self(OpenIdConnectAuthenticator::new(
+            host,
+            "https://auth.example.com/.well-known/openid-configuration",
+            client_id,
+            client_secret,
+            redirect_uri,
+            vec![],
+        ))
     }
 }
 
@@ -36,9 +43,7 @@ impl crate::auth::Authenticator for SsoAuthAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

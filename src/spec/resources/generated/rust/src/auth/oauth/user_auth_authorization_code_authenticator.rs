@@ -15,7 +15,16 @@ pub struct UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthent
 impl UserAuthAuthorizationCodeAuthenticator {
     /// Creates an authenticator for the userAuth security scheme.
     pub fn new(host: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
-        Self(OAuth2AuthorizationCodeAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirect_uri, vec![], "https://auth.example.com/oauth/refresh"))
+        Self(OAuth2AuthorizationCodeAuthenticator::new(
+            host,
+            client_id,
+            client_secret,
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/oauth/token",
+            redirect_uri,
+            vec![],
+            "https://auth.example.com/oauth/refresh",
+        ))
     }
 }
 
@@ -36,9 +45,7 @@ impl crate::auth::Authenticator for UserAuthAuthorizationCodeAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

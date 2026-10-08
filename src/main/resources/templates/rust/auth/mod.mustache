@@ -27,3 +27,12 @@ pub use api_key_location::*;
 {{#hasAnyOAuth2}}
 pub mod oauth;
 {{/hasAnyOAuth2}}
+
+{{! Per-scheme (named) authenticators generated from the spec's security
+    schemes, e.g. admin_basic_authenticator / api_key_header_authenticator.
+    Rust needs an explicit `mod` for each or cargo drops the file as dead
+    source; the list is populated during generation (perSchemeAuthModules). }}
+{{#perSchemeAuthModules}}
+pub mod {{module}};
+pub use {{module}}::*;
+{{/perSchemeAuthModules}}

@@ -15,7 +15,13 @@ pub struct MachineAuthClientCredentialsAuthenticator(OAuth2ClientCredentialsAuth
 impl MachineAuthClientCredentialsAuthenticator {
     /// Creates an authenticator for the machineAuth security scheme.
     pub fn new(host: &str, client_id: &str, client_secret: &str) -> Self {
-        Self(OAuth2ClientCredentialsAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", vec![]))
+        Self(OAuth2ClientCredentialsAuthenticator::new(
+            host,
+            client_id,
+            client_secret,
+            "https://auth.example.com/oauth/token",
+            vec![],
+        ))
     }
 }
 
@@ -36,9 +42,7 @@ impl crate::auth::Authenticator for MachineAuthClientCredentialsAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

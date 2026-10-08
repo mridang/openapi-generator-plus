@@ -24,7 +24,12 @@ impl SessionCookieAuthenticator {
         host: &str,
         api_key: &str,
     ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
-        Ok(Self(ApiKeyAuthenticator::new(host, "SESSION_ID", api_key, ApiKeyLocation::Cookie)?))
+        Ok(Self(ApiKeyAuthenticator::new(
+            host,
+            "SESSION_ID",
+            api_key,
+            ApiKeyLocation::Cookie,
+        )?))
     }
 }
 
@@ -45,9 +50,7 @@ impl crate::auth::Authenticator for SessionCookieAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()

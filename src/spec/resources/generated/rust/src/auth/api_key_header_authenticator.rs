@@ -24,7 +24,12 @@ impl ApiKeyHeaderAuthenticator {
         host: &str,
         api_key: &str,
     ) -> Result<Self, crate::errors::configuration_error::ConfigurationError> {
-        Ok(Self(ApiKeyAuthenticator::new(host, "X-API-Key", api_key, ApiKeyLocation::Header)?))
+        Ok(Self(ApiKeyAuthenticator::new(
+            host,
+            "X-API-Key",
+            api_key,
+            ApiKeyLocation::Header,
+        )?))
     }
 }
 
@@ -45,9 +50,7 @@ impl crate::auth::Authenticator for ApiKeyHeaderAuthenticator {
         &'a self,
     ) -> std::pin::Pin<
         Box<
-            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
-                + Send
-                + 'a,
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>> + Send + 'a,
         >,
     > {
         self.0.auth_headers()
