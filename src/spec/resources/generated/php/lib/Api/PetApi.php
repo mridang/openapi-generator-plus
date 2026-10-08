@@ -1147,7 +1147,7 @@ class PetApi extends BaseApi
     public function getPetByNameWithHttpInfo(string $name, GetPetByNameOptions $options): ApiResult
     {
         if ($name === '') {
-            throw new \InvalidArgumentException("Missing the required parameter 'name' when calling getPetByName");
+            throw new \InvalidArgumentException("Missing the required parameter 'name' when calling PetApi.getPetByName");
         }
         $path = '/pet/byName/{name}';
         /** @var string $pathValue */
@@ -1428,7 +1428,7 @@ class PetApi extends BaseApi
     public function getPetTagWithHttpInfo(int $petId, string $tagName, ?GetPetTagOptions $options = null): ApiResult
     {
         if ($tagName === '') {
-            throw new \InvalidArgumentException("Missing the required parameter 'tagName' when calling getPetTag");
+            throw new \InvalidArgumentException("Missing the required parameter 'tagName' when calling PetApi.getPetTag");
         }
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */

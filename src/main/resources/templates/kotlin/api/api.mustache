@@ -170,11 +170,11 @@ class {{classname}} : BaseApi {
 {{#pathParams}}
 {{#required}}
         requireNotNull({{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
         require({{paramName}}.isNotEmpty()) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/isString}}
 {{/required}}
@@ -182,7 +182,7 @@ class {{classname}} : BaseApi {
 {{#bodyParam}}
 {{#required}}
         requireNotNull({{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/required}}
 {{/bodyParam}}
@@ -192,11 +192,11 @@ class {{classname}} : BaseApi {
 {{#queryParams}}
 {{#required}}
         requireNotNull(options.{{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
         require(options.{{paramName}}.isNotEmpty()) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/isString}}
 {{/required}}
@@ -204,11 +204,11 @@ class {{classname}} : BaseApi {
 {{#headerParams}}
 {{#required}}
         requireNotNull(options.{{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
         require(options.{{paramName}}.isNotEmpty()) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/isString}}
 {{/required}}
@@ -216,11 +216,11 @@ class {{classname}} : BaseApi {
 {{#formParams}}
 {{#required}}
         requireNotNull(options.{{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
         require(options.{{paramName}}.isNotEmpty()) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/isString}}
 {{/required}}
@@ -228,11 +228,11 @@ class {{classname}} : BaseApi {
 {{#cookieParams}}
 {{#required}}
         requireNotNull(options.{{paramName}}) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
         require(options.{{paramName}}.isNotEmpty()) {
-            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+            "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{/isString}}
 {{/required}}

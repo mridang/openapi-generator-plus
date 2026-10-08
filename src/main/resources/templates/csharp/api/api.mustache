@@ -241,7 +241,7 @@ public class {{classname}} : BaseApi
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
-            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+            throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
         }
 {{/isString}}
 {{/required}}
@@ -252,7 +252,7 @@ public class {{classname}} : BaseApi
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
-            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+            throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
         }
 {{/isString}}
 {{/required}}
@@ -263,7 +263,7 @@ public class {{classname}} : BaseApi
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
-            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+            throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
         }
 {{/isString}}
 {{/required}}
@@ -274,7 +274,7 @@ public class {{classname}} : BaseApi
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
-            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+            throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
         }
 {{/isString}}
 {{/required}}
@@ -291,7 +291,7 @@ public class {{classname}} : BaseApi
 {{#isString}}
         if ({{paramName}}.Length == 0)
         {
-            throw new ArgumentException("missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
+            throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
         }
 {{/isString}}
         path = path.Replace(

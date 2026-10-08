@@ -161,17 +161,17 @@ class {{classname}} extends BaseApi {
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
 {{#isString}}
     if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{#isString}}
     if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
@@ -181,17 +181,17 @@ class {{classname}} extends BaseApi {
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
 {{#isString}}
     if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{#isString}}
     if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
@@ -201,17 +201,17 @@ class {{classname}} extends BaseApi {
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
 {{#isString}}
     if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{#isString}}
     if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
@@ -221,17 +221,17 @@ class {{classname}} extends BaseApi {
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
 {{#isString}}
     if (options.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{#isString}}
     if (options?.{{paramName}} == '') {
-      throw ArgumentError("Missing the required parameter '{{paramName}}'");
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
 {{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}

@@ -94,3 +94,30 @@ error hierarchy, depth-cap value, maxRedirects, text-content-type predicate, REA
 structure all byte-consistent. The cross-origin sensitive-header STRIP anchoring on the original
 request (php/elixir/go) vs current hop (java/kotlin) is accepted design (more-conservative strip),
 distinct from the body-replay guard (which is correctly current-hop in all 12).
+
+## ROUND 6 — fresh validation sweep (2026-10-09) — all FIXED
+
+4 agents (models, operations+auth, runtime/errors, docs/packaging) against the current goldens.
+SDKs extremely aligned; 6 remaining differences, all now fixed:
+
+- [x] **R6-1** README "Requirements" version floor disagreed with the build manifest in 5 langs.
+  Aligned each README to what the manifest enforces: rust 1.75→1.85 (Cargo rust-version),
+  dart >=3.6.0→>=3.11.0 (pubspec), go 1.24→1.26 (go.mod, toolchain-bumped), swift macOS 14→12
+  (Package.swift), elixir 1.19→1.17 (mix.exs). rust/dart/go were build-breaking (README advertised
+  a version the build rejects). 7 langs already tracked the manifest.
+- [x] **R6-2** php & ruby silently returned a still-encoded br/zstd body when the optional codec
+  lib was absent. Now raise (php `throw`, ruby `raise`) — the caller wraps it in ApiException/
+  ApiError, matching elixir and the AGENTS "unsupported Content-Encoding raises" contract.
+- [x] **R6-3** elixir emitted no deprecation note on deprecated model FIELDS (status). Added a
+  `**Deprecated field** `name`` note to the model `@moduledoc` (elixir `@deprecated` can't attach
+  to a struct field; the doc note matches the ruby/php/node doc-comment approach).
+- [x] **R6-4** elixir was the only SDK with a raw (headerless) DEFLATE fallback. Removed it;
+  elixir now decodes zlib-wrapped deflate only and raises on raw, matching the other 11.
+- [x] **R6-5** required-param "missing" error MESSAGE wording varied across all 12 (op-context,
+  "the", quote style, `options.` prefix, class-qualification). Harmonised to the ruby/elixir form
+  `Missing the required parameter 'X' when calling <Class>.<operation>` in java/kotlin/php/python/
+  csharp/rust/swift/node/dart (ruby/elixir already had it). go and dart's PATH-param check keep
+  the centralized value-serializer message ("path parameter 'X' must not be empty") — FORCED, the
+  serializer has no operation context.
+- [x] **R6-6** stale comment in go object_serializer ("C# is stricter (64)") — corrected; all 12
+  use the 1000 depth cap.

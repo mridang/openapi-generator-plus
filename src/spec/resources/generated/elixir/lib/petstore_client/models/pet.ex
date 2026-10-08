@@ -9,6 +9,8 @@ defmodule PetstoreClient.Models.Pet do
   @moduledoc """
   Model for Pet.
 
+  **Deprecated field** `status` — this property is deprecated.
+
   See [Learn more about the Pet model](https://example.com/docs/pet)
   """
 

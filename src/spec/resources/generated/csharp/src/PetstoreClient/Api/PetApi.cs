@@ -1341,7 +1341,7 @@ public class PetApi : BaseApi
         if (options.Category.Length == 0)
         {
             throw new ArgumentException(
-                "missing required parameter 'category' when calling PetApi.GetPetByName",
+                "Missing the required parameter 'category' when calling PetApi.GetPetByName",
                 nameof(options) + "." + nameof(options.Category)
             );
         }
@@ -1349,7 +1349,7 @@ public class PetApi : BaseApi
         if (name.Length == 0)
         {
             throw new ArgumentException(
-                "missing required parameter 'name' when calling PetApi.GetPetByName",
+                "Missing the required parameter 'name' when calling PetApi.GetPetByName",
                 nameof(name)
             );
         }
@@ -1636,7 +1636,7 @@ public class PetApi : BaseApi
         if (tagName.Length == 0)
         {
             throw new ArgumentException(
-                "missing required parameter 'tagName' when calling PetApi.GetPetTag",
+                "Missing the required parameter 'tagName' when calling PetApi.GetPetTag",
                 nameof(tagName)
             );
         }
@@ -2032,7 +2032,7 @@ public class PetApi : BaseApi
         if (options.Nickname.Length == 0)
         {
             throw new ArgumentException(
-                "missing required parameter 'nickname' when calling PetApi.SetPetPreferences",
+                "Missing the required parameter 'nickname' when calling PetApi.SetPetPreferences",
                 nameof(options) + "." + nameof(options.Nickname)
             );
         }

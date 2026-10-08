@@ -4,7 +4,7 @@ Auto-generated Dart SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- **Dart SDK:** `>=3.6.0 <4.0.0`
+- **Dart SDK:** `>=3.11.0 <4.0.0`
 
 ## Platform support
 

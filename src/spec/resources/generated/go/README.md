@@ -4,7 +4,7 @@ Auto-generated Go SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- Go 1.24+
+- Go 1.26+
 - [`gofumpt`](https://github.com/mvdan/gofumpt) — stricter formatter (superset of `gofmt`)
 - [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (bundles `staticcheck`, `revive`, `gocritic`, `gosec`, etc.)
 

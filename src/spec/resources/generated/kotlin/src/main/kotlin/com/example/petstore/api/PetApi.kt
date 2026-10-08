@@ -160,7 +160,7 @@ class PetApi : BaseApi {
     ): ApiResult<Pet> {
         val auth: Authenticator? = options?.auth
         requireNotNull(pet) {
-            "Missing the required parameter 'pet' when calling addPet"
+            "Missing the required parameter 'pet' when calling PetApi.addPet"
         }
         var path = "/pet"
         val queryParams = mutableMapOf<String, Any?>()
@@ -206,13 +206,13 @@ class PetApi : BaseApi {
         options: AddPetPhotosOptions,
     ): ApiResult<List<Photo>> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling addPetPhotos"
+            "Missing the required parameter 'petId' when calling PetApi.addPetPhotos"
         }
         requireNotNull(options.files) {
-            "Missing the required parameter 'files' when calling addPetPhotos"
+            "Missing the required parameter 'files' when calling PetApi.addPetPhotos"
         }
         requireNotNull(options.metadata) {
-            "Missing the required parameter 'metadata' when calling addPetPhotos"
+            "Missing the required parameter 'metadata' when calling PetApi.addPetPhotos"
         }
         var path =
             "/pet/{petId}/photos"
@@ -269,10 +269,10 @@ class PetApi : BaseApi {
     ): ApiResult<PetTreatment> {
         val auth: Authenticator? = options?.auth
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling addPetTreatment"
+            "Missing the required parameter 'petId' when calling PetApi.addPetTreatment"
         }
         requireNotNull(petTreatment) {
-            "Missing the required parameter 'petTreatment' when calling addPetTreatment"
+            "Missing the required parameter 'petTreatment' when calling PetApi.addPetTreatment"
         }
         var path =
             "/pet/{petId}/treatment"
@@ -316,7 +316,7 @@ class PetApi : BaseApi {
     ): ApiResult<Unit> {
         val auth: Authenticator? = options?.auth
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling deletePet"
+            "Missing the required parameter 'petId' when calling PetApi.deletePet"
         }
         var path =
             "/pet/{petId}"
@@ -387,10 +387,10 @@ class PetApi : BaseApi {
         documentId: Long,
     ): ApiResult<ByteArray> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling downloadPetDocument"
+            "Missing the required parameter 'petId' when calling PetApi.downloadPetDocument"
         }
         requireNotNull(documentId) {
-            "Missing the required parameter 'documentId' when calling downloadPetDocument"
+            "Missing the required parameter 'documentId' when calling PetApi.downloadPetDocument"
         }
         var path =
             "/pet/{petId}/documents/{documentId}"
@@ -436,7 +436,7 @@ class PetApi : BaseApi {
 
     suspend fun findPetsBornOnWithHttpInfo(bornOn: LocalDate): ApiResult<List<Pet>> {
         requireNotNull(bornOn) {
-            "Missing the required parameter 'bornOn' when calling findPetsBornOn"
+            "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn"
         }
         var path =
             "/pet/born-on/{bornOn}"
@@ -549,7 +549,7 @@ class PetApi : BaseApi {
         server: GetExternalPetInfoServer? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getExternalPetInfo"
+            "Missing the required parameter 'petId' when calling PetApi.getExternalPetInfo"
         }
         var path =
             "/pet/{petId}/external"
@@ -608,7 +608,7 @@ class PetApi : BaseApi {
         server: GetMultiServerPetInfoServer? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getMultiServerPetInfo"
+            "Missing the required parameter 'petId' when calling PetApi.getMultiServerPetInfo"
         }
         var path =
             "/pet/{petId}/multi"
@@ -658,7 +658,7 @@ class PetApi : BaseApi {
 
     suspend fun getPetAvatarWithHttpInfo(petId: Long): ApiResult<ByteArray> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetAvatar"
+            "Missing the required parameter 'petId' when calling PetApi.getPetAvatar"
         }
         var path =
             "/pet/{petId}/avatar"
@@ -702,7 +702,7 @@ class PetApi : BaseApi {
 
     suspend fun getPetAvatarThumbnailWithHttpInfo(petId: Long): ApiResult<ByteArray> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetAvatarThumbnail"
+            "Missing the required parameter 'petId' when calling PetApi.getPetAvatarThumbnail"
         }
         var path =
             "/pet/{petId}/avatar/thumbnail"
@@ -763,7 +763,7 @@ class PetApi : BaseApi {
         server: GetPetByIdServer? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetById"
+            "Missing the required parameter 'petId' when calling PetApi.getPetById"
         }
         var path =
             "/pet/{petId}"
@@ -819,16 +819,16 @@ class PetApi : BaseApi {
         options: GetPetByNameOptions,
     ): ApiResult<Pet> {
         requireNotNull(name) {
-            "Missing the required parameter 'name' when calling getPetByName"
+            "Missing the required parameter 'name' when calling PetApi.getPetByName"
         }
         require(name.isNotEmpty()) {
-            "Missing the required parameter 'name' when calling getPetByName"
+            "Missing the required parameter 'name' when calling PetApi.getPetByName"
         }
         requireNotNull(options.category) {
-            "Missing the required parameter 'category' when calling getPetByName"
+            "Missing the required parameter 'category' when calling PetApi.getPetByName"
         }
         require(options.category.isNotEmpty()) {
-            "Missing the required parameter 'category' when calling getPetByName"
+            "Missing the required parameter 'category' when calling PetApi.getPetByName"
         }
         var path =
             "/pet/byName/{name}"
@@ -879,7 +879,7 @@ class PetApi : BaseApi {
 
     suspend fun getPetPassportWithHttpInfo(petId: Long): ApiResult<PetPassport> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetPassport"
+            "Missing the required parameter 'petId' when calling PetApi.getPetPassport"
         }
         var path =
             "/pet/{petId}/passport"
@@ -930,10 +930,10 @@ class PetApi : BaseApi {
         photoId: Long,
     ): ApiResult<ByteArray> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetPhoto"
+            "Missing the required parameter 'petId' when calling PetApi.getPetPhoto"
         }
         requireNotNull(photoId) {
-            "Missing the required parameter 'photoId' when calling getPetPhoto"
+            "Missing the required parameter 'photoId' when calling PetApi.getPetPhoto"
         }
         var path =
             "/pet/{petId}/photos/{photoId}"
@@ -989,13 +989,13 @@ class PetApi : BaseApi {
         options: GetPetTagOptions? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getPetTag"
+            "Missing the required parameter 'petId' when calling PetApi.getPetTag"
         }
         requireNotNull(tagName) {
-            "Missing the required parameter 'tagName' when calling getPetTag"
+            "Missing the required parameter 'tagName' when calling PetApi.getPetTag"
         }
         require(tagName.isNotEmpty()) {
-            "Missing the required parameter 'tagName' when calling getPetTag"
+            "Missing the required parameter 'tagName' when calling PetApi.getPetTag"
         }
         var path =
             "/pet/{petId}/tag/{tagName}"
@@ -1078,7 +1078,7 @@ class PetApi : BaseApi {
         server: GetStagingPetInfoServer? = null,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling getStagingPetInfo"
+            "Missing the required parameter 'petId' when calling PetApi.getStagingPetInfo"
         }
         var path =
             "/pet/{petId}/staging"
@@ -1132,10 +1132,10 @@ class PetApi : BaseApi {
         requestContentType: String? = null,
     ): ApiResult<Unit> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling setPetAvatar"
+            "Missing the required parameter 'petId' when calling PetApi.setPetAvatar"
         }
         requireNotNull(body) {
-            "Missing the required parameter 'body' when calling setPetAvatar"
+            "Missing the required parameter 'body' when calling PetApi.setPetAvatar"
         }
         var path =
             "/pet/{petId}/avatar"
@@ -1192,10 +1192,10 @@ class PetApi : BaseApi {
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
     ): ApiResult<Unit> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling setPetAvatarThumbnail"
+            "Missing the required parameter 'petId' when calling PetApi.setPetAvatarThumbnail"
         }
         requireNotNull(setPetAvatarThumbnailRequest) {
-            "Missing the required parameter 'setPetAvatarThumbnailRequest' when calling setPetAvatarThumbnail"
+            "Missing the required parameter 'setPetAvatarThumbnailRequest' when calling PetApi.setPetAvatarThumbnail"
         }
         var path =
             "/pet/{petId}/avatar/thumbnail"
@@ -1246,13 +1246,13 @@ class PetApi : BaseApi {
         options: SetPetPreferencesOptions,
     ): ApiResult<ApiResponse> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling setPetPreferences"
+            "Missing the required parameter 'petId' when calling PetApi.setPetPreferences"
         }
         requireNotNull(options.nickname) {
-            "Missing the required parameter 'nickname' when calling setPetPreferences"
+            "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences"
         }
         require(options.nickname.isNotEmpty()) {
-            "Missing the required parameter 'nickname' when calling setPetPreferences"
+            "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences"
         }
         var path =
             "/pet/{petId}/preferences"
@@ -1313,10 +1313,10 @@ class PetApi : BaseApi {
         pet: Pet,
     ): ApiResult<Pet> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling updatePet"
+            "Missing the required parameter 'petId' when calling PetApi.updatePet"
         }
         requireNotNull(pet) {
-            "Missing the required parameter 'pet' when calling updatePet"
+            "Missing the required parameter 'pet' when calling PetApi.updatePet"
         }
         var path =
             "/pet/{petId}"
@@ -1367,10 +1367,10 @@ class PetApi : BaseApi {
         options: UploadPetCertificateOptions,
     ): ApiResult<ApiResponse> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling uploadPetCertificate"
+            "Missing the required parameter 'petId' when calling PetApi.uploadPetCertificate"
         }
         requireNotNull(options._file) {
-            "Missing the required parameter '_file' when calling uploadPetCertificate"
+            "Missing the required parameter '_file' when calling PetApi.uploadPetCertificate"
         }
         var path =
             "/pet/{petId}/certificate"
@@ -1427,10 +1427,10 @@ class PetApi : BaseApi {
         requestContentType: String? = null,
     ): ApiResult<ApiResponse> {
         requireNotNull(petId) {
-            "Missing the required parameter 'petId' when calling uploadPetDocument"
+            "Missing the required parameter 'petId' when calling PetApi.uploadPetDocument"
         }
         requireNotNull(options._file) {
-            "Missing the required parameter '_file' when calling uploadPetDocument"
+            "Missing the required parameter '_file' when calling PetApi.uploadPetDocument"
         }
         var path =
             "/pet/{petId}/documents"

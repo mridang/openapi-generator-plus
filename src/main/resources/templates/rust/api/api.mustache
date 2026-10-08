@@ -260,7 +260,7 @@ impl {{classname}} {
 {{#required}}
 {{#isString}}
         if {{paramName}}.is_empty() {
-            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}"))));
+            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}"))));
         }
 {{/isString}}
 {{/required}}
@@ -308,7 +308,7 @@ impl {{classname}} {
         // Required query parameter (allowEmptyValue): a missing Options is a
         // programming error and is rejected up front.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -370,7 +370,7 @@ impl {{classname}} {
 {{#required}}
         // Required deepObject query parameter: a missing Options is rejected.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", &opts.{{paramName}}) {
             query_params.push((k, v, false));
@@ -390,7 +390,7 @@ impl {{classname}} {
 {{#required}}
         // Required content query parameter: a missing Options is rejected.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         query_params.push(("{{baseName}}".to_string(), serde_json::to_string(&opts.{{paramName}}).unwrap_or_default(), false));
 {{/required}}
@@ -408,7 +408,7 @@ impl {{classname}} {
         // missing Options is a programming error and is rejected up front,
         // matching the required-param validation the other SDKs perform.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -473,7 +473,7 @@ impl {{classname}} {
 {{#required}}
         // Required header parameter: a missing Options is a programming error.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
@@ -519,7 +519,7 @@ impl {{classname}} {
 {{#required}}
         // Required cookie parameter: a missing Options is a programming error.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
@@ -620,7 +620,7 @@ impl {{classname}} {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "options")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "options")))
         })?;
 {{/vendorExtensions.op.requiredMultipartBody}}
 {{^vendorExtensions.op.requiredMultipartBody}}

@@ -165,7 +165,7 @@ class {{classname}} extends BaseApi
 {{#required}}
 {{#isString}}
         if (${{paramName}} === '') {
-            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/isString}}
 {{/required}}
@@ -435,7 +435,7 @@ class {{classname}} extends BaseApi
 {{#required}}
 {{#isString}}
         if (${{paramName}} === '') {
-            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+            throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/isString}}
 {{/required}}

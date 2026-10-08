@@ -117,7 +117,7 @@ public class StoreApi extends BaseApi {
   public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) {
     if (orderId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'orderId' when calling deleteOrder");
+          "Missing the required parameter 'orderId' when calling StoreApi.deleteOrder");
     }
     String path =
         "/store/order/{orderId}"
@@ -194,7 +194,7 @@ public class StoreApi extends BaseApi {
       Swatch pathSwatch, @Nullable GetBySwatchOptions options) {
     if (pathSwatch == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'pathSwatch' when calling getBySwatch");
+          "Missing the required parameter 'pathSwatch' when calling StoreApi.getBySwatch");
     }
     String path =
         "/store/by-swatch/{pathSwatch}"
@@ -419,7 +419,7 @@ public class StoreApi extends BaseApi {
   public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) {
     if (orderId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'orderId' when calling getOrderById");
+          "Missing the required parameter 'orderId' when calling StoreApi.getOrderById");
     }
     String path =
         "/store/order/{orderId}"

@@ -175,42 +175,42 @@ export class {{classname}} extends BaseApi {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null{{#isString}} || {{paramName}} === ''{{/isString}}) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#required}}
     if ({{paramName}} == null) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
     if (options?.{{paramName}} == null{{#isString}} || options.{{paramName}} === ''{{/isString}}) {
-      throw new TypeError('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+      throw new TypeError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{nickname}}");
     }
 {{/required}}
 {{/cookieParams}}

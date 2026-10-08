@@ -362,7 +362,7 @@ impl PetApi {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.add_pet_photos",
+                    "Missing the required parameter '{}' when calling PetApi.add_pet_photos",
                     "options"
                 )),
             )
@@ -1585,7 +1585,7 @@ impl PetApi {
         if name.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_name",
                     "name"
                 )),
             ));
@@ -1616,7 +1616,7 @@ impl PetApi {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.get_pet_by_name",
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_name",
                     "category"
                 )),
             )
@@ -1935,7 +1935,7 @@ impl PetApi {
         if tag_name.is_empty() {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.get_pet_tag",
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_tag",
                     "tag_name"
                 )),
             ));
@@ -2733,12 +2733,7 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(
-                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.upload_pet_certificate",
-                    "options"
-                )),
-            )
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.upload_pet_certificate", "options")))
         })?;
         multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         let request_body: Option<Vec<u8>> = None;
@@ -2893,7 +2888,7 @@ impl PetApi {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "missing required parameter '{}' when calling PetApi.upload_pet_document",
+                    "Missing the required parameter '{}' when calling PetApi.upload_pet_document",
                     "options"
                 )),
             )

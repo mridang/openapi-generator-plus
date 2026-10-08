@@ -424,9 +424,9 @@ module Petstore::Client
       when 'deflate'
         Zlib::Inflate.inflate(body)
       when 'br'
-        defined?(Brotli) ? Brotli.inflate(body) : body
+        defined?(Brotli) ? Brotli.inflate(body) : raise('Received a br-encoded response but the brotli gem is unavailable')
       when 'zstd'
-        defined?(Zstd) ? Zstd.decompress(body) : body
+        defined?(Zstd) ? Zstd.decompress(body) : raise('Received a zstd-encoded response but the zstd gem is unavailable')
       when nil, '', 'identity'
         body
       else

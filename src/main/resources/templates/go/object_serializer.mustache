@@ -83,8 +83,9 @@ func serialize(object any) ([]byte, error) {
 // maxJSONDepth caps how deeply a response JSON document can be nested.
 // Go's encoding/json has no built-in depth limit and recurses through the
 // host call stack, so a malicious server can crash the process with a
-// 100k-deep `{"a":{"a":...}}` payload (stack overflow → DoS). Matches
-// Java/Kotlin Jackson (~1000), Python json (1000). C# is stricter (64).
+// 100k-deep `{"a":{"a":...}}` payload (stack overflow → DoS). The 1000-deep
+// cap is uniform across all 12 SDKs (java/kotlin Jackson, python, csharp, rust
+// with serde's own limit disabled, etc.).
 const maxJSONDepth = 1000
 
 // deserialize parses a JSON byte slice into the target value.

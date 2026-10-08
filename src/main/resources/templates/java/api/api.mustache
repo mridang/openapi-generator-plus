@@ -262,7 +262,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if ({{paramName}} == null{{#isString}} || {{paramName}}.isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/pathParams}}
@@ -270,7 +270,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if ({{paramName}} == null) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/bodyParam}}
@@ -278,7 +278,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/queryParams}}
@@ -286,7 +286,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/headerParams}}
@@ -294,7 +294,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/formParams}}
@@ -302,7 +302,7 @@ public class {{classname}} extends BaseApi {
 {{#required}}
         if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
-                    "Missing the required parameter '{{baseName}}' when calling {{operationId}}");
+                    "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
 {{/required}}
 {{/cookieParams}}

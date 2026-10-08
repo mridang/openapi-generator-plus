@@ -358,7 +358,7 @@ public class PetApi extends BaseApi {
     Authenticator auth = options != null ? options.auth() : null;
     if (pet == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'pet' when calling addPet");
+          "Missing the required parameter 'pet' when calling PetApi.addPet");
     }
     String path = "/pet";
     Map<String, Object> queryParams = new HashMap<>();
@@ -402,15 +402,15 @@ public class PetApi extends BaseApi {
   public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling addPetPhotos");
+          "Missing the required parameter 'petId' when calling PetApi.addPetPhotos");
     }
     if (options.files() == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'files' when calling addPetPhotos");
+          "Missing the required parameter 'files' when calling PetApi.addPetPhotos");
     }
     if (options.metadata() == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'metadata' when calling addPetPhotos");
+          "Missing the required parameter 'metadata' when calling PetApi.addPetPhotos");
     }
     String path =
         "/pet/{petId}/photos"
@@ -500,11 +500,11 @@ public class PetApi extends BaseApi {
     Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling addPetTreatment");
+          "Missing the required parameter 'petId' when calling PetApi.addPetTreatment");
     }
     if (petTreatment == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petTreatment' when calling addPetTreatment");
+          "Missing the required parameter 'petTreatment' when calling PetApi.addPetTreatment");
     }
     String path =
         "/pet/{petId}/treatment"
@@ -583,7 +583,7 @@ public class PetApi extends BaseApi {
     Authenticator auth = options != null ? options.auth() : null;
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling deletePet");
+          "Missing the required parameter 'petId' when calling PetApi.deletePet");
     }
     String path =
         "/pet/{petId}"
@@ -656,11 +656,11 @@ public class PetApi extends BaseApi {
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling downloadPetDocument");
+          "Missing the required parameter 'petId' when calling PetApi.downloadPetDocument");
     }
     if (documentId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'documentId' when calling downloadPetDocument");
+          "Missing the required parameter 'documentId' when calling PetApi.downloadPetDocument");
     }
     String path =
         "/pet/{petId}/documents/{documentId}"
@@ -709,7 +709,7 @@ public class PetApi extends BaseApi {
   public ApiResult<List<Pet>> findPetsBornOnWithHttpInfo(LocalDate bornOn) {
     if (bornOn == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'bornOn' when calling findPetsBornOn");
+          "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn");
     }
     String path =
         "/pet/born-on/{bornOn}"
@@ -883,7 +883,7 @@ public class PetApi extends BaseApi {
       Long petId, @Nullable GetExternalPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getExternalPetInfo");
+          "Missing the required parameter 'petId' when calling PetApi.getExternalPetInfo");
     }
     String path =
         "/pet/{petId}/external"
@@ -958,7 +958,7 @@ public class PetApi extends BaseApi {
       Long petId, @Nullable GetMultiServerPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getMultiServerPetInfo");
+          "Missing the required parameter 'petId' when calling PetApi.getMultiServerPetInfo");
     }
     String path =
         "/pet/{petId}/multi"
@@ -1008,7 +1008,7 @@ public class PetApi extends BaseApi {
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetAvatar");
+          "Missing the required parameter 'petId' when calling PetApi.getPetAvatar");
     }
     String path =
         "/pet/{petId}/avatar"
@@ -1054,7 +1054,7 @@ public class PetApi extends BaseApi {
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetAvatarThumbnail");
+          "Missing the required parameter 'petId' when calling PetApi.getPetAvatarThumbnail");
     }
     String path =
         "/pet/{petId}/avatar/thumbnail"
@@ -1134,7 +1134,7 @@ public class PetApi extends BaseApi {
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetById");
+          "Missing the required parameter 'petId' when calling PetApi.getPetById");
     }
     String path =
         "/pet/{petId}"
@@ -1188,11 +1188,11 @@ public class PetApi extends BaseApi {
   public ApiResult<Pet> getPetByNameWithHttpInfo(String name, GetPetByNameOptions options) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'name' when calling getPetByName");
+          "Missing the required parameter 'name' when calling PetApi.getPetByName");
     }
     if (options.category() == null || options.category().isEmpty()) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'category' when calling getPetByName");
+          "Missing the required parameter 'category' when calling PetApi.getPetByName");
     }
     String path =
         "/pet/byName/{name}"
@@ -1248,7 +1248,7 @@ public class PetApi extends BaseApi {
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetPassport");
+          "Missing the required parameter 'petId' when calling PetApi.getPetPassport");
     }
     String path =
         "/pet/{petId}/passport"
@@ -1296,11 +1296,11 @@ public class PetApi extends BaseApi {
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetPhoto");
+          "Missing the required parameter 'petId' when calling PetApi.getPetPhoto");
     }
     if (photoId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'photoId' when calling getPetPhoto");
+          "Missing the required parameter 'photoId' when calling PetApi.getPetPhoto");
     }
     String path =
         "/pet/{petId}/photos/{photoId}"
@@ -1384,11 +1384,11 @@ public class PetApi extends BaseApi {
       Long petId, String tagName, @Nullable GetPetTagOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getPetTag");
+          "Missing the required parameter 'petId' when calling PetApi.getPetTag");
     }
     if (tagName == null || tagName.isEmpty()) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'tagName' when calling getPetTag");
+          "Missing the required parameter 'tagName' when calling PetApi.getPetTag");
     }
     String path =
         "/pet/{petId}/tag/{tagName}"
@@ -1506,7 +1506,7 @@ public class PetApi extends BaseApi {
       Long petId, @Nullable GetStagingPetInfoServer server) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling getStagingPetInfo");
+          "Missing the required parameter 'petId' when calling PetApi.getStagingPetInfo");
     }
     String path =
         "/pet/{petId}/staging"
@@ -1596,11 +1596,11 @@ public class PetApi extends BaseApi {
       Long petId, InputStream body, @Nullable String requestContentType) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling setPetAvatar");
+          "Missing the required parameter 'petId' when calling PetApi.setPetAvatar");
     }
     if (body == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'body' when calling setPetAvatar");
+          "Missing the required parameter 'body' when calling PetApi.setPetAvatar");
     }
     String path =
         "/pet/{petId}/avatar"
@@ -1668,12 +1668,12 @@ public class PetApi extends BaseApi {
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling setPetAvatarThumbnail");
+          "Missing the required parameter 'petId' when calling PetApi.setPetAvatarThumbnail");
     }
     if (setPetAvatarThumbnailRequest == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'setPetAvatarThumbnailRequest' when calling"
-              + " setPetAvatarThumbnail");
+              + " PetApi.setPetAvatarThumbnail");
     }
     String path =
         "/pet/{petId}/avatar/thumbnail"
@@ -1726,11 +1726,11 @@ public class PetApi extends BaseApi {
       Long petId, SetPetPreferencesOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling setPetPreferences");
+          "Missing the required parameter 'petId' when calling PetApi.setPetPreferences");
     }
     if (options.nickname() == null || options.nickname().isEmpty()) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'nickname' when calling setPetPreferences");
+          "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences");
     }
     String path =
         "/pet/{petId}/preferences"
@@ -1788,11 +1788,11 @@ public class PetApi extends BaseApi {
   public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling updatePet");
+          "Missing the required parameter 'petId' when calling PetApi.updatePet");
     }
     if (pet == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'pet' when calling updatePet");
+          "Missing the required parameter 'pet' when calling PetApi.updatePet");
     }
     String path =
         "/pet/{petId}"
@@ -1843,11 +1843,11 @@ public class PetApi extends BaseApi {
       Long petId, UploadPetCertificateOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling uploadPetCertificate");
+          "Missing the required parameter 'petId' when calling PetApi.uploadPetCertificate");
     }
     if (options.file() == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'file' when calling uploadPetCertificate");
+          "Missing the required parameter 'file' when calling PetApi.uploadPetCertificate");
     }
     String path =
         "/pet/{petId}/certificate"
@@ -1943,11 +1943,11 @@ public class PetApi extends BaseApi {
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
     if (petId == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'petId' when calling uploadPetDocument");
+          "Missing the required parameter 'petId' when calling PetApi.uploadPetDocument");
     }
     if (options.file() == null) {
       throw new IllegalArgumentException(
-          "Missing the required parameter 'file' when calling uploadPetDocument");
+          "Missing the required parameter 'file' when calling PetApi.uploadPetDocument");
     }
     String path =
         "/pet/{petId}/documents"

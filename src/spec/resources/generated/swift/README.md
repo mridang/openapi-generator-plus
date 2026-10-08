@@ -5,7 +5,7 @@ Auto-generated Swift SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 ## Requirements
 
 - **Swift 6.0+** (toolchain available at <https://swift.org/download/>)
-- **macOS 14+** or a Linux distribution supported by the Swift toolchain
+- **macOS 12+** or a Linux distribution supported by the Swift toolchain
 - [`swift-format`](https://github.com/apple/swift-format) (bundled with the
   Swift 6.0 toolchain) — formatter and basic linter
 - [`swiftlint`](https://github.com/realm/SwiftLint) — opinionated linter

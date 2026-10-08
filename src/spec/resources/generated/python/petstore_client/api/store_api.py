@@ -53,7 +53,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if order_id is None:
-            raise ValueError("Missing the required parameter 'order_id'")
+            raise ValueError(
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+            )
 
         result = await self.delete_order_with_http_info(order_id)
 
@@ -70,7 +72,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if order_id is None:
-            raise ValueError("Missing the required parameter 'order_id'")
+            raise ValueError(
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+            )
 
         path = "/store/order/{orderId}"
         path = path.replace(
@@ -111,7 +115,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if path_swatch is None:
-            raise ValueError("Missing the required parameter 'path_swatch'")
+            raise ValueError(
+                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
+            )
 
         result = await self.get_by_swatch_with_http_info(path_swatch, options)
 
@@ -142,7 +148,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if path_swatch is None:
-            raise ValueError("Missing the required parameter 'path_swatch'")
+            raise ValueError(
+                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
+            )
 
         path = "/store/by-swatch/{pathSwatch}"
         path = path.replace(
@@ -445,7 +453,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if order_id is None:
-            raise ValueError("Missing the required parameter 'order_id'")
+            raise ValueError(
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+            )
 
         result = await self.get_order_by_id_with_http_info(order_id)
 
@@ -473,7 +483,9 @@ class StoreApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         if order_id is None:
-            raise ValueError("Missing the required parameter 'order_id'")
+            raise ValueError(
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+            )
 
         path = "/store/order/{orderId}"
         path = path.replace(

@@ -1190,7 +1190,9 @@ class PetApi extends BaseApi {
   ) async {
     ArgumentError.checkNotNull(options.category, 'category');
     if (options.category == '') {
-      throw ArgumentError("Missing the required parameter 'category'");
+      throw ArgumentError(
+        "Missing the required parameter 'category' when calling PetApi.getPetByName",
+      );
     }
 
     var path = '/pet/byName/{name}';
@@ -1816,7 +1818,9 @@ class PetApi extends BaseApi {
   ) async {
     ArgumentError.checkNotNull(options.nickname, 'nickname');
     if (options.nickname == '') {
-      throw ArgumentError("Missing the required parameter 'nickname'");
+      throw ArgumentError(
+        "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences",
+      );
     }
 
     var path = '/pet/{petId}/preferences';

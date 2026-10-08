@@ -51,7 +51,7 @@ class StoreApi : BaseApi {
 
     suspend fun deleteOrderWithHttpInfo(orderId: Long): ApiResult<Unit> {
         requireNotNull(orderId) {
-            "Missing the required parameter 'orderId' when calling deleteOrder"
+            "Missing the required parameter 'orderId' when calling StoreApi.deleteOrder"
         }
         var path =
             "/store/order/{orderId}"
@@ -101,7 +101,7 @@ class StoreApi : BaseApi {
         options: GetBySwatchOptions? = null,
     ): ApiResult<Category> {
         requireNotNull(pathSwatch) {
-            "Missing the required parameter 'pathSwatch' when calling getBySwatch"
+            "Missing the required parameter 'pathSwatch' when calling StoreApi.getBySwatch"
         }
         var path =
             "/store/by-swatch/{pathSwatch}"
@@ -333,7 +333,7 @@ class StoreApi : BaseApi {
 
     suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
         requireNotNull(orderId) {
-            "Missing the required parameter 'orderId' when calling getOrderById"
+            "Missing the required parameter 'orderId' when calling StoreApi.getOrderById"
         }
         var path =
             "/store/order/{orderId}"

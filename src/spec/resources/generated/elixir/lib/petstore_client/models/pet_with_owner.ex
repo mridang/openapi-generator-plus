@@ -9,6 +9,8 @@ defmodule PetstoreClient.Models.PetWithOwner do
   @moduledoc """
   A pet record extended with owner information
 
+  **Deprecated field** `status` — this property is deprecated.
+
   """
 
   @type t :: %__MODULE__{

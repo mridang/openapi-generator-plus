@@ -486,13 +486,13 @@ describe('PetApi error handling', () => {
   // Validation happens before any HTTP call, so no mock server is needed.
   test('required string query param rejects empty string', async () => {
     await expect(api.getPetByName('Rex', { category: '' })).rejects.toThrow(
-      'Missing required parameter "category" when calling getPetByName'
+      "Missing the required parameter 'category'"
     );
   });
 
   test('required string path param rejects empty string', async () => {
     await expect(api.getPetByName('', { category: 'dog' })).rejects.toThrow(
-      'Missing required parameter "name" when calling getPetByName'
+      "Missing the required parameter 'name'"
     );
   });
 

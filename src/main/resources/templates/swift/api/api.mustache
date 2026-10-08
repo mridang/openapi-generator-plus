@@ -130,7 +130,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -139,7 +139,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -148,7 +148,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}
@@ -157,7 +157,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#required}}
 {{#isString}}
         guard !options.{{paramName}}.isEmpty else {
-            throw ConfigurationError.invalidArgument("Missing required parameter 'options.{{paramName}}' when calling {{classname}}.{{operationId}}")
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{/required}}

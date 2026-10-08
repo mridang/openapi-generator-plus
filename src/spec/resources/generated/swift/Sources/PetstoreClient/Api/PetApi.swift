@@ -844,7 +844,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     try ValueSerializer.requirePathParam("name", name, operation: "PetApi.getPetByName")
     guard !options.category.isEmpty else {
       throw ConfigurationError.invalidArgument(
-        "Missing required parameter 'options.category' when calling PetApi.getPetByName")
+        "Missing the required parameter 'category' when calling PetApi.getPetByName")
     }
 
     var path = "/pet/byName/{name}"
@@ -1258,7 +1258,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   {
     guard !options.nickname.isEmpty else {
       throw ConfigurationError.invalidArgument(
-        "Missing required parameter 'options.nickname' when calling PetApi.setPetPreferences")
+        "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences")
     }
 
     var path = "/pet/{petId}/preferences"

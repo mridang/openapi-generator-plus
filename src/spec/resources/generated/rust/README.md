@@ -4,7 +4,7 @@ Auto-generated Rust SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Requirements
 
-- Rust **1.75+** (MSRV; Rust edition 2021)
+- Rust **1.85+** (MSRV; Rust edition 2021)
 - `cargo` (ships with Rust)
 - Optional tooling (install via `rustup component add` / `cargo install`):
   - `rustfmt` — formatter (`rustup component add rustfmt`)
@@ -45,7 +45,7 @@ cargo deny check
 ## Edition migration helper
 
 `cargo fix --edition` is the built-in tool for migrating across Rust
-editions. This crate targets edition 2021 (for a broad MSRV); the command is
+editions. This crate targets edition 2021; the command is
 listed here for future migrations:
 
 ```bash
@@ -57,7 +57,7 @@ cargo fix --edition
 - Name: `petstore`
 - Version: `1.0.0`
 - Edition: `2021`
-- MSRV: `1.75`
+- MSRV: `1.85`
 
 ## Caveats
 

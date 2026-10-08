@@ -406,27 +406,12 @@ defmodule PetstoreClient.DefaultApiClient do
       status_code: status
   end
 
-  # HTTP "deflate" is nominally zlib-wrapped, but some servers emit raw
-  # (headerless) DEFLATE; try zlib first, then fall back to raw inflate.
+  # HTTP "deflate" is zlib-wrapped (RFC 1950); decode with :zlib.uncompress.
+  # A raw (headerless) DEFLATE body is rejected, matching the other eleven SDKs
+  # (java InflaterInputStream, python zlib.decompress, go zlib.NewReader, rust
+  # ZlibDecoder, …), which all handle zlib-wrapped deflate only.
   defp inflate_body(body, status) do
     :zlib.uncompress(body)
-  rescue
-    _ -> raw_inflate_body(body, status)
-  end
-
-  # The raw (headerless) DEFLATE fallback, split out so `inflate_body/2` can use
-  # the implicit function-level `try`.
-  defp raw_inflate_body(body, status) do
-    z = :zlib.open()
-
-    try do
-      :zlib.inflateInit(z, -15)
-      out = :zlib.inflate(z, body)
-      :zlib.inflateEnd(z)
-      IO.iodata_to_binary(out)
-    after
-      :zlib.close(z)
-    end
   rescue
     e ->
       # reraise, not raise: the SDK error replaces the :zlib failure (no library

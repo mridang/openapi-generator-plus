@@ -631,11 +631,13 @@ abstract class AbstractApiClient implements ApiClient
             'br' => function_exists('brotli_uncompress')
                 ? (@brotli_uncompress($body)
                     ?: throw new \RuntimeException('Failed to brotli-decompress response body'))
-                : $body,
+                : throw new \RuntimeException(
+                    'Received a br-encoded response but the brotli extension is unavailable'),
             'zstd' => function_exists('zstd_uncompress')
                 ? (@zstd_uncompress($body)
                     ?: throw new \RuntimeException('Failed to zstd-decompress response body'))
-                : $body,
+                : throw new \RuntimeException(
+                    'Received a zstd-encoded response but the zstd extension is unavailable'),
             '', 'identity' => $body,
             /* An unrecognised (or multi-value) Content-Encoding is a response
              * the client cannot honour. Throw — the caller wraps it in an
