@@ -440,8 +440,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
         final String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
         additionalProperties.put("groupId", groupId);
+        // Derive the artifactId from the spec (the invoker package's last
+        // segment, e.g. com.example.petstore -> petstore-client) rather than
+        // the openapi-generator default "openapi-java-client", so the Maven
+        // coordinates reflect the API like the other SDKs' package names do.
+        final String defaultArtifactId =
+                invokerPackage.substring(invokerPackage.lastIndexOf('.') + 1) + "-client";
         final String artifactId =
-                getPropertyOrDefault(CodegenConstants.ARTIFACT_ID, "openapi-java-client");
+                getPropertyOrDefault(CodegenConstants.ARTIFACT_ID, defaultArtifactId);
         additionalProperties.put("artifactId", artifactId);
         final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");

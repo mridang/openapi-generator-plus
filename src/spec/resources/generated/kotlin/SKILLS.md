@@ -5,7 +5,7 @@
 Add to your `build.gradle.kts`:
 
 ```kotlin
-implementation("com.example.petstore:openapi-kotlin-client:1.0.0")
+implementation("com.example.petstore:petstore-client:1.0.0")
 ```
 
 Or with Maven:
@@ -13,7 +13,7 @@ Or with Maven:
 ```xml
 <dependency>
     <groupId>com.example.petstore</groupId>
-    <artifactId>openapi-kotlin-client</artifactId>
+    <artifactId>petstore-client</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```

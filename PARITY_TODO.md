@@ -45,19 +45,19 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
 - [-] **T3-5** → **FORCED.** elixir struct fields have no per-field doc slot (only `@moduledoc`); the moduledoc already carries the model description, named examples and (now) externalDocs. Per-field descriptions/deprecation can't attach to a defstruct field. Not a defect.
 - [ ] **T3-6** rust advertises zstd but not brotli.
-- [ ] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
+- [x] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
 - [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
 - [ ] **T3-9** no field-dumping toString/repr on java/csharp/php/node/dart models.
 - [x] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
-- [ ] **T3-11** rust emits empty content-type boilerplate on bodyless ops.
+- [-] **T3-11** → **STALE / not a defect.** Round-4 audit found bodyless-GET request content-type consistent across all 12 (all pass "application/json"); no rust empty-boilerplate divergence remains.
 - [ ] **T3-12** setPetAvatar selector param name `requestContentType` vs `contentType` (node/php/ruby/elixir).
-- [ ] **T3-13** rust `#[default]` enum-variant vs schema field default mismatch (DefaultsModeEnum). *(latent)*
+- [-] **T3-13** → **LATENT / accepted.** rust derives `Default` with `#[default]` on each enum's first variant (`Low`), but the `Defaults.mode` field uses a `default_mode()` fn returning `Medium` (the schema default), so the derived enum Default is never consulted for the field. Aligning `#[default]` to the schema default would need generator plumbing to know each enum's default value; inert today, documented as a known latent trap.
 - [x] **T3-14** go error-body downgrade-guard anchors original-vs-current hop (also dart/swift/elixir). *(round 1, benign)*
 - [ ] **T3-15** php populates `data` for non-JSON body without returnType. *(round 1, benign)*
 - [x] **T3-16** swift resets token expiry to never-expires when expires_in omitted. *(round 1)*
 - [ ] **T3-17** error-message wording drift (enum-validation; empty-path). *(round 1)*
 - [x] **T3-18** redaction repr field-sets differ (java Basic omits host; go/node ApiKey omit location). *(round 1)*
-- [ ] **T3-19** ValueSerializer latent path-array encoding splits (unreachable). *(round 1)*
+- [-] **T3-19** → **UNREACHABLE / wontfix.** The differing non-styled / space-&-pipe path-array encodings are unreachable: an OpenAPI path array always carries a style, so the divergent code paths never execute in generated code.
 
 ## Clean layers (0 findings)
 Enums; composite/polymorphic/recursive models.

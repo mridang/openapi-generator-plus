@@ -5,4 +5,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "openapi-kotlin-client"
+rootProject.name = "petstore-client"

@@ -168,6 +168,29 @@ These twelve-language differences are **required by a named language feature**. 
 as inconsistencies, but collapsing them re-introduces a real bug. Each entry names the
 feature so you can tell a forced divergence from a defect.
 
+**php types a defaulted, schema-non-nullable field as non-nullable** (`Defaults::$retries`
+`int = 3`, `$mode DefaultsModeEnum = MEDIUM`, `Order::$status OrderStatusEnum = PLACED`),
+rejecting `null`, while the other 11 collapse "optional" into nullable and accept `null`.
+php's typed-property rule (non-nullable iff default AND schema-non-nullable) is spec-faithful
+and arguably *more* correct — it honours the OpenAPI nullable-vs-optional distinction the
+others discard. Do not "align" php to the looser majority; that would make it accept a
+`null` the schema forbids. (A property with no default stays `?type = null` in php too.)
+
+**swift types `retryAfter` as `TimeInterval` (a `Double` of seconds)**, not a structured
+duration, because Foundation has no protobuf-duration / ISO-8601-duration type; the other
+ten non-elixir SDKs use their stdlib duration (`Duration`/`TimeSpan`/`ProtobufDuration`/…).
+The wire form (`"3600s"`) round-trips through swift's serializer regardless.
+
+**dart advertises only `gzip, deflate` (no `br`/`zstd`, no probe)** because dart has no
+stdlib brotli/zstd and, on web, the fetch layer owns Content-Encoding; it only advertises
+what `dart:io` can decode. (swift advertises nothing — URLSession auto-negotiates; csharp
+advertises `br` but not `zstd` — no .NET stdlib zstd. All codec-set differences trace to
+stdlib availability. rust was the one real gap — see T3-6 — because a brotli crate exists.)
+
+**php's composer package name carries a vendor segment (`openapi/…`)** because composer
+*requires* `vendor/package`; the other SDKs' ecosystems have no vendor concept, so there is
+no majority vendor to match. The package segment is spec-derived; the vendor is structural.
+
 **`responseHeaders` null vs empty is a signal, not sloppiness.** `null`/`nil`/`None`
 response headers mean *no HTTP response arrived* — a transport failure (refused, DNS,
 TLS, reset, timeout). An **empty map** means a response arrived carrying no headers. The
@@ -245,6 +268,7 @@ current behaviour as intentional and does not "rediscover" the old divergence.
 - **python and node reject malformed base64 on decode** (python `b64decode(validate=True)`; node `decodeBase64` validates the alphabet/length before `Buffer.from`). They no longer silently truncate invalid input, matching ruby/php/elixir/go/rust.
 - **python's brotli/zstandard are an optional `[compression]` extra**, not mandatory runtime deps (the client imports them behind `try/except ImportError`); they stay in the `dev` dependency-group so the test suite still exercises the br/zstd paths.
 - **java and kotlin require a JSON *string* `refresh_token`** in the OAuth2 token manager (java `JsonNode.isTextual()`, kotlin `JsonPrimitive.isString`), ignoring a numeric/boolean value instead of coercing it, matching the other ten SDKs.
+- **java/kotlin `artifactId` is spec-derived, not the generator default.** `BetterJavaCodegen`/`BetterKotlinCodegen` default `artifactId` to the invoker package's last segment + `-client` (e.g. `com.example.petstore` → `petstore-client`) instead of `openapi-<lang>-client`, so the Maven/Gradle coordinates reflect the API like the other SDKs' package names. An explicit `artifactId` config still overrides it.
 - **Model field docs carry the scalar `example` in all 12.** python/go/swift previously dropped it; they now emit `{{#example}}` in the field doc comment (python `# Example:`, go `// Example:`, swift `/// Example:`). This is safe because `AbstractBetterCodegen.sanitizeByteArrayExample` nulls the synthesised `"null"` placeholder (and `[B@…` byte-array artefacts) for all 12 generators, so the section falls through for exampleless fields — do NOT re-add a "no example / no sanitizer" guard to the swift/go templates (that comment was stale). A mustache `{{! ... }}` comment must never contain a literal `{{tag}}` (e.g. `{{#example}}`): jmustache ends the comment at the first `}}` and leaks the rest into output.
 - **The "security: []" no-auth comment is emitted ONLY on genuinely unauthenticated operations in php/rust/elixir.** These three previously stamped the "explicitly unauthenticated — pass the no-auth sentinel" comment on EVERY operation, including ones that inherit the global security requirement (where the code correctly passes null/None/nil, contradicting the comment). The comment is now split on `vendorExtensions.op.securityNone`: real `security: []` ops get the sentinel rationale, inherited-auth ops get an accurate "inherits the global security requirement; pass null" note. Runtime behaviour was already correct and is unchanged; only the misleading comment was gated. The other 9 already did this.
 - **The HTTPS→HTTP body-replay downgrade guard anchors on the CURRENT hop, not the original request, in all 12.** go/swift/dart/elixir previously compared the ORIGINAL request's scheme (go `via[0]`, swift `task.originalRequest`, dart the original `uri`, elixir `orig_url` threaded unchanged) against the next hop; an http→https→http redirect chain downgrades on the FINAL hop even though the first request was already http, so the original-anchor missed it and replayed a TLS-protected body in cleartext. Each now anchors on the hop that received the redirect (go `via[len-1]`, swift `task.currentRequest`, dart `currentUri`, elixir `url`). The SEPARATE cross-origin sensitive-header strip still uses the original URL (deliberate, do not conflate). 7 languages already did current-hop.

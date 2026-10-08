@@ -329,8 +329,14 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
         final String groupId = getPropertyOrDefault("groupId", invokerPackage);
         additionalProperties.put("groupId", groupId);
+        // Derive the artifactId from the spec (the invoker package's last
+        // segment, e.g. com.example.petstore -> petstore-client) rather than
+        // the openapi-generator default "openapi-kotlin-client", so the Gradle
+        // project name reflects the API like the other SDKs' package names do.
+        final String defaultArtifactId =
+                invokerPackage.substring(invokerPackage.lastIndexOf('.') + 1) + "-client";
         final String artifactId =
-                getPropertyOrDefault("artifactId", "openapi-kotlin-client");
+                getPropertyOrDefault("artifactId", defaultArtifactId);
         additionalProperties.put("artifactId", artifactId);
         final String artifactVersion = getPropertyOrDefault("artifactVersion", "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);

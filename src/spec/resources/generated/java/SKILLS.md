@@ -7,7 +7,7 @@ Add to your `pom.xml`:
 ```xml
 <dependency>
     <groupId>com.example.petstore</groupId>
-    <artifactId>openapi-java-client</artifactId>
+    <artifactId>petstore-client</artifactId>
     <version>1.0.0</version>
 </dependency>
 ```
@@ -15,7 +15,7 @@ Add to your `pom.xml`:
 Or with Gradle:
 
 ```groovy
-implementation 'com.example.petstore:openapi-java-client:1.0.0'
+implementation 'com.example.petstore:petstore-client:1.0.0'
 ```
 
 ## Quick Start

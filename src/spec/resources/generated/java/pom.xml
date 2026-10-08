@@ -2,9 +2,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.example.petstore</groupId>
-    <artifactId>openapi-java-client</artifactId>
+    <artifactId>petstore-client</artifactId>
     <packaging>jar</packaging>
-    <name>openapi-java-client</name>
+    <name>petstore-client</name>
     <description>A simplified Pet Store API for integration testing.</description>
     <version>1.0.0</version>
 
