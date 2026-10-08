@@ -61,3 +61,36 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 
 ## Clean layers (0 findings)
 Enums; composite/polymorphic/recursive models.
+
+## ROUND 5 — fresh validation sweep (2026-10-08, final-state goldens)
+
+Validation agent: all 12 Tier-3 fixes confirmed applied cleanly + consistently, no regressions.
+Two fresh divergence-sweep agents found the SDKs extremely tightly aligned; only these
+second-order / latent residuals remain (NONE affect CI-green or wire behaviour on the fixture):
+
+- [ ] **R5-1** `format: date` PARAMETER is a raw String in go/dart/swift vs a typed date in the
+  other 9 (`findPetsBornOn(bornOn)`). go (no date-only stdlib type) and swift (documented
+  date/date-time→one Foundation.Date ambiguity) are forced; **dart is the one unforced minority**
+  — dart's only temporal type is `DateTime` (like node's JS `Date`), and node maps `format: date`
+  params to `Date` + truncates via `ValueSerializer.stringifyDate`; dart could do the same but
+  drops to String. ACTIONABLE (dart only); a public-API type change.
+- [ ] **R5-2** Unknown/unsupported response `Content-Encoding`: 10 langs return the raw (still-
+  encoded) bytes from the decompress default branch; csharp + elixir RAISE. The documented
+  contract (java `ApiException` "a body whose Content-Encoding cannot be decoded") favours the
+  raise, so the 2 are arguably more-correct and the 10 should align to raise. Latent — no client
+  advertises an unknown codec. 10-language behaviour change if pursued; judgement call.
+- [ ] **R5-3** rust does not pin the shared 1000-deep JSON nesting cap (relies on serde_json's
+  ~128); the other 11 pin 1000. rust is STRICTER (rejects 129–1000 that others accept). Low
+  severity; rust could add the same byte-scan the non-Jackson SDKs use. CI-verified if changed.
+- [ ] **R5-4** Chained/multi-value `Content-Encoding` (comma list): csharp + node decode each
+  coding; the other 10 switch on the whole string and fall through to pass-through. Very rare
+  (clients advertise single codecs). Lowest priority.
+
+Accepted-not-defects reconfirmed by the sweep (do not re-chase): empty-path rejection layered
+(op-layer vs serializer) but behaviourally identical in all 12; OAuth2 expiry buffer min(exp,30)
++60s margin + no-redirect-on-token-POST uniform; schema defaults on deserialize uniform; required
+Options-field validation uniform; additionalProperties modelling uniform; status→type table,
+error hierarchy, depth-cap value, maxRedirects, text-content-type predicate, README/SKILLS
+structure all byte-consistent. The cross-origin sensitive-header STRIP anchoring on the original
+request (php/elixir/go) vs current hop (java/kotlin) is accepted design (more-conservative strip),
+distinct from the body-replay guard (which is correctly current-hop in all 12).
