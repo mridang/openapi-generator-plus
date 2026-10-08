@@ -1,6 +1,9 @@
 {{>api_info}}
 
 use super::{{baseClass}};
+{{#needsApiKeyLocation}}
+use super::ApiKeyLocation;
+{{/needsApiKeyLocation}}
 
 /// Scheme-specific authenticator for the {{schemeName}} security scheme.
 ///

@@ -1006,6 +1006,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final Map<String, Object> ctx = baseSchemeContext(spec);
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", superArgs);
+        // API-key schemes name an ApiKeyLocation variant in their superArgs, so
+        // the wrapper module must import that enum; other base classes do not
+        // (an unconditional import would be dead under -D warnings).
+        ctx.put("needsApiKeyLocation", "ApiKeyAuthenticator".equals(spec.baseClass()));
         // Basic, Bearer and API-key constructors validate their credentials and
         // return Result<Self, ConfigurationError>; the scheme wrapper forwards it.
         ctx.put("fallible", java.util.Set.of(
