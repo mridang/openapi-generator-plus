@@ -787,6 +787,7 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(
         FindPetsByStatusOptions? options = null
     )
@@ -1238,6 +1239,7 @@ public class PetApi : BaseApi
     /// <param name="server">Optional per-operation server override.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    [Obsolete("This operation is deprecated.")]
     public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(
         long petId,
         GetPetByIdServer? server = null

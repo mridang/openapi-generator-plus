@@ -226,6 +226,11 @@ class {{classname}}(BaseApi):
 {{/vendorExtensions.hasMultipleConsumes}}
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+{{#isDeprecated}}
+
+        .. deprecated::
+            This operation is deprecated.
+{{/isDeprecated}}
         """
 {{#pathParams}}
 {{#required}}

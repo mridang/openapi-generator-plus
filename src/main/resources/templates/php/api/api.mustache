@@ -143,6 +143,9 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
      * @throws \{{invokerPackage}}\Errors\ApiException
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {
@@ -403,6 +406,9 @@ class {{classname}} extends BaseApi
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<null>
      * @throws \{{invokerPackage}}\Errors\ApiException
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
      */
     public function {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{#nullable}} = null{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{#nullable}} = null{{/nullable}}{{/isOptions}}{{#isServer}}?{{{dataType}}} $server = null{{/isServer}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, ?string $contentType = null{{/vendorExtensions.op.hasMultipleConsumes}}): ApiResult
     {

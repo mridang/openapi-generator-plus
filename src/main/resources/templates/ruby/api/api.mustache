@@ -227,6 +227,9 @@ module {{moduleName}}
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+{{#isDeprecated}}
+      # @deprecated This operation is deprecated.
+{{/isDeprecated}}
       def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}

@@ -1021,6 +1021,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `find_pets_by_status` but returns the full `ApiResult`.
   """
+  @deprecated "This operation is deprecated."
   @spec find_pets_by_status_with_http_info(
           t(),
           PetstoreClient.Api.Options.FindPetsByStatusOptions.t() | nil,
@@ -1682,6 +1683,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_by_id` but returns the full `ApiResult`.
   """
+  @deprecated "This operation is deprecated."
   @spec get_pet_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do

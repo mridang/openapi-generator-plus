@@ -155,6 +155,9 @@ impl {{classname}} {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
     pub async fn {{operationId}}_with_http_info(
         &self,
 {{#vendorExtensions.op.signatureArgs}}

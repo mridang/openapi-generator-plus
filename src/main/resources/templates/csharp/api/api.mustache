@@ -220,6 +220,9 @@ public class {{classname}} : BaseApi
 {{/-first}}{{/-last}}{{/consumes}}
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
     public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
     {
 {{! L10: only guard `options` against null when the Options arg is non-nullable

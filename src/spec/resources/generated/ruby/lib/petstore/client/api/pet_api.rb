@@ -524,6 +524,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @deprecated This operation is deprecated.
       def find_pets_by_status_with_http_info(options = nil)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
@@ -812,6 +813,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @deprecated This operation is deprecated.
       def get_pet_by_id_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,

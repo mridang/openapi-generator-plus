@@ -607,6 +607,7 @@ export class PetApi extends BaseApi {
   /**
    * Finds Pets by status (with HTTP info)
    * @throws {ApiError} if fails to make API call
+   * @deprecated This operation is deprecated.
    */
   async findPetsByStatusWithHttpInfo(
     options?: FindPetsByStatusOptions,
@@ -962,6 +963,7 @@ export class PetApi extends BaseApi {
   /**
    * Find pet by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
+   * @deprecated This operation is deprecated.
    */
   async getPetByIdWithHttpInfo(
     petId: number,

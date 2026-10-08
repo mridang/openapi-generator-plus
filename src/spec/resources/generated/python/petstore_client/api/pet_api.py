@@ -694,6 +694,9 @@ class PetApi(BaseApi):
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+
+        .. deprecated::
+            This operation is deprecated.
         """
         path = "/pet/findByStatus"
         query_params: Dict[str, Any] = {}
@@ -1074,6 +1077,9 @@ class PetApi(BaseApi):
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
+
+        .. deprecated::
+            This operation is deprecated.
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")

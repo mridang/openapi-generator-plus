@@ -167,6 +167,9 @@ export class {{classname}} extends BaseApi {
   /**
    * {{&summary}} (with HTTP info)
    * @throws {ApiError} if fails to make API call
+{{#isDeprecated}}
+   * @deprecated This operation is deprecated.
+{{/isDeprecated}}
    */
   async {{nickname}}WithHttpInfo({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}

@@ -469,6 +469,7 @@ class PetApi : BaseApi {
      * Find out more about filtering
      * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
      */
+
     @Deprecated("This operation is deprecated.")
     suspend fun findPetsByStatus(options: FindPetsByStatusOptions? = null): List<Pet> =
         findPetsByStatusWithHttpInfo(options).let { result ->
@@ -480,6 +481,7 @@ class PetApi : BaseApi {
             )
         }
 
+    @Deprecated("This operation is deprecated.")
     suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions? = null): ApiResult<List<Pet>> {
         var path = "/pet/findByStatus"
         val queryParams = mutableMapOf<String, Any?>()
@@ -734,11 +736,14 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
      */
+
     @Deprecated("This operation is deprecated.")
     suspend fun getPetById(petId: Long): Pet = getPetById(petId, null)
 
+    @Deprecated("This operation is deprecated.")
     suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId, null)
 
+    @Deprecated("This operation is deprecated.")
     suspend fun getPetById(
         petId: Long,
         server: GetPetByIdServer? = null,
@@ -752,6 +757,7 @@ class PetApi : BaseApi {
             )
         }
 
+    @Deprecated("This operation is deprecated.")
     suspend fun getPetByIdWithHttpInfo(
         petId: Long,
         server: GetPetByIdServer? = null,

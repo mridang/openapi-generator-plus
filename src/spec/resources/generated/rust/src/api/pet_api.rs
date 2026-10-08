@@ -900,6 +900,7 @@ impl PetApi {
     }
 
     /// Performs the find_pets_by_status operation and returns the full API result.
+    #[deprecated]
     pub async fn find_pets_by_status_with_http_info(
         &self,
         options: Option<&FindPetsByStatusOptions>,
@@ -1474,6 +1475,7 @@ impl PetApi {
     }
 
     /// Performs the get_pet_by_id operation and returns the full API result.
+    #[deprecated]
     pub async fn get_pet_by_id_with_http_info(
         &self,
         pet_id: i64,

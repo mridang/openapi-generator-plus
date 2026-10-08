@@ -489,6 +489,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
+  @available(*, deprecated, message: "This operation is deprecated.")
   public func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions? = nil) async throws
     -> ApiResult<[Pet]>
   {
@@ -781,6 +782,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetById operation and returns the full API result.
+  @available(*, deprecated, message: "This operation is deprecated.")
   public func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)? = nil)
     async throws -> ApiResult<Pet>
   {

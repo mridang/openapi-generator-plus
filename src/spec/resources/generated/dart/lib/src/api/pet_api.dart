@@ -692,6 +692,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
+  @Deprecated('This operation is deprecated.')
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
     FindPetsByStatusOptions? options,
   ) async {
@@ -1098,6 +1099,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetById operation and returns the full API result.
+  @Deprecated('This operation is deprecated.')
   Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
     int petId,
     GetPetByIdServer? server,

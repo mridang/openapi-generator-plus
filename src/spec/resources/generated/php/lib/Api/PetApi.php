@@ -601,6 +601,7 @@ class PetApi extends BaseApi
 
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @deprecated This operation is deprecated.
      */
     public function findPetsByStatusWithHttpInfo(?FindPetsByStatusOptions $options = null): ApiResult
     {
@@ -1056,6 +1057,7 @@ class PetApi extends BaseApi
 
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @deprecated This operation is deprecated.
      */
     public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null): ApiResult
     {

@@ -129,6 +129,10 @@ func (a *{{classname}}) {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{
 }
 
 // {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
+{{#isDeprecated}}
+//
+// Deprecated: This operation is deprecated.
+{{/isDeprecated}}
 func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{#isPath}}{{paramName}} {{{dataType}}}{{/isPath}}{{#isBody}}{{paramName}} {{#nullable}}*{{/nullable}}{{{dataType}}}{{/isBody}}{{#isOptions}}options *opts.{{{dataType}}}{{/isOptions}}{{#isServer}}server {{{dataType}}}{{/isServer}}, {{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}requestContentType ...string{{/vendorExtensions.hasMultipleConsumes}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}any{{/returnType}}], error) {
 {{#hasAuthMethods}}
 	/* Per-operation auth is sourced from the Options object's Auth field. A nil

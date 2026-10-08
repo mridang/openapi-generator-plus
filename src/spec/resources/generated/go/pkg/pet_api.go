@@ -701,6 +701,8 @@ func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet
 }
 
 // FindPetsByStatusWithHTTPInfo performs the FindPetsByStatus operation and returns the full API result.
+//
+// Deprecated: This operation is deprecated.
 func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
 
 	path := "/pet/findByStatus"
@@ -1168,6 +1170,8 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 }
 
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
+//
+// Deprecated: This operation is deprecated.
 func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetById", err)
