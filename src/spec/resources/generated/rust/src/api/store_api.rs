@@ -112,11 +112,8 @@ impl StoreApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -751,11 +748,8 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Order",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1256,11 +1250,8 @@ impl StoreApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Order",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 

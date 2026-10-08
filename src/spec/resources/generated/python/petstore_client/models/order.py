@@ -26,10 +26,14 @@ class Order(BaseModel):
     Order
     """
 
+    # Example: 10
     id: Optional[StrictInt] = Field(default=None, alias="id")
+    # Example: 198772
     pet_id: Optional[StrictInt] = Field(default=None, alias="petId")
+    # Example: 7
     quantity: Optional[StrictInt] = Field(default=None, alias="quantity")
     ship_date: Optional[AwareDatetime] = Field(default=None, alias="shipDate")
+    # Example: 'approved'
     status: Optional[OrderStatusEnum] = Field(
         default=OrderStatusEnum.PLACED, alias="status", description="Order Status"
     )

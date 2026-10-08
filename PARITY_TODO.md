@@ -42,13 +42,13 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T3-1** docs: README H1 uses package name not spec title (go/rust/swift).
 - [x] **T3-2** docs: externalDocs now emitted at all levels — operation, tag (API class/module doc via `tagExternalDocs`), and model (`externalDocumentation`) — for dart + elixir; rust model link added. FIXED.
 - [x] **T3-3** docs: java/kotlin emit wrong operation externalDocs description text.
-- [ ] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
-- [ ] **T3-5** docs: elixir model docs thinnest (no field desc / deprecation / externalDocs).
+- [x] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
+- [-] **T3-5** → **FORCED.** elixir struct fields have no per-field doc slot (only `@moduledoc`); the moduledoc already carries the model description, named examples and (now) externalDocs. Per-field descriptions/deprecation can't attach to a defstruct field. Not a defect.
 - [ ] **T3-6** rust advertises zstd but not brotli.
 - [ ] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
 - [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
 - [ ] **T3-9** no field-dumping toString/repr on java/csharp/php/node/dart models.
-- [ ] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
+- [x] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
 - [ ] **T3-11** rust emits empty content-type boilerplate on bodyless ops.
 - [ ] **T3-12** setPetAvatar selector param name `requestContentType` vs `contentType` (node/php/ruby/elixir).
 - [ ] **T3-13** rust `#[default]` enum-variant vs schema field default mismatch (DefaultsModeEnum). *(latent)*

@@ -57,11 +57,15 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 }
 
 type Order struct {
-	Id       *int64    `json:"id,omitempty"`
-	PetId    *int64    `json:"petId,omitempty"`
+	// Example: 10
+	Id *int64 `json:"id,omitempty"`
+	// Example: 198772
+	PetId *int64 `json:"petId,omitempty"`
+	// Example: 7
 	Quantity *int32    `json:"quantity,omitempty"`
 	ShipDate *DateTime `json:"shipDate,omitempty"`
 	/* Status Order Status */
+	// Example: approved
 	Status   *OrderStatusEnum `json:"status,omitempty"`
 	Complete *bool            `json:"complete,omitempty"`
 }

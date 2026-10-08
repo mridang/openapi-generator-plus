@@ -17,7 +17,9 @@ public enum PetStatusEnum: String, Codable, Sendable, CaseIterable {
 }
 
 public struct Pet: Codable, Sendable, Equatable, Hashable {
+  /// Example: 10
   public var id: Int64?
+  /// Example: doggie
   public var name: String
   public var category: Category?
   public var photoUrls: Set<String>
@@ -27,14 +29,19 @@ public struct Pet: Codable, Sendable, Equatable, Hashable {
   public var status: PetStatusEnum?
   public var location: [AnyCodable]?
   /// Absolute URL to the pet's public profile page
+  /// Example: https://example.com/pets/fido
   public var homepageUrl: String?
   /// Optionally-relative thumbnail location
+  /// Example: /assets/thumb-fido.png
   public var thumbnailRef: String?
   /// RFC 6570 template for related-resource links
+  /// Example: https://example.com/pets/{id}/photos{?size}
   public var linkTemplate: String?
   /// Contact email for the pet's owner
+  /// Example: owner@example.com
   public var ownerEmail: String?
   /// Pet weight in kilograms (decimal precision)
+  /// Example: 12.345
   public var weightKg: Double?
 
   enum CodingKeys: String, CodingKey {

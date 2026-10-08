@@ -803,12 +803,19 @@ impl {{classname}} {
             auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
+{{#vendorExtensions.op.securityNone}}
             // security-none suppression: this operation is declared
             // `security: []` (explicitly unauthenticated). Pass the no-auth
             // sentinel — NOT None — so BaseApi suppresses auth entirely rather
             // than falling back to the client-level authenticator, which would
             // leak the client credential on reflect-style endpoints.
-            auth: {{#vendorExtensions.op.securityNone}}Some(crate::api::base_api::no_auth_sentinel()){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}None{{/vendorExtensions.op.securityNone}},
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
+            auth: None,
+{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
         };
 

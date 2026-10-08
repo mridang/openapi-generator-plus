@@ -17,6 +17,7 @@ class PetPassport(BaseModel):
     """
 
     pet: Optional[Pet] = Field(default=None, alias="pet")
+    # Example: dGVzdC10aHVtYm5haWw=
     thumbnail: Optional[Base64Bytes] = Field(
         default=None, alias="thumbnail", description="Base64-encoded primary thumbnail"
     )

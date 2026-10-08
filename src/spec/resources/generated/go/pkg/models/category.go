@@ -15,7 +15,9 @@ import (
 
 // Category is a model class generated from the OpenAPI schema.
 type Category struct {
+	// Example: 1
 	Id *int64 `json:"id,omitempty"`
+	// Example: Dogs
 	// Small breed — Chihuahua
 	// Large breed — GreatDane
 	Name *string `json:"name,omitempty"`

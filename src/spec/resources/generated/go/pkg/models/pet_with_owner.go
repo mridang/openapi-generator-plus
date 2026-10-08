@@ -57,7 +57,9 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 }
 
 type PetWithOwner struct {
-	Id        *int64      `json:"id,omitempty"`
+	// Example: 10
+	Id *int64 `json:"id,omitempty"`
+	// Example: doggie
 	Name      string      `json:"name"`
 	Category  *Category   `json:"category,omitempty"`
 	PhotoUrls Set[string] `json:"photoUrls"`
@@ -68,13 +70,17 @@ type PetWithOwner struct {
 	Status   *PetWithOwnerStatusEnum `json:"status,omitempty"`
 	Location *[]any                  `json:"location,omitempty"`
 	/* HomepageUrl Absolute URL to the pet's public profile page */
+	// Example: https://example.com/pets/fido
 	HomepageUrl *string `json:"homepageUrl,omitempty"`
 	/* ThumbnailRef Optionally-relative thumbnail location */
+	// Example: /assets/thumb-fido.png
 	ThumbnailRef *string `json:"thumbnailRef,omitempty"`
 	/* LinkTemplate RFC 6570 template for related-resource links */
+	// Example: https://example.com/pets/{id}/photos{?size}
 	LinkTemplate *string `json:"linkTemplate,omitempty"`
 	OwnerEmail   *string `json:"ownerEmail,omitempty"`
 	/* WeightKg Pet weight in kilograms (decimal precision) */
+	// Example: 12.345
 	WeightKg  *float64 `json:"weightKg,omitempty"`
 	OwnerName string   `json:"ownerName"`
 }

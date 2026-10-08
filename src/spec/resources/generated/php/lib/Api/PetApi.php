@@ -187,9 +187,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'multipart/form-data',
             '\Ds\Vector<Photo>',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -469,9 +468,8 @@ class PetApi extends BaseApi
             ['application/octet-stream'],
             'application/json',
             'string',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -555,9 +553,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             '\Ds\Vector<Pet>',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -661,9 +658,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             '\Ds\Vector<Pet>',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -751,9 +747,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -841,9 +836,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -926,9 +920,8 @@ class PetApi extends BaseApi
             ['image/jpeg', 'image/png'],
             'application/json',
             'string',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1011,9 +1004,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             'byte',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1108,9 +1100,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1203,9 +1194,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1288,9 +1278,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\PetPassport::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1392,9 +1381,8 @@ class PetApi extends BaseApi
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
             'string',
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1543,9 +1531,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1633,9 +1620,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1713,9 +1699,8 @@ class PetApi extends BaseApi
             [],
             $contentType ?? 'image/jpeg',
             null,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1781,9 +1766,8 @@ class PetApi extends BaseApi
             [],
             'application/json',
             null,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1880,9 +1864,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/x-www-form-urlencoded',
             \PetstoreClient\Models\ApiResponse::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1968,9 +1951,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Pet::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -2058,9 +2040,8 @@ class PetApi extends BaseApi
             ['application/json'],
             'multipart/form-data',
             \PetstoreClient\Models\ApiResponse::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -2166,9 +2147,8 @@ class PetApi extends BaseApi
             ['application/json'],
             $contentType ?? 'multipart/form-data',
             \PetstoreClient\Models\ApiResponse::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );

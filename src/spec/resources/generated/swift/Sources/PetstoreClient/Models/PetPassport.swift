@@ -11,6 +11,7 @@ import Foundation
 public struct PetPassport: Codable, Sendable, Equatable, Hashable {
   public var pet: Pet?
   /// Base64-encoded primary thumbnail
+  /// Example: dGVzdC10aHVtYm5haWw=
   public var thumbnail: Data?
   /// Base64-encoded scans of each passport page
   public var scans: [Data]?

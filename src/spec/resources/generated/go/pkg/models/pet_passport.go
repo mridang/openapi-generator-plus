@@ -17,6 +17,7 @@ import (
 type PetPassport struct {
 	Pet *Pet `json:"pet,omitempty"`
 	/* Thumbnail Base64-encoded primary thumbnail */
+	// Example: dGVzdC10aHVtYm5haWw=
 	Thumbnail *[]byte `json:"thumbnail,omitempty"`
 	/* Scans Base64-encoded scans of each passport page */
 	Scans    *[][]byte `json:"scans,omitempty"`

@@ -83,12 +83,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the client
-    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
-    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
-    # credential instead of falling back to it; nil would re-acquire the
-    # client-level authenticator and leak the credential on this unauthenticated
-    # operation.
+    # Operation inherits the global security requirement; pass nil so BaseApi
+    # falls back to the client-level authenticator.
     auth = nil
 
     if is_nil(order_id) do
@@ -832,12 +828,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the client
-    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
-    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
-    # credential instead of falling back to it; nil would re-acquire the
-    # client-level authenticator and leak the credential on this unauthenticated
-    # operation.
+    # Operation inherits the global security requirement; pass nil so BaseApi
+    # falls back to the client-level authenticator.
     auth = nil
 
     if is_nil(order_id) do
@@ -1438,12 +1430,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    # Operation declared `security: []` — no auth applied even if the client
-    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
-    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
-    # credential instead of falling back to it; nil would re-acquire the
-    # client-level authenticator and leak the credential on this unauthenticated
-    # operation.
+    # Operation inherits the global security requirement; pass nil so BaseApi
+    # falls back to the client-level authenticator.
     auth = nil
     path = "/store/order"
     server = Keyword.get(opts, :server)

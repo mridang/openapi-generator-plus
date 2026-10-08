@@ -393,11 +393,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Photo>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -752,11 +749,8 @@ impl PetApi {
             accepts: vec!["application/octet-stream"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -849,11 +843,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Pet>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1019,11 +1010,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<Pet>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1126,11 +1114,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1233,11 +1218,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1329,11 +1311,8 @@ impl PetApi {
             accepts: vec!["image/jpeg", "image/png"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1426,11 +1405,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1545,11 +1521,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1685,11 +1658,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1782,11 +1752,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "PetPassport",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -1898,11 +1865,8 @@ impl PetApi {
             accepts: vec!["image/jpeg", "image/png", "application/json"],
             content_type: request_content_type,
             return_type: "Vec<u8>",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2130,11 +2094,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2237,11 +2198,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2365,11 +2323,8 @@ impl PetApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2459,11 +2414,8 @@ impl PetApi {
             accepts: vec![],
             content_type: request_content_type,
             return_type: "",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2581,11 +2533,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2682,11 +2631,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "Pet",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2808,11 +2754,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 
@@ -2997,11 +2940,8 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: request_content_type,
             return_type: "ApiResponse",
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
             auth: None,
         };
 

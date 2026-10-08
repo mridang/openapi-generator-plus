@@ -17,7 +17,9 @@ class Category(BaseModel):
     Category
     """
 
+    # Example: 1
     id: Optional[StrictInt] = Field(default=None, alias="id")
+    # Example: 'Dogs'
     # Small breed
     # Toy or small breed dogs
     # >>> Chihuahua

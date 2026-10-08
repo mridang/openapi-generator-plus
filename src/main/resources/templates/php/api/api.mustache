@@ -355,10 +355,17 @@ class {{classname}} extends BaseApi
             $auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
+{{#vendorExtensions.op.securityNone}}
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}},
+            NoAuth::instance(),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
+            null,
+{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
             $allowReservedKeys
         );
@@ -618,10 +625,17 @@ class {{classname}} extends BaseApi
             $auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
+{{#vendorExtensions.op.securityNone}}
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
-            {{#vendorExtensions.op.securityNone}}NoAuth::instance(){{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}},
+            NoAuth::instance(),
+{{/vendorExtensions.op.securityNone}}
+{{^vendorExtensions.op.securityNone}}
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
+            null,
+{{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
             $allowReservedKeys
         );

@@ -139,6 +139,9 @@ type {{classname}} struct {
 {{#description}}
 	/* {{name}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}} */
 {{/description}}
+{{#example}}
+	// Example: {{{.}}}
+{{/example}}
 {{#vendorExtensions.pluralExamples}}
 	// {{summary}} — {{value}}
 {{/vendorExtensions.pluralExamples}}

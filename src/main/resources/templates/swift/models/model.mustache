@@ -51,14 +51,14 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#description}}
     /// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
-{{! The scalar example doc line is intentionally NOT emitted. When the schema
-    declares no example, the codegen supplies the literal string null as the
-    example value, and that literal is truthy in Mustache, so an example section
-    would stamp a misleading Example null doc line onto nearly every property.
-    jmustache offers no string-equality to filter that literal out in-template,
-    and this SDK has no Java example sanitizer, so — matching the Go SDK, which
-    is in the same position — only the structured pluralExamples block, which
-    exists solely for real named examples, is rendered. }}
+{{! The "null" example placeholder the generator synthesises when a schema
+    declares no example is nulled by AbstractBetterCodegen.sanitizeByteArrayExample
+    (universally, for all 12 generators), so the example section below falls
+    through cleanly for exampleless properties and only real scalar examples
+    are rendered. }}
+{{#example}}
+    /// Example: {{{.}}}
+{{/example}}
 {{#vendorExtensions.pluralExamples}}
     /// ## {{summary}}
     /// {{description}}

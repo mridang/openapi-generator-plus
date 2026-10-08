@@ -90,9 +90,8 @@ class StoreApi extends BaseApi
             [],
             'application/json',
             null,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -613,9 +612,8 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Order::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );
@@ -1018,9 +1016,8 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             \PetstoreClient\Models\Order::class,
-            /* security:[] — explicitly unauthenticated; pass the NoAuth
-             * sentinel so BaseApi suppresses the client credential instead
-             * of falling back to it. */
+            /* Inherits the global security requirement; pass null so BaseApi
+             * falls back to the client credential. */
             null,
             $allowReservedKeys
         );

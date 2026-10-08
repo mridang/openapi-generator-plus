@@ -30,7 +30,9 @@ class Pet(BaseModel):
         `Learn more about the Pet model <https://example.com/docs/pet>`_
     """
 
+    # Example: 10
     id: Optional[StrictInt] = Field(default=None, alias="id")
+    # Example: 'doggie'
     name: StrictStr = Field(alias="name")
     category: Optional[Category] = Field(default=None, alias="category")
     photo_urls: Set[StrictStr] = Field(alias="photoUrls")
@@ -40,26 +42,31 @@ class Pet(BaseModel):
         default=None, alias="status", description="pet status in the store"
     )
     location: Optional[List[object]] = Field(default=None, alias="location")
+    # Example: 'https://example.com/pets/fido'
     homepage_url: Optional[UrlStr] = Field(
         default=None,
         alias="homepageUrl",
         description="Absolute URL to the pet's public profile page",
     )
+    # Example: '/assets/thumb-fido.png'
     thumbnail_ref: Optional[StrictStr] = Field(
         default=None,
         alias="thumbnailRef",
         description="Optionally-relative thumbnail location",
     )
+    # Example: 'https://example.com/pets/{id}/photos{?size}'
     link_template: Optional[StrictStr] = Field(
         default=None,
         alias="linkTemplate",
         description="RFC 6570 template for related-resource links",
     )
+    # Example: 'owner@example.com'
     owner_email: Optional[EmailStr] = Field(
         default=None,
         alias="ownerEmail",
         description="Contact email for the pet's owner",
     )
+    # Example: 12.345
     weight_kg: Optional[JsonNumber] = Field(
         default=None,
         alias="weightKg",

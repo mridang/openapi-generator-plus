@@ -11,6 +11,7 @@ import Foundation
 public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
   /// Base64-encoded image data
   public var data: Data
+  /// Example: image/jpeg
   public var mimeType: String
 
   enum CodingKeys: String, CodingKey {

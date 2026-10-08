@@ -17,6 +17,7 @@ class SetPetAvatarRequest(BaseModel):
     """
 
     data: Base64Bytes = Field(alias="data", description="Base64-encoded image data")
+    # Example: 'image/jpeg'
     mime_type: StrictStr = Field(alias="mimeType")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the

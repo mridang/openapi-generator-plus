@@ -354,6 +354,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     """
 
 {{#vars}}
+{{#example}}
+    # Example: {{{.}}}
+{{/example}}
 {{#vendorExtensions.pluralExamples}}
     # {{summary}}
     # {{description}}
