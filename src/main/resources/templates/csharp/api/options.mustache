@@ -19,11 +19,15 @@ public sealed class {{className}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
 {{#deprecated}}
-    {{! C#'s [Obsolete] is enforced — the generated API reads this field
-        internally to build the request, which trips CS0618 under the strict
-        build's TreatWarningsAsErrors. A doc-only deprecation note surfaces the
-        signal in IntelliSense without breaking self-consumption, matching the
-        doc-comment cohort (Go/Python/Ruby/Elixir). }}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
     /// <remarks>This parameter is deprecated.</remarks>
 {{/deprecated}}
     public required {{{dataType}}} {{pascalParamName}} { get; init; }
@@ -33,11 +37,15 @@ public sealed class {{className}}
     /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
 {{/description}}
 {{#deprecated}}
-    {{! C#'s [Obsolete] is enforced — the generated API reads this field
-        internally to build the request, which trips CS0618 under the strict
-        build's TreatWarningsAsErrors. A doc-only deprecation note surfaces the
-        signal in IntelliSense without breaking self-consumption, matching the
-        doc-comment cohort (Go/Python/Ruby/Elixir). }}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
     /// <remarks>This parameter is deprecated.</remarks>
 {{/deprecated}}
     public {{{dataType}}}? {{pascalParamName}} { get; init; }

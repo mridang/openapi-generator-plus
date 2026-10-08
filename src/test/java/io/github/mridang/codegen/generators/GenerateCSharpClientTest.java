@@ -34,12 +34,12 @@ class GenerateCSharpClientTest {
    * <p>The deprecation is rendered as an XML-doc {@code <remarks>} note rather
    * than the enforced {@code [Obsolete]} attribute. {@code [Obsolete]} is
    * compile-enforced: the generated {@code PetApi} reads {@code options.Status}
-   * internally to build the request, which trips {@code CS0618} under the strict
-   * build's {@code TreatWarningsAsErrors}. The doc note still surfaces the
+   * internally to build the request, and the build/static-analysis specs
+   * compile with {@code dotnet build --warnaserror}, which escalates {@code
+   * CS0618} to a hard error ({@code .editorconfig}'s {@code severity = none}
+   * does not override {@code --warnaserror}). The doc note surfaces the
    * deprecation in IntelliSense while compiling cleanly, placing C# in the
-   * doc-comment cohort (Go/Python/Ruby/Elixir) — the languages whose enforced
-   * markers (Java/Kotlin/Swift/Dart/Rust) survive only because their builds do
-   * not escalate self-consumption of a deprecated member to an error.
+   * doc-comment cohort (Go/Python/Ruby/Elixir).
    *
    * <p>The type is intentionally left untouched ({@code string?}): {@code status}
    * has {@code allowEmptyValue: true} and must still accept an empty value — only
@@ -56,8 +56,10 @@ class GenerateCSharpClientTest {
         Files.readString(
             OUTPUT_DIR.resolve("src/PetstoreClient/Api/Options/FindPetsByStatusOptions.cs"));
 
-    // The Status field must carry the C# doc-comment deprecation note and keep
-    // its nullable string type (allowEmptyValue must still accept an empty value).
+    // The Status field must carry the C# doc-comment deprecation note (not
+    // [Obsolete], which the generated PetApi's self-consumption turns into a
+    // CS0618 error under `dotnet build --warnaserror`) and keep its nullable
+    // string type (allowEmptyValue must still accept an empty value).
     assertThat(options)
         .as("deprecated query param `status` must be marked deprecated in the Options class")
         .contains("/// <remarks>This parameter is deprecated.</remarks>")

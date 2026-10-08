@@ -202,9 +202,12 @@ public class OAuth2TokenManager {
             }
             this.accessToken = accessTokenNode.asText();
             if (json.has("refresh_token")) {
-                String newRefreshToken = json.get("refresh_token").asText();
-                if (newRefreshToken != null && !newRefreshToken.isEmpty()) {
-                    this.refreshToken = newRefreshToken;
+                /* Require a JSON string (like access_token above): asText() would
+                 * otherwise coerce a numeric/boolean refresh_token into a string,
+                 * which the other SDKs reject. Non-string values are ignored. */
+                JsonNode refreshTokenNode = json.get("refresh_token");
+                if (refreshTokenNode.isTextual() && !refreshTokenNode.asText().isEmpty()) {
+                    this.refreshToken = refreshTokenNode.asText();
                 }
             }
             if (json.has("expires_in") && !json.get("expires_in").isNull()) {

@@ -210,9 +210,13 @@ class OAuth2TokenManager {
         }
         this.accessToken = accessTokenElement.content
         if (jsonObject.containsKey("refresh_token")) {
-            val newRefreshToken = (jsonObject["refresh_token"] as? JsonPrimitive)?.contentOrNull
-            if (!newRefreshToken.isNullOrEmpty()) {
-                this.refreshToken = newRefreshToken
+            // Require a JSON string (like access_token above): contentOrNull would
+            // otherwise return the text of a numeric/boolean refresh_token, which
+            // the other SDKs reject. Non-string values are ignored.
+            val refreshTokenElement = jsonObject["refresh_token"] as? JsonPrimitive
+            if (refreshTokenElement != null && refreshTokenElement.isString &&
+                refreshTokenElement.content.isNotEmpty()) {
+                this.refreshToken = refreshTokenElement.content
             }
         }
         val expiresInElement = jsonObject["expires_in"]

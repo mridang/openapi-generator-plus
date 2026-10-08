@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 
@@ -56,6 +57,21 @@ class OAuth2TokenManagerTest {
     manager.getAccessToken("https://auth.example.com/token", params);
 
     assertEquals("rt", manager.getRefreshToken());
+  }
+
+  @Test
+  void ignoresNonStringRefreshToken() {
+    // A numeric (non-string) refresh_token must be ignored, not coerced to a
+    // string — matching the other SDKs, which require a JSON string.
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(
+        fakeClient("{\"access_token\":\"at\",\"refresh_token\":12345,\"expires_in\":3600}"));
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertNull(manager.getRefreshToken());
   }
 
   @Test

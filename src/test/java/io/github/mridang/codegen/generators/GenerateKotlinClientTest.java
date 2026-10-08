@@ -58,4 +58,5 @@ class GenerateKotlinClientTest {
         .contains("@Deprecated(\"This parameter is deprecated.\")")
         .contains("val status: String?");
   }
+
 }
