@@ -313,6 +313,18 @@ class {{classname}} : BaseApi {
 {{/formParams}}
 
 {{/hasFormParams}}
+{{#consumes}}{{#-last}}{{^-first}}
+        // Reject an unrecognised requestContentType client-side so a typo never
+        // rides the wire as an undeclared Content-Type (matching java/elixir and
+        // the other SDKs); null defaults to the first declared type.
+        val declaredConsumes = listOf({{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}})
+        val effectiveRequestContentType = when {
+            requestContentType == null -> "{{vendorExtensions.op.effectiveConsumes}}"
+            requestContentType in declaredConsumes -> requestContentType
+            else -> throw IllegalArgumentException(
+                "Unsupported request content-type '$requestContentType' for {{operationId}}; declared types are $declaredConsumes")
+        }
+{{/-first}}{{/-last}}{{/consumes}}
         return invokeApiForResult{{#returnType}}<{{{returnType}}}>{{/returnType}}{{^returnType}}<Unit>{{/returnType}}(
                 "{{httpMethod}}",
                 path,
@@ -320,7 +332,7 @@ class {{classname}} : BaseApi {
                 headerParams,
                 {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
                 arrayOf({{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}),
-                {{#consumes}}{{#-last}}{{^-first}}requestContentType ?: {{/-first}}{{/-last}}{{/consumes}}"{{vendorExtensions.op.effectiveConsumes}}",
+                {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}})
     }
     {{/operation}}

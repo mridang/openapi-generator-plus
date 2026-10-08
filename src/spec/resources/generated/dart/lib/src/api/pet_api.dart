@@ -1690,6 +1690,16 @@ class PetApi extends BaseApi {
     final headerParams = <String, String>{};
 
     final Object requestBody = body;
+    /* Reject an unrecognised requestContentType client-side so a typo never
+     * rides the wire as an undeclared Content-Type (matching java/elixir and
+     * the other SDKs); null defaults to the first declared type below. */
+    const declaredConsumes = ['image/jpeg', 'image/png', 'application/json'];
+    if (requestContentType != null &&
+        !declaredConsumes.contains(requestContentType)) {
+      throw ArgumentError(
+        "Unsupported request content-type '$requestContentType' for setPetAvatar; declared types are $declaredConsumes",
+      );
+    }
 
     return invokeApiForResult<void>(
       method: 'PUT',
@@ -2132,6 +2142,19 @@ class PetApi extends BaseApi {
             requestContentType == 'multipart/form-data')
         ? formBody
         : options.file;
+    /* Reject an unrecognised requestContentType client-side so a typo never
+     * rides the wire as an undeclared Content-Type (matching java/elixir and
+     * the other SDKs); null defaults to the first declared type below. */
+    const declaredConsumes = [
+      'multipart/form-data',
+      'application/octet-stream',
+    ];
+    if (requestContentType != null &&
+        !declaredConsumes.contains(requestContentType)) {
+      throw ArgumentError(
+        "Unsupported request content-type '$requestContentType' for uploadPetDocument; declared types are $declaredConsumes",
+      );
+    }
 
     return invokeApiForResult<ApiResponse>(
       method: 'POST',

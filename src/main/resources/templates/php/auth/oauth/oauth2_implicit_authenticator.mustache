@@ -88,7 +88,12 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
          * present so existing params are preserved, '?' otherwise. */
         $separator = str_contains($this->authorizationUrl, '?') ? '&' : '?';
 
-        return $this->authorizationUrl . $separator . http_build_query($params);
+        /* http_build_query defaults to PHP_QUERY_RFC1738 (space -> '+'), but a
+         * query component must use %20 per RFC 3986 (a strict server reads '+'
+         * as a literal plus). Force RFC3986 so a space in scope/state/client_id
+         * is %20, matching the other SDKs. The token-exchange POST body keeps
+         * the RFC1738 '+' default (correct for application/x-www-form-urlencoded). */
+        return $this->authorizationUrl . $separator . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
     }
 
     /**

@@ -169,6 +169,18 @@ test('set pet avatar', function (): void {
     unlink($tmpFile);
 });
 
+test('set pet avatar rejects an unrecognised request content-type', function (): void {
+    // An unknown $contentType must be rejected client-side, not passed onto the
+    // wire as an undeclared Content-Type.
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, "\xFF\xD8\xFF");
+    $body = new \SplFileObject($tmpFile, 'r');
+
+    expect(fn () => $this->api->setPetAvatar(1, $body, 'application/unknown-type'))
+        ->toThrow(\InvalidArgumentException::class);
+    unlink($tmpFile);
+});
+
 test('get pet avatar', function (): void {
     $result = $this->api->getPetAvatar(1);
 

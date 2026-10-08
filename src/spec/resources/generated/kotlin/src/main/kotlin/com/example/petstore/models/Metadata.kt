@@ -28,4 +28,29 @@ data class Metadata(
 ) {
     @kotlinx.serialization.Transient
     val additionalProperties: MutableMap<String, @Contextual Any?> = mutableMapOf()
+
+  /* Kotlin's synthesized data-class equals/hashCode compare Array and
+   * ByteArray by reference identity (and List<ByteArray> bottoms out in
+   * reference-equal elements), so two instances decoded from identical JSON
+   * would not be equal and would hash differently. The overrides below route
+   * those fields through contentEquals/contentHashCode (element-wise for
+   * List<ByteArray>) while every other field keeps ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as Metadata
+        if (createdAt != other.createdAt) return false
+        // The additionalProperties overflow bucket is a @Transient property in the
+        // class body, so Kotlin's synthesized data-class equals excludes it. Fold
+        // it in here so two instances carrying different extra keys are unequal.
+        if (additionalProperties != other.additionalProperties) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + (createdAt?.hashCode() ?: 0)
+        result = 31 * result + additionalProperties.hashCode()
+        return result
+    }
 }

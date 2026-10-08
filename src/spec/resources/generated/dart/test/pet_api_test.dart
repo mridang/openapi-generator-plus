@@ -192,6 +192,20 @@ void main() {
       await api.setPetAvatar(1, Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]));
     });
 
+    test('setPetAvatar rejects an unrecognised request content-type', () async {
+      final api = _newPetApiForIntegration();
+      // An unknown requestContentType must be rejected client-side (ArgumentError),
+      // not passed onto the wire as an undeclared Content-Type.
+      await expectLater(
+        api.setPetAvatar(
+          1,
+          Uint8List.fromList([0xFF, 0xD8, 0xFF]),
+          'application/unknown-type',
+        ),
+        throwsArgumentError,
+      );
+    });
+
     /* binary-request-body-streamed-raw (canonical scenario C1): setPetAvatar's
      * request body is declared `type: string, format: binary` with a declared
      * Content-Type of `image/jpeg`. The raw bytes must reach the wire UNCHANGED

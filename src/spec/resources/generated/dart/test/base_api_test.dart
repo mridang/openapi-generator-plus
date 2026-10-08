@@ -786,6 +786,43 @@ void main() {
       },
     );
 
+    test('deserializes JSON response when server omits Content-Type', () async {
+      /* Some servers send a JSON body with NO Content-Type header. The SDK
+       * must default an absent/empty content-type to JSON and still
+       * deserialize, rather than dropping the body. A raw socket is used
+       * because dart's HttpServer injects a default text/plain content-type. */
+      final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((socket) {
+        const body =
+            '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}';
+        socket.write(
+          'HTTP/1.1 200 OK\r\n'
+          'Content-Length: ${body.length}\r\n'
+          'Connection: close\r\n'
+          '\r\n'
+          '$body',
+        );
+        socket.flush().then((_) => socket.close());
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1, null);
+        expect(result.statusCode, equals(200));
+        expect(
+          result.data,
+          isNotNull,
+          reason: 'A JSON body with no Content-Type must still be deserialized',
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     test('serializes boolean query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       String capturedUrl = '';

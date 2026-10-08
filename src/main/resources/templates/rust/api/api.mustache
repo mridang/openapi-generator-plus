@@ -232,6 +232,21 @@ impl {{classname}} {
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
         request_content_type: &str,
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+{{#consumes.1}}
+        // Reject an unrecognised request content-type client-side so a typo
+        // never rides the wire as an undeclared Content-Type (matching
+        // java/elixir and the other SDKs). The default entry point always
+        // passes a declared type, so only an explicit bad selector trips this.
+        const DECLARED_CONSUMES: &[&str] = &[{{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}}];
+        if !DECLARED_CONSUMES.contains(&request_content_type) {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "unsupported request content-type '{}' for {{classname}}.{{operationId}}; declared types are {:?}",
+                    request_content_type, DECLARED_CONSUMES
+                )),
+            ));
+        }
+{{/consumes.1}}
 {{#hasAuthMethods}}
         // Per-operation auth is folded into the Options struct: source the
         // authenticator from `options.auth` when present, otherwise pass None so

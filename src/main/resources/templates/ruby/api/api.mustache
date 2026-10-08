@@ -413,13 +413,23 @@ module {{moduleName}}
 {{#vendorExtensions.hasMultipleConsumes}}
         # This operation declares multiple request content-types. The optional
         # `content_type:` selector lets the caller choose among the declared
-        # types; when unset (or set to a type the operation does not declare) it
-        # falls back to the first declared type, preserving the historical
-        # behaviour of always sending '{{vendorExtensions.op.effectiveConsumes}}'.
+        # types; when nil it defaults to the first declared type. An
+        # unrecognised selector is rejected client-side so a typo never rides
+        # the wire as an undeclared Content-Type (matching java/elixir and the
+        # other SDKs), rather than being silently dropped.
         # NOTE: this only changes the Content-Type header — the caller must still
         # supply a body the selected content-type accepts.
         declared_consumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}]
-        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
+        resolved_content_type =
+          if content_type.nil?
+            declared_consumes.first
+          elsif declared_consumes.include?(content_type)
+            content_type
+          else
+            raise ArgumentError,
+                  "Unsupported request content-type '#{content_type}' for " \
+                  "{{operationId}}; declared types are #{declared_consumes}"
+          end
 
         invoke_api_for_result(
           :{{httpMethod}}, path, query_params, header_params, request_body,

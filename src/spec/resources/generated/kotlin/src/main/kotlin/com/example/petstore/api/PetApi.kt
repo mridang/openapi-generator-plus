@@ -165,6 +165,7 @@ class PetApi : BaseApi {
         var path = "/pet"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "POST",
             path,
@@ -281,6 +282,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<PetTreatment>(
             "POST",
             path,
@@ -344,6 +346,7 @@ class PetApi : BaseApi {
         if (cookieParts.isNotEmpty()) {
             headerParams["Cookie"] = cookieParts.joinToString("; ")
         }
+
         return invokeApiForResult<Unit>(
             "DELETE",
             path,
@@ -400,6 +403,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<ByteArray>(
             "GET",
             path,
@@ -442,6 +446,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<List<Pet>>(
             "GET",
             path,
@@ -499,6 +504,7 @@ class PetApi : BaseApi {
             headerParams["Report-Date"] =
                 ValueSerializer.serializeStyled("Report-Date", options!!.reportDate, "header", "LocalDate", null, "simple", false) as String
         }
+
         return invokeApiForResult<List<Pet>>(
             "GET",
             path,
@@ -557,6 +563,7 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -615,6 +622,7 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -658,6 +666,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<ByteArray>(
             "GET",
             path,
@@ -701,6 +710,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<ByteArray>(
             "GET",
             path,
@@ -763,6 +773,7 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -828,6 +839,7 @@ class PetApi : BaseApi {
                 )
         }
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -871,6 +883,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<PetPassport>(
             "GET",
             path,
@@ -927,6 +940,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<ByteArray>(
             "GET",
             path,
@@ -1015,6 +1029,7 @@ class PetApi : BaseApi {
                 )
         }
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -1073,6 +1088,7 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "GET",
             path,
@@ -1123,6 +1139,20 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
+        // Reject an unrecognised requestContentType client-side so a typo never
+        // rides the wire as an undeclared Content-Type (matching java/elixir and
+        // the other SDKs); null defaults to the first declared type.
+        val declaredConsumes = listOf("image/jpeg", "image/png", "application/json")
+        val effectiveRequestContentType =
+            when {
+                requestContentType == null -> "image/jpeg"
+                requestContentType in declaredConsumes -> requestContentType
+                else -> throw IllegalArgumentException(
+                    "Unsupported request content-type '$requestContentType' for setPetAvatar; declared types are $declaredConsumes",
+                )
+            }
+
         return invokeApiForResult<Unit>(
             "PUT",
             path,
@@ -1130,7 +1160,7 @@ class PetApi : BaseApi {
             headerParams,
             body,
             arrayOf(),
-            requestContentType ?: "image/jpeg",
+            effectiveRequestContentType,
             null,
         )
     }
@@ -1169,6 +1199,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Unit>(
             "PUT",
             path,
@@ -1289,6 +1320,7 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Pet>(
             "PUT",
             path,
@@ -1411,6 +1443,19 @@ class PetApi : BaseApi {
             formBody["notes"] = options.notes
         }
 
+        // Reject an unrecognised requestContentType client-side so a typo never
+        // rides the wire as an undeclared Content-Type (matching java/elixir and
+        // the other SDKs); null defaults to the first declared type.
+        val declaredConsumes = listOf("multipart/form-data", "application/octet-stream")
+        val effectiveRequestContentType =
+            when {
+                requestContentType == null -> "multipart/form-data"
+                requestContentType in declaredConsumes -> requestContentType
+                else -> throw IllegalArgumentException(
+                    "Unsupported request content-type '$requestContentType' for uploadPetDocument; declared types are $declaredConsumes",
+                )
+            }
+
         return invokeApiForResult<ApiResponse>(
             "POST",
             path,
@@ -1418,7 +1463,7 @@ class PetApi : BaseApi {
             headerParams,
             formBody,
             arrayOf("application/json"),
-            requestContentType ?: "multipart/form-data",
+            effectiveRequestContentType,
             null,
         )
     }

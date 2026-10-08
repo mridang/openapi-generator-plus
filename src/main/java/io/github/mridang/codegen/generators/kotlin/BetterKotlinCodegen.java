@@ -853,7 +853,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     hasContentEqualsField = true;
                 }
             }
-            if (hasContentEqualsField) {
+            // A model with an additionalProperties overflow bucket also needs the
+            // hand-written equals/hashCode: the bucket is a @Transient property in
+            // the class body (not the primary constructor), so the synthesized
+            // data-class equals/hashCode silently exclude it — two instances with
+            // different extra keys would otherwise compare equal. Emitting the
+            // override lets the template fold the bucket into the comparison.
+            if (hasContentEqualsField || model.isAdditionalPropertiesTrue) {
                 modelMap.put("hasContentEqualsField", true);
             }
         }

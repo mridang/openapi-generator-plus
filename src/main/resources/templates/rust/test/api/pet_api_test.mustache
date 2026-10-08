@@ -223,6 +223,21 @@ async fn test_pet_api_set_pet_avatar() {
 }
 
 #[tokio::test]
+async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
+    let api = new_pet_api_for_integration();
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF];
+    // An unknown request content-type must be rejected client-side (a typed Err),
+    // not passed onto the wire as an undeclared Content-Type.
+    let result = api
+        .set_pet_avatar_with_content_type(1, image_bytes, "application/unknown-type")
+        .await;
+    assert!(
+        result.is_err(),
+        "expected an error for an undeclared request content-type"
+    );
+}
+
+#[tokio::test]
 async fn test_pet_api_get_pet_avatar() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_avatar(1).await;

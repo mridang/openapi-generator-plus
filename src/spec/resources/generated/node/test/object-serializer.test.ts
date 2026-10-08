@@ -715,6 +715,15 @@ describe("ObjectSerializer", () => {
       ).toBe("round-trip");
     });
 
+    test("deserialize: an invalid base64 thumbnail is rejected, not silently truncated", () => {
+      // '!!!!' is outside the base64 alphabet. Buffer.from would silently yield
+      // empty bytes; decodeBase64 must reject it, matching the strict decoders
+      // in ruby/php/python/elixir/go/rust.
+      expect(() =>
+        ObjectSerializer.deserialize({ thumbnail: "!!!!" }, PetPassport),
+      ).toThrow();
+    });
+
     test("round-trip: serialize then deserialize preserves the Buffer bytes", () => {
       const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
       const passport = new PetPassport({

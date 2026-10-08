@@ -50,7 +50,7 @@ test('builds authorization url with required params', function (): void {
     expect($url)->toContain('response_type=code');
     expect($url)->toContain('client_id=my-client-id');
     expect($url)->toContain('redirect_uri=' . urlencode('https://app.example.com/callback'));
-    expect($url)->toContain('scope=read+write');
+    expect($url)->toContain('scope=read%20write');
     expect($url)->toContain('state=csrf-state');
 });
 

@@ -220,6 +220,24 @@ trait objects have no RTTI). The `NO_AUTH` sentinel exists in all twelve; its sh
 forced (elixir a unique atom, rust pointer-identity, ruby a frozen object, php its own
 file per PSR-4).
 
+**`format: number` (bare, no format) maps to the native float in ruby/swift/go, not an arbitrary-precision decimal.** java/kotlin/csharp (`BigDecimal`/`decimal`), python (`Decimal`) and node (branded `Decimal` + `JSON.rawJSON`) preserve full textual precision; ruby (`Float`), swift (`Double`) and go (`float64`) do not. This reads like a defect but is a **deliberate, documented** decision — each of the three ships an identical "Decimal / `format: number` precision" caveat in its README explaining the forcing feature and the caller opt-in: ruby's `JSON.generate(BigDecimal)` emits scientific/quoted text that breaks the unquoted-number wire form (ruby's `object_serializer` test asserts `weightKg:1.5` unquoted and explicitly warns that Decimal modelling "regressed to emitting a quoted string"); Foundation's `JSONDecoder` decodes JSON numbers into `Double` (opt in with `userInfo[.useDecimal]`); Go's `encoding/json` has no stdlib decimal (use `math/big.Rat`). Do **not** "align" these to a decimal type — it reverses the documented decision, breaks ruby's unquoted-number contract, and the three are consistent with each other. (A read-only audit that doesn't read the README caveats will mislabel this as an unforced defect.)
+
+## Resolved cross-language fixes (now consistent — do NOT re-flag as defects)
+
+These were real cross-language defects found by the parity audits and FIXED to a
+single consistent behaviour. They are listed so a future audit recognises the
+current behaviour as intentional and does not "rediscover" the old divergence.
+
+- **Query / authorize-URL space encoding is `%20` everywhere** (RFC 3986), including php's OAuth2 `buildAuthorizationUrl` (`http_build_query(..., PHP_QUERY_RFC3986)`) and ruby's Faraday path (custom `QueryParamsEncoder`). The x-www-form-urlencoded request BODY still uses `+` (correct there). Do not "simplify" any authorize-URL back to a default encoder.
+- **go serializes with HTML escaping OFF** (`json.Encoder` + `SetEscapeHTML(false)`), so `<`, `>`, `&` go on the wire literally like every other SDK — not `<`/`>`/`&`.
+- **go error-body JSON parsing is depth-capped** (`pkg/errors` has its own `errorBodyJSONDepth`/`unmarshalErrorBody`, duplicated because the errors package cannot import the root package). A non-2xx body cannot be a stack-overflow DoS vector; do not revert `FromResponse`/`GetTypedErrorBody` to a raw `json.Unmarshal`.
+- **dart defaults an absent/empty response Content-Type to JSON** (`responseContentType.isEmpty || isJsonMime(...)`), so a JSON body with no Content-Type is deserialized, not dropped — matching swift/node.
+- **rust `to_path_value` does NOT date-truncate.** It is a plain stringify; a `format: date` param is a `NaiveDate` (already `YYYY-MM-DD` by its type) and a `format: date-time` param keeps its full RFC 3339 instant. The old string-shape heuristic that trimmed any `...T...` value to date-only is removed (it corrupted date-time path params).
+- **rust `value_serializer::serialize_styled` never panics.** An empty required path is rejected at the operation layer (`ConfigurationError::InvalidArgument`), per the error contract (a typed Err, never a panic).
+- **The multi-consumes request content-type selector REJECTS an unrecognised value in all 12** (java/elixir already did; go/swift/ruby no longer silently fall back to the first type; python/csharp/php/kotlin/dart/rust no longer pass an arbitrary value onto the wire). Each throws its language's argument/validation error (`IllegalArgumentException`/`ArgumentError`/`ValueError`/`ArgumentException`/`\InvalidArgumentException`/`ConfigurationError::InvalidArgument`/go `error`). null still defaults to the first declared type. A typo never rides the wire as an undeclared Content-Type.
+- **kotlin model `equals`/`hashCode` include the `additionalProperties` overflow bucket.** The bucket is a `@Transient` body property the synthesized data-class equality would exclude, so models with additionalProperties get the hand-written override (the generator already did this for `ByteArray` fields). Two instances differing only in extra keys are unequal.
+- **python and node reject malformed base64 on decode** (python `b64decode(validate=True)`; node `decodeBase64` validates the alphabet/length before `Buffer.from`). They no longer silently truncate invalid input, matching ruby/php/elixir/go/rust.
+
 ## Known-thin gates (WONTFIX)
 
 Audited: every language's lint/format/type-check runs in **check mode** with honestly

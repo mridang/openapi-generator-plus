@@ -326,6 +326,18 @@ class {{classname}} extends BaseApi
 {{/bodyParam}}
 {{/hasFormParams}}
 
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* Reject an unrecognised $contentType client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs); null defaults to the first declared type below. */
+        $declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
+        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported request content-type '" . $contentType
+                    . "' for {{operationId}}; declared types are " . implode(', ', $declaredConsumes)
+            );
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
         /** @var ApiResult<{{{vendorExtensions.phpDocReturnType}}}> $result */
         $result = $this->invokeApiForResult(
             '{{httpMethod}}',
@@ -574,6 +586,18 @@ class {{classname}} extends BaseApi
 {{/bodyParam}}
 {{/hasFormParams}}
 
+{{#vendorExtensions.op.hasMultipleConsumes}}
+        /* Reject an unrecognised $contentType client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs); null defaults to the first declared type below. */
+        $declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
+        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported request content-type '" . $contentType
+                    . "' for {{operationId}}; declared types are " . implode(', ', $declaredConsumes)
+            );
+        }
+{{/vendorExtensions.op.hasMultipleConsumes}}
         /** @var ApiResult<null> $result */
         $result = $this->invokeApiForResult(
             '{{httpMethod}}',

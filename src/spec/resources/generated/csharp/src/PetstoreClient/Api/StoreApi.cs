@@ -99,6 +99,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<object?>(
                 "DELETE",
                 path,
@@ -206,6 +207,7 @@ public class StoreApi : BaseApi
                     false
                 )!;
         }
+
         return await InvokeApiForResultAsync<Category>(
                 "GET",
                 path,
@@ -261,6 +263,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Defaults>(
                 "GET",
                 path,
@@ -316,6 +319,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Department>(
                 "GET",
                 path,
@@ -374,6 +378,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<List<Dictionary<string, Category>>>(
                 "GET",
                 path,
@@ -429,6 +434,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Dictionary<string, int>>(
                 "GET",
                 path,
@@ -484,6 +490,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<List<List<int>>>(
                 "GET",
                 path,
@@ -555,6 +562,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Order>(
                 "GET",
                 path,
@@ -629,6 +637,7 @@ public class StoreApi : BaseApi
             );
         }
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<StockItem>(
                 "GET",
                 path,
@@ -684,6 +693,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Swatch>(
                 "GET",
                 path,
@@ -741,6 +751,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<List<Dictionary<string, Swatch>>>(
                 "GET",
                 path,
@@ -801,6 +812,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<List<Dictionary<string, DateTimeOffset>>>(
                 "GET",
                 path,
@@ -856,6 +868,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<TreeNode>(
                 "GET",
                 path,
@@ -913,6 +926,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Order>(
                 "POST",
                 path,

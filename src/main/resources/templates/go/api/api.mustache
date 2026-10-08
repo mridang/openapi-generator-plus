@@ -354,9 +354,12 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#vendorExtensions.hasMultipleConsumes}}
 	/* This operation declares more than one request Content-Type. The optional
 	 * trailing requestContentType selector lets the caller choose among the
-	 * declared types; when omitted (or set to a type the operation does not
-	 * declare) it falls back to the first declared type, preserving the
-	 * historical behaviour of always sending "{{vendorExtensions.op.effectiveConsumes}}".
+	 * declared types; when omitted it defaults to the first declared type,
+	 * preserving the historical behaviour of always sending
+	 * "{{vendorExtensions.op.effectiveConsumes}}". An unrecognised selector is
+	 * rejected client-side so a typo never rides the wire as an undeclared
+	 * Content-Type (matching java/elixir and the other SDKs), rather than being
+	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
 	 * supply a body the selected content-type accepts. The declared types are,
 	 * in order:
@@ -367,11 +370,18 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
 	requestContentTypeValue := declaredConsumes[0]
 	if len(requestContentType) > 0 {
+		matched := false
 		for _, declared := range declaredConsumes {
 			if declared == requestContentType[0] {
 				requestContentTypeValue = requestContentType[0]
+				matched = true
 				break
 			}
+		}
+		if !matched {
+			return nil, fmt.Errorf(
+				"unsupported request content-type %q for {{operationId}}; declared types are %v",
+				requestContentType[0], declaredConsumes)
 		}
 	}
 {{#hasFormParams}}

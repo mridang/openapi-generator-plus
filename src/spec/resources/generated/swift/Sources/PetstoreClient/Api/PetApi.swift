@@ -1152,12 +1152,22 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /* This operation declares more than one request content-type. The
      * optional `requestContentType` selector lets the caller pick one of
-     * the declared types; an unrecognized or nil value falls back to the
-     * first declared type, preserving the original behaviour. */
+     * the declared types; a nil value defaults to the first declared type.
+     * An unrecognized value is rejected client-side so a typo never rides
+     * the wire as an undeclared Content-Type (matching java/elixir and the
+     * other SDKs), rather than being silently dropped. */
     let declaredRequestContentTypes = ["image/jpeg", "image/png", "application/json"]
-    let effectiveRequestContentType =
-      requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
-      ?? "image/jpeg"
+    let effectiveRequestContentType: String
+    if let requestContentType {
+      guard declaredRequestContentTypes.contains(requestContentType) else {
+        throw ConfigurationError.invalidArgument(
+          "Unsupported request content-type '\(requestContentType)' for setPetAvatar; declared types are \(declaredRequestContentTypes)"
+        )
+      }
+      effectiveRequestContentType = requestContentType
+    } else {
+      effectiveRequestContentType = "image/jpeg"
+    }
 
     let requestBody: Any? = body
     let params = InvokeAPIParams(
@@ -1457,12 +1467,22 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
     /* This operation declares more than one request content-type. The
      * optional `requestContentType` selector lets the caller pick one of
-     * the declared types; an unrecognized or nil value falls back to the
-     * first declared type, preserving the original behaviour. */
+     * the declared types; a nil value defaults to the first declared type.
+     * An unrecognized value is rejected client-side so a typo never rides
+     * the wire as an undeclared Content-Type (matching java/elixir and the
+     * other SDKs), rather than being silently dropped. */
     let declaredRequestContentTypes = ["multipart/form-data", "application/octet-stream"]
-    let effectiveRequestContentType =
-      requestContentType.flatMap { declaredRequestContentTypes.contains($0) ? $0 : nil }
-      ?? "multipart/form-data"
+    let effectiveRequestContentType: String
+    if let requestContentType {
+      guard declaredRequestContentTypes.contains(requestContentType) else {
+        throw ConfigurationError.invalidArgument(
+          "Unsupported request content-type '\(requestContentType)' for uploadPetDocument; declared types are \(declaredRequestContentTypes)"
+        )
+      }
+      effectiveRequestContentType = requestContentType
+    } else {
+      effectiveRequestContentType = "multipart/form-data"
+    }
 
     /* This operation accepts multipart/form-data alongside a raw binary
      * content-type (e.g. application/octet-stream). When the caller

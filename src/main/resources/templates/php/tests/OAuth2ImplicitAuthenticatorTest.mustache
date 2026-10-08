@@ -36,7 +36,7 @@ test('builds authorization url with scopes', function (): void {
 
     $url = $authenticator->buildAuthorizationUrl();
 
-    expect($url)->toContain('scope=read+write');
+    expect($url)->toContain('scope=read%20write');
 });
 
 test('builds authorization url with state', function (): void {

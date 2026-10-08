@@ -2307,6 +2307,20 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        // Reject an unrecognised request content-type client-side so a typo
+        // never rides the wire as an undeclared Content-Type (matching
+        // java/elixir and the other SDKs). The default entry point always
+        // passes a declared type, so only an explicit bad selector trips this.
+        const DECLARED_CONSUMES: &[&str] = &["image/jpeg", "image/png", "application/json"];
+        if !DECLARED_CONSUMES.contains(&request_content_type) {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "unsupported request content-type '{}' for PetApi.set_pet_avatar; declared types are {:?}",
+                    request_content_type, DECLARED_CONSUMES
+                )),
+            ));
+        }
+
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
@@ -2880,6 +2894,20 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        // Reject an unrecognised request content-type client-side so a typo
+        // never rides the wire as an undeclared Content-Type (matching
+        // java/elixir and the other SDKs). The default entry point always
+        // passes a declared type, so only an explicit bad selector trips this.
+        const DECLARED_CONSUMES: &[&str] = &["multipart/form-data", "application/octet-stream"];
+        if !DECLARED_CONSUMES.contains(&request_content_type) {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "unsupported request content-type '{}' for PetApi.upload_pet_document; declared types are {:?}",
+                    request_content_type, DECLARED_CONSUMES
+                )),
+            ));
+        }
+
         let mut path = "/pet/{petId}/documents".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",

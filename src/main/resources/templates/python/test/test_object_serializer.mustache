@@ -974,6 +974,13 @@ class TestByteFormatBase64RoundTrip:
         wire = '"' + base64.b64encode(raw).decode('ascii') + '"'
         assert ObjectSerializer().deserialize(wire, bytes) == raw
 
+    def test_invalid_base64_is_rejected(self) -> None:
+        # A `format: byte` wire string containing characters outside the base64
+        # alphabet must be REJECTED (b64decode validate=True), not silently
+        # truncated, matching the strict decoders in ruby/php/elixir/go/rust.
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('"!!!!"', bytes)
+
 
 class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
     """setPetAvatarThumbnail byte oneOf round-trips through base64.

@@ -102,6 +102,25 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
   });
 }
 
+/** Canonical base64 (standard alphabet, optional `=` padding), whitespace already stripped. */
+const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
+
+/**
+ * Decode a `format: byte` base64 string to a Buffer, REJECTING malformed input.
+ *
+ * `Buffer.from(s, 'base64')` silently ignores characters outside the base64
+ * alphabet (so `"!!!!"` decodes to empty bytes rather than erroring), which
+ * diverges from the strict decoders in ruby/php/python/elixir/go/rust. Validate
+ * the alphabet and length first and throw on anything invalid, matching them.
+ */
+export function decodeBase64(value: string): Buffer {
+  const compact = value.replace(/\s+/g, '');
+  if (compact.length % 4 !== 0 || !BASE64_PATTERN.test(compact)) {
+    throw new SerializationError(`Invalid base64 string: ${JSON.stringify(value)}`);
+  }
+  return Buffer.from(compact, 'base64');
+}
+
 /**
  * Matches a canonical JSON number: optional minus, an integer part with no
  * leading zeros (or a bare 0), an optional fractional part, and an optional

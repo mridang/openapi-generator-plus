@@ -51,6 +51,24 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("equals and hashCode include the additionalProperties bucket")
+    fun testEqualsIncludesAdditionalProperties() {
+        // The overflow bucket is a @Transient property in the class body, which
+        // Kotlin's synthesized data-class equals/hashCode would exclude. Two
+        // instances differing ONLY in their extra keys must compare unequal.
+        val a = Metadata()
+        a.additionalProperties["k"] = "v1"
+        val b = Metadata()
+        b.additionalProperties["k"] = "v2"
+        assertNotEquals(a, b)
+
+        val c = Metadata()
+        c.additionalProperties["k"] = "v1"
+        assertEquals(a, c)
+        assertEquals(a.hashCode(), c.hashCode())
+    }
+
+    @Test
     @DisplayName("default values are null")
     fun testDefaultValues() {
         val metadata = Metadata()

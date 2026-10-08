@@ -442,6 +442,23 @@ public class {{classname}} : BaseApi
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
+{{#consumes}}{{#-last}}{{^-first}}
+        /* Multi-consume operation: reject an unrecognised requestContentType
+         * client-side so a typo never rides the wire as an undeclared
+         * Content-Type (matching java/elixir and the other SDKs); null defaults
+         * to the first declared type. */
+        string effectiveRequestContentType = "{{vendorExtensions.op.effectiveConsumes}}";
+        if (requestContentType != null)
+        {
+            string[] declaredContentTypes = { {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} };
+            if (System.Array.IndexOf(declaredContentTypes, requestContentType) < 0)
+            {
+                throw new System.ArgumentException(
+                    $"Unsupported request content-type '{requestContentType}' for {{operationId}}; declared types are [{string.Join(", ", declaredContentTypes)}]");
+            }
+            effectiveRequestContentType = requestContentType;
+        }
+{{/-first}}{{/-last}}{{/consumes}}
         return await InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>(
                 "{{httpMethod}}",
                 path,
@@ -454,7 +471,7 @@ public class {{classname}} : BaseApi
     null falls back to the first declared content-type, the prior literal.
     Single-consume operations keep the plain literal. The not-first gate on
     the last consume fires once only for two-or-more declared types. }}
-{{#consumes}}{{#-last}}{{^-first}}                requestContentType ?? "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
+{{#consumes}}{{#-last}}{{^-first}}                effectiveRequestContentType,{{/-first}}{{#-first}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}                "{{vendorExtensions.op.effectiveConsumes}}",{{/consumes}}
                 {{#returnType}}typeof({{{returnType}}}){{/returnType}}{{^returnType}}null{{/returnType}},
 {{! Auth argument (Wave A2). A secured operation passes the optional per-call
     override (options?.Auth) — null there means "no override", so BaseApi falls

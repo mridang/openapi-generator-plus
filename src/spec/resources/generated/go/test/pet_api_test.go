@@ -331,6 +331,24 @@ func TestPetApi_SetPetAvatar(t *testing.T) {
 	}
 }
 
+// An unrecognised request content-type selector is rejected client-side so a
+// typo never rides the wire as an undeclared Content-Type (it must not be
+// silently dropped in favour of the first declared type). The error is raised
+// before any HTTP call, so no reachable server is needed.
+func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "fake-image-data")
+
+	err := api.SetPetAvatar(int64(1), f, "application/unknown-type")
+	if err == nil {
+		t.Fatal("expected an error for an undeclared request content-type, got nil")
+	}
+	if !strings.Contains(err.Error(), "unsupported request content-type") {
+		t.Errorf("expected an unsupported-content-type error, got: %v", err)
+	}
+}
+
 // TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType is the canonical
 // binary-request-body regression (finding C1). setPetAvatar declares a request
 // body of type:string format:binary with Content-Type image/jpeg, so the *os.File

@@ -290,6 +290,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "POST",
                 path,
@@ -380,6 +381,7 @@ public class PetApi : BaseApi
         Dictionary<string, object> formBody = [];
         formBody["files"] = options.Files;
         formBody["metadata"] = options.Metadata;
+
         return await InvokeApiForResultAsync<List<Photo>>(
                 "POST",
                 path,
@@ -467,6 +469,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<PetTreatment>(
                 "POST",
                 path,
@@ -562,6 +565,7 @@ public class PetApi : BaseApi
         {
             headerParams["Cookie"] = string.Join("; ", cookieParts);
         }
+
         return await InvokeApiForResultAsync<object?>(
                 "DELETE",
                 path,
@@ -657,6 +661,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
@@ -728,6 +733,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<List<Pet>>(
                 "GET",
                 path,
@@ -843,6 +849,7 @@ public class PetApi : BaseApi
                     false
                 )!;
         }
+
         return await InvokeApiForResultAsync<List<Pet>>(
                 "GET",
                 path,
@@ -933,6 +940,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1023,6 +1031,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1096,6 +1105,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
@@ -1169,6 +1179,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<byte[]>(
                 "GET",
                 path,
@@ -1261,6 +1272,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1371,6 +1383,7 @@ public class PetApi : BaseApi
             );
         }
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1444,6 +1457,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<PetPassport>(
                 "GET",
                 path,
@@ -1536,6 +1550,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
@@ -1700,6 +1715,7 @@ public class PetApi : BaseApi
             );
         }
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1790,6 +1806,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
@@ -1859,6 +1876,24 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
+        /* Multi-consume operation: reject an unrecognised requestContentType
+         * client-side so a typo never rides the wire as an undeclared
+         * Content-Type (matching java/elixir and the other SDKs); null defaults
+         * to the first declared type. */
+        string effectiveRequestContentType = "image/jpeg";
+        if (requestContentType != null)
+        {
+            string[] declaredContentTypes = { "image/jpeg", "image/png", "application/json" };
+            if (System.Array.IndexOf(declaredContentTypes, requestContentType) < 0)
+            {
+                throw new System.ArgumentException(
+                    $"Unsupported request content-type '{requestContentType}' for SetPetAvatar; declared types are [{string.Join(", ", declaredContentTypes)}]"
+                );
+            }
+            effectiveRequestContentType = requestContentType;
+        }
+
         return await InvokeApiForResultAsync<object?>(
                 "PUT",
                 path,
@@ -1866,7 +1901,7 @@ public class PetApi : BaseApi
                 headerParams,
                 body,
                 [],
-                requestContentType ?? "image/jpeg",
+                effectiveRequestContentType,
                 null,
                 null
             )
@@ -1923,6 +1958,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<object?>(
                 "PUT",
                 path,
@@ -2030,6 +2066,7 @@ public class PetApi : BaseApi
         {
             formBody["renewalDate"] = options.RenewalDate;
         }
+
         return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",
                 path,
@@ -2103,6 +2140,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+
         return await InvokeApiForResultAsync<Pet>(
                 "PUT",
                 path,
@@ -2191,6 +2229,7 @@ public class PetApi : BaseApi
         Dictionary<string, string> headerParams = [];
         Dictionary<string, object> formBody = [];
         formBody["file"] = options.File;
+
         return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",
                 path,
@@ -2295,6 +2334,24 @@ public class PetApi : BaseApi
         {
             formBody["notes"] = options.Notes;
         }
+
+        /* Multi-consume operation: reject an unrecognised requestContentType
+         * client-side so a typo never rides the wire as an undeclared
+         * Content-Type (matching java/elixir and the other SDKs); null defaults
+         * to the first declared type. */
+        string effectiveRequestContentType = "multipart/form-data";
+        if (requestContentType != null)
+        {
+            string[] declaredContentTypes = { "multipart/form-data", "application/octet-stream" };
+            if (System.Array.IndexOf(declaredContentTypes, requestContentType) < 0)
+            {
+                throw new System.ArgumentException(
+                    $"Unsupported request content-type '{requestContentType}' for UploadPetDocument; declared types are [{string.Join(", ", declaredContentTypes)}]"
+                );
+            }
+            effectiveRequestContentType = requestContentType;
+        }
+
         return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",
                 path,
@@ -2302,7 +2359,7 @@ public class PetApi : BaseApi
                 headerParams,
                 formBody,
                 UploadPetDocumentAccepts,
-                requestContentType ?? "multipart/form-data",
+                effectiveRequestContentType,
                 typeof(ApiResponse),
                 null
             )

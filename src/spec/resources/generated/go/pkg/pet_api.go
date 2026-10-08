@@ -1762,9 +1762,12 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 	var requestBody any = body
 	/* This operation declares more than one request Content-Type. The optional
 	 * trailing requestContentType selector lets the caller choose among the
-	 * declared types; when omitted (or set to a type the operation does not
-	 * declare) it falls back to the first declared type, preserving the
-	 * historical behaviour of always sending "image/jpeg".
+	 * declared types; when omitted it defaults to the first declared type,
+	 * preserving the historical behaviour of always sending
+	 * "image/jpeg". An unrecognised selector is
+	 * rejected client-side so a typo never rides the wire as an undeclared
+	 * Content-Type (matching java/elixir and the other SDKs), rather than being
+	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
 	 * supply a body the selected content-type accepts. The declared types are,
 	 * in order:
@@ -1775,11 +1778,18 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 	declaredConsumes := []string{"image/jpeg", "image/png", "application/json"}
 	requestContentTypeValue := declaredConsumes[0]
 	if len(requestContentType) > 0 {
+		matched := false
 		for _, declared := range declaredConsumes {
 			if declared == requestContentType[0] {
 				requestContentTypeValue = requestContentType[0]
+				matched = true
 				break
 			}
+		}
+		if !matched {
+			return nil, fmt.Errorf(
+				"unsupported request content-type %q for SetPetAvatar; declared types are %v",
+				requestContentType[0], declaredConsumes)
 		}
 	}
 
@@ -2207,9 +2217,12 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	var requestBody any = formBody
 	/* This operation declares more than one request Content-Type. The optional
 	 * trailing requestContentType selector lets the caller choose among the
-	 * declared types; when omitted (or set to a type the operation does not
-	 * declare) it falls back to the first declared type, preserving the
-	 * historical behaviour of always sending "multipart/form-data".
+	 * declared types; when omitted it defaults to the first declared type,
+	 * preserving the historical behaviour of always sending
+	 * "multipart/form-data". An unrecognised selector is
+	 * rejected client-side so a typo never rides the wire as an undeclared
+	 * Content-Type (matching java/elixir and the other SDKs), rather than being
+	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
 	 * supply a body the selected content-type accepts. The declared types are,
 	 * in order:
@@ -2219,11 +2232,18 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	declaredConsumes := []string{"multipart/form-data", "application/octet-stream"}
 	requestContentTypeValue := declaredConsumes[0]
 	if len(requestContentType) > 0 {
+		matched := false
 		for _, declared := range declaredConsumes {
 			if declared == requestContentType[0] {
 				requestContentTypeValue = requestContentType[0]
+				matched = true
 				break
 			}
+		}
+		if !matched {
+			return nil, fmt.Errorf(
+				"unsupported request content-type %q for UploadPetDocument; declared types are %v",
+				requestContentType[0], declaredConsumes)
 		}
 	}
 	/* When a multipart/form-data operation ALSO declares a raw binary request

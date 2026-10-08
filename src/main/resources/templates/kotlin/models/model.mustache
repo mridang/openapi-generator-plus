@@ -864,6 +864,12 @@ class {{classname}}(
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    // The additionalProperties overflow bucket is a @Transient property in the
+    // class body, so Kotlin's synthesized data-class equals excludes it. Fold
+    // it in here so two instances carrying different extra keys are unequal.
+    if (additionalProperties != other.additionalProperties) return false
+{{/isAdditionalPropertiesTrue}}
     return true
   }
 
@@ -908,6 +914,9 @@ class {{classname}}(
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    result = 31 * result + additionalProperties.hashCode()
+{{/isAdditionalPropertiesTrue}}
     return result
   }
 {{/hasContentEqualsField}}

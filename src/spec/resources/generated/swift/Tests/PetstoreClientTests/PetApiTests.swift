@@ -177,6 +177,17 @@ final class PetApiTests {
     try await api.setPetAvatar(petId: 1, body: imageData)
   }
 
+  @Test func testSetPetAvatarRejectsUnknownContentType() async throws {
+    let api = petApiForIntegration()
+    let imageData = Data([0xFF, 0xD8, 0xFF])
+    // An unknown requestContentType must be rejected client-side, not passed
+    // onto the wire as an undeclared Content-Type.
+    await #expect(throws: ConfigurationError.self) {
+      try await api.setPetAvatar(
+        petId: 1, body: imageData, requestContentType: "application/unknown-type")
+    }
+  }
+
   // binary-body-raw-bytes: a request body declared type:string format:binary
   // (operation setPetAvatar, declared Content-Type image/jpeg) must be
   // transmitted as the EXACT raw bytes with the declared Content-Type — never

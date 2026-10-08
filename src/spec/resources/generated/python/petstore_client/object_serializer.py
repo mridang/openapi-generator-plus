@@ -449,7 +449,11 @@ class ObjectSerializer:
             if isinstance(data, bytes):
                 return data
             if isinstance(data, str):
-                return base64.b64decode(data)
+                # validate=True rejects characters outside the base64 alphabet
+                # (raising binascii.Error, wrapped as SerializationException by
+                # the caller) instead of silently discarding them, matching the
+                # strict decoders in ruby/php/elixir/go/rust.
+                return base64.b64decode(data, validate=True)
             return data
         elif klass in self._PRIMITIVE_TYPES:
             try:

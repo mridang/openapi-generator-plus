@@ -366,41 +366,14 @@ pub fn stringify<T: Serialize>(value: &T) -> String {
 
 /// Converts a value to a string suitable for use as a URL path parameter.
 ///
-/// Cross-language parity: when the value parses as an ISO-8601 date (with
-/// or without a time component), it is serialized as a date-only
-/// `YYYY-MM-DD` string. This matches the Java/Python/C#/Kotlin/Ruby/Elixir
-/// behaviour for `format: date` path parameters.
+/// The value's own type determines its wire form: a `format: date` parameter
+/// is a `chrono::NaiveDate` and already serializes to `YYYY-MM-DD`, while a
+/// `format: date-time` parameter is a `DateTime` and serializes to the full
+/// RFC 3339 instant. This is a plain stringify with no date-shape heuristic —
+/// an earlier version truncated ANY RFC-3339-shaped string to its date part,
+/// which silently corrupted a genuine date-time path value to date-only.
 pub fn to_path_value<T: Serialize>(value: &T) -> String {
-    let raw = stringify(value);
-    format_date_only_for_path(&raw)
-}
-
-/// If `s` parses as an ISO-8601 datetime (RFC 3339), return only the date
-/// portion (`YYYY-MM-DD`). If it already looks like a bare date, return as is.
-/// Otherwise return the original string unchanged.
-fn format_date_only_for_path(s: &str) -> String {
-    /* Fast path: bare YYYY-MM-DD (10 chars, dashes at positions 4 and 7). */
-    if is_bare_date(s) {
-        return s.to_string();
-    }
-    /* RFC 3339 datetime: keep only the date prefix if present. */
-    if let Some(t_idx) = s.find('T') {
-        let date_part = &s[..t_idx];
-        if is_bare_date(date_part) {
-            return date_part.to_string();
-        }
-    }
-    s.to_string()
-}
-
-fn is_bare_date(s: &str) -> bool {
-    let bytes = s.as_bytes();
-    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
-        return false;
-    }
-    bytes[..4].iter().all(|c| c.is_ascii_digit())
-        && bytes[5..7].iter().all(|c| c.is_ascii_digit())
-        && bytes[8..10].iter().all(|c| c.is_ascii_digit())
+    stringify(value)
 }
 
 /// Represents a query parameter value, which can be either a single string
@@ -551,20 +524,21 @@ mod tests {
     }
 
     #[test]
-    fn test_to_path_value_iso_datetime_trimmed_to_date_only() {
-        /* Cross-language parity: `format: date` path params must be wired as
-         * `YYYY-MM-DD` to match the Java/Python/C#/Kotlin/Ruby/Elixir SDKs.
-         * The chrono::NaiveDate::format("%Y-%m-%d") output IS this string;
-         * the path serializer additionally strips any time component a
-         * caller may have appended (e.g. a full RFC 3339 timestamp). */
+    fn test_to_path_value_datetime_is_not_truncated() {
+        /* A `format: date-time` path parameter must keep its FULL RFC 3339
+         * value on the wire. The path serializer must not apply a date-shape
+         * heuristic: an earlier version trimmed any `...T...` string to its
+         * date part, silently corrupting a genuine date-time path value to
+         * date-only. A `format: date` param is a NaiveDate and is already
+         * `YYYY-MM-DD` by its own type, so no heuristic is needed. */
         let result = object_serializer::to_path_value(&"2024-01-15T10:30:00Z".to_string());
-        assert_eq!(result, "2024-01-15");
+        assert_eq!(result, "2024-01-15T10:30:00Z");
     }
 
     #[test]
-    fn test_to_path_value_iso_datetime_with_offset_trimmed_to_date_only() {
+    fn test_to_path_value_datetime_with_offset_is_not_truncated() {
         let result = object_serializer::to_path_value(&"2024-01-15T10:30:00+01:00".to_string());
-        assert_eq!(result, "2024-01-15");
+        assert_eq!(result, "2024-01-15T10:30:00+01:00");
     }
 
     #[test]

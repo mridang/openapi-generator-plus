@@ -1257,13 +1257,23 @@ module Petstore::Client
         request_body = ::Petstore::Client::ObjectSerializer.encode_oneof_body(body, 'File')
         # This operation declares multiple request content-types. The optional
         # `content_type:` selector lets the caller choose among the declared
-        # types; when unset (or set to a type the operation does not declare) it
-        # falls back to the first declared type, preserving the historical
-        # behaviour of always sending 'image/jpeg'.
+        # types; when nil it defaults to the first declared type. An
+        # unrecognised selector is rejected client-side so a typo never rides
+        # the wire as an undeclared Content-Type (matching java/elixir and the
+        # other SDKs), rather than being silently dropped.
         # NOTE: this only changes the Content-Type header — the caller must still
         # supply a body the selected content-type accepts.
         declared_consumes = ['image/jpeg', 'image/png', 'application/json']
-        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
+        resolved_content_type =
+          if content_type.nil?
+            declared_consumes.first
+          elsif declared_consumes.include?(content_type)
+            content_type
+          else
+            raise ArgumentError,
+                  "Unsupported request content-type '#{content_type}' for " \
+                  "set_pet_avatar; declared types are #{declared_consumes}"
+          end
 
         invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
@@ -1609,13 +1619,23 @@ module Petstore::Client
         request_body['notes'] = options.notes unless options.notes.nil?
         # This operation declares multiple request content-types. The optional
         # `content_type:` selector lets the caller choose among the declared
-        # types; when unset (or set to a type the operation does not declare) it
-        # falls back to the first declared type, preserving the historical
-        # behaviour of always sending 'multipart/form-data'.
+        # types; when nil it defaults to the first declared type. An
+        # unrecognised selector is rejected client-side so a typo never rides
+        # the wire as an undeclared Content-Type (matching java/elixir and the
+        # other SDKs), rather than being silently dropped.
         # NOTE: this only changes the Content-Type header — the caller must still
         # supply a body the selected content-type accepts.
         declared_consumes = ['multipart/form-data', 'application/octet-stream']
-        resolved_content_type = declared_consumes.include?(content_type) ? content_type : declared_consumes.first
+        resolved_content_type =
+          if content_type.nil?
+            declared_consumes.first
+          elsif declared_consumes.include?(content_type)
+            content_type
+          else
+            raise ArgumentError,
+                  "Unsupported request content-type '#{content_type}' for " \
+                  "upload_pet_document; declared types are #{declared_consumes}"
+          end
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,

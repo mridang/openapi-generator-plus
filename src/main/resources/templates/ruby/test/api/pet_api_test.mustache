@@ -141,6 +141,15 @@ describe {{moduleName}}::Api::PetApi do
       @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
     end
 
+    it 'rejects an unrecognised request content-type' do
+      # An unknown content-type selector must be rejected client-side, not
+      # silently dropped in favour of the first declared type.
+      error = assert_raises(ArgumentError) do
+        @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), content_type: 'application/unknown-type')
+      end
+      _(error.message).must_match(/[Uu]nsupported request content-type/)
+    end
+
     # Canonical regression (finding C1): setPetAvatar declares a request body of
     # `type: string, format: binary` with a declared Content-Type of image/jpeg.
     # The raw bytes must hit the wire UNCHANGED — not JSON-marshaled into "{}",

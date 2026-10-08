@@ -53,7 +53,7 @@ test('builds authorization url from discovery', function (): void {
     expect($url)->toContain('response_type=code');
     expect($url)->toContain('client_id=my-client-id');
     expect($url)->toContain('state=state-123');
-    expect($url)->toContain('scope=openid+profile');
+    expect($url)->toContain('scope=openid%20profile');
 });
 
 test('obtains token after code exchange', function (): void {

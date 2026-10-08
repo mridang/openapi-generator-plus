@@ -61,6 +61,7 @@ class StoreApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Unit>(
             "DELETE",
             path,
@@ -129,6 +130,7 @@ class StoreApi : BaseApi {
                     false,
                 ) as String
         }
+
         return invokeApiForResult<Category>(
             "GET",
             path,
@@ -162,6 +164,7 @@ class StoreApi : BaseApi {
         var path = "/store/defaults"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Defaults>(
             "GET",
             path,
@@ -195,6 +198,7 @@ class StoreApi : BaseApi {
         var path = "/store/department"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Department>(
             "GET",
             path,
@@ -228,6 +232,7 @@ class StoreApi : BaseApi {
         var path = "/store/grouped-categories"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<List<Map<String, Category>>>(
             "GET",
             path,
@@ -261,6 +266,7 @@ class StoreApi : BaseApi {
         var path = "/store/inventory"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Map<String, Int>>(
             "GET",
             path,
@@ -294,6 +300,7 @@ class StoreApi : BaseApi {
         var path = "/store/matrix"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<List<List<Int>>>(
             "GET",
             path,
@@ -336,6 +343,7 @@ class StoreApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Order>(
             "GET",
             path,
@@ -377,6 +385,7 @@ class StoreApi : BaseApi {
                 )
         }
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<StockItem>(
             "GET",
             path,
@@ -410,6 +419,7 @@ class StoreApi : BaseApi {
         var path = "/store/swatch"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Swatch>(
             "GET",
             path,
@@ -443,6 +453,7 @@ class StoreApi : BaseApi {
         var path = "/store/swatch-groups"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<List<Map<String, Swatch>>>(
             "GET",
             path,
@@ -476,6 +487,7 @@ class StoreApi : BaseApi {
         var path = "/store/timestamp-groups"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<List<Map<String, OffsetDateTime>>>(
             "GET",
             path,
@@ -509,6 +521,7 @@ class StoreApi : BaseApi {
         var path = "/store/tree"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<TreeNode>(
             "GET",
             path,
@@ -543,6 +556,7 @@ class StoreApi : BaseApi {
         var path = "/store/order"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+
         return invokeApiForResult<Order>(
             "POST",
             path,

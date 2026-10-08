@@ -2,6 +2,7 @@
 package {{packageName}}
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -62,14 +63,21 @@ func serialize(object any) ([]byte, error) {
 	if wrapper, ok := object.(oneOfUnwrapper); ok {
 		object = wrapper.GetActualInstance()
 	}
-	data, err := json.Marshal(object)
-	if err != nil {
+	// encoding/json escapes '<', '>' and '&' as </>/& by
+	// default (an HTML-safety measure for `<script>` embedding). The other
+	// SDKs emit those bytes literally, so disable HTML escaping to keep the
+	// wire bytes identical across languages. json.Encoder.Encode appends a
+	// trailing newline, which is trimmed to match json.Marshal's output.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(object); err != nil {
 		return nil, newSerializationError(
 			fmt.Sprintf("failed to serialize object to JSON: %v", err),
 			err,
 		)
 	}
-	return data, nil
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // maxJSONDepth caps how deeply a response JSON document can be nested.

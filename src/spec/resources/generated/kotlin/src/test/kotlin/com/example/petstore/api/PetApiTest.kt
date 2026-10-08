@@ -253,6 +253,17 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("setPetAvatar rejects an unrecognised request content-type")
+        fun testSetPetAvatarRejectsUnknownContentType() {
+            val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())
+            // An unknown requestContentType must be rejected client-side, not
+            // passed onto the wire as an undeclared Content-Type.
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { api.setPetAvatar(1L, imageData, requestContentType = "application/unknown-type") }
+            }
+        }
+
+        @Test
         @DisplayName("getPetAvatar returns binary data")
         fun testGetPetAvatar() {
             val result = runBlocking { api.getPetAvatar(1L) }

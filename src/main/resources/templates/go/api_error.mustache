@@ -6,6 +6,61 @@ import (
 	"fmt"
 )
 
+// errorBodyMaxJSONDepth caps how deeply an error-response JSON body may nest.
+// encoding/json has no built-in depth limit and recurses through the host call
+// stack, so a malicious server can crash the process with a deeply-nested body
+// (stack overflow -> DoS). This mirrors the maxJSONDepth guard the main package
+// applies to success bodies; it is duplicated here because package errors is
+// imported by the root package and so cannot import it back (import cycle).
+const errorBodyMaxJSONDepth = 1000
+
+// unmarshalErrorBody parses an error-response JSON body with the same
+// nesting-depth cap the success path uses, so a non-2xx response can't be a DoS
+// vector. Returns an error if the depth limit is exceeded or parsing fails.
+func unmarshalErrorBody(data []byte, target any) error {
+	if depth := errorBodyJSONDepth(data); depth > errorBodyMaxJSONDepth {
+		return fmt.Errorf("JSON nesting depth %d exceeds limit %d", depth, errorBodyMaxJSONDepth)
+	}
+	return json.Unmarshal(data, target)
+}
+
+// errorBodyJSONDepth returns the maximum `{`/`[` nesting depth in the JSON byte
+// slice, skipping characters inside strings. A cheap pre-flight check run
+// before encoding/json's recursive unmarshaller. (Byte-for-byte the same scan
+// as the main package's jsonMaxDepth.)
+func errorBodyJSONDepth(data []byte) int {
+	depth := 0
+	max := 0
+	inString := false
+	escaped := false
+	for _, b := range data {
+		if inString {
+			if escaped {
+				escaped = false
+			} else if b == '\\' {
+				escaped = true
+			} else if b == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+			if depth > max {
+				max = depth
+			}
+		case '}', ']':
+			if depth > 0 {
+				depth--
+			}
+		}
+	}
+	return max
+}
+
 // ApiError is the base error for all API (transport-level) errors, including
 // the HTTP status code, response headers, and response body. It satisfies the
 // branded {{errorPrefix}}Error root, so every error this SDK returns shares a
@@ -126,7 +181,7 @@ func (e *ApiError) GetTypedErrorBody(target any) error {
 	if e.responseBody == "" {
 		return nil
 	}
-	return json.Unmarshal([]byte(e.responseBody), target)
+	return unmarshalErrorBody([]byte(e.responseBody), target)
 }
 
 // NewNetworkError creates the error for a request that got no HTTP response:
@@ -155,7 +210,10 @@ func NewNetworkTimeoutError(msg string, cause error) *NetworkTimeoutError {
 func FromResponse(statusCode int, headers map[string]string, body string) error {
 	var errorBody any
 	if body != "" {
-		_ = json.Unmarshal([]byte(body), &errorBody)
+		// Depth-capped parse: a deeply-nested error body must not be able to
+		// stack-overflow the process (see unmarshalErrorBody). On cap-exceed or
+		// parse failure errorBody stays nil and the raw body is still retained.
+		_ = unmarshalErrorBody([]byte(body), &errorBody)
 	}
 	base := ApiError{
 		statusCode:      statusCode,

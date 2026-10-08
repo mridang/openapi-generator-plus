@@ -7,6 +7,7 @@
 
 import { Pet } from "./pet.js";
 import { Expose, Type, Transform } from "class-transformer";
+import { decodeBase64 } from "../object-serializer.js";
 
 export class PetPassport {
   /**
@@ -33,8 +34,7 @@ export class PetPassport {
   @Expose({ name: "thumbnail" })
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
   @Transform(
-    ({ value }) =>
-      typeof value === "string" ? Buffer.from(value, "base64") : value,
+    ({ value }) => (typeof value === "string" ? decodeBase64(value) : value),
     { toClassOnly: true },
   )
   @Transform(
@@ -57,7 +57,7 @@ export class PetPassport {
     ({ value }) =>
       Array.isArray(value)
         ? value.map((__e) =>
-            typeof __e === "string" ? Buffer.from(__e, "base64") : __e,
+            typeof __e === "string" ? decodeBase64(__e) : __e,
           )
         : value,
     { toClassOnly: true },
@@ -81,8 +81,7 @@ export class PetPassport {
   @Expose({ name: "biometricChip" })
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
   @Transform(
-    ({ value }) =>
-      typeof value === "string" ? Buffer.from(value, "base64") : value,
+    ({ value }) => (typeof value === "string" ? decodeBase64(value) : value),
     { toClassOnly: true },
   )
   @Transform(
@@ -100,9 +99,8 @@ export class PetPassport {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.thumbnail != null && typeof this.thumbnail === "string") {
-      this.thumbnail = Buffer.from(
+      this.thumbnail = decodeBase64(
         this.thumbnail as unknown as string,
-        "base64",
       ) as unknown as Buffer;
     } else if (this.thumbnail != null && !Buffer.isBuffer(this.thumbnail)) {
       throw new TypeError(
@@ -126,7 +124,7 @@ export class PetPassport {
     if (this.scans != null && Array.isArray(this.scans)) {
       this.scans = (this.scans as unknown as unknown[]).map((__e) => {
         if (typeof __e === "string") {
-          return Buffer.from(__e, "base64");
+          return decodeBase64(__e);
         }
         if (__e != null && !Buffer.isBuffer(__e)) {
           throw new TypeError(
@@ -142,9 +140,8 @@ export class PetPassport {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.biometricChip != null && typeof this.biometricChip === "string") {
-      this.biometricChip = Buffer.from(
+      this.biometricChip = decodeBase64(
         this.biometricChip as unknown as string,
-        "base64",
       ) as unknown as Buffer;
     } else if (
       this.biometricChip != null &&

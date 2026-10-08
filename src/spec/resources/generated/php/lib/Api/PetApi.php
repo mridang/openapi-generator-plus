@@ -1691,6 +1691,16 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = $body;
 
+        /* Reject an unrecognised $contentType client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs); null defaults to the first declared type below. */
+        $declaredConsumes = ['image/jpeg', 'image/png', 'application/json'];
+        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported request content-type '" . $contentType
+                    . "' for setPetAvatar; declared types are " . implode(', ', $declaredConsumes)
+            );
+        }
         /** @var ApiResult<null> $result */
         $result = $this->invokeApiForResult(
             'PUT',
@@ -2134,6 +2144,16 @@ class PetApi extends BaseApi
             $requestBody['notes'] = $options->notes;
         }
 
+        /* Reject an unrecognised $contentType client-side so a typo never rides
+         * the wire as an undeclared Content-Type (matching java/elixir and the
+         * other SDKs); null defaults to the first declared type below. */
+        $declaredConsumes = ['multipart/form-data', 'application/octet-stream'];
+        if ($contentType !== null && !in_array($contentType, $declaredConsumes, true)) {
+            throw new \InvalidArgumentException(
+                "Unsupported request content-type '" . $contentType
+                    . "' for uploadPetDocument; declared types are " . implode(', ', $declaredConsumes)
+            );
+        }
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
         $result = $this->invokeApiForResult(
             'POST',

@@ -32,6 +32,7 @@ func TestSerialize_MapToJSON(t *testing.T) {
 	input := map[string]any{
 		"name": "Fido",
 		"age":  3,
+		"html": "a<b>c&d",
 	}
 
 	data, err := serialize(input)
@@ -40,6 +41,14 @@ func TestSerialize_MapToJSON(t *testing.T) {
 	}
 	if len(data) == 0 {
 		t.Fatal("expected non-empty serialized data")
+	}
+
+	// '<', '>' and '&' must appear LITERALLY on the wire, not HTML-escaped as
+	// encoding/json does by default. The other SDKs emit them literally;
+	// serialize() disables HTML escaping to match. Were they escaped, the
+	// literal substring below would be absent (it would be the escaped form).
+	if !strings.Contains(string(data), "a<b>c&d") {
+		t.Errorf("expected literal '<'/'>'/'&' on the wire (not HTML-escaped), got %s", string(data))
 	}
 
 	var parsed map[string]any

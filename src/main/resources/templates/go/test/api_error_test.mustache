@@ -4,6 +4,7 @@ package {{packageName}}_test
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"{{packageName}}/pkg"
@@ -211,6 +212,32 @@ func TestApiError_GetTypedErrorBodyReturnsNilWhenNoBody(t *testing.T) {
 	}
 	if typed.Id != nil || typed.Name != nil {
 		t.Errorf("expected unset Category for empty body, got %+v", typed)
+	}
+}
+
+// A deeply-nested error body must hit the same nesting-depth cap the success
+// path applies, so a non-2xx response can't be a stack-overflow DoS vector.
+// FromResponse must leave errorBody nil (parse skipped) rather than recursing,
+// and GetTypedErrorBody must return an error instead of parsing it.
+func TestApiError_ErrorBodyIsDepthCapped(t *testing.T) {
+	t.Parallel()
+	// 1001 `[` exceeds the 1000 cap.
+	deep := strings.Repeat("[", 1001) + strings.Repeat("]", 1001)
+
+	err, ok := apierrors.FromResponse(400, nil, deep).(*apierrors.BadRequestError)
+	if !ok {
+		t.Fatalf("expected *BadRequestError, got %T", apierrors.FromResponse(400, nil, deep))
+	}
+	if err.ErrorBody() != nil {
+		t.Errorf("expected nil error body for over-deep JSON (cap should skip the parse), got %v", err.ErrorBody())
+	}
+	if err.ResponseBody() != deep {
+		t.Error("raw response body should still be retained even when the parse is capped")
+	}
+
+	var typed models.Category
+	if deErr := err.GetTypedErrorBody(&typed); deErr == nil {
+		t.Error("expected GetTypedErrorBody to reject an over-deep body, got nil error")
 	}
 }
 

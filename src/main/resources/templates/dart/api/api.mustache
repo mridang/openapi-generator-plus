@@ -444,6 +444,17 @@ class {{classname}} extends BaseApi {
     final Object? requestBody = null;
 {{/bodyParam}}
 {{/hasFormParams}}
+{{#vendorExtensions.op.hasMultipleConsumes}}
+    /* Reject an unrecognised requestContentType client-side so a typo never
+     * rides the wire as an undeclared Content-Type (matching java/elixir and
+     * the other SDKs); null defaults to the first declared type below. */
+    const declaredConsumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}];
+    if (requestContentType != null &&
+        !declaredConsumes.contains(requestContentType)) {
+      throw ArgumentError(
+          "Unsupported request content-type '$requestContentType' for {{operationId}}; declared types are $declaredConsumes");
+    }
+{{/vendorExtensions.op.hasMultipleConsumes}}
 
     return invokeApiForResult{{#returnType}}<{{{.}}}>{{/returnType}}{{^returnType}}<void>{{/returnType}}(
       method: '{{httpMethod}}',

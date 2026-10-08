@@ -205,6 +205,9 @@ import { Temporal } from 'temporal-polyfill';
 {{#hasDurationImport}}
 import { durationFromProtoJson, durationToProtoJson } from '../object-serializer{{importFileExtension}}';
 {{/hasDurationImport}}
+{{#hasBufferImport}}
+import { decodeBase64 } from '../object-serializer{{importFileExtension}}';
+{{/hasBufferImport}}
 {{#hasUuidImport}}
 import { UUID } from '../brand{{importFileExtension}}';
 {{/hasUuidImport}}
@@ -331,7 +334,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.isDurationFormat}}
 {{#isByteArray}}
   /** 2.1 — `format: byte` round-trips Buffer <-> base64 string at the serde boundary. */
-  @Transform(({ value }) => (typeof value === 'string' ? Buffer.from(value, 'base64') : value), { toClassOnly: true })
+  @Transform(({ value }) => (typeof value === 'string' ? decodeBase64(value) : value), { toClassOnly: true })
   @Transform(({ value }) => (Buffer.isBuffer(value) ? (value as Buffer).toString('base64') : value), { toPlainOnly: true })
 {{/isByteArray}}
 {{#isDateTime}}
@@ -367,7 +370,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Transform(
     ({ value }) =>
       Array.isArray(value)
-        ? value.map((__e) => (typeof __e === 'string' ? Buffer.from(__e, 'base64') : __e))
+        ? value.map((__e) => (typeof __e === 'string' ? decodeBase64(__e) : __e))
         : value,
     { toClassOnly: true }
   )
@@ -586,7 +589,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * (ByteArray to Buffer) flips isString to false at codegen time.
      */
     if (this.{{name}} != null && typeof this.{{name}} === 'string') {
-      this.{{name}} = Buffer.from(this.{{name}} as unknown as string, 'base64') as unknown as {{{dataType}}};
+      this.{{name}} = decodeBase64(this.{{name}} as unknown as string) as unknown as {{{dataType}}};
     } else if (this.{{name}} != null && !Buffer.isBuffer(this.{{name}})) {
       throw new TypeError(`{{name}} must be a Buffer or base64 string, got ${typeof this.{{name}}}`);
     }
@@ -656,7 +659,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && Array.isArray(this.{{name}})) {
       this.{{name}} = (this.{{name}} as unknown as unknown[]).map((__e) => {
         if (typeof __e === 'string') {
-          return Buffer.from(__e, 'base64');
+          return decodeBase64(__e);
         }
         if (__e != null && !Buffer.isBuffer(__e)) {
           throw new TypeError(`{{name}} elements must be a Buffer or base64 string, got ${typeof __e}`);

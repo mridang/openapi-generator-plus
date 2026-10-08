@@ -234,6 +234,16 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestSetPetAvatarRejectsUnknownContentType()
+    {
+        // An unknown requestContentType must be rejected client-side
+        // (ArgumentException), not passed onto the wire as an undeclared type.
+        var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF });
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _api.SetPetAvatarAsync(1L, imageData, "application/unknown-type"));
+    }
+
+    [Fact]
     public async Task TestSetPetAvatarHonoursSelectedRequestContentType()
     {
         // setPetAvatar declares THREE request content-types — image/jpeg,

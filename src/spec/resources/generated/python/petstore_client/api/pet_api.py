@@ -1621,11 +1621,20 @@ class PetApi(BaseApi):
         body = body
         # This operation declares more than one request content type. The
         # optional request_content_type selector overrides the Content-Type
-        # header; when omitted it defaults to the first declared type so the
-        # historical behaviour (and existing call sites) are unchanged.
-        content_type = (
-            request_content_type if request_content_type is not None else "image/jpeg"
-        )
+        # header; when omitted it defaults to the first declared type. An
+        # unrecognised selector is rejected client-side (ValueError) so a typo
+        # never rides the wire as an undeclared Content-Type (matching
+        # java/elixir and the other SDKs), rather than being passed through.
+        _declared_consumes = ["image/jpeg", "image/png", "application/json"]
+        if request_content_type is None:
+            content_type = "image/jpeg"
+        elif request_content_type in _declared_consumes:
+            content_type = request_content_type
+        else:
+            raise ValueError(
+                f"Unsupported request content-type '{request_content_type}' for "
+                f"set_pet_avatar; declared types are {_declared_consumes}"
+            )
 
         return await self._invoke_api_for_result(
             "PUT",
@@ -2038,13 +2047,20 @@ class PetApi(BaseApi):
             body["notes"] = options.notes
         # This operation declares more than one request content type. The
         # optional request_content_type selector overrides the Content-Type
-        # header; when omitted it defaults to the first declared type so the
-        # historical behaviour (and existing call sites) are unchanged.
-        content_type = (
-            request_content_type
-            if request_content_type is not None
-            else "multipart/form-data"
-        )
+        # header; when omitted it defaults to the first declared type. An
+        # unrecognised selector is rejected client-side (ValueError) so a typo
+        # never rides the wire as an undeclared Content-Type (matching
+        # java/elixir and the other SDKs), rather than being passed through.
+        _declared_consumes = ["multipart/form-data", "application/octet-stream"]
+        if request_content_type is None:
+            content_type = "multipart/form-data"
+        elif request_content_type in _declared_consumes:
+            content_type = request_content_type
+        else:
+            raise ValueError(
+                f"Unsupported request content-type '{request_content_type}' for "
+                f"upload_pet_document; declared types are {_declared_consumes}"
+            )
 
         return await self._invoke_api_for_result(
             "POST",
