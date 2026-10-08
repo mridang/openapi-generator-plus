@@ -406,7 +406,7 @@ class {{classname}} {
       {{name}}: DateTime.parse(json['{{baseName}}'] as String),
 {{/isDateTime}}
 {{#isDate}}
-      {{name}}: json['{{baseName}}'] as String,
+      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
 {{/isDate}}
 {{#isUuid}}
       {{name}}: UuidValue.fromString(json['{{baseName}}'] as String),
@@ -519,7 +519,7 @@ class {{classname}} {
       {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
 {{/isDateTime}}
 {{#isDate}}
-      {{name}}: json['{{baseName}}'] as String?,
+      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
 {{/isDate}}
 {{#isUuid}}
       {{name}}: json['{{baseName}}'] != null ? UuidValue.fromString(json['{{baseName}}'] as String) : null,
@@ -646,7 +646,7 @@ class {{classname}} {
     json['{{baseName}}'] = formatDateTimeOffset({{name}});
 {{/isDateTime}}
 {{#isDate}}
-    json['{{baseName}}'] = {{name}};
+    json['{{baseName}}'] = stringifyDate({{name}});
 {{/isDate}}
 {{#isUuid}}
     json['{{baseName}}'] = {{name}}.toString();

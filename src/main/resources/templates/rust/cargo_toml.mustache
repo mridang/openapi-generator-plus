@@ -44,7 +44,7 @@ upper_case_acronyms = "allow"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_repr = "0.1"
-serde_json = "1"
+serde_json = { version = "1", features = ["unbounded_depth"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "http2", "charset", "rustls-tls-native-roots"] }
 flate2 = "1"
 brotli = "7"

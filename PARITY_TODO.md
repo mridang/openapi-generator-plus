@@ -68,7 +68,7 @@ Validation agent: all 12 Tier-3 fixes confirmed applied cleanly + consistently, 
 Two fresh divergence-sweep agents found the SDKs extremely tightly aligned; only these
 second-order / latent residuals remain (NONE affect CI-green or wire behaviour on the fixture):
 
-- [ ] **R5-1** `format: date` PARAMETER is a raw String in go/dart/swift vs a typed date in the
+- [x] **R5-1** `format: date` PARAMETER is a raw String in go/dart/swift vs a typed date in the
   other 9 (`findPetsBornOn(bornOn)`). go (no date-only stdlib type) and swift (documented
   date/date-time→one Foundation.Date ambiguity) are forced; **dart is the one unforced minority**
   — dart's only temporal type is `DateTime` (like node's JS `Date`), and node maps `format: date`
@@ -79,7 +79,7 @@ second-order / latent residuals remain (NONE affect CI-green or wire behaviour o
   contract (java `ApiException` "a body whose Content-Encoding cannot be decoded") favours the
   raise, so the 2 are arguably more-correct and the 10 should align to raise. Latent — no client
   advertises an unknown codec. 10-language behaviour change if pursued; judgement call.
-- [ ] **R5-3** rust does not pin the shared 1000-deep JSON nesting cap (relies on serde_json's
+- [x] **R5-3** rust does not pin the shared 1000-deep JSON nesting cap (relies on serde_json's
   ~128); the other 11 pin 1000. rust is STRICTER (rejects 129–1000 that others accept). Low
   severity; rust could add the same byte-scan the non-Jackson SDKs use. CI-verified if changed.
 - [ ] **R5-4** Chained/multi-value `Content-Encoding` (comma list): csharp + node decode each

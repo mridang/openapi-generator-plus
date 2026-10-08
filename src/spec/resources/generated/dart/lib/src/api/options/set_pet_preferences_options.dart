@@ -6,7 +6,7 @@ class SetPetPreferencesOptions {
 
   final String? note;
 
-  final String? renewalDate;
+  final DateTime? renewalDate;
 
   const SetPetPreferencesOptions({
     required this.nickname,

@@ -79,7 +79,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("double", "double");
         typeMapping.put("number", "double");
         typeMapping.put("decimal", "double");
-        typeMapping.put("date", "String");
+        // format:date → DateTime (date-only). Dart has only DateTime (no
+        // civil-date type), so a `format: date` value is carried as a DateTime
+        // and serialized date-only via ValueSerializer.stringifyDate, matching
+        // the typed-date SDKs (and node, which does the same with JS Date).
+        // The time component is never sent for a date param/field.
+        typeMapping.put("date", "DateTime");
         typeMapping.put("DateTime", "DateTime");
         // 4.8: format:time → RFC 3339 partial-time (e.g. "14:30:00").
         // Dart has no civil-time type outside Flutter (TimeOfDay), and

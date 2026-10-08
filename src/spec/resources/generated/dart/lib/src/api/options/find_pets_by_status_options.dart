@@ -8,10 +8,10 @@ class FindPetsByStatusOptions {
   final Map<String, String>? filter;
 
   /// Only return pets born on or after this date
-  final String? bornAfter;
+  final DateTime? bornAfter;
 
   /// Reference date for the report
-  final String? reportDate;
+  final DateTime? reportDate;
 
   const FindPetsByStatusOptions({
     this.status,

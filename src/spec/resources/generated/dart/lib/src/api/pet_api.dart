@@ -586,7 +586,7 @@ class PetApi extends BaseApi {
   /// List pets born on a given date
   /// `bornOn` Date of birth to match
 
-  Future<List<Pet>> findPetsBornOn(String bornOn) async {
+  Future<List<Pet>> findPetsBornOn(DateTime bornOn) async {
     final result = await findPetsBornOnWithHTTPInfo(bornOn);
     final data = result.data;
     if (data == null) {
@@ -607,7 +607,9 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the findPetsBornOn operation and returns the full API result.
-  Future<ApiResult<List<Pet>>> findPetsBornOnWithHTTPInfo(String bornOn) async {
+  Future<ApiResult<List<Pet>>> findPetsBornOnWithHTTPInfo(
+    DateTime bornOn,
+  ) async {
     var path = '/pet/born-on/{bornOn}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -623,9 +625,9 @@ class PetApi extends BaseApi {
       '}',
       serializeStyled(
         'bornOn',
-        bornOn,
+        stringifyDate(bornOn),
         'path',
-        'String',
+        'DateTime',
         '',
         'simple',
         false,
@@ -727,9 +729,11 @@ class PetApi extends BaseApi {
       queryParams['bornAfter'] = maybeAllowReserved(
         serializeStyled(
           'bornAfter',
-          options.bornAfter,
+          (options.bornAfter == null
+              ? null
+              : stringifyDate(options.bornAfter!)),
           'query',
-          'String',
+          'DateTime',
           '',
           'form',
           true,
@@ -741,7 +745,7 @@ class PetApi extends BaseApi {
     final headerParams = <String, String>{};
     if (options != null && options.reportDate != null) {
       headerParams['Report-Date'] =
-          '${serializeStyled('Report-Date', options.reportDate, 'header', 'String', '', 'simple', false)}';
+          '${serializeStyled('Report-Date', (options.reportDate == null ? null : stringifyDate(options.reportDate!)), 'header', 'DateTime', '', 'simple', false)}';
     }
 
     final Object? requestBody = null;
@@ -1863,7 +1867,7 @@ class PetApi extends BaseApi {
       formBody['note'] = options.note;
     }
     if (options.renewalDate != null) {
-      formBody['renewalDate'] = options.renewalDate;
+      formBody['renewalDate'] = stringifyDate(options.renewalDate!);
     }
     final Object requestBody = formBody;
 

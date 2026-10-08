@@ -4,6 +4,48 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use crate::errors::serialization_error::SerializationError;
 
+/// Maximum JSON nesting depth accepted on deserialize. Matches the cap the
+/// other SDKs pin (java/kotlin/csharp/python/dart/ruby/node/swift/php/go/elixir
+/// all use 1000) so a deeply-nested response is rejected uniformly rather than
+/// at serde_json's differing built-in recursion limit.
+const MAX_JSON_DEPTH: usize = 1000;
+
+/// Returns the maximum `{`/`[` nesting depth in the JSON bytes, ignoring
+/// braces/brackets inside strings. A cheap pre-flight scan (mirrors the
+/// go SDK's `jsonMaxDepth`) run before serde_json's recursive parser.
+fn json_max_depth(data: &[u8]) -> usize {
+    let mut depth: usize = 0;
+    let mut max: usize = 0;
+    let mut in_string = false;
+    let mut escaped = false;
+    for &b in data {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match b {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                if depth > max {
+                    max = depth;
+                }
+            }
+            b'}' | b']' => {
+                depth = depth.saturating_sub(1);
+            }
+            _ => {}
+        }
+    }
+    max
+}
+
 /// Sentinel error raised by [`FiniteFloatCheck`] the moment it walks a
 /// non-finite float (NaN or ±Infinity). It carries no message of its own —
 /// [`serialize`] maps it to the SDK's [`SerializationError`].
@@ -265,12 +307,31 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
     } else {
         data
     };
-    serde_json::from_slice(stripped)
-        .map(Some)
-        .map_err(|e| SerializationError::new(
-            format!("failed to deserialize JSON: {}", e),
-            Some(Box::new(e)),
-        ))
+    /* Pre-flight nesting-depth cap. serde_json's own recursion limit (~128)
+     * differs from the 1000-deep cap the other eleven SDKs pin, so a payload
+     * nested 129..=1000 deep would be accepted everywhere else but rejected
+     * by serde. Scan the raw bytes (cheap, string-aware) and reject beyond
+     * MAX_JSON_DEPTH so every SDK applies the same limit. */
+    if json_max_depth(stripped) > MAX_JSON_DEPTH {
+        return Err(SerializationError::new(
+            format!("JSON nesting depth exceeds limit {MAX_JSON_DEPTH}"),
+            None,
+        ));
+    }
+    /* Parse with serde_json's built-in ~128-deep recursion limit disabled so
+     * the byte-scan above (MAX_JSON_DEPTH = 1000) is the single depth authority,
+     * matching the other eleven SDKs. The scan has already rejected anything
+     * deeper than 1000, so the parser never recurses unboundedly. Mirrors
+     * serde_json::from_slice (deserialize + end for a trailing-content check). */
+    let mut deserializer = serde_json::Deserializer::from_slice(stripped);
+    deserializer.disable_recursion_limit();
+    let value = <T as serde::de::Deserialize>::deserialize(&mut deserializer).map_err(|e| {
+        SerializationError::new(format!("failed to deserialize JSON: {e}"), Some(Box::new(e)))
+    })?;
+    deserializer.end().map_err(|e| {
+        SerializationError::new(format!("failed to deserialize JSON: {e}"), Some(Box::new(e)))
+    })?;
+    Ok(Some(value))
 }
 
 /// Converts a single scalar value to its string representation.
@@ -976,21 +1037,29 @@ mod tests {
     // format:byte is base64-decoded by serde on the model field, not in this
     // module, so the invalid-base64-throws case does not apply to the Rust SDK.
 
-    // Rust relies on serde_json's own recursion limit rather than the 1000-deep
-    // cap the other SDKs pin in ObjectSerializer (no explicit depth cap lives in
-    // this module), so a moderately nested payload decodes while a very deeply
-    // nested one is rejected as a SerializationError.
+    // Rust pins the same 1000-deep JSON nesting cap as the other eleven SDKs
+    // (MAX_JSON_DEPTH), enforced by the byte-scan with serde_json's own ~128-deep
+    // recursion limit disabled. A payload nested between serde's default limit
+    // and the cap (e.g. 500) must now DECODE (it was rejected before the cap was
+    // added), while one deeper than the cap is rejected as a SerializationError.
     #[test]
-    fn test_deep_json_rejected_by_recursion_limit() {
+    fn test_json_nesting_depth_cap_matches_other_sdks() {
         let shallow = format!("{}{}", "[".repeat(50), "]".repeat(50));
         let ok: Result<Option<serde_json::Value>, _> =
             object_serializer::deserialize(shallow.as_bytes());
         assert!(ok.is_ok(), "a shallow payload must decode");
 
+        // 500 is past serde_json's built-in ~128 limit but within the 1000 cap:
+        // it must decode, proving the cap (not serde's default) is the authority.
+        let mid = format!("{}{}", "[".repeat(500), "]".repeat(500));
+        let mid_ok: Result<Option<serde_json::Value>, _> =
+            object_serializer::deserialize(mid.as_bytes());
+        assert!(mid_ok.is_ok(), "a payload within the 1000-deep cap must decode");
+
         let deep = format!("{}{}", "[".repeat(1500), "]".repeat(1500));
         let err: Result<Option<serde_json::Value>, _> =
             object_serializer::deserialize(deep.as_bytes());
-        assert!(err.is_err(), "a very deeply nested payload must be rejected");
+        assert!(err.is_err(), "a payload deeper than the 1000 cap must be rejected");
     }
 
 {{#generateTests}}

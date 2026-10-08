@@ -1305,9 +1305,9 @@ void main() {
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
           await api.findPetsByStatus(
-            const FindPetsByStatusOptions(
-              bornAfter: '2024-01-01',
-              reportDate: '2024-01-01',
+            FindPetsByStatusOptions(
+              bornAfter: DateTime.utc(2024, 1, 1),
+              reportDate: DateTime.utc(2024, 1, 1),
             ),
           );
 
@@ -1345,9 +1345,9 @@ void main() {
 
         await api.setPetPreferences(
           1,
-          const SetPetPreferencesOptions(
+          SetPetPreferencesOptions(
             nickname: 'Rex',
-            renewalDate: '2024-01-01',
+            renewalDate: DateTime.utc(2024, 1, 1),
           ),
         );
 

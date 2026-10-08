@@ -247,7 +247,7 @@ class {{classname}} extends BaseApi {
      * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
      * flows through serializeStyled like any other string with no special
      * casing. */
-    path = path.replaceAll('{' + '{{{baseName}}}' + '}', serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString());
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', serializeStyled('{{baseName}}', {{#isDate}}stringifyDate({{paramName}}){{/isDate}}{{^isDate}}{{paramName}}{{/isDate}}, 'path','{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString());
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -265,17 +265,17 @@ class {{classname}} extends BaseApi {
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
@@ -291,7 +291,7 @@ class {{classname}} extends BaseApi {
     queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
 {{/required}}
 {{^required}}
@@ -305,7 +305,7 @@ class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/required}}
@@ -321,7 +321,7 @@ class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryDeepObject}}{{^vendorExtensions.param.queryContent}}
-      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
 {{/vendorExtensions.param.queryContent}}{{/vendorExtensions.param.queryDeepObject}}
     }
 {{/vendorExtensions.op.optionsParamRequired}}
@@ -332,17 +332,17 @@ class {{classname}} extends BaseApi {
 {{#headerParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+    headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/headerParams}}
@@ -364,17 +364,17 @@ class {{classname}} extends BaseApi {
 {{#cookieParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-    addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
 {{/required}}
 {{^required}}
     if (options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
     }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+      addCookiePart('{{baseName}}', '${serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}},'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/cookieParams}}
@@ -399,23 +399,23 @@ class {{classname}} extends BaseApi {
 {{#formParams}}
 {{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
-    formBody['{{baseName}}'] = options.{{paramName}};
+    formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}};
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null) {
-      formBody['{{baseName}}'] = options.{{paramName}};
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
 {{^required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     if (options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = options.{{paramName}};
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options != null && options.{{paramName}} != null) {
-      formBody['{{baseName}}'] = options.{{paramName}};
+      formBody['{{baseName}}'] = {{#isDate}}stringifyDate(options.{{paramName}}!){{/isDate}}{{^isDate}}options.{{paramName}}{{/isDate}};
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}
