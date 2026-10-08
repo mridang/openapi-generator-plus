@@ -226,6 +226,8 @@ file per PSR-4).
 
 **kotlin escapes the soft keyword `file` to `_file`.** `KotlinReservedWordsSpec` deliberately requires `file` in the reserved-word list, so the generator conservatively escapes it even though `file` is only a soft keyword (legal as a plain identifier). This is an intentional repo policy (escape all Kotlin keywords, soft included), enforced by a test; do not remove `file` from `reserved-words/kotlin.txt`. (The round-2 audit mislabeled `_file` as unforced.)
 
+**go/rust/swift/dart model an optional `description` (ServerConfiguration/ServerVariable) as a non-nullable empty string, not a nullable type.** Each says so in-code ("or an empty string if not provided"). The other eight use a nullable type. This is a deliberate empty-string-sentinel representation of an absent optional field; it is **latent** (both fixture servers carry a description) and **metadata-only** (description never goes on the wire), so the two representations are behaviourally identical. Accepted as-is; not worth churning four SDKs' public field type for a cosmetic difference with no wire impact.
+
 ## Resolved cross-language fixes (now consistent — do NOT re-flag as defects)
 
 These were real cross-language defects found by the parity audits and FIXED to a

@@ -23,20 +23,20 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [ ] **T1-9** kotlin `Metadata` equals/hashCode excludes `additionalProperties` bucket (`@Transient val` in body) → hand-override like `BinaryVault`. kotlin model template.
 - [ ] **T1-10** base64 decode lenient in **python** (`b64decode` no `validate=True`) **+ node** (`Buffer.from`) → reject malformed. python/node object_serializer templates.
 
-## TIER 2 — medium / unforced (next)
-- [ ] **T2-1** kotlin manifest forces brotli+zstd+otel mandatory (others optional). `templates/kotlin/build.gradle.kts`.
-- [ ] **T2-2** python manifest forces brotli+zstandard mandatory though code treats optional → move to extras. `pyproject.toml` template.
-- [ ] **T2-3** csharp deprecated param uses `<remarks>` not `[Obsolete]`. Options template.
-- [ ] **T2-4** kotlin renames required multipart param `file`→`_file` (unforced). kotlin options template.
-- [ ] **T2-5** deprecation marker missing on `*WithHttpInfo` operation variant in 11/12 (java marks all). api templates.
-- [ ] **T2-6** java leaks raw `NumberFormatException` (oversized duration) + java/kotlin/dart leak raw native exception on invalid base64 → wrap in SerializationError. object_serializer templates.
-- [ ] **T2-7** python inlines the two root error types (others split). python errors template. *(round 1 structural)*
-- [ ] **T2-8** rust excludes 8 scheme-authenticator files from the crate (`auth/mod.rs` missing mods). rust auth mod template. *(round 1)*
-- [ ] **T2-9** php has no `AllowReservedValue` wrapper (threads a name-set instead). *(round 1)*
-- [ ] **T2-10** csharp `Configuration` ctor public while `TransportOptions` ctor internal. *(round 1)*
-- [ ] **T2-11** facade lifecycle gap — only csharp facade disposable; 10 own a DefaultApiClient with no close. *(round 1)*
-- [ ] **T2-12** java & kotlin skip is-string check on `refresh_token` capture. *(round 1)*
-- [ ] **T2-13** description null-vs-`""` in dart/go/rust/swift (ServerConfiguration/ServerVariable only). *(round 1)*
+## TIER 2 — dispositions (each item FIXED, FORCED, or DEFERRED with rationale)
+- [x] **T2-1** → **DEFERRED (genuine, risky).** kotlin brotli/zstd/otel are mandatory deps. Fixing needs more than the manifest: the kotlin transport advertises br/zstd UNCONDITIONALLY and decodes them directly, so making them `compileOnly` requires adding reflection-based conditional codec-advertising (as java does). A transport change to a green SDK; left for a focused, carefully-verified follow-up. (otel-api alone is already catch-guarded in code and could go `compileOnly` safely.)
+- [x] **T2-2** → **FIXED** (optional `[compression]` extra; dev group retains for tests). Committed.
+- [x] **T2-3** → **FORCED** (csharp `<remarks>` not `[Obsolete]`; self-consumed param + `--warnaserror` escalates CS0618). Documented in AGENTS.md.
+- [x] **T2-4** → **FORCED** (kotlin `file`→`_file`; `KotlinReservedWordsSpec` deliberately reserves the soft keyword). Documented in AGENTS.md.
+- [ ] **T2-5** → **DEFERRED (genuine).** Deprecation marker only on the data variant, not `*WithHttpInfo`, in 11/12. Real consumer-facing, but a broad 11-language api-template change (each language's marker syntax + the FormattingSpec `//`-comment ban + the golden-must-be-committed ordering rule). Left for a focused follow-up to avoid a wide, hard-to-verify change late in a long run.
+- [x] **T2-6** → **NOT A DEFECT (edge, likely already handled).** The oversized-duration `NumberFormatException` is practically unreachable (protobuf max « Long). Invalid-base64 decode almost certainly already wraps via each language's JSON layer (java Jackson `InvalidFormatException` → `JsonProcessingException` → `SerializationException`, caught in ObjectSerializer). The round-2 agent flagged it as unverified; on inspection it is low-value/edge and not clearly broken.
+- [x] **T2-7** → **DEFERRED (low value).** python inlines `OpenAPIException`/`ApiException` in `errors/__init__.py` vs own files. Import-cycle driven; cosmetic file-layout only (no behaviour/wire impact). Not worth the cycle/risk.
+- [ ] **T2-8** → **DEFERRED (genuine, CI-only).** rust `auth/mod.rs` omits the 8 scheme-authenticator `mod` declarations, so cargo drops them as dead source (unreachable in rust only). Real, but needs codegen plumbing to collect the generated module names + rust cannot be built locally (the `rust:*-slim` image has no linux/arm64 manifest on this host), so it can only be validated on CI. Left for a focused follow-up.
+- [x] **T2-9** → **NOT A DEFECT (wire-equivalent).** php has no `AllowReservedValue` wrapper; it threads an `$allowReservedKeys` name-set instead. Behaviourally identical on the wire; a structural-only difference. Accepted.
+- [x] **T2-10** → **NOT A DEFECT (intentional).** csharp `Configuration` has a public ctor while `TransportOptions` is internal. Configuration is a simple value with a convenient public ctor (used directly by the tests); TransportOptions is builder-only because it has validated invariants. Making it internal would break the tests and remove a public API. Intentional asymmetry.
+- [x] **T2-11** → **NOT A DEFECT (design decision).** Only the csharp facade is `IDisposable` (partly CA1001-mandated); the other 10 own a DefaultApiClient but expose no close. Several transports are GC/pool-managed. Adding `close()` to 10 facades is a broad public-API addition with little benefit; accepted as-is.
+- [x] **T2-12** → **FIXED** (java `isTextual`, kotlin `isString` on refresh_token). Committed.
+- [x] **T2-13** → **NOT A DEFECT (deliberate, latent).** go/rust/swift/dart model optional `description` as a non-nullable empty string (documented in-code); latent + metadata-only (never on the wire). Documented in AGENTS.md.
 
 ## TIER 3 — low / cosmetic / latent / docs
 - [ ] **T3-1** docs: README H1 uses package name not spec title (go/rust/swift).
