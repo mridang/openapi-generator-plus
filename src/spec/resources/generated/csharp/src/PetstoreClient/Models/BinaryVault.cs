@@ -61,4 +61,17 @@ public class BinaryVault : IEquatable<BinaryVault>
         hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Labels));
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Seal=")
+            .Append(this.Seal is null ? "null" : global::System.Convert.ToBase64String(this.Seal));
+        sb.Append(", Shards=").Append(this.Shards);
+        sb.Append(", Labels=").Append(this.Labels);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

@@ -806,6 +806,20 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   public int hashCode() {
     return java.util.Objects.hash({{#vars}}{{#isByteArray}}java.util.Arrays.hashCode({{name}}){{/isByteArray}}{{^isByteArray}}{{#isContainer}}{{invokerPackage}}.ObjectSerializer.structuralHashCode({{name}}){{/isContainer}}{{^isContainer}}{{name}}{{/isContainer}}{{/isByteArray}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+{{#vars}}
+    sb.append("{{^-first}}, {{/-first}}{{name}}=").append({{#isByteArray}}java.util.Arrays.toString({{name}}){{/isByteArray}}{{^isByteArray}}{{name}}{{/isByteArray}});
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    sb.append("{{#hasVars}}, {{/hasVars}}additionalProperties=").append(additionalProperties);
+{{/isAdditionalPropertiesTrue}}
+    sb.append("}");
+    return sb.toString();
+  }
 }
 {{/anyOf}}
 {{/oneOf}}

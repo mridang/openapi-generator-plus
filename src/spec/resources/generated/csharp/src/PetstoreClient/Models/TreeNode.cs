@@ -80,4 +80,15 @@ public class TreeNode : IEquatable<TreeNode>
         hash.Add(this.Child);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Value=").Append(this.Value);
+        sb.Append(", Child=").Append(this.Child);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

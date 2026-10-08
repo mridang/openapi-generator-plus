@@ -83,4 +83,15 @@ public class Employee : IEquatable<Employee>
         hash.Add(this.Department);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Name=").Append(this.Name);
+        sb.Append(", Department=").Append(this.Department);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

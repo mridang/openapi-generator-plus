@@ -98,4 +98,15 @@ public class Defaults {
   public int hashCode() {
     return java.util.Objects.hash(retries, mode, label);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("retries=").append(retries);
+    sb.append(", mode=").append(mode);
+    sb.append(", label=").append(label);
+    sb.append("}");
+    return sb.toString();
+  }
 }

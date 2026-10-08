@@ -64,4 +64,14 @@ public class WetFood extends PetFood {
   public int hashCode() {
     return java.util.Objects.hash(foodType, volumeMl);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("foodType=").append(foodType);
+    sb.append(", volumeMl=").append(volumeMl);
+    sb.append("}");
+    return sb.toString();
+  }
 }

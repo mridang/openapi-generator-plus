@@ -66,4 +66,14 @@ public class TreeNode {
   public int hashCode() {
     return java.util.Objects.hash(value, child);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("value=").append(value);
+    sb.append(", child=").append(child);
+    sb.append("}");
+    return sb.toString();
+  }
 }

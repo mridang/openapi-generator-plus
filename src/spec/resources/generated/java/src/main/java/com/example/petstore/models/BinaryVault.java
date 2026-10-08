@@ -60,4 +60,15 @@ public class BinaryVault {
         com.example.petstore.ObjectSerializer.structuralHashCode(shards),
         com.example.petstore.ObjectSerializer.structuralHashCode(labels));
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("seal=").append(java.util.Arrays.toString(seal));
+    sb.append(", shards=").append(shards);
+    sb.append(", labels=").append(labels);
+    sb.append("}");
+    return sb.toString();
+  }
 }

@@ -230,4 +230,25 @@ public class PetWithOwner {
         weightKg,
         ownerName);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("id=").append(id);
+    sb.append(", name=").append(name);
+    sb.append(", category=").append(category);
+    sb.append(", photoUrls=").append(photoUrls);
+    sb.append(", tags=").append(tags);
+    sb.append(", status=").append(status);
+    sb.append(", location=").append(location);
+    sb.append(", homepageUrl=").append(homepageUrl);
+    sb.append(", thumbnailRef=").append(thumbnailRef);
+    sb.append(", linkTemplate=").append(linkTemplate);
+    sb.append(", ownerEmail=").append(ownerEmail);
+    sb.append(", weightKg=").append(weightKg);
+    sb.append(", ownerName=").append(ownerName);
+    sb.append("}");
+    return sb.toString();
+  }
 }

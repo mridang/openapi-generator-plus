@@ -41,4 +41,15 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
         hash.Add(this.Lng);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Lat=").Append(this.Lat);
+        sb.Append(", Lng=").Append(this.Lng);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

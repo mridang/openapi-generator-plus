@@ -66,4 +66,14 @@ public class Department {
   public int hashCode() {
     return java.util.Objects.hash(name, lead);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("name=").append(name);
+    sb.append(", lead=").append(lead);
+    sb.append("}");
+    return sb.toString();
+  }
 }

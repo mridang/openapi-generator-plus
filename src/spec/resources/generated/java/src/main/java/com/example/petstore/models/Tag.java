@@ -52,4 +52,14 @@ public class Tag {
   public int hashCode() {
     return java.util.Objects.hash(id, name);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("id=").append(id);
+    sb.append(", name=").append(name);
+    sb.append("}");
+    return sb.toString();
+  }
 }

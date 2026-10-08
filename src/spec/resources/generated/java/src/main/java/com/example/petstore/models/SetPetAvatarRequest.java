@@ -72,4 +72,14 @@ public class SetPetAvatarRequest {
   public int hashCode() {
     return java.util.Objects.hash(java.util.Arrays.hashCode(data), mimeType);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("data=").append(java.util.Arrays.toString(data));
+    sb.append(", mimeType=").append(mimeType);
+    sb.append("}");
+    return sb.toString();
+  }
 }

@@ -83,4 +83,16 @@ public class StockItem : IEquatable<StockItem>
         hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.Matrix));
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Priority=").Append(this.Priority);
+        sb.Append(", Availability=").Append(this.Availability);
+        sb.Append(", Matrix=").Append(this.Matrix);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

@@ -78,4 +78,28 @@ public class PetPassport : IEquatable<PetPassport>
         hash.Add(global::PetstoreClient.ObjectSerializer.StructuralHashCode(this.BiometricChip));
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Pet=").Append(this.Pet);
+        sb.Append(", Thumbnail=")
+            .Append(
+                this.Thumbnail is null
+                    ? "null"
+                    : global::System.Convert.ToBase64String(this.Thumbnail)
+            );
+        sb.Append(", Scans=").Append(this.Scans);
+        sb.Append(", IssuedAt=").Append(this.IssuedAt);
+        sb.Append(", BiometricChip=")
+            .Append(
+                this.BiometricChip is null
+                    ? "null"
+                    : global::System.Convert.ToBase64String(this.BiometricChip)
+            );
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

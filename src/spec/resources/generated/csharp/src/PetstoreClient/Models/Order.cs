@@ -133,4 +133,19 @@ public class Order : IEquatable<Order>
         hash.Add(this.Complete);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Id=").Append(this.Id);
+        sb.Append(", PetId=").Append(this.PetId);
+        sb.Append(", Quantity=").Append(this.Quantity);
+        sb.Append(", ShipDate=").Append(this.ShipDate);
+        sb.Append(", Status=").Append(this.Status);
+        sb.Append(", Complete=").Append(this.Complete);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

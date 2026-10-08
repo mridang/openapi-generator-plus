@@ -75,4 +75,15 @@ public class StockItem {
     return java.util.Objects.hash(
         priority, availability, com.example.petstore.ObjectSerializer.structuralHashCode(matrix));
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("priority=").append(priority);
+    sb.append(", availability=").append(availability);
+    sb.append(", matrix=").append(matrix);
+    sb.append("}");
+    return sb.toString();
+  }
 }

@@ -47,7 +47,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T3-6** rust advertises zstd but not brotli.
 - [x] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
 - [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
-- [ ] **T3-9** no field-dumping toString/repr on java/csharp/php/node/dart models.
+- [~] **T3-9** field-dumping repr. **java + csharp FIXED** (added `toString`/`ToString` dumping every property; node/dart already had it, kotlin/rust/swift/python/ruby/go/elixir get it from the language). **php DEFERRED** — `__toString` has real runtime-error risk for non-stringable fields (arrays, DateTime, enums) and php tests can't run while the pecl install is down; implement + verify once php CI is green again.
 - [x] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
 - [-] **T3-11** → **STALE / not a defect.** Round-4 audit found bodyless-GET request content-type consistent across all 12 (all pass "application/json"); no rust empty-boilerplate divergence remains.
 - [ ] **T3-12** setPetAvatar selector param name `requestContentType` vs `contentType` (node/php/ruby/elixir).

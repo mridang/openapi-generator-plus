@@ -47,4 +47,14 @@ public class PhotoMetadataLocation {
   public int hashCode() {
     return java.util.Objects.hash(lat, lng);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("lat=").append(lat);
+    sb.append(", lng=").append(lng);
+    sb.append("}");
+    return sb.toString();
+  }
 }

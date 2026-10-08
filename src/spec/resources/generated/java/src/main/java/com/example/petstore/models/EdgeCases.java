@@ -110,4 +110,22 @@ public class EdgeCases {
         retryAfter,
         expiresAt);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("freeFormAny=").append(freeFormAny);
+    sb.append(", favoriteColor=").append(favoriteColor);
+    sb.append(", permissionsNote=").append(permissionsNote);
+    sb.append(", and=").append(and);
+    sb.append(", or=").append(or);
+    sb.append(", not=").append(not);
+    sb.append(", _class=").append(_class);
+    sb.append(", _return=").append(_return);
+    sb.append(", retryAfter=").append(retryAfter);
+    sb.append(", expiresAt=").append(expiresAt);
+    sb.append("}");
+    return sb.toString();
+  }
 }

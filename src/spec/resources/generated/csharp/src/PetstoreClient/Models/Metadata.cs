@@ -47,4 +47,15 @@ public class Metadata : IEquatable<Metadata>
         );
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("CreatedAt=").Append(this.CreatedAt);
+        sb.Append(", additionalProperties=").Append(this.AdditionalProperties);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

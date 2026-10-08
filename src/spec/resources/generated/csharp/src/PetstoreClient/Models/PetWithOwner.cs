@@ -264,4 +264,26 @@ public class PetWithOwner : IEquatable<PetWithOwner>
         hash.Add(this.OwnerName);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Id=").Append(this.Id);
+        sb.Append(", Name=").Append(this.Name);
+        sb.Append(", Category=").Append(this.Category);
+        sb.Append(", PhotoUrls=").Append(this.PhotoUrls);
+        sb.Append(", Tags=").Append(this.Tags);
+        sb.Append(", Status=").Append(this.Status);
+        sb.Append(", Location=").Append(this.Location);
+        sb.Append(", HomepageUrl=").Append(this.HomepageUrl);
+        sb.Append(", ThumbnailRef=").Append(this.ThumbnailRef);
+        sb.Append(", LinkTemplate=").Append(this.LinkTemplate);
+        sb.Append(", OwnerEmail=").Append(this.OwnerEmail);
+        sb.Append(", WeightKg=").Append(this.WeightKg);
+        sb.Append(", OwnerName=").Append(this.OwnerName);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

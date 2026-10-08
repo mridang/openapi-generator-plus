@@ -66,4 +66,14 @@ public class Employee {
   public int hashCode() {
     return java.util.Objects.hash(name, department);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("name=").append(name);
+    sb.append(", department=").append(department);
+    sb.append("}");
+    return sb.toString();
+  }
 }

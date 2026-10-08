@@ -133,4 +133,18 @@ public class Order {
   public int hashCode() {
     return java.util.Objects.hash(id, petId, quantity, shipDate, status, complete);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("id=").append(id);
+    sb.append(", petId=").append(petId);
+    sb.append(", quantity=").append(quantity);
+    sb.append(", shipDate=").append(shipDate);
+    sb.append(", status=").append(status);
+    sb.append(", complete=").append(complete);
+    sb.append("}");
+    return sb.toString();
+  }
 }

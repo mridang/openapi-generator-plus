@@ -64,4 +64,14 @@ public class DryFood extends PetFood {
   public int hashCode() {
     return java.util.Objects.hash(foodType, weightKg);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("foodType=").append(foodType);
+    sb.append(", weightKg=").append(weightKg);
+    sb.append("}");
+    return sb.toString();
+  }
 }

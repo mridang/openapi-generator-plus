@@ -88,4 +88,16 @@ public class Surgery : IEquatable<Surgery>
         hash.Add(this.Notes);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("ProcedureName=").Append(this.ProcedureName);
+        sb.Append(", DurationMinutes=").Append(this.DurationMinutes);
+        sb.Append(", Notes=").Append(this.Notes);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

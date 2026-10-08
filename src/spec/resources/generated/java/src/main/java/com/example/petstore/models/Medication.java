@@ -72,4 +72,15 @@ public class Medication {
   public int hashCode() {
     return java.util.Objects.hash(drugName, dosage, notes);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("drugName=").append(drugName);
+    sb.append(", dosage=").append(dosage);
+    sb.append(", notes=").append(notes);
+    sb.append("}");
+    return sb.toString();
+  }
 }

@@ -59,4 +59,16 @@ public class Photo {
   public int hashCode() {
     return java.util.Objects.hash(id, caption, isPrimary, url);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("id=").append(id);
+    sb.append(", caption=").append(caption);
+    sb.append(", isPrimary=").append(isPrimary);
+    sb.append(", url=").append(url);
+    sb.append("}");
+    return sb.toString();
+  }
 }

@@ -53,4 +53,15 @@ public class ApiResponse {
   public int hashCode() {
     return java.util.Objects.hash(code, type, message);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("code=").append(code);
+    sb.append(", type=").append(type);
+    sb.append(", message=").append(message);
+    sb.append("}");
+    return sb.toString();
+  }
 }

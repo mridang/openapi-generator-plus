@@ -69,4 +69,14 @@ public class Metadata {
   public int hashCode() {
     return java.util.Objects.hash(createdAt, additionalProperties);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("createdAt=").append(createdAt);
+    sb.append(", additionalProperties=").append(additionalProperties);
+    sb.append("}");
+    return sb.toString();
+  }
 }

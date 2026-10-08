@@ -60,4 +60,16 @@ public class PhotoMetadata {
   public int hashCode() {
     return java.util.Objects.hash(caption, isPrimary, takenAt, location);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("caption=").append(caption);
+    sb.append(", isPrimary=").append(isPrimary);
+    sb.append(", takenAt=").append(takenAt);
+    sb.append(", location=").append(location);
+    sb.append("}");
+    return sb.toString();
+  }
 }

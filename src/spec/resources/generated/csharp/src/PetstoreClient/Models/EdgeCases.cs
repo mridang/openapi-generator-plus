@@ -102,4 +102,23 @@ public class EdgeCases : IEquatable<EdgeCases>
         hash.Add(this.ExpiresAt);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("FreeFormAny=").Append(this.FreeFormAny);
+        sb.Append(", FavoriteColor=").Append(this.FavoriteColor);
+        sb.Append(", PermissionsNote=").Append(this.PermissionsNote);
+        sb.Append(", And=").Append(this.And);
+        sb.Append(", Or=").Append(this.Or);
+        sb.Append(", Not=").Append(this.Not);
+        sb.Append(", Class=").Append(this.Class);
+        sb.Append(", Return=").Append(this.Return);
+        sb.Append(", RetryAfter=").Append(this.RetryAfter);
+        sb.Append(", ExpiresAt=").Append(this.ExpiresAt);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

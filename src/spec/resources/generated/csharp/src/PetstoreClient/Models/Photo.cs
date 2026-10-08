@@ -51,4 +51,17 @@ public class Photo : IEquatable<Photo>
         hash.Add(this.Url);
         return hash.ToHashCode();
     }
+
+    /// <summary>Returns a string with every property, for debugging.</summary>
+    public override string ToString()
+    {
+        global::System.Text.StringBuilder sb = new();
+        sb.Append(this.GetType().Name).Append('{');
+        sb.Append("Id=").Append(this.Id);
+        sb.Append(", Caption=").Append(this.Caption);
+        sb.Append(", IsPrimary=").Append(this.IsPrimary);
+        sb.Append(", Url=").Append(this.Url);
+        sb.Append('}');
+        return sb.ToString();
+    }
 }

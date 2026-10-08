@@ -73,4 +73,15 @@ public class Surgery {
   public int hashCode() {
     return java.util.Objects.hash(procedureName, durationMinutes, notes);
   }
+
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append(getClass().getSimpleName()).append("{");
+    sb.append("procedureName=").append(procedureName);
+    sb.append(", durationMinutes=").append(durationMinutes);
+    sb.append(", notes=").append(notes);
+    sb.append("}");
+    return sb.toString();
+  }
 }
