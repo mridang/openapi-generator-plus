@@ -455,8 +455,14 @@ func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
 		}
 		defer reader.Close()
 		return io.ReadAll(reader)
-	default:
+	case "", "identity":
 		return raw, nil
+	default:
+		// An unrecognised (or multi-value) Content-Encoding is a response the
+		// client cannot honour. Return an error — the caller wraps it in an
+		// ApiError carrying the response status (matching csharp/elixir and the
+		// documented contract) rather than handing back still-encoded bytes.
+		return nil, fmt.Errorf("unsupported Content-Encoding %q", contentEncoding)
 	}
 }
 

@@ -148,8 +148,16 @@ class DefaultApiClient extends AbstractApiClient {
             underlyingError: e,
           );
         }
-      default:
+      case 'identity':
         return bytes;
+      default:
+        /* An unrecognised (or multi-value) Content-Encoding is a response the
+         * client cannot honour; raise rather than return still-encoded bytes,
+         * matching the canonical decompressors (csharp/elixir/java/go/…). */
+        throw ApiException(
+          statusCode: 0,
+          message: "Unsupported Content-Encoding '$contentEncoding'",
+        );
     }
   }
 }

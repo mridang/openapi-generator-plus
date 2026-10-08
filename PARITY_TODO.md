@@ -74,7 +74,7 @@ second-order / latent residuals remain (NONE affect CI-green or wire behaviour o
   — dart's only temporal type is `DateTime` (like node's JS `Date`), and node maps `format: date`
   params to `Date` + truncates via `ValueSerializer.stringifyDate`; dart could do the same but
   drops to String. ACTIONABLE (dart only); a public-API type change.
-- [ ] **R5-2** Unknown/unsupported response `Content-Encoding`: 10 langs return the raw (still-
+- [x] **R5-2** Unknown/unsupported response `Content-Encoding`: 10 langs return the raw (still-
   encoded) bytes from the decompress default branch; csharp + elixir RAISE. The documented
   contract (java `ApiException` "a body whose Content-Encoding cannot be decoded") favours the
   raise, so the 2 are arguably more-correct and the 10 should align to raise. Latent — no client
@@ -82,7 +82,7 @@ second-order / latent residuals remain (NONE affect CI-green or wire behaviour o
 - [x] **R5-3** rust does not pin the shared 1000-deep JSON nesting cap (relies on serde_json's
   ~128); the other 11 pin 1000. rust is STRICTER (rejects 129–1000 that others accept). Low
   severity; rust could add the same byte-scan the non-Jackson SDKs use. CI-verified if changed.
-- [ ] **R5-4** Chained/multi-value `Content-Encoding` (comma list): csharp + node decode each
+- [x] **R5-4** Chained/multi-value `Content-Encoding` (comma list): csharp + node decode each
   coding; the other 10 switch on the whole string and fall through to pass-through. Very rare
   (clients advertise single codecs). Lowest priority.
 

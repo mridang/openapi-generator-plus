@@ -493,7 +493,17 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
         "zstd" => {
             decoded = zstd::stream::decode_all(raw)?;
         }
-        _ => return Ok(None),
+        "" | "identity" => return Ok(None),
+        // An unrecognised (or multi-value) Content-Encoding is a response the
+        // client cannot honour. Return an error — the caller wraps it in an
+        // ApiError carrying the response status (matching csharp/elixir and the
+        // documented contract) rather than returning the body still encoded.
+        other => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("unsupported Content-Encoding '{other}'"),
+            ));
+        }
     }
     Ok(Some(decoded))
 }

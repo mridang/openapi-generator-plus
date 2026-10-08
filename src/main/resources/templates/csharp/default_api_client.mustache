@@ -1027,8 +1027,28 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <returns>The decoded body bytes.</returns>
     private static byte[] DecodeContentEncoding(byte[] data, IEnumerable<string> encodings)
     {
+        /* A chained (multi-coding) Content-Encoding is non-standard for this
+         * SDK's responses and is rejected uniformly across the SDKs rather than
+         * decoded coding-by-coding here, matching the single-coding switch the
+         * other manual decompressors use. It never occurs in practice (the
+         * client advertises one codec). Materialise the sequence once to avoid
+         * a double enumeration (CA1851). */
+        List<string> codings = new(encodings);
+        int codingCount = 0;
+        foreach (string e in codings)
+        {
+            string c = e.Trim();
+            if (c.Length > 0 && !c.Equals("identity", StringComparison.OrdinalIgnoreCase))
+            {
+                codingCount++;
+            }
+        }
+        if (codingCount > 1)
+        {
+            throw new NotSupportedException("chained Content-Encoding is not supported");
+        }
         byte[] current = data;
-        foreach (string encoding in encodings)
+        foreach (string encoding in codings)
         {
             string coding = encoding.Trim().ToUpperInvariant();
             if (coding is "IDENTITY" or "")

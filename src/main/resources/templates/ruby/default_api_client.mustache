@@ -428,8 +428,14 @@ module {{moduleName}}
         defined?(Brotli) ? Brotli.inflate(body) : body
       when 'zstd'
         defined?(Zstd) ? Zstd.decompress(body) : body
-      else
+      when nil, '', 'identity'
         body
+      else
+        # An unrecognised (or multi-value) Content-Encoding is a response the
+        # client cannot honour. Raise — the caller rescues this into an ApiError
+        # carrying the response status (matching csharp/elixir and the documented
+        # contract) rather than returning the body still encoded.
+        raise "unsupported Content-Encoding: #{encoding}"
       end
     end
 

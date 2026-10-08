@@ -553,7 +553,12 @@ internal fun decodeContentEncoding(
                 .use { it.readBytes() }
         "br" -> decodeViaInputStream(data, "org.brotli.dec.BrotliInputStream")
         "zstd" -> decodeViaInputStream(data, "com.github.luben.zstd.ZstdInputStream")
-        else -> data
+        "", "identity" -> data
+        // An unrecognised (or multi-value) Content-Encoding is a response the
+        // client cannot honour; raise so the caller surfaces an ApiException
+        // (matching csharp/elixir and the documented contract) instead of
+        // returning the body still encoded.
+        else -> throw java.io.IOException("unsupported Content-Encoding '$contentEncoding'")
     }
 }
 

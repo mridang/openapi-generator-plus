@@ -635,7 +635,15 @@ abstract class AbstractApiClient implements ApiClient
                 ? (@zstd_uncompress($body)
                     ?: throw new \RuntimeException('Failed to zstd-decompress response body'))
                 : $body,
-            default => $body,
+            '', 'identity' => $body,
+            /* An unrecognised (or multi-value) Content-Encoding is a response
+             * the client cannot honour. Throw — the caller wraps it in an
+             * ApiException carrying the response status (matching csharp/elixir
+             * and the documented contract) rather than returning the body
+             * still encoded. */
+            default => throw new \RuntimeException(
+                "Unsupported Content-Encoding '" . $encoding . "'"
+            ),
         };
     }
 

@@ -1044,4 +1044,10 @@ class DefaultApiClient:
                 data, max_output_size=len(data) * 16
             )
             return zstd_result
-        return data
+        if encoding in ("", "identity"):
+            return data
+        # An unrecognised (or multi-value) Content-Encoding is a response the
+        # client cannot honour. Raise — the caller re-raises it as an
+        # ApiException carrying the response status (matching csharp/elixir and
+        # the documented contract) rather than returning still-encoded bytes.
+        raise ValueError(f"unsupported Content-Encoding: {encoding!r}")
