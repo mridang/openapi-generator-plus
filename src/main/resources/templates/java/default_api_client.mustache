@@ -831,7 +831,14 @@ public final class DefaultApiClient implements ApiClient {
             }
             case "br" -> decompressBrotli(data);
             case "zstd" -> decompressZstd(data);
-            default -> data;
+            case "identity", "" -> data;
+            /* An unrecognised (or multi-value) Content-Encoding is a response
+             * the client cannot honour. Raise rather than return the body
+             * still-encoded — the caller wraps this in an ApiException, per the
+             * documented contract, instead of handing back bytes that would
+             * fail confusingly downstream. Matches csharp/elixir. */
+            default -> throw new IOException(
+                    "unsupported Content-Encoding '" + encoding + "'");
         };
     }
 

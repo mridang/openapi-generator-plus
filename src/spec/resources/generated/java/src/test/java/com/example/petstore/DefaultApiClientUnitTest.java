@@ -177,6 +177,18 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    server.createContext(
+        "/content-encoding-unknown",
+        exchange -> {
+          // A server advertising an encoding the client cannot decode.
+          byte[] body = "payload".getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Encoding", "made-up-codec");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -943,6 +955,23 @@ class DefaultApiClientUnitTest {
     assertTrue(
         ex.getCause() instanceof java.io.IOException,
         "cause should be the decompression IOException, was: " + ex.getCause());
+  }
+
+  @Test
+  void unknownContentEncodingSurfacesApiException() {
+    // An unrecognised Content-Encoding the client cannot decode must surface a
+    // typed ApiException (carrying the real status 200), not hand back the body
+    // still encoded. Matches csharp/elixir and the documented ApiException
+    // contract for an undecodable Content-Encoding.
+    DefaultApiClient client = new DefaultApiClient();
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("GET", baseUrl + "/content-encoding-unknown", Map.of(), null));
+    assertEquals(200, ex.getStatusCode());
+    assertFalse(
+        ex instanceof com.example.petstore.errors.NetworkException,
+        "an unsupported encoding is not a network failure");
   }
 
   @Test
