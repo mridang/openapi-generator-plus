@@ -168,6 +168,7 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
 
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
+/// See <https://example.com/docs/pets> Find out more about pets
 class PetApi extends BaseApi {
   PetApi({super.apiClient, super.config, super.authenticator});
 
@@ -670,6 +671,7 @@ class PetApi extends BaseApi {
   /// sold
   /// ```
 
+  /// See <https://example.com/docs/filtering> Find out more about filtering
   @Deprecated('This operation is deprecated.')
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
     final result = await findPetsByStatusWithHTTPInfo(options);

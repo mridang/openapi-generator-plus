@@ -1,4 +1,4 @@
-# petstore SDK
+# Swagger Petstore - OpenAPI 3.0 SDK
 
 Auto-generated Rust SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 

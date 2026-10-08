@@ -9,6 +9,7 @@ defmodule PetstoreClient.Models.Pet do
   @moduledoc """
   Model for Pet.
 
+  See [Learn more about the Pet model](https://example.com/docs/pet)
   """
 
   @type t :: %__MODULE__{

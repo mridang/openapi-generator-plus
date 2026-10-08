@@ -467,7 +467,7 @@ class PetApi : BaseApi {
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
      * Find out more about filtering
-     * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
+     * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
      */
 
     @Deprecated("This operation is deprecated.")

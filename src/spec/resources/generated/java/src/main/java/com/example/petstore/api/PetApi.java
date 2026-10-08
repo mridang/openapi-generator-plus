@@ -770,7 +770,7 @@ public class PetApi extends BaseApi {
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
-   * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
+   * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
   @Deprecated
   public List<Pet> findPetsByStatus(@Nullable FindPetsByStatusOptions options) {
@@ -785,7 +785,7 @@ public class PetApi extends BaseApi {
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
-   * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
+   * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
   @Deprecated
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(

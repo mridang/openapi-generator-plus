@@ -66,6 +66,9 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#tagDescription}}
 /// {{.}}
 {{/tagDescription}}
+{{#tagExternalDocs}}
+/// See <{{url}}> {{{description}}}
+{{/tagExternalDocs}}
 class {{classname}} extends BaseApi {
   {{classname}}({
     ApiClient? apiClient,
@@ -92,6 +95,9 @@ class {{classname}} extends BaseApi {
   /// {{value}}
   /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
+{{#externalDocs}}
+  /// See <{{url}}> {{{description}}}
+{{/externalDocs}}
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}

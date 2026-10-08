@@ -57,6 +57,9 @@ impl {{classname}} {
 {{^description}}
 /// {{classname}} is a model class generated from the OpenAPI schema.
 {{/description}}
+{{#externalDocumentation}}
+/// See <{{url}}> {{description}}
+{{/externalDocumentation}}
 {{#isDeprecated}}
 #[deprecated]
 {{/isDeprecated}}

@@ -61,6 +61,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
   {{{.}}}
   {{/tagDescription}}
+  {{#tagExternalDocs}}
+
+  See [{{{description}}}]({{url}})
+  {{/tagExternalDocs}}
   """
 
   @type t :: %__MODULE__{
@@ -131,6 +135,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
     * `{:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}}` on success.
     * `{:error, exception}` on failure.
+  {{#externalDocs}}
+
+  ## See also
+
+    * [{{{description}}}]({{url}})
+  {{/externalDocs}}
 
   """
   {{#isDeprecated}}

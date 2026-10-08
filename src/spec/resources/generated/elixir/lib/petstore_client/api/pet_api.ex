@@ -124,6 +124,8 @@ defmodule PetstoreClient.Api.PetApi do
   PetApi provides functions for the Pet API group.
 
   Everything about your Pets
+
+  See [Find out more about pets](https://example.com/docs/pets)
   """
 
   @type t :: %__MODULE__{
@@ -976,6 +978,10 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, [Pet]}` on success.
     * `{:error, exception}` on failure.
+
+  ## See also
+
+    * [Find out more about filtering](https://example.com/docs/filtering)
 
   """
   @deprecated "This operation is deprecated."

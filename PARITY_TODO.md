@@ -39,9 +39,9 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T2-13** → **NOT A DEFECT (deliberate, latent).** go/rust/swift/dart model optional `description` as a non-nullable empty string (documented in-code); latent + metadata-only (never on the wire). Documented in AGENTS.md.
 
 ## TIER 3 — low / cosmetic / latent / docs
-- [ ] **T3-1** docs: README H1 uses package name not spec title (go/rust/swift).
-- [ ] **T3-2** docs: externalDocs links dropped (dart all 3, elixir all 3, rust model).
-- [ ] **T3-3** docs: java/kotlin emit wrong operation externalDocs description text.
+- [x] **T3-1** docs: README H1 uses package name not spec title (go/rust/swift).
+- [x] **T3-2** docs: externalDocs now emitted at all levels — operation, tag (API class/module doc via `tagExternalDocs`), and model (`externalDocumentation`) — for dart + elixir; rust model link added. FIXED.
+- [x] **T3-3** docs: java/kotlin emit wrong operation externalDocs description text.
 - [ ] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
 - [ ] **T3-5** docs: elixir model docs thinnest (no field desc / deprecation / externalDocs).
 - [ ] **T3-6** rust advertises zstd but not brotli.

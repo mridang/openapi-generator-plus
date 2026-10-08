@@ -8,6 +8,7 @@
 use super::*;
 
 /// Pet is a model class generated from the OpenAPI schema.
+/// See <https://example.com/docs/pet> Learn more about the Pet model
 /// Typed enum for Pet.status.
 #[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub enum PetStatusEnum {
