@@ -345,8 +345,12 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			 * 307 from an HTTPS endpoint to an HTTP one would leak the
 			 * request body (which may carry credentials, tokens, or
 			 * PII) onto the network in plaintext. */
+			// Anchor on the hop that RECEIVED the redirect (via[len-1], whose
+			// body would be replayed), not the original request (via[0]): an
+			// http→https→http chain downgrades on the final hop even though
+			// the first request was already http, which a via[0] anchor misses.
 			if (prevStatus == 307 || prevStatus == 308) &&
-				strings.EqualFold(origURL.Scheme, "https") &&
+				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
 				strings.EqualFold(req.URL.Scheme, "http") {
 				return fmt.Errorf(
 					"refusing to replay request body across HTTPS→HTTP downgrade on %d redirect to %s",

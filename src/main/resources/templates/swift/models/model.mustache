@@ -218,10 +218,13 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{name}}: {{{dataType}}}, {{/requiredVars}}additionalProperties: [String: AnyCodable] = [:]) {
+    public init({{#requiredVars}}{{name}}: {{{dataType}}}, {{/requiredVars}}{{#optionalVars}}{{name}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}? = nil, {{/optionalVars}}additionalProperties: [String: AnyCodable] = [:]) {
 {{#requiredVars}}
         self.{{name}} = {{name}}
 {{/requiredVars}}
+{{#optionalVars}}
+        self.{{name}} = {{name}}
+{{/optionalVars}}
         self.additionalProperties = additionalProperties
     }
 {{/hasVars}}

@@ -19,7 +19,8 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
   }
 
   /// Creates a new Metadata instance.
-  public init(additionalProperties: [String: AnyCodable] = [:]) {
+  public init(createdAt: Date? = nil, additionalProperties: [String: AnyCodable] = [:]) {
+    self.createdAt = createdAt
     self.additionalProperties = additionalProperties
   }
 

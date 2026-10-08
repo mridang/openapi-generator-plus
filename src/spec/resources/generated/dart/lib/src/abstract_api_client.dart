@@ -304,8 +304,12 @@ abstract class AbstractApiClient implements ApiClient {
                   'Refusing to follow redirect to non-http(s) URL: $nextUri',
             );
           }
+          /* Anchor the downgrade check on the CURRENT hop (currentUri, whose
+           * body would be replayed), not the original request (uri): an
+           * http->https->http chain downgrades on the final hop even though
+           * the first request was already http, which a uri anchor would miss. */
           final downgrade =
-              uri.scheme.toLowerCase() == 'https' &&
+              currentUri.scheme.toLowerCase() == 'https' &&
               nextUri.scheme.toLowerCase() == 'http';
           final crossOrigin = !_sameOrigin(uri, nextUri);
 

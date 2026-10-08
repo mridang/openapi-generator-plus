@@ -46,17 +46,17 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [ ] **T3-5** docs: elixir model docs thinnest (no field desc / deprecation / externalDocs).
 - [ ] **T3-6** rust advertises zstd but not brotli.
 - [ ] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
-- [ ] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
+- [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
 - [ ] **T3-9** no field-dumping toString/repr on java/csharp/php/node/dart models.
 - [ ] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
 - [ ] **T3-11** rust emits empty content-type boilerplate on bodyless ops.
 - [ ] **T3-12** setPetAvatar selector param name `requestContentType` vs `contentType` (node/php/ruby/elixir).
 - [ ] **T3-13** rust `#[default]` enum-variant vs schema field default mismatch (DefaultsModeEnum). *(latent)*
-- [ ] **T3-14** go error-body downgrade-guard anchors original-vs-current hop (also dart/swift/elixir). *(round 1, benign)*
+- [x] **T3-14** go error-body downgrade-guard anchors original-vs-current hop (also dart/swift/elixir). *(round 1, benign)*
 - [ ] **T3-15** php populates `data` for non-JSON body without returnType. *(round 1, benign)*
-- [ ] **T3-16** swift resets token expiry to never-expires when expires_in omitted. *(round 1)*
+- [x] **T3-16** swift resets token expiry to never-expires when expires_in omitted. *(round 1)*
 - [ ] **T3-17** error-message wording drift (enum-validation; empty-path). *(round 1)*
-- [ ] **T3-18** redaction repr field-sets differ (java Basic omits host; go/node ApiKey omit location). *(round 1)*
+- [x] **T3-18** redaction repr field-sets differ (java Basic omits host; go/node ApiKey omit location). *(round 1)*
 - [ ] **T3-19** ValueSerializer latent path-array encoding splits (unreachable). *(round 1)*
 
 ## Clean layers (0 findings)

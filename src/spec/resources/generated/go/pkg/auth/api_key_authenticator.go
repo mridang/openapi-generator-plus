@@ -77,7 +77,7 @@ func (a *ApiKeyAuthenticator) Host() string {
 // String returns a string representation that redacts the API key so
 // credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *ApiKeyAuthenticator) String() string {
-	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***}", a.host, a.keyParamName)
+	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***, location: %s}", a.host, a.keyParamName, a.location)
 }
 
 // AuthHeaders returns the API key as a header if the location is Header.

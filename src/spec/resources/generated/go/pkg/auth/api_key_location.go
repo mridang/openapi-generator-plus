@@ -22,3 +22,19 @@ const (
 	/* ApiKeyLocationCookie sends the API key as a cookie. */
 	ApiKeyLocationCookie
 )
+
+// String returns the human-readable name of the location, so a String()
+// of an authenticator reports the location by name (like the other SDKs)
+// rather than the underlying iota value.
+func (l ApiKeyLocation) String() string {
+	switch l {
+	case ApiKeyLocationHeader:
+		return "Header"
+	case ApiKeyLocationQuery:
+		return "Query"
+	case ApiKeyLocationCookie:
+		return "Cookie"
+	default:
+		return "Unknown"
+	}
+}

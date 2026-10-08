@@ -290,12 +290,12 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 } else {
                     self.tokenExpiry = Date()
                 }
-            } else {
-                /* No expires_in in the response: cache the token indefinitely
-                 * (until explicitly invalidated). A nil expiry is the
-                 * "never expires" sentinel honoured by the fast-path check. */
-                self.tokenExpiry = nil
             }
+            /* No expires_in in the response: leave the prior tokenExpiry
+             * untouched (as every other SDK does) rather than overwriting it
+             * with the "never expires" nil sentinel. On a refresh whose
+             * response omits expires_in this keeps the previous expiry in
+             * force, so a stale token is refetched instead of cached forever. */
         }
     }
 

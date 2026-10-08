@@ -1088,12 +1088,17 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
      * (credentials, PII, signed tokens). Bodyless follow-ups
      * (303 + 301/302 GET coercion) are unaffected because
      * URLSession clears httpBody for those. */
-    let originalScheme = task.originalRequest?.url?.scheme?.lowercased()
+    /* Anchor on the CURRENT request (the hop that just received the
+     * redirect, whose body would be replayed), not the original request:
+     * an http -> https -> http chain downgrades on the final hop even
+     * though the first request was already http, which an originalRequest
+     * anchor would miss. */
+    let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
     let nextScheme = request.url?.scheme?.lowercased()
     let hasBody =
       (redirectRequest.httpBody != nil)
       || (redirectRequest.httpBodyStream != nil)
-    if hasBody, originalScheme == "https", nextScheme == "http" {
+    if hasBody, currentScheme == "https", nextScheme == "http" {
       /* Surface the downgrade refusal as a typed error rather than
          silently returning the 3xx response. */
       redirectErrors.set(

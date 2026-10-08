@@ -815,7 +815,12 @@ defmodule {{moduleName}}.DefaultApiClient do
               # method and body, but doing so would leak any sensitive payload
               # the caller sent under TLS onto a plaintext wire. Abort the
               # redirect chain instead of silently replaying.
-              if downgrade?(orig_url, next_url) and body != nil and
+              #
+              # Anchor on the CURRENT hop (url, whose body would be replayed),
+              # not the original request (orig_url): an http -> https -> http
+              # chain downgrades on the final hop even though the first request
+              # was already http, which an orig_url anchor would miss.
+              if downgrade?(url, next_url) and body != nil and
                    response.status in [307, 308] do
                 raise {{moduleName}}.Errors.ApiError,
                   message:
