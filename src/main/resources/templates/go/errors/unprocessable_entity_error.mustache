@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// UnprocessableEntityError is the error for HTTP 422 Unprocessable Entity.
+type UnprocessableEntityError struct {
+	ClientError
+}

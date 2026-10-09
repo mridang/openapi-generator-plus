@@ -1,0 +1,35 @@
+{{>api_info}}
+import 'dart:typed_data';
+
+import 'api_http_response.dart';
+
+/// Interface for API HTTP transport.
+///
+/// Implementations handle the actual HTTP request/response cycle. The default
+/// implementation uses `package:http`.
+abstract class ApiClient {
+  /// Send an HTTP request and return the response.
+  ///
+  /// Parameters:
+  ///   - [method]: HTTP method (GET, POST, PUT, DELETE, etc.)
+  ///   - [url]: fully qualified URL
+  ///   - [headers]: HTTP headers
+  ///   - [body]: request body (serialized JSON string, [Uint8List] for
+  ///     binary, or [Map<String, Object>] for multipart form data; may be
+  ///     null)
+  ///   - [noRedirect]: when true, any 3xx response (including 307/308) is
+  ///     returned to the caller as-is rather than being replayed to the
+  ///     `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use
+  ///     this guard so a malicious or misconfigured server cannot replay the
+  ///     credentialed body to an attacker-controlled URL.
+  ///
+  /// Returns an [ApiHttpResponse] containing status code, body, and headers.
+  /// Throws on transport errors.
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+  });
+}

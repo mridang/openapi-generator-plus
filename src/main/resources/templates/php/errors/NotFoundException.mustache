@@ -1,0 +1,17 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for HTTP 404 Not Found.
+ */
+class NotFoundException extends ClientException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = [],
+        ?string $responseBody = null,
+        mixed $errorBody = null
+    ) {
+        parent::__construct(404, $message, $responseHeaders, $responseBody, $errorBody);
+    }
+}

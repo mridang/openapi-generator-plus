@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// UnauthorizedError is the error for HTTP 401 Unauthorized.
+type UnauthorizedError struct {
+	ClientError
+}

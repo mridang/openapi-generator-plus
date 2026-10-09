@@ -1,0 +1,30 @@
+{{>api_info}}
+package {{packageName}}
+
+// ApiResult represents a typed API response with deserialized data, status code,
+// raw body, and headers. Returned by WithHTTPInfo methods.
+//
+// The type parameter T is the type of the deserialized response data.
+type ApiResult[T any] struct {
+	/* StatusCode is the HTTP status code. */
+	StatusCode int
+
+	/* Data is the deserialized response body (nil for void responses). */
+	Data *T
+
+	/* RawBody is the raw response body string (never nil; empty for no body). */
+	RawBody string
+
+	/* Headers are the response headers. */
+	Headers map[string]string
+}
+
+// NewApiResult creates a new ApiResult with the given values.
+func NewApiResult[T any](statusCode int, data *T, rawBody string, headers map[string]string) *ApiResult[T] {
+	return &ApiResult[T]{
+		StatusCode: statusCode,
+		Data:       data,
+		RawBody:    rawBody,
+		Headers:    headers,
+	}
+}

@@ -27,3 +27,24 @@ devbox.lock
 .devbox
 
 .out
+.phpcsf
+.phpstan
+
+# Elixir compiled files and crash dumps
+*.beam
+erl_crash.dump
+
+# Generated client lockfiles — consumers regenerate against their resolver
+# state. The generator does not ship lockfiles; they appear here only when
+# the integration-test containers run the package manager. See plan tier E1.
+src/spec/resources/generated/*/Gemfile.lock
+src/spec/resources/generated/*/Cargo.lock
+src/spec/resources/generated/*/package-lock.json
+src/spec/resources/generated/*/yarn.lock
+src/spec/resources/generated/*/pnpm-lock.yaml
+src/spec/resources/generated/*/pubspec.lock
+src/spec/resources/generated/*/composer.lock
+src/spec/resources/generated/*/mix.lock
+
+# Stray openapi-generator build artifact directory
+/org/

@@ -1,0 +1,42 @@
+includes:
+  # Teach phpstan about Pest's functions (test(), expect(), beforeEach(),
+  # etc.) so the test suite is analysed along with the SDK.
+  - vendor/mrpunyapal/peststan/extension.neon
+
+parameters:
+  level: 9
+  tmpDir: .phpstan
+  paths:
+    - .
+  excludePaths:
+    - vendor
+  ignoreErrors:
+    # Known peststan gaps, scoped to the test tree so lib/ keeps full
+    # checking.
+    # peststan does not narrow `expect($v)->toBeResource()` back onto $v, so
+    # fopen()'s `resource|false` still reaches fwrite()/rewind().
+    -
+      identifier: argument.type
+      message: '#Parameter \#1 \$stream of function (fwrite|rewind) expects resource, resource\|false given\.#'
+      path: tests/*
+    # peststan does not expose PHPUnit's markTestSkipped()/fail() on the
+    # TestCall that test() returns, though both work through Pest's TestCase.
+    -
+      identifier: method.notFound
+      message: '#Call to an undefined method Pest\\PendingCalls\\TestCall::(markTestSkipped|fail)\(\)\.#'
+      path: tests/*
+    # Pest resolves a toThrow() closure's parameter type through
+    # class_exists(), so the hint has to name a class. An interface hint such
+    # as \Throwable makes class_exists() return false, and toThrow() then
+    # matches the type name against the exception message instead of running
+    # the closure at all. phpstan reads Pest's own `Closure(Throwable): mixed`
+    # phpdoc and calls the class hint the contract requires a variance error.
+    -
+      identifier: argument.type
+      message: '#Parameter \#1 \$exception of method Pest\\Mixins\\Expectation<.+>::toThrow\(\) expects .+, Closure\(Exception\): void given\.#'
+      path: tests/*
+    # The tests assert these deliberately as cross-SDK invariants even where
+    # the subject's type already implies them.
+    -
+      identifier: pest.expectation.redundant
+      path: tests/*

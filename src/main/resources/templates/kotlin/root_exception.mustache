@@ -1,0 +1,34 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors
+
+/**
+ * Root of the SDK exception hierarchy.
+ *
+ * Every error the SDK raises ultimately extends this single branded base, so
+ * a caller can write one `catch (e: {{invokerPackage}}.errors.{{errorPrefix}}Exception)`
+ * and be certain it covers all SDK-originated failures — API/HTTP errors
+ * ([ApiException] and its typed subclasses), serialization failures, and
+ * OAuth2 token/server errors raised during authentication.
+ * Because the root extends [RuntimeException] the whole hierarchy is
+ * unchecked: callers are never forced to declare or catch SDK exceptions. The
+ * chain for a typed HTTP error is, for example:
+ * `UnauthorizedException → ClientException → ApiException →
+ * {{errorPrefix}}Exception → RuntimeException`.
+ */
+open class {{errorPrefix}}Exception : RuntimeException {
+    /**
+     * Construct an exception with a detail message.
+     *
+     * @param message the detail message
+     */
+    constructor(message: String) : super(message)
+
+    /**
+     * Construct an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause
+     */
+    constructor(message: String, cause: Throwable) : super(message, cause)
+}

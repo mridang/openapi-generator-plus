@@ -64,4 +64,52 @@ class OnlyAllowJsonRuleTest extends BaseRuleTest<OnlyAllowJsonRule> {
                 .code("200", response -> response.hasContentTypes("application/json"))
             );
     }
+
+    @Test
+    @DisplayName("Should preserve text/plain content type in RequestBody")
+    void shouldPreserveTextPlainInRequestBody() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .requestBody(new RequestBody().content(new Content()
+                .addMediaType("text/plain", new MediaType())
+                .addMediaType("application/xml", new MediaType())))));
+
+        rule.apply(openAPI, Map.of(), logger);
+
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasRequestBody(body -> body.hasContentTypes("text/plain"));
+    }
+
+    @Test
+    @DisplayName("Should preserve application/x-www-form-urlencoded content type in RequestBody")
+    void shouldPreserveFormUrlencodedInRequestBody() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .requestBody(new RequestBody().content(new Content()
+                .addMediaType("application/x-www-form-urlencoded", new MediaType())
+                .addMediaType("application/xml", new MediaType())))));
+
+        rule.apply(openAPI, Map.of(), logger);
+
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasRequestBody(body -> body.hasContentTypes("application/x-www-form-urlencoded"));
+    }
+
+    @Test
+    @DisplayName("Should preserve +json variant content types")
+    void shouldPreservePlusJsonVariants() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .responses(new ApiResponses().addApiResponse("200", new ApiResponse()
+                .content(new Content()
+                    .addMediaType("application/vnd.api+json", new MediaType())
+                    .addMediaType("application/xml", new MediaType()))))));
+
+        rule.apply(openAPI, Map.of(), logger);
+
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasResponses(responses -> responses
+                .code("200", response -> response.hasContentTypes("application/vnd.api+json"))
+            );
+    }
 }

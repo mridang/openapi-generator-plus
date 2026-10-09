@@ -53,7 +53,7 @@ public class StripParametersRule implements CustomNormalizationRule {
                 Iterator<Parameter> iterator = operation.getParameters().iterator();
                 while (iterator.hasNext()) {
                     Parameter parameter = iterator.next();
-                    String paramName = null;
+                    String paramName;
 
                     // New logic to handle both inline and $ref parameters
                     if (parameter.get$ref() != null) {

@@ -1,0 +1,109 @@
+{{>api_info}}
+package models
+
+import (
+	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// protoDurationPattern is the google.protobuf.Duration JSON grammar: an
+// optional sign, an integer second count, an optional fractional part of
+// up to nine digits, and a trailing "s".
+var protoDurationPattern = regexp.MustCompile(`^-?\d+(\.\d{1,9})?s$`)
+
+// Duration is the Go type of an OAS `format: duration` value: a time.Duration
+// that travels on the wire as a protobuf-JSON google.protobuf.Duration string
+// (a decimal number of seconds suffixed with "s", e.g. "3600s" or "1.5s").
+// time.Duration's own JSON form is int64 nanoseconds, which a protobuf-JSON
+// API rejects. Convert with time.Duration(d) and Duration(d).
+type Duration time.Duration
+
+// String formats the duration in the protobuf-JSON form, e.g. "3600s",
+// "1.500s" or "3600.000000001s". The fractional part is trimmed to 3, 6, or 9
+// digits (the smallest width that preserves every non-zero nanosecond),
+// matching the protobuf JSON encoder. Negative durations carry a leading "-".
+func (d Duration) String() string {
+	totalNanos := int64(d)
+	sign := ""
+	if totalNanos < 0 {
+		sign = "-"
+	}
+	// Split before negating: -math.MinInt64 does not fit in an int64.
+	secs := totalNanos / int64(time.Second)
+	nanos := totalNanos % int64(time.Second)
+	if secs < 0 {
+		secs = -secs
+	}
+	if nanos < 0 {
+		nanos = -nanos
+	}
+	if nanos == 0 {
+		return fmt.Sprintf("%s%ds", sign, secs)
+	}
+	frac := fmt.Sprintf("%09d", nanos)
+	if strings.HasSuffix(frac, "000000") {
+		frac = frac[:3]
+	} else if strings.HasSuffix(frac, "000") {
+		frac = frac[:6]
+	}
+	return fmt.Sprintf("%s%d.%ss", sign, secs, frac)
+}
+
+// MarshalText implements encoding.TextMarshaler, so encoding/json writes the
+// duration as a JSON string in the protobuf-JSON form.
+func (d Duration) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler. The accepted grammar is
+// -?\d+(\.\d{1,9})?s; anything else (an ISO-8601 "PT1H", a bare number, or a
+// fractional part wider than nine digits) is rejected, as is a value outside
+// the range of time.Duration (about ±292 years).
+func (d *Duration) UnmarshalText(text []byte) error {
+	s := string(text)
+	if !protoDurationPattern.MatchString(s) {
+		return fmt.Errorf(
+			"protobuf-JSON duration: %q is not a decimal number of seconds suffixed with \"s\" (e.g. \"3600s\")",
+			s,
+		)
+	}
+	neg := false
+	body := s[:len(s)-1]
+	if body[0] == '-' {
+		neg = true
+		body = body[1:]
+	}
+	secsStr := body
+	fracStr := ""
+	if dot := strings.IndexByte(body, '.'); dot >= 0 {
+		secsStr = body[:dot]
+		fracStr = body[dot+1:]
+	}
+	secs, err := strconv.ParseInt(secsStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("protobuf-JSON duration: %q is out of range: %w", s, err)
+	}
+	var nanos int64
+	if fracStr != "" {
+		padded := fracStr + strings.Repeat("0", 9-len(fracStr))
+		nanos, err = strconv.ParseInt(padded, 10, 64)
+		if err != nil {
+			return fmt.Errorf("protobuf-JSON duration: bad fraction %q: %w", fracStr, err)
+		}
+	}
+	// secs*1e9 wraps silently past about 9.2e9 seconds, so check the bound
+	// before multiplying.
+	if secs > (math.MaxInt64-nanos)/int64(time.Second) {
+		return fmt.Errorf("protobuf-JSON duration: %q is out of range for time.Duration", s)
+	}
+	total := secs*int64(time.Second) + nanos
+	if neg {
+		total = -total
+	}
+	*d = Duration(total)
+	return nil
+}

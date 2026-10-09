@@ -1,0 +1,71 @@
+{{>api_info}}
+
+from dataclasses import dataclass, field
+from typing import Dict
+
+from .base_authenticator import BaseAuthenticator
+from .api_key_location import ApiKeyLocation
+
+
+@dataclass(frozen=True)
+class ApiKeyAuthenticator(BaseAuthenticator):
+    """Authenticator for API key authentication."""
+
+    host: str
+    key_param_name: str
+    # repr=False so the API key is never leaked through the dataclass's
+    # auto-generated repr/str (e.g. logging, f-strings, %r).
+    api_key: str = field(repr=False)
+    location: ApiKeyLocation
+
+    def __post_init__(self) -> None:
+        # Validation applies to ALL locations: empty/whitespace API keys
+        # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+        # printable-ASCII rule still applies to HEADER values.
+        if not self.api_key or not self.api_key.strip():
+            raise ValueError(
+                f"API key value for '{self.key_param_name}' must not be empty"
+            )
+        if any(c in ('\r', '\n', '\x00') for c in self.api_key):
+            raise ValueError(
+                f"API key value for '{self.key_param_name}' contains "
+                f"forbidden control characters (CR/LF/NUL)"
+            )
+        if self.location == ApiKeyLocation.HEADER and any(
+            c != '\t' and (ord(c) < 0x20 or ord(c) >= 0x7F)
+            for c in self.api_key
+        ):
+            raise ValueError(
+                f"API key for header '{self.key_param_name}' must contain "
+                f"only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+
+    def get_host(self) -> str:
+        return self.host
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        if self.location == ApiKeyLocation.HEADER:
+            return {self.key_param_name: self.api_key}
+        return {}
+
+    def get_query_params(self) -> Dict[str, str]:
+        if self.location == ApiKeyLocation.QUERY:
+            return {self.key_param_name: self.api_key}
+        return {}
+
+    def get_cookie_params(self) -> Dict[str, str]:
+        if self.location == ApiKeyLocation.COOKIE:
+            return {self.key_param_name: self.api_key}
+        return {}
+
+    def __repr__(self) -> str:
+        """Redacts the API key so it never leaks into logs or tracebacks.
+
+        The API key is shown as the literal ``***`` while non-sensitive
+        fields remain visible to keep the representation useful for debugging.
+        """
+        return (
+            f"{type(self).__name__}(host={self.host!r}, "
+            f"key_param_name={self.key_param_name!r}, api_key='***', "
+            f"location={self.location!r})"
+        )

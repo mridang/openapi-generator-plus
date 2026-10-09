@@ -1,0 +1,76 @@
+module {{moduleName}}::Models
+{{#models}}
+{{#model}}
+{{#isEnum}}
+  class {{classname}}
+{{#allowableValues}}
+{{#enumVars}}
+    {{{name}}}: {{{dataType}}}
+{{/enumVars}}
+    VALUES: Array[{{{dataType}}}]
+{{/allowableValues}}
+    def self.all_vars: () -> Array[{{{dataType}}}]
+    def self.validate!: ({{{dataType}}}?) -> {{{dataType}}}?
+  end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+  module {{classname}}
+    def self.openapi_one_of: () -> Array[Symbol]
+    def self.serialize_oneof: (untyped) -> untyped
+{{#discriminator}}
+{{#propertyName}}
+    def self.openapi_discriminator_name: () -> Symbol
+{{/propertyName}}
+{{#mappedModels}}
+{{#-first}}
+    def self.openapi_discriminator_mapping: () -> Hash[String, Symbol]
+{{/-first}}
+{{/mappedModels}}
+{{/discriminator}}
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+  module {{classname}}
+    class Composite
+      attr_reader anyof_matched_instances: Array[untyped]
+      def initialize: (Array[untyped]) -> void
+      def method_missing: (Symbol, *untyped) ?{ (*untyped) -> untyped } -> untyped
+      def respond_to_missing?: (Symbol, ?bool) -> bool
+    end
+    def self.openapi_any_of: () -> Array[Symbol]
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+  class {{classname}} < {{#parent}}{{#lambda.rbsType}}{{{.}}}{{/lambda.rbsType}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    OPENAPI_FORMATS: Hash[Symbol, String]
+{{#isAdditionalPropertiesTrue}}
+    ADDITIONAL_PROPERTIES: bool
+{{#additionalPropertiesType}}
+    ADDITIONAL_PROPERTIES_TYPE: String
+{{/additionalPropertiesType}}
+    attr_reader additional_properties: Hash[String, untyped]?
+{{/isAdditionalPropertiesTrue}}
+{{#isUnevaluatedPropertiesFalse}}
+    UNEVALUATED_PROPERTIES_FALSE: bool
+{{/isUnevaluatedPropertiesFalse}}
+{{#vars}}
+    attr_reader {{name}}: {{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{^required}}?{{/required}}
+{{/vars}}
+  end
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}
+end

@@ -1,0 +1,14 @@
+{{>api_info}}
+{{#imports}}
+import '{{{.}}}';
+{{/imports}}
+
+/// Authenticator for the `{{{schemeName}}}` security scheme.
+class {{className}} extends {{baseClass}} {
+  /// Creates an authenticator for the `{{{schemeName}}}` security scheme.
+  {{className}}({
+    {{{constructorSignature}}},
+  }) : super(
+         {{{superCall}}},
+       );
+}

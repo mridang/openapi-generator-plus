@@ -1,0 +1,34 @@
+import Foundation
+
+/// Options for the {{operationId}} operation.
+public struct {{className}}: Sendable {
+{{#params}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#deprecated}}
+    @available(*, deprecated, message: "This parameter is deprecated.")
+{{/deprecated}}
+{{#required}}
+    public let {{name}}: {{{dataType}}}
+{{/required}}
+{{^required}}
+    public let {{name}}: {{{dataType}}}?
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when nil, the configured
+    /// credentials are used.
+    public let auth: {{authFieldType}}?
+{{/hasAuthField}}
+
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}{{^-last}}, {{/-last}}{{/params}}{{#hasAuthField}}{{#params.0}}, {{/params.0}}auth: {{authFieldType}}? = nil{{/hasAuthField}}) {
+{{#params}}
+        self.{{name}} = {{name}}
+{{/params}}
+{{#hasAuthField}}
+        self.auth = auth
+{{/hasAuthField}}
+    }
+}

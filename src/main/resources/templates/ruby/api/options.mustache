@@ -1,0 +1,42 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+{{#hasModelRequires}}
+{{#modelRequires}}
+{{{.}}}
+{{/modelRequires}}
+
+{{/hasModelRequires}}
+module {{moduleName}}
+  module Api
+    module Options
+      # Options for the {{operationId}} operation.
+{{#hasAuthField}}
+      #
+      # The optional +auth+ member overrides the client's configured
+      # credentials for this call only; when nil, the base client falls
+      # back to the Configuration credentials.
+{{/hasAuthField}}
+{{#params}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{#isDeprecated}}
+      # @deprecated This parameter is deprecated.
+{{/isDeprecated}}
+{{/params}}
+      class {{className}}
+        attr_reader {{accessorList}}
+
+        def initialize({{initializeSignature}})
+{{#params}}
+          @{{paramName}} = {{paramName}}
+{{/params}}
+{{#hasAuthField}}
+          @auth = auth
+{{/hasAuthField}}
+          freeze
+        end
+      end
+    end
+  end
+end

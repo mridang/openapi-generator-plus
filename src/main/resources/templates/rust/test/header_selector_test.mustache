@@ -1,0 +1,9 @@
+{{>api_info}}
+
+// `HeaderSelector` and its module are crate-private (an internal
+// content-negotiation detail, not part of the public API), so its unit tests
+// cannot live in this external integration-test crate. They have been moved
+// into an in-crate `#[cfg(test)] mod tests` block inside
+// `src/header_selector.rs`, where they retain access to the private type.
+// `cargo test` runs both the in-crate unit tests and these external tests, so
+// coverage is preserved.

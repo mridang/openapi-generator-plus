@@ -1,0 +1,139 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+/**
+ * Authenticator for the OAuth2 Authorization Code flow.
+ *
+ * Implements [HttpAwareAuthenticator] so that token exchange requests
+ * use the shared [ApiClient] with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call [buildAuthorizationUrl] to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. After the callback, call [exchangeCode] with the auth code
+ * 4. Use the authenticator normally — tokens are managed automatically
+ *
+ * @param host API base URL
+ * @param clientId OAuth2 client ID
+ * @param clientSecret OAuth2 client secret
+ * @param authorizationUrl authorization endpoint URL
+ * @param tokenUrl token endpoint URL
+ * @param redirectUri redirect URI registered with the OAuth2 provider
+ * @param scopes requested scopes
+ * @param refreshUrl refresh token endpoint URL (falls back to [tokenUrl] if null)
+ */
+open class OAuth2AuthorizationCodeAuthenticator(
+    private val host: String,
+    private val clientId: String,
+    private val clientSecret: String,
+    private val authorizationUrl: String,
+    private val tokenUrl: String,
+    private val redirectUri: String,
+    private val scopes: List<String>,
+    private val refreshUrl: String? = null
+) : HttpAwareAuthenticator {
+
+    internal val tokenManager = OAuth2TokenManager()
+    private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
+
+    @Volatile
+    private var tokenExchanged: Boolean = false
+
+    /**
+     * Inject the shared API client used for token exchange requests.
+     *
+     * @param apiClient the shared API client instance
+     */
+    override fun setApiClient(apiClient: ApiClient) {
+        tokenManager.apiClient = apiClient
+    }
+
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param state optional CSRF state parameter
+     * @return the authorization URL
+     */
+    fun buildAuthorizationUrl(state: String? = null): String {
+        val url = StringBuilder(authorizationUrl)
+        /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
+         * a query component (e.g. tenant-scoped Auth0 URLs like
+         * https://x.auth0.com/authorize?audience=api). Use '&' as the
+         * separator when one is already present so existing params are
+         * preserved, '?' otherwise. */
+        url.append(if (authorizationUrl.contains('?')) '&' else '?')
+        url.append("response_type=code")
+        url.append("&client_id=").append(encode(clientId))
+        url.append("&redirect_uri=").append(encode(redirectUri))
+        if (scopes.isNotEmpty()) {
+            url.append("&scope=").append(encode(scopes.joinToString(" ")))
+        }
+        if (state != null) {
+            url.append("&state=").append(encode(state))
+        }
+        return url.toString()
+    }
+
+    /**
+     * Exchange an authorization code for an access token.
+     *
+     * @param code the authorization code from the callback
+     */
+    suspend fun exchangeCode(code: String) {
+        // RFC 6749 §4.1.3: the authorization code is a required parameter of
+        // the token request. Reject an empty/whitespace code before the POST
+        // so the caller sees a clear precondition error rather than a confusing
+        // downstream "invalid_grant" from the IdP (or no error at all).
+        require(code.isNotBlank()) { "Authorization code must not be empty or blank" }
+        val params = mutableMapOf(
+            "grant_type" to "authorization_code",
+            "code" to code,
+            "client_id" to clientId,
+            "client_secret" to clientSecret,
+            "redirect_uri" to redirectUri
+        )
+        tokenManager.getAccessToken(tokenUrl, params)
+        tokenExchanged = true
+    }
+
+    override fun getHost(): String = host
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
+        val params = mutableMapOf(
+            "grant_type" to "refresh_token",
+            "refresh_token" to (tokenManager.getRefreshToken() ?: "")
+        )
+        val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
+        return mapOf("Authorization" to "Bearer $token")
+    }
+
+    // RFC 3986 query component: a space is %20, not '+' (URLEncoder's form rule).
+    // URLEncoder also keeps '*' literal and escapes '~' to %7E — the reverse of
+    // the RFC 3986 unreserved set (A-Za-z0-9-._~) — so normalise both so every
+    // SDK emits byte-identical output.
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8)
+            .replace("+", "%20")
+            .replace("*", "%2A")
+            .replace("%7E", "~")
+
+    /**
+     * Returns a string representation that redacts the client secret so
+     * credentials never leak into logs or stack traces (matching the other
+     * SDKs).
+     *
+     * @return a redacted string representation
+     */
+    override fun toString(): String =
+        "${this::class.simpleName}(host=$host, clientId=$clientId, clientSecret=***, " +
+            "authorizationUrl=$authorizationUrl, tokenUrl=$tokenUrl, " +
+            "refreshUrl=$effectiveRefreshUrl, redirectUri=$redirectUri, scopes=$scopes)"
+}

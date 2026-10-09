@@ -1,0 +1,5 @@
+{{>api_info}}
+import Foundation
+
+/// Error for HTTP 422 Unprocessable Entity.
+public class UnprocessableEntityError: ClientError, @unchecked Sendable {}

@@ -1,0 +1,93 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+
+use super::Authenticator;
+use crate::errors::configuration_error::ConfigurationError;
+
+/// Authenticator for HTTP Bearer token authentication.
+pub struct BearerAuthenticator {
+    host: String,
+    token: String,
+}
+
+impl BearerAuthenticator {
+    /// Creates an HTTP Bearer token authenticator.
+    ///
+    /// `host` is the base URL of the API and `token` the bearer token.
+    ///
+    /// # Errors
+    ///
+    /// RFC 7230 §3.2.6: a field-value is HTAB / SP / VCHAR / obs-text. Anything
+    /// outside printable ASCII + TAB is rejected with
+    /// [`ConfigurationError::InvalidArgument`], so callers see a clear error
+    /// rather than (a) HTTP header injection from a CR/LF (common when reading
+    /// tokens from `.env` files with trailing newlines), or (b) silently
+    /// mangled non-ASCII bytes that different HTTP libs encode differently per
+    /// language. An empty or whitespace-only token is rejected too: it would
+    /// otherwise emit the literal `Authorization: Bearer ` header, sending the
+    /// request effectively unauthenticated.
+    pub fn new(host: &str, token: &str) -> Result<Self, ConfigurationError> {
+        // Reject empty / whitespace-only tokens: emitting a bare
+        // `Authorization: Bearer ` header would send the request
+        // unauthenticated. Fail closed.
+        if token.trim().is_empty() {
+            return Err(ConfigurationError::InvalidArgument(
+                "Bearer token must not be empty".to_string(),
+            ));
+        }
+        if token.chars().any(|c| c != '\t' && ((c as u32) < 0x20 || (c as u32) >= 0x7F)) {
+            return Err(ConfigurationError::InvalidArgument(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                    .to_string(),
+            ));
+        }
+        Ok(Self {
+            host: host.to_string(),
+            token: token.to_string(),
+        })
+    }
+}
+
+/// Renders a representation that redacts the token so credentials never leak
+/// into logs or stack traces (`{:?}` formatting). The host is shown normally;
+/// the token is masked as `***`.
+impl std::fmt::Debug for BearerAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BearerAuthenticator")
+            .field("host", &self.host)
+            .field("token", &"***")
+            .finish()
+    }
+}
+
+impl Authenticator for BearerAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            // Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+            // from env files are commonly stored already-prefixed; emitting
+            // "Bearer Bearer xyz" would otherwise silently break auth.
+            let value: &str = if self.token.len() >= 7
+                && self.token.as_bytes()[..7].eq_ignore_ascii_case(b"Bearer ")
+            {
+                &self.token[7..]
+            } else {
+                &self.token
+            };
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", value),
+            );
+            headers
+        })
+    }
+}

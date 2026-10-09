@@ -11,7 +11,7 @@ import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import org.slf4j.Logger;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -27,42 +27,40 @@ import java.util.Map;
  */
 public class OnlyAllowJsonRule implements CustomNormalizationRule {
 
-    /**
-     * Applies the rule to enforce "application/json" content type and validate.
-     *
-     * @param openAPI    The OpenAPI object to be modified.
-     * @param ruleConfig Configuration specific to this rule (not directly used here,
-     *                   but part of the interface).
-     * @param logger     A logger instance for logging messages.
-     */
+    /** Allowed content types that will not be filtered out. */
+    private static final List<String> ALLOWED_TYPES = Arrays.asList(
+        "application/json",
+        "text/plain",
+        "application/x-www-form-urlencoded",
+        "multipart/form-data",
+        "application/octet-stream"
+    );
+
     @Override
     public void apply(OpenAPI openAPI, Map<String, String> ruleConfig, Logger logger) {
-        List<String> allowedTypes = Collections.singletonList("application/json");
-        logger.info("Starting ONLY_ALLOW_JSON rule for JSON content only and validation.");
+        logger.info("Starting ONLY_ALLOW_JSON rule. Allowed types: {}", ALLOWED_TYPES);
 
-        // Step 1: Filter out non-JSON content types.
-        filterContentType(openAPI, allowedTypes, logger);
+        // Step 1: Filter out unsupported content types.
+        filterContentType(openAPI, logger);
 
-        // Step 2: Validate that no other content types remain after filtering.
-        validateOnlyJsonPresent(openAPI, allowedTypes, logger);
+        // Step 2: Validate that no unsupported content types remain after filtering.
+        validateAllowedTypesOnly(openAPI, logger);
 
-        logger.info("ONLY_ALLOW_JSON rule completed. All content types are 'application/json'.");
+        logger.info("ONLY_ALLOW_JSON rule completed.");
+    }
+
+    private static boolean isAllowedContentType(String contentType) {
+        return ALLOWED_TYPES.contains(contentType) || contentType.endsWith("+json");
     }
 
     /**
-     * Filters the OpenAPI spec to keep only specified content types in request
+     * Filters the OpenAPI spec to keep only supported content types in request
      * bodies and responses.
      *
-     * @param openAPI          The OpenAPI object to be modified.
-     * @param allowedMimeTypes List of allowed MIME types (e.g.,
-     *                         "application/json").
-     * @param logger           A logger instance for logging messages.
+     * @param openAPI The OpenAPI object to be modified.
+     * @param logger  A logger instance for logging messages.
      */
-    private void filterContentType(OpenAPI openAPI, List<String> allowedMimeTypes, Logger logger) {
-        logger.info("Starting content type filtering. Allowed types: {}",
-            allowedMimeTypes
-        );
-
+    private void filterContentType(OpenAPI openAPI, Logger logger) {
         Paths paths = openAPI.getPaths();
         if (paths == null || paths.isEmpty()) {
             logger.info("No paths found for content type filtering.");
@@ -84,7 +82,7 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
                         Map.Entry<String, MediaType> entry =
                             contentIterator.next();
                         String contentType = entry.getKey();
-                        if (!allowedMimeTypes.contains(contentType)) {
+                        if (!isAllowedContentType(contentType)) {
                             logger.warn(
                                 "Content type '{}' in request body for operation " +
                                     "'{}' (Path: {}) isn't allowed. Removing it.",
@@ -116,7 +114,7 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
                                 Map.Entry<String, MediaType> entry =
                                     contentIterator.next();
                                 String contentType = entry.getKey();
-                                if (!allowedMimeTypes.contains(contentType)) {
+                                if (!isAllowedContentType(contentType)) {
                                     logger.warn(
                                         "Content type '{}' in response for operation " +
                                             "'{}' (Path: {}) - Status: {} isn't " +
@@ -136,22 +134,20 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
     }
 
     /**
-     * Validates that no content types other than those in {@code allowedTypes}
-     * are present in the OpenAPI specification's request bodies or responses.
-     * This method is typically called after a filtering step.
+     * Validates that no unsupported content types remain in the OpenAPI
+     * specification's request bodies or responses after filtering.
      *
-     * @param openAPI      The OpenAPI object to validate.
-     * @param allowedTypes The list of MIME types that are considered valid.
-     * @param logger       A logger instance for logging messages.
-     * @throws RuntimeException If any content type not in {@code allowedTypes} is found.
+     * @param openAPI The OpenAPI object to validate.
+     * @param logger  A logger instance for logging messages.
+     * @throws RuntimeException If any unsupported content type is found.
      */
     @SuppressFBWarnings("THROWS_METHOD_THROWS_RUNTIMEEXCEPTION")
-    private void validateOnlyJsonPresent(OpenAPI openAPI, List<String> allowedTypes, Logger logger) {
+    private void validateAllowedTypesOnly(OpenAPI openAPI, Logger logger) {
         Paths paths = openAPI.getPaths();
         if (paths == null || paths.isEmpty()) {
             throw new NoPathsException(
-                "Error: Paths object is null or empty, cannot perform JSON content " +
-                    "validation."
+                "Error: Paths object is null or empty, cannot perform content " +
+                    "type validation."
             );
         }
 
@@ -164,15 +160,15 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
                 RequestBody requestBody = operation.getRequestBody();
                 if (requestBody != null && requestBody.getContent() != null) {
                     for (String contentType : requestBody.getContent().keySet()) {
-                        if (!allowedTypes.contains(contentType)) {
+                        if (!isAllowedContentType(contentType)) {
                             logger.error(
-                                "Validation Error: Non-JSON content type '{}' " +
+                                "Validation Error: Unsupported content type '{}' " +
                                     "found in request body for operation '{}' " +
                                     "(Path: {}) after filtering.",
                                 contentType, operation.getOperationId(), path
                             );
                             throw new RuntimeException(
-                                "Validation Error: Non-JSON content type '" +
+                                "Validation Error: Unsupported content type '" +
                                     contentType + "' found in request body " +
                                     "for path '" + path + "' [" +
                                     operation.getOperationId() + "] after filtering."
@@ -188,16 +184,16 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
                         ApiResponse apiResponse = responseEntry.getValue();
                         if (apiResponse != null && apiResponse.getContent() != null) {
                             for (String contentType : apiResponse.getContent().keySet()) {
-                                if (!allowedTypes.contains(contentType)) {
+                                if (!isAllowedContentType(contentType)) {
                                     logger.error(
-                                        "Validation Error: Non-JSON content type '{}' " +
+                                        "Validation Error: Unsupported content type '{}' " +
                                             "found in response for operation '{}' " +
                                             "(Path: {}) - Status: {} after filtering.",
                                         contentType, operation.getOperationId(), path,
                                         responseEntry.getKey()
                                     );
                                     throw new RuntimeException(
-                                        "Validation Error: Non-JSON content type '" +
+                                        "Validation Error: Unsupported content type '" +
                                             contentType + "' found in response " +
                                             "for path '" + path + "' [" +
                                             operation.getOperationId() + "] - Status: " +

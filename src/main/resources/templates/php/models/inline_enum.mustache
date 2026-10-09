@@ -1,0 +1,13 @@
+{{>api_info}}
+
+namespace {{modelPackage}};
+
+/**
+ * Allowed values of the {{baseName}} property of {{modelClassname}}.
+ */
+enum {{enumClassName}}: {{backingType}}
+{
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+}

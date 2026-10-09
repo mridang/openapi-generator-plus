@@ -1,0 +1,17 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+/**
+ * Exception for HTTP 500 Internal Server Error.
+ */
+class InternalServerErrorException extends ServerException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = [],
+        ?string $responseBody = null,
+        mixed $errorBody = null
+    ) {
+        parent::__construct(500, $message, $responseHeaders, $responseBody, $errorBody);
+    }
+}

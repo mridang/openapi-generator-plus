@@ -1,0 +1,63 @@
+#nullable enable
+{{#hasAuthField}}
+using {{packageName}}.Auth;
+{{/hasAuthField}}
+{{#hasModelImports}}
+using {{packageName}}.Models;
+{{/hasModelImports}}
+
+namespace {{packageName}}.Api.Options;
+
+/// <summary>
+/// Options for the {{operationId}} operation.
+/// </summary>
+public sealed class {{className}}
+{
+{{#params}}
+{{#required}}
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
+{{#deprecated}}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
+    public required {{{dataType}}} {{pascalParamName}} { get; init; }
+{{/required}}
+{{^required}}
+{{#description}}
+    /// <summary>{{#lambda.escapeXml}}{{{.}}}{{/lambda.escapeXml}}</summary>
+{{/description}}
+{{#deprecated}}
+    {{! FORCED: a doc-only <remarks> note, NOT the [Obsolete] attribute. The
+        generated PetApi reads this field internally to build the request, and
+        the build/static-analysis specs compile with `dotnet build --warnaserror`,
+        which escalates CS0618 ("use of obsolete member") to a hard ERROR —
+        .editorconfig's `CS0618.severity = none` does not override --warnaserror.
+        So [Obsolete] here breaks the build (verified). The doc note still
+        surfaces the deprecation in IntelliSense without breaking
+        self-consumption, placing C# in the doc-comment cohort
+        (Go/Python/Ruby/Elixir). See AGENTS.md. }}
+    /// <remarks>This parameter is deprecated.</remarks>
+{{/deprecated}}
+    public {{{dataType}}}? {{pascalParamName}} { get; init; }
+{{/required}}
+
+{{/params}}
+{{#hasAuthField}}
+    /// <summary>
+    /// Per-operation authenticator. When set, it overrides the client's
+    /// configured credentials for this call only; when null the configured
+    /// credentials are used.
+    /// </summary>
+    public {{authFieldType}}? Auth { get; init; }
+{{/hasAuthField}}
+}
