@@ -148,7 +148,7 @@ class PetApi : BaseApi {
         addPetWithHttpInfo(pet, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for addPet but the server returned an empty body",
+                "Expected a response body for addPet but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -195,7 +195,7 @@ class PetApi : BaseApi {
         addPetPhotosWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for addPetPhotos but the server returned an empty body",
+                "Expected a response body for addPetPhotos but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -256,7 +256,7 @@ class PetApi : BaseApi {
         addPetTreatmentWithHttpInfo(petId, petTreatment, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for addPetTreatment but the server returned an empty body",
+                "Expected a response body for addPetTreatment but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -376,7 +376,7 @@ class PetApi : BaseApi {
         downloadPetDocumentWithHttpInfo(petId, documentId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for downloadPetDocument but the server returned an empty body",
+                "Expected a response body for downloadPetDocument but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -428,7 +428,7 @@ class PetApi : BaseApi {
         findPetsBornOnWithHttpInfo(bornOn).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for findPetsBornOn but the server returned an empty body",
+                "Expected a response body for findPetsBornOn but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -475,7 +475,7 @@ class PetApi : BaseApi {
         findPetsByStatusWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for findPetsByStatus but the server returned an empty body",
+                "Expected a response body for findPetsByStatus but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -538,7 +538,7 @@ class PetApi : BaseApi {
         getExternalPetInfoWithHttpInfo(petId, server).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getExternalPetInfo but the server returned an empty body",
+                "Expected a response body for getExternalPetInfo but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -597,7 +597,7 @@ class PetApi : BaseApi {
         getMultiServerPetInfoWithHttpInfo(petId, server).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getMultiServerPetInfo but the server returned an empty body",
+                "Expected a response body for getMultiServerPetInfo but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -650,7 +650,7 @@ class PetApi : BaseApi {
         getPetAvatarWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetAvatar but the server returned an empty body",
+                "Expected a response body for getPetAvatar but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -694,7 +694,7 @@ class PetApi : BaseApi {
         getPetAvatarThumbnailWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetAvatarThumbnail but the server returned an empty body",
+                "Expected a response body for getPetAvatarThumbnail but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -751,7 +751,7 @@ class PetApi : BaseApi {
         getPetByIdWithHttpInfo(petId, server).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetById but the server returned an empty body",
+                "Expected a response body for getPetById but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -808,7 +808,7 @@ class PetApi : BaseApi {
         getPetByNameWithHttpInfo(name, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetByName but the server returned an empty body",
+                "Expected a response body for getPetByName but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -871,7 +871,7 @@ class PetApi : BaseApi {
         getPetPassportWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetPassport but the server returned an empty body",
+                "Expected a response body for getPetPassport but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -919,7 +919,7 @@ class PetApi : BaseApi {
         getPetPhotoWithHttpInfo(petId, photoId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetPhoto but the server returned an empty body",
+                "Expected a response body for getPetPhoto but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -977,7 +977,7 @@ class PetApi : BaseApi {
         getPetTagWithHttpInfo(petId, tagName, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getPetTag but the server returned an empty body",
+                "Expected a response body for getPetTag but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -1067,7 +1067,7 @@ class PetApi : BaseApi {
         getStagingPetInfoWithHttpInfo(petId, server).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getStagingPetInfo but the server returned an empty body",
+                "Expected a response body for getStagingPetInfo but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -1235,7 +1235,7 @@ class PetApi : BaseApi {
         setPetPreferencesWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for setPetPreferences but the server returned an empty body",
+                "Expected a response body for setPetPreferences but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -1302,7 +1302,7 @@ class PetApi : BaseApi {
         updatePetWithHttpInfo(petId, pet).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for updatePet but the server returned an empty body",
+                "Expected a response body for updatePet but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -1356,7 +1356,7 @@ class PetApi : BaseApi {
         uploadPetCertificateWithHttpInfo(petId, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for uploadPetCertificate but the server returned an empty body",
+                "Expected a response body for uploadPetCertificate but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -1415,7 +1415,7 @@ class PetApi : BaseApi {
         uploadPetDocumentWithHttpInfo(petId, options, requestContentType).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for uploadPetDocument but the server returned an empty body",
+                "Expected a response body for uploadPetDocument but received none",
                 result.headers,
                 result.rawBody,
             )

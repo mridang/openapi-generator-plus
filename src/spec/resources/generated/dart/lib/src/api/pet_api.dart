@@ -186,7 +186,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for addPet but none was returned',
+        message: 'Expected a response body for addPet but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -241,8 +241,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for addPetPhotos but none was returned',
+        message: 'Expected a response body for addPetPhotos but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -341,7 +340,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for addPetTreatment but none was returned',
+            'Expected a response body for addPetTreatment but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -504,7 +503,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for downloadPetDocument but none was returned',
+            'Expected a response body for downloadPetDocument but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -598,7 +597,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for findPetsBornOn but none was returned',
+            'Expected a response body for findPetsBornOn but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -687,7 +686,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for findPetsByStatus but none was returned',
+            'Expected a response body for findPetsByStatus but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -782,7 +781,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getExternalPetInfo but none was returned',
+            'Expected a response body for getExternalPetInfo but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -863,7 +862,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getMultiServerPetInfo but none was returned',
+            'Expected a response body for getMultiServerPetInfo but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -941,8 +940,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getPetAvatar but none was returned',
+        message: 'Expected a response body for getPetAvatar but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1011,7 +1009,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getPetAvatarThumbnail but none was returned',
+            'Expected a response body for getPetAvatarThumbnail but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1095,8 +1093,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getPetById but none was returned',
+        message: 'Expected a response body for getPetById but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1174,8 +1171,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getPetByName but none was returned',
+        message: 'Expected a response body for getPetByName but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1268,7 +1264,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getPetPassport but none was returned',
+            'Expected a response body for getPetPassport but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1338,8 +1334,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getPetPhoto but none was returned',
+        message: 'Expected a response body for getPetPhoto but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1436,7 +1431,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for getPetTag but none was returned',
+        message: 'Expected a response body for getPetTag but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1590,7 +1585,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getStagingPetInfo but none was returned',
+            'Expected a response body for getStagingPetInfo but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1803,7 +1798,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for setPetPreferences but none was returned',
+            'Expected a response body for setPetPreferences but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1906,7 +1901,7 @@ class PetApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for updatePet but none was returned',
+        message: 'Expected a response body for updatePet but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -1979,7 +1974,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for uploadPetCertificate but none was returned',
+            'Expected a response body for uploadPetCertificate but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -2076,7 +2071,7 @@ class PetApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for uploadPetDocument but none was returned',
+            'Expected a response body for uploadPetDocument but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );

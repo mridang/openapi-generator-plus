@@ -200,7 +200,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for add_pet but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -286,7 +286,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for add_pet_photos but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -421,7 +421,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for add_pet_treatment but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -662,7 +662,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for download_pet_document but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -774,7 +774,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for find_pets_born_on but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -883,7 +883,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for find_pets_by_status but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1037,7 +1037,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_external_pet_info but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1141,7 +1141,8 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_multi_server_pet_info but received none"
+                    .to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1243,7 +1244,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_avatar but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1336,7 +1337,8 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_avatar_thumbnail but received none"
+                    .to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1443,7 +1445,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_by_id but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1546,7 +1548,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_by_name but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1621,6 +1623,16 @@ impl PetApi {
                 )),
             )
         })?;
+        // A required string must not be empty: an empty string is not a present
+        // value for a required parameter, so reject it like the other SDKs.
+        if opts.category.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_name",
+                    "category"
+                )),
+            ));
+        }
         if let Some(serialized) = value_serializer::serialize_styled(
             "category",
             Some(&object_serializer::stringify(&opts.category)),
@@ -1683,7 +1695,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_passport but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1778,7 +1790,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_photo but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1894,7 +1906,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_pet_tag but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -2121,7 +2133,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_staging_pet_info but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -2442,7 +2454,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for set_pet_preferences but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -2506,6 +2518,9 @@ impl PetApi {
         // omitted entirely; spaces are encoded as `+`.
         let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
         if let Some(opts) = options {
+            if opts.nickname.is_empty() {
+                return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.set_pet_preferences", "nickname"))));
+            }
             form_pairs.push((
                 "nickname".to_string(),
                 serde_json::to_value(&opts.nickname)?,
@@ -2560,7 +2575,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for update_pet but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -2659,7 +2674,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for upload_pet_certificate but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -2777,7 +2792,7 @@ impl PetApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for upload_pet_document but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),

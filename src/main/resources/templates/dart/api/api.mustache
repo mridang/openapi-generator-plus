@@ -113,7 +113,7 @@ class {{classname}} extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for {{operationId}} but none was returned',
+        message: 'Expected a response body for {{operationId}} but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );

@@ -34,7 +34,7 @@ mvn test
 ## Package
 
 - Group: `{{invokerPackage}}`
-- Version: `{{packageVersion}}`
+- Version: `{{artifactVersion}}`
 
 ## GraalVM native image
 
@@ -52,16 +52,21 @@ native image unless you register them yourself.)
 
 ### Decimal / `format: number` precision
 
-Fields typed `format: number` (and `format: decimal`) are deserialized
-into Java `double`, which is an IEEE-754 64-bit binary floating-point
-value. Monetary and other exact-decimal values therefore lose their
-exact decimal representation: `0.1 + 0.2` in Java evaluates to
-`0.30000000000000004`, not `0.3`.
+`format: number` / `format: decimal` fields are typed as
+`java.math.BigDecimal` and serialized through a precision-preserving
+serializer that round-trips the JSON number as a string, so exact
+decimal values survive deserialization unchanged — unlike languages
+that decode JSON numbers into a binary `double`. You can safely do
+arithmetic on prices, balances, and other money-typed fields using
+`BigDecimal`'s exact operators.
 
-Do not do arithmetic on prices, balances, or other money-typed fields.
-If you need exact decimal arithmetic, parse the raw response body
-yourself and use `java.math.BigDecimal` (constructed from the `String`
-form, never from a `double`).
+The IEEE-754 binary types are a different story: `format: float` and
+`format: double` map to Java's `Float` / `Double`, which **cannot**
+represent every decimal fraction exactly (`0.1 + 0.2` is
+`0.30000000000000004`). Do not use a `double`/`float`-typed field for
+money. If a monetary value is typed as `format: double` in the spec,
+read it from the raw response body and parse it into a `BigDecimal`
+yourself.
 
 `format: int64` is unaffected — Java's `long` natively represents the
 full 64-bit range without precision loss.

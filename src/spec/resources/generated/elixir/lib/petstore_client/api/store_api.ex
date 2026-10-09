@@ -172,7 +172,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_by_swatch but received an empty body",
+           message: "Expected a response body for get_by_swatch but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -336,7 +336,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_defaults but received an empty body",
+           message: "Expected a response body for get_defaults but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -428,7 +428,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_department but received an empty body",
+           message: "Expected a response body for get_department but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -520,8 +520,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message:
-             "Expected a response body for get_grouped_categories but received an empty body",
+           message: "Expected a response body for get_grouped_categories but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -613,7 +612,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_inventory but received an empty body",
+           message: "Expected a response body for get_inventory but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -705,7 +704,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_matrix but received an empty body",
+           message: "Expected a response body for get_matrix but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -798,7 +797,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_order_by_id but received an empty body",
+           message: "Expected a response body for get_order_by_id but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -911,7 +910,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_stock_item but received an empty body",
+           message: "Expected a response body for get_stock_item but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -1030,7 +1029,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_swatch but received an empty body",
+           message: "Expected a response body for get_swatch but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -1122,7 +1121,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_swatch_groups but received an empty body",
+           message: "Expected a response body for get_swatch_groups but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -1214,8 +1213,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message:
-             "Expected a response body for get_timestamp_groups but received an empty body",
+           message: "Expected a response body for get_timestamp_groups but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -1307,7 +1305,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for get_tree but received an empty body",
+           message: "Expected a response body for get_tree but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers
@@ -1400,7 +1398,7 @@ defmodule PetstoreClient.Api.StoreApi do
       {:ok, %{data: nil} = result} ->
         {:error,
          PetstoreClient.Errors.ApiError.exception(
-           message: "Expected a response body for place_order but received an empty body",
+           message: "Expected a response body for place_order but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers

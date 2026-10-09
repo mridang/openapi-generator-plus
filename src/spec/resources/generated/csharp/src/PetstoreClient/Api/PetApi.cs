@@ -266,7 +266,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for AddPet but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -330,7 +330,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for AddPetPhotos but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -429,7 +429,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for AddPetTreatment but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -608,7 +608,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for DownloadPetDocument but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -699,7 +699,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for FindPetsBornOn but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -773,7 +773,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for FindPetsByStatus but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -892,7 +892,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetExternalPetInfo but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -983,7 +983,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetMultiServerPetInfo but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1071,7 +1071,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetAvatar but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1145,7 +1145,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetAvatarThumbnail but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1223,7 +1223,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetById but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1313,7 +1313,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetByName but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1424,7 +1424,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetPassport but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1499,7 +1499,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetPhoto but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1596,7 +1596,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetPetTag but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -1759,7 +1759,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetStagingPetInfo but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -2003,7 +2003,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for SetPetPreferences but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -2107,7 +2107,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for UpdatePet but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -2185,7 +2185,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for UploadPetCertificate but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -2280,7 +2280,7 @@ public class PetApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for UploadPetDocument but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );

@@ -158,7 +158,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {:ok, %{data: nil} = result} ->
         {:error,
          {{moduleName}}.Errors.ApiError.exception(
-           message: "Expected a response body for {{operationId}} but received an empty body",
+           message: "Expected a response body for {{operationId}} but received none",
            status_code: result.status_code,
            response_body: result.raw_body,
            response_headers: result.headers

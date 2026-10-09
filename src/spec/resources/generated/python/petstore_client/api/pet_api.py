@@ -197,7 +197,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for add_pet but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -276,7 +276,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for add_pet_photos but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -376,7 +376,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for add_pet_treatment but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -554,7 +554,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for download_pet_document but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -646,7 +646,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for find_pets_born_on but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -718,7 +718,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for find_pets_by_status but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -810,7 +810,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_external_pet_info but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -888,7 +888,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_multi_server_pet_info but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -964,7 +964,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_avatar but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1036,7 +1036,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_avatar_thumbnail but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1118,7 +1118,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_by_id but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1205,7 +1205,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_by_name but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1297,7 +1297,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_passport but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1376,7 +1376,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_photo but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1472,7 +1472,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_pet_tag but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1607,7 +1607,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_staging_pet_info but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1863,7 +1863,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for set_pet_preferences but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -1957,7 +1957,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for update_pet but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -2043,7 +2043,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for upload_pet_certificate but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -2137,7 +2137,7 @@ class PetApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for upload_pet_document but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )

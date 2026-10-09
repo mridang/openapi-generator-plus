@@ -1149,6 +1149,9 @@ class PetApi extends BaseApi
         if ($name === '') {
             throw new \InvalidArgumentException("Missing the required parameter 'name' when calling PetApi.getPetByName");
         }
+        if ($options->category === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'category' when calling PetApi.getPetByName");
+        }
         $path = '/pet/byName/{name}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
@@ -1813,6 +1816,9 @@ class PetApi extends BaseApi
      */
     public function setPetPreferencesWithHttpInfo(int $petId, SetPetPreferencesOptions $options): ApiResult
     {
+        if ($options->nickname === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'nickname' when calling PetApi.setPetPreferences");
+        }
         $path = '/pet/{petId}/preferences';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(

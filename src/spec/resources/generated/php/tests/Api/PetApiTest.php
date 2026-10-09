@@ -983,32 +983,20 @@ test('options class is immutable: construction works but property writes throw',
 // -- Required nested-parameter validation (#6) --
 //
 // getPetByName has a simple-style string path param (name) plus a REQUIRED
-// query param (category). Both are non-nullable in the generated signature /
-// Options object, so presence is already enforced by the PHP type. Only the
-// PATH param is empty-guarded: an empty path segment would collapse the URL
-// (/pet//search), so the client throws \InvalidArgumentException before
-// dispatch. A required QUERY param, by contrast, may legitimately carry an
-// empty string — the type already guarantees the caller supplied it — so the
-// empty value is serialized and sent on the wire rather than being rejected as
-// "missing".
+// query param (category). A required string param — path OR query — must not be
+// empty: an empty string is not a present value for a required parameter, so the
+// client throws \InvalidArgumentException before dispatch, matching the other
+// SDKs. The thrown message is the cross-SDK canonical
+// `Missing the required parameter 'category' when calling PetApi.getPetByName`.
 
-test('get pet by name sends an empty required query param on the wire', function (): void {
-    // M10 regression: an empty string on a REQUIRED query param is a legitimate
-    // value (the non-nullable type already enforces presence), so the call must
-    // NOT throw an InvalidArgumentException and the param must reach the wire as
-    // 'category='. The capturing client returns a canned non-Pet body, so the
-    // Pet-typed result may fail to deserialize — that is irrelevant here; we
-    // assert on the captured request, not the response.
-    [$api, $captured] = newBodyCapturingPetApi();
+test('get pet by name throws when required query param is empty', function (): void {
+    [$api] = newBodyCapturingPetApi();
 
-    try {
-        $api->getPetByName('Rex', new GetPetByNameOptions(category: ''));
-    } catch (\Throwable) {
-        // Response deserialization of the canned body is not under test; the URL
-        // is captured during sendRequest, before any deserialization happens.
-    }
-
-    expect($captured->url)->toContain('category=');
+    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '')))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Missing the required parameter 'category' when calling PetApi.getPetByName",
+        );
 });
 
 test('get pet by name throws when required path param is empty', function (): void {

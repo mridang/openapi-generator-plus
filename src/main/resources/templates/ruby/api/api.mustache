@@ -212,7 +212,7 @@ module {{moduleName}}
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::{{moduleName}}::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for {{operationId}} but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body

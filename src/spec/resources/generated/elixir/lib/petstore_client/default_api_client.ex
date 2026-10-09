@@ -389,10 +389,6 @@ defmodule PetstoreClient.DefaultApiClient do
               __STACKTRACE__
   end
 
-  # An empty body declared gzip is a degenerate but harmless case (nothing to
-  # decompress); pass it through untouched rather than failing the request.
-  defp gunzip_body(<<>>, _label, _status), do: <<>>
-
   # The body claims `Content-Encoding: gzip` but lacks the gzip magic
   # bytes (0x1F 0x8B). A mislabelling server (or a tampered response) handed us
   # bytes that cannot be a gzip stream, so silently returning them would pass

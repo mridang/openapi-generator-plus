@@ -139,7 +139,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for addPet",
+        message: "Expected a response body for addPet but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -184,7 +184,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for addPetPhotos",
+        message: "Expected a response body for addPetPhotos but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -245,7 +245,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for addPetTreatment",
+        message: "Expected a response body for addPetTreatment but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -360,7 +360,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for downloadPetDocument",
+        message: "Expected a response body for downloadPetDocument but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -415,7 +415,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for findPetsBornOn",
+        message: "Expected a response body for findPetsBornOn but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -480,7 +480,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for findPetsByStatus",
+        message: "Expected a response body for findPetsByStatus but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -550,7 +550,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getExternalPetInfo",
+        message: "Expected a response body for getExternalPetInfo but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -607,7 +607,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getMultiServerPetInfo",
+        message: "Expected a response body for getMultiServerPetInfo but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -663,7 +663,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetAvatar",
+        message: "Expected a response body for getPetAvatar but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -711,7 +711,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetAvatarThumbnail",
+        message: "Expected a response body for getPetAvatarThumbnail but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -773,7 +773,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetById",
+        message: "Expected a response body for getPetById but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -829,7 +829,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetByName",
+        message: "Expected a response body for getPetByName but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -891,7 +891,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetPassport",
+        message: "Expected a response body for getPetPassport but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -939,7 +939,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetPhoto",
+        message: "Expected a response body for getPetPhoto but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -995,7 +995,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getPetTag",
+        message: "Expected a response body for getPetTag but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -1076,7 +1076,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getStagingPetInfo",
+        message: "Expected a response body for getStagingPetInfo but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -1244,7 +1244,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for setPetPreferences",
+        message: "Expected a response body for setPetPreferences but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -1316,7 +1316,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for updatePet",
+        message: "Expected a response body for updatePet but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -1366,7 +1366,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for uploadPetCertificate",
+        message: "Expected a response body for uploadPetCertificate but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -1429,7 +1429,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for uploadPetDocument",
+        message: "Expected a response body for uploadPetDocument but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )

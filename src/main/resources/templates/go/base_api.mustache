@@ -24,7 +24,7 @@ import (
 // ErrMissingRequiredParameter is returned by an operation called without one
 // of its required parameters, or with an empty path parameter. Match it with
 // errors.Is.
-var ErrMissingRequiredParameter = errors.New("missing required parameter")
+var ErrMissingRequiredParameter = errors.New("missing the required parameter")
 
 // ErrInvalidCookie is returned when an authenticator supplies a cookie name or
 // value containing characters RFC 6265 forbids. Match it with errors.Is.

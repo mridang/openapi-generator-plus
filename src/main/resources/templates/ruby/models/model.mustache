@@ -15,7 +15,7 @@ module {{moduleName}}
 {{#models}}
 {{#model}}
 {{#isEnum}}
-    # {{#description}}{{{description}}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
+    # {{#description}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
     class {{classname}}{{#allowableValues}}{{#enumVars}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 
@@ -43,7 +43,7 @@ module {{moduleName}}
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-    # {{{.}}}
+    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
     # Union type for {{classname}}.
@@ -207,7 +207,7 @@ module {{moduleName}}
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-    # {{{.}}}
+    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/description}}
 {{^description}}
     # Union type for {{classname}}.
@@ -326,7 +326,7 @@ module {{moduleName}}
 {{^anyOf}}
 {{#hasVars}}
     {{#description}}
-    # {{{.}}}
+    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
     {{/description}}
     {{^description}}
     # Model class for {{classname}}.
@@ -412,10 +412,10 @@ module {{moduleName}}
 {{/isUnevaluatedPropertiesFalse}}
       {{#vars}}
       {{#description}}
-      # {{{.}}}
+      # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
       {{/description}}
       {{#example}}
-      # @example {{{.}}}
+      # @example {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
       {{/example}}
       {{#vendorExtensions.pluralExamples}}
       # {{summary}}
@@ -452,7 +452,7 @@ module {{moduleName}}
 {{/hasVars}}
 {{^hasVars}}
     {{#description}}
-    # {{{.}}}
+    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
     {{/description}}
     {{^description}}
     # Model class for {{classname}}.

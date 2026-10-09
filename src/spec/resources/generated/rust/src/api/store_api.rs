@@ -139,7 +139,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_by_swatch but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -275,7 +275,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_defaults but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -351,7 +351,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_department but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -430,7 +430,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_grouped_categories but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -515,7 +515,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_inventory but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -599,7 +599,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_matrix but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -679,7 +679,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_order_by_id but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -773,7 +773,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_stock_item but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -875,7 +875,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_swatch but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -954,7 +954,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_swatch_groups but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1041,7 +1041,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_timestamp_groups but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1121,7 +1121,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for get_tree but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -1198,7 +1198,7 @@ impl StoreApi {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for place_order but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),

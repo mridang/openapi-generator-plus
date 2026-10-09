@@ -726,9 +726,31 @@ async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
         "expected an error when the required query parameter 'category' is missing"
     );
     let msg = result.unwrap_err().to_string();
+    assert_eq!(
+        msg, "Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        "error must be the cross-SDK canonical required-parameter message, got: {}",
+        msg
+    );
+}
+
+/// A required string query parameter must not be empty: an empty string is not a
+/// present value, so it is rejected with the same canonical message as a wholly
+/// missing one, matching the other SDKs (never sent to the wire as `category=`).
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
+    let api = new_pet_api_for_integration();
+    let opts = GetPetByNameOptions {
+        category: String::new(),
+    };
+    let result = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
     assert!(
-        msg.contains("category"),
-        "error must name the missing required parameter, got: {}",
+        result.is_err(),
+        "expected an error when the required query parameter 'category' is empty"
+    );
+    let msg = result.unwrap_err().to_string();
+    assert_eq!(
+        msg, "Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        "an empty required query param must be rejected with the canonical message, got: {}",
         msg
     );
 }

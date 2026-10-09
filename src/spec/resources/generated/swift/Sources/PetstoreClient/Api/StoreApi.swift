@@ -68,7 +68,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getBySwatch",
+        message: "Expected a response body for getBySwatch but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -125,7 +125,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getDefaults",
+        message: "Expected a response body for getDefaults but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -165,7 +165,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getDepartment",
+        message: "Expected a response body for getDepartment but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -205,7 +205,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getGroupedCategories",
+        message: "Expected a response body for getGroupedCategories but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -245,7 +245,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getInventory",
+        message: "Expected a response body for getInventory but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -285,7 +285,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getMatrix",
+        message: "Expected a response body for getMatrix but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -328,7 +328,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getOrderById",
+        message: "Expected a response body for getOrderById but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -376,7 +376,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getStockItem",
+        message: "Expected a response body for getStockItem but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -424,7 +424,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getSwatch",
+        message: "Expected a response body for getSwatch but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -464,7 +464,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getSwatchGroups",
+        message: "Expected a response body for getSwatchGroups but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -504,7 +504,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getTimestampGroups",
+        message: "Expected a response body for getTimestampGroups but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -544,7 +544,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for getTree",
+        message: "Expected a response body for getTree but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )
@@ -586,7 +586,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
-        message: "Server returned no body for placeOrder",
+        message: "Expected a response body for placeOrder but received none",
         responseBody: result.rawBody,
         responseHeaders: result.headers
       )

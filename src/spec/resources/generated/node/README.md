@@ -55,7 +55,7 @@ npm run build      # tsc (emit to ./dist)
 
 ## Package
 
-- Name: ``
+- Name: `petstore-client`
 - Version: `1.0.0`
 
 ## Caveats

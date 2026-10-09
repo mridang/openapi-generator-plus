@@ -12,7 +12,7 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 
 ## TIER 1 — actionable (real wire / behavior / contract) — DOING NOW
 
-- [ ] **T1-1** php OAuth2 authorize-URL emits `+` not `%20` — `http_build_query` default RFC1738. Fix: `PHP_QUERY_RFC3986`. Files: `templates/php/.../oauth2_authorization_code_authenticator.mustache`, `oauth2_implicit_authenticator.mustache`.
+- [x] **T1-1** php OAuth2 authorize-URL emits `+` not `%20` — `http_build_query` default RFC1738. Fix: `PHP_QUERY_RFC3986`. Files: `templates/php/.../oauth2_authorization_code_authenticator.mustache`, `oauth2_implicit_authenticator.mustache`. (DONE — both authenticators pass `PHP_QUERY_RFC3986`; the checkbox was stale. See AGENTS "Resolved".)
 - [ ] **T1-2** go HTML-escapes `<` `>` `&` on serialize — `json.Marshal` w/o `SetEscapeHTML(false)`. `go/object_serializer` golden ~:73.
 - [ ] **T1-3** rust `panic!`s on empty required path param → move to catchable call-site validation (like go/swift). `rust/value_serializer.mustache:181` + rust api template; update the `#[should_panic]` test.
 - [ ] **T1-4** go error-body JSON parse bypasses depth-cap DoS guard — raw `json.Unmarshal` at `pkg/errors/api_error.go:137,166`. Route through `jsonMaxDepth` (expose/duplicate across the package boundary).
@@ -121,3 +121,50 @@ SDKs extremely aligned; 6 remaining differences, all now fixed:
   serializer has no operation context.
 - [x] **R6-6** stale comment in go object_serializer ("C# is stricter (64)") — corrected; all 12
   use the 1000 depth cap.
+
+## ROUND 7 — six-agent adversarial sweep (2026-10-09) — all FIXED or DOCUMENTED
+
+Six agents (models, operations, auth, runtime/errors, docs/packaging, tests) diffed the
+goldens line-by-line across all 12. Findings and resolutions (details in AGENTS.md "Round 7"):
+
+- [x] **R7-1** Empty required STRING param (query/header/form/cookie) was sent on the wire by php
+  & rust; the other 10 reject it. Decision: REJECT in php & rust (match the 10 + the R6-5 message).
+  php guards query/header/form/cookie required strings; rust guards queryStyled/header/cookie/form
+  (NOT `allowEmptyValue` query, where empty is spec-permitted). php test flipped to assert the
+  rejection; a rust empty-`category` test added; both now assert the full canonical message.
+- [x] **R7-2** Empty-response-body message had 7 wordings (csharp/python/ruby/rust dropped the op
+  name). Harmonised to `Expected a response body for <op> but received none` (go lowercase, ST1005).
+- [x] **R7-3** go sentinel + swift `requirePathParam` dropped "the" from the required-param message
+  — added. go's distinct `options are required` (nil Options struct) message kept — FORCED.
+- [x] **R7-4** csharp decoded `deflate` as raw DEFLATE (`DeflateStream`); switched to `ZLibStream`
+  (zlib-wrapped RFC 1950) to match the other 11.
+- [x] **R7-5** elixir & dart-io passed a zero-byte gzip-declared body through; now RAISE like the
+  other 6 direct-attempt decompressors.
+- [x] **R7-6** ruby model doc-comments leaked JSON-escaped `\"`; now rendered through
+  `{{#lambda.unescapeDocComment}}` like go/dart.
+- [x] **R7-7** README metadata: java/kotlin `Version` rendered blank (`{{packageVersion}}` →
+  `{{artifactVersion}}`); node `Name` rendered blank (`{{packageName}}` → `{{npmName}}`).
+- [x] **R7-8** php README Requirements omitted the mandatory `ext-uri` / `ext-zlib`; added.
+- [x] **R7-9** java README decimal caveat described lossy `double`; java uses `BigDecimal`
+  (precision-preserving). Rewritten to match the code + kotlin's sibling caveat.
+- [x] **R7-10** AGENTS native-float list said 3 langs (ruby/swift/go); the lossy set is 7
+  (+ rust/php/dart/elixir). Corrected.
+- [x] **R7-11** OAuth cosmetic: unreachable "no access token" fallback-guard message harmonised
+  (csharp/php → "Token fetch did not return an access token"); csharp token-body KEY now gets the
+  same `%20`→`+` normalisation as the VALUE.
+- [ ] **R7-12** (LATENT, documented) OAuth percent-encoding unreserved set (`~`/`*`/`!`/`'`/`(`/`)`)
+  not harmonised across the 12; spec-compliant servers decode identically and no fixture exercises
+  it. Deferred to a future shared-encoder pass. See AGENTS "Round 7".
+- [ ] **R7-13** (BORDERLINE-FORCED, documented) go/swift hard-fail the token exchange on a
+  non-string token field; the 10 ignore it. Changing requires replacing their typed decoders.
+- [ ] **R7-14** (DOCUMENTED style) dart operations take an explicit non-defaulted `options` arg,
+  unlike the other 11 — deliberate uniform signature.
+
+### Round 7 test-coverage parity gaps (follow-up commit)
+
+- [ ] **R7-T1** Unsupported Content-Encoding "raise" regression-tested only in java; add to the
+  other 9 manual-decompressor langs.
+- [ ] **R7-T2** The R6-5 required-param message asserted in full by no test; lock the full
+  `when calling <Class>.<op>` clause per language (php + rust done in R7-1).
+- [ ] **R7-T3** Malformed-base64 model-field deserialize test missing in java/kotlin/csharp/dart/
+  swift (go/rust forced — stdlib/serde rejects).

@@ -76,7 +76,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_by_swatch but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -130,7 +130,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_defaults but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -170,7 +170,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_department but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -210,7 +210,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_grouped_categories but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -250,7 +250,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_inventory but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -290,7 +290,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_matrix but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -336,7 +336,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_order_by_id but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -384,7 +384,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_stock_item but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -431,7 +431,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_swatch but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -471,7 +471,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_swatch_groups but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -511,7 +511,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_timestamp_groups but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -551,7 +551,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for get_tree but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body
@@ -592,7 +592,7 @@ module Petstore::Client
         # so callers see the same catchable error across all SDKs.
         if result.data.nil?
           raise ::Petstore::Client::Errors::ApiError.new(
-            message: 'Expected a non-empty response body but the server returned no decodable content',
+            message: 'Expected a response body for place_order but received none',
             status_code: result.status_code,
             response_headers: result.headers,
             response_body: result.raw_body

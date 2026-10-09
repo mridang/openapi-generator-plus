@@ -2015,9 +2015,7 @@ public class PetApi extends BaseApi {
     if (data == null) {
       throw new ApiException(
           result.statusCode(),
-          "Operation '"
-              + operation
-              + "' returned an empty response body for a body-returning operation",
+          "Expected a response body for " + operation + " but received none",
           result.headers(),
           result.rawBody());
     }

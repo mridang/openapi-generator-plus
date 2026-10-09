@@ -67,14 +67,14 @@ module Petstore::Client
 
       attribute :free_form_any, Types::Any.optional.meta(omittable: true)
       attribute :favorite_color, Types::Any.optional.meta(omittable: true)
-      # Required permission is \"user.grant.write\" for <admin> & owner roles (don't skip it)
+      # Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
       attribute :permissions_note, Types::Any.optional.meta(omittable: true)
       attribute :_and, Types::Any.optional.meta(omittable: true)
       attribute :_or, Types::Any.optional.meta(omittable: true)
       attribute :_not, Types::Any.optional.meta(omittable: true)
       attribute :_class, Types::Any.optional.meta(omittable: true)
       attribute :_return, Types::Any.optional.meta(omittable: true)
-      # Back-off interval before retrying (protobuf-JSON duration, e.g. \"3600s\")
+      # Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant
       attribute :expires_at, Types::Any.optional.meta(omittable: true)

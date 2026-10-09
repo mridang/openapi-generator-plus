@@ -106,7 +106,7 @@ final class OAuth2TokenManager
         }
         $this->fetchToken($tokenUrl, $params, $extraHeaders);
         if ($this->accessToken === null) {
-            throw new OAuth2TokenException('Failed to obtain access token');
+            throw new OAuth2TokenException('Token fetch did not return an access token');
         }
 
         return $this->accessToken;

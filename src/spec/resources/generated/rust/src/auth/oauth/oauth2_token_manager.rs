@@ -79,7 +79,10 @@ impl OAuth2TokenManager {
     /// Returns a valid access token, fetching or refreshing as necessary.
     ///
     /// Performs the token exchange asynchronously using the injected
-    /// `ApiClient`. The internal mutex is never held across an `.await`.
+    /// `ApiClient`. The internal async mutex is deliberately held across the
+    /// `.await` to serialise concurrent callers into a single in-flight fetch
+    /// (single-flight), so at most one refresh runs at a time and the others
+    /// await its result rather than each issuing their own token request.
     pub async fn get_access_token(
         &self,
         token_url: &str,

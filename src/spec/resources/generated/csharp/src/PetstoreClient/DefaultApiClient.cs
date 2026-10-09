@@ -1127,7 +1127,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             Stream decoder = coding switch
             {
                 "GZIP" or "X-GZIP" => new GZipStream(source, CompressionMode.Decompress),
-                "DEFLATE" => new DeflateStream(source, CompressionMode.Decompress),
+                "DEFLATE" => new ZLibStream(source, CompressionMode.Decompress),
                 "BR" => new BrotliStream(source, CompressionMode.Decompress),
                 _ => throw new NotSupportedException($"unsupported Content-Encoding: {encoding}"),
             };

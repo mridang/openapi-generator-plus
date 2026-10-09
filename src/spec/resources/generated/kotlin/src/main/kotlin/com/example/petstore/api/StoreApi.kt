@@ -90,7 +90,7 @@ class StoreApi : BaseApi {
         getBySwatchWithHttpInfo(pathSwatch, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getBySwatch but the server returned an empty body",
+                "Expected a response body for getBySwatch but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -154,7 +154,7 @@ class StoreApi : BaseApi {
         getDefaultsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getDefaults but the server returned an empty body",
+                "Expected a response body for getDefaults but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -188,7 +188,7 @@ class StoreApi : BaseApi {
         getDepartmentWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getDepartment but the server returned an empty body",
+                "Expected a response body for getDepartment but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -222,7 +222,7 @@ class StoreApi : BaseApi {
         getGroupedCategoriesWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getGroupedCategories but the server returned an empty body",
+                "Expected a response body for getGroupedCategories but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -256,7 +256,7 @@ class StoreApi : BaseApi {
         getInventoryWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getInventory but the server returned an empty body",
+                "Expected a response body for getInventory but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -290,7 +290,7 @@ class StoreApi : BaseApi {
         getMatrixWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getMatrix but the server returned an empty body",
+                "Expected a response body for getMatrix but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -325,7 +325,7 @@ class StoreApi : BaseApi {
         getOrderByIdWithHttpInfo(orderId).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getOrderById but the server returned an empty body",
+                "Expected a response body for getOrderById but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -368,7 +368,7 @@ class StoreApi : BaseApi {
         getStockItemWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getStockItem but the server returned an empty body",
+                "Expected a response body for getStockItem but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -409,7 +409,7 @@ class StoreApi : BaseApi {
         getSwatchWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getSwatch but the server returned an empty body",
+                "Expected a response body for getSwatch but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -443,7 +443,7 @@ class StoreApi : BaseApi {
         getSwatchGroupsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getSwatchGroups but the server returned an empty body",
+                "Expected a response body for getSwatchGroups but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -477,7 +477,7 @@ class StoreApi : BaseApi {
         getTimestampGroupsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getTimestampGroups but the server returned an empty body",
+                "Expected a response body for getTimestampGroups but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -511,7 +511,7 @@ class StoreApi : BaseApi {
         getTreeWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for getTree but the server returned an empty body",
+                "Expected a response body for getTree but received none",
                 result.headers,
                 result.rawBody,
             )
@@ -546,7 +546,7 @@ class StoreApi : BaseApi {
         placeOrderWithHttpInfo(order).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
-                "Expected a response body for placeOrder but the server returned an empty body",
+                "Expected a response body for placeOrder but received none",
                 result.headers,
                 result.rawBody,
             )

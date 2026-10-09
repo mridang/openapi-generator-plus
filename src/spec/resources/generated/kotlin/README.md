@@ -43,7 +43,7 @@ To auto-fix formatting issues:
 ## Package
 
 - Group: `com.example.petstore`
-- Version: ``
+- Version: `1.0.0`
 
 ## Caveats
 

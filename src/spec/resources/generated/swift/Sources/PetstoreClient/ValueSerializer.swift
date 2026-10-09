@@ -101,7 +101,7 @@ internal enum ValueSerializer {
   static func requirePathParam(_ paramName: String, _ value: String, operation: String) throws {
     if value.isEmpty {
       throw ConfigurationError.invalidArgument(
-        "Missing required parameter '\(paramName)' when calling \(operation)"
+        "Missing the required parameter '\(paramName)' when calling \(operation)"
       )
     }
   }

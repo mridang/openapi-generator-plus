@@ -142,7 +142,7 @@ impl {{classname}} {
             Some(data) => Ok(data),
             None => Err(Box::new(ApiError::new(
                 status_code,
-                "empty response body for an operation that declares a response type".to_string(),
+                "Expected a response body for {{operationId}} but received none".to_string(),
                 Some(raw_body),
                 Some(headers),
             )) as Box<dyn std::error::Error + Send + Sync>),
@@ -410,6 +410,13 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
+{{#isString}}
+        // A required string must not be empty: an empty string is not a present
+        // value for a required parameter, so reject it like the other SDKs.
+        if opts.{{paramName}}.is_empty() {
+            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
+        }
+{{/isString}}
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
 {{/isArray}}
@@ -475,6 +482,12 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
+{{#isString}}
+        // A required string must not be empty: reject it like the other SDKs.
+        if opts.{{paramName}}.is_empty() {
+            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
+        }
+{{/isString}}
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
 {{/isArray}}
@@ -521,6 +534,12 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
+{{#isString}}
+        // A required string must not be empty: reject it like the other SDKs.
+        if opts.{{paramName}}.is_empty() {
+            return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
+        }
+{{/isString}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
             Some(&object_serializer::stringify(&opts.{{paramName}})),
@@ -721,6 +740,11 @@ impl {{classname}} {
         if let Some(opts) = options {
 {{#formParams}}
 {{#required}}
+{{#isString}}
+            if opts.{{paramName}}.is_empty() {
+                return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
+            }
+{{/isString}}
             form_pairs.push(("{{baseName}}".to_string(), serde_json::to_value(&opts.{{paramName}})?));
 {{/required}}
 {{^required}}

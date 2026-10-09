@@ -128,7 +128,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_by_swatch but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -219,7 +219,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_defaults but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -267,7 +267,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_department but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -315,7 +315,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_grouped_categories but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -363,7 +363,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_inventory but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -411,7 +411,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_matrix but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -466,7 +466,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_order_by_id but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -532,7 +532,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_stock_item but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -590,7 +590,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_swatch but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -638,7 +638,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_swatch_groups but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -686,7 +686,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_timestamp_groups but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -734,7 +734,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for get_tree but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )
@@ -784,7 +784,7 @@ class StoreApi(BaseApi):
             # under -O, or a silent None) so callers get one catchable error.
             raise ApiException(
                 status_code=result.status_code,
-                message="Expected a response body but the server returned none",
+                message="Expected a response body for place_order but received none",
                 response_body=result.raw_body,
                 response_headers=result.headers,
             )

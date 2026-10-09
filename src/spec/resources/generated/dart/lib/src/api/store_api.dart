@@ -94,8 +94,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getBySwatch but none was returned',
+        message: 'Expected a response body for getBySwatch but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -184,8 +183,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getDefaults but none was returned',
+        message: 'Expected a response body for getDefaults but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -231,8 +229,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getDepartment but none was returned',
+        message: 'Expected a response body for getDepartment but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -280,7 +277,7 @@ class StoreApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getGroupedCategories but none was returned',
+            'Expected a response body for getGroupedCategories but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -335,8 +332,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getInventory but none was returned',
+        message: 'Expected a response body for getInventory but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -381,7 +377,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for getMatrix but none was returned',
+        message: 'Expected a response body for getMatrix but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -433,8 +429,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getOrderById but none was returned',
+        message: 'Expected a response body for getOrderById but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -503,8 +498,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for getStockItem but none was returned',
+        message: 'Expected a response body for getStockItem but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -566,7 +560,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for getSwatch but none was returned',
+        message: 'Expected a response body for getSwatch but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -613,7 +607,7 @@ class StoreApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getSwatchGroups but none was returned',
+            'Expected a response body for getSwatchGroups but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -666,7 +660,7 @@ class StoreApi extends BaseApi {
       throw ApiException(
         statusCode: result.statusCode,
         message:
-            'Expected a response body for getTimestampGroups but none was returned',
+            'Expected a response body for getTimestampGroups but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -718,7 +712,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message: 'Expected a response body for getTree but none was returned',
+        message: 'Expected a response body for getTree but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );
@@ -764,8 +758,7 @@ class StoreApi extends BaseApi {
        * callers can catch the empty-body condition the same way across SDKs. */
       throw ApiException(
         statusCode: result.statusCode,
-        message:
-            'Expected a response body for placeOrder but none was returned',
+        message: 'Expected a response body for placeOrder but received none',
         responseBody: result.rawBody,
         responseHeaders: result.headers,
       );

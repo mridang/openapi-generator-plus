@@ -141,7 +141,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetBySwatch but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -244,7 +244,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetDefaults but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -300,7 +300,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetDepartment but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -357,7 +357,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetGroupedCategories but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -415,7 +415,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetInventory but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -471,7 +471,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetMatrix but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -528,7 +528,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetOrderById but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -600,7 +600,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetStockItem but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -674,7 +674,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetSwatch but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -730,7 +730,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetSwatchGroups but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -791,7 +791,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetTimestampGroups but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -849,7 +849,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for GetTree but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );
@@ -906,7 +906,7 @@ public class StoreApi : BaseApi
         {
             throw new ApiException(
                 result.StatusCode,
-                "Expected a non-empty response body but none was returned",
+                "Expected a response body for PlaceOrder but received none",
                 new Dictionary<string, string>(result.Headers),
                 result.RawBody
             );

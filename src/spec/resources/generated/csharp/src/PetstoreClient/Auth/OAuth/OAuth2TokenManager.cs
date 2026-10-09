@@ -161,7 +161,8 @@ public sealed class OAuth2TokenManager
         }
 
         await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
-        return _accessToken ?? throw new OAuth2TokenException("Failed to obtain access token");
+        return _accessToken
+            ?? throw new OAuth2TokenException("Token fetch did not return an access token");
     }
 
     /// <summary>
@@ -206,7 +207,7 @@ public sealed class OAuth2TokenManager
         string body = string.Join(
             "&",
             parameters.Select(p =>
-                Uri.EscapeDataString(p.Key)
+                Uri.EscapeDataString(p.Key).Replace("%20", "+", StringComparison.Ordinal)
                 + "="
                 + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
             )
