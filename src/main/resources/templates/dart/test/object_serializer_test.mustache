@@ -989,9 +989,18 @@ void main() {
       expect(deserialize<Category>('', Category.fromJson), isNull);
     });
 
-    // format:byte is decoded to a Uint8List on the model field, not through a
-    // base64 branch in ObjectSerializer, so the invalid-base64-throws case does
-    // not apply to the Dart SDK.
+    // A format:byte model field (PetPassport.thumbnail) carrying a bad-alphabet
+    // base64 string is rejected: base64Decode throws a FormatException rather
+    // than silently truncating, surfaced as the SDK's SerializationException.
+    test('invalid base64 in a byte field throws SerializationException', () {
+      expect(
+        () => deserialize<PetPassport>(
+          '{"thumbnail":"!!!!"}',
+          PetPassport.fromJson,
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
 
     // parseJson parses a payload within the 1000-deep cap and rejects one past it.
     test('deep JSON within the cap parses but past it is rejected', () {

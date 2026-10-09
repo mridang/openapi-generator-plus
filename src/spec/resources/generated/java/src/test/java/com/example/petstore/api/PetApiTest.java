@@ -561,7 +561,8 @@ class PetApiTest {
 
     assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("category");
+        .hasMessageContaining(
+            "Missing the required parameter 'category' when calling PetApi.getPetByName");
     assertThat(capturing.capturedUrl).isNull();
   }
 
@@ -578,7 +579,8 @@ class PetApiTest {
 
     assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("category");
+        .hasMessageContaining(
+            "Missing the required parameter 'category' when calling PetApi.getPetByName");
     assertThat(capturing.capturedUrl).isNull();
   }
 

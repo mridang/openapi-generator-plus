@@ -893,7 +893,13 @@ void main() {
 
       await expectLater(
         api.getPetByName('Rex', const GetPetByNameOptions(category: '')),
-        throwsA(isA<ArgumentError>()),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            "Missing the required parameter 'category' when calling PetApi.getPetByName",
+          ),
+        ),
       );
     });
 

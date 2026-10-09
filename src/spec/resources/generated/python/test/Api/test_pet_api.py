@@ -568,7 +568,8 @@ class TestPetApiErrorHandling:
             config=Configuration.builder().base_url("http://localhost").build()
         )
         with pytest.raises(
-            ValueError, match="Missing the required parameter 'category'"
+            ValueError,
+            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
         ):
             await api.get_pet_by_name("Fido", GetPetByNameOptions(category=""))
 

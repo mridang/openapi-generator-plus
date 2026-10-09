@@ -904,6 +904,59 @@ async fn test_al_content_encoding_lie_surfaces_api_error() {
     let _: &dyn {{errorPrefix}}Error = api_err;
 }
 
+/// Starts a server that advertises an unrecognised `Content-Encoding` the
+/// client cannot decode, over a non-empty plain body.
+/// Handles one connection then stops.
+fn start_unknown_content_encoding_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let body = b"payload";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Encoding: made-up-codec\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, body);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// An unrecognised `Content-Encoding` the client cannot decode hits the
+/// decompressor's default branch and must surface an `ApiError` carrying the
+/// real status code — never a `NetworkError`, and never the body passed
+/// through still encoded.
+#[tokio::test]
+async fn test_unsupported_content_encoding_surfaces_api_error() {
+    let base_url = start_unknown_content_encoding_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let err = client
+        .send_request("GET", &format!("{}/enc", base_url), &headers, None)
+        .await
+        .expect_err("an unsupported Content-Encoding must error, not pass the body through");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_none(),
+        "an unsupported Content-Encoding must not be a NetworkError, got: {}",
+        err
+    );
+    let api_err = err
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("expected ApiError, got: {}", err));
+    assert_eq!(api_err.status_code(), 200, "the real status code must be kept");
+    let _: &dyn {{errorPrefix}}Error = api_err;
+}
+
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
 /// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers

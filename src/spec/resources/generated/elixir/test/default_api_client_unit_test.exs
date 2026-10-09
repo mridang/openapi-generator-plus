@@ -824,6 +824,29 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 
+  # An unrecognised Content-Encoding the client cannot decode hits the
+  # decompressor's default clause and must surface a typed ApiError carrying the
+  # response status, never a NetworkError and never the body still encoded.
+  test "unsupported Content-Encoding surfaces ApiError with the real status" do
+    base_url =
+      start_server(
+        200,
+        "application/json",
+        "payload",
+        [{"Content-Encoding", "made-up-codec"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/enc", %{}, nil)
+      end
+
+    assert err.status_code == 200
+    refute PetstoreClient.Errors.NetworkError.network_error?(err)
+  end
+
   # A body that carries the gzip magic bytes but is truncated is also a
   # response that arrived but cannot be used.
   test "corrupt gzip body with the magic bytes raises ApiError with the real status" do

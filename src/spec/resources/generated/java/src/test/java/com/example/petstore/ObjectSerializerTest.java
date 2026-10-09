@@ -1333,9 +1333,21 @@ class ObjectSerializerTest {
                   com.example.petstore.models.Category>() {}.getType()));
     }
 
-    // format:byte is base64-decoded in the transport layer, not in
-    // ObjectSerializer, so the invalid-base64-throws case does not apply to
-    // the Java SDK.
+    // A format:byte model field (PetPassport.thumbnail) carrying a
+    // bad-alphabet base64 string must be rejected: Jackson's byte[] decoder
+    // throws rather than silently truncating, and ObjectSerializer surfaces
+    // it as the SDK's SerializationException.
+    @Test
+    @DisplayName("invalid base64 in a byte field throws SerializationException")
+    void invalidBase64ByteFieldThrowsSerializationException() {
+      assertThrows(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"thumbnail\":\"!!!!\"}",
+                  new com.fasterxml.jackson.core.type.TypeReference<
+                      com.example.petstore.models.PetPassport>() {}.getType()));
+    }
 
     // A payload nested ~600 deep decodes fine; ~1500 deep exceeds the 1000
     // maxNestingDepth cap and is rejected (Jackson StreamReadConstraints,

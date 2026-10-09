@@ -896,11 +896,18 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(), config)
 
-            assertThrows(IllegalArgumentException::class.java) {
-                runBlocking {
-                    api.getPetByName("Rex", GetPetByNameOptions(category = ""))
+            val ex =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.getPetByName("Rex", GetPetByNameOptions(category = ""))
+                    }
                 }
-            }
+            assertTrue(
+                ex.message!!.contains(
+                    "Missing the required parameter 'category' when calling PetApi.getPetByName",
+                ),
+                "was: ${ex.message}",
+            )
         }
 
         @Test

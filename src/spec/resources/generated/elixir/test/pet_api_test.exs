@@ -937,13 +937,15 @@ defmodule PetstoreClient.Api.PetApiTest do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
 
-    assert_raise ArgumentError, ~r/category/, fn ->
-      PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
-        api,
-        "rex",
-        %PetstoreClient.Api.Options.GetPetByNameOptions{category: nil}
-      )
-    end
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'category' when calling PetApi\.get_pet_by_name/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+                     api,
+                     "rex",
+                     %PetstoreClient.Api.Options.GetPetByNameOptions{category: nil}
+                   )
+                 end
 
     assert PathCapturingApiClient.captured_url(name) == ""
     Agent.stop(name)
@@ -954,13 +956,15 @@ defmodule PetstoreClient.Api.PetApiTest do
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
 
-    assert_raise ArgumentError, ~r/category/, fn ->
-      PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
-        api,
-        "rex",
-        %PetstoreClient.Api.Options.GetPetByNameOptions{category: ""}
-      )
-    end
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'category' when calling PetApi\.get_pet_by_name/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+                     api,
+                     "rex",
+                     %PetstoreClient.Api.Options.GetPetByNameOptions{category: ""}
+                   )
+                 end
 
     assert PathCapturingApiClient.captured_url(name) == ""
     Agent.stop(name)

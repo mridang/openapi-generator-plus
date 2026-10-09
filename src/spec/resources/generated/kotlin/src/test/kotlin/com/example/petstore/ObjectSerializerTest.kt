@@ -1431,9 +1431,18 @@ class ObjectSerializerTest {
             assertNull(serializer.deserialize<com.example.petstore.models.Category>("null"))
         }
 
-        // format:byte is base64-decoded by a kotlinx serializer on the model
-        // field, not in ObjectSerializer, so the invalid-base64-throws case does
-        // not apply to the Kotlin SDK.
+        // A format:byte model field (PetPassport.thumbnail) holding a
+        // bad-alphabet base64 string is rejected: Base64ByteArraySerializer's
+        // decoder throws rather than silently truncating, and the SDK surfaces
+        // it as SerializationException (the cause is the JDK decoder's
+        // IllegalArgumentException, not a kotlinx error).
+        @Test
+        @DisplayName("invalid base64 in a byte field throws SerializationException")
+        fun invalidBase64ByteFieldThrowsSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.PetPassport>("{\"thumbnail\":\"!!!!\"}")
+            }
+        }
 
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000
         // MAX_JSON_DEPTH cap and is rejected.

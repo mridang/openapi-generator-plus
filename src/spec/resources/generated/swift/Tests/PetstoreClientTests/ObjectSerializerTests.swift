@@ -1229,6 +1229,14 @@ import Testing
   // - serialize(nil): serialize requires an Encodable value, so a bare null
   //   argument is not representable; a nil model field is omitted via
   //   encodeIfPresent (see testNilFieldsOmittedOnSerialize).
-  // - format:byte is decoded to Data by JSONDecoder on the model field, not in
-  //   ObjectSerializer, so the invalid-base64-throws case does not apply here.
+
+  // A format:byte model field (PetPassport.thumbnail) carrying a bad-alphabet
+  // base64 string is rejected: JSONDecoder's Data base64 decode fails rather
+  // than silently truncating, surfaced as the SDK's SerializationError.
+  @Test func testInvalidBase64ByteFieldThrowsSerializationError() throws {
+    #expect(throws: SerializationError.self) {
+      try ObjectSerializer.deserialize(
+        "{\"thumbnail\":\"!!!!\"}", as: PetPassport.self)
+    }
+  }
 }

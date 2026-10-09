@@ -859,8 +859,8 @@ func TestBaseApi_MissingRequiredQueryParam_EmptyString(t *testing.T) {
 	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
 		t.Errorf("expected ErrMissingRequiredParameter, got %v", err)
 	}
-	if !strings.Contains(err.Error(), "category") {
-		t.Errorf("expected error to mention 'category', got %q", err.Error())
+	if !strings.Contains(err.Error(), "missing the required parameter 'category' when calling PetApi.GetPetByName") {
+		t.Errorf("expected the canonical required-parameter message, got %q", err.Error())
 	}
 }
 

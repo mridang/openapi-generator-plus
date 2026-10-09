@@ -1101,3 +1101,25 @@ test('AL: content-encoding gzip lie with plaintext body surfaces ApiException', 
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
         });
 });
+
+test('unsupported content-encoding surfaces ApiException, not the encoded body', function (): void {
+    /* An unrecognised Content-Encoding the client cannot decode hits the
+     * decompressor's default branch (RuntimeException) and surfaces as
+     * ApiException carrying the real status (200), never a NetworkException and
+     * never the body handed back still encoded. */
+    $mockResponse = new MockResponse('payload', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'made-up-codec',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/unknown-encoding', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(200);
+            expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\NetworkException::class);
+        });
+});

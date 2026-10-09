@@ -684,10 +684,14 @@ final class PetApiTests {
     let error = await #expect(throws: ConfigurationError.self) {
       _ = try await api.getPetByName(name: name, options: GetPetByNameOptions(category: category))
     }
-    guard case .invalidArgument? = error else {
+    guard case .invalidArgument(let message)? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
       return
     }
+    #expect(
+      message.contains("Missing the required parameter '")
+        && message.contains("when calling PetApi.getPetByName"),
+      "expected the canonical required-parameter message, got: \(message)")
     #expect(
       mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
   }

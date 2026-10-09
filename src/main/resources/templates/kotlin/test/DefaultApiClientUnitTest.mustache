@@ -984,6 +984,30 @@ class DefaultApiClientUnitTest {
             assertFalse(ex is {{invokerPackage}}.errors.NetworkException, "a corrupt body is not a network failure")
             assertInstanceOf(java.io.IOException::class.java, ex.cause)
         }
+
+        @Test
+        @DisplayName("unsupported Content-Encoding surfaces ApiException, never the still-encoded body")
+        fun unknownContentEncodingWrappedInApiException() {
+            // An unrecognised Content-Encoding the client cannot decode must
+            // surface a typed ApiException carrying the real status (200), never
+            // a NetworkException, and never the body handed back still encoded.
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "payload".toByteArray(Charsets.UTF_8),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Encoding", "made-up-codec"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val ex = assertThrowsExactly(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/unknown-encoding", emptyMap(), null)
+                }
+            }
+            assertEquals(200, ex.statusCode)
+            assertFalse(ex is {{invokerPackage}}.errors.NetworkException, "an unsupported encoding is not a network failure")
+            assertInstanceOf(java.io.IOException::class.java, ex.cause)
+        }
     }
 
     @Nested

@@ -462,6 +462,47 @@ void main() {
     );
 
     test(
+      'unsupported Content-Encoding surfaces ApiException, not the encoded body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          // An unrecognised coding the client cannot decode.
+          request.response.headers.set('Content-Encoding', 'made-up-codec');
+          request.response.statusCode = 200;
+          request.response.add(utf8.encode('payload'));
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://localhost:${server.port}/unknown-encoding',
+              {},
+              null,
+            ),
+            // A response arrived, so this is an ApiException carrying its
+            // real status, never a NetworkException with status 0, and never
+            // the body handed back still encoded.
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                  .having((e) => e.statusCode, 'statusCode', 200)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains('made-up-codec'),
+                  ),
+            ),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

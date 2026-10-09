@@ -726,9 +726,13 @@ async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
         "expected an error when the required query parameter 'category' is missing"
     );
     let msg = result.unwrap_err().to_string();
-    assert_eq!(
-        msg, "Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
-        "error must be the cross-SDK canonical required-parameter message, got: {}",
+    // rust's ConfigurationError Display prepends "invalid argument: "; assert the
+    // canonical cross-SDK clause is present rather than requiring an exact match.
+    assert!(
+        msg.contains(
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        ),
+        "error must carry the cross-SDK canonical required-parameter message, got: {}",
         msg
     );
 }
@@ -748,8 +752,10 @@ async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
         "expected an error when the required query parameter 'category' is empty"
     );
     let msg = result.unwrap_err().to_string();
-    assert_eq!(
-        msg, "Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+    assert!(
+        msg.contains(
+            "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+        ),
         "an empty required query param must be rejected with the canonical message, got: {}",
         msg
     );

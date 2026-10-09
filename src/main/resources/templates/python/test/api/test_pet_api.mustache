@@ -524,7 +524,10 @@ class TestPetApiErrorHandling:
         # reject the empty string the same way it rejects None, so the caller
         # gets a clear error instead of silently sending an empty value.
         api = PetApi(config=Configuration.builder().base_url('http://localhost').build())
-        with pytest.raises(ValueError, match="Missing the required parameter 'category'"):
+        with pytest.raises(
+            ValueError,
+            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+        ):
             await api.get_pet_by_name('Fido', GetPetByNameOptions(category=''))
 
     async def test_download_binary_mock(self) -> None:

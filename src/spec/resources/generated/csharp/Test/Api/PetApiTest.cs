@@ -189,6 +189,11 @@ public class PetApiTest
             _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "" })
         );
         Assert.Equal("options.Category", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

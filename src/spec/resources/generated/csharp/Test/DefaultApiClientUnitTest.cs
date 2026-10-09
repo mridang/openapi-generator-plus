@@ -1049,6 +1049,39 @@ public class DefaultApiClientUnitTest
         );
     }
 
+    [Fact]
+    public async Task UnknownContentEncodingSurfacesApiException()
+    {
+        // An unrecognised Content-Encoding the client cannot decode throws
+        // NotSupportedException from the decoder's default branch, wrapped as
+        // ApiException carrying the real status (200) — never a
+        // NetworkException, and never the body handed back still encoded.
+        byte[] payload = Encoding.UTF8.GetBytes("payload");
+        var handler = new EncodedBodyHandler(
+            HttpStatusCode.OK,
+            payload,
+            contentEncoding: "made-up-codec",
+            contentType: "application/json"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://example.com/unknown-encoding"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Contains("decode", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(200, ex.StatusCode);
+        Assert.False(
+            ex is PetstoreClient.Errors.NetworkException,
+            "an unsupported encoding is not a network failure"
+        );
+    }
+
     // ---- close-lifecycle-three-way: use-after-close throws the state error ----
 
     [Fact]

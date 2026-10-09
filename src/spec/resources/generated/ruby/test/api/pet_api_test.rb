@@ -538,14 +538,14 @@ describe Petstore::Client::Api::PetApi do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing))
       end
-      _(err.message).must_include 'category'
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
     it 'raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
       end
-      _(err.message).must_include 'name'
+      _(err.message).must_include "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
     end
 
     it 'raises ArgumentError when the required string query param category is empty' do
@@ -555,7 +555,7 @@ describe Petstore::Client::Api::PetApi do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: ''))
       end
-      _(err.message).must_include 'category'
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
     it 'raises ArgumentError when the required string path param name is empty' do

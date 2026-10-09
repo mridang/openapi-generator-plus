@@ -52,6 +52,19 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
+        if self.path == "/unknown-encoding":
+            # Advertise a coding the client cannot decode. The client must
+            # surface this as the SDK's ApiException rather than handing back
+            # the body still encoded.
+            payload = b"payload"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Encoding", "made-up-codec")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
+
         # Echo back all received headers as JSON. Lowercase the keys to match
         # chasm's /test/echo envelope shape so tests use a single key style.
         received_headers = {k.lower(): v for k, v in self.headers.items()}
@@ -125,6 +138,19 @@ class TestDefaultApiClientUnit:
         assert not isinstance(exc_info.value, NetworkException)
         assert exc_info.value.status_code == 200
         assert "decompress" in str(exc_info.value.message or "").lower()
+
+    def test_unknown_content_encoding_raises_api_exception(self) -> None:
+        """An unrecognised Content-Encoding the client cannot decode must
+        surface as the SDK's ApiException carrying the response's real status,
+        not a NetworkException and not the body handed back still encoded."""
+        from petstore_client.errors import ApiException, NetworkException
+
+        client = DefaultApiClient()
+        with pytest.raises(ApiException) as exc_info:
+            client.send_request("GET", f"{self.base_url}/unknown-encoding", {}, None)
+        assert type(exc_info.value) is ApiException
+        assert not isinstance(exc_info.value, NetworkException)
+        assert exc_info.value.status_code == 200
 
     def test_returns_non_2xx_status_code(self) -> None:
         client = DefaultApiClient()

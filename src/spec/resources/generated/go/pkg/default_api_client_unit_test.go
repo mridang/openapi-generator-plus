@@ -1018,6 +1018,37 @@ func TestDefaultApiClient_CorruptCompressedBodyIsApiErrorWithStatus(t *testing.T
 	}
 }
 
+// An unrecognised Content-Encoding the client cannot decode hits the
+// decompressor's default branch ("unsupported Content-Encoding %q") and must
+// surface an *ApiError carrying the real status code, never a *NetworkError and
+// never the body handed back still encoded.
+func TestDefaultApiClient_UnsupportedContentEncodingIsApiErrorWithStatus(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "made-up-codec")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("payload"))
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for an unsupported Content-Encoding, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != 200 {
+		t.Errorf("expected the real StatusCode 200, got %d", apiErr.StatusCode())
+	}
+	var netErr *pkgerrors.NetworkError
+	if errors.As(err, &netErr) {
+		t.Errorf("an unsupported Content-Encoding must not be a *NetworkError, got %v", err)
+	}
+	if apiErr.Cause() == nil {
+		t.Error("expected the underlying decompression error to be preserved on .Cause")
+	}
+}
+
 // A redirect to a non-HTTP scheme is refused: the redirect response arrived,
 // so the error is an *ApiError with its real status, never a *NetworkError.
 func TestDefaultApiClient_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing.T) {

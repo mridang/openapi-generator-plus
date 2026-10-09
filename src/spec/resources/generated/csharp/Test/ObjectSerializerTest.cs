@@ -1595,9 +1595,18 @@ public class ObjectSerializerTest
             Assert.Null(_serializer.Deserialize<Category>("null"));
         }
 
-        // format:byte is base64-decoded by System.Text.Json on the model field,
-        // not in ObjectSerializer, so the invalid-base64-throws case does not
-        // apply to the C# SDK.
+        // A format:byte model field (PetPassport.Thumbnail) carrying a
+        // bad-alphabet base64 string is rejected: System.Text.Json's byte[]
+        // reader throws rather than silently truncating, surfaced as the SDK's
+        // SerializationException.
+        [Fact]
+        public void InvalidBase64ByteFieldThrowsSerializationException()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<PetPassport>("{\"thumbnail\":\"!!!!\"}")
+            );
+            Assert.IsAssignableFrom<OpenAPIException>(ex);
+        }
 
         [Fact]
         public void DeepJsonWithinCapDecodesButBeyondIsRejected()

@@ -1016,6 +1016,29 @@ describe Petstore::Client::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # ── unsupported Content-Encoding (unrecognised coding) ──
+  # An unrecognised Content-Encoding the client cannot decode hits the
+  # decompressor's default branch and must surface as the SDK's typed ApiError
+  # carrying the response status, never a NetworkError and never the body
+  # handed back still encoded.
+  it 'surfaces ApiError for an unsupported Content-Encoding' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/enc') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'made-up-codec' }, 'payload']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/enc', {}, nil)
+      end
+      _(err).must_be_instance_of Petstore::Client::Errors::ApiError
+      _(err).wont_be_kind_of Petstore::Client::Errors::NetworkError
+      _(err.status_code).must_equal 200
+    end
+    stubs.verify_stubbed_calls
+  end
+
   # Positive path: a correctly gzip-encoded body still decompresses normally.
   it 'decompresses a valid gzip-encoded body' do
     io = StringIO.new
