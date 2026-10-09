@@ -81,7 +81,8 @@ public class OAuth2ImplicitAuthenticatorTest
     {
         var auth = CreateAuthenticator();
 
-        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        var ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        Assert.Contains("Must set the access token before making API requests", ex.Message);
     }
 
     [Fact]

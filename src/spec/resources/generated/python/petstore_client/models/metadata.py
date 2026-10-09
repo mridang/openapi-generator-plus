@@ -16,7 +16,7 @@ class Metadata(BaseModel):
     Metadata
     """
 
-    created_at: Optional[AwareDatetime] = Field(default=None, alias="createdAt")
+    created_at: Optional[OffsetDateTime] = Field(default=None, alias="createdAt")
     additional_properties: Dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="before")
@@ -127,6 +127,6 @@ class Metadata(BaseModel):
     )
 
 
-from pydantic import AwareDatetime
+from petstore_client._types import OffsetDateTime
 
 Metadata.model_rebuild(raise_errors=False)

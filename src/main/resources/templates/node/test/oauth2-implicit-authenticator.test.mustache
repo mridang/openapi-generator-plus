@@ -52,6 +52,7 @@ describe('OAuth2ImplicitAuthenticator', () => {
       caught = e;
     }
     expect((caught as Error).constructor).toBe(Error);
+    expect((caught as Error).message).toContain('Must set the access token before making API requests');
   });
 
   test('getHost returns configured host', () => {

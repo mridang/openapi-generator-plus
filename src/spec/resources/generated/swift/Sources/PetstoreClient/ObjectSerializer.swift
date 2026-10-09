@@ -217,6 +217,15 @@ internal enum ObjectSerializer {
         message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
       )
     }
+    /* A bare top-level JSON null is treated as an absent body (returns nil)
+       rather than a decode error, for lenient parity with the other SDKs
+       (kotlin/php special-case it the same way) whose parsers accept a
+       `null` payload on no-content responses without throwing. */
+    if let text = String(data: stripped, encoding: .utf8),
+      text.trimmingCharacters(in: .whitespacesAndNewlines) == "null"
+    {
+      return nil
+    }
     do {
       return try decoder.decode(type, from: stripped)
     } catch {

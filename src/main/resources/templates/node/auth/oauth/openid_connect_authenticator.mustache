@@ -123,11 +123,11 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
      * other SDKs which fail loudly here. */
     const authorizationEndpoint = discovery.authorization_endpoint;
     if (typeof authorizationEndpoint !== 'string' || authorizationEndpoint.length === 0) {
-      throw new SerializationError('OIDC discovery document is missing authorization_endpoint');
+      throw new SerializationError("OIDC discovery document is missing 'authorization_endpoint'");
     }
     const tokenEndpoint = discovery.token_endpoint;
     if (typeof tokenEndpoint !== 'string' || tokenEndpoint.length === 0) {
-      throw new SerializationError('OIDC discovery document is missing token_endpoint');
+      throw new SerializationError("OIDC discovery document is missing 'token_endpoint'");
     }
     this.delegate = new OAuth2AuthorizationCodeAuthenticator(
       this.host,

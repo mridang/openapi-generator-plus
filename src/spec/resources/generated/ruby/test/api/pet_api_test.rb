@@ -648,6 +648,7 @@ describe Petstore::Client::Api::PetApi do
           api.get_pet_by_id(1)
         end
         _(err.status_code).must_equal 200
+        _(err.message).must_include 'Expected a response body for get_pet_by_id but received none'
       ensure
         server.close
         thread.join(2)

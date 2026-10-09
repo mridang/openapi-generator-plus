@@ -33,7 +33,7 @@ defmodule {{moduleName}}.Auth.BearerAuthenticatorTest do
     # bare "Authorization: Bearer " header, sending the request
     # unauthenticated, so new/2 must reject it.
     test "rejects an empty token at construction" do
-      assert_raise ArgumentError, fn ->
+      assert_raise ArgumentError, ~r/Bearer token must not be empty/, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
       end
     end

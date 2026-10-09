@@ -495,7 +495,9 @@ export abstract class AbstractApiClient implements ApiClient {
       if (AbstractApiClient.isDecodeFailure(error)) {
         throw new ApiError(
           response.status,
-          "failed to decompress response body: " +
+          "Failed to decompress " +
+            (response.headers.get("content-encoding") ?? "") +
+            " response body: " +
             (error instanceof Error ? error.message : String(error)),
           null,
           null,
@@ -589,7 +591,7 @@ export abstract class AbstractApiClient implements ApiClient {
         } catch (error) {
           throw new ApiError(
             statusCode,
-            `failed to decompress response body (content-encoding=${contentEncoding}): ` +
+            `Failed to decompress ${contentEncoding} response body: ` +
               (error instanceof Error ? error.message : String(error)),
             null,
             null,

@@ -10,6 +10,7 @@ from typing import Annotated, Any
 
 from pydantic import (
     AfterValidator,
+    AwareDatetime,
     BeforeValidator,
     HttpUrl,
     PlainSerializer,
@@ -86,4 +87,25 @@ UrlStr = Annotated[str, AfterValidator(_validate_url_preserving)]
 JsonNumber = Annotated[
     Decimal,
     PlainSerializer(lambda value: float(value), return_type=float, when_used="json"),
+]
+
+# `format: date-time` model fields. Bare pydantic `AwareDatetime` serializes via
+# model_dump_json with a trailing `Z` and a variable-width fractional part
+# (e.g. `2024-01-01T12:30:45Z`, `2020-01-02T03:04:05.123000Z`), which diverges
+# from the other SDKs that pin EXACTLY a fixed 3-digit millisecond fraction and
+# a numeric UTC offset, never `Z` (`2024-01-01T12:30:45.000+00:00`).
+# OffsetDateTime keeps AwareDatetime's validator (naive datetimes are still
+# rejected) and adds a JSON-only PlainSerializer that emits
+# `isoformat(timespec='milliseconds')`: an aware UTC datetime renders `+00:00`
+# (never `Z`) with exactly three fractional digits, matching the wire form every
+# other SDK produces. The parameter (`stringify`) and dict
+# (`_sanitize_for_serialization`) paths already pin this `.SSS+00:00` form; this
+# alias closes the one remaining leak on the model_dump_json body path.
+OffsetDateTime = Annotated[
+    AwareDatetime,
+    PlainSerializer(
+        lambda value: value.isoformat(timespec="milliseconds"),
+        return_type=str,
+        when_used="json",
+    ),
 ]

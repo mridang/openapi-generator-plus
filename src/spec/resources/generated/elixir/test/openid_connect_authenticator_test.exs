@@ -264,9 +264,13 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
         PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
 
       # An incomplete discovery document is a SerializationError.
-      assert_raise PetstoreClient.Errors.SerializationError, ~r/authorization_endpoint/, fn ->
-        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
-      end
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/OIDC discovery document is missing 'authorization_endpoint'/,
+                   fn ->
+                     PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(
+                       auth
+                     )
+                   end
     end
 
     test "raises when discovery document is missing token_endpoint" do

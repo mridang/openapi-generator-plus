@@ -378,7 +378,8 @@ class PetApiTest {
     PetApi mockApi = newPetApiForMock(200, "application/json", "");
 
     assertThatThrownBy(() -> mockApi.getPetById(1L))
-        .isInstanceOf(com.example.petstore.errors.ApiException.class);
+        .isInstanceOf(com.example.petstore.errors.ApiException.class)
+        .hasMessageContaining("Expected a response body for getPetById but received none");
   }
 
   @Test

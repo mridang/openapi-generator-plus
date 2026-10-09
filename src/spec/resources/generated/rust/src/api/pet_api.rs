@@ -608,7 +608,7 @@ impl PetApi {
                     });
                     if !cookie_value_valid {
                         return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                            "cookie value for '{}' contains characters forbidden by RFC 6265 when calling PetApi.delete_pet",
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling PetApi.delete_pet",
                             "api_key"
                         ))));
                     }
@@ -2287,7 +2287,7 @@ impl PetApi {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "unsupported request content-type '{}' for PetApi.set_pet_avatar; declared types are {:?}",
+                    "Unsupported request content-type '{}' for set_pet_avatar; declared types are {:?}",
                     request_content_type, DECLARED_CONSUMES
                 )),
             ));
@@ -2857,7 +2857,7 @@ impl PetApi {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "unsupported request content-type '{}' for PetApi.upload_pet_document; declared types are {:?}",
+                    "Unsupported request content-type '{}' for upload_pet_document; declared types are {:?}",
                     request_content_type, DECLARED_CONSUMES
                 )),
             ));

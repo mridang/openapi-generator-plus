@@ -112,7 +112,7 @@ module Petstore::Client
           # oneOf branch for the cross-lang rationale (5 of 12 SDKs
           # already throw; we promote the rest to the same strict
           # behaviour).
-          raise ArgumentError, 'JSON did not match any schema in the PetTreatment anyOf union'
+          raise ::Petstore::Client::Errors::SerializationError, 'JSON did not match any schema in the PetTreatment anyOf union'
         end
       end
     end

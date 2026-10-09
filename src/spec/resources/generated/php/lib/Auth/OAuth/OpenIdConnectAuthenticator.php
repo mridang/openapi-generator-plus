@@ -153,11 +153,11 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
          * SDKs which fail loudly here. */
         $authorizationEndpoint = $discovery['authorization_endpoint'] ?? null;
         if (!is_string($authorizationEndpoint) || $authorizationEndpoint === '') {
-            throw new SerializationException('OIDC discovery document is missing authorization_endpoint');
+            throw new SerializationException("OIDC discovery document is missing 'authorization_endpoint'");
         }
         $tokenEndpoint = $discovery['token_endpoint'] ?? null;
         if (!is_string($tokenEndpoint) || $tokenEndpoint === '') {
-            throw new SerializationException('OIDC discovery document is missing token_endpoint');
+            throw new SerializationException("OIDC discovery document is missing 'token_endpoint'");
         }
 
         $this->delegate = new OAuth2AuthorizationCodeAuthenticator(

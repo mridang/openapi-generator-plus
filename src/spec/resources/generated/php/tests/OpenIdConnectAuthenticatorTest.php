@@ -294,7 +294,7 @@ test('oidc throws when discovery omits authorization_endpoint', function (): voi
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'OIDC discovery document is missing authorization_endpoint');
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, "OIDC discovery document is missing 'authorization_endpoint'");
 });
 
 test('oidc throws when discovery omits token_endpoint', function (): void {
@@ -315,7 +315,7 @@ test('oidc throws when discovery omits token_endpoint', function (): void {
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->buildAuthorizationUrl())
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'OIDC discovery document is missing token_endpoint');
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, "OIDC discovery document is missing 'token_endpoint'");
 });
 
 /**

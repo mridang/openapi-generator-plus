@@ -145,12 +145,12 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
      * far from the real cause. */
     if (authorizationEndpoint is! String || authorizationEndpoint.isEmpty) {
       throw SerializationException(
-        'OIDC discovery document is missing authorization_endpoint',
+        "OIDC discovery document is missing 'authorization_endpoint'",
       );
     }
     if (tokenEndpoint is! String || tokenEndpoint.isEmpty) {
       throw SerializationException(
-        'OIDC discovery document is missing token_endpoint',
+        "OIDC discovery document is missing 'token_endpoint'",
       );
     }
 

@@ -22,7 +22,7 @@ class BearerAuthenticator extends BaseAuthenticator {
      * emits a bare `Authorization: Bearer ` header, matching the api-key
      * authenticator's own empty guard. */
     if (token.trim().isEmpty) {
-      throw ArgumentError('Bearer token must not be empty or whitespace');
+      throw ArgumentError('Bearer token must not be empty');
     }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
      * Reject anything outside printable ASCII + TAB so callers see a

@@ -11,7 +11,6 @@ import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
 import com.example.petstore.errors.OAuth2ServerException
 import com.example.petstore.errors.OAuth2TokenException
-import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -21,6 +20,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import kotlin.math.floor
 import kotlin.time.Clock
 
@@ -176,9 +177,19 @@ class OAuth2TokenManager {
                         "on HttpAwareAuthenticator before making API requests.",
                 )
 
+        /* application/x-www-form-urlencoded: a space is '+'. URLEncoder keeps
+         * '*' literal and escapes '~' to %7E — the reverse of the RFC 3986
+         * unreserved set (A-Za-z0-9-._~) — so normalise both ('*' -> %2A,
+         * %7E -> '~') to emit byte-identical output across every SDK. */
+        fun formEncode(s: String): String =
+            URLEncoder
+                .encode(s, StandardCharsets.UTF_8)
+                .replace("*", "%2A")
+                .replace("%7E", "~")
+
         val body =
             params.entries.joinToString("&") { (k, v) ->
-                "${k.encodeURLQueryComponent(spaceToPlus = true)}=${v.encodeURLQueryComponent(spaceToPlus = true)}"
+                "${formEncode(k)}=${formEncode(v)}"
             }
 
         val headers =

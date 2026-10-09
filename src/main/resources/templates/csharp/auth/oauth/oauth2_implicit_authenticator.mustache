@@ -112,7 +112,7 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     {
         return _accessToken is null
             ? throw new InvalidOperationException(
-                "Must call SetAccessToken() before making API requests"
+                "Must set the access token before making API requests"
             )
             : new() { ["Authorization"] = "Bearer " + _accessToken };
     }

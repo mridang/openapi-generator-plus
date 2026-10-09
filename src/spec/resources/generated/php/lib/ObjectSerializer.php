@@ -1070,7 +1070,7 @@ class ObjectSerializer
             }
         }
         throw new \UnexpectedValueException(
-            'JSON did not match any schema in the oneOf/anyOf union'
+            'No oneOf/anyOf variant matched the JSON'
         );
     }
 
@@ -1124,7 +1124,7 @@ class ObjectSerializer
         }
         if ($matched === []) {
             throw new \UnexpectedValueException(
-                'JSON did not match any schema in the oneOf/anyOf union'
+                'No oneOf/anyOf variant matched the JSON'
             );
         }
         return $matched;

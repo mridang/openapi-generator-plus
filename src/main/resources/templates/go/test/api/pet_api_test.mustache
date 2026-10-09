@@ -957,6 +957,9 @@ func TestPetApi_EmptyBodyConvenienceReturnsApiError(t *testing.T) {
 	if !errors.As(err, &apiErr) {
 		t.Fatalf("expected *ApiError, got %T: %v", err, err)
 	}
+	if !strings.Contains(err.Error(), "expected a response body for GetPetById but received none") {
+		t.Errorf("expected the empty-body message naming the operation, got %q", err.Error())
+	}
 
 	result, infoErr := api.GetPetByIdWithHTTPInfo(int64(1), nil)
 	if infoErr != nil {

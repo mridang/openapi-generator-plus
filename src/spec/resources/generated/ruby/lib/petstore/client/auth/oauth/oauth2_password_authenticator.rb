@@ -84,8 +84,11 @@ module Petstore::Client
 
           # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
           # separately before joining with ':' and base64-encoding.
-          encoded_id = CGI.escape(@client_id)
-          encoded_secret = CGI.escape(@client_secret)
+          # CGI.escape escapes '~' to %7E on some Ruby versions, but RFC 3986
+          # keeps '~' unreserved; map it back so every SDK emits byte-identical
+          # credentials (space stays '+' for the form).
+          encoded_id = CGI.escape(@client_id).gsub('%7E', '~')
+          encoded_secret = CGI.escape(@client_secret).gsub('%7E', '~')
           credentials = Base64.strict_encode64("#{encoded_id}:#{encoded_secret}")
           { 'Authorization' => "Basic #{credentials}" }
         end

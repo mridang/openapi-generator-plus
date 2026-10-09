@@ -539,6 +539,14 @@ module Petstore::Client
         raise Errors::SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| validate_uuid(item) }
+      when 'byte{}'
+        raise Errors::SerializationError, "Expected Hash for format: byte{}, got #{value.class}" unless value.is_a?(Hash)
+
+        value.transform_values { |item| decode_byte(item) }
+      when 'uuid{}'
+        raise Errors::SerializationError, "Expected Hash for format: uuid{}, got #{value.class}" unless value.is_a?(Hash)
+
+        value.transform_values { |item| validate_uuid(item) }
       else
         value
       end
@@ -654,6 +662,14 @@ module Petstore::Client
         raise Errors::SerializationError, "Expected Array for format: uuid[], got #{value.class}" unless value.is_a?(Array)
 
         value.map { |item| validate_uuid(item) }
+      when 'byte{}'
+        raise Errors::SerializationError, "Expected Hash for format: byte{}, got #{value.class}" unless value.is_a?(Hash)
+
+        value.transform_values { |item| encode_byte(item) }
+      when 'uuid{}'
+        raise Errors::SerializationError, "Expected Hash for format: uuid{}, got #{value.class}" unless value.is_a?(Hash)
+
+        value.transform_values { |item| validate_uuid(item) }
       else
         value
       end

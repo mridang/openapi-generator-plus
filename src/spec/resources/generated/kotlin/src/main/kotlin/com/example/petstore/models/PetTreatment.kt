@@ -11,7 +11,6 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import com.example.petstore.errors.SerializationException
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers

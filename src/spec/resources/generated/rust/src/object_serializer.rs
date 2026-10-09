@@ -384,9 +384,10 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
      * nested 129..=1000 deep would be accepted everywhere else but rejected
      * by serde. Scan the raw bytes (cheap, string-aware) and reject beyond
      * MAX_JSON_DEPTH so every SDK applies the same limit. */
-    if json_max_depth(stripped) > MAX_JSON_DEPTH {
+    let depth = json_max_depth(stripped);
+    if depth > MAX_JSON_DEPTH {
         return Err(SerializationError::new(
-            format!("JSON nesting depth exceeds limit {MAX_JSON_DEPTH}"),
+            format!("JSON nesting depth {depth} exceeds limit {MAX_JSON_DEPTH}"),
             None,
         ));
     }

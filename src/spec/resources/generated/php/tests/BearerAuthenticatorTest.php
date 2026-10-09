@@ -55,7 +55,7 @@ test('bearer rejects empty token at construction', function (): void {
     // An empty / whitespace-only token would emit "Authorization: Bearer "
     // (no credential), so it must be rejected at construction.
     expect(fn () => new BearerAuthenticator('https://api.example.com', ''))
-        ->toThrow(\InvalidArgumentException::class);
+        ->toThrow(\InvalidArgumentException::class, 'Bearer token must not be empty');
     expect(fn () => new BearerAuthenticator('https://api.example.com', '   '))
         ->toThrow(\InvalidArgumentException::class);
 });

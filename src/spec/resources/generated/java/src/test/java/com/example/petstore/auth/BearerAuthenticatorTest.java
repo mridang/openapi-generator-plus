@@ -48,9 +48,13 @@ class BearerAuthenticatorTest {
 
   @Test
   void emptyTokenIsRejectedAtConstruction() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> new BearerAuthenticator("https://api.example.com", ""));
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BearerAuthenticator("https://api.example.com", ""));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("Bearer token must not be empty"));
   }
 
   // No null-token test: the token parameter is @NonNull, so NullAway

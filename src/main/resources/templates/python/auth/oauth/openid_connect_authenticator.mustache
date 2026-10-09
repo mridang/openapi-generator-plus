@@ -123,24 +123,22 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             discovery = json.loads(response.body)
         except ValueError as e:
             raise SerializationException(
-                f'OpenID Connect discovery document is not valid JSON: {e}', e
+                f'OIDC discovery document is not valid JSON: {e}', e
             ) from e
         if not isinstance(discovery, dict):
-            raise SerializationException('OpenID Connect discovery document is not a JSON object')
+            raise SerializationException('OIDC discovery document is not a JSON object')
         # Validate the endpoints are present and non-empty before building the
         # delegate. A missing/blank endpoint would otherwise raise a KeyError
         # or silently produce a delegate with empty endpoint URLs.
         authorization_endpoint = discovery.get('authorization_endpoint')
         if not authorization_endpoint:
             raise SerializationException(
-                'OpenID Connect discovery document is missing a non-empty '
-                "'authorization_endpoint'"
+                "OIDC discovery document is missing 'authorization_endpoint'"
             )
         token_endpoint = discovery.get('token_endpoint')
         if not token_endpoint:
             raise SerializationException(
-                'OpenID Connect discovery document is missing a non-empty '
-                "'token_endpoint'"
+                "OIDC discovery document is missing 'token_endpoint'"
             )
         self._delegate = OAuth2AuthorizationCodeAuthenticator(
             self._host,

@@ -187,6 +187,6 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
     /// </summary>
     public override string ToString()
     {
-        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***)";
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***, AuthorizationUrl={_authorizationUrl}, TokenUrl={_tokenUrl}, RedirectUri={_redirectUri}, Scopes=[{string.Join(", ", _scopes)}])";
     }
 }

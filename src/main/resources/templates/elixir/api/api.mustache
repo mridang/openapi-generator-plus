@@ -129,7 +129,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
     * `options` - Optional parameters (query, header, form, cookie).
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override){{#consumes.1}}, `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`){{/consumes.1}}. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}} Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -193,6 +193,13 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
+{{^servers}}{{^consumes.1}}
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+{{/consumes.1}}{{/servers}}
 {{#hasAuthMethods}}
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
@@ -221,7 +228,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
-    if is_nil({{paramName}}) do
+    if is_nil({{paramName}}){{#isString}} or {{paramName}} == ""{{/isString}} do
       raise ArgumentError,
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
     end
@@ -282,13 +289,26 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%paramName%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string())
 <%={{ }}=%>
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
     server = Keyword.get(opts, :server)
     path = if server do
-      server_url = {{moduleName}}.ServerConfiguration.url(server)
+      server_module = if is_atom(server), do: server, else: server.__struct__
+      server_url = server_module.url(server)
       if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
     else
       path
     end
+{{/-first}}
+{{/servers}}
     query_params = %{}
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -415,8 +435,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
             selected
           else
             raise ArgumentError,
-                  "Unsupported :content_type #{inspect(selected)} for {{classname}}.{{operationId}}; " <>
-                    "declared content-types are #{inspect(declared_content_types)}"
+                  "Unsupported request content-type '#{selected}' for {{operationId}}; " <>
+                    "declared types are #{inspect(declared_content_types)}"
           end
       end
 

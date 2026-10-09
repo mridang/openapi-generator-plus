@@ -77,8 +77,8 @@ class ServerConfiguration {
       if (variable.enumValues.isNotEmpty) {
         if (!variable.enumValues.contains(value)) {
           throw ArgumentError(
-            "Invalid value '$value' for variable '$varName'; "
-            "allowed: ${variable.enumValues}",
+            "Invalid value '$value' for server variable '$varName'. "
+            "Allowed values: ${variable.enumValues}",
           );
         }
       }

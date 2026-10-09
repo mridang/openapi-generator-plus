@@ -99,14 +99,20 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
     if (this.clientAuthMethod === ClientAuthMethod.Basic) {
       /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
        * separately before joining with ':' and base64-encoding.
-       * encodeURIComponent emits %20 for a space, but the
+       * encodeURIComponent keeps `!*'()` literal and emits %20 for a space; the
+       * RFC 3986 unreserved set is only `A-Za-z0-9-._~`, and the
        * application/x-www-form-urlencoded form (matching the other SDKs'
-       * URLEncoder/url.QueryEscape) requires '+'. */
-      const encodedId = encodeURIComponent(this.clientId).replace(/%20/g, "+");
-      const encodedSecret = encodeURIComponent(this.clientSecret).replace(
-        /%20/g,
-        "+",
-      );
+       * URLEncoder/url.QueryEscape) requires '+', so escape those extras and
+       * map %20 -> '+'. */
+      const formEncode = (v: string): string =>
+        encodeURIComponent(v)
+          .replace(
+            /[!'()*]/g,
+            (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+          )
+          .replace(/%20/g, "+");
+      const encodedId = formEncode(this.clientId);
+      const encodedSecret = formEncode(this.clientSecret);
       const credentials = Buffer.from(`${encodedId}:${encodedSecret}`).toString(
         "base64",
       );
@@ -148,7 +154,7 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
    * so `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
    * exfiltrate the credential into application logs. */
   [Symbol.for("nodejs.util.inspect.custom")](): string {
-    return `OAuth2ClientCredentialsAuthenticator(host=${this.host}, clientId=${this.clientId}, clientSecret=***)`;
+    return `OAuth2ClientCredentialsAuthenticator(host=${this.host}, clientId=${this.clientId}, clientSecret=***, tokenUrl=${this.tokenUrl}, scopes=[${this.scopes.join(", ")}], clientAuthMethod=${this.clientAuthMethod})`;
   }
 
   toJSON(): Record<string, string> {

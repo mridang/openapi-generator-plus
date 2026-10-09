@@ -25,7 +25,12 @@ pub struct BinaryVault {
     )]
     pub shards: Option<Vec<Vec<u8>>>,
     /// A map of byte arrays; equality compares each value's contents.
-    #[serde(rename = "labels", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "labels",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "super::base64_serde::map_option"
+    )]
     pub labels: Option<std::collections::HashMap<String, Vec<u8>>>,
 }
 

@@ -176,7 +176,7 @@ void main() {
  * install the W3C propagator the OpenTelemetry SDK registers by default and
  * drive their own tracer provider, so each test controls the span.
  */
-final otel.TextMapPropagator _propagator = otel.W3CTraceContextPropagator();
+final _propagator = otel.W3CTraceContextPropagator();
 
 /// Injects [context]'s span into the headers, the way an application wires
 /// OpenTelemetry into [TraceContextUtil.propagator].

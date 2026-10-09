@@ -557,8 +557,11 @@ class TestPetApiErrorHandling:
         from petstore_client.errors import ApiException
 
         api, server = _create_mock_server(200, "application/json", "")
-        with pytest.raises(ApiException):
+        with pytest.raises(ApiException) as exc_info:
             await api.get_pet_by_id(1)
+        assert "Expected a response body for get_pet_by_id but received none" in str(
+            exc_info.value.message or ""
+        )
 
     async def test_required_string_param_empty_string_rejected(self) -> None:
         # Parity with go/rust/swift/elixir: a required STRING parameter must

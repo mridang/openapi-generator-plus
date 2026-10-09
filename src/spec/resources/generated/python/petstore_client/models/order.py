@@ -32,7 +32,7 @@ class Order(BaseModel):
     pet_id: Optional[StrictInt] = Field(default=None, alias="petId")
     # Example: 7
     quantity: Optional[StrictInt] = Field(default=None, alias="quantity")
-    ship_date: Optional[AwareDatetime] = Field(default=None, alias="shipDate")
+    ship_date: Optional[OffsetDateTime] = Field(default=None, alias="shipDate")
     # Example: 'approved'
     status: Optional[OrderStatusEnum] = Field(
         default=OrderStatusEnum.PLACED, alias="status", description="Order Status"
@@ -50,6 +50,6 @@ class Order(BaseModel):
     )
 
 
-from pydantic import AwareDatetime
+from petstore_client._types import OffsetDateTime
 
 Order.model_rebuild(raise_errors=False)

@@ -153,7 +153,7 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
     public function getAuthHeaders(): array
     {
         if ($this->accessToken === null) {
-            throw new \LogicException('Must call setAccessToken() before making API requests');
+            throw new \LogicException('Must set the access token before making API requests');
         }
 
         return ['Authorization' => 'Bearer ' . $this->accessToken];

@@ -168,3 +168,83 @@ goldens line-by-line across all 12. Findings and resolutions (details in AGENTS.
   `when calling <Class>.<op>` clause per language (php + rust done in R7-1).
 - [ ] **R7-T3** Malformed-base64 model-field deserialize test missing in java/kotlin/csharp/dart/
   swift (go/rust forced — stdlib/serde rejects).
+
+## ROUND 8 — component-wise cross-language sweep (2026-10-09) — FIXED / DOCUMENTED
+
+Eight review agents each diffed ONE shared component across all 12 languages (template +
+golden) on the rule "structurally identical modulo a named language feature"; then a second
+wave re-swept the changed files, the tooling gates, the API template, and fixture wire forms.
+Findings + resolutions (details in AGENTS.md "Round 8"):
+
+### HIGH / wire
+- [x] **R8-1** map-of-`format:byte` (`BinaryVault.labels`): rust emitted int-arrays, dart/elixir
+  raw bytes, ruby/node/php left base64 undecoded. Fixed the map path in all 6 (rust `base64_serde`
+  map/map_option module; dart base64Decode/Encode per value; elixir map-descriptor serialize
+  clause; ruby OPENAPI_FORMATS `byte{}`/`uuid{}` + phantom-key fix; node `@Transform`; php accessor
+  pair). Now all 12 round-trip a base64 string ↔ native bytes.
+- [x] **R8-2** python `date-time` MODEL bodies leaked pydantic's `AwareDatetime` default (`Z` +
+  variable fraction). Added an `OffsetDateTime` annotated alias (PlainSerializer →
+  `isoformat(timespec="milliseconds")`) applied to model date-time fields only; param/dict/return
+  paths keep `AwareDatetime` (already canonical). All 12 now emit `.SSS+00:00`.
+- [x] **R8-3** kotlin object-serializer enforced the 1000-depth cap only on the error-body path;
+  the success `deserialize` path could `StackOverflowError`. Added the `jsonMaxDepth` guard there.
+- [x] **R8-4** elixir per-operation `:server` was emitted on EVERY op (not gated by `{{#servers}}`)
+  and the generated typed server-variant modules were dead (ops called `ServerConfiguration.url`,
+  which rejects a typed variant). Gated `:server` like the other 11 and routed through the variant's
+  own `url/1` so the typed modules are reachable.
+- [x] **R8-5** empty-gzip: Round-7 R7-5 was BACKWARDS (java/kotlin/python/ruby/php/rust pass an
+  empty body through; only go/elixir/dart-io raised). Reverted elixir/dart-io to pass-through and
+  added the guard to go; all 12 now pass an empty body through for any encoding. AGENTS corrected.
+
+### Behavioral / message harmonization (go stays lowercase where ST1005 forces it)
+- [x] **R8-6** dart/elixir empty required-PATH param now rejected at the op layer with the canonical
+  `Missing the required parameter '<x>' when calling <Class>.<op>` (was leaking the serializer
+  message); AGENTS R6-5 note corrected (only go is forced).
+- [x] **R8-7** empty-response-body, server-variable (T3-17), bearer, oauth2-implicit, OIDC-discovery,
+  oneOf/anyOf no-match, rust OAuth2ServerError, rust cookie messages, rust/elixir multi-consumes,
+  decompress-failure wording — all harmonized to one canonical string per message.
+- [x] **R8-8** swift bare-null body → nil; go/swift empty-`tracestate` strip; dart-io `x-gzip`
+  alias; go Accept-Encoding reordered to `gzip, deflate, br, zstd`.
+- [x] **R8-9** OAuth2 authenticator redacted-repr non-secret field-sets unified across all 12.
+- [x] **R8-10** OAuth2 percent-encoding: all 3 paths (token body, Basic header, authorize URL) now
+  keep exactly the RFC 3986 unreserved set `-._~` and %-encode `* ! ' ( )` in 11 langs; space
+  handling unchanged. Swift's `URLComponents`-based authorize URL is the one remaining residual.
+
+### Gates (tooling strictness)
+- [ ] **R8-11** kotlin is the only compiled SDK without warnings-as-errors. Arming
+  `allWarningsAsErrors` was attempted but DEFERRED (see R8-F4): it surfaces a required-param
+  always-true null-check and a Kotlin-2.2 value-based `equals()` warning that need a dedicated
+  cleanup. The `-Xsuppress-warning` flags WERE migrated to the modern `-Xwarning-level=…:disabled`
+  syntax (kept). Dart's gate (R8-12) WAS armed.
+- [x] **R8-12** dart analyzer gained `strict-casts`/`strict-inference`/`strict-raw-types` (armed;
+  it immediately caught a raw `TextMapPropagator` generic in the trace test, now fixed).
+
+### Low / cleanup
+- [x] **R8-13** rust `#[deprecated(note=…)]`; kotlin unused SerializationException import removed;
+  csharp ToString `AdditionalProperties` label; go field-deprecation "field"→"property"; ruby
+  oneOf/anyOf no-match → SerializationError; python/ruby duplicate required-param guard removed;
+  node runtime multi-consumes content-type guard added; rust depth-cap message carries `{depth}`;
+  node stale "Go emits Z" comment + php decompress double-wrap fixed.
+
+### Test-locks (so these never silently regress)
+- [x] **R8-T1** empty-gzip pass-through — unit test in all 12.
+- [x] **R8-T2** empty-response-body message — assertion extended in all 12.
+- [x] **R8-T3** bearer / oauth2-implicit / OIDC-missing messages — assertions in all 12.
+- [x] **R8-T4** python date-time model-body exact `.SSS+00:00` (+ whole-second `.000`) assertions.
+
+### Documented FORCED / accepted (not changed) — see AGENTS "Round 8"
+- [ ] **R8-F1** swift authorize-URL percent-encoding (URLComponents keeps `*!'()` + literal `+`);
+  rewriting risks the parsed-query behavior — latent, documented.
+- [ ] **R8-F2** csharp uses the BCL `DistributedContextPropagator` (not OTel) for trace-context, and
+  rejects a non-absolute OIDC endpoint URL (`System.Uri`) — forced-leaning, documented.
+- [ ] **R8-F3** `format:number` native-float set is SEVEN langs (was mis-stated as 3); go value-typed
+  body no-nil-guard; dart/swift empty-string-proxy leniency; python inert field-deprecation comment;
+  per-model oneOf wrapper strings differ from the central-helper string (latent). All documented.
+- [ ] **R8-F4** kotlin `allWarningsAsErrors` DEFERRED (not armed). Arming it requires two cleanups
+  first: (1) the kotlin query-param builder null-checks a REQUIRED non-null param (`if (options.x
+  != null)` → "condition is always true") — split the builder on `{{#required}}` so required params
+  emit unconditionally; (2) Kotlin 2.2 emits "identity-sensitive operation on value type" for the
+  generated `equals()` comparing `OffsetDateTime` fields on date-time models (Metadata, PetPassport,
+  …) — a false positive on correct structural `!=`, needs a `@Suppress` or an equals rework. Arm the
+  gate after these land. The modern `-Xwarning-level=UNCHECKED_CAST:disabled`/`DEPRECATION:disabled`
+  syntax was adopted (replacing the now-deprecated `-Xsuppress-warning`).

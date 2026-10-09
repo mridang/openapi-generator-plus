@@ -156,6 +156,11 @@ class {{classname}} extends BaseApi {
 {{! matching go/rust/swift/elixir which treat "" as "absent" for required }}
 {{! string params. The check is gated on isString so non-string params are }}
 {{! unaffected. The null check above is preserved. }}
+{{#pathParams}}{{#required}}{{#isString}}
+    if ({{paramName}} == '') {
+      throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/isString}}{{/required}}{{/pathParams}}
 {{#queryParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');

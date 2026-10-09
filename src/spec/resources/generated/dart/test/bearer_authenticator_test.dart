@@ -34,7 +34,13 @@ void main() {
       // unauthenticated, so the constructor must reject it.
       expect(
         () => BearerAuthenticator(host: '/api/v3', token: ''),
-        throwsArgumentError,
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('Bearer token must not be empty'),
+          ),
+        ),
       );
       expect(
         () => BearerAuthenticator(host: '/api/v3', token: '   '),

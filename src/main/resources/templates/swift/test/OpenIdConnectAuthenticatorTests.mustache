@@ -196,9 +196,10 @@ import Testing
         auth.setApiClient(client)
 
         /* An incomplete discovery document is a SerializationError. */
-        await #expect(throws: SerializationError.self) {
+        let error = await #expect(throws: SerializationError.self) {
             _ = try await auth.buildAuthorizationURL()
         }
+        #expect(error?.message.contains("OIDC discovery document is missing 'authorization_endpoint'") == true)
     }
 
     @Test func testThrowsWhenDiscoveryMissingTokenEndpoint() async {

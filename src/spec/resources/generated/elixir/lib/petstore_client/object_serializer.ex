@@ -473,6 +473,18 @@ defmodule PetstoreClient.ObjectSerializer do
     Enum.map(value, fn item -> sanitize_field_value(item, sub_type) end)
   end
 
+  # String-keyed map byte fields: the codegen tags a map of bytes
+  # "%{String.t() => binary()}" (or "%{String.t() => ByteArray}", and nested
+  # forms deeper). Peel the map wrapper and recurse on every VALUE so each
+  # innermost `binary()`/`ByteArray` leaf reaches the encode clause above.
+  # Mirrors the deserialize side, where convert_to_type/2's
+  # "%{String.t() => " <> rest clause peels the same wrapper before
+  # base64-decoding each value.
+  defp sanitize_field_value(value, "%{String.t() => " <> rest) when is_map(value) do
+    sub_type = String.replace_suffix(rest, "}", "")
+    Map.new(value, fn {k, v} -> {k, sanitize_field_value(v, sub_type)} end)
+  end
+
   # Named enum field - the field carries an atom whose name is the
   # lowercased constant, which is NOT necessarily the wire value (e.g.
   # `:great_dane` -> "GreatDane"). The enum module's `value/1` is the only

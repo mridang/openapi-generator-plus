@@ -59,8 +59,8 @@ fn test_bearer_rejects_invalid_tokens() {
     for (token, expected) in [
         ("tok\r\nInjected: yes", "printable ASCII"),
         ("ñoño", "printable ASCII"),
-        ("", "must not be empty"),
-        ("   ", "must not be empty"),
+        ("", "Bearer token must not be empty"),
+        ("   ", "Bearer token must not be empty"),
     ] {
         match BearerAuthenticator::new("https://api.example.com", token) {
             Err(ConfigurationError::InvalidArgument(reason)) => {

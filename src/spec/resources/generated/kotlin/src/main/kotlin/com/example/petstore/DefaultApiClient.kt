@@ -353,7 +353,7 @@ class DefaultApiClient internal constructor(
             } catch (e: java.io.IOException) {
                 throw ApiException(
                     response.status.value,
-                    "failed to decode $contentEncoding response body: $e",
+                    "Failed to decompress $contentEncoding response body: $e",
                     e,
                 )
             }
@@ -558,7 +558,7 @@ internal fun decodeContentEncoding(
         // client cannot honour; raise so the caller surfaces an ApiException
         // (matching csharp/elixir and the documented contract) instead of
         // returning the body still encoded.
-        else -> throw java.io.IOException("unsupported Content-Encoding '$contentEncoding'")
+        else -> throw java.io.IOException("Unsupported Content-Encoding '$contentEncoding'")
     }
 }
 
@@ -584,7 +584,11 @@ private fun decodeViaInputStream(
                 .newInstance(data.inputStream()) as java.io.InputStream
         stream.use { it.readBytes() }
     } catch (e: ReflectiveOperationException) {
-        throw java.io.IOException("Failed to decompress $className response", e)
+        val enc = if (className.startsWith("org.brotli")) "br" else "zstd"
+        throw java.io.IOException(
+            "Received a $enc-encoded response but the $enc library is unavailable",
+            e,
+        )
     }
 }
 

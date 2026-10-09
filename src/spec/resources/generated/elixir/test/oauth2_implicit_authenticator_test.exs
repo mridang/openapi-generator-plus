@@ -66,7 +66,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
     test "throws when access token not set" do
       auth = create_authenticator()
 
-      assert_raise RuntimeError, fn ->
+      assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
         PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
       end
     end

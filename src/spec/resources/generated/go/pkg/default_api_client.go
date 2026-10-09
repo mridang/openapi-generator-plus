@@ -208,7 +208,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	if err != nil {
 		return nil, errors_pkg.NewApiError(
 			resp.StatusCode,
-			fmt.Sprintf("failed to decompress response body: %s", err.Error()),
+			fmt.Sprintf("failed to decompress %s response body: %s", resp.Header.Get("Content-Encoding"), err.Error()),
 			"", respHeaders, nil, err,
 		)
 	}
@@ -430,12 +430,19 @@ func effectivePort(u *url.URL) string {
 }
 
 func supportedEncodings() string {
-	return "br, gzip, deflate, zstd"
+	return "gzip, deflate, br, zstd"
 }
 
 // decompressBody decodes a response body that was already read in full, so a
 // failure here is always a corrupt body and never a transport failure.
 func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
+	// An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
+	// decompress, so it passes through unchanged for any declared encoding,
+	// matching java/kotlin/python/ruby/php/rust.
+	if len(raw) == 0 {
+		return raw, nil
+	}
+
 	encoding := strings.ToLower(contentEncoding)
 
 	switch encoding {
@@ -469,7 +476,7 @@ func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
 		// client cannot honour. Return an error — the caller wraps it in an
 		// ApiError carrying the response status (matching csharp/elixir and the
 		// documented contract) rather than handing back still-encoded bytes.
-		return nil, fmt.Errorf("unsupported Content-Encoding %q", contentEncoding)
+		return nil, fmt.Errorf("unsupported Content-Encoding '%s'", contentEncoding)
 	}
 }
 

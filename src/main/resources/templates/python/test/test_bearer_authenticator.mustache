@@ -26,7 +26,7 @@ class TestBearerAuthenticator:
         # bearer-no-empty-token-guard: an empty token would emit a bare
         # "Authorization: Bearer " header and send the request unauthenticated,
         # so construction must reject it.
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match='Bearer token must not be empty'):
             BearerAuthenticator(host='https://api.example.com', token='')
 
     def test_rejects_whitespace_only_token(self) -> None:

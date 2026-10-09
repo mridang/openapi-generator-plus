@@ -35,8 +35,9 @@ class BinaryVault {
               (e) => base64Decode(e as String),
             )
           : null,
-      labels: (json['labels'] as Map<String, dynamic>?)
-          ?.cast<String, Uint8List>(),
+      labels: (json['labels'] as Map<String, dynamic>?)?.map(
+        (k, v) => MapEntry(k, base64Decode(v as String)),
+      ),
     );
   }
 

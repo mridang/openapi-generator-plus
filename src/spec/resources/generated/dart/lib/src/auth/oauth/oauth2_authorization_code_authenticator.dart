@@ -85,7 +85,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
     final query = params.entries
         .map(
           (e) =>
-              '${Uri.encodeQueryComponent(e.key).replaceAll('+', '%20')}=${Uri.encodeQueryComponent(e.value).replaceAll('+', '%20')}',
+              '${_rfc3986(Uri.encodeQueryComponent(e.key).replaceAll('+', '%20'))}=${_rfc3986(Uri.encodeQueryComponent(e.value).replaceAll('+', '%20'))}',
         )
         .join('&');
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
@@ -148,3 +148,15 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
       'refreshUrl: $_refreshUrl, redirectUri: $_redirectUri, scopes: $_scopes, '
       'tokenExchanged: $_tokenExchanged)';
 }
+
+/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
+/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
+/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
+/// (unreserved in both), and space handling (the '%20' the caller already
+/// substituted for the query) is left untouched.
+String _rfc3986(String encoded) => encoded
+    .replaceAll('!', '%21')
+    .replaceAll("'", '%27')
+    .replaceAll('(', '%28')
+    .replaceAll(')', '%29')
+    .replaceAll('*', '%2A');

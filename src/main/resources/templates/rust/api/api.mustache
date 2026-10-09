@@ -244,7 +244,7 @@ impl {{classname}} {
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "unsupported request content-type '{}' for {{classname}}.{{operationId}}; declared types are {:?}",
+                    "Unsupported request content-type '{}' for {{operationId}}; declared types are {:?}",
                     request_content_type, DECLARED_CONSUMES
                 )),
             ));
@@ -568,7 +568,7 @@ impl {{classname}} {
             });
             if !cookie_value_valid {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                    "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
                     "{{baseName}}"
                 ))));
             }
@@ -605,7 +605,7 @@ impl {{classname}} {
                     });
                     if !cookie_value_valid {
                         return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                            "cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
                             "{{baseName}}"
                         ))));
                     }

@@ -201,8 +201,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
 
         _ ->
           raise PetstoreClient.Errors.SerializationError,
-            message:
-              "OIDC discovery document from #{self.openid_connect_url} is not a JSON object"
+            message: "OIDC discovery document is not a JSON object"
       end
 
     authorization_endpoint = discovery["authorization_endpoint"]
@@ -214,16 +213,12 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     # opaque error.
     if not is_binary(authorization_endpoint) or String.trim(authorization_endpoint) == "" do
       raise PetstoreClient.Errors.SerializationError,
-        message:
-          "OIDC discovery document from #{self.openid_connect_url} is missing " <>
-            "a valid 'authorization_endpoint'"
+        message: "OIDC discovery document is missing 'authorization_endpoint'"
     end
 
     if not is_binary(token_endpoint) or String.trim(token_endpoint) == "" do
       raise PetstoreClient.Errors.SerializationError,
-        message:
-          "OIDC discovery document from #{self.openid_connect_url} is missing " <>
-            "a valid 'token_endpoint'"
+        message: "OIDC discovery document is missing 'token_endpoint'"
     end
 
     delegate =

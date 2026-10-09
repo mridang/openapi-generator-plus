@@ -132,7 +132,7 @@ open class OpenIdConnectAuthenticator(
     ): String {
         val primitive = discovery[field] as? kotlinx.serialization.json.JsonPrimitive
         if (primitive == null || !primitive.isString || primitive.content.isEmpty()) {
-            throw SerializationException("OIDC discovery document missing $field")
+            throw SerializationException("OIDC discovery document is missing '$field'")
         }
         return primitive.content
     }

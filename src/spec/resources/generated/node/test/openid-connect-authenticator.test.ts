@@ -262,7 +262,7 @@ describe("OpenIdConnectAuthenticator", () => {
     ];
 
     await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
-      "OIDC discovery document is missing authorization_endpoint",
+      "OIDC discovery document is missing 'authorization_endpoint'",
     );
     await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(
       SerializationError,
@@ -284,7 +284,7 @@ describe("OpenIdConnectAuthenticator", () => {
     ];
 
     await expect(authenticator.buildAuthorizationUrl()).rejects.toThrow(
-      "OIDC discovery document is missing token_endpoint",
+      "OIDC discovery document is missing 'token_endpoint'",
     );
     await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(
       SerializationError,

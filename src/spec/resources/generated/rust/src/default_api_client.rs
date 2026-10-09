@@ -467,7 +467,10 @@ impl ApiClient for DefaultApiClient {
                 Err(e) => {
                     return Err(Box::new(ApiError::with_source(
                         status_code,
-                        format!("failed to decompress response body: {}", e),
+                        format!(
+                            "Failed to decompress {} response body: {}",
+                            content_encoding, e
+                        ),
                         None,
                         Some(resp_headers),
                         Arc::new(e),
@@ -518,7 +521,7 @@ fn decompress_body(content_encoding: &str, raw: &[u8]) -> std::io::Result<Option
         other => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("unsupported Content-Encoding '{other}'"),
+                format!("Unsupported Content-Encoding '{other}'"),
             ));
         }
     }

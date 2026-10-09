@@ -172,6 +172,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // type: number) is likewise an `<pkg>._types`
                                 // alias and belongs in this group.
                                 "LaxFloat", "UrlStr", "JsonNumber",
+                                // OffsetDateTime (format: date-time) is the
+                                // `<pkg>._types` Annotated alias that wraps
+                                // AwareDatetime with a json-only PlainSerializer
+                                // pinning `.SSS+00:00`; treat it as a primitive
+                                // so the generic-import machinery does not emit
+                                // `<pkg>.models.OffsetDateTime`. Its real import
+                                // comes from getPropertyTypeImportMap.
+                                "OffsetDateTime",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -812,6 +820,20 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // `format: binary` keeps plain `bytes` (raw body, never JSON base64).
         promoteBase64Bytes(property);
 
+        // Item 5 — date-time model-body parity. The typeMapping resolves
+        // `format: date-time` to pydantic's bare `AwareDatetime`, which keeps
+        // the naive-datetime rejection but serializes via model_dump_json with a
+        // trailing `Z` and a variable-width fraction (`...45Z`, `...05.123000Z`).
+        // The other 11 SDKs pin EXACTLY `.SSS+00:00` (fixed 3-digit fraction,
+        // numeric offset, never `Z`). Rewrite date-time MODEL fields to the
+        // `<pkg>._types` `OffsetDateTime` alias, which wraps AwareDatetime with a
+        // json-only PlainSerializer emitting `isoformat(timespec='milliseconds')`
+        // so the body path matches the stringify/_sanitize paths that already
+        // pin that form. Parameters and operation return-type strings are
+        // untouched (they still carry `AwareDatetime`, which the ObjectSerializer
+        // name-keyed stringify/_deserialize fallback already handles correctly).
+        promoteOffsetDateTime(property);
+
         final String fmt = property.dataFormat;
         if (fmt == null) {
             return;
@@ -868,6 +890,44 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         if (itemsAreByte && property.items.dataType != null) {
             property.items.dataType =
                     property.items.dataType.replaceAll("\\bbytes\\b", "Base64Bytes");
+        }
+    }
+
+    /**
+     * Rewrites a {@code format: date-time} model field's {@code AwareDatetime}
+     * token to the {@code <pkg>._types} {@code OffsetDateTime} alias, for both
+     * scalar fields ({@code created_at: AwareDatetime}) and array items
+     * ({@code samples: List[AwareDatetime]}). {@code OffsetDateTime} keeps
+     * AwareDatetime's naive-datetime rejection and adds a JSON-only serializer
+     * that pins the {@code .SSS+00:00} wire form on the model_dump_json body
+     * path. Applied only to model properties, so parameter and operation
+     * return-type strings keep carrying {@code AwareDatetime}.
+     *
+     * @param property the model property to inspect and possibly rewrite
+     */
+    private static void promoteOffsetDateTime(CodegenProperty property) {
+        final boolean scalarIsDateTime = "date-time".equals(property.dataFormat);
+        final boolean itemsAreDateTime =
+                property.items != null && "date-time".equals(property.items.dataFormat);
+        if (!scalarIsDateTime && !itemsAreDateTime) {
+            return;
+        }
+        if (property.dataType != null) {
+            // Replaces the `AwareDatetime` token in `AwareDatetime`,
+            // `List[AwareDatetime]`, `Optional[AwareDatetime]`, etc. The word
+            // boundary keeps it from matching inside other identifiers.
+            property.dataType =
+                    property.dataType.replaceAll("\\bAwareDatetime\\b", "OffsetDateTime");
+        }
+        if (property.datatypeWithEnum != null) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceAll(
+                            "\\bAwareDatetime\\b", "OffsetDateTime");
+        }
+        if (itemsAreDateTime && property.items.dataType != null) {
+            property.items.dataType =
+                    property.items.dataType.replaceAll(
+                            "\\bAwareDatetime\\b", "OffsetDateTime");
         }
     }
 
@@ -933,6 +993,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // JsonNumber (bare `type: number`) is the branded Decimal alias that
         // serializes UNQUOTED; its import is likewise per-run package-qualified.
         map.put("JsonNumber", "from " + packageName + "._types import JsonNumber");
+        // OffsetDateTime (format: date-time) is the `<pkg>._types` Annotated
+        // alias that wraps AwareDatetime with a json-only PlainSerializer pinning
+        // the `.SSS+00:00` wire form; its import is per-run package-qualified too.
+        map.put(
+                "OffsetDateTime",
+                "from " + packageName + "._types import OffsetDateTime");
         return map;
     }
 

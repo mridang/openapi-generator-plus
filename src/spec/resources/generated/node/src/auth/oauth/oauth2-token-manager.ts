@@ -145,7 +145,14 @@ export class OAuth2TokenManager {
       );
     }
 
-    const body = new URLSearchParams(params).toString();
+    /* URLSearchParams emits '+' for a space (correct for the form body) and
+     * %7E for '~' while keeping '*' literal; the RFC 3986 unreserved set keeps
+     * '~' and escapes '*', so normalise both ('%7E' -> '~', '*' -> %2A) so
+     * every SDK emits byte-identical bodies. */
+    const body = new URLSearchParams(params)
+      .toString()
+      .replace(/%7E/g, "~")
+      .replace(/\*/g, "%2A");
     /* Gap 3.2: refuse to follow ANY 3xx on the token endpoint. The token
      * POST carries credentials (client_secret, password grant password,
      * refresh_token) in the form body; silently following a 307/308 from

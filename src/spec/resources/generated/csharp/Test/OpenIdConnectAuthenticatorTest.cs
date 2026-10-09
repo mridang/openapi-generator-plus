@@ -177,7 +177,10 @@ public class OpenIdConnectAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+        var ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            auth.BuildAuthorizationUrlAsync()
+        );
+        Assert.Contains("OIDC discovery document is missing 'authorization_endpoint'", ex.Message);
     }
 
     [Fact]

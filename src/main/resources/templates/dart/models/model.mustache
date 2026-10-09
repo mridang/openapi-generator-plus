@@ -389,12 +389,21 @@ class {{classname}} {
 {{^isArray}}
 {{#isMap}}
 {{! See the nullable branch below: name/baseName must stay outside items. }}
+{{#items.isByteArray}}
+      {{! A map whose VALUES are `format:byte` holds base64 STRINGS on the wire;
+          decode each one to native bytes, mirroring the array-of-byte branch. A
+          plain `.cast<String, Uint8List>()` would leave them as undecoded
+          strings. }}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map((k, v) => MapEntry(k, base64Decode(v as String))),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
 {{#items.isPrimitiveType}}
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
 {{/items.isPrimitiveType}}
 {{^items.isPrimitiveType}}
       {{name}}: deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}),
 {{/items.isPrimitiveType}}
+{{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
@@ -502,12 +511,19 @@ class {{classname}} {
 {{! section: entering it shadows them with the inner schema's own name, which }}
 {{! openapi-generator calls "inner", producing a constructor argument that does }}
 {{! not exist. Only dip into items for the value type, as isArray does above. }}
+{{#items.isByteArray}}
+      {{! Optional map-of-byte: each value is a base64 STRING on the wire, decoded
+          to native bytes, mirroring the array-of-byte branch above. }}
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, base64Decode(v as String))),
+{{/items.isByteArray}}
+{{^items.isByteArray}}
 {{#items.isPrimitiveType}}
       {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.cast<String, {{#items}}{{{dataType}}}{{/items}}>(),
 {{/items.isPrimitiveType}}
 {{^items.isPrimitiveType}}
       {{name}}: json['{{baseName}}'] != null ? deserializeMap(json['{{baseName}}'] as Map<String, dynamic>, {{#items}}{{>deserialize_arg}}{{/items}}) : null,
 {{/items.isPrimitiveType}}
+{{/items.isByteArray}}
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
@@ -661,11 +677,14 @@ class {{classname}} {
 {{^isPrimitiveType}}
 {{#isMap}}
 {{#items}}
-{{! A map whose VALUES are temporal/uuid/duration leaves holds Dart objects
+{{! A map whose VALUES are temporal/uuid/duration/byte leaves holds Dart objects
     that jsonEncode cannot serialise, so each value is projected to its wire
     form here — mirroring the scalar/array paths and the deserialize_arg leaf
     branches. A `date` (format:date) value is already a String, and any other
     leaf passes through, via the plain assignment. }}
+{{#isByteArray}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/isByteArray}}
 {{#isDateTime}}
     json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
 {{/isDateTime}}
@@ -675,9 +694,9 @@ class {{classname}} {
 {{#vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{^isByteArray}}{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
     json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}{{/isByteArray}}
 {{/items}}
 {{/isMap}}
 {{^isMap}}
@@ -750,9 +769,13 @@ class {{classname}} {
 {{#isMap}}
 {{#items}}
 {{! Optional counterpart of the required map branch: a map whose VALUES are
-    temporal/uuid/duration leaves holds Dart objects jsonEncode cannot encode,
-    so each value is projected to its wire form. A `date` value is already a
-    String, and any other leaf passes through, via the plain assignment. }}
+    temporal/uuid/duration/byte leaves holds Dart objects jsonEncode cannot
+    encode, so each value is projected to its wire form. A `date` value is
+    already a String, and any other leaf passes through, via the plain
+    assignment. }}
+{{#isByteArray}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/isByteArray}}
 {{#isDateTime}}
       json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
 {{/isDateTime}}
@@ -762,9 +785,9 @@ class {{classname}} {
 {{#vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
 {{/vendorExtensions.isDuration}}
-{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
+{{^isByteArray}}{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
       json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
+{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}{{/isByteArray}}
 {{/items}}
 {{/isMap}}
 {{^isMap}}

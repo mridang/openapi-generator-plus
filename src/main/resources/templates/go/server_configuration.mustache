@@ -161,7 +161,7 @@ func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 				}
 			}
 			if !valid {
-				return "", fmt.Errorf("%w: invalid value '%s' for variable '%s'; allowed: %v", ErrInvalidServerVariable, value, varName, variable.enumValues)
+				return "", fmt.Errorf("%w: invalid value '%s' for server variable '%s'. Allowed values: %v", ErrInvalidServerVariable, value, varName, variable.enumValues)
 			}
 		}
 

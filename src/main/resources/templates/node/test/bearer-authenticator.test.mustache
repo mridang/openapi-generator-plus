@@ -31,6 +31,7 @@ describe('BearerAuthenticator', () => {
     // bearer-no-empty-token-guard: an empty/whitespace token would emit a
     // bare "Authorization: Bearer " header that silently fails auth.
     expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow(TypeError);
+    expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow('Bearer token must not be empty');
     expect(() => new BearerAuthenticator('https://api.example.com', '   ')).toThrow(TypeError);
   });
 

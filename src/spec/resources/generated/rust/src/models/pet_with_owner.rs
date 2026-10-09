@@ -38,7 +38,7 @@ pub struct PetWithOwner {
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
     /// pet status in the store
-    #[deprecated]
+    #[deprecated(note = "This property is deprecated.")]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<PetWithOwnerStatusEnum>,
     #[serde(rename = "location", skip_serializing_if = "Option::is_none")]

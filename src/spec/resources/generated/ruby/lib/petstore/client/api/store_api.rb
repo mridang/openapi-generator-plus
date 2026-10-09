@@ -23,11 +23,6 @@ module Petstore::Client
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_order(order_id)
-        if order_id.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
-        end
-
         delete_order_with_http_info(order_id).data
       end
 
@@ -63,11 +58,6 @@ module Petstore::Client
       # @return [Category]
       # @raise [ApiError] if fails to make API call
       def get_by_swatch(path_swatch, options = nil)
-        if path_swatch.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
-        end
-
         result = get_by_swatch_with_http_info(path_swatch, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
@@ -323,11 +313,6 @@ module Petstore::Client
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def get_order_by_id(order_id)
-        if order_id.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
-        end
-
         result = get_order_by_id_with_http_info(order_id)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the

@@ -41,7 +41,8 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # "Authorization: Bearer " header, sending the request unauthenticated, so
   # the constructor must reject it.
   it 'rejects an empty token' do
-    _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+    error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+    _(error.message).must_include 'Bearer token must not be empty'
   end
 
   it 'rejects a whitespace-only token' do

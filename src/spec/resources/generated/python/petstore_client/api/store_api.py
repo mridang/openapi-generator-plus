@@ -52,11 +52,6 @@ class StoreApi(BaseApi):
 
         :raises ApiException: if fails to make API call
         """
-        if order_id is None:
-            raise ValueError(
-                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
-            )
-
         result = await self.delete_order_with_http_info(order_id)
 
         return result.data
@@ -114,11 +109,6 @@ class StoreApi(BaseApi):
         :return: Category
         :raises ApiException: if fails to make API call
         """
-        if path_swatch is None:
-            raise ValueError(
-                "Missing the required parameter 'path_swatch' when calling StoreApi.get_by_swatch"
-            )
-
         result = await self.get_by_swatch_with_http_info(path_swatch, options)
 
         if result.data is None:
@@ -452,11 +442,6 @@ class StoreApi(BaseApi):
         :return: Order
         :raises ApiException: if fails to make API call
         """
-        if order_id is None:
-            raise ValueError(
-                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
-            )
-
         result = await self.get_order_by_id_with_http_info(order_id)
 
         if result.data is None:

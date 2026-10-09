@@ -650,10 +650,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                Surface it as the SDK's own ApiException (no crash, no corrupt
                passthrough) so the caller sees one uniform transport error. */
             int decodeStatus = (int)response.StatusCode;
+            string decodeEncoding = string.Join(", ", response.Content.Headers.ContentEncoding);
             response.Dispose();
             throw new ApiException(
                 decodeStatus,
-                $"failed to decode response body: {ex.Message}",
+                $"Failed to decompress {decodeEncoding} response body: {ex.Message}",
                 ex
             );
         }
@@ -687,10 +688,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 when (ex is InvalidDataException or NotSupportedException or IOException)
             {
                 int decodeStatus = (int)response.StatusCode;
+                string decodeEncoding = string.Join(", ", response.Content.Headers.ContentEncoding);
                 response.Dispose();
                 throw new ApiException(
                     decodeStatus,
-                    $"failed to decode response body: {ex.Message}",
+                    $"Failed to decompress {decodeEncoding} response body: {ex.Message}",
                     ex
                 );
             }
@@ -1129,7 +1131,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 "GZIP" or "X-GZIP" => new GZipStream(source, CompressionMode.Decompress),
                 "DEFLATE" => new ZLibStream(source, CompressionMode.Decompress),
                 "BR" => new BrotliStream(source, CompressionMode.Decompress),
-                _ => throw new NotSupportedException($"unsupported Content-Encoding: {encoding}"),
+                _ => throw new NotSupportedException($"Unsupported Content-Encoding '{encoding}'"),
             };
             using (decoder)
             {

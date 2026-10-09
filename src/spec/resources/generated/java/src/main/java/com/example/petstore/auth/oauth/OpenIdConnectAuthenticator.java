@@ -106,10 +106,10 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       discovery = new ObjectMapper().readTree(response.body());
     } catch (IOException e) {
       throw new SerializationException(
-          "OpenID Connect discovery document is not valid JSON: " + e.getMessage(), e);
+          "OIDC discovery document is not valid JSON: " + e.getMessage(), e);
     }
     if (discovery == null || !discovery.isObject()) {
-      throw new SerializationException("OpenID Connect discovery document is not a JSON object");
+      throw new SerializationException("OIDC discovery document is not a JSON object");
     }
     String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
     String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
@@ -139,17 +139,14 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private static String requireEndpoint(JsonNode discovery, String field) {
     JsonNode node = discovery.get(field);
     if (node == null || node.isNull()) {
-      throw new SerializationException(
-          "OpenID Connect discovery document is missing required field: " + field);
+      throw new SerializationException("OIDC discovery document is missing '" + field + "'");
     }
     if (!node.isTextual()) {
-      throw new SerializationException(
-          "OpenID Connect discovery document field is not a string: " + field);
+      throw new SerializationException("OIDC discovery document field is not a string: " + field);
     }
     String value = node.asText();
     if (value.isEmpty()) {
-      throw new SerializationException(
-          "OpenID Connect discovery document has empty required field: " + field);
+      throw new SerializationException("OIDC discovery document is missing '" + field + "'");
     }
     return value;
   }

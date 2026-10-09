@@ -19,7 +19,7 @@ class PhotoMetadata(BaseModel):
 
     caption: Optional[StrictStr] = Field(default=None, alias="caption")
     is_primary: Optional[StrictBool] = Field(default=None, alias="isPrimary")
-    taken_at: Optional[AwareDatetime] = Field(default=None, alias="takenAt")
+    taken_at: Optional[OffsetDateTime] = Field(default=None, alias="takenAt")
     location: Optional[PhotoMetadataLocation] = Field(default=None, alias="location")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
@@ -33,7 +33,7 @@ class PhotoMetadata(BaseModel):
     )
 
 
+from petstore_client._types import OffsetDateTime
 from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
-from pydantic import AwareDatetime
 
 PhotoMetadata.model_rebuild(raise_errors=False)

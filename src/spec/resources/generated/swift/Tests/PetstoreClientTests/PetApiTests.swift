@@ -546,6 +546,8 @@ final class PetApiTests {
       Issue.record("expected ApiError, got \(error)")
     }
     #expect(caught?.statusCode == 200)
+    #expect(
+      caught?.message.contains("Expected a response body for getPetById but received none") == true)
   }
 
   // auth-folded-into-options: the per-call authenticator carried inside the

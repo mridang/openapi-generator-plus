@@ -1039,7 +1039,7 @@ public class DefaultApiClientUnitTest
             )
         );
 
-        Assert.Contains("decode", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("decompress", ex.Message, StringComparison.OrdinalIgnoreCase);
         // A response did arrive: the error carries its real status and is
         // never a NetworkException.
         Assert.Equal(200, ex.StatusCode);
@@ -1074,12 +1074,37 @@ public class DefaultApiClientUnitTest
             )
         );
 
-        Assert.Contains("decode", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("decompress", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(200, ex.StatusCode);
         Assert.False(
             ex is PetstoreClient.Errors.NetworkException,
             "an unsupported encoding is not a network failure"
         );
+    }
+
+    [Fact]
+    public async Task EmptyGzipBodyPassesThroughAsEmpty()
+    {
+        // A zero-byte body still declared Content-Encoding: gzip has nothing to
+        // inflate. The decode guard must return the empty body unchanged rather
+        // than throwing on the absent gzip stream.
+        var handler = new EncodedBodyHandler(
+            HttpStatusCode.OK,
+            Array.Empty<byte>(),
+            contentEncoding: "gzip",
+            contentType: "application/json"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/empty-gzip"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("", response.Body);
     }
 
     // ---- close-lifecycle-three-way: use-after-close throws the state error ----

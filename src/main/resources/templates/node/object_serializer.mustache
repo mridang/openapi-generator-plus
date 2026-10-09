@@ -739,8 +739,8 @@ export class ObjectSerializer {
    * made the wire bytes depend on the host machine's timezone — the same
    * instant serialized differently on a UTC host vs a CET host. Pinning to
    * UTC via the getUTC* accessors makes the output host-independent and
-   * aligns it with the other SDKs that emit a fixed offset (Swift pins UTC
-   * and emits `+00:00`; Go emits the RFC3339 `Z`). The explicit `+00:00`
+   * aligns it with the other SDKs that emit a fixed numeric offset (Swift and
+   * Go both pin UTC and emit `+00:00`, never `Z`). The explicit `+00:00`
    * suffix (rather than `Z`) keeps the offset-bearing shape the rest of the
    * stack expects while remaining a valid UTC designator.
    *

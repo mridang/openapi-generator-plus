@@ -79,8 +79,12 @@ module Petstore::Client
           # present so existing params are preserved, '?' otherwise.
           separator = @authorization_url.include?('?') ? '&' : '?'
           # URI.encode_www_form emits '+' for a space; RFC 3986 requires %20 in a
-          # query component (a strict server reads '+' as a literal plus).
-          "#{@authorization_url}#{separator}#{URI.encode_www_form(params).gsub('+', '%20')}"
+          # query component (a strict server reads '+' as a literal plus). It also
+          # keeps '*' literal and escapes '~' to %7E — the reverse of the RFC 3986
+          # unreserved set (A-Za-z0-9-._~) — so normalise both ('*' -> %2A,
+          # %7E -> '~') so every SDK emits byte-identical URLs.
+          query = URI.encode_www_form(params).gsub('+', '%20').gsub('%7E', '~').gsub('*', '%2A')
+          "#{@authorization_url}#{separator}#{query}"
         end
 
         # Exchange an authorization code for an access token.

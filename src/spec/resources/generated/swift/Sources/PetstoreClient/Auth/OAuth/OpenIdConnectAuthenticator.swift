@@ -126,12 +126,16 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     }
 
     guard let data = response.body.data(using: .utf8) else {
-      throw SerializationError(message: "OIDC discovery document is not valid UTF-8")
+      throw SerializationError(message: "OIDC discovery document is not valid JSON")
     }
 
     struct DiscoveryDocument: Decodable {
-      let authorizationEndpoint: String
-      let tokenEndpoint: String
+      /* Optional so a MISSING endpoint decodes to nil and the explicit
+       * guard below reports it as "missing" (matching the other SDKs),
+       * rather than JSONDecoder throwing a keyNotFound that would surface
+       * as the generic "not a JSON object" message. */
+      let authorizationEndpoint: String?
+      let tokenEndpoint: String?
 
       enum CodingKeys: String, CodingKey {
         case authorizationEndpoint = "authorization_endpoint"
@@ -144,22 +148,28 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
       discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
     } catch {
       throw SerializationError(
-        message: "Failed to decode the OIDC discovery document", cause: error)
+        message: "OIDC discovery document is not a JSON object", cause: error)
     }
     /* A document naming an empty endpoint is as incomplete as one that
      * omits it. */
-    guard !discovery.authorizationEndpoint.trimmingCharacters(in: .whitespaces).isEmpty,
-      !discovery.tokenEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
+    guard let authorizationEndpoint = discovery.authorizationEndpoint,
+      !authorizationEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
     else {
-      throw SerializationError(message: "OIDC discovery document names an empty endpoint")
+      throw SerializationError(
+        message: "OIDC discovery document is missing 'authorization_endpoint'")
+    }
+    guard let tokenEndpoint = discovery.tokenEndpoint,
+      !tokenEndpoint.trimmingCharacters(in: .whitespaces).isEmpty
+    else {
+      throw SerializationError(message: "OIDC discovery document is missing 'token_endpoint'")
     }
 
     let newDelegate = OAuth2AuthorizationCodeAuthenticator(
       host: _host,
       clientID: clientID,
       clientSecret: clientSecret,
-      authorizationURL: discovery.authorizationEndpoint,
-      tokenURL: discovery.tokenEndpoint,
+      authorizationURL: authorizationEndpoint,
+      tokenURL: tokenEndpoint,
       redirectURI: redirectURI,
       scopes: scopes
     )

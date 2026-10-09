@@ -196,7 +196,7 @@ module {{moduleName}}
 
           # Raise on union no-match (see comment above for cross-lang
           # rationale). Avoids silent nil that masks data-shape bugs.
-          raise ArgumentError, 'JSON did not match any schema in the {{classname}} oneOf union'
+          raise ::{{moduleName}}::Errors::SerializationError, 'JSON did not match any schema in the {{classname}} oneOf union'
         {{/discriminator}}
         end
       end
@@ -317,7 +317,7 @@ module {{moduleName}}
           # oneOf branch for the cross-lang rationale (5 of 12 SDKs
           # already throw; we promote the rest to the same strict
           # behaviour).
-          raise ArgumentError, 'JSON did not match any schema in the {{classname}} anyOf union'
+          raise ::{{moduleName}}::Errors::SerializationError, 'JSON did not match any schema in the {{classname}} anyOf union'
         end
       end
     end
@@ -359,8 +359,15 @@ module {{moduleName}}
       # differs from their Ruby surface (`byte` → base64-decoded binary
       # String, `uuid` → RFC 4122 validated String). The `byte[]` /
       # `uuid[]` variants apply the same transform to every item of an
-      # array-typed property. Consumed by ::{{moduleName}}::ObjectSerializer
-      # on the (de)serialize path.
+      # array-typed property, and the `byte{}` / `uuid{}` variants to every
+      # value of a string-keyed map property. Consumed by
+      # ::{{moduleName}}::ObjectSerializer on the (de)serialize path.
+      #
+      # The property name is read at the +vars+ scope (via +items.isByteArray+
+      # etc.) and never from inside an +items+ section: entering +items+
+      # shadows +name+ with the additionalProperties/element schema's own name,
+      # which openapi-generator calls "inner", registering a phantom +inner:+
+      # key instead of the real map/array attribute.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {
         {{#vars}}
@@ -370,11 +377,24 @@ module {{moduleName}}
         {{#isUuid}}
         {{{name}}}: 'uuid',
         {{/isUuid}}
-        {{^isByteArray}}{{^isUuid}}{{#items}}{{#isByteArray}}
+        {{^isByteArray}}{{^isUuid}}
+        {{#isArray}}
+        {{#items.isByteArray}}
         {{{name}}}: 'byte[]',
-        {{/isByteArray}}{{#isUuid}}
+        {{/items.isByteArray}}
+        {{#items.isUuid}}
         {{{name}}}: 'uuid[]',
-        {{/isUuid}}{{/items}}{{/isUuid}}{{/isByteArray}}
+        {{/items.isUuid}}
+        {{/isArray}}
+        {{#isMap}}
+        {{#items.isByteArray}}
+        {{{name}}}: 'byte{}',
+        {{/items.isByteArray}}
+        {{#items.isUuid}}
+        {{{name}}}: 'uuid{}',
+        {{/items.isUuid}}
+        {{/isMap}}
+        {{/isUuid}}{{/isByteArray}}
         {{/vars}}
       }
       OPENAPI_FORMATS = openapi_formats.freeze

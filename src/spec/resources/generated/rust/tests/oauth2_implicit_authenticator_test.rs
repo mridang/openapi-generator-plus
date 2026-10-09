@@ -79,7 +79,11 @@ async fn test_try_auth_headers_before_set_access_token_is_invalid_state() {
         .expect_err("expected an error before set_access_token");
     match err.downcast_ref::<ConfigurationError>() {
         Some(ConfigurationError::InvalidState(reason)) => {
-            assert!(reason.contains("must set access token"), "{}", reason)
+            assert!(
+                reason.contains("Must set the access token before making API requests"),
+                "{}",
+                reason
+            )
         }
         other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
     }

@@ -54,7 +54,7 @@ public class Metadata : IEquatable<Metadata>
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
         sb.Append("CreatedAt=").Append(this.CreatedAt);
-        sb.Append(", additionalProperties=").Append(this.AdditionalProperties);
+        sb.Append(", AdditionalProperties=").Append(this.AdditionalProperties);
         sb.Append('}');
         return sb.ToString();
     }

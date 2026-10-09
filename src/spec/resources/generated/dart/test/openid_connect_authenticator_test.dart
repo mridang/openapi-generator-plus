@@ -141,7 +141,15 @@ void main() {
 
       await expectLater(
         auth.buildAuthorizationUrl(),
-        throwsA(isA<SerializationException>()),
+        throwsA(
+          isA<SerializationException>().having(
+            (e) => e.message,
+            'message',
+            contains(
+              "OIDC discovery document is missing 'authorization_endpoint'",
+            ),
+          ),
+        ),
       );
     });
 

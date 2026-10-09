@@ -1050,6 +1050,25 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  # Gap AL — empty body declared gzip passes through as empty.
+  # A zero-byte body that still advertises Content-Encoding: gzip has nothing
+  # to inflate. The client must return the empty body unchanged, never raise
+  # on the absent gzip stream.
+  it 'returns an empty body for an empty gzip-declared response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/gz') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, '']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/gz', {}, nil)
+      _(response.status_code).must_equal 200
+      _(response.body).must_equal ''
+    end
+    stubs.verify_stubbed_calls
+  end
+
   # Positive path: a correctly gzip-encoded body still decompresses normally.
   it 'decompresses a valid gzip-encoded body' do
     io = StringIO.new

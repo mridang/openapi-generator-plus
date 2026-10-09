@@ -61,7 +61,8 @@ void main() {
 
       expect(
         () => auth.authHeaders(),
-        throwsA(isA<StateError>()),
+        throwsA(isA<StateError>().having((e) => e.message, 'message',
+            contains('Must set the access token before making API requests'))),
       );
     });
 

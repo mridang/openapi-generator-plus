@@ -104,7 +104,7 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   ///   has been set yet.
   override public func authHeaders() async throws -> [String: String] {
     guard !accessToken.isEmpty else {
-      throw ConfigurationError.invalidState("Must set access token before making API requests")
+      throw ConfigurationError.invalidState("Must set the access token before making API requests")
     }
     return ["Authorization": "Bearer \(accessToken)"]
   }

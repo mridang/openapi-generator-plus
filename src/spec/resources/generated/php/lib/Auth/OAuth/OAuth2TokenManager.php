@@ -184,7 +184,11 @@ final class OAuth2TokenManager
             ['Content-Type' => 'application/x-www-form-urlencoded', 'Accept' => 'application/json'],
             $extraHeaders
         );
-        $body = http_build_query($params);
+        /* http_build_query defaults to PHP_QUERY_RFC1738 (space -> '+', correct
+         * for application/x-www-form-urlencoded) but escapes '~' to %7E; RFC
+         * 3986 keeps '~' unreserved, so map it back so every SDK emits
+         * byte-identical bodies. */
+        $body = str_replace('%7E', '~', http_build_query($params));
 
         /* Gap 3.2: token POSTs must not transparently follow ANY 3xx
          * redirect (RFC 6749 §3.2 forbids redirects at the token

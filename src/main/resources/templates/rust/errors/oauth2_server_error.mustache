@@ -68,17 +68,17 @@ impl fmt::Display for OAuth2ServerError {
         match (&self.code, &self.description) {
             (None, _) => write!(
                 f,
-                "token request failed with status {}: {}",
+                "Token request failed with status {}: {}",
                 self.status_code, self.raw_body
             ),
             (Some(code), Some(desc)) => write!(
                 f,
-                "token request failed with status {}: {} — {}",
+                "Token request failed with status {}: {} -- {}",
                 self.status_code, code, desc
             ),
             (Some(code), None) => write!(
                 f,
-                "token request failed with status {}: {}",
+                "Token request failed with status {}: {}",
                 self.status_code, code
             ),
         }

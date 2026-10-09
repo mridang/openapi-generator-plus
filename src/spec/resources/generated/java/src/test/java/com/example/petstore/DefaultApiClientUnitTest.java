@@ -189,6 +189,21 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    server.createContext(
+        "/content-encoding-empty-gzip",
+        exchange -> {
+          // Gap AL: a zero-byte body that still advertises `Content-Encoding:
+          // gzip`. There is nothing to inflate, so the decompressor must pass
+          // the empty payload straight through rather than raising on an empty
+          // gzip stream.
+          byte[] body = new byte[0];
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -972,6 +987,18 @@ class DefaultApiClientUnitTest {
     assertFalse(
         ex instanceof com.example.petstore.errors.NetworkException,
         "an unsupported encoding is not a network failure");
+  }
+
+  @Test
+  void emptyGzipBodyPassesThroughAsEmpty() throws Exception {
+    // Gap AL: a zero-byte body declared `Content-Encoding: gzip` has nothing to
+    // inflate. The decompressor must return the empty body unchanged, never
+    // raise on the absent gzip stream.
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-empty-gzip", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("", response.body());
   }
 
   @Test

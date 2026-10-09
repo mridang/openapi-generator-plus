@@ -1080,6 +1080,29 @@ class DefaultApiClientUnitTest {
             assertFalse(ex is com.example.petstore.errors.NetworkException, "an unsupported encoding is not a network failure")
             assertInstanceOf(java.io.IOException::class.java, ex.cause)
         }
+
+        @Test
+        @DisplayName("Gap AL: empty body declared gzip passes through as empty, never raises")
+        fun emptyGzipBodyPassesThroughAsEmpty() {
+            // A zero-byte body still advertising `Content-Encoding: gzip` has
+            // nothing to inflate. The decompressor must return the empty body
+            // unchanged -- never raise on the absent gzip stream.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = ByteArray(0),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Encoding", "gzip"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/empty-gzip", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertEquals("", response!!.body)
+        }
     }
 
     @Nested

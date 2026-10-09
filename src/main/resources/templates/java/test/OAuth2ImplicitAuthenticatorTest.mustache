@@ -73,7 +73,9 @@ class OAuth2ImplicitAuthenticatorTest {
     void throwsWhenAccessTokenNotSet() {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();
 
-        assertThrowsExactly(IllegalStateException.class, () -> auth.getAuthHeaders());
+        IllegalStateException ex = assertThrowsExactly(
+                IllegalStateException.class, () -> auth.getAuthHeaders());
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains("Must set the access token before making API requests"));
     }
 
     @Test

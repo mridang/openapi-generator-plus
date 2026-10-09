@@ -316,6 +316,21 @@ export class {{classname}} extends BaseApi {
 {{/vendorExtensions.op.hasContentTypeSelector}}
 
 {{/hasFormParams}}
+{{#vendorExtensions.op.hasContentTypeSelector}}
+    /* This operation declares more than one request content-type. The optional
+     * contentType selector lets the caller pick among the declared types; when
+     * omitted it defaults to the first declared type. The TypeScript signature
+     * already narrows contentType to the declared union, but a plain-JS or
+     * `as any` caller can bypass that compile-time check, so reject an
+     * unrecognised selector at runtime too — a typo must never ride the wire as
+     * an undeclared Content-Type (matching java/python and the other SDKs). */
+    const declaredContentTypes = [{{#vendorExtensions.op.contentTypeOptions}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/vendorExtensions.op.contentTypeOptions}}];
+    if (contentType != null && !declaredContentTypes.includes(contentType)) {
+      throw new TypeError(
+        `Unsupported request content-type '${contentType}' for {{nickname}}; declared types are [${declaredContentTypes.join(', ')}]`
+      );
+    }
+{{/vendorExtensions.op.hasContentTypeSelector}}
     return await this.invokeApiForResult(
       '{{httpMethod}}',
       {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,

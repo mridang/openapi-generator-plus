@@ -311,7 +311,7 @@ abstract class AbstractApiClient implements ApiClient
              * carrying the real status, never a NetworkException. */
             throw new ApiException(
                 $response->statusCode,
-                "Failed to decode $contentEncoding response body: {$e->getMessage()}",
+                "Failed to decompress $contentEncoding response body: {$e->getMessage()}",
                 $responseHeaders,
                 null,
                 null,
@@ -624,18 +624,18 @@ abstract class AbstractApiClient implements ApiClient
              * (an error handler could turn it into an \ErrorException); the
              * false return is what signals the failure. */
             'gzip', 'x-gzip' => @gzdecode($body)
-                ?: throw new \RuntimeException('Failed to gzip-decompress response body'),
+                ?: throw new \RuntimeException('the gzip stream is corrupt or truncated'),
             'deflate' => @gzuncompress($body)
-                ?: throw new \RuntimeException('Failed to deflate-decompress response body'),
+                ?: throw new \RuntimeException('the deflate stream is corrupt or truncated'),
             'br' => function_exists('brotli_uncompress')
                 ? (@brotli_uncompress($body)
-                    ?: throw new \RuntimeException('Failed to brotli-decompress response body'))
+                    ?: throw new \RuntimeException('the br stream is corrupt or truncated'))
                 : throw new \RuntimeException(
-                    'Received a br-encoded response but the brotli extension is unavailable'
+                    'Received a br-encoded response but the br extension is unavailable'
                 ),
             'zstd' => function_exists('zstd_uncompress')
                 ? (@zstd_uncompress($body)
-                    ?: throw new \RuntimeException('Failed to zstd-decompress response body'))
+                    ?: throw new \RuntimeException('the zstd stream is corrupt or truncated'))
                 : throw new \RuntimeException(
                     'Received a zstd-encoded response but the zstd extension is unavailable'
                 ),

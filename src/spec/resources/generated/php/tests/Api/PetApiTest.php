@@ -824,7 +824,10 @@ test('empty body for body returning op throws api exception', function (): void 
      * SDK's typed ApiException instead of returning a silent null. */
     $api = newPetApiForMock(200, 'application/json', '');
 
-    expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
+    expect(fn (): mixed => $api->getPetById(1))->toThrow(
+        ApiException::class,
+        'Expected a response body for getPetById but received none',
+    );
 });
 
 // -- Canonical #11: a malformed 2xx body fails loud --

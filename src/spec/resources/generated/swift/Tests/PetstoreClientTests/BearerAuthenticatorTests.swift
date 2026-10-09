@@ -60,9 +60,12 @@ import Testing
     let error = #expect(throws: ConfigurationError.self) {
       _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
     }
-    guard case .invalidArgument? = error else {
+    guard case .invalidArgument(let message)? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
       return
+    }
+    if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      #expect(message.contains("Bearer token must not be empty"))
     }
   }
 }

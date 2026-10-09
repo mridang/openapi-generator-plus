@@ -192,7 +192,8 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
       'https://app.example.com/callback', %w[openid]
     )
     auth.api_client = client
-    assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err.message).must_include "OIDC discovery document is missing 'authorization_endpoint'"
   end
 
   it 'raises SerializationError when discovery omits token_endpoint' do

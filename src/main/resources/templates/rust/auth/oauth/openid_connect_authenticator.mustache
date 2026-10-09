@@ -199,7 +199,7 @@ impl OpenIdConnectAuthenticator {
         /* An unparseable or incomplete document is a SerializationError. */
         let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
             Box::new(SerializationError::new(
-                "failed to parse OIDC discovery document".to_string(),
+                "OIDC discovery document is not valid JSON".to_string(),
                 Some(Box::new(e)),
             )) as Box<dyn std::error::Error + Send + Sync>
         })?;
@@ -212,7 +212,7 @@ impl OpenIdConnectAuthenticator {
                 .map(str::to_string)
                 .ok_or_else(|| {
                     Box::new(SerializationError::new(
-                        format!("missing {} in OIDC discovery document", name),
+                        format!("OIDC discovery document is missing '{}'", name),
                         None,
                     )) as Box<dyn std::error::Error + Send + Sync>
                 })

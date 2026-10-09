@@ -26,7 +26,7 @@ class PetPassport(BaseModel):
         alias="scans",
         description="Base64-encoded scans of each passport page",
     )
-    issued_at: Optional[AwareDatetime] = Field(default=None, alias="issuedAt")
+    issued_at: Optional[OffsetDateTime] = Field(default=None, alias="issuedAt")
     biometric_chip: Optional[Base64Bytes] = Field(
         default=None,
         alias="biometricChip",
@@ -44,8 +44,8 @@ class PetPassport(BaseModel):
     )
 
 
+from petstore_client._types import OffsetDateTime
 from petstore_client.models.pet import Pet
-from pydantic import AwareDatetime
 from pydantic import Base64Bytes
 
 PetPassport.model_rebuild(raise_errors=False)

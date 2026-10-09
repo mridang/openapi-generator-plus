@@ -46,9 +46,10 @@ class BearerAuthenticatorTest {
     fun emptyTokenIsRejectedAtConstruction() {
         // An empty or whitespace-only token would emit a credential-less
         // "Authorization: Bearer " header (fail-open); reject it up front.
-        assertThrows(IllegalArgumentException::class.java) {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
             BearerAuthenticator("https://api.example.com", "")
         }
+        assertTrue(ex.message!!.contains("Bearer token must not be empty"))
     }
 
     // No null-token test: the token parameter is non-nullable, so the Kotlin

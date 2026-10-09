@@ -65,6 +65,17 @@ class _EchoHandler(BaseHTTPRequestHandler):
             self.wfile.write(payload)
             return
 
+        if self.path == "/empty-gzip":
+            # A zero-byte body that still advertises Content-Encoding: gzip.
+            # There is nothing to inflate, so the client must pass the empty
+            # payload straight through rather than raising on an empty stream.
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+
         # Echo back all received headers as JSON. Lowercase the keys to match
         # chasm's /test/echo envelope shape so tests use a single key style.
         received_headers = {k.lower(): v for k, v in self.headers.items()}
@@ -149,6 +160,15 @@ class TestDefaultApiClientUnit:
         assert type(exc_info.value) is ApiException
         assert not isinstance(exc_info.value, NetworkException)
         assert exc_info.value.status_code == 200
+
+    def test_empty_gzip_body_passes_through_as_empty(self) -> None:
+        """A zero-byte body declared Content-Encoding: gzip has nothing to
+        inflate. The client must return the empty body unchanged, never raise
+        on the absent gzip stream."""
+        client = DefaultApiClient()
+        response = client.send_request("GET", f"{self.base_url}/empty-gzip", {}, None)
+        assert response.status_code == 200
+        assert response.body == ""
 
     def test_returns_non_2xx_status_code(self) -> None:
         client = DefaultApiClient()

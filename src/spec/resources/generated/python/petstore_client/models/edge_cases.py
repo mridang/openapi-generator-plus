@@ -34,7 +34,7 @@ class EdgeCases(BaseModel):
         alias="retryAfter",
         description='Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")',
     )
-    expires_at: Optional[AwareDatetime] = Field(
+    expires_at: Optional[OffsetDateTime] = Field(
         default=None, alias="expiresAt", description="Absolute expiry instant"
     )
 
@@ -50,7 +50,7 @@ class EdgeCases(BaseModel):
 
 
 from petstore_client._duration import ProtobufDuration
+from petstore_client._types import OffsetDateTime
 from petstore_client.models.color import Color
-from pydantic import AwareDatetime
 
 EdgeCases.model_rebuild(raise_errors=False)

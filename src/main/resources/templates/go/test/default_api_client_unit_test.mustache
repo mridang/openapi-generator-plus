@@ -1041,6 +1041,31 @@ func TestDefaultApiClient_UnsupportedContentEncodingIsApiErrorWithStatus(t *test
 	}
 }
 
+// A zero-byte body that still advertises Content-Encoding: gzip has nothing to
+// inflate. The decompressor must return the empty body unchanged, never raise
+// on the absent gzip stream.
+func TestDefaultApiClient_EmptyGzipBodyPassesThroughAsEmpty(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.WriteHeader(200)
+		// Write no bytes: an empty body under a gzip Content-Encoding.
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error for an empty gzip body: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if resp.Body != "" {
+		t.Errorf("expected an empty body, got %q", resp.Body)
+	}
+}
+
 // A redirect to a non-HTTP scheme is refused: the redirect response arrived,
 // so the error is an *ApiError with its real status, never a *NetworkError.
 func TestDefaultApiClient_RedirectToNonHttpSchemeIsApiErrorWithStatus(t *testing.T) {

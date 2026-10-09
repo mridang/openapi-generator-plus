@@ -45,6 +45,17 @@ kotlin {
     // ships in every stable Kotlin release we target and only the marker
     // is Beta.
     compilerOptions {
+        // NOTE: kotlin warnings-as-errors (`allWarningsAsErrors.set(true)`) is
+        // intentionally NOT armed yet — it is the one gate still deferred. Arming
+        // it surfaces two pre-existing warning classes that need a dedicated
+        // cleanup first: (1) the query-param builder null-checks a REQUIRED
+        // (non-null) param (`if (options.x != null)` -> "condition is always
+        // true"), which needs the builder split on the required flag; and (2) a
+        // Kotlin-2.2 "identity-sensitive operation on value type" warning on the
+        // generated `equals()` comparing `OffsetDateTime` fields on every
+        // date-time model (a false positive on correct structural comparison).
+        // Tracked in PARITY_TODO R8-F4. The other compiled SDKs DO enforce
+        // warnings-as-errors (java failOnWarning, csharp/swift, elixir, rust).
         freeCompilerArgs.add("-Xexpect-actual-classes")
         // The transport + serializer layers cast erased generic types
         // (e.g. `body as Map<String, Any?>` after an `is Map<*, *>` guard,
@@ -52,13 +63,13 @@ kotlin {
         // cannot prove safe at the call site. These casts are inherent to
         // OpenAPI's dynamic wire surface, so UNCHECKED_CAST is suppressed
         // globally rather than annotated at each generated call site.
-        freeCompilerArgs.add("-Xsuppress-warning=UNCHECKED_CAST")
+        freeCompilerArgs.add("-Xwarning-level=UNCHECKED_CAST:disabled")
         // Generated tests deliberately exercise operations the OpenAPI spec
         // marks deprecated (the SDK propagates `@Deprecated` to consumers but
         // must still cover the deprecated path). No generated production code
         // consumes a deprecated symbol, so DEPRECATION is suppressed globally
         // rather than annotated on each generated test.
-        freeCompilerArgs.add("-Xsuppress-warning=DEPRECATION")
+        freeCompilerArgs.add("-Xwarning-level=DEPRECATION:disabled")
     }
 
     sourceSets {

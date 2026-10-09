@@ -20,7 +20,7 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
          * the empty-value guard the api-key authenticator already enforces. */
         if token.isEmpty || token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             throw ConfigurationError.invalidArgument(
-                "Bearer token must not be empty or whitespace"
+                "Bearer token must not be empty"
             )
         }
         /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.

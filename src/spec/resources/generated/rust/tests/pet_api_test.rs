@@ -404,10 +404,15 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
         "empty body for a body-returning op must be an error, not a silent value"
     );
     let err = result.unwrap_err();
+    let api_err = err
+        .downcast_ref::<petstore::ApiError>()
+        .unwrap_or_else(|| panic!("empty-body error must be the typed ApiError, got: {}", err));
     assert!(
-        err.downcast_ref::<petstore::ApiError>().is_some(),
-        "empty-body error must be the typed ApiError, got: {}",
-        err
+        api_err
+            .message()
+            .contains("Expected a response body for get_pet_by_id but received none"),
+        "empty-body message must name the operation, got: {}",
+        api_err.message()
     );
 }
 

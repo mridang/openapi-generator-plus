@@ -581,7 +581,15 @@ void main() {
 
         await expectLater(
           api.getPetById(1, null),
-          throwsA(isA<ApiException>()),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'Expected a response body for getPetById but received none',
+              ),
+            ),
+          ),
         );
       } finally {
         await server.close();

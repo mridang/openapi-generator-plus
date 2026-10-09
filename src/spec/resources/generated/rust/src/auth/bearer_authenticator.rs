@@ -40,7 +40,7 @@ impl BearerAuthenticator {
         // unauthenticated. Fail closed.
         if token.trim().is_empty() {
             return Err(ConfigurationError::InvalidArgument(
-                "Bearer token must not be empty or whitespace-only".to_string(),
+                "Bearer token must not be empty".to_string(),
             ));
         }
         if token

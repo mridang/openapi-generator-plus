@@ -258,8 +258,8 @@ func TestOpenIdConnect_MissingAuthorizationEndpointErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when authorization_endpoint is missing")
 	}
-	if !strings.Contains(err.Error(), "authorization_endpoint") {
-		t.Errorf("expected error to mention authorization_endpoint, got %v", err)
+	if !strings.Contains(err.Error(), "oidc discovery document is missing 'authorization_endpoint'") {
+		t.Errorf("expected harmonized missing-endpoint message, got %v", err)
 	}
 	var serErr *apierrors.SerializationError
 	if !errors.As(err, &serErr) {

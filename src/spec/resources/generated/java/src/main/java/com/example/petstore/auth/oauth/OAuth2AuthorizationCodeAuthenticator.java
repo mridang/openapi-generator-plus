@@ -173,8 +173,14 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
 
   private static String encode(String value) {
     /* RFC 3986 query component: a space is %20, not '+'. URLEncoder emits
-     * '+' (form rules), so map it back; a literal '+' is already %2B. */
-    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+     * '+' (form rules), so map it back; a literal '+' is already %2B.
+     * URLEncoder also keeps '*' literal and escapes '~' to %7E — the reverse
+     * of the RFC 3986 unreserved set (A-Za-z0-9-._~) — so normalise both
+     * ('*' -> %2A, %7E -> '~') to emit identical bytes across every SDK. */
+    return URLEncoder.encode(value, StandardCharsets.UTF_8)
+        .replace("+", "%20")
+        .replace("*", "%2A")
+        .replace("%7E", "~");
   }
 
   /**

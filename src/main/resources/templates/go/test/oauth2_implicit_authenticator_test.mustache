@@ -90,6 +90,9 @@ func TestOAuth2Implicit_ReturnsErrAccessTokenNotSetBeforeSetAccessToken(t *testi
 	if !errors.Is(err, oauth.ErrAccessTokenNotSet) {
 		t.Fatalf("expected ErrAccessTokenNotSet, got %v", err)
 	}
+	if !strings.Contains(err.Error(), "oauth2 implicit: must set the access token before making API requests") {
+		t.Errorf("expected harmonized not-set message, got %v", err)
+	}
 	if headers != nil {
 		t.Errorf("expected no headers, got %v", headers)
 	}

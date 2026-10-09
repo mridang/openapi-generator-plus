@@ -53,6 +53,9 @@ describe("BearerAuthenticator", () => {
       () => new BearerAuthenticator("https://api.example.com", ""),
     ).toThrow(TypeError);
     expect(
+      () => new BearerAuthenticator("https://api.example.com", ""),
+    ).toThrow("Bearer token must not be empty");
+    expect(
       () => new BearerAuthenticator("https://api.example.com", "   "),
     ).toThrow(TypeError);
   });

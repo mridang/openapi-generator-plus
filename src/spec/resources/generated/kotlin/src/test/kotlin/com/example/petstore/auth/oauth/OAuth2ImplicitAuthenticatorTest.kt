@@ -71,9 +71,11 @@ class OAuth2ImplicitAuthenticatorTest {
     fun throwsWhenAccessTokenNotSet() {
         val auth = createAuthenticator()
 
-        assertThrowsExactly(IllegalStateException::class.java) {
-            runBlocking { auth.getAuthHeaders() }
-        }
+        val ex =
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { auth.getAuthHeaders() }
+            }
+        assertTrue(ex.message!!.contains("Must set the access token before making API requests"))
     }
 
     @Test

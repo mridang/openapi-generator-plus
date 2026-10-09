@@ -596,7 +596,7 @@ public final class DefaultApiClient implements ApiClient {
          * a response did arrive, so keep it out of NetworkException. */
         throw new ApiException(
             response.statusCode(),
-            "failed to decode " + contentEncoding + " response body: " + e,
+            "Failed to decompress " + contentEncoding + " response body: " + e,
             e);
       }
       Charset responseCharset = parseCharset(contentType);
@@ -809,7 +809,7 @@ public final class DefaultApiClient implements ApiClient {
        * still-encoded — the caller wraps this in an ApiException, per the
        * documented contract, instead of handing back bytes that would
        * fail confusingly downstream. Matches csharp/elixir. */
-      default -> throw new IOException("unsupported Content-Encoding '" + encoding + "'");
+      default -> throw new IOException("Unsupported Content-Encoding '" + encoding + "'");
     };
   }
 
@@ -826,7 +826,7 @@ public final class DefaultApiClient implements ApiClient {
     } catch (ClassNotFoundException e) {
       return data;
     } catch (ReflectiveOperationException e) {
-      throw new IOException("Failed to decompress brotli response", e);
+      throw new IOException("Received a br-encoded response but the br library is unavailable", e);
     }
   }
 
@@ -844,7 +844,8 @@ public final class DefaultApiClient implements ApiClient {
     } catch (ClassNotFoundException e) {
       return data;
     } catch (ReflectiveOperationException e) {
-      throw new IOException("Failed to decompress zstd response", e);
+      throw new IOException(
+          "Received a zstd-encoded response but the zstd library is unavailable", e);
     }
   }
 

@@ -84,3 +84,71 @@ pub mod vec_option {
         }
     }
 }
+
+/// Serialize/deserialize `HashMap<String, Vec<u8>>` as a map of base64-encoded strings.
+pub mod map {
+    use super::*;
+    use serde::ser::SerializeMap;
+    use std::collections::HashMap;
+
+    pub fn serialize<S: Serializer>(
+        data: &HashMap<String, Vec<u8>>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut map = s.serialize_map(Some(data.len()))?;
+        for (k, v) in data {
+            map.serialize_entry(k, &STANDARD.encode(v))?;
+        }
+        map.end()
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<HashMap<String, Vec<u8>>, D::Error> {
+        let strings: HashMap<String, String> = HashMap::deserialize(d)?;
+        strings
+            .into_iter()
+            .map(|(k, v)| {
+                STANDARD
+                    .decode(&v)
+                    .map(|b| (k, b))
+                    .map_err(de::Error::custom)
+            })
+            .collect()
+    }
+}
+
+/// Serialize/deserialize `Option<HashMap<String, Vec<u8>>>` as an optional map of base64-encoded strings.
+pub mod map_option {
+    use super::*;
+    use std::collections::HashMap;
+
+    pub fn serialize<S: Serializer>(
+        data: &Option<HashMap<String, Vec<u8>>>,
+        s: S,
+    ) -> Result<S::Ok, S::Error> {
+        match data {
+            Some(d) => super::map::serialize(d, s),
+            None => s.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        d: D,
+    ) -> Result<Option<HashMap<String, Vec<u8>>>, D::Error> {
+        let opt: Option<HashMap<String, String>> = Option::deserialize(d)?;
+        match opt {
+            Some(strings) => strings
+                .into_iter()
+                .map(|(k, v)| {
+                    STANDARD
+                        .decode(&v)
+                        .map(|b| (k, b))
+                        .map_err(de::Error::custom)
+                })
+                .collect::<Result<HashMap<_, _>, _>>()
+                .map(Some),
+            None => Ok(None),
+        }
+    }
+}

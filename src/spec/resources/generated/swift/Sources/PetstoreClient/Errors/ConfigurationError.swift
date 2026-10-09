@@ -41,7 +41,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
     case .invalidProxyURL(let url):
       return "Invalid proxy URL: \(url)"
     case .invalidServerVariable(let variable, let value, let allowed):
-      return "Invalid value '\(value)' for variable '\(variable)'; allowed: \(allowed)"
+      return
+        "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: \(allowed)"
     case .invalidCACertificate(let reason):
       return "Invalid CA certificate: \(reason)"
     case .proxyUnsupported:

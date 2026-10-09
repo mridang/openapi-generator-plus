@@ -168,7 +168,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -227,6 +227,12 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def add_pet_with_http_info(%__MODULE__{} = api, pet, options \\ nil, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
     # SDK). When the Options auth is absent it falls back to the API instance's
@@ -242,18 +248,6 @@ defmodule PetstoreClient.Api.PetApi do
     end
 
     path = "/pet"
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = pet
@@ -282,7 +276,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -341,6 +335,12 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -378,18 +378,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = %{}
@@ -419,7 +407,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -486,6 +474,12 @@ defmodule PetstoreClient.Api.PetApi do
         options \\ nil,
         opts \\ []
       ) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
     # SDK). When the Options auth is absent it falls back to the API instance's
@@ -523,18 +517,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = pet_treatment
@@ -561,7 +543,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -604,6 +586,12 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options \\ nil, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
     # SDK). When the Options auth is absent it falls back to the API instance's
@@ -635,18 +623,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
     header_params = %{}
@@ -711,7 +687,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `document_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -760,6 +736,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec download_pet_document_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def download_pet_document_with_http_info(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -808,18 +790,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -844,7 +814,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `born_on` - Date.t() - Date of birth to match
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -893,6 +863,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec find_pets_born_on_with_http_info(t(), Date.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def find_pets_born_on_with_http_info(%__MODULE__{} = api, born_on, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -919,18 +895,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
     header_params = %{}
@@ -959,7 +923,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1022,22 +986,16 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def find_pets_by_status_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
     path = "/pet/findByStatus"
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     # allowEmptyValue means the server tolerates an empty value IF the caller
     # chooses to send the key — it does NOT mean the SDK must always emit the
@@ -1142,7 +1100,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1218,11 +1176,20 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
     server = Keyword.get(opts, :server)
 
     path =
       if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
+        server_module = if is_atom(server), do: server, else: server.__struct__
+        server_url = server_module.url(server)
 
         if String.starts_with?(server_url, "http://") or
              String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
@@ -1254,7 +1221,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1330,11 +1297,20 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
     server = Keyword.get(opts, :server)
 
     path =
       if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
+        server_module = if is_atom(server), do: server, else: server.__struct__
+        server_url = server_module.url(server)
 
         if String.starts_with?(server_url, "http://") or
              String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
@@ -1368,7 +1344,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1417,6 +1393,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -1444,18 +1426,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -1482,7 +1452,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1531,6 +1501,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar_thumbnail_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -1557,18 +1533,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
     header_params = %{}
@@ -1606,7 +1570,7 @@ defmodule PetstoreClient.Api.PetApi do
 
       42
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1684,11 +1648,20 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
     server = Keyword.get(opts, :server)
 
     path =
       if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
+        server_module = if is_atom(server), do: server, else: server.__struct__
+        server_url = server_module.url(server)
 
         if String.starts_with?(server_url, "http://") or
              String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
@@ -1722,7 +1695,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1781,11 +1754,17 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_by_name_with_http_info(%__MODULE__{} = api, name, options, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
 
-    if is_nil(name) do
+    if is_nil(name) or name == "" do
       raise ArgumentError,
             "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
     end
@@ -1815,18 +1794,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
 
@@ -1877,7 +1844,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -1926,6 +1893,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_passport_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -1952,18 +1925,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
     header_params = %{}
@@ -1992,7 +1953,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `photo_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2041,6 +2002,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_photo_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_pet_photo_with_http_info(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -2089,18 +2056,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -2128,7 +2083,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2195,6 +2150,12 @@ defmodule PetstoreClient.Api.PetApi do
         options \\ nil,
         opts \\ []
       ) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -2204,7 +2165,7 @@ defmodule PetstoreClient.Api.PetApi do
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
     end
 
-    if is_nil(tag_name) do
+    if is_nil(tag_name) or tag_name == "" do
       raise ArgumentError,
             "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
     end
@@ -2242,18 +2203,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
 
@@ -2373,7 +2322,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2449,11 +2398,20 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
+    # Per-operation server override: `:server` carries one of this operation's
+    # typed server variants, each generated as its own module above. Resolve the
+    # URL by dispatching on the passed variant's own `url/1` — a variant with no
+    # variables is passed as its module atom, one with variables as its struct —
+    # so the generated typed modules are actually used rather than
+    # `ServerConfiguration.url/2` (which only matches a `%ServerConfiguration{}`
+    # and so would raise on a typed variant). A bare `%ServerConfiguration{}`
+    # still resolves too, since its module also exposes `url/1`.
     server = Keyword.get(opts, :server)
 
     path =
       if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
+        server_module = if is_atom(server), do: server, else: server.__struct__
+        server_url = server_module.url(server)
 
         if String.starts_with?(server_url, "http://") or
              String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
@@ -2488,7 +2446,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `body` - binary()
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override), `:content_type` (select the request content-type among the declared types `image/jpeg`, `image/png`, `application/json`; defaults to `image/jpeg`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `image/jpeg`, `image/png`, `application/json`; defaults to `image/jpeg`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2553,18 +2511,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = body
@@ -2586,8 +2532,8 @@ defmodule PetstoreClient.Api.PetApi do
             selected
           else
             raise ArgumentError,
-                  "Unsupported :content_type #{inspect(selected)} for PetApi.set_pet_avatar; " <>
-                    "declared content-types are #{inspect(declared_content_types)}"
+                  "Unsupported request content-type '#{selected}' for set_pet_avatar; " <>
+                    "declared types are #{inspect(declared_content_types)}"
           end
       end
 
@@ -2614,7 +2560,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `set_pet_avatar_thumbnail_request` - SetPetAvatarThumbnailRequest
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2677,6 +2623,12 @@ defmodule PetstoreClient.Api.PetApi do
         set_pet_avatar_thumbnail_request,
         opts \\ []
       ) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -2709,18 +2661,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = set_pet_avatar_thumbnail_request
@@ -2749,7 +2689,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2808,6 +2748,12 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def set_pet_preferences_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -2839,18 +2785,6 @@ defmodule PetstoreClient.Api.PetApi do
         )
         |> to_string()
       )
-
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
 
     query_params = %{}
     header_params = %{}
@@ -2893,7 +2827,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer() - ID of pet to update
     * `pet` - Pet - Pet object that needs to be updated
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -2942,6 +2876,12 @@ defmodule PetstoreClient.Api.PetApi do
   @spec update_pet_with_http_info(t(), integer(), PetstoreClient.Models.Pet.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -2974,18 +2914,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = pet
@@ -3014,7 +2942,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -3073,6 +3001,12 @@ defmodule PetstoreClient.Api.PetApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    # This operation reads neither `:server` (no operation-level servers) nor
+    # `:content_type` (a single declared content-type) from `opts`, so discard
+    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
+    # the unused-variable warning that `--warnings-as-errors` makes fatal.
+    _ = opts
+
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
     auth = nil
@@ -3105,18 +3039,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = %{}
@@ -3146,7 +3068,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supported keys: `:server` (per-call server override), `:content_type` (select the request content-type among the declared types `multipart/form-data`, `application/octet-stream`; defaults to `multipart/form-data`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `multipart/form-data`, `application/octet-stream`; defaults to `multipart/form-data`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
   ## Returns
 
@@ -3237,18 +3159,6 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
-    server = Keyword.get(opts, :server)
-
-    path =
-      if server do
-        server_url = PetstoreClient.ServerConfiguration.url(server)
-
-        if String.starts_with?(server_url, "http://") or
-             String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
-      else
-        path
-      end
-
     query_params = %{}
     header_params = %{}
     request_body = %{}
@@ -3282,8 +3192,8 @@ defmodule PetstoreClient.Api.PetApi do
             selected
           else
             raise ArgumentError,
-                  "Unsupported :content_type #{inspect(selected)} for PetApi.upload_pet_document; " <>
-                    "declared content-types are #{inspect(declared_content_types)}"
+                  "Unsupported request content-type '#{selected}' for upload_pet_document; " <>
+                    "declared types are #{inspect(declared_content_types)}"
           end
       end
 

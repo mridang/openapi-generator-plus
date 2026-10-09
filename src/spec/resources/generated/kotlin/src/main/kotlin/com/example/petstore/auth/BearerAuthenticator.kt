@@ -22,7 +22,7 @@ open class BearerAuthenticator(
         // literal "Authorization: Bearer " header, sending the request
         // effectively unauthenticated.
         if (token.isBlank()) {
-            throw IllegalArgumentException("Bearer token must not be empty or blank")
+            throw IllegalArgumentException("Bearer token must not be empty")
         }
         // RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
         // Reject anything outside printable ASCII + TAB so callers see a

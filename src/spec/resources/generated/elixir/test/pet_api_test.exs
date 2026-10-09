@@ -404,6 +404,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
 
     assert error.status_code == 200
+    assert error.message =~ "Expected a response body for get_pet_by_id but received none"
   end
 
   test "bang variant raises typed ApiError on empty 200 body" do

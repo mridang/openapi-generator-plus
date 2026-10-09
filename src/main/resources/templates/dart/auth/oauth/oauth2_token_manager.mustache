@@ -130,7 +130,7 @@ class OAuth2TokenManager {
 
     final body = params.entries
         .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            '${_rfc3986(Uri.encodeQueryComponent(e.key))}=${_rfc3986(Uri.encodeQueryComponent(e.value))}')
         .join('&');
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));
@@ -267,3 +267,16 @@ class OAuth2TokenManager {
     return 0;
   }
 }
+
+/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
+/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
+/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
+/// (unreserved in both), and space handling — the '+' already produced for the
+/// form body / Basic header, or the '%20' the caller substitutes for the query
+/// — is left untouched.
+String _rfc3986(String encoded) => encoded
+    .replaceAll('!', '%21')
+    .replaceAll("'", '%27')
+    .replaceAll('(', '%28')
+    .replaceAll(')', '%29')
+    .replaceAll('*', '%2A');

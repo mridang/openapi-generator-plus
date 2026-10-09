@@ -326,10 +326,18 @@ async fn test_throws_when_discovery_missing_authorization_endpoint() {
         .build_authorization_url("")
         .await
         .expect_err("a discovery document missing authorization_endpoint must produce an error");
+    let serialization_error = err.downcast_ref::<SerializationError>().unwrap_or_else(|| {
+        panic!(
+            "an incomplete discovery document is a SerializationError, got: {}",
+            err
+        )
+    });
     assert!(
-        err.downcast_ref::<SerializationError>().is_some(),
-        "an incomplete discovery document is a SerializationError, got: {}",
-        err
+        serialization_error
+            .message()
+            .contains("OIDC discovery document is missing 'authorization_endpoint'"),
+        "expected harmonized missing-endpoint message, got: {}",
+        serialization_error.message()
     );
 }
 

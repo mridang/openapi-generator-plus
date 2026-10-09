@@ -183,11 +183,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet is None:
-            raise ValueError(
-                "Missing the required parameter 'pet' when calling PetApi.add_pet"
-            )
-
         result = await self.add_pet_with_http_info(pet, options)
 
         if result.data is None:
@@ -252,21 +247,6 @@ class PetApi(BaseApi):
         :return: List[Photo]
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
-            )
-
-        if options is None or options.files is None:
-            raise ValueError(
-                "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
-            )
-
-        if options is None or options.metadata is None:
-            raise ValueError(
-                "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
-            )
-
         result = await self.add_pet_photos_with_http_info(pet_id, options)
 
         if result.data is None:
@@ -355,16 +335,6 @@ class PetApi(BaseApi):
         :return: PetTreatment
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
-            )
-
-        if pet_treatment is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
-            )
-
         result = await self.add_pet_treatment_with_http_info(
             pet_id, pet_treatment, options
         )
@@ -444,11 +414,6 @@ class PetApi(BaseApi):
 
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
-            )
-
         result = await self.delete_pet_with_http_info(pet_id, options)
 
         return result.data
@@ -535,16 +500,6 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
-            )
-
-        if document_id is None:
-            raise ValueError(
-                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
-            )
-
         result = await self.download_pet_document_with_http_info(pet_id, document_id)
 
         if result.data is None:
@@ -632,11 +587,6 @@ class PetApi(BaseApi):
         :return: List[Pet]
         :raises ApiException: if fails to make API call
         """
-        if born_on is None:
-            raise ValueError(
-                "Missing the required parameter 'born_on' when calling PetApi.find_pets_born_on"
-            )
-
         result = await self.find_pets_born_on_with_http_info(born_on)
 
         if result.data is None:
@@ -796,11 +746,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
-            )
-
         result = await self.get_external_pet_info_with_http_info(pet_id, server=server)
 
         if result.data is None:
@@ -872,11 +817,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
-            )
-
         result = await self.get_multi_server_pet_info_with_http_info(
             pet_id, server=server
         )
@@ -950,11 +890,6 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
-            )
-
         result = await self.get_pet_avatar_with_http_info(pet_id)
 
         if result.data is None:
@@ -1022,11 +957,6 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
-            )
-
         result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id)
 
         if result.data is None:
@@ -1104,11 +1034,6 @@ class PetApi(BaseApi):
         .. deprecated::
             This operation is deprecated.
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
-            )
-
         result = await self.get_pet_by_id_with_http_info(pet_id, server=server)
 
         if result.data is None:
@@ -1186,16 +1111,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if name is None or name == "":
-            raise ValueError(
-                "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
-            )
-
-        if options is None or options.category is None or options.category == "":
-            raise ValueError(
-                "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
-            )
-
         result = await self.get_pet_by_name_with_http_info(name, options)
 
         if result.data is None:
@@ -1283,11 +1198,6 @@ class PetApi(BaseApi):
         :return: PetPassport
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
-            )
-
         result = await self.get_pet_passport_with_http_info(pet_id)
 
         if result.data is None:
@@ -1357,16 +1267,6 @@ class PetApi(BaseApi):
         :return: bytes
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
-            )
-
-        if photo_id is None:
-            raise ValueError(
-                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
-            )
-
         result = await self.get_pet_photo_with_http_info(pet_id, photo_id)
 
         if result.data is None:
@@ -1453,16 +1353,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
-            )
-
-        if tag_name is None or tag_name == "":
-            raise ValueError(
-                "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
-            )
-
         result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options)
 
         if result.data is None:
@@ -1593,11 +1483,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
-            )
-
         result = await self.get_staging_pet_info_with_http_info(pet_id, server=server)
 
         if result.data is None:
@@ -1672,16 +1557,6 @@ class PetApi(BaseApi):
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (image/jpeg, image/png, application/json); defaults to the first declared type when omitted.
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
-            )
-
-        if body is None:
-            raise ValueError(
-                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
-            )
-
         result = await self.set_pet_avatar_with_http_info(
             pet_id, body, request_content_type=request_content_type
         )
@@ -1766,16 +1641,6 @@ class PetApi(BaseApi):
 
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
-            )
-
-        if set_pet_avatar_thumbnail_request is None:
-            raise ValueError(
-                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
-            )
-
         result = await self.set_pet_avatar_thumbnail_with_http_info(
             pet_id, set_pet_avatar_thumbnail_request
         )
@@ -1844,16 +1709,6 @@ class PetApi(BaseApi):
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_preferences"
-            )
-
-        if options is None or options.nickname is None or options.nickname == "":
-            raise ValueError(
-                "Missing the required parameter 'nickname' when calling PetApi.set_pet_preferences"
-            )
-
         result = await self.set_pet_preferences_with_http_info(pet_id, options)
 
         if result.data is None:
@@ -1938,16 +1793,6 @@ class PetApi(BaseApi):
         :return: Pet
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
-            )
-
-        if pet is None:
-            raise ValueError(
-                "Missing the required parameter 'pet' when calling PetApi.update_pet"
-            )
-
         result = await self.update_pet_with_http_info(pet_id, pet)
 
         if result.data is None:
@@ -2024,16 +1869,6 @@ class PetApi(BaseApi):
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
-            )
-
-        if options is None or options.file is None:
-            raise ValueError(
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
-            )
-
         result = await self.upload_pet_certificate_with_http_info(pet_id, options)
 
         if result.data is None:
@@ -2116,16 +1951,6 @@ class PetApi(BaseApi):
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
-        if pet_id is None:
-            raise ValueError(
-                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
-            )
-
-        if options is None or options.file is None:
-            raise ValueError(
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
-            )
-
         result = await self.upload_pet_document_with_http_info(
             pet_id, options, request_content_type=request_content_type
         )

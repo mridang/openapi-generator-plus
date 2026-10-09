@@ -104,7 +104,7 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
             Dict with the Authorization header.
         """
         if self._access_token is None:
-            raise RuntimeError('Must call set_access_token() before making API requests')
+            raise RuntimeError('Must set the access token before making API requests')
         return {'Authorization': f'Bearer {self._access_token}'}
 
     def __repr__(self) -> str:

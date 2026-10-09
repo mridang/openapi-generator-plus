@@ -178,7 +178,7 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &discovery); err != nil {
-		return nil, errors_pkg.NewSerializationError("failed to parse OIDC discovery document", err)
+		return nil, errors_pkg.NewSerializationError("oidc discovery document is not valid JSON", err)
 	}
 
 	/* A discovery document missing authorization_endpoint or token_endpoint
@@ -186,10 +186,10 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 	 * silently produce malformed authorization/token requests against the
 	 * wrong (empty) URL. An incomplete document is a *SerializationError. */
 	if strings.TrimSpace(discovery.AuthorizationEndpoint) == "" {
-		return nil, errors_pkg.NewSerializationError("OIDC discovery document is missing 'authorization_endpoint'", nil)
+		return nil, errors_pkg.NewSerializationError("oidc discovery document is missing 'authorization_endpoint'", nil)
 	}
 	if strings.TrimSpace(discovery.TokenEndpoint) == "" {
-		return nil, errors_pkg.NewSerializationError("OIDC discovery document is missing 'token_endpoint'", nil)
+		return nil, errors_pkg.NewSerializationError("oidc discovery document is missing 'token_endpoint'", nil)
 	}
 
 	a.delegate = NewOAuth2AuthorizationCodeAuthenticator(

@@ -596,6 +596,20 @@ import FoundationNetworking
         #expect(resp.statusCode == 200)
     }
 
+    // content-encoding-empty-gzip-passthrough (Gap AL): a zero-byte body that
+    // still advertises `Content-Encoding: gzip` has nothing to inflate and no
+    // gzip magic, so it must pass through as an empty body — never be thrown on.
+    @Test func testEmptyGzipBodyPassesThroughAsEmpty() async throws {
+        let client = makeClient { _ in
+            (Data(), 200,
+             ["Content-Type": "application/json", "Content-Encoding": "gzip"])
+        }
+        let resp = try await client.sendRequest(
+            method: "GET", url: "http://localhost/empty-gzip", headers: [:], body: nil)
+        #expect(resp.statusCode == 200)
+        #expect(resp.body.isEmpty)
+    }
+
     // MARK: - CA certificate fail-fast
 
     @Test func testNonexistentCaCertPathFailsFast() {

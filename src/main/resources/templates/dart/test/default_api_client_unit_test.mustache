@@ -451,7 +451,7 @@ void main() {
                   .having(
                     (e) => e.message,
                     'message',
-                    contains('Content-Encoding: gzip'),
+                    contains('Failed to decompress gzip response body'),
                   ),
             ),
           );
@@ -532,10 +532,40 @@ void main() {
                   .having(
                     (e) => e.message,
                     'message',
-                    contains('Content-Encoding: deflate'),
+                    contains('Failed to decompress deflate response body'),
                   ),
             ),
           );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    // -- Gap AL: empty body declared gzip passes through as empty, no crash --
+    test(
+      'empty body declared gzip passes through as empty, not an exception',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          // A zero-byte body that still advertises gzip: nothing to inflate,
+          // so the client must return the empty body unchanged rather than
+          // raising on the absent gzip stream.
+          request.response.headers.set('Content-Encoding', 'gzip');
+          request.response.statusCode = 200;
+          request.response.close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/empty-gzip',
+            {},
+            null,
+          );
+          expect(resp.statusCode, equals(200));
+          expect(resp.body, equals(''));
         } finally {
           await server.close();
         }

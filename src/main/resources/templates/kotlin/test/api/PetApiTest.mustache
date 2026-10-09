@@ -744,9 +744,14 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            assertThrows(ApiException::class.java) {
-                runBlocking { api.getPetById(1L) }
-            }
+            val exception =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { api.getPetById(1L) }
+                }
+            assertTrue(
+                exception.message!!.contains("Expected a response body for getPetById but received none"),
+                "empty-body message must name the operation, got: ${exception.message}",
+            )
         }
 
         @Test

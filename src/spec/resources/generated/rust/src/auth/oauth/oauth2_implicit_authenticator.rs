@@ -69,7 +69,7 @@ impl OAuth2ImplicitAuthenticator {
         for b in token.bytes() {
             if b != b'\t' && !(0x20..0x7F).contains(&b) {
                 return Err(ConfigurationError::InvalidArgument(
-                    "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+                    "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
                         .to_string(),
                 ));
             }
@@ -165,7 +165,7 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
             let token = self.access_token.lock().unwrap().clone();
             if token.is_empty() {
                 return Err(Box::new(ConfigurationError::InvalidState(
-                    "must set access token before making API requests".to_string(),
+                    "Must set the access token before making API requests".to_string(),
                 ))
                     as Box<dyn std::error::Error + Send + Sync>);
             }

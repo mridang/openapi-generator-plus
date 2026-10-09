@@ -1518,6 +1518,23 @@ export class PetApi extends BaseApi {
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
+    /* This operation declares more than one request content-type. The optional
+     * contentType selector lets the caller pick among the declared types; when
+     * omitted it defaults to the first declared type. The TypeScript signature
+     * already narrows contentType to the declared union, but a plain-JS or
+     * `as any` caller can bypass that compile-time check, so reject an
+     * unrecognised selector at runtime too — a typo must never ride the wire as
+     * an undeclared Content-Type (matching java/python and the other SDKs). */
+    const declaredContentTypes = [
+      "image/jpeg",
+      "image/png",
+      "application/json",
+    ];
+    if (contentType != null && !declaredContentTypes.includes(contentType)) {
+      throw new TypeError(
+        `Unsupported request content-type '${contentType}' for setPetAvatar; declared types are [${declaredContentTypes.join(", ")}]`,
+      );
+    }
     return await this.invokeApiForResult(
       "PUT",
       path,
@@ -1935,6 +1952,22 @@ export class PetApi extends BaseApi {
         ? formBody
         : (options?.file ?? null);
 
+    /* This operation declares more than one request content-type. The optional
+     * contentType selector lets the caller pick among the declared types; when
+     * omitted it defaults to the first declared type. The TypeScript signature
+     * already narrows contentType to the declared union, but a plain-JS or
+     * `as any` caller can bypass that compile-time check, so reject an
+     * unrecognised selector at runtime too — a typo must never ride the wire as
+     * an undeclared Content-Type (matching java/python and the other SDKs). */
+    const declaredContentTypes = [
+      "multipart/form-data",
+      "application/octet-stream",
+    ];
+    if (contentType != null && !declaredContentTypes.includes(contentType)) {
+      throw new TypeError(
+        `Unsupported request content-type '${contentType}' for uploadPetDocument; declared types are [${declaredContentTypes.join(", ")}]`,
+      );
+    }
     return await this.invokeApiForResult(
       "POST",
       path,

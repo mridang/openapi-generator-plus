@@ -222,9 +222,11 @@ class OpenIdConnectAuthenticatorTest {
 
         // Missing authorization_endpoint must throw rather than build a
         // delegate with a null/empty endpoint URL.
-        assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
-            runBlocking { auth.buildAuthorizationUrl() }
-        }
+        val ex =
+            assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                runBlocking { auth.buildAuthorizationUrl() }
+            }
+        assertTrue(ex.message!!.contains("OIDC discovery document is missing 'authorization_endpoint'"))
     }
 
     @Test

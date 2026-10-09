@@ -36,7 +36,8 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
   # "Authorization: Bearer " header, sending the request unauthenticated, so
   # the constructor must reject it.
   it 'rejects an empty token' do
-    _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+    error = _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', '') }).must_raise ArgumentError
+    _(error.message).must_include 'Bearer token must not be empty'
   end
 
   it 'rejects a whitespace-only token' do

@@ -419,6 +419,8 @@ internal class ObjectSerializer(
         // (Go encoding/json, Python json, etc.) whose parsers accept a `null`
         // payload on no-content responses without throwing.
         if (stripped.trim() == "null") return null
+        val depth = jsonMaxDepth(stripped)
+        if (depth > MAX_JSON_DEPTH) throw SerializationException("JSON nesting depth $depth exceeds limit $MAX_JSON_DEPTH")
         val decoded =
             try {
                 json.decodeFromString<T>(stripped)
@@ -627,7 +629,7 @@ internal class ObjectSerializer(
             }
         }
         throw SerializationException(
-            "No oneOf/anyOf variant matched the response body",
+            "No oneOf/anyOf variant matched the JSON",
         )
     }
 
@@ -653,7 +655,7 @@ internal class ObjectSerializer(
          * call stack, so the cap is pinned here rather than left to the parser's
          * default. All twelve SDKs use the same cap.
          */
-        internal const val MAX_JSON_DEPTH = 1000
+        @PublishedApi internal const val MAX_JSON_DEPTH = 1000
 
         /**
          * Canonical wire format for `format: date-time` values: a fixed
@@ -677,7 +679,7 @@ internal class ObjectSerializer(
          * text, ignoring characters inside string literals. A cheap pre-flight
          * scan used to refuse a deeply-nested payload before parsing it.
          */
-        internal fun jsonMaxDepth(text: String): Int {
+        @PublishedApi internal fun jsonMaxDepth(text: String): Int {
             var depth = 0
             var max = 0
             var inString = false

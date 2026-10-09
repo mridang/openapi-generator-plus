@@ -1100,4 +1100,12 @@ describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
       DefaultApiClient.ensureDecoded(lyingBody, 'gzip')
     ).rejects.toThrow(ApiError);
   });
+
+  it('passes an empty body declared gzip through as empty, not an error', async () => {
+    // A zero-byte body still declared `Content-Encoding: gzip` has nothing to
+    // inflate and no gzip magic: ensureDecoded must return it unchanged rather
+    // than rejecting on the absent gzip stream.
+    const out = await DefaultApiClient.ensureDecoded(Buffer.alloc(0), 'gzip');
+    expect(out.length).toBe(0);
+  });
 });

@@ -36,8 +36,15 @@ module Petstore::Client
       # differs from their Ruby surface (`byte` → base64-decoded binary
       # String, `uuid` → RFC 4122 validated String). The `byte[]` /
       # `uuid[]` variants apply the same transform to every item of an
-      # array-typed property. Consumed by ::Petstore::Client::ObjectSerializer
-      # on the (de)serialize path.
+      # array-typed property, and the `byte{}` / `uuid{}` variants to every
+      # value of a string-keyed map property. Consumed by
+      # ::Petstore::Client::ObjectSerializer on the (de)serialize path.
+      #
+      # The property name is read at the +vars+ scope (via +items.isByteArray+
+      # etc.) and never from inside an +items+ section: entering +items+
+      # shadows +name+ with the additionalProperties/element schema's own name,
+      # which openapi-generator calls "inner", registering a phantom +inner:+
+      # key instead of the real map/array attribute.
       # @type var openapi_formats: Hash[Symbol, String]
       openapi_formats = {}
       OPENAPI_FORMATS = openapi_formats.freeze

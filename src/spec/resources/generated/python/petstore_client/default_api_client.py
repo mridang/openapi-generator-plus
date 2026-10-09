@@ -494,7 +494,7 @@ class DefaultApiClient:
                 # as a group and re-raised as the SDK's uniform ApiException.
                 raise ApiException(
                     status_code=response.status,
-                    message=f"failed to decompress response body (content-encoding={content_encoding!r}): {e}",
+                    message=f"Failed to decompress {content_encoding} response body: {e}",
                     response_headers=dict(response.headers),
                 ) from e
         except urllib3.exceptions.LocationValueError as e:
@@ -1050,4 +1050,4 @@ class DefaultApiClient:
         # client cannot honour. Raise — the caller re-raises it as an
         # ApiException carrying the response status (matching csharp/elixir and
         # the documented contract) rather than returning still-encoded bytes.
-        raise ValueError(f"unsupported Content-Encoding: {encoding!r}")
+        raise ValueError(f"Unsupported Content-Encoding '{encoding}'")

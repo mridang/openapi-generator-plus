@@ -476,6 +476,9 @@ describe("PetApi error handling", () => {
     );
     try {
       await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+      await expect(mockApi.getPetById(1)).rejects.toThrow(
+        "Expected a response body for getPetById but received none",
+      );
     } finally {
       close();
     }

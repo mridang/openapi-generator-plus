@@ -128,4 +128,55 @@ class BinaryVault
         }
         $this->shards = new \Ds\Vector($encoded);
     }
+
+    /**
+     * 2.1 — Returns the raw decoded bytes for every value of the
+     * `labels` map field (OAS additionalProperties `format: byte`).
+     * The stored container holds the base64-encoded wire form of each
+     * value; this getter applies base64_decode value-by-value so callers
+     * receive a map of the underlying binary strings. Returns null when the
+     * field itself is unset, mirroring the scalar/array byte accessor pairs
+     * so map-of-byte fields expose the same first-class raw-bytes API.
+     *
+     * @return array<string, string>|null
+     */
+    public function getLabelsAsBytes(): ?array
+    {
+        if ($this->labels === null) {
+            return null;
+        }
+        $decoded = [];
+        foreach ($this->labels as $key => $value) {
+            $bytes = \PetstoreClient\ObjectSerializer::decodeBytes($value);
+            if ($bytes !== null) {
+                $decoded[(string) $key] = $bytes;
+            }
+        }
+        return $decoded;
+    }
+
+    /**
+     * 2.1 — Stores raw bytes for every value of the `labels` map
+     * field (OAS additionalProperties `format: byte`) by base64-encoding
+     * each value before assignment. The container keeps the wire form so
+     * serialization stays a straight string pass-through, matching the
+     * scalar/array byte setters.
+     *
+     * @param array<string, string>|null $raw
+     */
+    public function setLabelsFromBytes(?array $raw): void
+    {
+        if ($raw === null) {
+            $this->labels = null;
+            return;
+        }
+        $encoded = [];
+        foreach ($raw as $key => $value) {
+            $encodedValue = \PetstoreClient\ObjectSerializer::encodeBytes($value);
+            if ($encodedValue !== null) {
+                $encoded[(string) $key] = $encodedValue;
+            }
+        }
+        $this->labels = new \Ds\Map($encoded);
+    }
 }

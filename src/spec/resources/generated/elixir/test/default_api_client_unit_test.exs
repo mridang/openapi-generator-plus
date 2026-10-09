@@ -847,6 +847,28 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 
+  # Gap AL — empty body declared gzip passes through as empty.
+  # A zero-byte body that still advertises `Content-Encoding: gzip` has nothing
+  # to inflate. The client must return the empty body unchanged, never raise on
+  # the absent gzip stream.
+  test "empty body declared gzip passes through as empty" do
+    base_url =
+      start_server(
+        200,
+        "application/json",
+        <<>>,
+        [{"Content-Encoding", "gzip"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+
+    assert response.status_code == 200
+    assert response.body == ""
+  end
+
   # A body that carries the gzip magic bytes but is truncated is also a
   # response that arrived but cannot be used.
   test "corrupt gzip body with the magic bytes raises ApiError with the real status" do

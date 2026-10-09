@@ -74,6 +74,11 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 			t.Errorf("expected a nil authenticator for %q", bad)
 		}
 	}
+	// The empty-token rejection carries the harmonized sentinel message.
+	if _, err := auth.NewBearerAuthenticator("https://api.example.com", ""); err == nil ||
+		!strings.Contains(err.Error(), "token must not be empty") {
+		t.Errorf("empty token: expected message containing %q, got %v", "token must not be empty", err)
+	}
 }
 
 // authenticator-secret-in-default-string-repr: the bearer token must not leak

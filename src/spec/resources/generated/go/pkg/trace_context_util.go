@@ -23,9 +23,20 @@ import (
 // with SetTraceContextPropagator, this function silently no-ops.
 //
 // The headers argument is the mutable map of request headers.
+//
+// The propagator injects into a scratch map, and only its non-empty entries
+// reach headers. The W3C propagator always writes tracestate, empty or not,
+// and an empty tracestate header is not what the other SDKs send.
 func InjectTraceContext(headers map[string]string) {
-	if traceContextPropagator != nil {
-		traceContextPropagator(context.Background(), headers)
+	if traceContextPropagator == nil {
+		return
+	}
+	injected := make(map[string]string)
+	traceContextPropagator(context.Background(), injected)
+	for key, value := range injected {
+		if value != "" {
+			headers[key] = value
+		}
 	}
 }
 

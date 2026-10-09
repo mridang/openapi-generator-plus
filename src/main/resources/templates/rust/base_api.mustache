@@ -208,13 +208,13 @@ impl BaseApi {
                 for (k, v) in &cookies {
                     if !is_valid_cookie_name(k) {
                         return Err(Box::new(ConfigurationError::InvalidArgument(format!(
-                            "cookie name '{}' contains characters forbidden by RFC 6265",
+                            "Cookie name '{}' contains characters forbidden by RFC 6265",
                             k
                         ))));
                     }
                     if !is_valid_cookie_value(v) {
                         return Err(Box::new(ConfigurationError::InvalidArgument(format!(
-                            "cookie value for '{}' contains characters forbidden by RFC 6265",
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265",
                             k
                         ))));
                     }

@@ -134,8 +134,13 @@ module {{moduleName}}
           # client_secret) plus, on the refresh path, the refresh_token.
           # Silently replaying that body to a redirect target would leak
           # credentials to an attacker-controlled host.
+          # URI.encode_www_form keeps '*' literal and escapes '~' to %7E — the
+          # reverse of the RFC 3986 unreserved set (A-Za-z0-9-._~) — so
+          # normalise both ('*' -> %2A, %7E -> '~') so every SDK emits
+          # byte-identical bodies (space stays '+' for the form).
+          body = URI.encode_www_form(params).gsub('%7E', '~').gsub('*', '%2A')
           response = client.send_request(
-            :post, token_url, headers, URI.encode_www_form(params),
+            :post, token_url, headers, body,
             no_redirect: true
           )
           status = response.status_code

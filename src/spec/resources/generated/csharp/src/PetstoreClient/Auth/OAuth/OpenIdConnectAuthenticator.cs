@@ -159,7 +159,7 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             || string.IsNullOrEmpty(element.GetString())
         )
         {
-            throw new SerializationException($"Discovery document missing {field}");
+            throw new SerializationException($"OIDC discovery document is missing '{field}'");
         }
         if (!Uri.TryCreate(element.GetString(), UriKind.Absolute, out Uri? endpoint))
         {

@@ -251,7 +251,7 @@ module {{moduleName}}
       decoded_body = begin
         decompress_body(response.body, response.headers['content-encoding'])
       rescue StandardError => e
-        raise unusable_response(response, "Failed to decompress response body: #{e.message}")
+        raise unusable_response(response, "Failed to decompress #{response.headers['content-encoding']} response body: #{e.message}")
       end
       response_body = if text_content_type?(content_type)
                         decode_text_body(decoded_body.to_s, content_type)
@@ -425,7 +425,7 @@ module {{moduleName}}
       when 'deflate'
         Zlib::Inflate.inflate(body)
       when 'br'
-        defined?(Brotli) ? Brotli.inflate(body) : raise('Received a br-encoded response but the brotli gem is unavailable')
+        defined?(Brotli) ? Brotli.inflate(body) : raise('Received a br-encoded response but the br gem is unavailable')
       when 'zstd'
         defined?(Zstd) ? Zstd.decompress(body) : raise('Received a zstd-encoded response but the zstd gem is unavailable')
       when nil, '', 'identity'
@@ -435,7 +435,7 @@ module {{moduleName}}
         # client cannot honour. Raise — the caller rescues this into an ApiError
         # carrying the response status (matching csharp/elixir and the documented
         # contract) rather than returning the body still encoded.
-        raise "unsupported Content-Encoding: #{encoding}"
+        raise "Unsupported Content-Encoding '#{encoding}'"
       end
     end
 

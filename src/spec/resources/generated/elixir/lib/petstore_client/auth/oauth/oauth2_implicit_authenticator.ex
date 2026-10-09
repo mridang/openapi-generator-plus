@@ -119,7 +119,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{access_token: nil}) do
-    raise "Must set access_token before making API requests"
+    raise "Must set the access token before making API requests"
   end
 
   def auth_headers(%__MODULE__{} = self) do

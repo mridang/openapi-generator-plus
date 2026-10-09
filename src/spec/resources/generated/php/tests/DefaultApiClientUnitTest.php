@@ -1102,6 +1102,25 @@ test('AL: content-encoding gzip lie with plaintext body surfaces ApiException', 
         });
 });
 
+test('AL: empty body declared gzip passes through as empty, never raises', function (): void {
+    /* A zero-byte body still advertising `Content-Encoding: gzip` has nothing
+     * to inflate. gzdecode('') must not make the client raise: the transport
+     * returns the empty body unchanged with the real status. */
+    $mockResponse = new MockResponse('', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/empty-gzip', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('');
+});
+
 test('unsupported content-encoding surfaces ApiException, not the encoded body', function (): void {
     /* An unrecognised Content-Encoding the client cannot decode hits the
      * decompressor's default branch (RuntimeException) and surfaces as

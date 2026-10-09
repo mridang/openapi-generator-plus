@@ -55,6 +55,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
       auth.auth_headers
     end
     _(err).must_be_instance_of RuntimeError
+    _(err.message).must_include 'Must set the access token before making API requests'
   end
 
   it 'getHost returns configured host' do

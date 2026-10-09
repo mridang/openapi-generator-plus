@@ -57,8 +57,19 @@ open class OAuth2ClientCredentialsAuthenticator(
             // separately before joining with ':' and base64-encoding. Without
             // this, a credential containing ':' or any reserved char would
             // corrupt the Basic header and fail against strict OPs.
-            val encodedId = java.net.URLEncoder.encode(clientId, Charsets.UTF_8)
-            val encodedSecret = java.net.URLEncoder.encode(clientSecret, Charsets.UTF_8)
+            // URLEncoder keeps '*' literal and escapes '~' to %7E — the reverse
+            // of the RFC 3986 unreserved set — so normalise both so every SDK
+            // emits byte-identical credentials (space stays '+' for the form).
+            val encodedId =
+                java.net.URLEncoder
+                    .encode(clientId, Charsets.UTF_8)
+                    .replace("*", "%2A")
+                    .replace("%7E", "~")
+            val encodedSecret =
+                java.net.URLEncoder
+                    .encode(clientSecret, Charsets.UTF_8)
+                    .replace("*", "%2A")
+                    .replace("%7E", "~")
             val credentials =
                 java.util.Base64
                     .getEncoder()

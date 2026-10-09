@@ -1184,6 +1184,12 @@ class PetApi extends BaseApi {
     String name,
     GetPetByNameOptions options,
   ) async {
+    if (name == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'name' when calling PetApi.getPetByName",
+      );
+    }
+
     ArgumentError.checkNotNull(options.category, 'category');
     if (options.category == '') {
       throw ArgumentError(
@@ -1445,6 +1451,12 @@ class PetApi extends BaseApi {
     String tagName,
     GetPetTagOptions? options,
   ) async {
+    if (tagName == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'tagName' when calling PetApi.getPetTag",
+      );
+    }
+
     var path = '/pet/{petId}/tag/{tagName}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping

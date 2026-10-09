@@ -389,10 +389,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       } catch {
         throw ApiError(
           statusCode: httpResponse.statusCode,
-          message: "Failed to decode response body: server advertised "
-            + "Content-Encoding: \(residualEncoding) and the body carried the "
-            + "gzip magic bytes but was not a valid gzip stream "
-            + "(corrupt or mislabelled encoding)",
+          message: "Failed to decompress \(residualEncoding) response body: "
+            + "\(error.localizedDescription)",
           underlyingError: error
         )
       }

@@ -194,7 +194,10 @@ class TestOpenIdConnectAuthenticator:
             headers={"content-type": "application/json"},
         )
         auth.set_api_client(mock_client)
-        with pytest.raises(SerializationException):
+        with pytest.raises(
+            SerializationException,
+            match="OIDC discovery document is missing 'authorization_endpoint'",
+        ):
             auth.build_authorization_url()
 
     def test_fetches_discovery_document_only_once(self) -> None:

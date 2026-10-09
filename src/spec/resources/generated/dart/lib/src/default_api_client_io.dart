@@ -116,25 +116,28 @@ class DefaultApiClient extends AbstractApiClient {
   }
 
   /// Decompresses [bytes] according to [contentEncoding] using dart:io's
-  /// [GZipCodec] and [ZLibDecoder]. An empty or `identity` encoding passes the
-  /// bytes through unchanged; `gzip`/`deflate` are decoded (a body that fails to
-  /// decode — including a zero-byte body — surfaces a typed [ApiException]); any
-  /// other encoding (`br`, `zstd`, or an unrecognised/multi-value coding) raises
-  /// a typed [ApiException] rather than returning still-encoded bytes, matching
-  /// the canonical Java/Go/Ruby/PHP decompressors.
+  /// [GZipCodec] and [ZLibDecoder]. An empty body passes through unchanged for
+  /// ANY encoding (a legitimate 204/304/HEAD or empty 200 carries nothing to
+  /// decompress — matching java/kotlin/python/ruby/php/rust). An empty or
+  /// `identity` encoding passes the bytes through; `gzip`/`deflate` are decoded
+  /// (a non-empty body that fails to decode surfaces a typed [ApiException]);
+  /// any other encoding (`br`, `zstd`, or an unrecognised coding) raises a typed
+  /// [ApiException] rather than returning still-encoded bytes, matching the
+  /// canonical Java/Go/Ruby/PHP decompressors.
   @override
   Uint8List decompressBytes(Uint8List bytes, String contentEncoding) {
+    if (bytes.isEmpty) return bytes;
     switch (contentEncoding) {
       case '':
         return bytes;
       case 'gzip':
+      case 'x-gzip':
         try {
           return Uint8List.fromList(GZipCodec().decode(bytes));
         } catch (e) {
           throw ApiException(
             statusCode: 0,
-            message:
-                'Server claimed Content-Encoding: gzip but body is not valid gzip: $e',
+            message: 'Failed to decompress gzip response body: $e',
             underlyingError: e,
           );
         }
@@ -144,8 +147,7 @@ class DefaultApiClient extends AbstractApiClient {
         } catch (e) {
           throw ApiException(
             statusCode: 0,
-            message:
-                'Server claimed Content-Encoding: deflate but body is not valid deflate: $e',
+            message: 'Failed to decompress deflate response body: $e',
             underlyingError: e,
           );
         }

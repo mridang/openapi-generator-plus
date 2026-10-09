@@ -25,7 +25,7 @@ var ErrInvalidAccessToken = errors.New("invalid access token")
 
 // ErrAccessTokenNotSet is returned by AuthHeadersOrError when it is called
 // before SetAccessToken. Match it with errors.Is.
-var ErrAccessTokenNotSet = errors.New("oauth2 implicit: must set access token before making API requests")
+var ErrAccessTokenNotSet = errors.New("oauth2 implicit: must set the access token before making API requests")
 
 // OAuth2ImplicitAuthenticator is the authenticator for the OAuth2 Implicit flow.
 //

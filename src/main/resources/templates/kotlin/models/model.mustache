@@ -5,11 +5,6 @@
 
 package {{modelPackage}}
 
-{{! SerializationException is used by the oneOf/anyOf wrapper serializers.
-    It is emitted for every model and the formatter drops it again wherever it
-    is unused, which is also what keeps it from being repeated once per
-    import. }}
-import {{invokerPackage}}.errors.SerializationException
 {{#imports}}
 import {{import}}
 {{/imports}}

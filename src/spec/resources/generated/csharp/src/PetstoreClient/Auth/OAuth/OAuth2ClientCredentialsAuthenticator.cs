@@ -118,6 +118,6 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
     /// </summary>
     public override string ToString()
     {
-        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***)";
+        return $"{GetType().Name}(Host={_host}, ClientId={_clientId}, ClientSecret=***, TokenUrl={_tokenUrl}, Scopes=[{string.Join(", ", _scopes)}], ClientAuthMethod={_clientAuthMethod})";
     }
 }

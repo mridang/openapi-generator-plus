@@ -229,7 +229,11 @@ class OpenIdConnectAuthenticatorTest {
 
     // Missing authorization_endpoint must throw rather than build a
     // delegate with a null/empty endpoint URL.
-    assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    SerializationException ex =
+        assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("OIDC discovery document is missing 'authorization_endpoint'"));
   }
 
   @Test

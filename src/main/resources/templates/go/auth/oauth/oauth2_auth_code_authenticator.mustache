@@ -70,7 +70,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
 // String returns a string representation that redacts the client secret so
 // credentials never leak into logs or stack traces (matching the other SDKs).
 func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
-	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI)
+	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q, scopes: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI, a.scopes)
 }
 
 // SetApiClient injects the shared API client for making token requests.

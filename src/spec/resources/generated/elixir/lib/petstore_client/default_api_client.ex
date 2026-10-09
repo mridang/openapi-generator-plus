@@ -343,6 +343,12 @@ defmodule PetstoreClient.DefaultApiClient do
   # arrived but cannot be decompressed surfaces as a typed ApiError carrying the
   # response's real status code, never a NetworkError.
   @spec decompress_body(binary(), String.t(), integer()) :: binary()
+  # An empty body (a legitimate 204/304/HEAD or empty 200) carries nothing to
+  # decompress, so it passes through unchanged for ANY declared encoding —
+  # matching java/kotlin/python/ruby/php/rust, which all short-circuit an empty
+  # body before the codec dispatch.
+  defp decompress_body(<<>>, _encoding, _status), do: <<>>
+
   defp decompress_body(body, encoding, status) when is_binary(body) do
     case encoding |> to_string() |> String.trim() |> String.downcase() do
       "" ->
@@ -368,7 +374,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
       other ->
         raise PetstoreClient.Errors.ApiError,
-          message: "Unsupported Content-Encoding '#{other}' in response body",
+          message: "Unsupported Content-Encoding '#{other}'",
           status_code: status
     end
   end
@@ -440,7 +446,7 @@ defmodule PetstoreClient.DefaultApiClient do
       end
     else
       raise PetstoreClient.Errors.ApiError,
-        message: "Received a br-encoded response but the :brotli decoder is unavailable",
+        message: "Received a br-encoded response but the br library is unavailable",
         status_code: status
     end
   end
@@ -465,7 +471,7 @@ defmodule PetstoreClient.DefaultApiClient do
       end
     else
       raise PetstoreClient.Errors.ApiError,
-        message: "Received a zstd-encoded response but the :zstd decoder is unavailable",
+        message: "Received a zstd-encoded response but the zstd library is unavailable",
         status_code: status
     end
   end

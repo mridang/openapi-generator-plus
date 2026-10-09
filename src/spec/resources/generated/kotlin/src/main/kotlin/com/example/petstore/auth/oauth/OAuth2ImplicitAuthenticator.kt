@@ -98,12 +98,20 @@ open class OAuth2ImplicitAuthenticator(
     override suspend fun getAuthHeaders(): Map<String, String> {
         val token =
             accessToken
-                ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
+                ?: throw IllegalStateException("Must set the access token before making API requests")
         return mapOf("Authorization" to "Bearer $token")
     }
 
     // RFC 3986 query component: a space is %20, not '+' (URLEncoder's form rule).
-    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20")
+    // URLEncoder also keeps '*' literal and escapes '~' to %7E — the reverse of
+    // the RFC 3986 unreserved set (A-Za-z0-9-._~) — so normalise both so every
+    // SDK emits byte-identical output.
+    private fun encode(value: String): String =
+        URLEncoder
+            .encode(value, StandardCharsets.UTF_8)
+            .replace("+", "%20")
+            .replace("*", "%2A")
+            .replace("%7E", "~")
 
     /**
      * Returns a string representation that redacts the access token so the

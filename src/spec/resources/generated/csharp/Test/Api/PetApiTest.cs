@@ -823,6 +823,7 @@ public class PetApiTest
             mockApi.GetPetByIdAsync(1L)
         );
         Assert.Equal(200, ex.StatusCode);
+        Assert.Contains("Expected a response body for GetPetById but received none", ex.Message);
     }
 
     [Fact]

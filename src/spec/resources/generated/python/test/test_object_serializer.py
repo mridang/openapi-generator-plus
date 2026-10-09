@@ -74,13 +74,29 @@ class TestDateTimeSubSecondPrecision:
         model = PhotoMetadata(takenAt=instant)
 
         serialized = ObjectSerializer().serialize(model)
-        # (1) the fractional-second component survived encoding.
-        assert ".123" in serialized
+        # (1) the model-body path pins the exact cross-SDK wire form: a fixed
+        # 3-digit millisecond fraction and a numeric +00:00 offset, never the
+        # bare `Z` or a 6-digit microsecond fraction that pydantic's default
+        # AwareDatetime serializer would emit.
+        assert '"takenAt":"2020-01-02T03:04:05.123+00:00"' in serialized
+        assert 'Z"' not in serialized
+        assert ".123000" not in serialized
 
         # (2) deserializing yields the same instant (lossless round-trip).
         restored = ObjectSerializer().deserialize(serialized, "PhotoMetadata")
         assert restored is not None
         assert restored.taken_at == instant
+
+    def test_model_datetime_whole_second_pins_fixed_millis(self) -> None:
+        from petstore_client.models.photo_metadata import PhotoMetadata
+
+        instant = datetime.datetime(
+            2024, 1, 1, 12, 30, 45, tzinfo=datetime.timezone.utc
+        )
+        serialized = ObjectSerializer().serialize(PhotoMetadata(takenAt=instant))
+        # A whole-second instant still carries the fixed .000 fraction and a
+        # numeric +00:00 offset (not `Z`, not fraction-less) on the wire.
+        assert '"takenAt":"2024-01-01T12:30:45.000+00:00"' in serialized
 
 
 class TestContainerDatetimeAwareDecodeRule:

@@ -76,10 +76,11 @@ import Testing
     let error = await #expect(throws: ConfigurationError.self) {
       _ = try await auth.authHeaders()
     }
-    guard case .invalidState? = error else {
+    guard case .invalidState(let message)? = error else {
       Issue.record("expected ConfigurationError.invalidState, got \(String(describing: error))")
       return
     }
+    #expect(message.contains("Must set the access token before making API requests"))
   }
 
   /* F-A5-04: a token that would inject a header is rejected with

@@ -71,6 +71,40 @@ export class BinaryVault {
    * A map of byte arrays; equality compares each value's contents.
    */
   @Expose({ name: "labels" })
+  /*
+   * 2.1 — map of `format: byte`. Each value round-trips Buffer <->
+   * base64 string at the serde boundary, mirroring the scalar/array byte
+   * fields. The @Transform sees the whole record, so map per value;
+   * non-object values pass through untouched.
+   */
+  @Transform(
+    ({ value }) =>
+      value != null && typeof value === "object" && !Array.isArray(value)
+        ? Object.fromEntries(
+            Object.entries(value as Record<string, unknown>).map(
+              ([__k, __v]) => [
+                __k,
+                typeof __v === "string" ? decodeBase64(__v) : __v,
+              ],
+            ),
+          )
+        : value,
+    { toClassOnly: true },
+  )
+  @Transform(
+    ({ value }) =>
+      value != null && typeof value === "object" && !Array.isArray(value)
+        ? Object.fromEntries(
+            Object.entries(value as Record<string, unknown>).map(
+              ([__k, __v]) => [
+                __k,
+                Buffer.isBuffer(__v) ? (__v as Buffer).toString("base64") : __v,
+              ],
+            ),
+          )
+        : value,
+    { toPlainOnly: true },
+  )
   labels?: { [key: string]: Buffer };
 
   constructor(data?: Partial<BinaryVault>) {

@@ -164,10 +164,7 @@ public class OAuth2TokenManager {
 
     StringJoiner body = new StringJoiner("&");
     for (Map.Entry<String, String> entry : params.entrySet()) {
-      body.add(
-          URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
-              + "="
-              + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
+      body.add(formEncode(entry.getKey()) + "=" + formEncode(entry.getValue()));
     }
 
     Map<String, String> headers = new HashMap<>();
@@ -234,6 +231,17 @@ public class OAuth2TokenManager {
       /* A 2xx answer whose body is not JSON is unusable. */
       throw new OAuth2TokenException("Token response is not valid JSON: " + e.getMessage(), e);
     }
+  }
+
+  /**
+   * Percent-encode an application/x-www-form-urlencoded token-request field.
+   *
+   * <p>A space stays '+' (the form convention). URLEncoder keeps '*' literal and escapes '~' to %7E
+   * — the reverse of the RFC 3986 unreserved set ({@code A-Za-z0-9-._~}) — so normalise both ('*'
+   * -> %2A, %7E -> '~') to emit byte-identical output across every SDK.
+   */
+  private static String formEncode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("*", "%2A").replace("%7E", "~");
   }
 
   /**

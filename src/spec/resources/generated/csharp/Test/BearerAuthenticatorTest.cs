@@ -65,9 +65,10 @@ public class BearerAuthenticatorTest
         // bearer-no-empty-token-guard: an empty/whitespace token would emit a
         // bare "Authorization: Bearer " header, sending the request
         // unauthenticated. It must be rejected like the api-key empty guard.
-        Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<ArgumentException>(() =>
             new BearerAuthenticator("https://api.example.com", "")
         );
+        Assert.Contains("Bearer token must not be empty", ex.Message);
     }
 
     [Fact]

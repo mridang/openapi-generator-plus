@@ -957,6 +957,45 @@ async fn test_unsupported_content_encoding_surfaces_api_error() {
     let _: &dyn {{errorPrefix}}Error = api_err;
 }
 
+/// Starts a server that returns a zero-byte body while still advertising
+/// `Content-Encoding: gzip`. Handles one connection then stops.
+fn start_empty_gzip_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            // Empty body under a gzip Content-Encoding: nothing to inflate.
+            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Encoding: gzip\r\nContent-Length: 0\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Gap AL: a zero-byte body declared `Content-Encoding: gzip` has nothing to
+/// inflate. The decompressor must return the empty body unchanged, never error
+/// on the absent gzip stream.
+#[tokio::test]
+async fn test_empty_gzip_body_passes_through_as_empty() {
+    let base_url = start_empty_gzip_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let resp = client
+        .send_request("GET", &format!("{}/empty-gzip", base_url), &headers, None)
+        .await
+        .expect("an empty gzip-declared body must not error");
+    assert_eq!(resp.status_code(), 200);
+    assert_eq!(resp.body(), "", "expected an empty body, got: {}", resp.body());
+}
+
 /// Gap: a body-read failure that happens AFTER response headers are received
 /// (here a truncated Content-Length response) must be wrapped in the uniform
 /// SDK NetworkError (statusCode 0), not surface as a raw reqwest::Error. Callers

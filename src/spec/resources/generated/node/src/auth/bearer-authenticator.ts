@@ -21,7 +21,7 @@ export class BearerAuthenticator extends BaseAuthenticator {
      * accepts, silently failing auth. Reject it up front to match the
      * api-key authenticator's own empty guard and the other SDKs. */
     if (token.trim().length === 0) {
-      throw new TypeError("Bearer token must not be empty or whitespace");
+      throw new TypeError("Bearer token must not be empty");
     }
     /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
      * Reject anything outside printable ASCII + TAB so callers see a
