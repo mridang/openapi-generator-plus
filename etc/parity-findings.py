@@ -4,6 +4,7 @@
   parity-findings.py import <journal.jsonl>   one-off: create the JSON from a sweep journal
   parity-findings.py render                   regenerate the markdown from the JSON
   parity-findings.py set <F001,F002,...> <status> [note]   record a status change
+  parity-findings.py show <F001,F002,...>     print full details of the given findings
 
 Statuses: open, fixed, false-positive, forced, duplicate, deferred.
 """
@@ -65,6 +66,24 @@ def do_set(ids, status, note):
     print("updated", n)
 
 
+def do_show(ids):
+    want = ids.split(",")
+    byid = {f["id"]: f for f in load()["findings"]}
+    for i in want:
+        f = byid.get(i)
+        if not f:
+            print("%s: not found" % i)
+            continue
+        print("=" * 78)
+        print("%s [%s] %s" % (f["id"], f["severity"], f["title"]))
+        print("status=%s lens=%s category=%s sdks=%s" % (f["status"], f["lens"], f.get("category"), ",".join(f.get("languages", []))))
+        print(f.get("description", "").strip())
+        if f.get("suspected_forced_reason"):
+            print("suspected forced: " + f["suspected_forced_reason"])
+        for ev in f.get("evidence") or []:
+            print("  - %s%s %s" % (ev.get("file"), (":%s" % ev["line"]) if ev.get("line") else "", (ev.get("quote") or "")[:300].replace("\n", " ")))
+
+
 def render():
     fs = load()["findings"]
     by_status = collections.Counter(f["status"] for f in fs)
@@ -106,6 +125,9 @@ if __name__ == "__main__":
         do_import(sys.argv[2])
     elif cmd == "set":
         do_set(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+    elif cmd == "show":
+        do_show(sys.argv[2])
+        sys.exit(0)
     elif cmd == "render":
         pass
     render()
