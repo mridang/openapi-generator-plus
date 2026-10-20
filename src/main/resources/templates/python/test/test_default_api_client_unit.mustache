@@ -1258,7 +1258,7 @@ class TestZstdDecompression:
     def test_frame_with_content_size_decodes(self) -> None:
         import zstandard
 
-        payload = b'{"id":7,"name":"doggie"}' * 100
+        payload = b'{"id":7,"name":"sample"}' * 100
         compressed = zstandard.ZstdCompressor().compress(payload)
 
         assert DefaultApiClient._decompress_body(compressed, "zstd") == payload

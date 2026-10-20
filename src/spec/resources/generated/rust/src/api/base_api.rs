@@ -643,10 +643,10 @@ mod tests {
     #[tokio::test]
     async fn test_string_result_xml_is_returned_verbatim() {
         assert_eq!(
-            string_result("<pet id=\"1\"/>", "application/xml")
+            string_result("<item id=\"1\"/>", "application/xml")
                 .await
                 .as_deref(),
-            Some("<pet id=\"1\"/>")
+            Some("<item id=\"1\"/>")
         );
     }
 

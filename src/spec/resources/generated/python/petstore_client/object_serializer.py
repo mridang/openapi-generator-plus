@@ -451,7 +451,7 @@ class ObjectSerializer:
             # The wire carries only the declared property names. Models also
             # accept the snake_case attribute name (populate_by_name, for
             # constructors), so a decode must opt out of that to keep a payload
-            # key such as ``photo_urls`` from populating ``photoUrls``.
+            # key such as ``snake_case_name`` from populating ``snakeCaseName``.
             return klass.model_validate(data, by_alias=True, by_name=False)
         elif klass is bytes:
             if isinstance(data, bytes):
