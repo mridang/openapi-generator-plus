@@ -1,0 +1,19 @@
+[
+{{#models}}{{#model}}  {
+    "name": "{{invokerPackage}}.models.{{classname}}",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  }{{#vars}}{{#isEnum}},
+  {
+    "name": "{{invokerPackage}}.models.{{classname}}${{enumName}}",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  }{{/isEnum}}{{/vars}}{{/model}}{{^-last}},
+{{/-last}}{{/models}}
+]

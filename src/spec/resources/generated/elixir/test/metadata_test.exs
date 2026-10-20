@@ -1,0 +1,111 @@
+defmodule PetstoreClient.Models.MetadataTest do
+  use ExUnit.Case, async: true
+
+  describe "typed additional properties" do
+    test "serializes empty metadata" do
+      metadata = %PetstoreClient.Models.Metadata{}
+      json = PetstoreClient.ObjectSerializer.serialize(metadata)
+
+      assert json != nil
+    end
+
+    test "deserializes empty object" do
+      metadata = PetstoreClient.ObjectSerializer.deserialize("{}", "Metadata")
+
+      assert metadata != nil
+    end
+
+    test "deserializes additional string properties" do
+      json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
+      metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
+
+      assert metadata != nil
+      assert %PetstoreClient.Models.Metadata{} = metadata
+    end
+
+    test "round-trip preserves known properties" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: "2024-01-01T00:00:00+00:00"
+      }
+
+      json = PetstoreClient.ObjectSerializer.serialize(metadata)
+      data = Jason.decode!(json)
+      assert data["createdAt"] != nil
+    end
+
+    test "captures undeclared keys into additional_properties" do
+      metadata =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"customField":"hello"}), "Metadata")
+
+      assert metadata.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "equality includes additional_properties" do
+      plain = %PetstoreClient.Models.Metadata{}
+
+      with_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      same_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      other_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "other"}
+      }
+
+      assert with_extra == same_extra
+      refute plain == with_extra
+      refute with_extra == other_extra
+    end
+
+    test "defines additional_properties function" do
+      assert PetstoreClient.Models.Metadata.additional_properties() == true
+    end
+  end
+
+  # L1 parity: a property whose schema example is the JSON null literal must
+  # not leak a useless `Example: null` / `@example null` doc line into the
+  # generated model. The Elixir model template only emits example doc lines
+  # from `vendorExtensions.pluralExamples` (rendered as `## <summary>` blocks),
+  # so the null-literal placeholder never appears; this asserts that contract
+  # holds across every generated model source rather than re-appearing as
+  # documentation noise. It is a parity assertion that should already pass and
+  # stay passing.
+  describe "generated model docblocks (L1 parity)" do
+    test ~s(no generated model carries a literal "Example: null" / "@example null" doc line) do
+      model_files =
+        Path.wildcard(Path.join([File.cwd!(), "lib", "**", "models", "*.ex"]))
+
+      assert model_files != []
+
+      for path <- model_files do
+        source = File.read!(path)
+        refute String.contains?(source, "Example: null"), "#{path} contains 'Example: null'"
+        refute String.contains?(source, "@example null"), "#{path} contains '@example null'"
+      end
+    end
+
+    # @deprecated is a function attribute and would land on the struct's own
+    # function, which nobody calls; the schema is marked in the module docs.
+    test "a deprecated schema is marked in its module docs, not on a function" do
+      {:docs_v1, _anno, _lang, _format, _moduledoc, metadata, _docs} =
+        Code.fetch_docs(PetstoreClient.Models.Tag)
+
+      assert metadata[:deprecated] == "This schema is deprecated."
+      assert PetstoreClient.Models.Tag.__info__(:deprecated) == []
+    end
+  end
+
+  # manifest-description-missing: the Hex package manifest must carry a
+  # non-empty description so the package does not publish with an empty
+  # description field.
+  describe "package manifest" do
+    test "mix project package metadata declares a non-empty description" do
+      description = PetstoreClient.MixProject.project()[:package][:description]
+      assert is_binary(description)
+      assert String.trim(description) != ""
+    end
+  end
+end

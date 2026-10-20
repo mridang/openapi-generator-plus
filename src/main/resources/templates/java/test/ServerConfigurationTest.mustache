@@ -1,0 +1,129 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ServerConfigurationTest {
+
+    @Test
+    void resolvesUrlTemplateUsingDefaultVariableValues() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com/v{version}",
+                        "primary server",
+                        Map.of(
+                                "env", new ServerVariable("prod", null, List.of("prod", "staging")),
+                                "version", new ServerVariable("1", null, List.of())));
+
+        assertEquals("https://prod.api.example.com/v1", config.getUrl());
+    }
+
+    @Test
+    void appliesOverridesAndFallsBackToDefaultsForUnsetVariables() {
+        // "env" is overridden, "version" is left to its default — the resolved
+        // URL must mix both.
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com/v{version}",
+                        null,
+                        Map.of(
+                                "env", new ServerVariable("prod", null, List.of("prod", "staging")),
+                                "version", new ServerVariable("1", null, List.of())));
+
+        assertEquals(
+                "https://staging.api.example.com/v1",
+                config.getUrl(Map.of("env", "staging")));
+    }
+
+    @Test
+    void exposesRawUrlTemplateAndDescription() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        "primary server",
+                        Map.of("env", new ServerVariable("prod", null, List.of())));
+
+        assertEquals("https://{env}.api.example.com", config.getUrlTemplate());
+        assertEquals("primary server", config.getDescription());
+    }
+
+    @Test
+    void rejectsOverrideValueOutsideTheVariableEnum() {
+        // server-variable-enum-validation: an override that is not in the
+        // variable's enum is rejected at resolution time.
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        null,
+                        Map.of(
+                                "env",
+                                new ServerVariable("prod", null, List.of("prod", "staging"))));
+
+        IllegalArgumentException ex = assertThrowsExactly(
+                IllegalArgumentException.class,
+                () -> config.getUrl(Map.of("env", "dev")));
+        // A server variable outside its enum is a caller mistake, not an SDK error.
+        assertFalse(((Object) ex) instanceof {{errorPrefix}}Exception);
+        assertEquals(
+                "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]",
+                ex.getMessage());
+    }
+
+    @Test
+    void rejectsADefaultValueOutsideTheVariableEnum() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        null,
+                        Map.of("env", new ServerVariable("dev", null, List.of("prod"))));
+
+        IllegalArgumentException ex =
+                assertThrowsExactly(IllegalArgumentException.class, config::getUrl);
+        assertEquals(
+                "Invalid value 'dev' for server variable 'env'. Allowed values: [prod]",
+                ex.getMessage());
+    }
+
+    @Test
+    void variableWithoutAnEnumAcceptsAnyOverride() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        null,
+                        Map.of("env", new ServerVariable("prod", null, List.of())));
+
+        assertEquals(
+                "https://anything-goes.api.example.com",
+                config.getUrl(Map.of("env", "anything-goes")));
+    }
+
+    @Test
+    void templateWithoutVariablesIsReturnedUnchanged() {
+        ServerConfiguration config =
+                new ServerConfiguration("https://api.example.com/v1", null, Map.of());
+
+        assertEquals("https://api.example.com/v1", config.getUrl());
+        assertEquals("https://api.example.com/v1", config.getUrl(Map.of("env", "staging")));
+    }
+
+    @Test
+    void substitutesEveryOccurrenceOfARepeatedVariable() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{region}.cdn.example.com/{region}/v1",
+                        null,
+                        Map.of("region", new ServerVariable("eu", null, List.of("eu", "us"))));
+
+        assertEquals("https://eu.cdn.example.com/eu/v1", config.getUrl());
+        assertEquals(
+                "https://us.cdn.example.com/us/v1", config.getUrl(Map.of("region", "us")));
+    }
+}

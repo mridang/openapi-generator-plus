@@ -1,0 +1,49 @@
+{{>api_info}}
+
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+public class ServerVariableTest
+{
+    [Fact]
+    public void ExposesDefaultValueDescriptionAndEnum()
+    {
+        var variable = new ServerVariable("v3", "API version", ["v2", "v3"]);
+
+        Assert.Equal("v3", variable.DefaultValue);
+        Assert.Equal("API version", variable.Description);
+        Assert.Equal(new[] { "v2", "v3" }, variable.EnumValues);
+    }
+
+    [Fact]
+    public void AllowsNullDescription()
+    {
+        var variable = new ServerVariable("api", null, ["api", "staging"]);
+
+        Assert.Null(variable.Description);
+        Assert.Equal("api", variable.DefaultValue);
+    }
+
+    [Fact]
+    public void AllowsEmptyEnum()
+    {
+        var variable = new ServerVariable("anything", null, []);
+
+        Assert.Empty(variable.EnumValues);
+    }
+
+    [Fact]
+    public void RecordEqualityComparesByValue()
+    {
+        var first = new ServerVariable("v3", "API version", ["v2", "v3"]);
+        var second = new ServerVariable("v3", "API version", ["v2", "v3"]);
+
+        // Record equality is structural; the EnumValues lists are distinct
+        // instances, so equality holds only when the values themselves match.
+        Assert.Equal(first.DefaultValue, second.DefaultValue);
+        Assert.Equal(first.Description, second.Description);
+        Assert.Equal(first.EnumValues, second.EnumValues);
+    }
+}

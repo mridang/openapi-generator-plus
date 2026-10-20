@@ -1,0 +1,15 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"strings"
+)
+
+/* replacePathParam substitutes a {name} placeholder in a path template with an
+ * already-styled-and-encoded value. The value is interpolated verbatim — path
+ * styling and percent-encoding (encodePathSegment / serializeStyled, which
+ * escape `/` to %2F and preserve the OAS sub-delimiters) are applied by the
+ * caller before this point, so this function must NOT re-encode. */
+func replacePathParam(path, name string, value string) string {
+	return strings.ReplaceAll(path, "{"+name+"}", value)
+}

@@ -1,0 +1,13 @@
+{{>api_info}}
+
+/// How OAuth2 client credentials (`client_id` / `client_secret`) are
+/// transmitted to the token endpoint per RFC 6749 §2.3.1.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ClientAuthMethod {
+    /// Send credentials as form parameters in the request body (default).
+    #[default]
+    Body,
+
+    /// Send credentials via HTTP Basic `Authorization` header.
+    Basic,
+}

@@ -1,0 +1,77 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth
+
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+
+class BasicAuthenticatorTest {
+
+    @Test
+    fun validCredentialsProduceBasicHeader() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers["Authorization"])
+    }
+
+    @Test
+    fun rejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret")
+        }
+    }
+
+    @Test
+    fun rejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "alice", "s3c\u0000ret")
+        }
+    }
+
+    @Test
+    fun rejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException::class.java) {
+            BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        }
+    }
+
+    // authenticator-secret-in-default-string-repr: the default toString()
+    // must never expose the stored password.
+    @Test
+    fun passwordIsNotLeakedInDefaultToString() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertFalse(auth.toString().contains("s3cret"))
+    }
+
+    @Test
+    fun redactsSecret() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        val rendered = auth.toString()
+        assertFalse(rendered.contains("s3cret"))
+        assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun nonAsciiCredentialsAreEncodedAsUtf8() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "ünïcødé", "pässwörd")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==", headers["Authorization"])
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals("BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+    }
+
+    @Test
+    fun generatedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() = runBlocking {
+        val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+        assertEquals("AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+        assertThrows(IllegalArgumentException::class.java) {
+            AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        }
+    }
+}

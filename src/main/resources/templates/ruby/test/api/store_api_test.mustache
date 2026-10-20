@@ -1,0 +1,347 @@
+# frozen_string_literal: true
+
+# Integration tests for the Store API endpoints.
+
+require 'test_helper'
+# The stdlib signature of TCPServer#initialize, (?String host, Integer port),
+# puts a required parameter after an optional one, which steep reads as a
+# single positional, so each TCPServer.new(host, port) below carries a
+# steep:ignore for that one diagnostic.
+require 'socket'
+
+describe {{moduleName}}::Api::StoreApi do
+  parallelize_me!
+
+  before do
+    @api = {{moduleName}}::Api::StoreApi.new(nil, TEST_CONFIGURATION)
+  end
+
+  # Starts a one-shot TCP server that records the real outgoing request line
+  # and headers (lower-cased names), then answers 200 with the given JSON
+  # +response_body+. The returned Queue receives one { request_line:, headers: }
+  # Hash.
+  def capture_wire_request(response_body)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      client = begin
+        server.accept
+      rescue StandardError
+        next
+      end
+      request_line = client.gets.to_s.strip
+      headers = {}
+      while (line = client.gets)
+        break if line.strip.empty?
+
+        name, value = line.split(':', 2)
+        headers[name.to_s.strip.downcase] = value.to_s.strip
+      end
+      captured << { request_line: request_line, headers: headers }
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
+      client.close
+    end
+    config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+    [{{moduleName}}::Api::StoreApi.new(nil, config), server, thread, captured]
+  end
+
+  describe '#get_inventory' do
+    it 'returns inventory' do
+      result = @api.get_inventory
+
+      _(result).must_be_kind_of(Hash)
+    end
+  end
+
+  describe '#place_order' do
+    it 'places an order' do
+      order = {{moduleName}}::Models::Order.new(
+        id: 1,
+        pet_id: 12_345,
+        quantity: 1,
+        ship_date: Time.now.utc.iso8601,
+        status: 'placed',
+        complete: false
+      )
+
+      result = @api.place_order(order)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+    end
+  end
+
+  describe '#get_inventory_with_http_info' do
+    it 'returns inventory with status and data' do
+      result = @api.get_inventory_with_http_info
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#place_order_with_http_info' do
+    it 'places an order with status and data' do
+      order = {{moduleName}}::Models::Order.new(
+        id: 1,
+        pet_id: 12_345,
+        quantity: 1,
+        ship_date: Time.now.utc.iso8601,
+        status: 'placed',
+        complete: false
+      )
+
+      result = @api.place_order_with_http_info(order)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#get_order_by_id' do
+    it 'returns an order by id' do
+      result = @api.get_order_by_id(1)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+    end
+  end
+
+  describe '#get_order_by_id_with_http_info' do
+    it 'returns an order by id with status and data' do
+      result = @api.get_order_by_id_with_http_info(1)
+
+      _(result).wont_be_nil
+      _(result.status_code).must_be :>=, 200
+      _(result.status_code).must_be :<, 300
+      _(result.data).wont_be_nil
+    end
+  end
+
+  describe '#delete_order' do
+    it 'deletes an order' do
+      @api.delete_order(1)
+    end
+  end
+
+  describe '#get_grouped_categories' do
+    def new_store_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::StoreApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    # Nested generic container: Array<Hash<String, Category>>. Every leaf must
+    # deserialize into a typed Category instance, not be left as a raw Hash.
+    it 'decodes nested container leaves into typed Category instances' do
+      body = '[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]'
+      api, server, thread = new_store_api_for_mock(200, 'application/json', body)
+      begin
+        result = api.get_grouped_categories
+
+        _(result).must_be_kind_of(Array)
+        _(result[0]['a']).must_be_kind_of({{moduleName}}::Models::Category)
+        _(result[0]['a'].id).must_equal(1)
+        _(result[0]['a'].name).must_equal('Dogs')
+        _(result[1]['b']).must_be_kind_of({{moduleName}}::Models::Category)
+        _(result[1]['b'].id).must_equal(2)
+        _(result[1]['b'].name).must_equal('Cats')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'error handling' do
+    def new_store_api_for_mock(status, content_type, body)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = begin
+            server.accept
+          rescue StandardError
+            break
+          end
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = {{moduleName}}::Api::StoreApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    it 'raises error on get_order_by_id 404' do
+      api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
+      begin
+        _(-> { api.get_order_by_id(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on place_order 500' do
+      api, server, thread = new_store_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
+      begin
+        order = {{moduleName}}::Models::Order.new(
+          id: 1,
+          pet_id: 12_345,
+          quantity: 1,
+          status: 'placed',
+          complete: false
+        )
+        _(-> { api.place_order(order) }).must_raise {{moduleName}}::Errors::InternalServerError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on delete_order 404' do
+      api, server, thread = new_store_api_for_mock(404, 'application/json', '{"message":"Order not found"}')
+      begin
+        _(-> { api.delete_order(99_999) }).must_raise {{moduleName}}::Errors::NotFoundError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'YARD doc comments' do
+    # The contiguous '#' block directly above 'def get_stock_item(': YARD and RDoc
+    # attach nothing that sits above a blank line.
+    def doc_block(name)
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      lines = File.readlines(File.join(root, 'lib', '{{modulePath}}', 'api', 'store_api.rb'))
+      index = lines.index { |line| line.lstrip.start_with?("def #{name}(") }
+      lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
+    end
+
+    it 'keeps the summary and the options param attached to get_stock_item' do
+      block = doc_block('get_stock_item')
+      _(block.first).must_equal '# Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.'
+      _(block.grep(/\A# @param options \[GetStockItemOptions\]/).size).must_equal 1
+      _(block).must_include '# @raise [ApiError] if fails to make API call'
+    end
+  end
+
+  # A named-enum ($ref) parameter goes on the wire as its value, never as the
+  # language's representation of the constant.
+  describe '#get_by_swatch' do
+    it 'sends the enum value in the path, the query and the header' do
+      api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
+      begin
+        swatch = {{moduleName}}::Models::Swatch
+        # The options are typed as the enum class, while the values passed are
+        # its string constants, which is what goes on the wire.
+        options = {{moduleName}}::Api::Options::GetBySwatchOptions.new(
+          query_swatch: swatch::GREEN, preferred_swatch: swatch::BLUE # steep:ignore ArgumentTypeMismatch
+        )
+        api.get_by_swatch(swatch::RED, options)
+        request = captured.pop
+
+        _(request[:request_line]).must_equal 'GET /store/by-swatch/red?querySwatch=green HTTP/1.1'
+        _(request[:headers]['preferred-swatch']).must_equal 'blue'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'omits the optional query and header when they are not given' do
+      api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
+      begin
+        api.get_by_swatch({{moduleName}}::Models::Swatch::BLUE)
+        request = captured.pop
+
+        _(request[:request_line]).must_equal 'GET /store/by-swatch/blue HTTP/1.1'
+        _(request[:headers]).wont_include 'preferred-swatch'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'nested container responses' do
+    it 'decodes Array<Array<Integer>> from get_matrix' do
+      api, server, thread, = capture_wire_request('[[1,2],[3]]')
+      begin
+        _(api.get_matrix).must_equal [[1, 2], [3]]
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes Array<Hash<String, Swatch>> from get_swatch_groups' do
+      api, server, thread, = capture_wire_request('[{"a":"red"},{"b":"blue"}]')
+      begin
+        _(api.get_swatch_groups).must_equal [{ 'a' => 'red' }, { 'b' => 'blue' }]
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes Array<Hash<String, Time>> from get_timestamp_groups into Time values' do
+      api, server, thread, = capture_wire_request('[{"t":"2024-01-01T00:00:00Z"}]')
+      begin
+        result = api.get_timestamp_groups
+
+        _(result.first['t']).must_be_kind_of Time
+        _(result.first['t'].utc.iso8601).must_equal '2024-01-01T00:00:00Z'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes a top-level enum from get_swatch' do
+      api, server, thread, = capture_wire_request('"red"')
+      begin
+        _(api.get_swatch).must_equal 'red'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+end

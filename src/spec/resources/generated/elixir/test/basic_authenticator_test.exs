@@ -1,0 +1,135 @@
+defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
+  use ExUnit.Case, async: true
+
+  alias PetstoreClient.Auth.ApiKeyAuthenticator
+  alias PetstoreClient.Auth.BasicAuthenticator
+  alias PetstoreClient.Auth.BearerAuthenticator
+
+  describe "BasicAuthenticator" do
+    test "valid credentials produce basic header" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+      headers = BasicAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
+    end
+
+    test "non-ASCII credentials are encoded as UTF-8" do
+      auth = BasicAuthenticator.new("https://api.example.com", "ünïcødé", "pässwörd")
+      headers = BasicAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
+    end
+
+    test "a password may contain a colon" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3:cret")
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:s3:cret")
+    end
+
+    test "rejects each invalid credential with its own message" do
+      assert_raise ArgumentError,
+                   "Basic auth username must not contain CR, LF, or NUL characters",
+                   fn ->
+                     BasicAuthenticator.new("https://api.example.com", "ali\nce", "s3cret")
+                   end
+
+      assert_raise ArgumentError,
+                   "Basic auth username must not contain ':' (RFC 7617 §2)",
+                   fn -> BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret") end
+
+      assert_raise ArgumentError,
+                   "Basic auth password must not contain CR, LF, or NUL characters",
+                   fn ->
+                     BasicAuthenticator.new("https://api.example.com", "alice", "s3c\rret")
+                   end
+    end
+
+    test "rejects username with crlf at construction" do
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
+      end
+    end
+
+    test "rejects password with nul at construction" do
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.new("https://api.example.com", "alice", "s3c\0ret")
+      end
+    end
+
+    test "rejects username with colon at construction" do
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret")
+      end
+    end
+
+    test "redacts the secret" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+
+      refute inspect(auth) =~ "s3cret"
+    end
+  end
+
+  # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
+  # rejected at construction, not silently emit `Authorization: Bearer `.
+  describe "BearerAuthenticator empty-token guard" do
+    test "valid token produces bearer header" do
+      auth = BearerAuthenticator.new("https://api.example.com", "abc123")
+      headers = BearerAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Bearer abc123"
+    end
+
+    test "rejects empty token" do
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", "")
+      end
+    end
+
+    test "rejects whitespace-only token" do
+      assert_raise ArgumentError, fn ->
+        BearerAuthenticator.new("https://api.example.com", "   ")
+      end
+    end
+  end
+
+  # authenticator-secret-in-default-string-repr: the secret must never
+  # appear in the authenticator's default Inspect representation.
+  describe "secret redaction in default inspect" do
+    test "bearer token is not leaked by inspect/1" do
+      auth =
+        BearerAuthenticator.new("https://api.example.com", "super-secret-token")
+
+      refute inspect(auth) =~ "super-secret-token"
+      assert inspect(auth) =~ "api.example.com"
+    end
+
+    test "basic auth password is not leaked by inspect/1" do
+      auth =
+        BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
+
+      refute inspect(auth) =~ "super-secret-pw"
+      assert inspect(auth) =~ "alice"
+      assert inspect(auth) =~ ~s(password: "***")
+    end
+
+    test "basic auth repr shows the host and username and masks only the password" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      assert inspect(auth) =~ ~s(username: "alice")
+      assert inspect(auth) =~ ~s(password: "***")
+    end
+
+    test "api key is not leaked by inspect/1" do
+      auth =
+        ApiKeyAuthenticator.new(
+          "https://api.example.com",
+          "X-Api-Key",
+          "super-secret-key",
+          :header
+        )
+
+      refute inspect(auth) =~ "super-secret-key"
+      assert inspect(auth) =~ ~s(key_param_name: "X-Api-Key")
+      assert inspect(auth) =~ "location: :header"
+    end
+  end
+end

@@ -1,0 +1,380 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth.OAuth;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Xunit;
+
+namespace Test;
+
+public class OAuth2AuthorizationCodeAuthenticatorTest
+{
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly Queue<ApiHttpResponse> _responses = new();
+
+        public void Enqueue(string body, int statusCode = 200)
+        {
+            _responses.Enqueue(new ApiHttpResponse(statusCode, body, new Dictionary<string, string>()));
+        }
+
+        public string? LastBody { get; private set; }
+        public Uri? LastUrl { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
+    private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticator()
+    {
+        return new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+    }
+
+    [Fact]
+    public void TokenExchangedFieldIsVolatile()
+    {
+        FieldInfo field = typeof(OAuth2AuthorizationCodeAuthenticator).GetField(
+            "_tokenExchanged", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithRequiredParams()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl();
+
+        string urlStr = url.ToString();
+        Assert.Contains("response_type=code", urlStr);
+        Assert.Contains("client_id=my-client-id", urlStr);
+        Assert.Contains("redirect_uri=", urlStr);
+        Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithState()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl("csrf-state-123");
+
+        Assert.Contains("state=csrf-state-123", url.ToString());
+    }
+
+    [Fact]
+    public async Task ExchangesCodeWithCorrectGrantType()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.NotNull(client.LastBody);
+        Assert.Contains("grant_type=authorization_code", client.LastBody!);
+        Assert.Contains("code=auth-code-xyz", client.LastBody!);
+        Assert.Contains("client_id=my-client-id", client.LastBody!);
+        Assert.Contains("client_secret=my-client-secret", client.LastBody!);
+    }
+
+    [Fact]
+    public async Task ExchangeCodeRejectsEmptyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: an empty/whitespace
+        // authorization code is a precondition error and must be rejected
+        // before any token POST is issued.
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync(""));
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // No request should have been sent for the rejected codes.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
+    public async Task ExchangeCodeRejectsWhitespaceOnlyCode()
+    {
+        // oauth-exchangecode-no-empty-code-guard: a whitespace-only code is
+        // distinct from the empty-string case and must also be rejected before
+        // any token POST is issued (IsNullOrWhiteSpace guard).
+        var client = new FakeApiClient();
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => auth.ExchangeCodeAsync("   "));
+        // No request should have been sent for the rejected code.
+        Assert.Null(client.LastBody);
+    }
+
+    [Fact]
+    public async Task IncludesRefreshTokenOnRefresh()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        // GetAuthHeadersAsync triggers a refresh since token is expired
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Contains("refresh_token=ref1", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task ThrowsBeforeExchangeCodeCalled()
+    {
+        var auth = CreateAuthenticator();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync());
+    }
+
+    [Fact]
+    public void GetHostReturnsConfiguredHost()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    [Fact]
+    public async Task auth_headers_before_exchange_returns_recoverable_error()
+    {
+        var auth = CreateAuthenticator();
+
+        // Calling GetAuthHeadersAsync before ExchangeCodeAsync is a
+        // precondition violation. It must surface as a catchable exception
+        // so callers can recover -- not as a process crash.
+        InvalidOperationException caught = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.GetAuthHeadersAsync());
+        Assert.NotNull(caught);
+
+        // Caller continues normally after catching -- no process crash.
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    [Fact]
+    public void AuthorizeUrlWithExistingQueryStringUsesAmpSeparator()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://x.auth0.com/authorize?audience=api"),
+            new Uri("https://x.auth0.com/oauth/token"),
+            new Uri("https://app.example.com/callback"),
+            new[] { "read" });
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains("audience=api", url);
+        Assert.Contains("response_type=code", url);
+        Assert.Equal(1, url.Split('?').Length - 1);
+    }
+
+    private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticatorWithRedirect(Uri redirect)
+    {
+        return new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            redirect,
+            Scopes);
+    }
+
+    /// <summary>
+    /// The redirect_uri must reach the authorize URL exactly as configured:
+    /// no trailing slash added to a host-only value, no default port dropped
+    /// and no host lower-casing (System.Uri.ToString() does all three).
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080&")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb&")]
+    public void AuthorizationUrlSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains(expected, url);
+    }
+
+    /// <summary>
+    /// The authorization endpoint must reach the authorize URL exactly as
+    /// configured: no default port dropped and no host lower-casing.
+    /// </summary>
+    [Fact]
+    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://Auth.Example.com:443/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=code&", url);
+    }
+
+    /// <summary>
+    /// The code-exchange body must carry the same verbatim redirect_uri as
+    /// the authorize URL, since the provider compares the two byte for byte.
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb")]
+    public async Task CodeExchangeSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.NotNull(client.LastBody);
+        Assert.Contains(expected, client.LastBody!);
+        Assert.DoesNotContain(expected + "%2F", client.LastBody!);
+    }
+
+    /// <summary>
+    /// ToString() must redact the client secret: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        string repr = auth.ToString();
+        Assert.DoesNotContain("my-client-secret", repr);
+        Assert.Contains("***", repr);
+    }
+
+    [Fact]
+    public void ReprShowsTheNonSecretFields()
+    {
+        var auth = CreateAuthenticator();
+        Assert.Equal(
+            "OAuth2AuthorizationCodeAuthenticator(Host=https://api.example.com, "
+            + "ClientId=my-client-id, ClientSecret=***, "
+            + "AuthorizationUrl=https://auth.example.com/authorize, "
+            + "TokenUrl=https://auth.example.com/token, "
+            + "RedirectUri=https://app.example.com/callback, Scopes=[read, write])",
+            auth.ToString());
+    }
+
+    [Fact]
+    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            new[] { "a~b", "c*d" });
+
+        string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
+
+        Assert.Contains("client_id=id~%2A%21%27%28%29&", url, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b%20c%2Ad", url, StringComparison.Ordinal);
+        Assert.Contains("state=s%21t%28a%29te%27", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CodeExchangeBodyPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "sec~*!'()",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("co~*!'()de");
+
+        Assert.Contains("code=co~%2A%21%27%28%29de", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_id=id~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_secret=sec~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes,
+            new Uri("https://auth.example.com/refresh"));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
+
+    [Fact]
+    public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
+}

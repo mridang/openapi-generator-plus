@@ -1,0 +1,10 @@
+# Every dev dependency an emitted test imports, one per line as
+# `<name> <version-range>  # <which test needs it>`. This file is
+# generator-owned and rewritten on every generation. It is the contract between
+# the generator and a client that keep-lists its own pubspec.yaml. Dart
+# resolves every import at compile time, so a missing entry here fails the
+# whole suite in `dart pub get`/`dart test` compilation rather than at run
+# time; there is no bootstrap that can run first and name this file.
+test ^1.25.0  # every file under test/
+testcontainers_core ^1.0.3  # test/testcontainers_helper.dart starts the mock server and the proxy
+opentelemetry ^0.18.11  # test/trace_context_util_test.dart

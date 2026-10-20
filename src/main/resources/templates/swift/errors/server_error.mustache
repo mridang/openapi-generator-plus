@@ -1,0 +1,5 @@
+{{>api_info}}
+import Foundation
+
+/// Error for HTTP 5xx server errors.
+public class ServerError: ApiError, @unchecked Sendable {}

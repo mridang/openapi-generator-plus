@@ -1,0 +1,164 @@
+import pytest
+
+from petstore_client.errors import OpenAPIException
+from petstore_client.server_configuration import ServerConfiguration, ServerVariable
+from petstore_client.servers import ALL
+
+
+class TestServerConfiguration:
+    def test_resolves_url_template_using_default_variable_values(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            description="primary server",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                ),
+                "version": ServerVariable(default_value="1"),
+            },
+        )
+
+        assert config.get_url() == "https://prod.api.example.com/v1"
+
+    def test_applies_overrides_and_falls_back_to_defaults_for_unset_variables(
+        self,
+    ) -> None:
+        # "env" is overridden, "version" is left to its default — the resolved
+        # URL must mix both.
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                ),
+                "version": ServerVariable(default_value="1"),
+            },
+        )
+
+        assert (
+            config.get_url({"env": "staging"}) == "https://staging.api.example.com/v1"
+        )
+
+    def test_exposes_raw_url_template_and_description(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            description="primary server",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.url_template == "https://{env}.api.example.com"
+        assert config.description == "primary server"
+
+    def test_rejects_override_value_outside_the_variable_enum(self) -> None:
+        # server-variable-enum-validation: an override that is not in the
+        # variable's enum is rejected at resolution time.
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                ),
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            config.get_url({"env": "dev"})
+        assert type(exc_info.value) is ValueError
+        assert not isinstance(exc_info.value, OpenAPIException)
+
+    def test_template_without_variables_is_returned_verbatim(self) -> None:
+        config = ServerConfiguration(url_template="https://api.example.com")
+
+        assert config.get_url() == "https://api.example.com"
+
+    def test_variables_cannot_be_changed_through_the_dict_they_were_built_from(
+        self,
+    ) -> None:
+        declared = {"env": ServerVariable(default_value="prod")}
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com", variables=declared
+        )
+
+        declared["extra"] = ServerVariable(default_value="x")
+
+        assert list(config.variables) == ["env"]
+
+    def test_variables_are_read_only(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        with pytest.raises(TypeError):
+            config.variables["env"] = ServerVariable(default_value="evil")  # type: ignore[index]
+
+
+class TestGeneratedServers:
+    def test_all_is_an_immutable_tuple(self) -> None:
+        assert isinstance(ALL, tuple)
+
+    def test_generated_server_variables_are_read_only_and_their_enums_immutable(
+        self,
+    ) -> None:
+        for server in ALL:
+            with pytest.raises(TypeError):
+                server.variables["injected"] = ServerVariable(default_value="x")  # type: ignore[index]
+            for variable in server.variables.values():
+                assert isinstance(variable.enum_values, tuple)
+
+
+class TestServerVariableResolution:
+    def test_variable_without_an_enum_accepts_any_override(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url({"env": "anything-goes"}) == (
+            "https://anything-goes.api.example.com"
+        )
+
+    def test_default_value_outside_the_enum_is_rejected(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="dev", enum_values=["prod", "staging"]
+                )
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            config.get_url()
+
+        assert str(exc_info.value) == (
+            "Invalid value 'dev' for server variable 'env'. "
+            "Allowed values: ('prod', 'staging')"
+        )
+
+    def test_rejection_names_the_value_the_variable_and_the_allowed_values(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "version": ServerVariable(default_value="1", enum_values=["1", "2"]),
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            config.get_url({"version": "3"})
+
+        assert str(exc_info.value) == (
+            "Invalid value '3' for server variable 'version'. "
+            "Allowed values: ('1', '2')"
+        )
+
+    def test_a_variable_repeated_in_the_template_is_replaced_everywhere(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.a.example.com/{region}/v1",
+            variables={"region": ServerVariable(default_value="eu")},
+        )
+
+        assert config.get_url({"region": "us"}) == "https://us.a.example.com/us/v1"

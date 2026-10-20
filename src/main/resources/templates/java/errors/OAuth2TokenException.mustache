@@ -1,0 +1,37 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+/**
+ * Thrown when the OAuth2 token endpoint returns a 2xx response that cannot
+ * be used: a body that is not a JSON object, or one whose {@code
+ * access_token} field is missing or empty. Distinct from {@link
+ * OAuth2ServerException} (which represents any non-2xx answer) so callers
+ * can recover differently — typically a malformed-server-response bug needs
+ * operator attention rather than a client-side retry.
+ */
+{{! The OAuth2 acronym is the protocol's own name. }}
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+public class OAuth2TokenException extends {{errorPrefix}}Exception {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates a token error with the given detail message.
+     *
+     * @param message the detail message
+     */
+    public OAuth2TokenException(String message) {
+        super(message);
+    }
+
+    /**
+     * Creates a token error with the given detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause   the underlying failure
+     */
+    public OAuth2TokenException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

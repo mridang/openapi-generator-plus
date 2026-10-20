@@ -1,0 +1,47 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "src/PetstoreClient",
+          "files": [
+            "**/*.csproj"
+          ]
+        }
+      ],
+      "dest": "api",
+      "properties": {
+        "TargetFramework": "net8.0"
+      },
+      "disableGitFeatures": true,
+      "disableDefaultFilter": false
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**.{md,yml}",
+          "toc.yml",
+          "index.md"
+        ]
+      }
+    ],
+    "globalMetadata": {
+      "_appTitle": "Swagger Petstore - OpenAPI 3.0 API Documentation",
+      "_appName": "PetstoreClient",
+      "_enableSearch": true,
+      "_disableContribution": true
+    },
+    "dest": ".out/docs",
+    "globalMetadataFiles": [],
+    "fileMetadataFiles": [],
+    "template": [
+      "default",
+      "modern"
+    ],
+    "postProcessors": [],
+    "keepFileLink": false,
+    "disableGitFeatures": true
+  }
+}

@@ -1,0 +1,104 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('BearerAuthenticator', () {
+    test('raw token is prefixed with Bearer', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      final headers = auth.authHeaders();
+      expect(headers['Authorization'], equals('Bearer xyz'));
+    });
+
+    test('rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message, 'message', contains('Bearer token must not be empty'))),
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('redacts the token in toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored token.
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz');
+      expect(auth.toString(), isNot(contains('xyz')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+
+  group('BearerAuthenticator prefix handling', () {
+    for (final token in ['Bearer xyz', 'bearer xyz', 'BEARER xyz', 'BeArEr xyz']) {
+      test('"$token" is not prefixed twice', () {
+        final auth = BearerAuthenticator(host: '{{{basePath}}}', token: token);
+
+        expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+      });
+    }
+
+    test('a token that merely begins with the word bearer is kept whole', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'bearerxyz');
+
+      expect(
+        auth.authHeaders(),
+        equals({'Authorization': 'Bearer bearerxyz'}),
+      );
+    });
+
+    test('the redacted repr shows the host and masks the token', () {
+      expect(
+        BearerAuthenticator(host: '{{{basePath}}}', token: 'xyz').toString(),
+        equals('BearerAuthenticator(host: {{{basePath}}}, token: ***)'),
+      );
+    });
+  });
+
+  group('BearerAuthenticator scheme wrappers', () {
+    final builders = <String, BearerAuthenticator Function(String)>{
+      'ServiceTokenAuthenticator': (token) =>
+          ServiceTokenAuthenticator(host: '{{{basePath}}}', token: token),
+      'PetStoreBearerAuthenticator': (token) =>
+          PetStoreBearerAuthenticator(host: '{{{basePath}}}', token: token),
+    };
+
+    builders.forEach((name, build) {
+      test('$name sends the token as a Bearer header', () {
+        expect(
+          build('xyz').authHeaders(),
+          equals({'Authorization': 'Bearer xyz'}),
+        );
+      });
+
+      test('$name rejects an empty token at construction', () {
+        expect(() => build(''), throwsArgumentError);
+      });
+
+      test('$name prints its own name with the token masked', () {
+        expect(
+          build('xyz').toString(),
+          equals('$name(host: {{{basePath}}}, token: ***)'),
+        );
+      });
+    });
+  });
+}
+{{/generateTests}}

@@ -1,0 +1,42 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+{{#imports}}
+require_relative '{{.}}'
+{{/imports}}
+
+module {{moduleName}}
+  module Auth
+{{#isOAuth}}
+    module OAuth
+      # Scheme-specific authenticator for the {{schemeName}} security scheme.
+      class {{className}} < {{baseClass}}
+{{#hasCustomConstructor}}
+        def initialize({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}})
+          super(
+            {{#superArgs}}
+            {{.}}{{^-last}},{{/-last}}
+            {{/superArgs}}
+          )
+        end
+{{/hasCustomConstructor}}
+      end
+    end
+{{/isOAuth}}
+{{^isOAuth}}
+    # Scheme-specific authenticator for the {{schemeName}} security scheme.
+    class {{className}} < {{baseClass}}
+{{#hasCustomConstructor}}
+      def initialize({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}})
+        super(
+          {{#superArgs}}
+          {{.}}{{^-last}},{{/-last}}
+          {{/superArgs}}
+        )
+      end
+{{/hasCustomConstructor}}
+    end
+{{/isOAuth}}
+  end
+end

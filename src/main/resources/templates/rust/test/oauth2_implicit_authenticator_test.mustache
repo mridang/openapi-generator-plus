@@ -1,0 +1,157 @@
+{{>api_info}}
+
+use {{packageName}}::auth::oauth::{BrowserAuthImplicitAuthenticator, OAuth2ImplicitAuthenticator};
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::ConfigurationError;
+
+fn create_authenticator() -> OAuth2ImplicitAuthenticator {
+    OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        vec!["read".to_string(), "write".to_string()],
+    )
+}
+
+#[test]
+fn test_builds_authorization_url_with_response_type_token() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    assert!(url.contains("response_type=token"));
+}
+
+#[test]
+fn test_builds_authorization_url_with_client_id() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("client_id=my-client-id"));
+}
+
+#[test]
+fn test_builds_authorization_url_with_scopes() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("&scope=read%20write"), "authorization url: {}", url);
+}
+
+/// The authorization URL writes a space as `%20` and encodes every character
+/// outside `-._~` in the scope and the state.
+#[test]
+fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
+    let auth = OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        vec!["a~b".to_string(), "c*d!e'f(g)".to_string()],
+    );
+
+    let url = auth.build_authorization_url("st~*!'()");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"scope=a~b%20c%2Ad%21e%27f%28g%29"), "{}", url);
+    assert!(pairs.contains(&"state=st~%2A%21%27%28%29"), "{}", url);
+}
+
+#[test]
+fn test_builds_authorization_url_with_state() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("my-state");
+
+    assert!(url.contains("state=my-state"));
+}
+
+#[tokio::test]
+async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
+    let auth = create_authenticator();
+    auth.set_access_token("implicit-tok").unwrap();
+
+    let headers = auth.auth_headers().await;
+
+    assert_eq!("Bearer implicit-tok", headers.get("Authorization").unwrap());
+}
+
+/// A request made before `set_access_token` is a wrong call order:
+/// `try_auth_headers` (which the API client calls) returns
+/// `ConfigurationError::InvalidState`, never a panic, and `auth_headers`
+/// degrades to an empty map.
+#[tokio::test]
+async fn test_try_auth_headers_before_set_access_token_is_invalid_state() {
+    let auth = create_authenticator();
+    let err = auth.try_auth_headers().await.expect_err("expected an error before set_access_token");
+    match err.downcast_ref::<ConfigurationError>() {
+        Some(ConfigurationError::InvalidState(reason)) => {
+            assert!(reason.contains("Must set the access token before making API requests"), "{}", reason)
+        }
+        other => panic!("expected ConfigurationError::InvalidState, got {:?}", other),
+    }
+    assert!(auth.auth_headers().await.is_empty());
+}
+
+/// F-A5-04: a token that would inject a header is rejected with
+/// `ConfigurationError::InvalidArgument`, never a panic, and is not stored.
+#[tokio::test]
+async fn test_set_access_token_rejects_invalid_token() {
+    let auth = create_authenticator();
+    for token in ["tok\r\nInjected: yes", "ñoño", "tok\0"] {
+        assert!(
+            matches!(auth.set_access_token(token), Err(ConfigurationError::InvalidArgument(_))),
+            "expected InvalidArgument for {:?}",
+            token
+        );
+    }
+    assert!(auth.try_auth_headers().await.is_err());
+}
+
+#[test]
+fn test_get_host_returns_configured_host() {
+    let auth = create_authenticator();
+    assert_eq!("https://api.example.com", auth.host());
+}
+
+#[test]
+fn redacts_secret() {
+    let auth = create_authenticator();
+    auth.set_access_token("implicit-tok").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("implicit-tok"));
+    assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+    let auth = BrowserAuthImplicitAuthenticator::new("https://api.example.com", "id");
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&']).any(|pair| pair == "scope=read"),
+        "authorization url: {}",
+        url
+    );
+}
+
+/// The redacted representation shows every non-secret field and masks the
+/// access token once it is set.
+#[test]
+fn test_redacted_representation_shows_the_non_secret_fields() {
+    let auth = create_authenticator();
+    let before = format!("{:?}", auth);
+    assert!(before.starts_with("OAuth2ImplicitAuthenticator { host: \"https://api.example.com\", "), "{}", before);
+    assert!(before.contains("client_id: \"my-client-id\""), "{}", before);
+    assert!(before.contains("authorization_url: \"https://auth.example.com/authorize\""), "{}", before);
+    assert!(before.contains("scopes: [\"read\", \"write\"]"), "{}", before);
+    assert!(before.contains("access_token: None"), "{}", before);
+
+    auth.set_access_token("implicit-tok").unwrap();
+    let after = format!("{:?}", auth);
+    assert!(after.contains("access_token: Some(\"***\")"), "{}", after);
+}

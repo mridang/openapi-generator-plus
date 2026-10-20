@@ -1,0 +1,106 @@
+{{>api_info}}
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\BasicAuthenticator;
+
+test('valid credentials produce basic header', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    $headers = $auth->getAuthHeaders();
+    expect($headers['Authorization'])->toBe('Basic YWxpY2U6czNjcmV0');
+});
+
+test('rejects username with crlf at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('rejects password with nul at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'alice', "s3c\0ret"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('rejects username with colon at construction', function (): void {
+    expect(fn () => new BasicAuthenticator('https://api.example.com', 'ali:ce', 's3cret'))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('password is masked in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the password never leaks through a stray dump or
+     * an exception/stack-trace log. */
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('s3cret');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+    // Username is non-secret and should still be visible for debugging.
+    expect($printR)->toContain('alice');
+});
+/**
+ * Asserts that the password never leaks through print_r()'s use of
+ * __debugInfo(): the literal secret is absent and the masked '***'
+ * placeholder is present.
+ */
+test('print_r() redacts the secret and shows ***', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+});
+
+test('secret constructor parameters are marked sensitive', function (): void {
+    $sensitive = [];
+    foreach ((new \ReflectionMethod(BasicAuthenticator::class, '__construct'))->getParameters() as $param) {
+        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+            $sensitive[] = $param->getName();
+        }
+    }
+    expect($sensitive)->toBe(['password']);
+});
+
+test('non ascii credentials are encoded as utf 8 bytes', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'ünïcødé', 'pässwörd');
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==');
+});
+
+test('debug output keeps the host and username and masks only the password', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[username] => alice');
+    expect($printR)->toContain('[password] => ***');
+});
+
+test('every generated basic wrapper sends the basic header and masks the password', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BasicAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-user', 'wrapper-pass');
+        expect($auth->getAuthHeaders())
+            ->toBe(['Authorization' => 'Basic ' . base64_encode('wrapper-user:wrapper-pass')]);
+        expect(print_r($auth, true))->not->toContain('wrapper-pass');
+        expect(fn () => $reflection->newInstance('https://api.example.com', 'bad:user', 'wrapper-pass'))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});

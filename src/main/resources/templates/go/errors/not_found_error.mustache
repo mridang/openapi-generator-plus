@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// NotFoundError is the error for HTTP 404 Not Found.
+type NotFoundError struct {
+	ClientError
+}
