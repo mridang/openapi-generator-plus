@@ -1213,6 +1213,32 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("binary return type with no Content-Type reads the text body as bytes")
+    void binaryReturnTypeWithoutContentTypeReadsTextBody() throws ApiException {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(200, "hello", Map.of());
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      byte[] result =
+          testApi.call(
+              "GET",
+              "/api/binary",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/octet-stream"},
+              "application/json",
+              byte[].class,
+              null);
+      assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), result);
+    }
+
+    @Test
     @DisplayName("octet-stream base64 body decodes to correct bytes (transport-level)")
     void octetStreamBase64DecodesToCorrectBytes() throws ApiException {
       // AP9C is base64 for [0x00, 0xFF, 0x42]

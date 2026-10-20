@@ -378,6 +378,23 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("decoded date-time keeps the offset it carried on the wire")
+    void decodedDateTimeKeepsOffset() {
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              "{\"shipDate\":\"2024-01-01T10:00:00+05:30\"}",
+              com.example.petstore.models.Order.class);
+      assertNotNull(order);
+      OffsetDateTime shipDate = order.shipDate;
+      assertNotNull(shipDate);
+      assertEquals(ZoneOffset.ofHoursMinutes(5, 30), shipDate.getOffset());
+      String json = serializer.serialize(order);
+      assertTrue(
+          json.contains("\"shipDate\":\"2024-01-01T10:00:00.000+05:30\""),
+          "re-encoded offset must survive: " + json);
+    }
+
+    @Test
     @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
     void roundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
@@ -553,6 +570,85 @@ class ObjectSerializerTest {
                       com.example.petstore.models.Order>() {}.getType()));
     }
 
+    private void assertCoercionRejected(String json, Class<?> target, String received) {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class, () -> serializer.deserialize(json, target));
+      com.fasterxml.jackson.databind.exc.MismatchedInputException cause =
+          assertInstanceOf(
+              com.fasterxml.jackson.databind.exc.MismatchedInputException.class, ex.getCause());
+      String message = java.util.Objects.requireNonNull(cause.getMessage());
+      assertTrue(
+          message.startsWith("Cannot coerce " + received),
+          "unexpected coercion message: " + message);
+    }
+
+    @Test
+    @DisplayName("fractional number for an integer field throws instead of truncating")
+    void fractionalNumberForLongFieldThrows() {
+      assertCoercionRejected(
+          "{\"id\":1.9}", com.example.petstore.models.Order.class, "Floating-point value (1.9)");
+    }
+
+    @Test
+    @DisplayName("fractional number for an int32 field throws instead of truncating")
+    void fractionalNumberForIntFieldThrows() {
+      assertCoercionRejected(
+          "{\"quantity\":7.5}",
+          com.example.petstore.models.Order.class,
+          "Floating-point value (7.5)");
+    }
+
+    @Test
+    @DisplayName("integral float literal for an integer field throws")
+    void integralFloatForLongFieldThrows() {
+      assertCoercionRejected(
+          "{\"id\":1.0}", com.example.petstore.models.Order.class, "Floating-point value (1.0)");
+    }
+
+    @Test
+    @DisplayName("exponent literal for an integer field throws")
+    void exponentLiteralForLongFieldThrows() {
+      assertCoercionRejected(
+          "{\"id\":1e2}", com.example.petstore.models.Order.class, "Floating-point value (1e2)");
+    }
+
+    @Test
+    @DisplayName("integer number for a string field throws instead of becoming text")
+    void integerForStringFieldThrows() {
+      assertCoercionRejected(
+          "{\"name\":5}", com.example.petstore.models.Category.class, "Integer value (5)");
+    }
+
+    @Test
+    @DisplayName("fractional number for a string field throws instead of becoming text")
+    void floatForStringFieldThrows() {
+      assertCoercionRejected(
+          "{\"name\":1.5}", com.example.petstore.models.Category.class, "Float value (1.5)");
+    }
+
+    @Test
+    @DisplayName("boolean for a string field throws instead of becoming text")
+    void booleanForStringFieldThrows() {
+      assertCoercionRejected(
+          "{\"name\":true}", com.example.petstore.models.Category.class, "Boolean value (true)");
+    }
+
+    @Test
+    @DisplayName("whole numbers and quoted strings still decode into their own field types")
+    void matchingScalarTypesStillDecode() {
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              "{\"id\":9007199254740993,\"quantity\":3}", com.example.petstore.models.Order.class);
+      assertNotNull(order);
+      assertEquals(9007199254740993L, order.id);
+      assertEquals(3, order.quantity);
+      com.example.petstore.models.Category category =
+          serializer.deserialize("{\"name\":\"5\"}", com.example.petstore.models.Category.class);
+      assertNotNull(category);
+      assertEquals("5", category.name);
+    }
+
     @Test
     @DisplayName("JSON null on a required non-nullable field throws (Gap AJ)")
     void nullOnRequiredFieldThrows() {
@@ -621,6 +717,30 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("optional array fields the caller never set are not sent")
+    void unsetOptionalArraysAreNotSent() {
+      com.example.petstore.models.Pet pet =
+          new com.example.petstore.models.Pet(
+              "doggie", new java.util.LinkedHashSet<>(List.of("u")));
+      assertNull(pet.tags);
+      assertNull(pet.location);
+      String json = serializer.serialize(pet);
+      assertFalse(json.contains("\"tags\""), "unset tags must be omitted, got: " + json);
+      assertFalse(json.contains("\"location\""), "unset location must be omitted, got: " + json);
+      assertTrue(
+          json.contains("\"photoUrls\":[\"u\"]"), "required photoUrls must be sent, got: " + json);
+    }
+
+    @Test
+    @DisplayName("optional array and map fields start null, not empty")
+    void optionalContainersStartNull() {
+      com.example.petstore.models.BinaryVault vault = new com.example.petstore.models.BinaryVault();
+      assertNull(vault.shards);
+      assertNull(vault.labels);
+      assertEquals("{}", serializer.serialize(vault));
+    }
+
+    @Test
     @DisplayName("omits fields that are null from JSON output")
     void omitsNullFieldsFromJson() {
       // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
@@ -638,6 +758,28 @@ class ObjectSerializerTest {
   @Nested
   @DisplayName("deserialize")
   class DeserializeTests {
+
+    @Test
+    @DisplayName("absent optional array decodes to null, not an empty list")
+    void absentOptionalArrayDecodesToNull() {
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(
+              "{\"name\":\"x\",\"photoUrls\":[]}", com.example.petstore.models.Pet.class);
+      assertNotNull(pet);
+      assertNull(pet.tags);
+      assertNull(pet.location);
+    }
+
+    @Test
+    @DisplayName("explicit empty optional array decodes to an empty list")
+    void explicitEmptyOptionalArrayDecodesToEmptyList() {
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(
+              "{\"name\":\"x\",\"photoUrls\":[],\"tags\":[]}",
+              com.example.petstore.models.Pet.class);
+      assertNotNull(pet);
+      assertEquals(List.of(), pet.tags);
+    }
 
     @Test
     @DisplayName("deserializes JSON to typed model")

@@ -537,6 +537,33 @@ class PetApiTest {
     }
 
     @Test
+    /* Passing null for a required Options object is the violation under test;
+     * NullAway forbids it by design, so it is suppressed on this one method. */
+    @SuppressWarnings("NullAway")
+    void nullRequiredOptionsNamesTheFirstRequiredField() {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        assertThatThrownBy(() -> petApi.addPetPhotos(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'files' when calling PetApi.addPetPhotos");
+        assertThatThrownBy(() -> petApi.getPetByName("Rex", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'category' when calling PetApi.getPetByName");
+        assertThatThrownBy(() -> petApi.setPetPreferences(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'nickname' when calling PetApi.setPetPreferences");
+        assertThatThrownBy(() -> petApi.uploadPetCertificate(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'file' when calling PetApi.uploadPetCertificate");
+        assertThatThrownBy(() -> petApi.uploadPetDocument(1L, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'file' when calling PetApi.uploadPetDocument");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
     void getPetByNameEmptyRequiredStringQueryParamThrows() throws Exception {
         // Parity with go/rust/swift/elixir: a required STRING param that is the
         // empty string "" is treated as absent and must fail client-side with

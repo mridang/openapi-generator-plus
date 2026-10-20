@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
+import com.example.petstore.errors.OAuth2ServerException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -113,6 +114,35 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     assertTrue(body.contains("grant_type=refresh_token"));
     assertTrue(body.contains("refresh_token=rt"));
     assertEquals("Bearer at2", headers.get("Authorization"));
+  }
+
+  @Test
+  void expiredTokenWithoutRefreshTokenSurfacesTheServerError() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    var calls =
+        new Object() {
+          int count = 0;
+        };
+    ApiClient client =
+        (method, url, headers, body) -> {
+          calls.count++;
+          capturedBody.set(body != null ? body.toString() : "");
+          if (calls.count == 1) {
+            return new ApiHttpResponse(200, "{\"access_token\":\"at\",\"expires_in\":0}", Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.exchangeCode("auth-code-123");
+
+    OAuth2ServerException ex =
+        assertThrowsExactly(OAuth2ServerException.class, auth::getAuthHeaders);
+    assertEquals(400, ex.getStatusCode());
+    assertEquals("invalid_grant", ex.getCode());
+    String sent = java.util.Objects.requireNonNull(capturedBody.get());
+    assertTrue(sent.matches("(.*&)?refresh_token=(&.*)?"), "unexpected refresh body: " + sent);
   }
 
   @Test

@@ -52,11 +52,13 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
      * ASCII rule still applies to HEADER values. Validated eagerly at
      * construction; the class is final so this does not trip SpotBugs
      * CT_CONSTRUCTOR_THROW. */
-    if (apiKey == null || apiKey.isEmpty()) {
+    /* The blank check runs before the character scan so a value made only
+     * of whitespace (a blank line read from an env file) reports "must
+     * not be empty" rather than a control-character error. */
+    if (apiKey == null || apiKey.isBlank()) {
       throw new IllegalArgumentException(
           "API key value for '" + keyParamName + "' must not be empty");
     }
-    boolean allWhitespace = true;
     for (int i = 0; i < apiKey.length(); i++) {
       char c = apiKey.charAt(i);
       if (c == '\r' || c == '\n' || c == '\0') {
@@ -65,13 +67,6 @@ public final class ApiKeyAuthenticator extends BaseAuthenticator {
                 + keyParamName
                 + "' contains forbidden control characters (CR/LF/NUL)");
       }
-      if (!Character.isWhitespace(c)) {
-        allWhitespace = false;
-      }
-    }
-    if (allWhitespace) {
-      throw new IllegalArgumentException(
-          "API key value for '" + keyParamName + "' must not be empty");
     }
     if (location == ApiKeyLocation.HEADER) {
       for (int i = 0; i < apiKey.length(); i++) {

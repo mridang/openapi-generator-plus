@@ -59,6 +59,23 @@ class BearerAuthenticatorTest {
                 new BearerAuthenticator("https://api.example.com", "   "));
     }
 
+    @Test
+    void newlineOnlyTokenReportsEmptyNotPrintableAscii() {
+        for (String blank : new String[] {"\n", "\r\n", "\013"}) {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new BearerAuthenticator("https://api.example.com", blank));
+            assertEquals("Bearer token must not be empty", ex.getMessage());
+        }
+    }
+
+    @Test
+    void controlCharacterInTokenReportsPrintableAscii() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                new BearerAuthenticator("https://api.example.com", "abc\ndef"));
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
+                .startsWith("Bearer token must contain only printable ASCII characters"));
+    }
+
     /**
      * The default {@code toString()} must mask the stored token: the secret
      * value must be absent and a {@code ***} redaction marker present.

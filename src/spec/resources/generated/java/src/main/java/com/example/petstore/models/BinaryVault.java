@@ -8,8 +8,6 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -25,12 +23,12 @@ public class BinaryVault {
   /** A list of byte arrays; equality compares element contents. */
   @JsonProperty("shards")
   @Nullable
-  public List<byte[]> shards = new ArrayList<>();
+  public List<byte[]> shards;
 
   /** A map of byte arrays; equality compares each value's contents. */
   @JsonProperty("labels")
   @Nullable
-  public Map<String, byte[]> labels = new HashMap<>();
+  public Map<String, byte[]> labels;
 
   /** Creates an empty instance. */
   public BinaryVault() {}

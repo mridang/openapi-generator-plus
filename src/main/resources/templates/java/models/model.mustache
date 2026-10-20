@@ -701,7 +701,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{/isWriteOnly}}
   {{/isReadOnly}}
   {{^required}}@Nullable{{/required}}
-  public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}};
 
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}

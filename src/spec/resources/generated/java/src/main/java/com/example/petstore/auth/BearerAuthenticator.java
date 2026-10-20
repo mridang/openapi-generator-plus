@@ -23,22 +23,15 @@ public final class BearerAuthenticator extends BaseAuthenticator {
    * @param token the bearer token
    */
   public BearerAuthenticator(String host, String token) {
-    if (token == null || token.isEmpty()) {
+    if (token == null || token.isBlank()) {
       throw new IllegalArgumentException("Bearer token must not be empty");
     }
-    boolean allWhitespace = true;
     for (int i = 0; i < token.length(); i++) {
       char c = token.charAt(i);
       if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
         throw new IllegalArgumentException(
             "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)");
       }
-      if (!Character.isWhitespace(c)) {
-        allWhitespace = false;
-      }
-    }
-    if (allWhitespace) {
-      throw new IllegalArgumentException("Bearer token must not be empty");
     }
     this.host = host;
     this.token = token;

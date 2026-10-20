@@ -482,10 +482,10 @@ public abstract class BaseApi {
   private static boolean isTextResponseContentType(String contentType) {
     if (contentType == null || contentType.isEmpty()) {
       /* Mirror the transport: an absent/empty Content-Type is treated as
-       * binary (base64-encoded by the transport), so binary return-type
-       * handling base64-decodes it back to the exact bytes instead of
-       * lossily re-deriving them from a UTF-8 String. */
-      return false;
+       * text (decoded to a UTF-8 String by the transport), so binary
+       * return-type handling reads the String bytes instead of
+       * base64-decoding text that was never base64-encoded. */
+      return true;
     }
     int semi = contentType.indexOf(';');
     String mediaType =
@@ -493,7 +493,7 @@ public abstract class BaseApi {
             .trim()
             .toLowerCase(java.util.Locale.ROOT);
     if (mediaType.isEmpty()) {
-      return false;
+      return true;
     }
     if (mediaType.startsWith("text/")) {
       return true;

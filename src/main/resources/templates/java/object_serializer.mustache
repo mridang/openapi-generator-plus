@@ -20,7 +20,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.type.LogicalType;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 {{#openApiNullable}}
@@ -391,6 +394,22 @@ public final class ObjectSerializer {
                    silently coerced. Matches the other SDKs, which reject
                    wrong-typed primitives. */
                 .configure(MapperFeature.ALLOW_COERCION_OF_SCALARS, false)
+                /* ALLOW_COERCION_OF_SCALARS does not cover a fractional number
+                   for an integer field (1.9 would silently truncate to 1, and
+                   1.0 or 1e2 would be accepted) nor a number or boolean for a
+                   String field (5 would become "5"). Fail both, as the other
+                   SDKs do. */
+                .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
+                .withCoercionConfig(LogicalType.Integer, config ->
+                        config.setCoercion(CoercionInputShape.Float, CoercionAction.Fail))
+                .withCoercionConfig(LogicalType.Textual, config -> {
+                    config.setCoercion(CoercionInputShape.Integer, CoercionAction.Fail);
+                    config.setCoercion(CoercionInputShape.Float, CoercionAction.Fail);
+                    config.setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
+                })
+                /* Keep the offset a date-time carried on the wire
+                   (10:00+05:30 stays +05:30) instead of shifting it to UTC. */
+                .disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
                 /* Strict discriminator resolution: an unknown/invalid oneOf
                    subtype must fail loudly rather than deserialize to null,
                    matching the other 11 SDKs. */

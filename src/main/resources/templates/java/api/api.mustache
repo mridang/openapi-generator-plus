@@ -244,7 +244,7 @@ public class {{classname}} extends BaseApi {
     }
 
     private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{#nullable}}@Nullable {{/nullable}}{{{dataType}}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.hasMultipleConsumes}}, @Nullable String requestContentType{{/vendorExtensions.hasMultipleConsumes}}) {
-        Authenticator auth = {{#vendorExtensions.op.optionsParamRequired}}options.auth(){{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options != null ? options.auth() : null{{/vendorExtensions.op.optionsParamRequired}};
+        Authenticator auth = options != null ? options.auth() : null;
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
 {{#vendorExtensions.hasMultipleConsumes}}
@@ -274,9 +274,10 @@ public class {{classname}} extends BaseApi {
         }
 {{/required}}
 {{/bodyParam}}
+{{! A required Options object that is null reports the first required field, so each required check below tests the Options object itself. Objects.isNull rather than a plain comparison keeps SpotBugs from flagging the repeats as redundant. }}
 {{#queryParams}}
 {{#required}}
-        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -284,7 +285,7 @@ public class {{classname}} extends BaseApi {
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -292,7 +293,7 @@ public class {{classname}} extends BaseApi {
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -300,7 +301,7 @@ public class {{classname}} extends BaseApi {
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if (options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }

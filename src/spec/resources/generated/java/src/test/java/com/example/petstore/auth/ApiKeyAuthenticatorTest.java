@@ -78,6 +78,34 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
+  void newlineOnlyKeyReportsEmptyNotControlCharacters() {
+    for (ApiKeyLocation location : ApiKeyLocation.values()) {
+      for (String blank : new String[] {"\n", "\r\n", "\t", "\013"}) {
+        IllegalArgumentException ex =
+            assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                    new ApiKeyAuthenticator(
+                        "https://api.example.com", "X-API-Key", blank, location));
+        assertEquals("API key value for 'X-API-Key' must not be empty", ex.getMessage());
+      }
+    }
+  }
+
+  @Test
+  void nulOnlyKeyReportsControlCharacters() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ApiKeyAuthenticator(
+                    "https://api.example.com", "X-API-Key", "\0", ApiKeyLocation.QUERY));
+    assertEquals(
+        "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)",
+        ex.getMessage());
+  }
+
+  @Test
   void crlfInQueryKeyThrowsAtConstruction() {
     IllegalArgumentException ex =
         assertThrows(

@@ -8,7 +8,6 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -27,7 +26,7 @@ public class StockItem {
   /** Quantity grid as an array of integer arrays */
   @JsonProperty("matrix")
   @Nullable
-  public List<List<Integer>> matrix = new ArrayList<>();
+  public List<List<Integer>> matrix;
 
   /* No-arg constructor required by deserialization/test tooling. It
    * intentionally leaves the @NonNull required fields uninitialized — the

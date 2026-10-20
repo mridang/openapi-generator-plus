@@ -166,7 +166,11 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     }
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "refresh_token");
-    params.put("refresh_token", tokenManager.getRefreshToken());
+    /* An OP that issued no refresh_token leaves none to send. Put an empty
+     * value rather than null (which would fail to form-encode) so the OP
+     * answers with its typed OAuth2ServerException. */
+    String refreshToken = tokenManager.getRefreshToken();
+    params.put("refresh_token", refreshToken != null ? refreshToken : "");
     String token = tokenManager.getAccessToken(refreshUrl, params);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }

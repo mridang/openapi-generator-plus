@@ -12,7 +12,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.math.BigDecimal;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -97,7 +96,7 @@ public class Pet {
   /** The {@code tags} property. */
   @JsonProperty("tags")
   @Nullable
-  public List<Tag> tags = new ArrayList<>();
+  public List<Tag> tags;
 
   /**
    * pet status in the store
@@ -112,7 +111,7 @@ public class Pet {
   /** The {@code location} property. */
   @JsonProperty("location")
   @Nullable
-  public List<Object> location = new ArrayList<>();
+  public List<Object> location;
 
   /**
    * Absolute URL to the pet's public profile page

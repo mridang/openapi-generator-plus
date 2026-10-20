@@ -9,7 +9,6 @@ package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -33,7 +32,7 @@ public class PetPassport {
   /** Base64-encoded scans of each passport page */
   @JsonProperty("scans")
   @Nullable
-  public List<byte[]> scans = new ArrayList<>();
+  public List<byte[]> scans;
 
   /** The {@code issuedAt} property. */
   @JsonProperty("issuedAt")

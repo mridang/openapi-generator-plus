@@ -276,14 +276,7 @@ public final class DefaultApiClient implements ApiClient {
      */
     private static SSLContext buildPinnedSslContext(String caCertPath) {
         try {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            X509Certificate caCert;
-            try (FileInputStream fis = new FileInputStream(caCertPath)) {
-                caCert = (X509Certificate) cf.generateCertificate(fis);
-            }
-            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            trustStore.load(null, null);
-            trustStore.setCertificateEntry("ca", caCert);
+            KeyStore trustStore = buildPinnedTrustStore(caCertPath);
             TrustManagerFactory tmf =
                     TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
@@ -294,6 +287,34 @@ public final class DefaultApiClient implements ApiClient {
             throw new IllegalArgumentException(
                     "failed to read or parse CA certificate from " + caCertPath + ": " + e, e);
         }
+    }
+
+    /**
+     * Load every certificate in a PEM/DER file into a fresh trust store, so a bundle
+     * holding a root and an intermediate (or two roots during a CA rotation) is trusted
+     * in full rather than only its first certificate.
+     *
+     * @param caCertPath path to the CA certificate or bundle
+     * @return a trust store with one entry per certificate in the file
+     * @throws GeneralSecurityException if the file holds no parseable certificate
+     */
+    static KeyStore buildPinnedTrustStore(String caCertPath)
+            throws IOException, GeneralSecurityException {
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        java.util.Collection<? extends java.security.cert.Certificate> certificates;
+        try (FileInputStream fis = new FileInputStream(caCertPath)) {
+            certificates = cf.generateCertificates(fis);
+        }
+        if (certificates.isEmpty()) {
+            throw new java.security.cert.CertificateException("no certificate found");
+        }
+        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        trustStore.load(null, null);
+        int index = 0;
+        for (java.security.cert.Certificate certificate : certificates) {
+            trustStore.setCertificateEntry("ca-" + index++, certificate);
+        }
+        return trustStore;
     }
 
     /**
@@ -569,8 +590,10 @@ public final class DefaultApiClient implements ApiClient {
                 /* Redirect budget exhausted while the server is still
                  * returning a 3xx: fail loudly rather than silently handing
                  * the caller the final redirect response as if it were a
-                 * normal result. */
-                if (isRedirect(response.statusCode())) {
+                 * normal result. A 3xx without a Location header leaves the
+                 * loop early with budget to spare; that is a legitimate
+                 * terminal response and is returned as-is. */
+                if (redirectsRemaining <= 0 && isRedirect(response.statusCode())) {
                     throw new ApiException(
                             response.statusCode(),
                             "Too many redirects (exceeded maxRedirects) following " + url,
@@ -649,11 +672,11 @@ public final class DefaultApiClient implements ApiClient {
      * Send a request, retrying ONCE when the JDK HttpClient fails because it
      * reused a keep-alive connection the server had already closed. That
      * surfaces as {@code java.io.IOException: HTTP/1.1 header parser received
-     * no bytes}: zero bytes were exchanged, so the request never reached the
-     * server and replaying it is safe even for non-idempotent methods. This
-     * matches the stale-connection resilience the other SDKs' HTTP stacks
-     * (reqwest, undici, urllib3, ...) provide automatically. Any other
-     * IOException propagates unchanged.
+     * no bytes}, which means the connection ended before any response bytes
+     * arrived. It does not prove the request was never processed, so only an
+     * idempotent method (RFC 9110 section 9.2.2) is replayed; a POST or PATCH
+     * could otherwise be applied twice. Any other IOException propagates
+     * unchanged.
      */
     private HttpResponse<byte[]> sendWithRetry(HttpRequest request)
             throws IOException, InterruptedException {
@@ -661,11 +684,20 @@ public final class DefaultApiClient implements ApiClient {
             return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
         } catch (IOException e) {
             String message = e.getMessage();
-            if (message != null && message.contains("header parser received no bytes")) {
+            if (message != null
+                    && message.contains("header parser received no bytes")
+                    && isIdempotentMethod(request.method())) {
                 return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             }
             throw e;
         }
+    }
+
+    private static boolean isIdempotentMethod(String method) {
+        return switch (method.toUpperCase(Locale.ROOT)) {
+            case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE" -> true;
+            default -> false;
+        };
     }
 
     private static boolean isRedirect(int statusCode) {
@@ -843,36 +875,49 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     private static byte[] decompressBrotli(byte[] data) throws IOException {
-        try {
-            Class<?> brotliClass = Class.forName("org.brotli.dec.BrotliInputStream");
-            try (InputStream bis = (InputStream) brotliClass
-                    .getConstructor(InputStream.class)
-                    .newInstance(new ByteArrayInputStream(data))) {
-                return bis.readAllBytes();
-            }
-        } catch (ClassNotFoundException e) {
-            return data;
-        } catch (ReflectiveOperationException e) {
-            throw new IOException(
-                    "Received a br-encoded response but the br library is unavailable", e);
-        }
+        return decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream");
     }
 
     private static byte[] decompressZstd(byte[] data) throws IOException {
+        return decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream");
+    }
+
+    /**
+     * Decode a body through an optional codec's {@link InputStream} class, loaded by
+     * reflection so the codec library stays an optional dependency.
+     *
+     * <p>A stream decoder is used rather than a one-shot call so a frame that omits its
+     * content size (typical of streaming encoders) is not capped at a multiple of the
+     * compressed length. A missing library raises, never returns the body still-encoded.
+     *
+     * @param data      the raw response bytes
+     * @param encoding  the Content-Encoding token, used in messages
+     * @param className the fully-qualified name of the codec's InputStream class
+     * @return the decoded body bytes
+     */
+    static byte[] decodeViaInputStream(byte[] data, String encoding, String className)
+            throws IOException {
         try {
-            Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
-            long originalSize = (long) zstdClass
-                    .getMethod("decompressedSize", byte[].class)
-                    .invoke(null, new Object[] {data});
-            int size = originalSize > 0 ? (int) originalSize : data.length * 4;
-            return (byte[]) zstdClass
-                    .getMethod("decompress", byte[].class, int.class)
-                    .invoke(null, data, size);
+            Class<?> codecClass = Class.forName(className);
+            try (InputStream in = (InputStream) codecClass
+                    .getConstructor(InputStream.class)
+                    .newInstance(new ByteArrayInputStream(data))) {
+                return in.readAllBytes();
+            }
         } catch (ClassNotFoundException e) {
-            return data;
+            throw new IOException(
+                    "Received a " + encoding + "-encoded response but the " + encoding
+                            + " library is unavailable", e);
+        } catch (java.lang.reflect.InvocationTargetException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof IOException io) {
+                throw io;
+            }
+            throw new IOException("Failed to decode " + encoding + "-encoded response", cause);
         } catch (ReflectiveOperationException e) {
             throw new IOException(
-                    "Received a zstd-encoded response but the zstd library is unavailable", e);
+                    "Received a " + encoding + "-encoded response but the " + encoding
+                            + " library is unavailable", e);
         }
     }
 

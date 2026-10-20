@@ -118,6 +118,22 @@ class DefaultApiClientUnitTest {
           exchange.close();
         });
     server.createContext(
+        "/redirect-no-location",
+        exchange -> {
+          byte[] body = "moved".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(302, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/redirect-loop",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "/redirect-loop");
+          exchange.sendResponseHeaders(302, -1);
+          exchange.close();
+        });
+    server.createContext(
         "/latin1",
         exchange -> {
           byte[] body = new byte[] {(byte) 0xE9}; // "é" in ISO-8859-1
@@ -177,6 +193,25 @@ class DefaultApiClientUnitTest {
           // A server advertising an encoding the client cannot decode.
           byte[] body = "payload".getBytes(StandardCharsets.UTF_8);
           exchange.getResponseHeaders().add("Content-Encoding", "made-up-codec");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/zstd-streaming",
+        exchange -> {
+          // A streaming encoder omits the frame content size, and this body
+          // compresses far better than 4:1, which a size-guessing one-shot
+          // decoder cannot hold.
+          java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+          try (com.github.luben.zstd.ZstdOutputStream zstd =
+              new com.github.luben.zstd.ZstdOutputStream(compressed)) {
+            zstd.write("a".repeat(200_000).getBytes(StandardCharsets.UTF_8));
+          }
+          byte[] body = compressed.toByteArray();
+          exchange.getResponseHeaders().add("Content-Encoding", "zstd");
           exchange.getResponseHeaders().add("Content-Type", "text/plain");
           exchange.sendResponseHeaders(200, body.length);
           try (OutputStream os = exchange.getResponseBody()) {
@@ -612,6 +647,42 @@ class DefaultApiClientUnitTest {
         "message should name the offending path, was: " + ex.getMessage());
   }
 
+  @Test
+  void caCertBundleTrustsEveryCertificateInTheFile() throws Exception {
+    // Two distinct certificates (taken from the JDK's own trust anchors) in
+    // one PEM bundle: a root plus an intermediate, or two roots during a CA
+    // rotation, must all be trusted, not just the first.
+    javax.net.ssl.TrustManagerFactory system =
+        javax.net.ssl.TrustManagerFactory.getInstance(
+            javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+    system.init((java.security.KeyStore) null);
+    javax.net.ssl.X509TrustManager manager =
+        (javax.net.ssl.X509TrustManager) system.getTrustManagers()[0];
+    java.security.cert.X509Certificate[] issuers = manager.getAcceptedIssuers();
+    assertTrue(issuers.length >= 2, "the JDK trust store should hold at least two roots");
+    StringBuilder pem = new StringBuilder();
+    for (int i = 0; i < 2; i++) {
+      pem.append("-----BEGIN CERTIFICATE-----\n")
+          .append(
+              Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII))
+                  .encodeToString(issuers[i].getEncoded()))
+          .append("\n-----END CERTIFICATE-----\n");
+    }
+    java.io.File bundle = java.io.File.createTempFile("ca-bundle", ".pem");
+    bundle.deleteOnExit();
+    java.nio.file.Files.write(bundle.toPath(), pem.toString().getBytes(StandardCharsets.US_ASCII));
+
+    java.security.KeyStore trustStore =
+        DefaultApiClient.buildPinnedTrustStore(bundle.getAbsolutePath());
+
+    assertEquals(2, trustStore.size());
+    assertNotNull(trustStore.getCertificateAlias(issuers[0]));
+    assertNotNull(trustStore.getCertificateAlias(issuers[1]));
+    TransportOptions transport =
+        TransportOptions.builder().caCertPath(bundle.getAbsolutePath()).build();
+    assertNotNull(new DefaultApiClient(transport));
+  }
+
   {{! -- Gap J: per-part MIME sniffing for multipart uploads -- }}
 
   @Test
@@ -867,6 +938,33 @@ class DefaultApiClientUnitTest {
         "noRedirect=true must return the 3xx response as-is, never replay to Location");
   }
 
+  @Test
+  void redirectWithoutLocationReturnsTheRedirectResponse() throws Exception {
+    // A 3xx with no Location header leaves the loop with budget to spare: it
+    // is a terminal response, not an exhausted redirect budget.
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-no-location", Map.of(), null);
+    assertEquals(302, response.statusCode());
+    assertEquals("moved", response.body());
+  }
+
+  @Test
+  void redirectLoopExhaustsTheBudgetAndThrows() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder().followRedirects(true).maxRedirects(2).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    String url = baseUrl + "/redirect-loop";
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class, () -> client.sendRequest("GET", url, Map.of(), null));
+    assertEquals(302, ex.getStatusCode());
+    assertTrue(
+        ex.toString().contains("Too many redirects (exceeded maxRedirects) following " + url),
+        "unexpected message: " + ex);
+  }
+
   {{! -- T-D3: non-http(s) redirect target is refused with a typed error -- }}
 
   @Test
@@ -999,6 +1097,97 @@ class DefaultApiClientUnitTest {
     assertEquals(200, ex.getStatusCode());
     assertFalse(ex instanceof {{invokerPackage}}.errors.NetworkException,
         "an unsupported encoding is not a network failure");
+  }
+
+  /** Accepts connections and closes each without answering; returns the accept count. */
+  private static java.util.concurrent.atomic.AtomicInteger dropConnections(
+      java.net.ServerSocket socket) {
+    java.util.concurrent.atomic.AtomicInteger accepted =
+        new java.util.concurrent.atomic.AtomicInteger();
+    Thread thread =
+        new Thread(
+            () -> {
+              try {
+                while (!socket.isClosed()) {
+                  try (java.net.Socket connection = socket.accept()) {
+                    accepted.incrementAndGet();
+                    connection.setSoTimeout(300);
+                    try {
+                      connection.getInputStream().readAllBytes();
+                    } catch (java.net.SocketTimeoutException drained) {
+                      // The request is fully read; close without a response.
+                    }
+                  }
+                }
+              } catch (IOException closed) {
+                // The test closed the listening socket.
+              }
+            });
+    thread.setDaemon(true);
+    thread.start();
+    return accepted;
+  }
+
+  @Test
+  void postIsNotReplayedWhenTheConnectionDropsWithoutAResponse() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/create";
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkException.class,
+          () -> client.sendRequest("POST", url, Map.of(), "payload"));
+      assertEquals(1, accepted.get(), "a POST must be sent exactly once");
+    }
+  }
+
+  @Test
+  void getIsReplayedOnceWhenTheConnectionDropsWithoutAResponse() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      assertTrue(accepted.get() >= 2, "an idempotent GET is retried once, saw " + accepted.get());
+    }
+  }
+
+  @Test
+  void zstdFrameWithoutContentSizeDecodesBeyondFourToOne() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/zstd-streaming", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("a".repeat(200_000), response.body());
+  }
+
+  @Test
+  void absentBrotliLibraryRaisesInsteadOfReturningEncodedBytes() {
+    IOException ex = assertThrowsExactly(IOException.class, () ->
+        DefaultApiClient.decodeViaInputStream(
+            new byte[] {1, 2, 3}, "br", "org.example.MissingBrotliInputStream"));
+    assertEquals("Received a br-encoded response but the br library is unavailable", ex.getMessage());
+    assertInstanceOf(ClassNotFoundException.class, ex.getCause());
+  }
+
+  @Test
+  void absentZstdLibraryRaisesInsteadOfReturningEncodedBytes() {
+    IOException ex = assertThrowsExactly(IOException.class, () ->
+        DefaultApiClient.decodeViaInputStream(
+            new byte[] {1, 2, 3}, "zstd", "org.example.MissingZstdInputStream"));
+    assertEquals("Received a zstd-encoded response but the zstd library is unavailable", ex.getMessage());
+  }
+
+  @Test
+  void corruptZstdBodyIsNotReportedAsAnUnavailableLibrary() {
+    IOException ex = assertThrows(IOException.class, () ->
+        DefaultApiClient.decodeViaInputStream(
+            new byte[] {1, 2, 3, 4, 5, 6, 7, 8},
+            "zstd",
+            "com.github.luben.zstd.ZstdInputStream"));
+    String message = java.util.Objects.requireNonNull(ex.getMessage());
+    assertFalse(message.contains("library is unavailable"), "unexpected message: " + message);
   }
 
   @Test

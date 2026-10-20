@@ -404,11 +404,11 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.addPetPhotos");
     }
-    if (options.files() == null) {
+    if (java.util.Objects.isNull(options) || options.files() == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'files' when calling PetApi.addPetPhotos");
     }
-    if (options.metadata() == null) {
+    if (java.util.Objects.isNull(options) || options.metadata() == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'metadata' when calling PetApi.addPetPhotos");
     }
@@ -1190,7 +1190,9 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'name' when calling PetApi.getPetByName");
     }
-    if (options.category() == null || options.category().isEmpty()) {
+    if (java.util.Objects.isNull(options)
+        || options.category() == null
+        || options.category().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'category' when calling PetApi.getPetByName");
     }
@@ -1728,7 +1730,9 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.setPetPreferences");
     }
-    if (options.nickname() == null || options.nickname().isEmpty()) {
+    if (java.util.Objects.isNull(options)
+        || options.nickname() == null
+        || options.nickname().isEmpty()) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences");
     }
@@ -1845,7 +1849,7 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.uploadPetCertificate");
     }
-    if (options.file() == null) {
+    if (java.util.Objects.isNull(options) || options.file() == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'file' when calling PetApi.uploadPetCertificate");
     }
@@ -1945,7 +1949,7 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.uploadPetDocument");
     }
-    if (options.file() == null) {
+    if (java.util.Objects.isNull(options) || options.file() == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'file' when calling PetApi.uploadPetDocument");
     }
