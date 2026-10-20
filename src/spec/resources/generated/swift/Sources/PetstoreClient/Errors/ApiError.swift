@@ -122,32 +122,32 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
       switch statusCode {
       case 400:
         return BadRequestError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       case 401:
         return UnauthorizedError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       case 403:
         return ForbiddenError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       case 404:
         return NotFoundError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       case 409:
         return ConflictError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       case 422:
         return UnprocessableEntityError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       default:
@@ -162,7 +162,7 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
       switch statusCode {
       case 500:
         return InternalServerError(
-          statusCode: statusCode, message: msg, responseBody: body,
+          message: msg, responseBody: body,
           responseHeaders: headers, errorBody: parsed
         )
       default:

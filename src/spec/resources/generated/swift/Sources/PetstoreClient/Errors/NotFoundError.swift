@@ -8,4 +8,24 @@
 import Foundation
 
 /// Error for HTTP 404 Not Found.
-public class NotFoundError: ClientError, @unchecked Sendable {}
+public class NotFoundError: ClientError, @unchecked Sendable {
+  /// Creates the error. The status is fixed at 404, so this type never
+  /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:)``
+  /// is the only place a status is mapped to a type.
+  public init(
+    message: String = "",
+    responseBody: String? = nil,
+    responseHeaders: [String: String]? = nil,
+    errorBody: Any? = nil,
+    underlyingError: Error? = nil
+  ) {
+    super.init(
+      statusCode: 404,
+      message: message,
+      responseBody: responseBody,
+      responseHeaders: responseHeaders,
+      errorBody: errorBody,
+      underlyingError: underlyingError
+    )
+  }
+}

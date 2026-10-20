@@ -135,10 +135,27 @@ import Testing
     #expect((outOfRange as? ApiError)?.statusCode == 600)
   }
 
+  /* A named error always reports its own status, whatever it is built
+   * from, so the type and the status can never disagree. */
+  @Test func testNamedErrorsPinTheirStatus() {
+    #expect(BadRequestError(message: "x").statusCode == 400)
+    #expect(UnauthorizedError(message: "x").statusCode == 401)
+    #expect(ForbiddenError(message: "x").statusCode == 403)
+    #expect(NotFoundError(message: "x").statusCode == 404)
+    #expect(ConflictError(message: "x").statusCode == 409)
+    #expect(UnprocessableEntityError(message: "x").statusCode == 422)
+    #expect(InternalServerError(message: "x").statusCode == 500)
+    #expect(NotFoundError().statusCode == 404)
+    let err = NotFoundError(message: "gone", responseBody: "{}", responseHeaders: ["a": "b"])
+    #expect(err.message == "gone")
+    #expect(err.responseBody == "{}")
+    #expect(err.responseHeaders == ["a": "b"])
+  }
+
   @Test func testTypedErrorConformsToApiErrorAndOpenAPIError() {
     // A typed HTTP error subclasses ApiError and therefore conforms to
     // OpenAPIError transitively.
-    let err: any Error = BadRequestError(statusCode: 400, message: "bad")
+    let err: any Error = BadRequestError(message: "bad")
 
     #expect(err is ApiError)
     #expect(err is OpenAPIError)
@@ -202,6 +219,7 @@ import Testing
         variable: "region", value: "mars", allowed: ["us", "eu"]),
       ConfigurationError.invalidCACertificate("missing"),
       ConfigurationError.proxyUnsupported,
+      ConfigurationError.tlsOptionsUnsupported,
       ConfigurationError.invalidArgument("bad"),
       ConfigurationError.invalidState("closed"),
       OAuth2AuthorizationCodeError.codeNotExchanged,

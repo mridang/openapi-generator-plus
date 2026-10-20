@@ -331,10 +331,7 @@ final class PetApiTests {
     @Test func testSetPetAvatarThumbnail() async throws {
         let api = petApiForIntegration()
 
-        /* The oneOf request body is built the way a caller holding its JSON
-           would build it: by decoding, which picks the matching variant. */
-        let thumbnail = try JSONDecoder().decode(
-            SetPetAvatarThumbnailRequest.self, from: Data("\"/9j/4A==\"".utf8))
+        let thumbnail = SetPetAvatarThumbnailRequest(Data([0xFF, 0xD8, 0xFF, 0xE0]))
 
         try await api.setPetAvatarThumbnail(petId: 1, setPetAvatarThumbnailRequest: thumbnail)
     }

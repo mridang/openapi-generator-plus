@@ -11,6 +11,18 @@ import Foundation
 public struct PetFood: Codable, @unchecked Sendable {
   private let _value: Any
 
+  /// Wraps a ``DryFood`` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: DryFood) {
+    self._value = value
+  }
+
+  /// Wraps a ``WetFood`` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: WetFood) {
+    self._value = value
+  }
+
   public init(from decoder: Decoder) throws {
     /* Use discriminator to determine type */
     let container = try decoder.singleValueContainer()

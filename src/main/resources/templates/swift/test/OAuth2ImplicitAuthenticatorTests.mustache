@@ -16,6 +16,31 @@ import Testing
 
     // MARK: - Tests
 
+    /* The token is set from the redirect callback while requests read it from
+       other threads; every read sees a complete token, never a torn one. */
+    @Test func testConcurrentSetAndReadOfTheAccessToken() async throws {
+        let auth = createAuthenticator()
+        try auth.setAccessToken("token-0")
+        let headers = await withTaskGroup(of: String?.self) { group in
+            for i in 0..<200 {
+                group.addTask {
+                    if i % 2 == 0 {
+                        try? auth.setAccessToken("token-\(i)")
+                        return nil
+                    }
+                    return try? await auth.authHeaders()["Authorization"]
+                }
+            }
+            var seen: [String] = []
+            for await header in group {
+                if let header { seen.append(header) }
+            }
+            return seen
+        }
+        #expect(headers.count == 100)
+        #expect(headers.allSatisfy { $0.hasPrefix("Bearer token-") })
+    }
+
     @Test func testBuildsAuthorizationUrlWithResponseTypeToken() throws {
         let auth = createAuthenticator()
 

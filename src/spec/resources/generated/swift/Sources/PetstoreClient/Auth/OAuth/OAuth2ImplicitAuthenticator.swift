@@ -25,7 +25,15 @@ public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   private let clientID: String
   private let authorizationURL: String
   private let scopes: [String]
-  private var accessToken: String = ""
+  /* setAccessToken runs on whatever thread the redirect callback arrives on
+     while authHeaders runs on request threads, so the token is guarded by a
+     lock (a plain String read racing a write is a data race). */
+  private let stateLock = NSLock()
+  private var storedAccessToken: String = ""
+  private var accessToken: String {
+    get { stateLock.withLock { storedAccessToken } }
+    set { stateLock.withLock { storedAccessToken = newValue } }
+  }
 
   /// Creates a new implicit flow authenticator.
   public init(host: String, clientID: String, authorizationURL: String, scopes: [String] = []) {

@@ -22,6 +22,9 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
     case invalidCACertificate(String)
     /// A proxy is configured on a platform whose URLSession cannot use one.
     case proxyUnsupported
+    /// `verifySsl(false)` or a CA certificate is configured on a platform whose
+    /// URLSession cannot apply it (Linux), so it would silently be ignored.
+    case tlsOptionsUnsupported
     /// An argument is malformed: bad credentials, a missing required
     /// parameter, a malformed URL, or a header, cookie or multipart value
     /// holding characters that would corrupt the HTTP message.
@@ -40,6 +43,8 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
             return "Invalid CA certificate: \(reason)"
         case .proxyUnsupported:
             return "Proxy configuration is not supported on this platform"
+        case .tlsOptionsUnsupported:
+            return "Disabling TLS verification or pinning a CA certificate is not supported on this platform"
         case .invalidArgument(let reason):
             return "Invalid argument: \(reason)"
         case .invalidState(let reason):

@@ -360,6 +360,14 @@ private struct DynamicCodingKey: CodingKey {
 {{/isDeprecated}}
 public struct {{classname}}: Codable, @unchecked Sendable {
     private let _value: Any
+{{#oneOf}}
+
+    /// Wraps a ``{{{.}}}`` as this union's value, so a request body can be
+    /// built in code and not only decoded from JSON.
+    public init(_ value: {{{.}}}) {
+        self._value = value
+    }
+{{/oneOf}}
 
     public init(from decoder: Decoder) throws {
 {{#discriminator}}

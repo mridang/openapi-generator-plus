@@ -95,7 +95,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// {{value}}
     /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}
-    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+    public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: requestContentType{{/-first}}{{/-last}}{{/consumes}})
 {{#returnType}}
         guard let data = result.data else {
@@ -117,7 +117,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#isDeprecated}}
     @available(*, deprecated, message: "This operation is deprecated.")
 {{/isDeprecated}}
-    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}?{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+    public func {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
 {{#isString}}

@@ -421,6 +421,37 @@ import Testing
     #expect(second == "str-tok")
   }
 
+  /* A quoted expires_in is read as plain decimal digits, so a hex string is
+     not a lifetime (0x1000 would otherwise be 4096 seconds and cached) and
+     trailing newlines are trimmed like any other whitespace. */
+  @Test func testExpiresInStringUsesPlainDecimalGrammar() async throws {
+    let hex = MockApiClient()
+    hex.responses.append(
+      makeResponse(body: "{\"access_token\":\"hex1\",\"expires_in\":\"0x1000\"}"))
+    hex.responses.append(
+      makeResponse(body: "{\"access_token\":\"hex2\",\"expires_in\":\"0x1000\"}"))
+    let hexManager = OAuth2TokenManager()
+    hexManager.setApiClient(hex)
+    let tokenURL = "https://auth.example.com/token"
+    let params = ["grant_type": "client_credentials"]
+    #expect(try await hexManager.getAccessToken(tokenURL: tokenURL, params: params) == "hex1")
+    #expect(
+      try await hexManager.getAccessToken(tokenURL: tokenURL, params: params) == "hex2",
+      "a hex expires_in is not a lifetime, so the token must not be cached")
+
+    let padded = MockApiClient()
+    padded.responses.append(
+      makeResponse(body: "{\"access_token\":\"pad1\",\"expires_in\":\"3600\\n\"}"))
+    padded.responses.append(
+      makeResponse(body: "{\"access_token\":\"pad2\",\"expires_in\":\"3600\"}"))
+    let paddedManager = OAuth2TokenManager()
+    paddedManager.setApiClient(padded)
+    #expect(try await paddedManager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1")
+    #expect(
+      try await paddedManager.getAccessToken(tokenURL: tokenURL, params: params) == "pad1",
+      "a trailing newline is trimmed, so the token is cached")
+  }
+
   @Test func testExpiresInAsFloatIsFloored() async throws {
     // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     // The manager must floor it and cache the token.

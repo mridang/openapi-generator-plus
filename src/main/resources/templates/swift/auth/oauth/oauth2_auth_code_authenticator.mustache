@@ -22,7 +22,14 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     private let redirectURI: String
     private let scopes: [String]
     let tokenManager: OAuth2TokenManager
-    private var tokenExchanged: Bool = false
+    /* exchangeCode runs on the callback thread while authHeaders runs on
+       request threads, so the flag is guarded by a lock. */
+    private let stateLock = NSLock()
+    private var storedTokenExchanged: Bool = false
+    private var tokenExchanged: Bool {
+        get { stateLock.withLock { storedTokenExchanged } }
+        set { stateLock.withLock { storedTokenExchanged = newValue } }
+    }
 
     /// Creates a new authorization code authenticator.
     ///

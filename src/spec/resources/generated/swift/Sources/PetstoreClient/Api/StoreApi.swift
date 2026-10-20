@@ -581,7 +581,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
 
-  public func placeOrder(order: Order?) async throws -> Order {
+  public func placeOrder(order: Order? = nil) async throws -> Order {
     let result = try await placeOrderWithHTTPInfo(order: order)
     guard let data = result.data else {
       throw ApiError(
@@ -595,7 +595,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  public func placeOrderWithHTTPInfo(order: Order?) async throws -> ApiResult<Order> {
+  public func placeOrderWithHTTPInfo(order: Order? = nil) async throws -> ApiResult<Order> {
 
     let path = "/store/order"
 

@@ -473,7 +473,12 @@ public class BaseApi: @unchecked Sendable {
       body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
       body.append(data)
       body.append(Data("\r\n".utf8))
-    } else if value is String || value is Int || value is Double || value is Bool {
+    } else if value is String || value is Bool || value is any BinaryInteger
+      || value is any BinaryFloatingPoint
+    {
+      /* Every integer and floating-point width is a plain text part, not
+         just Int and Double: an int64/int32/float field must not be sent
+         as an application/json model part. */
       body.append(
         Data(
           "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n"

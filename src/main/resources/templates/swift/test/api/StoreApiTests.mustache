@@ -106,6 +106,15 @@ import Testing
         }
     }
 
+    /* An optional request body can be left out of the call altogether. */
+    @Test func testPlaceOrderBodyCanBeOmitted() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{\"id\":1}")
+        let result = try await mockApi.placeOrder()
+        #expect(result.id == 1)
+        let info = try await mockApi.placeOrderWithHTTPInfo()
+        #expect(info.statusCode == 200)
+    }
+
     @Test func testPlaceOrderServerError() async throws {
         let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
         do {

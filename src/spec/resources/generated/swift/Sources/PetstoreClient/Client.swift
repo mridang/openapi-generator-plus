@@ -78,6 +78,16 @@ public final class Client: Sendable {
       transportOptions: transportOptions)
   }
 
+  /// Creates a client authenticated with a static Bearer token. The named
+  /// factory form of ``init(host:accessToken:transportOptions:)``, the
+  /// counterpart of ``withAuthenticator(_:transportOptions:)`` and the
+  /// `withToken` factory the other SDKs expose.
+  public static func withToken(
+    host: String, accessToken: String, transportOptions: TransportOptions? = nil
+  ) throws -> Client {
+    try Client(host: host, accessToken: accessToken, transportOptions: transportOptions)
+  }
+
   /// Creates a client from any ``Authenticator``, with optional transport options.
   ///
   /// This is the generic entry point for bespoke authentication strategies such as

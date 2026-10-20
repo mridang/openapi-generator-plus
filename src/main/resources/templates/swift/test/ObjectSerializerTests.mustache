@@ -967,11 +967,9 @@ import Testing
         let b = Data([0xFE, 0xFF])
         let passport = PetPassport(scans: [a, b])
         let json = try ObjectSerializer.serialize(passport)
-        // Foundation's JSONEncoder escapes the base64 padding/`/` characters
-        // per its default slash-escaping, so compare against the JSON-escaped
-        // form (`/` -> `\/`) rather than the raw base64.
-        let aEncoded = a.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
-        let bEncoded = b.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+        // The encoder writes `/` literally, so the raw base64 appears as-is.
+        let aEncoded = a.base64EncodedString()
+        let bEncoded = b.base64EncodedString()
         #expect(json.contains("\"\(aEncoded)\""),
             "first scan must serialize as base64, got: \(json)")
         #expect(json.contains("\"\(bEncoded)\""),
@@ -979,6 +977,23 @@ import Testing
         let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
         #expect(decoded?.scans == [a, b],
             "array-of-byte must round-trip each element's bytes exactly")
+    }
+
+    /* A '/' goes out literally, on both the Encodable path and the
+       JSONSerialization path, like the other SDKs. */
+    @Test func testSlashIsNotEscapedInSerializedStrings() throws {
+        #expect(try ObjectSerializer.serialize(["u": "https://x/y"]) == "{\"u\":\"https://x/y\"}")
+        let untyped: Any = ["u": "a/b"] as [String: Any]
+        #expect(try ObjectSerializer.serialize(untyped) == "{\"u\":\"a/b\"}")
+    }
+
+    /* Object keys are written in a fixed order, so the same value always
+       produces the same bytes (the default is a per-process random order). */
+    @Test func testObjectKeysAreWrittenInSortedOrder() throws {
+        let typed = ["m": "1", "z": "2", "a": "3", "q": "4"]
+        #expect(try ObjectSerializer.serialize(typed) == "{\"a\":\"3\",\"m\":\"1\",\"q\":\"4\",\"z\":\"2\"}")
+        let untyped: Any = ["m": 1, "z": 2, "a": 3, "q": 4] as [String: Any]
+        #expect(try ObjectSerializer.serialize(untyped) == "{\"a\":3,\"m\":1,\"q\":4,\"z\":2}")
     }
 
     // MARK: - setPetAvatarThumbnail byte oneOf round-trips through base64
@@ -1036,8 +1051,8 @@ import Testing
         #expect(array?.value(as: [Data].self) == [p0, p1],
             "array of base64 strings must resolve to the [Data] variant with both payloads")
         let arrayReencoded = try ObjectSerializer.serialize(array!)
-        let p0Encoded = p0.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
-        let p1Encoded = p1.base64EncodedString().replacingOccurrences(of: "/", with: "\\/")
+        let p0Encoded = p0.base64EncodedString()
+        let p1Encoded = p1.base64EncodedString()
         #expect(arrayReencoded.contains("\"\(p0Encoded)\"") &&
                 arrayReencoded.contains("\"\(p1Encoded)\""),
             "array byte variant must serialize as an array of base64 strings, got: \(arrayReencoded)")

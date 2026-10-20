@@ -10,7 +10,9 @@ internal enum ObjectSerializer {
     /// Maximum allowed JSON nesting depth. A malicious 100k-deep
     /// `{"a":{"a":...}}` payload must be refused rather than recurse
     /// through the call stack, so the cap is pinned here rather than left to
-    /// the parser's default. All twelve SDKs use the same cap.
+    /// the parser's default. The other SDKs use the same cap; Foundation's
+    /// JSONDecoder additionally refuses nesting beyond about 512 levels on its
+    /// own, a limit it does not make configurable.
     static let maxJsonDepth = 1000
 
     /// Canonical wire format for `format: date-time` values: a fixed
@@ -86,6 +88,11 @@ internal enum ObjectSerializer {
 
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
+        /* Write '/' literally (the other SDKs never escape it) and emit keys in
+           a fixed order: the default is Dictionary hash order, which is seeded
+           per process, so two runs would otherwise put different bytes on the
+           wire for the same value. */
+        encoder.outputFormatting = [.withoutEscapingSlashes, .sortedKeys]
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
             try container.encode(formatDateTime(date))
@@ -151,7 +158,8 @@ internal enum ObjectSerializer {
             return try serialize(encodable)
         }
         do {
-            let data = try JSONSerialization.data(withJSONObject: object)
+            let data = try JSONSerialization.data(
+                withJSONObject: object, options: [.withoutEscapingSlashes, .sortedKeys])
             guard let string = String(data: data, encoding: .utf8) else {
                 throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
             }

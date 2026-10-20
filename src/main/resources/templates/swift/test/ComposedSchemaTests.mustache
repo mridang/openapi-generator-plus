@@ -96,6 +96,30 @@ import Testing
         #expect(parsed?["foodType"] as? String == "dry")
     }
 
+    /* A oneOf union can be built in code from one of its variants, and the
+       wrapped value is what goes on the wire. */
+    @Test func testPetFoodConstructedFromVariantSerializesThatVariant() throws {
+        let food = PetFood(DryFood(weightKg: 2.5))
+        #expect(food.value() is DryFood)
+        #expect(food.value(as: DryFood.self)?.weightKg == 2.5)
+        #expect(try ObjectSerializer.serialize(food) == "{\"foodType\":\"dry\",\"weightKg\":2.5}")
+
+        let wet = PetFood(WetFood(volumeMl: 400))
+        #expect(wet.value() is WetFood)
+        #expect(try ObjectSerializer.serialize(wet) == "{\"foodType\":\"wet\",\"volumeMl\":400}")
+    }
+
+    /* The primitive-union variants are accepted by the same initializer. */
+    @Test func testByteUnionConstructedFromVariantSerializesAsBase64() throws {
+        let scalar = SetPetAvatarThumbnailRequest(Data([0xFF, 0xFE]))
+        #expect(scalar.value(as: Data.self) == Data([0xFF, 0xFE]))
+        #expect(try ObjectSerializer.serialize(scalar) == "\"//4=\"")
+
+        let list = SetPetAvatarThumbnailRequest([Data([0xFF, 0xFE]), Data([0x01])])
+        #expect(list.value(as: [Data].self)?.count == 2)
+        #expect(try ObjectSerializer.serialize(list) == "[\"//4=\",\"AQ==\"]")
+    }
+
     // MARK: - anyOf without discriminator: PetTreatment
 
     @Test func testPetTreatmentDeserializeMedication() throws {

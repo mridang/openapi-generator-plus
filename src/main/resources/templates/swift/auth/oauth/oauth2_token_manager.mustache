@@ -349,8 +349,12 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             return Int(d.rounded(.down))
         }
         if let s = raw as? String {
-            let trimmed = s.trimmingCharacters(in: .whitespaces)
-            guard !trimmed.isEmpty, let d = Double(trimmed), d.isFinite else { return 0 }
+            /* Plain decimal digits with an optional fraction only: Swift's
+               Double(_:) would also take hex ("0x10"), "inf" and "nan". Any
+               whitespace, newlines included, is trimmed first. */
+            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.range(of: "^[0-9]+(\\.[0-9]*)?$", options: .regularExpression) != nil,
+                  let d = Double(trimmed), d.isFinite else { return 0 }
             return Int(d.rounded(.down))
         }
         return 0

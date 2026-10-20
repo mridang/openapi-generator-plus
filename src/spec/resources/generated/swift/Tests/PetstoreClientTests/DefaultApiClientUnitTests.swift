@@ -341,6 +341,27 @@ import Testing
       "expected application/octet-stream fallback when no extension, got: \(bodyStr)")
   }
 
+  /* Every integer and floating-point width, and booleans, are plain text
+     parts: `true`/`false` (not 1/0) and no application/json model part. */
+  @Test func testMultipartScalarPartsAreTextOfEveryNumericWidth() throws {
+    let formParts: [String: Any] = [
+      "big": Int64(9_000_000_000), "small": Int32(7), "ratio": Float(1.5),
+      "flag": true, "off": false,
+    ]
+    for body in [
+      try DefaultApiClient.buildMultipartBody(formParts, boundary: "B"),
+      try BaseApi.buildMultipartBody(formParts, boundary: "B"),
+    ] {
+      let text = String(data: body, encoding: .utf8) ?? ""
+      #expect(text.contains("name=\"big\"\r\n\r\n9000000000\r\n"), "got: \(text)")
+      #expect(text.contains("name=\"small\"\r\n\r\n7\r\n"), "got: \(text)")
+      #expect(text.contains("name=\"ratio\"\r\n\r\n1.5\r\n"), "got: \(text)")
+      #expect(text.contains("name=\"flag\"\r\n\r\ntrue\r\n"), "got: \(text)")
+      #expect(text.contains("name=\"off\"\r\n\r\nfalse\r\n"), "got: \(text)")
+      #expect(!text.contains("application/json"), "got: \(text)")
+    }
+  }
+
   // multipart-rawbytes-content-type: a raw-bytes part with no explicit filename
   // reuses the FIELD NAME as the filename and guesses the Content-Type from that
   // name's extension, falling back to application/octet-stream when there is none.
@@ -721,6 +742,212 @@ import Testing
     #expect(resp.statusCode == 200)
     #expect(resp.body.isEmpty)
   }
+
+  // MARK: - Session configuration
+
+  /* The production session keeps no cookies and no response cache, so two
+     identical calls behave identically and one client never sees another's
+     Set-Cookie. URLSessionConfiguration.default would do both. */
+  @Test func testSessionIsStatelessWithoutCookiesOrCache() throws {
+    let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
+    let config = session.configuration
+    #expect(config.httpCookieStorage == nil)
+    #expect(config.httpShouldSetCookies == false)
+    #expect(config.urlCache == nil)
+    #expect(config.requestCachePolicy == .reloadIgnoringLocalCacheData)
+  }
+
+  /* noRedirect requests (OAuth2 token calls) share ONE long-lived session
+     built from the primary configuration, rather than a fresh, never
+     invalidated session per call that dropped the proxy and timeouts. */
+  @Test func testNoRedirectSessionIsReusedAndInheritsThePrimaryConfiguration() {
+    let config = URLSessionConfiguration.ephemeral
+    config.httpShouldSetCookies = false
+    config.requestCachePolicy = .reloadIgnoringLocalCacheData
+    config.timeoutIntervalForRequest = 7
+    let client = DefaultApiClient(transportOptions: nil, session: URLSession(configuration: config))
+    let first = client.noRedirectSession()
+    #expect(first === client.noRedirectSession())
+    #expect(first.configuration.httpShouldSetCookies == false)
+    #expect(first.configuration.requestCachePolicy == .reloadIgnoringLocalCacheData)
+    #expect(first.configuration.timeoutIntervalForRequest == 7)
+    client.close()
+  }
+
+  /* CFNetwork chooses the proxy by the TARGET scheme, so an http:// proxy
+     must be wired for https:// targets too (and the reverse), or half the
+     traffic bypasses it. */
+  @Test func testProxyDictionaryCoversBothTargetSchemes() throws {
+    let http = DefaultApiClient.proxyConnectionDictionary(
+      try #require(URL(string: "http://proxy.example.com:3128")))
+    #expect(http["HTTPEnable"] as? Bool == true)
+    #expect(http["HTTPProxy"] as? String == "proxy.example.com")
+    #expect(http["HTTPPort"] as? Int == 3128)
+    #expect(http["HTTPSEnable"] as? Bool == true)
+    #expect(http["HTTPSProxy"] as? String == "proxy.example.com")
+    #expect(http["HTTPSPort"] as? Int == 3128)
+
+    let https = DefaultApiClient.proxyConnectionDictionary(
+      try #require(URL(string: "https://proxy.example.com")))
+    #expect(https["HTTPEnable"] as? Bool == true)
+    #expect(https["HTTPPort"] as? Int == 443)
+    #expect(https["HTTPSEnable"] as? Bool == true)
+    #expect(https["HTTPSPort"] as? Int == 443)
+
+    let bare = DefaultApiClient.proxyConnectionDictionary(
+      try #require(URL(string: "http://proxy.example.com")))
+    #expect(bare["HTTPPort"] as? Int == 80)
+    #expect(bare["HTTPSPort"] as? Int == 80)
+  }
+
+  // MARK: - Redirect body-replay guard
+
+  /* Only a real body is refused across an HTTPS -> HTTP hop. The empty Data
+     attached to a body-less POST/PUT/PATCH carries nothing to leak. */
+  @Test func testBodyReplayGuardIgnoresEmptyBodies() throws {
+    let url = try #require(URL(string: "http://other.example/x"))
+    var withBody = URLRequest(url: url)
+    withBody.httpBody = Data("secret".utf8)
+    var empty = URLRequest(url: url)
+    empty.httpBody = Data()
+    let none = URLRequest(url: url)
+
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: withBody, originalBody: nil))
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: empty, originalBody: nil))
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: none, originalBody: nil))
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "http", nextScheme: "https", request: withBody, originalBody: nil))
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "http", nextScheme: "http", request: withBody, originalBody: nil))
+  }
+
+  /* URLSession may hand the redirect a body STREAM; an original empty body
+     still means there is nothing to replay. */
+  @Test func testBodyReplayGuardTreatsStreamOfEmptyOriginalAsEmpty() throws {
+    var streamed = URLRequest(url: try #require(URL(string: "http://other.example/x")))
+    streamed.httpBodyStream = InputStream(data: Data())
+    #expect(
+      !DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed, originalBody: Data()))
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed, originalBody: Data("x".utf8))
+    )
+    #expect(
+      DefaultApiClient.refusesBodyReplay(
+        currentScheme: "https", nextScheme: "http", request: streamed, originalBody: nil))
+  }
+
+  // MARK: - Bare utf-16 byte-order marks
+
+  /* A bare utf-16 label honours a leading byte-order mark and drops it; the
+     big-endian default only applies when there is none. */
+  @Test func testBareUtf16LittleEndianBomDecodesLittleEndian() async throws {
+    let client = makeClient { _ in
+      (
+        Data([0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00]), 200,
+        ["Content-Type": "text/plain; charset=utf-16"]
+      )
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "http://localhost/le", headers: [:], body: nil)
+    #expect(resp.body == "AB", "got: \(resp.body.unicodeScalars.map { $0.value })")
+  }
+
+  @Test func testBareUtf16BigEndianBomIsDropped() async throws {
+    let client = makeClient { _ in
+      (
+        Data([0xFE, 0xFF, 0x00, 0x41, 0x00, 0x42]), 200,
+        ["Content-Type": "text/plain; charset=utf-16"]
+      )
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "http://localhost/be", headers: [:], body: nil)
+    #expect(resp.body == "AB", "got: \(resp.body.unicodeScalars.map { $0.value })")
+  }
+
+  /* An explicit utf-16le label is not sniffed: it never second-guesses the
+     declared byte order. */
+  @Test func testExplicitUtf16LittleEndianLabelIsNotSniffed() {
+    let text = DefaultApiClient.decodeText(
+      Data([0x41, 0x00, 0x42, 0x00]), contentType: "text/plain; charset=utf-16le")
+    #expect(text == "AB")
+  }
+
+  // MARK: - CA certificate files
+
+  /* SecCertificateCreateWithData only takes DER, so PEM is unwrapped
+     first, and a bundle yields every certificate in it. */
+  @Test func testParseCaCertificatesReadsEveryPemBlock() {
+    let pem = """
+      header text
+      -----BEGIN CERTIFICATE-----
+      MAMC
+      AQU=
+      -----END CERTIFICATE-----
+      -----BEGIN CERTIFICATE-----\r
+      MAMCAQY=\r
+      -----END CERTIFICATE-----
+      """
+    let certificates = DefaultApiClient.parseCaCertificates(Data(pem.utf8))
+    #expect(
+      certificates == [
+        Data([0x30, 0x03, 0x02, 0x01, 0x05]), Data([0x30, 0x03, 0x02, 0x01, 0x06]),
+      ])
+  }
+
+  @Test func testParseCaCertificatesAcceptsDerAndRejectsOtherBytes() {
+    let der = Data([0x30, 0x03, 0x02, 0x01, 0x05])
+    #expect(DefaultApiClient.parseCaCertificates(der) == [der])
+    #expect(DefaultApiClient.parseCaCertificates(Data("not a certificate".utf8)).isEmpty)
+    #expect(DefaultApiClient.parseCaCertificates(Data()).isEmpty)
+    let armourOnly = "-----BEGIN CERTIFICATE-----\n!!!!\n-----END CERTIFICATE-----\n"
+    #expect(DefaultApiClient.parseCaCertificates(Data(armourOnly.utf8)).isEmpty)
+  }
+
+  @Test func testUnparseableCaCertFileFailsFast() throws {
+    let file = FileManager.default.temporaryDirectory
+      .appendingPathComponent("garbage-\(UUID().uuidString).pem")
+    try Data("not a certificate".utf8).write(to: file)
+    defer { try? FileManager.default.removeItem(at: file) }
+    let transport = TransportOptionsBuilder().caCertPath(file.path).build()
+    #expect(
+      throws: ConfigurationError.invalidCACertificate(
+        "failed to parse \"\(file.path)\": no PEM blocks found or unparseable")
+    ) {
+      _ = try DefaultApiClient(transportOptions: transport)
+    }
+  }
+
+  #if os(Linux)
+    /* URLSession on Linux cannot apply either TLS override, so asking for one
+       must fail loudly instead of being silently dropped. */
+    @Test func testDisablingVerificationIsRefusedOnLinux() {
+      let transport = TransportOptionsBuilder().verifySsl(false).build()
+      #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+        _ = try DefaultApiClient(transportOptions: transport)
+      }
+    }
+
+    @Test func testCaCertificateIsRefusedOnLinux() throws {
+      let file = FileManager.default.temporaryDirectory
+        .appendingPathComponent("der-\(UUID().uuidString).der")
+      try Data([0x30, 0x03, 0x02, 0x01, 0x05]).write(to: file)
+      defer { try? FileManager.default.removeItem(at: file) }
+      let transport = TransportOptionsBuilder().caCertPath(file.path).build()
+      #expect(throws: ConfigurationError.tlsOptionsUnsupported) {
+        _ = try DefaultApiClient(transportOptions: transport)
+      }
+    }
+  #endif
 
   // MARK: - CA certificate fail-fast
 

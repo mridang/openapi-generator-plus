@@ -52,6 +52,15 @@ import Testing
         }
     }
 
+    @Test func testWithTokenFactoryBuildsAClientAndRejectsInvalidTokens() throws {
+        _ = try {{clientClassName}}.withToken(host: "{{{basePath}}}", accessToken: "abc.def-123")
+        _ = try {{clientClassName}}.withToken(
+            host: "{{{basePath}}}", accessToken: "abc", transportOptions: TransportOptionsBuilder().build())
+        #expect(throws: ConfigurationError.self) {
+            _ = try {{clientClassName}}.withToken(host: "{{{basePath}}}", accessToken: "")
+        }
+    }
+
     // bearer-no-empty-token-guard (F-A6-G1): the Bearer authenticator must
     // reject an empty or whitespace-only token at construction (it would
     // otherwise emit the literal header `Authorization: Bearer ` and send the

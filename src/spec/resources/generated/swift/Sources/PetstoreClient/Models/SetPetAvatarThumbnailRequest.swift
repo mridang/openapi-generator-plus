@@ -11,6 +11,18 @@ import Foundation
 public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
   private let _value: Any
 
+  /// Wraps a ``Data`` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: Data) {
+    self._value = value
+  }
+
+  /// Wraps a ``[Data]`` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: [Data]) {
+    self._value = value
+  }
+
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)

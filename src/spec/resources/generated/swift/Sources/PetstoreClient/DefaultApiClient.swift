@@ -45,6 +45,12 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
      invalidated" exception, matching the close-lifecycle behaviour of the
      other SDKs. */
   private let closedFlag = LockedFlag()
+  /* The session used for noRedirect requests (OAuth2 token calls). Built
+     once, on first use, from the primary session's configuration so it
+     shares the proxy, timeouts and stateless settings, and invalidated by
+     ``close()`` so it never leaks. */
+  private let noRedirectLock = NSLock()
+  private var noRedirectSessionStorage: URLSession?
   /* URLSession's connectionProxyDictionary has no key for
    * proxy basic-auth credentials, so userinfo embedded in the proxy
    * URL (`http://user:pass@host:port`) is silently dropped by the
@@ -76,7 +82,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// rather than silently falling back to the system trust store — if the
   /// caller explicitly asked for SSL pinning we must not pretend it
   /// succeeded. A proxy on a platform that cannot route through one throws
-  /// ``ConfigurationError/proxyUnsupported``.
+  /// ``ConfigurationError/proxyUnsupported``, and so does disabling TLS
+  /// verification or pinning a CA where URLSession cannot apply either
+  /// (``ConfigurationError/tlsOptionsUnsupported``).
   public init(transportOptions: TransportOptions?) throws {
     let opts = transportOptions ?? TransportOptionsBuilder().build()
     try DefaultApiClient.validateCaCertPath(opts.caCertPath)
@@ -96,13 +104,47 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
       throw ConfigurationError.invalidCACertificate("failed to read \"\(path)\"")
     }
+    let certificates = parseCaCertificates(certData)
     #if canImport(Security)
-      guard SecCertificateCreateWithData(nil, certData as CFData) != nil else {
-        throw ConfigurationError.invalidCACertificate(
-          "failed to parse \"\(path)\": no PEM blocks found or unparseable"
-        )
-      }
+      let parsed =
+        !certificates.isEmpty
+        && certificates.allSatisfy { SecCertificateCreateWithData(nil, $0 as CFData) != nil }
+    #else
+      let parsed = !certificates.isEmpty
     #endif
+    guard parsed else {
+      throw ConfigurationError.invalidCACertificate(
+        "failed to parse \"\(path)\": no PEM blocks found or unparseable"
+      )
+    }
+  }
+
+  /// Splits the contents of a CA certificate file into DER certificates.
+  ///
+  /// `SecCertificateCreateWithData` only accepts DER, so a PEM file (the
+  /// format every other SDK documents) is unwrapped here: every
+  /// `BEGIN CERTIFICATE` block is base64-decoded, so a bundle yields all of
+  /// its certificates, not just the first. A file with no PEM armour is
+  /// taken to be a single DER certificate (it must start with the ASN.1
+  /// SEQUENCE tag). Anything else yields an empty list.
+  static func parseCaCertificates(_ data: Data) -> [Data] {
+    let begin = "-----BEGIN CERTIFICATE-----"
+    let end = "-----END CERTIFICATE-----"
+    guard let text = String(data: data, encoding: .utf8), text.contains(begin) else {
+      return data.first == 0x30 ? [data] : []
+    }
+    var certificates: [Data] = []
+    var cursor = text.startIndex
+    while let open = text.range(of: begin, range: cursor..<text.endIndex),
+      let close = text.range(of: end, range: open.upperBound..<text.endIndex)
+    {
+      let body = String(text[open.upperBound..<close.lowerBound].filter { !$0.isWhitespace })
+      if let der = Data(base64Encoded: body), !der.isEmpty {
+        certificates.append(der)
+      }
+      cursor = close.upperBound
+    }
+    return certificates
   }
 
   /// Creates a client with the given transport settings and a pre-built URLSession.
@@ -285,7 +327,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        * Location target. */
       let activeSession: URLSession =
         noRedirect
-        ? buildNoRedirectSession(transportOptions)
+        ? noRedirectSession()
         : session
       (data, response, task) = try await DefaultApiClient.performDataTask(
         on: activeSession, for: request)
@@ -399,13 +441,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     let contentType = respHeaders["content-type"] ?? ""
     let responseBody: String
     if DefaultApiClient.isTextContentType(contentType) {
-      let encoding = DefaultApiClient.encodingForContentType(contentType)
-      /* Foundation returns nil for bytes that are invalid in the declared
-         charset AND in UTF-8; decode leniently (U+FFFD for each bad byte)
-         instead of silently dropping the whole body, like the other SDKs. */
-      responseBody =
-        String(data: data, encoding: encoding)
-        ?? String(decoding: data, as: UTF8.self)
+      responseBody = DefaultApiClient.decodeText(data, contentType: contentType)
     } else {
       responseBody = data.base64EncodedString()
     }
@@ -458,8 +494,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       body.append(Data(crlf.utf8))
     } else if let text = value as? String {
       body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
-    } else if let number = value as? NSNumber {
-      body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(number)\(crlf)".utf8))
+    } else if value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint {
+      /* Printed as the Swift value, so a Bool is `true`/`false` (bridging
+         it to NSNumber would print 1/0). */
+      body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(value)\(crlf)".utf8))
     } else {
       /* Model objects (Codable structs) -- serialize through the SDK's
        * shared, date-strategy-configured encoder rather than
@@ -565,14 +603,37 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
   }
 
-  /// Parses the `charset=` parameter from a Content-Type header and
-  /// returns the matching `String.Encoding`. Falls back to UTF-8 if the
-  /// charset is missing, unrecognised, or unsupported.
-  static func encodingForContentType(_ contentType: String?) -> String.Encoding {
+  /// Decodes a text body using the Content-Type's charset.
+  ///
+  /// A bare `utf-16` label is big-endian only when the body carries no
+  /// byte-order mark; a leading FF FE (little-endian) or FE FF (big-endian)
+  /// mark selects the byte order and is dropped, like the other SDKs.
+  /// Foundation returns nil for bytes that are invalid in the declared
+  /// charset AND in UTF-8; those decode leniently (U+FFFD for each bad byte)
+  /// instead of silently dropping the whole body.
+  static func decodeText(_ data: Data, contentType: String?) -> String {
+    var encoding = encodingForContentType(contentType)
+    var bytes = data
+    if charsetLabel(contentType) == "utf-16", data.count >= 2 {
+      let first = data[data.startIndex]
+      let second = data[data.startIndex + 1]
+      if first == 0xFF && second == 0xFE {
+        encoding = .utf16LittleEndian
+        bytes = data.dropFirst(2)
+      } else if first == 0xFE && second == 0xFF {
+        bytes = data.dropFirst(2)
+      }
+    }
+    return String(data: bytes, encoding: encoding) ?? String(decoding: data, as: UTF8.self)
+  }
+
+  /// The lowercased, unquoted `charset=` value of a Content-Type header, or
+  /// nil when there is none.
+  static func charsetLabel(_ contentType: String?) -> String? {
     guard let contentType = contentType,
       let range = contentType.range(of: "charset=", options: .caseInsensitive)
     else {
-      return .utf8
+      return nil
     }
     let after = contentType[range.upperBound...]
     let raw = after.split(separator: ";").first.map(String.init) ?? ""
@@ -581,7 +642,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
       charset = String(charset.dropFirst().dropLast())
     }
-    switch charset.lowercased() {
+    return charset.lowercased()
+  }
+
+  /// Parses the `charset=` parameter from a Content-Type header and
+  /// returns the matching `String.Encoding`. Falls back to UTF-8 if the
+  /// charset is missing, unrecognised, or unsupported.
+  static func encodingForContentType(_ contentType: String?) -> String.Encoding {
+    guard let charset = charsetLabel(contentType) else {
+      return .utf8
+    }
+    switch charset {
     case "utf-8", "utf8": return .utf8
     case "iso-8859-1", "latin1", "latin-1": return .isoLatin1
     case "iso-8859-2", "latin2", "latin-2": return .isoLatin2
@@ -809,6 +880,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   static func buildSession(_ opts: TransportOptions) throws -> (URLSession, SessionDelegate?) {
     let config = URLSessionConfiguration.default
 
+    /* Stateless, like the other SDKs: URLSessionConfiguration.default keeps
+     * a process-wide cookie jar (replaying every Set-Cookie on later calls,
+     * across clients) and answers GETs from URLCache.shared without
+     * reaching the server. Neither is wanted in an API client. */
+    config.httpCookieStorage = nil
+    config.httpShouldSetCookies = false
+    config.urlCache = nil
+    config.requestCachePolicy = .reloadIgnoringLocalCacheData
+
     /* URLSession has two deadlines: `timeoutIntervalForRequest` is the
      * idle timer between bytes, `timeoutIntervalForResource` the total
      * budget for the whole transfer. Both are armed from the single
@@ -824,20 +904,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       if opts.proxy != nil {
         throw ConfigurationError.proxyUnsupported
       }
+      /* swift-corelibs-foundation never surfaces a server-trust challenge, so
+       * the delegate cannot disable verification or pin a CA here. Refuse
+       * rather than silently use the system trust store. */
+      if !opts.verifySsl || opts.caCertPath != nil {
+        throw ConfigurationError.tlsOptionsUnsupported
+      }
     #else
       if let proxy = opts.proxy {
-        var proxyDict: [AnyHashable: Any] = [:]
-        let scheme = proxy.scheme ?? "http"
-        if scheme == "https" {
-          proxyDict["HTTPSEnable"] = true
-          proxyDict["HTTPSProxy"] = proxy.host
-          proxyDict["HTTPSPort"] = proxy.port ?? 443
-        } else {
-          proxyDict["HTTPEnable"] = true
-          proxyDict["HTTPProxy"] = proxy.host
-          proxyDict["HTTPPort"] = proxy.port ?? 80
-        }
-        config.connectionProxyDictionary = proxyDict
+        config.connectionProxyDictionary = proxyConnectionDictionary(proxy)
       }
     #endif
 
@@ -865,33 +940,51 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     return (URLSession(configuration: config), nil)
   }
 
-  /// Builds an ephemeral session that does not follow any HTTP
-  /// redirect; the 3xx response is returned to the caller as-is. Used
-  /// for the OAuth2 token-endpoint POST so a credential-bearing
-  /// body is never silently replayed to a Location target — the token
-  /// manager inspects and rejects the 3xx itself. TLS settings are
-  /// inherited from ``TransportOptions`` so custom CA / verifySsl flags
-  /// still apply on the token request.
-  func buildNoRedirectSession(_ opts: TransportOptions) -> URLSession {
-    let config = URLSessionConfiguration.ephemeral
-    if let timeout = opts.timeout {
-      let seconds = TimeInterval(timeout) / 1000.0
-      config.timeoutIntervalForRequest = seconds
-      config.timeoutIntervalForResource = seconds
-    }
-    /* Carry over any custom URLProtocol classes the caller registered on
-       the primary session (e.g. test stubs) so the no-redirect path is
-       interceptable in tests and routes through the same transport. */
-    if let primaryProtocols = session.configuration.protocolClasses {
-      config.protocolClasses = primaryProtocols
+  /// Builds the `connectionProxyDictionary` for a proxy URL. CFNetwork picks
+  /// the proxy per TARGET scheme (the HTTP keys cover http:// requests, the
+  /// HTTPS keys cover https:// requests), not per the proxy's own scheme, so
+  /// both sets are filled in: otherwise an `http://` proxy would be bypassed
+  /// by every https:// call.
+  static func proxyConnectionDictionary(_ proxy: URL) -> [AnyHashable: Any] {
+    let host = proxy.host ?? ""
+    let port = proxy.port ?? (proxy.scheme?.lowercased() == "https" ? 443 : 80)
+    return [
+      "HTTPEnable": true,
+      "HTTPProxy": host,
+      "HTTPPort": port,
+      "HTTPSEnable": true,
+      "HTTPSProxy": host,
+      "HTTPSPort": port,
+    ]
+  }
+
+  /// Returns the session that does not follow any HTTP redirect; the 3xx
+  /// response is returned to the caller as-is. Used for the OAuth2
+  /// token-endpoint POST so a credential-bearing body is never silently
+  /// replayed to a Location target — the token manager inspects and rejects
+  /// the 3xx itself.
+  ///
+  /// Built once and reused, from a copy of the primary session's
+  /// configuration, so token calls go through the same proxy, timeouts and
+  /// stateless settings (and any registered URLProtocol classes) as every
+  /// other request, and reuse one connection pool. ``close()`` invalidates
+  /// it.
+  func noRedirectSession() -> URLSession {
+    noRedirectLock.lock()
+    defer { noRedirectLock.unlock() }
+    if let existing = noRedirectSessionStorage {
+      return existing
     }
     let delegate = SessionDelegate(
-      verifySsl: opts.verifySsl,
-      caCertPath: opts.caCertPath,
+      verifySsl: transportOptions.verifySsl,
+      caCertPath: transportOptions.caCertPath,
       followRedirects: false,
       maxRedirects: 0
     )
-    return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    let created = URLSession(
+      configuration: session.configuration, delegate: delegate, delegateQueue: nil)
+    noRedirectSessionStorage = created
+    return created
   }
 
   /// Releases the underlying URLSession's connection pool / delegate queue.
@@ -904,6 +997,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   public func close() {
     closedFlag.set()
     session.finishTasksAndInvalidate()
+    noRedirectLock.lock()
+    noRedirectSessionStorage?.finishTasksAndInvalidate()
+    noRedirectLock.unlock()
   }
 }
 
@@ -986,17 +1082,23 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
         return
       }
 
-      /* When a custom CA certificate path is configured, load the certificate
-       * and set it as the sole anchor for trust evaluation. */
+      /* When a custom CA certificate path is configured, load every
+       * certificate in the file (PEM or DER) and set them as the only anchors
+       * for trust evaluation. */
       if let path = caCertPath {
-        guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
-          let certificate = SecCertificateCreateWithData(nil, certData as CFData)
-        else {
+        guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
+          completionHandler(.cancelAuthenticationChallenge, nil)
+          return
+        }
+        let certificates = DefaultApiClient.parseCaCertificates(certData).compactMap {
+          SecCertificateCreateWithData(nil, $0 as CFData)
+        }
+        if certificates.isEmpty {
           completionHandler(.cancelAuthenticationChallenge, nil)
           return
         }
 
-        SecTrustSetAnchorCertificates(serverTrust, [certificate] as CFArray)
+        SecTrustSetAnchorCertificates(serverTrust, certificates as CFArray)
         SecTrustSetAnchorCertificatesOnly(serverTrust, true)
 
         var error: CFError?
@@ -1095,10 +1197,10 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
      * anchor would miss. */
     let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
     let nextScheme = request.url?.scheme?.lowercased()
-    let hasBody =
-      (redirectRequest.httpBody != nil)
-      || (redirectRequest.httpBodyStream != nil)
-    if hasBody, currentScheme == "https", nextScheme == "http" {
+    if DefaultApiClient.refusesBodyReplay(
+      currentScheme: currentScheme, nextScheme: nextScheme,
+      request: redirectRequest, originalBody: task.originalRequest?.httpBody)
+    {
       /* Surface the downgrade refusal as a typed error rather than
          silently returning the 3xx response. */
       redirectErrors.set(
@@ -1150,6 +1252,24 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
 }
 
 extension DefaultApiClient {
+  /// Whether a redirect must be refused because it would replay a request
+  /// body over an HTTPS -> HTTP downgrade. Only a REAL body counts: the
+  /// explicit empty `Data()` this client attaches to a body-less
+  /// POST/PUT/PATCH (to force `Content-Length: 0`) carries nothing to leak,
+  /// so such a request follows the redirect like the other SDKs.
+  static func refusesBodyReplay(
+    currentScheme: String?, nextScheme: String?, request: URLRequest, originalBody: Data?
+  ) -> Bool {
+    guard currentScheme == "https", nextScheme == "http" else { return false }
+    if let body = request.httpBody {
+      return !body.isEmpty
+    }
+    if request.httpBodyStream != nil {
+      return originalBody?.isEmpty != true
+    }
+    return false
+  }
+
   /// Header names that MUST NOT be replayed across a cross-origin
   /// 3xx redirect. The base set is the RFC-defined credential
   /// triple; the trailing entries are app-specific `apiKey-in-header`
