@@ -177,22 +177,16 @@ class ApiException extends {{errorPrefix}}Exception {
   /// deserialization, so the target model's `fromJson` constructor is passed
   /// in rather than the class itself.
   ///
-  /// Returns the deserialized error body, or null if the body is empty or
-  /// deserialization fails.
+  /// Returns the deserialized error body, or null if the body is absent, empty
+  /// or a bare JSON `null`. Throws `SerializationException` if the body is not
+  /// valid JSON or does not match the target model, so a malformed body is not
+  /// mistaken for a missing one.
   T? getTypedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
     final body = responseBody;
-    if (body == null || body.isEmpty) {
+    if (body == null) {
       return null;
     }
-    try {
-      /* Route through parseJson so the nesting-depth cap refuses a
-       * deeply-nested error payload before it can recurse through the call
-       * stack. */
-      final decoded = parseJson(body);
-      return fromJson(decoded as Map<String, dynamic>);
-    } catch (_) {
-      return null;
-    }
+    return deserialize(body, fromJson);
   }
 
   /// Render the error as the message followed by whatever response context was

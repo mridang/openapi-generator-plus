@@ -56,9 +56,7 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
   void setAccessToken(String token) {
     for (final c in token.codeUnits) {
       if (c != 0x09 && (c < 0x20 || c >= 0x7F)) {
-        throw ArgumentError.value(
-          token,
-          'token',
+        throw ArgumentError(
           'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
         );
       }

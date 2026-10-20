@@ -51,7 +51,7 @@ class BinaryVault {
       json['shards'] = shards?.map((e) => base64Encode(e)).toList();
     }
     if (labels != null) {
-      json['labels'] = labels;
+      json['labels'] = labels?.map((k, v) => MapEntry(k, base64Encode(v)));
     }
     return json;
   }

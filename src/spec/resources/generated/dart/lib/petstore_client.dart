@@ -83,6 +83,7 @@ export 'src/models/tree_node.dart';
 export 'src/models/wet_food.dart';
 export 'src/server_configuration.dart';
 export 'src/servers.dart';
+export 'src/trace_context_util.dart';
 export 'src/transport_options.dart';
 export 'src/api/options/add_pet_options.dart';
 export 'src/api/options/add_pet_photos_options.dart';

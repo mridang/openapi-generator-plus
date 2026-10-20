@@ -527,6 +527,43 @@ void main() {
       expect(json['id'], equals(7));
     });
 
+    // -- ByteMapWireTests --
+    //
+    // A `format: byte` map value is native bytes in memory and a base64 string
+    // on the wire, exactly like a byte scalar or array. A plain assignment
+    // would hand jsonEncode a Uint8List, which it writes as an int array.
+    test('serialize writes format:byte map values as base64 strings', () {
+      final vault = BinaryVault(
+        labels: <String, Uint8List>{
+          'a': Uint8List.fromList(<int>[1, 2, 3]),
+          'b': Uint8List.fromList(<int>[255]),
+        },
+      );
+
+      final wire = jsonDecode(serialize(vault)) as Map<String, dynamic>;
+
+      expect(
+        wire['labels'],
+        equals(<String, dynamic>{'a': 'AQID', 'b': '/w=='}),
+      );
+    });
+
+    test('format:byte map values round-trip through the wire form', () {
+      final vault = BinaryVault(
+        seal: Uint8List.fromList(<int>[9, 8]),
+        labels: <String, Uint8List>{
+          'a': Uint8List.fromList(<int>[1, 2, 3]),
+        },
+      );
+
+      final restored = BinaryVault.fromJson(
+        jsonDecode(serialize(vault)) as Map<String, dynamic>,
+      );
+
+      expect(restored, equals(vault));
+      expect(restored.labels!['a'], equals(Uint8List.fromList(<int>[1, 2, 3])));
+    });
+
     // -- DiscardExtrasOnDeserializeTests --
     //
     // fromJson must read only declared properties and silently drop unknown

@@ -150,22 +150,26 @@ abstract class AbstractApiClient implements ApiClient {
 
     /* A malformed request URL or a header value the transport would refuse
      * is a caller mistake: an ArgumentError, raised here before the
-     * transport handler below could mistake it for a network failure. */
+     * transport handler below could mistake it for a network failure. The
+     * errors carry a message only: the value-carrying ArgumentError
+     * constructor would put the URL (a token can ride its query) or the
+     * header value (an API key or bearer token) into toString() and
+     * invalidValue, and from there into logs. */
     final Uri uri;
     try {
       uri = Uri.parse(url);
     } on FormatException catch (e) {
-      throw ArgumentError.value(url, 'url', 'Invalid request URL: ${e.message}');
+      throw ArgumentError('Invalid request URL: ${e.message}');
     }
     if (!uri.hasScheme || uri.host.isEmpty) {
-      throw ArgumentError.value(url, 'url', 'Request URL must be absolute');
+      throw ArgumentError('Request URL must be absolute');
     }
     merged.forEach((name, value) {
       if (name.isEmpty || RegExp(r"[^!#$%&'*+\-.^_`|~0-9A-Za-z]").hasMatch(name)) {
-        throw ArgumentError.value(name, 'headers', 'Invalid header name');
+        throw ArgumentError('Invalid header name');
       }
       if (RegExp(r'[\r\n\x00]').hasMatch(value)) {
-        throw ArgumentError.value(value, 'headers', 'Header "$name" contains CR, LF, or NUL');
+        throw ArgumentError('Header "$name" contains CR, LF, or NUL');
       }
     });
     http.BaseRequest request;
@@ -177,32 +181,7 @@ abstract class AbstractApiClient implements ApiClient {
      * manually below, stripping sensitive headers when the next URL's origin
      * differs from the original. */
     if (body is Map<String, Object?>) {
-      final multipartRequest = http.MultipartRequest(method, uri);
-      multipartRequest.headers.addAll(merged);
-      for (final entry in body.entries) {
-        final name = entry.key;
-        final value = entry.value;
-        if (value == null) continue;
-        /* A binary part (`Uint8List`/`List<int>`) must be handled as a single
-         * file part — NOT iterated as a repeated field. `Uint8List` satisfies
-         * `value is List`, so the `List<int>` check has to come first;
-         * otherwise each individual byte is stringified into its own numeric
-         * form field and the file content is destroyed. */
-        if (value is List<int>) {
-          _addMultipartField(multipartRequest, name, value);
-        } else if (value is List) {
-          /* A non-binary array form field expands into one part per element
-           * (repeated keys, as for the urlencoded form). */
-          for (final item in value) {
-            if (item == null) continue;
-            _addMultipartField(multipartRequest, name, item as Object);
-          }
-        } else {
-          _addMultipartField(multipartRequest, name, value);
-        }
-      }
-      multipartRequest.followRedirects = false;
-      request = multipartRequest;
+      request = _buildMultipartRequest(method, uri, merged, body);
     } else {
       final standardRequest = http.Request(method, uri);
       if (body == null) {
@@ -353,6 +332,14 @@ abstract class AbstractApiClient implements ApiClient {
              * pre-built multipart envelope) is re-encoded as UTF-8
              * bytes on each hop so the form parts arrive intact. */
             next.bodyBytes = Uint8List.fromList(utf8.encode(nextBody));
+          } else if (nextBody is Map<String, Object?>) {
+            /* A multipart form body can be finalized only once, so the
+             * parts are rebuilt and serialized to bytes for the replay. The
+             * rebuilt request owns the boundary, so its Content-Type
+             * replaces the one carried from the previous hop. */
+            final replay = _buildMultipartRequest(nextMethod, nextUri, {}, nextBody);
+            next.bodyBytes = await replay.finalize().toBytes();
+            next.headers['content-type'] = replay.headers['content-type']!;
           }
           currentUri = nextUri;
           currentMethod = nextMethod;
@@ -476,13 +463,60 @@ abstract class AbstractApiClient implements ApiClient {
     );
   }
 
+  /// Builds a [http.MultipartRequest] for [method] and [uri] from the form
+  /// [fields], carrying [headers] and with automatic redirects disabled.
+  ///
+  /// Used for the first send and again to rebuild the body when a 307/308
+  /// redirect replays it, since a multipart request can be finalized once.
+  static http.MultipartRequest _buildMultipartRequest(
+    String method,
+    Uri uri,
+    Map<String, String> headers,
+    Map<String, Object?> fields,
+  ) {
+    final multipartRequest = http.MultipartRequest(method, uri);
+    multipartRequest.headers.addAll(headers);
+    for (final entry in fields.entries) {
+      final name = entry.key;
+      final value = entry.value;
+      if (value == null) continue;
+      /* A binary part (`Uint8List`/`List<int>`) must be handled as a single
+       * file part — NOT iterated as a repeated field. `Uint8List` satisfies
+       * `value is List`, so the `List<int>` check has to come first;
+       * otherwise each individual byte is stringified into its own numeric
+       * form field and the file content is destroyed. */
+      if (value is List<int>) {
+        _addMultipartField(multipartRequest, name, value);
+      } else if (value is List) {
+        /* A non-binary array form field expands into one part per element
+         * (repeated keys, as for the urlencoded form). The request's `fields`
+         * map holds one value per name, so each element is added as its own
+         * part instead. */
+        for (final item in value) {
+          if (item == null) continue;
+          _addMultipartField(multipartRequest, name, item as Object,
+              repeated: true);
+        }
+      } else {
+        _addMultipartField(multipartRequest, name, value);
+      }
+    }
+    multipartRequest.followRedirects = false;
+    return multipartRequest;
+  }
+
   /// Adds a single field to a multipart request, handling bytes, strings, and
   /// other types (JSON-serialized).
+  ///
+  /// A [repeated] scalar (one element of an array field) is added as its own
+  /// part, because `request.fields` is a map and a second value for the same
+  /// name would overwrite the first.
   static void _addMultipartField(
     http.MultipartRequest request,
     String name,
-    Object value,
-  ) {
+    Object value, {
+    bool repeated = false,
+  }) {
     /* Validate the field name on every branch (string, number, boolean,
      * JSON, binary) before it lands in Content-Disposition. The
      * http.MultipartRequest builds the header from `name` directly, so
@@ -501,10 +535,13 @@ abstract class AbstractApiClient implements ApiClient {
         filename: name,
         contentType: contentType,
       ));
-    } else if (value is String) {
-      request.fields[name] = value;
-    } else if (value is num || value is bool) {
-      request.fields[name] = value.toString();
+    } else if (value is String || value is num || value is bool) {
+      final text = value.toString();
+      if (repeated) {
+        request.files.add(http.MultipartFile.fromString(name, text));
+      } else {
+        request.fields[name] = text;
+      }
     } else {
       final json = jsonEncode(value);
       request.files.add(http.MultipartFile.fromString(

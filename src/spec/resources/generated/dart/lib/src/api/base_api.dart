@@ -258,7 +258,17 @@ class BaseApi {
       final returnsBytes =
           returnType == 'List<int>' || returnType == 'Uint8List';
       final isBinaryContentType = _isBinaryContentType(responseContentType);
-      if (returnsBytes && _headerSelector.isJsonMime(responseContentType)) {
+      final isJsonBody =
+          _headerSelector.isJsonMime(responseContentType) ||
+          (responseContentType.isEmpty && !returnsBytes);
+      if (isJsonBody && response.body.trim() == 'null') {
+        /* A bare JSON `null` is an absent body, not a value: leave data null
+         * so the convenience method raises its uniform empty-body
+         * ApiException, instead of the generated deserializer casting null
+         * to the return type and surfacing a raw TypeError. */
+        data = null;
+      } else if (returnsBytes &&
+          _headerSelector.isJsonMime(responseContentType)) {
         /* Top-level `format: byte` response carried as application/json: the
          * body is a JSON string LITERAL, e.g. `"dGVzdC1pbWFnZQ=="` (quotes
          * included). JSON-parse it first to recover the inner base64 string,

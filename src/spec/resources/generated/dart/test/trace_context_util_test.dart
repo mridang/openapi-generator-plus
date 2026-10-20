@@ -8,7 +8,7 @@
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:opentelemetry/sdk.dart' as otel_sdk;
 import 'package:test/test.dart';
-import 'package:petstore_client/src/trace_context_util.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('TraceContextUtil', () {

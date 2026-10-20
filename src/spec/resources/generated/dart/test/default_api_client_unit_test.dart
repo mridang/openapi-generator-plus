@@ -918,6 +918,56 @@ void main() {
       );
     });
 
+    test(
+      'the header-value ArgumentError never carries the secret value',
+      () async {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest('GET', 'http://127.0.0.1:1/x', {
+            'Authorization': 'Bearer s3cr3t\r\nInjected: yes',
+          }, null),
+          throwsA(
+            isA<ArgumentError>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  equals('Header "Authorization" contains CR, LF, or NUL'),
+                )
+                .having((e) => e.invalidValue, 'invalidValue', isNull)
+                .having(
+                  (e) => e.toString(),
+                  'toString',
+                  isNot(contains('s3cr3t')),
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'the URL ArgumentErrors never carry the URL or its query token',
+      () async {
+        final client = DefaultApiClient();
+        await expectLater(
+          client.sendRequest('GET', '/relative?token=s3cr3t', {}, null),
+          throwsA(
+            isA<ArgumentError>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  equals('Request URL must be absolute'),
+                )
+                .having((e) => e.invalidValue, 'invalidValue', isNull)
+                .having(
+                  (e) => e.toString(),
+                  'toString',
+                  isNot(contains('s3cr3t')),
+                ),
+          ),
+        );
+      },
+    );
+
     /* dart-charset-utf16-mojibake: a response declared charset=utf-16
      * must be decoded correctly (parity with the other 11 SDKs), not
      * thrown as a FormatException nor mangled into mojibake. */
@@ -1366,6 +1416,119 @@ void main() {
             },
           );
           expect(body, contains('content-type: application/octet-stream'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test('multipart array field sends one part per element', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {
+            'tags': ['alpha', 'beta', 'gamma'],
+            'counts': [7, true],
+          },
+        );
+        expect(RegExp('name="tags"').allMatches(body), hasLength(3));
+        expect(body, contains('\r\n\r\nalpha\r\n'));
+        expect(body, contains('\r\n\r\nbeta\r\n'));
+        expect(body, contains('\r\n\r\ngamma\r\n'));
+        expect(body.indexOf('alpha'), lessThan(body.indexOf('beta')));
+        expect(body.indexOf('beta'), lessThan(body.indexOf('gamma')));
+        expect(RegExp('name="counts"').allMatches(body), hasLength(2));
+        expect(body, contains('\r\n\r\n7\r\n'));
+        expect(body, contains('\r\n\r\ntrue\r\n'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('multipart scalar field is still sent as a single part', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {'note': 'hello'},
+        );
+        expect(RegExp('name="note"').allMatches(body), hasLength(1));
+        expect(body, contains('\r\n\r\nhello\r\n'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test(
+      'a Map multipart body is replayed intact across a 307 redirect',
+      () async {
+        var firstHits = 0;
+        var secondHits = 0;
+        String contentType = '';
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          if (request.uri.path == '/first') {
+            firstHits++;
+            await request.drain<void>();
+            request.response
+              ..statusCode = 307
+              ..headers.set('Location', '/second')
+              ..close();
+            return;
+          }
+          secondHits++;
+          contentType = request.headers.value('content-type') ?? '';
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/first',
+            {'Content-Type': 'multipart/form-data'},
+            {
+              'tags': ['alpha', 'beta'],
+              'note': 'hello',
+            },
+          );
+          expect(resp.statusCode, equals(200));
+          expect(firstHits, equals(1));
+          expect(secondHits, equals(1));
+          expect(contentType, startsWith('multipart/form-data; boundary='));
+          final boundary = contentType.split('boundary=').last.toLowerCase();
+          expect(body, contains('--$boundary--'));
+          expect(RegExp('name="tags"').allMatches(body), hasLength(2));
+          expect(body, contains('\r\n\r\nalpha\r\n'));
+          expect(body, contains('\r\n\r\nbeta\r\n'));
+          expect(body, contains('\r\n\r\nhello\r\n'));
         } finally {
           await server.close();
         }

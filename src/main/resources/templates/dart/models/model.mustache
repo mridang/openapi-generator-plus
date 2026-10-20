@@ -657,6 +657,29 @@ class {{classname}} {
     json['{{baseName}}'] = base64Encode({{name}});
 {{/isByteArray}}
 {{^isByteArray}}
+{{#isMap}}
+{{! A map whose VALUES are temporal/uuid/duration/byte leaves holds Dart objects
+    that jsonEncode cannot serialise, so each value is projected to its wire
+    form here — mirroring the scalar/array paths and the deserialize_arg leaf
+    branches. A `date` (format:date) value is already a String, and any other
+    leaf passes through, via the plain assignment. }}
+{{#items.isByteArray}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/items.isByteArray}}
+{{#items.isDateTime}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/items.isDateTime}}
+{{#items.isUuid}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, v.toString()));
+{{/items.isUuid}}
+{{#items.vendorExtensions.isDuration}}
+    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/items.vendorExtensions.isDuration}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}
+    json['{{baseName}}'] = {{name}};
+{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
     json['{{baseName}}'] = formatDateTimeOffset({{name}});
@@ -675,34 +698,9 @@ class {{classname}} {
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-{{#isMap}}
-{{#items}}
-{{! A map whose VALUES are temporal/uuid/duration/byte leaves holds Dart objects
-    that jsonEncode cannot serialise, so each value is projected to its wire
-    form here — mirroring the scalar/array paths and the deserialize_arg leaf
-    branches. A `date` (format:date) value is already a String, and any other
-    leaf passes through, via the plain assignment. }}
-{{#isByteArray}}
-    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, base64Encode(v)));
-{{/isByteArray}}
-{{#isDateTime}}
-    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
-{{/isDateTime}}
-{{#isUuid}}
-    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, v.toString()));
-{{/isUuid}}
-{{#vendorExtensions.isDuration}}
-    json['{{baseName}}'] = {{name}}.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
-{{/vendorExtensions.isDuration}}
-{{^isByteArray}}{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
-    json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}{{/isByteArray}}
-{{/items}}
-{{/isMap}}
-{{^isMap}}
     json['{{baseName}}'] = {{name}}.toJson();
-{{/isMap}}
 {{/isPrimitiveType}}
+{{/isMap}}
 {{/isByteArray}}
 {{/isArray}}
 {{/isEnum}}
@@ -748,6 +746,29 @@ class {{classname}} {
       json['{{baseName}}'] = base64Encode({{name}}!);
 {{/isByteArray}}
 {{^isByteArray}}
+{{#isMap}}
+{{! Optional counterpart of the required map branch: a map whose VALUES are
+    temporal/uuid/duration/byte leaves holds Dart objects jsonEncode cannot
+    encode, so each value is projected to its wire form. A `date` value is
+    already a String, and any other leaf passes through, via the plain
+    assignment. }}
+{{#items.isByteArray}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, base64Encode(v)));
+{{/items.isByteArray}}
+{{#items.isDateTime}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
+{{/items.isDateTime}}
+{{#items.isUuid}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, v.toString()));
+{{/items.isUuid}}
+{{#items.vendorExtensions.isDuration}}
+      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
+{{/items.vendorExtensions.isDuration}}
+{{^items.isByteArray}}{{^items.isDateTime}}{{^items.isUuid}}{{^items.vendorExtensions.isDuration}}
+      json['{{baseName}}'] = {{name}};
+{{/items.vendorExtensions.isDuration}}{{/items.isUuid}}{{/items.isDateTime}}{{/items.isByteArray}}
+{{/isMap}}
+{{^isMap}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
       json['{{baseName}}'] = formatDateTimeOffset({{name}}!);
@@ -766,34 +787,9 @@ class {{classname}} {
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDate}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-{{#isMap}}
-{{#items}}
-{{! Optional counterpart of the required map branch: a map whose VALUES are
-    temporal/uuid/duration/byte leaves holds Dart objects jsonEncode cannot
-    encode, so each value is projected to its wire form. A `date` value is
-    already a String, and any other leaf passes through, via the plain
-    assignment. }}
-{{#isByteArray}}
-      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, base64Encode(v)));
-{{/isByteArray}}
-{{#isDateTime}}
-      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatDateTimeOffset(v)));
-{{/isDateTime}}
-{{#isUuid}}
-      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, v.toString()));
-{{/isUuid}}
-{{#vendorExtensions.isDuration}}
-      json['{{baseName}}'] = {{name}}?.map((k, v) => MapEntry(k, formatProtobufDuration(v)));
-{{/vendorExtensions.isDuration}}
-{{^isByteArray}}{{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
-      json['{{baseName}}'] = {{name}};
-{{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}{{/isByteArray}}
-{{/items}}
-{{/isMap}}
-{{^isMap}}
       json['{{baseName}}'] = {{name}}?.toJson();
-{{/isMap}}
 {{/isPrimitiveType}}
+{{/isMap}}
 {{/isByteArray}}
 {{/isArray}}
 {{/isEnum}}

@@ -541,6 +541,73 @@ void main() {
       }
     });
 
+    /* A bare JSON `null` 200 body is an absent body, the same as an empty
+     * one: the convenience method throws the typed ApiException, never the
+     * Dart TypeError from `null as Pet`. */
+    test('bare JSON null body throws ApiException from a model operation',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('null')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.getPetById(1, null),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              equals('Expected a response body for getPetById but received none'),
+            ),
+          ),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bare JSON null body throws ApiException from a list operation',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('null')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await expectLater(
+          api.findPetsByStatus(null),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              equals('Expected a response body for findPetsByStatus but received none'),
+            ),
+          ),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+
     /* operation-cookie-param-crlf-fails-closed (canonical scenario 6): the
      * deletePet `api_key` cookie param is interpolated straight into the
      * Cookie request header. A value carrying CR/LF (or any control char)

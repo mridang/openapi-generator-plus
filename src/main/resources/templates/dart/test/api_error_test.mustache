@@ -75,6 +75,74 @@ void main() {
       expect(err.getTypedErrorBody(Category.fromJson), isNull);
     });
 
+    test('getTypedErrorBody returns null for an empty response body', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: '',
+      );
+
+      expect(err.getTypedErrorBody(Category.fromJson), isNull);
+    });
+
+    test('getTypedErrorBody returns null for a bare JSON null body', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: 'null',
+      );
+
+      expect(err.getTypedErrorBody(Category.fromJson), isNull);
+    });
+
+    test('getTypedErrorBody throws SerializationException for malformed JSON',
+        () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: '{"id":',
+      );
+
+      expect(
+        () => err.getTypedErrorBody(Category.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('getTypedErrorBody throws SerializationException for a JSON array body',
+        () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: '[1,2,3]',
+      );
+
+      expect(
+        () => err.getTypedErrorBody(Category.fromJson),
+        throwsA(
+          isA<SerializationException>().having(
+            (e) => e.message,
+            'message',
+            equals('Expected JSON object, got List<dynamic>'),
+          ),
+        ),
+      );
+    });
+
+    test('getTypedErrorBody throws SerializationException for a type mismatch',
+        () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'oops',
+        responseBody: '{"id":"not-a-number","name":"Dogs"}',
+      );
+
+      expect(
+        () => err.getTypedErrorBody(Category.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
     test('getTypedErrorBody ignores extraneous fields not on the model', () {
       const err = ApiException(
         statusCode: 422,
