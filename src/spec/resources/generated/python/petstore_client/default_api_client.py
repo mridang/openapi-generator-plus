@@ -543,7 +543,7 @@ class DefaultApiClient:
     # to avoid leaking bearer tokens / cookies / proxy credentials to an
     # attacker-controlled host. Names are compared case-insensitively.
     #
-    # The spec-declared API-key header names (X-API-Key, X-Internal-Key, )
+    # The spec-declared API-key header names (X-API-Key, X-Internal-Key)
     # are merged in at codegen time so an API key sent in a custom header
     # (e.g. ``X-API-Key``) is also treated as a credential and stripped on
     # a cross-origin hop, matching the canonical SDKs.

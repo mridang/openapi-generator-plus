@@ -103,7 +103,6 @@ class StoreApi(BaseApi):
     ) -> Category:
         """Echoes a swatch supplied via path, query and header parameters.
         :param path_swatch:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: Category
@@ -131,7 +130,6 @@ class StoreApi(BaseApi):
     ) -> "ApiResult[Category]":
         """Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
         :param path_swatch:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -502,7 +500,6 @@ class StoreApi(BaseApi):
         options: Optional[GetStockItemOptions] = None,
     ) -> StockItem:
         """Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: StockItem
@@ -528,7 +525,6 @@ class StoreApi(BaseApi):
         options: Optional[GetStockItemOptions] = None,
     ) -> "ApiResult[StockItem]":
         """Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers

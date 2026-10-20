@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-pip install {{packageName}}
+pip install {{projectName}}
 ```
 
 ## Quick Start
@@ -167,7 +167,7 @@ client = {{clientClassName}}.with_token(SERVER_0.get_url(), "your-token")
 
 ## Testing
 
-The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+The `Authenticator` abstract base class is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```python
 from {{packageName}}.auth.authenticator import Authenticator
@@ -208,10 +208,12 @@ from {{packageName}}.errors import (
     ServerException,
     ApiException,
 )
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}from {{packageName}}.models import {{{dataType}}}
+{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
 async def main():
     try:
-        result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(...)
+        result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
     except NotFoundException as e:
         print(f"Not found: {e}")
     except ClientException as e:

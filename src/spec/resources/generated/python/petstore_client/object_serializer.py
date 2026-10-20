@@ -292,13 +292,16 @@ class ObjectSerializer:
     ) -> Any:
         """Convert an object to a JSON-safe dict/list/primitive.
 
-        For Pydantic models, delegates to model_dump().
+        A Pydantic model is converted through its JSON wire form (the same
+        path ``serialize`` takes for a lone model), so a list or dict of models
+        carries ISO date-times, base64 bytes and decimal text rather than the
+        raw Python objects ``model_dump()`` leaves behind.
         A visited set tracks object ids to detect circular references.
         """
         if obj is None:
             return None
         elif isinstance(obj, BaseModel):
-            return obj.model_dump(by_alias=True, exclude_none=True)
+            return json.loads(cls().serialize(obj))
         elif isinstance(obj, Enum):
             return obj.value
         elif isinstance(obj, SecretStr):

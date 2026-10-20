@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-pip install petstore_client
+pip install petstore-client
 ```
 
 ## Quick Start
@@ -147,7 +147,7 @@ client = Client.with_token(SERVER_0.get_url(), "your-token")
 
 ## Testing
 
-The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+The `Authenticator` abstract base class is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```python
 from petstore_client.auth.authenticator import Authenticator
@@ -186,10 +186,11 @@ from petstore_client.errors import (
     ServerException,
     ApiException,
 )
+from petstore_client.models import Pet
 
 async def main():
     try:
-        result = await client.pet.add_pet(...)
+        result = await client.pet.add_pet(Pet.model_construct())
     except NotFoundException as e:
         print(f"Not found: {e}")
     except ClientException as e:

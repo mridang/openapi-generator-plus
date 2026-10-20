@@ -119,9 +119,12 @@ class {{classname}}(BaseApi):
         # >>> {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
-        :param options: options for query, header, form, and cookie parameters
-{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasOptionsParam}}
+        :param options: options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}
+        :param options: options carrying an optional per-call authenticator
+{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.hasMultipleConsumes}}
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
 {{/vendorExtensions.hasMultipleConsumes}}
@@ -176,9 +179,12 @@ class {{classname}}(BaseApi):
 {{#bodyParam}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
 {{/bodyParam}}
-{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
-        :param options: options for query, header, form, and cookie parameters
-{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.hasOptionsParam}}
+        :param options: options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}{{#hasAuthMethods}}
+        :param options: options carrying an optional per-call authenticator
+{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.hasMultipleConsumes}}
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to the first declared type when omitted.
 {{/vendorExtensions.hasMultipleConsumes}}

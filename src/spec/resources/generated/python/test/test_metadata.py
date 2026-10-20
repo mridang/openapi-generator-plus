@@ -1,4 +1,5 @@
 from typing import Any, cast
+import ast
 import dataclasses
 import json
 import os
@@ -132,6 +133,56 @@ class TestPackageManifest:
         description = manifest["project"]["description"]
         assert isinstance(description, str)
         assert description.strip() != ""
+
+
+class TestReadmeAndSkillsText:
+    @staticmethod
+    def _read(name: str) -> str:
+        with open(os.path.join(os.getcwd(), name), "r", encoding="utf-8") as handle:
+            return handle.read()
+
+    @classmethod
+    def _manifest_name(cls) -> str:
+        with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
+            return str(tomllib.load(handle)["project"]["name"])
+
+    def test_readme_package_name_is_the_manifest_name(self) -> None:
+        assert f"- Name: `{self._manifest_name()}`\n" in self._read("README.md")
+
+    def test_skills_install_command_uses_the_manifest_name(self) -> None:
+        assert f"pip install {self._manifest_name()}\n" in self._read("SKILLS.md")
+
+    def test_readme_socks_note_names_the_builder_setter(self) -> None:
+        readme = self._read("README.md")
+        assert (
+            "`TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs."
+            in readme
+        )
+        assert "`TransportOptions.proxy()`" not in readme
+
+    def test_skills_call_the_authenticator_an_abstract_base_class(self) -> None:
+        skills = self._read("SKILLS.md")
+        assert "The `Authenticator` abstract base class is the seam for tests" in skills
+        assert "`Authenticator` protocol" not in skills
+
+    def test_skills_error_handling_example_passes_real_arguments(self) -> None:
+        skills = self._read("SKILLS.md")
+        section = skills.split("## Error Handling", 1)[1].split("\n## ", 1)[0]
+        block = section.split("```python\n", 1)[1].split("```", 1)[0]
+        tree = ast.parse(block)
+        awaits = [node for node in ast.walk(tree) if isinstance(node, ast.Await)]
+        assert len(awaits) == 1
+        assert (
+            ast.unparse(awaits[0].value) == "client.pet.add_pet(Pet.model_construct())"
+        )
+        for node in tree.body:
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                exec(
+                    compile(
+                        ast.Module(body=[node], type_ignores=[]), "<skills>", "exec"
+                    ),
+                    {},
+                )
 
 
 class TestOptionsImmutability:

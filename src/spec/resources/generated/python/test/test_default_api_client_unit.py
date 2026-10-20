@@ -1301,6 +1301,19 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
         assert "x-api-key" in DefaultApiClient._SENSITIVE_HEADERS
         assert "x-internal-key" in DefaultApiClient._SENSITIVE_HEADERS
 
+    def test_sensitive_header_comment_lists_names_without_a_dangling_separator(
+        self,
+    ) -> None:
+        import petstore_client.default_api_client as client_module
+
+        assert client_module.__file__ is not None
+        with open(client_module.__file__, "r", encoding="utf-8") as handle:
+            source = handle.read()
+        expected = (
+            "# The spec-declared API-key header names (X-API-Key, X-Internal-Key)\n"
+        )
+        assert expected in source
+
     def test_api_key_header_stripped_on_cross_origin_redirect(self) -> None:
         # Use the first spec-declared API-key header for the assertion.
         api_key_header_names = [

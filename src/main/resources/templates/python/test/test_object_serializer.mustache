@@ -1,5 +1,6 @@
 import datetime
 import warnings
+from typing import Any
 from decimal import Decimal
 import pytest
 from pydantic import ValidationError
@@ -331,6 +332,43 @@ class TestSetSanitization:
         sanitized = ObjectSerializer._sanitize_for_serialization({1, 2, 3})
         assert isinstance(sanitized, list)
         assert sorted(sanitized) == [1, 2, 3]
+
+
+class TestCollectionsOfModelsUseTheModelWireForm:
+    """A list or dict of models serializes each model exactly as a lone model.
+
+    The collection path used to flatten each model with a Python-mode dump, so
+    date-times and bytes reached `json.dumps(default=str)` as raw objects and
+    were written as `str()` text instead of the model's wire form.
+    """
+
+    @staticmethod
+    def _order() -> Any:
+        from {{packageName}}.models.order import Order
+        return Order(
+            id=1,
+            shipDate=datetime.datetime(2020, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc),
+        )
+
+    def test_list_of_models_emits_canonical_date_time(self) -> None:
+        import json
+        order = self._order()
+        wire = json.loads(ObjectSerializer().serialize([order]))
+        assert wire[0]['shipDate'] == '2020-01-02T03:04:05.000+00:00'
+        assert wire == [json.loads(ObjectSerializer().serialize(order))]
+
+    def test_dict_of_models_emits_canonical_date_time(self) -> None:
+        import json
+        order = self._order()
+        wire = json.loads(ObjectSerializer().serialize({'first': order}))
+        assert wire['first']['shipDate'] == '2020-01-02T03:04:05.000+00:00'
+        assert wire == {'first': json.loads(ObjectSerializer().serialize(order))}
+
+    def test_list_of_models_emits_bytes_as_base64(self) -> None:
+        import json
+        from {{packageName}}.models.binary_vault import BinaryVault
+        vault = BinaryVault(seal=b'\x00\xff')
+        assert json.loads(ObjectSerializer().serialize([vault])) == [{'seal': 'AP8='}]
 
 
 class TestStringify:

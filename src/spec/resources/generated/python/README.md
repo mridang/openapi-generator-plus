@@ -45,7 +45,7 @@ pytest
 
 ## Package
 
-- Name: `petstore_client`
+- Name: `petstore-client`
 - Version: `1.0.0`
 
 ## OpenAPI type mapping
@@ -136,7 +136,7 @@ convenience before the network round trip.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptions.builder().proxy()` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying

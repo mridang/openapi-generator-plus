@@ -707,6 +707,24 @@ class TestPetApiErrorHandling:
                 '{{packageName}}.api.options.get_pet_by_id_options'
             )
 
+    def test_options_doc_mentions_the_authenticator_only_where_the_options_class_has_one(self) -> None:
+        import inspect
+
+        params_only = 'options for query, header, form, and cookie parameters'
+        cases = [
+            (PetApi.add_pet, 'options carrying an optional per-call authenticator'),
+            (PetApi.add_pet_with_http_info, 'options carrying an optional per-call authenticator'),
+            (PetApi.delete_pet, params_only + ', plus an optional per-call authenticator'),
+            (PetApi.delete_pet_with_http_info, params_only + ', plus an optional per-call authenticator'),
+            (PetApi.get_pet_by_name, params_only),
+            (PetApi.get_pet_by_name_with_http_info, params_only),
+        ]
+        for method, expected in cases:
+            doc = inspect.getdoc(method)
+            assert doc is not None
+            lines = [line.strip() for line in doc.splitlines() if line.strip().startswith(':param options:')]
+            assert lines == [':param options: ' + expected], method.__name__
+
     async def test_inherited_security_op_applies_client_authenticator(self) -> None:
         # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
         # own, so it inherits the global requirement. This generator strips the

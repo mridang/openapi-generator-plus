@@ -178,7 +178,7 @@ class PetApi(BaseApi):
         """Add a new pet to the store
         :param pet: Create a new pet in the store (required)
 
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options carrying an optional per-call authenticator
 
         :return: Pet
         :raises ApiException: if fails to make API call
@@ -206,7 +206,7 @@ class PetApi(BaseApi):
         """Add a new pet to the store (with HTTP info)
         :param pet: Create a new pet in the store (required)
 
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options carrying an optional per-call authenticator
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -241,7 +241,6 @@ class PetApi(BaseApi):
         """Add photos to the pet's gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: List[Photo]
@@ -270,7 +269,6 @@ class PetApi(BaseApi):
         """Add photos to the pet's gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -330,7 +328,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param pet_treatment:  (required)
 
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options carrying an optional per-call authenticator
 
         :return: PetTreatment
         :raises ApiException: if fails to make API call
@@ -362,7 +360,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param pet_treatment:  (required)
 
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options carrying an optional per-call authenticator
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -409,8 +407,7 @@ class PetApi(BaseApi):
     ) -> None:
         """Deletes a pet
         :param pet_id: Pet id to delete (required)
-
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options for query, header, form, and cookie parameters, plus an optional per-call authenticator
 
         :raises ApiException: if fails to make API call
         """
@@ -425,8 +422,7 @@ class PetApi(BaseApi):
     ) -> "ApiResult[None]":
         """Deletes a pet (with HTTP info)
         :param pet_id: Pet id to delete (required)
-
-        :param options: options for query, header, form, and cookie parameters
+        :param options: options for query, header, form, and cookie parameters, plus an optional per-call authenticator
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -647,7 +643,6 @@ class PetApi(BaseApi):
         options: Optional[FindPetsByStatusOptions] = None,
     ) -> List[Pet]:
         """Finds Pets by status
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: List[Pet]
@@ -679,7 +674,6 @@ class PetApi(BaseApi):
         options: Optional[FindPetsByStatusOptions] = None,
     ) -> "ApiResult[List[Pet]]":
         """Finds Pets by status (with HTTP info)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -1105,7 +1099,6 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Look up a pet by name (simple string path param + required query)
         :param name:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: Pet
@@ -1133,7 +1126,6 @@ class PetApi(BaseApi):
     ) -> "ApiResult[Pet]":
         """Look up a pet by name (simple string path param + required query) (with HTTP info)
         :param name:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -1347,7 +1339,6 @@ class PetApi(BaseApi):
         """Get a tag for a pet
         :param pet_id:  (required)
         :param tag_name:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: Pet
@@ -1377,7 +1368,6 @@ class PetApi(BaseApi):
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
         :param tag_name:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -1703,7 +1693,6 @@ class PetApi(BaseApi):
         """Update a pet's notification preferences
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResponse
@@ -1732,7 +1721,6 @@ class PetApi(BaseApi):
         """Update a pet's notification preferences (with HTTP info)
         Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -1863,7 +1851,6 @@ class PetApi(BaseApi):
         """Upload the pet's adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResponse
@@ -1892,7 +1879,6 @@ class PetApi(BaseApi):
         """Upload the pet's adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
@@ -1944,7 +1930,6 @@ class PetApi(BaseApi):
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.
@@ -1977,7 +1962,6 @@ class PetApi(BaseApi):
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-
         :param options: options for query, header, form, and cookie parameters
 
         :param request_content_type: overrides the request Content-Type header. Must be one of the declared request content types (multipart/form-data, application/octet-stream); defaults to the first declared type when omitted.

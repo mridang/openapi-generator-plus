@@ -511,7 +511,7 @@ class DefaultApiClient:
     # to avoid leaking bearer tokens / cookies / proxy credentials to an
     # attacker-controlled host. Names are compared case-insensitively.
     #
-    # The spec-declared API-key header names ({{#hasApiKeyHeaderNames}}{{#apiKeyHeaderNames}}{{name}}, {{/apiKeyHeaderNames}}{{/hasApiKeyHeaderNames}}{{^hasApiKeyHeaderNames}}none declared in this spec{{/hasApiKeyHeaderNames}})
+    # The spec-declared API-key header names ({{#hasApiKeyHeaderNames}}{{#apiKeyHeaderNames}}{{name}}{{^-last}}, {{/-last}}{{/apiKeyHeaderNames}}{{/hasApiKeyHeaderNames}}{{^hasApiKeyHeaderNames}}none declared in this spec{{/hasApiKeyHeaderNames}})
     # are merged in at codegen time so an API key sent in a custom header
     # (e.g. ``X-API-Key``) is also treated as a credential and stripped on
     # a cross-origin hop, matching the canonical SDKs.
