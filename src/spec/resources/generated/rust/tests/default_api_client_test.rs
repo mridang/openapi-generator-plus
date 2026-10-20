@@ -52,6 +52,37 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
     assert!(resp.body().contains("\"method\""));
 }
 
+/* Verification is ON by default. The fixture certificate is signed by a CA the
+ * system store does not trust, so a client that was not handed that CA must
+ * refuse the handshake with a NetworkError (status 0), not return the response.
+ * A transport that ignored `verify_ssl` would succeed here. */
+#[tokio::test]
+async fn test_default_api_client_rejects_an_untrusted_certificate_by_default() {
+    let chasm_url = testcontainers_helper::chasm_https_url();
+    let explicit = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .build()
+        .expect("valid transport options");
+    for client in [
+        DefaultApiClient::new(None),
+        DefaultApiClient::new(Some(explicit)),
+    ] {
+        let err = client
+            .send_request(
+                "GET",
+                &format!("{}/test/echo", chasm_url),
+                &HashMap::new(),
+                None,
+            )
+            .await
+            .expect_err("an untrusted certificate must be refused");
+        let network_err = err
+            .downcast_ref::<NetworkError>()
+            .unwrap_or_else(|| panic!("expected a NetworkError, got: {}", err));
+        assert_eq!(network_err.api_error().status_code(), 0);
+    }
+}
+
 /* A configured CA is the only trust anchor. example.com presents a chain from a
  * public CA, which the system store trusts but the fixture CA does not, so the
  * handshake must be refused. The test is skipped when the host is unreachable. */

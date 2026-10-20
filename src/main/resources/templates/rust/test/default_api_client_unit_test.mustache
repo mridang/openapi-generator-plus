@@ -594,6 +594,8 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
 
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+    headers.insert("Cookie".to_string(), "session=abc".to_string());
+    headers.insert("Proxy-Authorization".to_string(), "Basic c2VjcmV0".to_string());
     headers.insert("X-Trace".to_string(), "keep".to_string());
 
     let _ = client
@@ -610,6 +612,16 @@ async fn test_authorization_stripped_on_cross_origin_redirect() {
     assert!(
         !followup.contains("authorization:"),
         "Authorization must be stripped on a cross-origin redirect, got: {}",
+        calls[0]
+    );
+    assert!(
+        !followup.contains("cookie:"),
+        "Cookie must be stripped on a cross-origin redirect, got: {}",
+        calls[0]
+    );
+    assert!(
+        !followup.contains("proxy-authorization:"),
+        "Proxy-Authorization must be stripped on a cross-origin redirect, got: {}",
         calls[0]
     );
     // Non-sensitive headers must survive the hop.
@@ -662,6 +674,31 @@ async fn test_api_key_header_stripped_on_cross_origin_redirect() {
     );
 }
 {{/hasApiKeyHeaderNames}}
+
+/// The strip is keyed on the origin: a redirect that stays on the same origin
+/// keeps the credential headers, so a plain same-host redirect still
+/// authenticates.
+#[tokio::test]
+async fn test_credentials_forwarded_on_same_origin_redirect() {
+    let (base_url, head) = start_redirect_server(302);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+    headers.insert("Cookie".to_string(), "session=abc".to_string());
+
+    client
+        .send_request("GET", &format!("{}/start", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no follow-up request captured");
+    assert_eq!(Some("Bearer secret".to_string()), head_header(&head, "authorization"), "{}", head);
+    assert_eq!(Some("session=abc".to_string()), head_header(&head, "cookie"), "{}", head);
+}
 
 /// Gap 3.2: `send_request_with_options(no_redirect=true)` must NOT follow a
 /// 307 redirect; the 3xx response is returned to the caller verbatim rather
@@ -1117,6 +1154,135 @@ fn start_empty_gzip_server() -> String {
 
     thread::sleep(std::time::Duration::from_millis(50));
     base_url
+}
+
+/// Starts a server that answers one request with the given `Content-Encoding`
+/// and body bytes, and reports the request head it received.
+fn start_encoded_body_server(
+    encoding: &'static str,
+    body: Vec<u8>,
+) -> (String, std::sync::mpsc::Receiver<String>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n_read]).to_string());
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Encoding: {}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                encoding,
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, head.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, &body);
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (base_url, rx)
+}
+
+const ENCODED_PAYLOAD: &str = r#"{"greeting":"hello"}"#;
+
+/// Compresses `ENCODED_PAYLOAD` the way a server would for the named
+/// `Content-Encoding`. `deflate` is the zlib-wrapped format of RFC 9110, not the
+/// raw RFC 1951 stream.
+fn compress_payload(encoding: &str) -> Vec<u8> {
+    use std::io::Write as _;
+    let payload = ENCODED_PAYLOAD.as_bytes();
+    match encoding {
+        "gzip" => {
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(payload).unwrap();
+            encoder.finish().unwrap()
+        }
+        "deflate" => {
+            let mut encoder =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(payload).unwrap();
+            encoder.finish().unwrap()
+        }
+        "br" => {
+            let mut compressed = Vec::new();
+            {
+                let mut writer = brotli::CompressorWriter::new(&mut compressed, 4096, 5, 22);
+                writer.write_all(payload).unwrap();
+            }
+            compressed
+        }
+        "zstd" => zstd::stream::encode_all(payload, 0).unwrap(),
+        other => panic!("no compressor for {}", other),
+    }
+}
+
+/// Every codec the client advertises must be decoded when a server answers
+/// with it: gzip, deflate (zlib-wrapped), brotli and zstd.
+#[tokio::test]
+async fn test_every_advertised_content_encoding_is_decoded() {
+    for encoding in ["gzip", "deflate", "br", "zstd"] {
+        let (base_url, _) = start_encoded_body_server(encoding, compress_payload(encoding));
+        let client = DefaultApiClient::new(None);
+
+        let resp = client
+            .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+            .await
+            .unwrap_or_else(|e| panic!("{} response must decode, got: {}", encoding, e));
+        assert_eq!(resp.status_code(), 200, "{}", encoding);
+        assert_eq!(resp.body(), ENCODED_PAYLOAD, "{}", encoding);
+    }
+}
+
+/// `deflate` means zlib-wrapped data. A headerless RFC 1951 stream under that
+/// name is not decodable and surfaces as an `ApiError` carrying the real
+/// status, never a `NetworkError` and never the raw bytes passed through.
+#[tokio::test]
+async fn test_raw_deflate_response_surfaces_api_error() {
+    use std::io::Write as _;
+    let mut encoder = flate2::write::DeflateEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(ENCODED_PAYLOAD.as_bytes()).unwrap();
+    let (base_url, _) = start_encoded_body_server("deflate", encoder.finish().unwrap());
+    let client = DefaultApiClient::new(None);
+
+    let err = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a raw DEFLATE stream is not a valid deflate Content-Encoding");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_none(),
+        "a corrupt compressed body must not be a NetworkError, got: {}",
+        err
+    );
+    let api_err = err
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("expected ApiError, got: {}", err));
+    assert_eq!(api_err.status_code(), 200, "the real status code must be kept");
+}
+
+/// With no `Accept-Encoding` supplied by the caller the client advertises the
+/// codecs it can decode, exactly this set.
+#[tokio::test]
+async fn test_default_accept_encoding_advertises_the_decodable_codecs() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(
+        Some("gzip, deflate, br, zstd".to_string()),
+        head_header(&head, "accept-encoding"),
+        "{}",
+        head
+    );
 }
 
 /// Gap AL: a zero-byte body declared `Content-Encoding: gzip` has nothing to

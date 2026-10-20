@@ -38,8 +38,26 @@ fn test_builds_authorization_url_with_scopes() {
 
     let url = auth.build_authorization_url("");
 
-    assert!(url.contains("scope=read"));
-    assert!(url.contains("write"));
+    assert!(url.contains("&scope=read%20write"), "authorization url: {}", url);
+}
+
+/// The authorization URL writes a space as `%20` and encodes every character
+/// outside `-._~` in the scope and the state.
+#[test]
+fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
+    let auth = OAuth2ImplicitAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "https://auth.example.com/authorize",
+        vec!["a~b".to_string(), "c*d!e'f(g)".to_string()],
+    );
+
+    let url = auth.build_authorization_url("st~*!'()");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"scope=a~b%20c%2Ad%21e%27f%28g%29"), "{}", url);
+    assert!(pairs.contains(&"state=st~%2A%21%27%28%29"), "{}", url);
 }
 
 #[test]
@@ -119,4 +137,21 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
         "authorization url: {}",
         url
     );
+}
+
+/// The redacted representation shows every non-secret field and masks the
+/// access token once it is set.
+#[test]
+fn test_redacted_representation_shows_the_non_secret_fields() {
+    let auth = create_authenticator();
+    let before = format!("{:?}", auth);
+    assert!(before.starts_with("OAuth2ImplicitAuthenticator { host: \"https://api.example.com\", "), "{}", before);
+    assert!(before.contains("client_id: \"my-client-id\""), "{}", before);
+    assert!(before.contains("authorization_url: \"https://auth.example.com/authorize\""), "{}", before);
+    assert!(before.contains("scopes: [\"read\", \"write\"]"), "{}", before);
+    assert!(before.contains("access_token: None"), "{}", before);
+
+    auth.set_access_token("implicit-tok").unwrap();
+    let after = format!("{:?}", auth);
+    assert!(after.contains("access_token: Some(\"***\")"), "{}", after);
 }

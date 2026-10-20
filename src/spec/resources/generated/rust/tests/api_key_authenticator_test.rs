@@ -7,8 +7,11 @@
 
 use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
 use petstore::auth::api_key_location::ApiKeyLocation;
-use petstore::auth::ApiKeyHeaderAuthenticator;
 use petstore::auth::Authenticator;
+use petstore::auth::{
+    ApiKeyHeaderAuthenticator, ApiKeyQueryAuthenticator, InternalApiKeyAuthenticator,
+    SessionCookieAuthenticator,
+};
 use petstore::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -107,6 +110,27 @@ fn test_redacts_secret() {
     assert!(debug.contains("***"));
 }
 
+/// The redacted representation shows the non-secret fields (host, parameter
+/// name and location) and masks only the key.
+#[test]
+fn test_redacted_representation_shows_the_non_secret_fields() {
+    for (location, name) in [
+        (ApiKeyLocation::Header, "Header"),
+        (ApiKeyLocation::Query, "Query"),
+        (ApiKeyLocation::Cookie, "Cookie"),
+    ] {
+        let auth =
+            ApiKeyAuthenticator::new("https://api.example.com", "k-name", "abc123", location)
+                .unwrap();
+        let expected = "ApiKeyAuthenticator { host: \"https://api.example.com\", \
+key_param_name: \"k-name\", api_key: \"***\", location: "
+            .to_string()
+            + name
+            + " }";
+        assert_eq!(expected, format!("{:?}", auth));
+    }
+}
+
 #[test]
 fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
     let auth = ApiKeyHeaderAuthenticator::new("https://api.example.com", "wrapper-key").unwrap();
@@ -114,4 +138,87 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
     assert!(debug.starts_with("ApiKeyHeaderAuthenticator("), "{}", debug);
     assert!(!debug.contains("wrapper-key"), "{}", debug);
     assert!(debug.contains("***"), "{}", debug);
+}
+
+/// Each generated scheme wrapper emits its key under the name and at the
+/// location its security scheme declares, and nowhere else.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrappers_emit_the_key_at_the_declared_name_and_location() {
+    let host = "https://api.example.com";
+
+    let header = ApiKeyHeaderAuthenticator::new(host, "key-1").unwrap();
+    assert_eq!(
+        header.auth_headers().await.get("X-API-Key"),
+        Some(&"key-1".to_string())
+    );
+    assert!(header.query_params().is_empty());
+    assert!(header.cookie_params().is_empty());
+
+    let internal = InternalApiKeyAuthenticator::new(host, "key-2").unwrap();
+    assert_eq!(
+        internal.auth_headers().await.get("X-Internal-Key"),
+        Some(&"key-2".to_string())
+    );
+    assert!(internal.query_params().is_empty());
+    assert!(internal.cookie_params().is_empty());
+
+    let query = ApiKeyQueryAuthenticator::new(host, "key-3").unwrap();
+    assert_eq!(
+        query.query_params().get("api_key"),
+        Some(&"key-3".to_string())
+    );
+    assert!(query.auth_headers().await.is_empty());
+    assert!(query.cookie_params().is_empty());
+
+    let cookie = SessionCookieAuthenticator::new(host, "key-4").unwrap();
+    assert_eq!(
+        cookie.cookie_params().get("SESSION_ID"),
+        Some(&"key-4".to_string())
+    );
+    assert!(cookie.auth_headers().await.is_empty());
+    assert!(cookie.query_params().is_empty());
+}
+
+/// A wrapper validates its key as eagerly as the authenticator it wraps.
+#[test]
+fn test_scheme_wrappers_reject_an_empty_key() {
+    let host = "https://api.example.com";
+    for result in [
+        ApiKeyHeaderAuthenticator::new(host, "").map(|_| ()),
+        InternalApiKeyAuthenticator::new(host, "").map(|_| ()),
+        ApiKeyQueryAuthenticator::new(host, "").map(|_| ()),
+        SessionCookieAuthenticator::new(host, "").map(|_| ()),
+    ] {
+        match result {
+            Err(ConfigurationError::InvalidArgument(reason)) => {
+                assert!(reason.contains("must not be empty"), "{}", reason)
+            }
+            other => panic!(
+                "expected ConfigurationError::InvalidArgument, got {:?}",
+                other
+            ),
+        }
+    }
+}
+
+/// Every wrapper prints its own name around the redacted inner authenticator.
+#[test]
+fn test_scheme_wrappers_mask_the_key_and_keep_the_declared_name() {
+    let host = "https://api.example.com";
+    assert_eq!(
+        "ApiKeyHeaderAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"X-API-Key\", api_key: \"***\", location: Header })",
+        format!("{:?}", ApiKeyHeaderAuthenticator::new(host, "secret-1").unwrap())
+    );
+    assert_eq!(
+        "InternalApiKeyAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"X-Internal-Key\", api_key: \"***\", location: Header })",
+        format!("{:?}", InternalApiKeyAuthenticator::new(host, "secret-2").unwrap())
+    );
+    assert_eq!(
+        "ApiKeyQueryAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"api_key\", api_key: \"***\", location: Query })",
+        format!("{:?}", ApiKeyQueryAuthenticator::new(host, "secret-3").unwrap())
+    );
+    assert_eq!(
+        "SessionCookieAuthenticator(ApiKeyAuthenticator { host: \"https://api.example.com\", key_param_name: \"SESSION_ID\", api_key: \"***\", location: Cookie })",
+        format!("{:?}", SessionCookieAuthenticator::new(host, "secret-4").unwrap())
+    );
 }

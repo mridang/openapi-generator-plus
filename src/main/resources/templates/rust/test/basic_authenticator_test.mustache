@@ -1,7 +1,7 @@
 {{>api_info}}
 
 use {{packageName}}::auth::Authenticator;
-use {{packageName}}::auth::{AdminBasicAuthenticator, BasicAuthenticator};
+use {{packageName}}::auth::{AdminBasicAuthenticator, BasicAuthenticator, PetStoreBasicAuthenticator};
 use {{packageName}}::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -51,4 +51,50 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
     assert!(debug.starts_with("AdminBasicAuthenticator("), "{}", debug);
     assert!(!debug.contains("s3cret"), "{}", debug);
     assert!(debug.contains("***"), "{}", debug);
+}
+
+/// Non-ASCII credentials are sent as UTF-8 bytes (RFC 7617 section 2.1), not as
+/// Latin-1 or the platform encoding.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_non_ascii_credentials_are_encoded_as_utf8() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "ünïcødé", "pässwörd").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==")
+    );
+}
+
+/// The redacted representation shows the host and username and masks only the
+/// password.
+#[test]
+fn test_redacted_representation_shows_the_host_and_username() {
+    let auth = BasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    assert_eq!(
+        "BasicAuthenticator { host: \"https://api.example.com\", username: \"alice\", password: \"***\" }",
+        format!("{:?}", auth)
+    );
+}
+
+/// The scheme wrappers emit the same header as the authenticator they wrap and
+/// validate the credentials as eagerly.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrappers_emit_the_basic_header_and_validate_eagerly() {
+    let host = "https://api.example.com";
+    let admin = AdminBasicAuthenticator::new(host, "alice", "s3cret").unwrap();
+    let store = PetStoreBasicAuthenticator::new(host, "alice", "s3cret").unwrap();
+    for headers in [admin.auth_headers().await, store.auth_headers().await] {
+        assert_eq!(
+            headers.get("Authorization").map(|s| s.as_str()),
+            Some("Basic YWxpY2U6czNjcmV0")
+        );
+    }
+    assert!(matches!(
+        AdminBasicAuthenticator::new(host, "ali:ce", "s3cret"),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
+    assert!(matches!(
+        PetStoreBasicAuthenticator::new(host, "alice", "s3c\0ret"),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
 }

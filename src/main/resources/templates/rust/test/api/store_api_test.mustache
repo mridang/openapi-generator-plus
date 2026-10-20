@@ -10,6 +10,7 @@ use std::thread;
 
 use {{packageName}}::*;
 use {{packageName}}::api::*;
+use {{packageName}}::api::options::*;
 use {{packageName}}::models::*;
 
 fn new_store_api_for_integration() -> StoreApi {
@@ -57,6 +58,7 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
 
 /// Records the headers and body of the request it is asked to send.
 struct RecordingApiClient {
+    url: Mutex<String>,
     headers: Mutex<HashMap<String, String>>,
     body: Mutex<Option<Vec<u8>>>,
 }
@@ -64,6 +66,7 @@ struct RecordingApiClient {
 impl RecordingApiClient {
     fn new() -> Self {
         RecordingApiClient {
+            url: Mutex::new(String::new()),
             headers: Mutex::new(HashMap::new()),
             body: Mutex::new(None),
         }
@@ -74,10 +77,11 @@ impl {{packageName}}::api_client::ApiClient for RecordingApiClient {
     fn send_request(
         &self,
         _method: &str,
-        _url: &str,
+        url: &str,
         headers: &HashMap<String, String>,
         body: Option<&{{packageName}}::api_client::RequestBody>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        *self.url.lock().unwrap() = url.to_string();
         *self.headers.lock().unwrap() = headers.clone();
         *self.body.lock().unwrap() = match body {
             Some({{packageName}}::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
@@ -200,8 +204,14 @@ async fn test_store_api_get_order_not_found() {
         r#"{"message":"Order not found"}"#,
     );
 
-    let result = api.get_order_by_id(99999).await;
-    assert!(result.is_err(), "expected error for non-existent order");
+    let err = api
+        .get_order_by_id(99999)
+        .await
+        .expect_err("expected error for non-existent order");
+    let not_found = err
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
 }
 
 #[tokio::test]
@@ -213,11 +223,14 @@ async fn test_store_api_place_order_server_error() {
     );
 
     let order = Order::new();
-    let result = api.place_order(Some(order)).await;
-    assert!(
-        result.is_err(),
-        "expected error for server error response"
-    );
+    let err = api
+        .place_order(Some(order))
+        .await
+        .expect_err("expected error for server error response");
+    let server_error = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("a 500 must be an InternalServerError, got: {}", err));
+    assert_eq!(server_error.server_error().api_error().status_code(), 500);
 }
 
 #[tokio::test]
@@ -228,11 +241,14 @@ async fn test_store_api_delete_order_not_found() {
         r#"{"message":"Order not found"}"#,
     );
 
-    let result = api.delete_order(99999).await;
-    assert!(
-        result.is_err(),
-        "expected error for deleting non-existent order"
-    );
+    let err = api
+        .delete_order(99999)
+        .await
+        .expect_err("expected error for deleting non-existent order");
+    let not_found = err
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
 }
 
 // Nested generic container: `getGroupedCategories` returns
@@ -264,6 +280,79 @@ async fn test_store_api_get_grouped_categories_typed_leaves() {
     );
 }
 
+// Nested containers and named enums decode into their typed leaves: a matrix of
+// integers, a named enum, arrays of maps of enums and of timestamps, and a
+// self-referencing model.
+#[tokio::test]
+async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
+    let api = new_store_api_for_mock(200, "application/json", "[[1,2],[3]]");
+    assert_eq!(api.get_matrix().await.expect("get_matrix failed"), vec![vec![1, 2], vec![3]]);
+
+    let api = new_store_api_for_mock(200, "application/json", r#""green""#);
+    assert_eq!(api.get_swatch().await.expect("get_swatch failed"), Swatch::Green);
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"a":"red"},{"b":"blue"}]"#,
+    );
+    let groups = api.get_swatch_groups().await.expect("get_swatch_groups failed");
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].get("a"), Some(&Swatch::Red));
+    assert_eq!(groups[1].get("b"), Some(&Swatch::Blue));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"at":"2024-01-15T10:30:00Z"}]"#,
+    );
+    let stamps = api.get_timestamp_groups().await.expect("get_timestamp_groups failed");
+    assert_eq!(stamps.len(), 1);
+    assert!(stamps[0].contains_key("at"));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"value":"root","child":{"value":"leaf"}}"#,
+    );
+    let tree = api.get_tree().await.expect("get_tree failed");
+    assert_eq!(tree.value, "root");
+    assert_eq!(tree.child.expect("expected a child node").value, "leaf");
+}
+
+// Schema defaults apply to absent properties, mutually recursive models decode
+// through both directions, and an integer-backed enum decodes from its number.
+#[tokio::test]
+async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
+    let api = new_store_api_for_mock(200, "application/json", "{}");
+    let defaults = api.get_defaults().await.expect("get_defaults failed");
+    assert_eq!(defaults.retries, Some(3));
+    assert_eq!(defaults.mode, Some(DefaultsModeEnum::Medium));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"name":"ops","lead":{"name":"ann","department":{"name":"inner"}}}"#,
+    );
+    let department = api.get_department().await.expect("get_department failed");
+    assert_eq!(department.name, "ops");
+    let lead = department.lead.expect("expected a lead");
+    assert_eq!(lead.name, "ann");
+    assert_eq!(lead.department.expect("expected a department").name, "inner");
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"priority":2,"matrix":[[1,2]]}"#,
+    );
+    let item = api
+        .get_stock_item(Some(&GetStockItemOptions::new()))
+        .await
+        .expect("get_stock_item failed");
+    assert_eq!(item.priority, Priority::NUMBER_2);
+    assert_eq!(item.matrix, Some(vec![vec![1, 2]]));
+}
+
 // malformed-2xx-fails-loud (behavior 11): a 2xx response whose body is not
 // valid JSON for the operation's declared return type must propagate the
 // deserialization error, NOT silently hand back the raw body string. The
@@ -276,10 +365,37 @@ async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
         "this is not valid json at all",
     );
 
-    let result = api.get_order_by_id(1).await;
+    let err = api
+        .get_order_by_id(1)
+        .await
+        .expect_err("a malformed 2xx body must fail loud, not return the raw string");
     assert!(
-        result.is_err(),
-        "a malformed 2xx body must fail loud, not return the raw string"
+        err.downcast_ref::<SerializationError>().is_some(),
+        "a malformed 2xx body must be a SerializationError, got: {}",
+        err
+    );
+}
+
+/// A named-enum parameter is sent as its wire value in the path, the query and
+/// a header, never as the language's name for the variant.
+#[tokio::test]
+async fn test_store_api_get_by_swatch_sends_enum_wire_values() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = GetBySwatchOptions::new()
+        .query_swatch(Swatch::Green)
+        .preferred_swatch(Swatch::Blue);
+
+    api.get_by_swatch(Swatch::Red, Some(&opts))
+        .await
+        .expect("get_by_swatch failed");
+
+    let url = client.url.lock().unwrap().clone();
+    assert_eq!(url, "http://localhost/store/by-swatch/red?querySwatch=green");
+    assert_eq!(
+        client.headers.lock().unwrap().get("Preferred-Swatch").map(|s| s.as_str()),
+        Some("blue")
     );
 }
 

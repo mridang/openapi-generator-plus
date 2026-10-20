@@ -57,7 +57,84 @@ fn test_api_error_implements_std_error_and_display() {
     let err = ApiError::new(500, "boom".to_string(), None, None);
 
     let _as_error: &dyn std::error::Error = &err;
-    assert!(!err.to_string().is_empty());
+    assert_eq!("boom\nHTTP status code: 500", err.to_string());
+}
+
+/// The text is the message followed by one labelled line for each piece of
+/// response context that was captured.
+#[test]
+fn test_api_error_display_renders_status_headers_and_body() {
+    let mut headers = HashMap::new();
+    headers.insert("x-trace".to_string(), "abc".to_string());
+    let err = ApiError::new(
+        502,
+        "bad gateway".to_string(),
+        Some("upstream down".to_string()),
+        Some(headers),
+    );
+
+    assert_eq!(
+        "bad gateway\nHTTP status code: 502\nResponse headers: {\"x-trace\": \"abc\"}\nResponse body: upstream down",
+        err.to_string()
+    );
+}
+
+/// An empty header map and an empty body add no lines, a transport failure
+/// (status 0) adds no status line, and an empty message gets the default text.
+#[test]
+fn test_api_error_display_omits_empty_parts() {
+    let empty = ApiError::new(500, "boom".to_string(), Some(String::new()), Some(HashMap::new()));
+    assert_eq!("boom\nHTTP status code: 500", empty.to_string());
+
+    let transport = ApiError::new(0, "connection reset".to_string(), None, None);
+    assert_eq!("connection reset", transport.to_string());
+
+    let nameless = ApiError::new(503, String::new(), None, None);
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 503",
+        nameless.to_string()
+    );
+}
+
+/// A token endpoint failure renders in one of three forms: the raw body when no
+/// OAuth error code was parsed, the code alone, or the code with its description.
+#[test]
+fn test_oauth2_server_error_message_has_three_forms() {
+    let raw = OAuth2ServerError::new(503, None, None, None, "upstream down".to_string());
+    assert_eq!("Token request failed with status 503: upstream down", raw.to_string());
+
+    let code = OAuth2ServerError::new(
+        400,
+        Some("invalid_grant".to_string()),
+        None,
+        None,
+        r#"{"error":"invalid_grant"}"#.to_string(),
+    );
+    assert_eq!("Token request failed with status 400: invalid_grant", code.to_string());
+
+    let described = OAuth2ServerError::new(
+        401,
+        Some("invalid_client".to_string()),
+        Some("unknown client".to_string()),
+        None,
+        String::new(),
+    );
+    assert_eq!(
+        "Token request failed with status 401: invalid_client -- unknown client",
+        described.to_string()
+    );
+}
+
+/// A JSON body that is a scalar rather than an object is still a parsed body.
+#[test]
+fn test_api_error_scalar_json_body_parses() {
+    let text = ApiError::new(500, "boom".to_string(), Some(r#""just text""#.to_string()), None);
+    let parsed = text.error_body().expect("a scalar JSON body must parse");
+    assert_eq!(Some("just text"), parsed.as_str());
+
+    let number = ApiError::new(500, "boom".to_string(), Some("42".to_string()), None);
+    let parsed = number.error_body().expect("a scalar JSON body must parse");
+    assert_eq!(Some(42), parsed.as_i64());
 }
 
 #[test]

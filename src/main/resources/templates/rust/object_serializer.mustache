@@ -510,6 +510,28 @@ mod tests {
         assert_eq!(parsed["name"], "example");
     }
 
+    /* Integer widths are enforced on the way in: an int32 rejects a number out of
+     * range or with a fractional part as a SerializationError, instead of
+     * truncating it, and an int64 keeps every digit of a value above 2^53. */
+    #[test]
+    fn test_integer_widths_are_enforced_on_deserialize() {
+        let overflow: Result<Option<i32>, SerializationError> =
+            object_serializer::deserialize(b"3000000000");
+        assert!(overflow.is_err(), "3000000000 does not fit an int32");
+
+        let fractional: Result<Option<i32>, SerializationError> =
+            object_serializer::deserialize(b"1.5");
+        assert!(fractional.is_err(), "1.5 is not an int32");
+
+        let fractional_wide: Result<Option<i64>, SerializationError> =
+            object_serializer::deserialize(b"1.5");
+        assert!(fractional_wide.is_err(), "1.5 is not an int64");
+
+        let wide: Option<i64> = object_serializer::deserialize(b"9007199254740993")
+            .expect("an int64 above 2^53 must deserialize");
+        assert_eq!(Some(9007199254740993), wide);
+    }
+
     #[test]
     fn test_deserialize_json_to_map() {
         let input = br#"{"name":"example","age":3}"#;
@@ -1201,6 +1223,39 @@ mod tests {
         assert!(
             result.is_err(),
             "null on the required non-nullable `name` must be rejected"
+        );
+    }
+
+    // A discriminator value the spec does not list, or an empty one, must
+    // HARD-FAIL as a SerializationError that names the problem, never dispatch
+    // to a variant whose fields happen to fit.
+    #[test]
+    fn test_unknown_and_empty_discriminator_rejected() {
+        let unknown: Result<Option<PetFood>, SerializationError> =
+            object_serializer::deserialize(br#"{"foodType":"raw","calories":300}"#);
+        let err = unknown.expect_err("an unlisted discriminator value must be rejected");
+        assert!(
+            err.to_string().contains("unknown discriminator value `raw` for PetFood"),
+            "unexpected message: {}",
+            err
+        );
+
+        let empty: Result<Option<PetFood>, SerializationError> =
+            object_serializer::deserialize(br#"{"foodType":"","weightKg":2.5}"#);
+        let err = empty.expect_err("an empty discriminator value must be rejected");
+        assert!(
+            err.to_string().contains("unknown discriminator value `` for PetFood"),
+            "unexpected message: {}",
+            err
+        );
+
+        let missing: Result<Option<PetFood>, SerializationError> =
+            object_serializer::deserialize(br#"{"weightKg":5.0}"#);
+        let err = missing.expect_err("a missing discriminator must be rejected");
+        assert!(
+            err.to_string().contains("missing discriminator field `foodType` for PetFood"),
+            "unexpected message: {}",
+            err
         );
     }
 

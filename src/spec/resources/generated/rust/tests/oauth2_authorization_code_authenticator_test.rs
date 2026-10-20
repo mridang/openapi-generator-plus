@@ -23,6 +23,7 @@ struct FakeApiClient {
     responses: Mutex<Vec<ApiHttpResponse>>,
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
+    urls: Mutex<Vec<String>>,
 }
 
 impl FakeApiClient {
@@ -31,7 +32,13 @@ impl FakeApiClient {
             responses: Mutex::new(Vec::new()),
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
+            urls: Mutex::new(Vec::new()),
         }
+    }
+
+    /// The URL of every token request so far, in the order sent.
+    fn urls(&self) -> Vec<String> {
+        self.urls.lock().unwrap().clone()
     }
 
     fn enqueue(&self, body: &str, status_code: u16) {
@@ -66,6 +73,7 @@ impl ApiClient for FakeApiClient {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
         }
+        self.urls.lock().unwrap().push(url.to_string());
         if let Some(RequestBody::Bytes(b)) = body {
             let mut last_body = self.last_body.lock().unwrap();
             *last_body = Some(String::from_utf8_lossy(b).to_string());
@@ -101,7 +109,136 @@ async fn test_builds_authorization_url_with_required_params() {
     assert!(url.contains("response_type=code"));
     assert!(url.contains("client_id=my-client-id"));
     assert!(url.contains("redirect_uri="));
-    assert!(url.contains("scope=read"));
+    assert!(
+        url.contains("&scope=read%20write"),
+        "authorization url: {}",
+        url
+    );
+}
+
+/// The authorization URL writes a space as `%20` and encodes every character
+/// outside `-._~` in the scope, the state and the redirect URI.
+#[tokio::test]
+async fn test_authorization_url_encodes_everything_but_the_unreserved_set() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/authorize",
+        "https://auth.example.com/token",
+        "https://app.example.com/call~back",
+        vec!["a~b".to_string(), "c*d!e'f(g)".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("st~*!'()");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(
+        pairs.contains(&"scope=a~b%20c%2Ad%21e%27f%28g%29"),
+        "{}",
+        url
+    );
+    assert!(pairs.contains(&"state=st~%2A%21%27%28%29"), "{}", url);
+    assert!(
+        pairs.contains(&"redirect_uri=https%3A%2F%2Fapp.example.com%2Fcall~back"),
+        "{}",
+        url
+    );
+}
+
+/// The code exchange goes to the token URL and the refresh grant to the
+/// refresh URL; with no refresh URL the refresh grant falls back to the token URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_grant_goes_to_the_refresh_url() {
+    for (refresh_url, expected_refresh_target) in [
+        (
+            "https://auth.example.com/refresh",
+            "https://auth.example.com/refresh",
+        ),
+        ("", "https://auth.example.com/token"),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(
+            r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+            200,
+        );
+        client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+        let mut auth = OAuth2AuthorizationCodeAuthenticator::new(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://app.example.com/callback",
+            vec!["read".to_string()],
+            refresh_url,
+        );
+        auth.set_api_client(client.clone());
+
+        auth.exchange_code("auth-code-xyz")
+            .await
+            .expect("should succeed");
+        auth.auth_headers().await;
+
+        assert_eq!(
+            vec![
+                "https://auth.example.com/token".to_string(),
+                expected_refresh_target.to_string()
+            ],
+            client.urls(),
+            "refresh url {:?}",
+            refresh_url
+        );
+    }
+}
+
+/// The scheme wrapper sends the code exchange and the refresh grant to the URLs
+/// its security scheme declares.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let mut auth = UserAuthAuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "id",
+        "secret",
+        "https://app.example.com/callback",
+    );
+    auth.as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client.clone());
+
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect("should succeed");
+    auth.auth_headers().await;
+
+    assert_eq!(
+        vec![
+            "https://auth.example.com/oauth/token".to_string(),
+            "https://auth.example.com/oauth/refresh".to_string()
+        ],
+        client.urls()
+    );
+}
+
+/// The redacted representation shows every non-secret field.
+#[test]
+fn test_redacted_representation_shows_the_non_secret_fields() {
+    let auth = create_authenticator();
+    assert_eq!(
+        "OAuth2AuthorizationCodeAuthenticator { host: \"https://api.example.com\", client_id: \"my-client-id\", \
+client_secret: \"***\", authorization_url: \"https://auth.example.com/authorize\", \
+token_url: \"https://auth.example.com/token\", refresh_url: \"https://auth.example.com/token\", \
+redirect_uri: \"https://app.example.com/callback\", scopes: [\"read\", \"write\"] }",
+        format!("{:?}", auth)
+    );
 }
 
 #[tokio::test]

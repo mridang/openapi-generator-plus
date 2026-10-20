@@ -383,6 +383,24 @@ mod tests {
         }
     }
 
+    // -- path segment encoding --
+
+    #[test]
+    fn test_encode_path_segment_keeps_the_sub_delimiters_and_unreserved_set_literal() {
+        let literal = ";=,:@!$&'()*+~-._";
+        assert_eq!(super::encode_path_segment(literal), literal);
+    }
+
+    #[test]
+    fn test_encode_path_segment_encodes_everything_else_once() {
+        assert_eq!(
+            super::encode_path_segment("a b/c?d#e[f]g%h"),
+            "a%20b%2Fc%3Fd%23e%5Bf%5Dg%25h"
+        );
+        assert_eq!(super::encode_path_segment("a%20b"), "a%2520b");
+        assert_eq!(super::encode_path_segment("caf\u{e9}"), "caf%C3%A9");
+    }
+
     // -- serialize_value by location --
 
     #[test]

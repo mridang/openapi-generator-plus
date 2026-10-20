@@ -103,6 +103,62 @@ fn test_unconstrained_variable_accepts_any_override() {
     assert_eq!(url, "https://globex.example.com");
 }
 
+#[test]
+fn test_url_rejection_message_names_the_value_the_variable_and_the_allowed_values() {
+    let server = server_with_vars();
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "invalid".to_string());
+
+    assert_eq!(
+        server.url(&overrides),
+        Err(ConfigurationError::InvalidServerVariable(
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+                .to_string()
+        ))
+    );
+}
+
+#[test]
+fn test_default_outside_the_enum_is_rejected() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new(
+            "dev".to_string(),
+            String::new(),
+            vec!["api".to_string(), "staging".to_string()],
+        ),
+    );
+    let server = ServerConfiguration::new(
+        "https://{env}.example.com".to_string(),
+        String::new(),
+        variables,
+    );
+
+    assert_eq!(
+        server.url(&HashMap::new()),
+        Err(ConfigurationError::InvalidServerVariable(
+            "Invalid value 'dev' for server variable 'env'. Allowed values: [\"api\", \"staging\"]"
+                .to_string()
+        ))
+    );
+}
+
+#[test]
+fn test_template_without_variables_is_returned_unchanged() {
+    let server = ServerConfiguration::new(
+        "https://api.example.com/v1".to_string(),
+        "Fixed server".to_string(),
+        HashMap::new(),
+    );
+
+    assert_eq!(
+        server.url(&HashMap::new()).unwrap(),
+        "https://api.example.com/v1"
+    );
+}
+
 /// SKILLS.md documents the `all_servers()` list next to the `server_N()`
 /// functions, like the other SDKs' Servers section.
 #[test]

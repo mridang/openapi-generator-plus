@@ -199,17 +199,21 @@ async fn test_pet_api_required_multipart_body_missing_names_first_required_part(
 async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
-    let opts = DeletePetOptions::new().api_key("a;b".to_string());
-    let err = api
-        .delete_pet(1, Some(&opts))
-        .await
-        .expect_err("a cookie value holding a semicolon must be rejected");
-    assert_eq!(
-        err.downcast_ref::<ConfigurationError>(),
-        Some(&ConfigurationError::InvalidArgument(
-            "Cookie value for 'api_key' contains characters forbidden by RFC 6265".to_string()
-        ))
-    );
+    for value in ["a;b", "a\r\nInjected: yes", "a\nb", "a\0b"] {
+        let opts = DeletePetOptions::new().api_key(value.to_string());
+        let err = api
+            .delete_pet(1, Some(&opts))
+            .await
+            .expect_err("a cookie value holding a forbidden character must be rejected");
+        assert_eq!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(&ConfigurationError::InvalidArgument(
+                "Cookie value for 'api_key' contains characters forbidden by RFC 6265".to_string()
+            )),
+            "cookie value {:?}",
+            value
+        );
+    }
 }
 
 #[tokio::test]
@@ -268,16 +272,41 @@ async fn test_pet_api_set_pet_avatar() {
 
 #[tokio::test]
 async fn test_pet_api_set_pet_avatar_rejects_unknown_content_type() {
-    let api = new_pet_api_for_integration();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
     let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF];
     // An unknown request content-type must be rejected client-side (a typed Err),
     // not passed onto the wire as an undeclared Content-Type.
-    let result = api
+    let err = api
         .set_pet_avatar_with_content_type(1, image_bytes, "application/unknown-type")
-        .await;
-    assert!(
-        result.is_err(),
-        "expected an error for an undeclared request content-type"
+        .await
+        .expect_err("an undeclared request content-type must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Unsupported request content-type 'application/unknown-type' for set_pet_avatar; \
+declared types are [\"image/jpeg\", \"image/png\", \"application/json\"]"
+                .to_string()
+        ))
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_upload_pet_document_rejects_unknown_content_type() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = UploadPetDocumentOptions::new(b"document-content".to_vec());
+    let err = api
+        .upload_pet_document_with_content_type(1, Some(&opts), "application/unknown-type")
+        .await
+        .expect_err("an undeclared request content-type must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Unsupported request content-type 'application/unknown-type' for upload_pet_document; \
+declared types are [\"multipart/form-data\", \"application/octet-stream\"]"
+                .to_string()
+        ))
     );
 }
 
@@ -297,9 +326,19 @@ async fn test_pet_api_get_pet_avatar_thumbnail() {
 
 #[tokio::test]
 async fn test_pet_api_set_pet_avatar_thumbnail() {
-    let api = new_pet_api_for_integration();
+    let (api, rx, _) = new_pet_api_for_byte_capture();
     let body = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF, 0xD8, 0xFF, 0xE0]);
-    let _ = api.set_pet_avatar_thumbnail(1, body).await;
+    api.set_pet_avatar_thumbnail(1, body)
+        .await
+        .expect("set_pet_avatar_thumbnail failed");
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (_, wire_body) = split_http_request(&raw);
+    assert_eq!(
+        wire_body, b"\"/9j/4A==\"",
+        "a byte body must be sent as a base64 JSON string, got: {:?}",
+        String::from_utf8_lossy(wire_body)
+    );
 }
 
 #[tokio::test]
@@ -322,8 +361,22 @@ async fn test_pet_api_upload_pet_document() {
 
 #[tokio::test]
 async fn test_pet_api_add_pet_photos() {
-    let api = new_pet_api_for_integration();
-    let _ = api.add_pet_photos(1, None).await;
+    let (api, _) = new_pet_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"id":1,"url":"http://example.com/a.jpg"}]"#,
+    );
+    let opts = AddPetPhotosOptions::new(
+        vec![b"first-photo".to_vec(), b"second-photo".to_vec()],
+        PhotoMetadata::new(),
+    );
+    let photos = api
+        .add_pet_photos(1, Some(&opts))
+        .await
+        .expect("add_pet_photos failed");
+    assert_eq!(photos.len(), 1);
+    assert_eq!(photos[0].id, Some(1));
+    assert_eq!(photos[0].url.as_deref(), Some("http://example.com/a.jpg"));
 }
 
 #[tokio::test]
@@ -335,8 +388,9 @@ async fn test_pet_api_download_pet_document() {
 
 #[tokio::test]
 async fn test_pet_api_get_pet_photo() {
-    let api = new_pet_api_for_integration();
-    let _ = api.get_pet_photo(1, 1).await;
+    let (api, _) = new_pet_api_for_mock(200, "image/jpeg", "FAKE_JPEG_BYTES");
+    let photo = api.get_pet_photo(1, 1).await.expect("get_pet_photo failed");
+    assert_eq!(photo, b"FAKE_JPEG_BYTES".to_vec());
 }
 
 #[tokio::test]
@@ -376,8 +430,14 @@ async fn test_pet_api_error_handling_not_found() {
         r#"{"message":"Pet not found"}"#,
     );
 
-    let result = api.get_pet_by_id(99999, None).await;
-    assert!(result.is_err(), "expected error for non-existent pet");
+    let err = api
+        .get_pet_by_id(99999, None)
+        .await
+        .expect_err("expected error for non-existent pet");
+    let not_found = err
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
 }
 
 /// convenience-empty-body-handling: when a body-returning operation
@@ -880,8 +940,14 @@ async fn test_pet_api_error_handling_server_error() {
         r#"{"message":"Internal server error"}"#,
     );
 
-    let result = api.get_pet_by_id(1, None).await;
-    assert!(result.is_err(), "expected error for server error response");
+    let err = api
+        .get_pet_by_id(1, None)
+        .await
+        .expect_err("expected error for server error response");
+    let server_error = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("a 500 must be an InternalServerError, got: {}", err));
+    assert_eq!(server_error.server_error().api_error().status_code(), 500);
 }
 
 #[tokio::test]
@@ -892,7 +958,8 @@ async fn test_pet_api_download_binary_mock() {
         "FAKE_BINARY_DATA",
     );
 
-    let _ = api.get_pet_avatar(1).await;
+    let avatar = api.get_pet_avatar(1).await.expect("get_pet_avatar failed");
+    assert_eq!(avatar, b"FAKE_BINARY_DATA".to_vec());
 }
 
 #[tokio::test]
@@ -903,7 +970,13 @@ async fn test_pet_api_upload_multipart_mock() {
         r#"{"code":200,"type":"","message":"success"}"#,
     );
 
-    let _ = api.upload_pet_certificate(1, None).await;
+    let opts = UploadPetCertificateOptions { file: b"certificate-content".to_vec() };
+    let response = api
+        .upload_pet_certificate(1, Some(&opts))
+        .await
+        .expect("upload_pet_certificate failed");
+    assert_eq!(response.code, Some(200));
+    assert_eq!(response.message.as_deref(), Some("success"));
 }
 
 /// octet-stream-raw-body (multi-content-type request bodies): the fixture
@@ -990,6 +1063,92 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
         "default multipart body must carry the `file` part, got body: {}",
         String::from_utf8_lossy(body)
     );
+}
+
+/// Records the URL of every request and answers with an empty JSON object.
+struct UrlRecordingApiClient {
+    urls: std::sync::Mutex<Vec<String>>,
+}
+
+impl {{packageName}}::api_client::ApiClient for UrlRecordingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        self.urls.lock().unwrap().push(url.to_string());
+        Box::pin(async {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(
+                200,
+                "{}".to_string(),
+                HashMap::from([("Content-Type".to_string(), "application/json".to_string())]),
+            ))
+        })
+    }
+}
+
+fn new_pet_api_recording_urls() -> (PetApi, Arc<UrlRecordingApiClient>) {
+    let client = Arc::new(UrlRecordingApiClient { urls: std::sync::Mutex::new(Vec::new()) });
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    (PetApi::new(client.clone(), config, None), client)
+}
+
+#[test]
+fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
+    assert_eq!(
+        GetExternalPetInfoServerServer0 {}.get_url(),
+        "https://external-api.example.com/v1"
+    );
+    assert_eq!(
+        GetMultiServerPetInfoServerPrimary {}.get_url(),
+        "https://primary.example.com/v1"
+    );
+    assert_eq!(
+        GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegion::EU }.get_url(),
+        "https://eu.example.com/v1"
+    );
+    for (environment, version, expected) in [
+        (GetStagingPetInfoServerEnvironment::STAGING, GetStagingPetInfoServerVersion::V2, "https://staging.example.com/api/v2"),
+        (GetStagingPetInfoServerEnvironment::SANDBOX, GetStagingPetInfoServerVersion::V3, "https://sandbox.example.com/api/v3"),
+    ] {
+        let server = GetStagingPetInfoServerStagingServer { environment, version };
+        assert_eq!(server.get_url(), expected);
+    }
+}
+
+#[tokio::test]
+async fn test_pet_api_operation_server_is_the_host_of_the_request() {
+    let (api, client) = new_pet_api_recording_urls();
+    let staging = GetStagingPetInfoServerStagingServer {
+        environment: GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: GetStagingPetInfoServerVersion::V2,
+    };
+    let _ = api.get_staging_pet_info(7, Some(&staging)).await;
+    let regional = GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegion::AP };
+    let _ = api.get_multi_server_pet_info(7, Some(&regional)).await;
+    let _ = api.get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {})).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 3, "{:?}", urls);
+    assert!(urls[0].starts_with("https://sandbox.example.com/api/v2/"), "{}", urls[0]);
+    assert!(urls[1].starts_with("https://ap.example.com/v1/"), "{}", urls[1]);
+    assert!(urls[2].starts_with("https://external-api.example.com/v1/"), "{}", urls[2]);
+}
+
+/// A `format: date` path parameter is serialized as `YYYY-MM-DD`, with no time
+/// component and no second layer of percent-encoding.
+#[tokio::test]
+async fn test_pet_api_find_pets_born_on_path_param_is_date_only() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api
+        .find_pets_born_on(chrono::NaiveDate::from_ymd_opt(2024, 1, 31).unwrap())
+        .await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].ends_with("/pet/born-on/2024-01-31"), "{}", urls[0]);
 }
 
 /// The API group can be built without wiring a client, configuration or

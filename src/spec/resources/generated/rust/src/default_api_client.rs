@@ -942,8 +942,8 @@ fn is_text_content_type(content_type: &str) -> bool {
 mod tests {
     use super::{
         build_filename_directive, decode_text_body, is_https_to_http_body_replay,
-        mime_for_filename, parse_charset, serialize_multipart_body, validate_multipart_field_name,
-        validate_multipart_filename, SENSITIVE_HEADER_NAMES,
+        mime_for_filename, parse_charset, same_origin, serialize_multipart_body,
+        validate_multipart_field_name, validate_multipart_filename, SENSITIVE_HEADER_NAMES,
     };
     use crate::api_client::MultipartValue;
     /* Model-typed cases below are fixture-spec specific and are emitted only
@@ -1010,6 +1010,49 @@ mod tests {
         ));
         // Missing current_url: cannot prove downgrade, must NOT refuse.
         assert!(!is_https_to_http_body_replay(307, None, &http, true));
+    }
+
+    // ── Redirect origin comparison ──
+    //
+    // The predicate decides whether credentials survive a redirect hop, and
+    // traffics in `reqwest::Url`, so it can only be exercised in-crate. A
+    // default port written out must not make the same origin look foreign.
+    #[test]
+    fn test_same_origin_treats_an_explicit_default_port_as_the_same_origin() {
+        let parse = |s: &str| reqwest::Url::parse(s).unwrap();
+        assert!(same_origin(
+            &parse("https://example.com/a"),
+            &parse("https://example.com:443/b")
+        ));
+        assert!(same_origin(
+            &parse("http://example.com:80/a"),
+            &parse("http://example.com/b")
+        ));
+        assert!(same_origin(
+            &parse("https://Example.COM/a"),
+            &parse("https://example.com/b")
+        ));
+    }
+
+    #[test]
+    fn test_same_origin_rejects_a_different_scheme_host_or_port() {
+        let parse = |s: &str| reqwest::Url::parse(s).unwrap();
+        assert!(!same_origin(
+            &parse("https://example.com/a"),
+            &parse("http://example.com/a")
+        ));
+        assert!(!same_origin(
+            &parse("https://example.com/a"),
+            &parse("https://other.example.com/a")
+        ));
+        assert!(!same_origin(
+            &parse("https://example.com/a"),
+            &parse("https://example.com:8443/a")
+        ));
+        assert!(!same_origin(
+            &parse("http://example.com:80/a"),
+            &parse("https://example.com:443/a")
+        ));
     }
 
     // ── Per-part MIME sniffing ──

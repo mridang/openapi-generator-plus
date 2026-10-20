@@ -117,15 +117,32 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redire
 
 #[test]
 fn test_transport_options_invalid_proxy_url_throws_exception() {
-    for proxy in ["not-a-valid-url", "ftp://proxy.example.com:21", "socks5://proxy.example.com:1080"] {
+    for (proxy, reason) in [
+        ("not-a-valid-url", "\"not-a-valid-url\": relative URL without a base"),
+        ("ftp://proxy.example.com:21", "\"ftp://proxy.example.com:21\": must use http or https scheme"),
+        ("socks5://proxy.example.com:1080", "\"socks5://proxy.example.com:1080\": must use http or https scheme"),
+        ("http://", "\"http://\": empty host"),
+    ] {
         let result = TransportOptionsBuilder::new().proxy(proxy).build();
-        assert!(
-            matches!(result, Err(ConfigurationError::InvalidProxy(_))),
-            "expected InvalidProxy for {:?}, got {:?}",
+        assert_eq!(
+            result.as_ref().err(),
+            Some(&ConfigurationError::InvalidProxy(reason.to_string())),
+            "unexpected result for {:?}: {:?}",
             proxy,
             result
         );
     }
+}
+
+/// URL schemes are case-insensitive, so an upper-case `HTTP` proxy is a valid
+/// proxy and is kept as written.
+#[test]
+fn test_transport_options_upper_case_proxy_scheme_is_accepted() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("HTTP://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(opts.proxy(), Some("HTTP://proxy.example.com:8080"));
 }
 
 #[test]

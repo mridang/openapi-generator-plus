@@ -92,3 +92,37 @@ fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
     assert!(!debug.contains("wrapper-tok"), "{}", debug);
     assert!(debug.contains("***"), "{}", debug);
 }
+
+/// The redacted representation shows the host and masks only the token.
+#[test]
+fn test_redacted_representation_shows_the_host() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "xyz").unwrap();
+    assert_eq!(
+        "BearerAuthenticator { host: \"https://api.example.com\", token: \"***\" }",
+        format!("{:?}", auth)
+    );
+}
+
+/// The scheme wrapper emits the same header as the authenticator it wraps and
+/// validates the token as eagerly.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrapper_emits_the_bearer_header_and_validates_eagerly() {
+    let host = "https://api.example.com";
+    let service = ServiceTokenAuthenticator::new(host, "bEaReR xyz").unwrap();
+    assert_eq!(
+        service
+            .auth_headers()
+            .await
+            .get("Authorization")
+            .map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+    assert!(matches!(
+        ServiceTokenAuthenticator::new(host, ""),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
+    assert!(matches!(
+        ServiceTokenAuthenticator::new(host, "tok\r\nInjected: yes"),
+        Err(ConfigurationError::InvalidArgument(_))
+    ));
+}

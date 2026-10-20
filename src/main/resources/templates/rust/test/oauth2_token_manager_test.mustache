@@ -18,6 +18,7 @@ struct FakeApiClient {
     last_url: Mutex<Option<String>>,
     last_body: Mutex<Option<String>>,
     last_no_redirect: Mutex<Option<bool>>,
+    requests: Mutex<Vec<(String, String)>>,
 }
 
 impl FakeApiClient {
@@ -27,7 +28,13 @@ impl FakeApiClient {
             last_url: Mutex::new(None),
             last_body: Mutex::new(None),
             last_no_redirect: Mutex::new(None),
+            requests: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Every token request so far, as (url, form body) in the order sent.
+    fn requests(&self) -> Vec<(String, String)> {
+        self.requests.lock().unwrap().clone()
     }
 
     fn enqueue(&self, body: &str, status_code: u16) {
@@ -70,16 +77,42 @@ impl ApiClient for FakeApiClient {
             let mut last_no_redirect = self.last_no_redirect.lock().unwrap();
             *last_no_redirect = Some(options.no_redirect);
         }
+        let mut sent_body = String::new();
         if let Some(RequestBody::Bytes(b)) = body {
+            sent_body = String::from_utf8_lossy(b).to_string();
             let mut last_body = self.last_body.lock().unwrap();
-            *last_body = Some(String::from_utf8_lossy(b).to_string());
+            *last_body = Some(sent_body.clone());
         }
+        self.requests.lock().unwrap().push((url.to_string(), sent_body));
         let response = {
             let mut responses = self.responses.lock().unwrap();
             responses.remove(0)
         };
         Box::pin(async move { response })
     }
+}
+
+/// Splits a form body into its still-encoded `name=value` pairs, sorted, so a
+/// test can compare a body without depending on the order of a map.
+fn form_pairs(body: &str) -> Vec<(String, String)> {
+    let mut pairs: Vec<(String, String)> = body
+        .split('&')
+        .map(|pair| match pair.split_once('=') {
+            Some((name, value)) => (name.to_string(), value.to_string()),
+            None => (pair.to_string(), String::new()),
+        })
+        .collect();
+    pairs.sort();
+    pairs
+}
+
+fn pairs_of(expected: &[(&str, &str)]) -> Vec<(String, String)> {
+    let mut pairs: Vec<(String, String)> = expected
+        .iter()
+        .map(|(name, value)| (name.to_string(), value.to_string()))
+        .collect();
+    pairs.sort();
+    pairs
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -684,10 +717,15 @@ async fn test_throws_when_token_request_fails() {
     let mut params = HashMap::new();
     params.insert("grant_type".to_string(), "client_credentials".to_string());
 
-    let result = manager
+    let err = manager
         .get_access_token("https://auth.example.com/token", &params)
-        .await;
-    assert!(result.is_err(), "expected error when token request fails");
+        .await
+        .expect_err("expected error when token request fails");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .unwrap_or_else(|| panic!("a 401 must be an OAuth2ServerError, got: {err}"));
+    assert_eq!(401, server_err.status_code());
+    assert_eq!(Some("invalid_client"), server_err.code());
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -807,5 +845,186 @@ fn test_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
     assert!(
         !source.contains("unsafe impl"),
         "oauth2_token_manager.rs must not carry an unsafe impl"
+    );
+}
+
+fn authorization_code_params() -> HashMap<String, String> {
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "authorization_code".to_string());
+    params.insert("code".to_string(), "abc".to_string());
+    params.insert("client_id".to_string(), "cid".to_string());
+    params.insert("client_secret".to_string(), "sec".to_string());
+    params
+}
+
+/// A stale token is renewed with the refresh grant: the cached refresh token
+/// plus the client credentials, and nothing of the original grant.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_request_carries_the_refresh_token_and_the_client_credentials() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"new","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    let first = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let second = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+
+    assert_eq!(("old", "new"), (first.as_str(), second.as_str()));
+    let requests = client.requests();
+    assert_eq!(2, requests.len());
+    assert_eq!(
+        pairs_of(&[
+            ("client_id", "cid"),
+            ("client_secret", "sec"),
+            ("code", "abc"),
+            ("grant_type", "authorization_code"),
+        ]),
+        form_pairs(&requests[0].1)
+    );
+    assert_eq!(
+        pairs_of(&[
+            ("client_id", "cid"),
+            ("client_secret", "sec"),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", "ref1"),
+        ]),
+        form_pairs(&requests[1].1)
+    );
+}
+
+/// When the refresh grant is rejected the manager falls back to the original
+/// grant instead of surfacing the refresh failure, and keeps the new refresh
+/// token that grant returns.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_failed_refresh_falls_back_to_the_original_grant() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    client.enqueue(r#"{"access_token":"fresh","refresh_token":"ref2","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let token = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("a rejected refresh must fall back to the original grant");
+
+    assert_eq!("fresh", token);
+    assert_eq!("ref2", manager.refresh_token().await);
+    let requests = client.requests();
+    assert_eq!(3, requests.len());
+    assert!(
+        form_pairs(&requests[1].1).contains(&("grant_type".to_string(), "refresh_token".to_string())),
+        "the second request must be the refresh grant: {}",
+        requests[1].1
+    );
+    assert_eq!(form_pairs(&requests[0].1), form_pairs(&requests[2].1));
+}
+
+/// A refresh that fails at the transport level also falls back to the
+/// original grant.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_transport_failure_falls_back_to_the_original_grant() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue_error(Box::new(NetworkError::from(ApiError::new(
+        0,
+        "connection reset".to_string(),
+        None,
+        None,
+    ))));
+    client.enqueue(r#"{"access_token":"fresh","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let token = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("a refresh that cannot reach the endpoint must fall back");
+
+    assert_eq!("fresh", token);
+    assert_eq!(3, client.requests().len());
+}
+
+/// A token response without `expires_in` is cached indefinitely: the second
+/// call makes no second request.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_without_expires_in_is_cached_indefinitely() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"forever"}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    let first = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let second = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+
+    assert_eq!(("forever", "forever"), (first.as_str(), second.as_str()));
+    assert_eq!(1, client.requests().len());
+}
+
+/// A refresh response without `expires_in` keeps the expiry the token already
+/// had, so a token that was stale stays stale and the next call renews it again.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_without_expires_in_keeps_the_existing_expiry() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"t1","refresh_token":"ref1","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"t2"}"#, 200);
+    client.enqueue(r#"{"access_token":"t3"}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let second = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+    let third = manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+
+    assert_eq!(("t2", "t3"), (second.as_str(), third.as_str()));
+    assert_eq!(3, client.requests().len());
+}
+
+/// A `refresh_token` that is not a string is ignored rather than coerced.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_non_string_refresh_token_is_ignored() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"t1","refresh_token":12345,"expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let token = manager
+        .get_access_token("https://auth.example.com/token", &authorization_code_params())
+        .await
+        .unwrap();
+
+    assert_eq!("t1", token);
+    assert_eq!("", manager.refresh_token().await);
+}
+
+/// The token body keeps `-._~` literal, writes a space as `+` and
+/// percent-encodes everything else, including `*`, `!`, `'`, `(` and `)`.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_body_percent_encodes_everything_but_the_unreserved_set() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"t1","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+    params.insert("client_secret".to_string(), "a~b-c_d.e*f!g'h(i)j k/l".to_string());
+
+    manager.get_access_token("https://auth.example.com/token", &params).await.unwrap();
+
+    assert_eq!(
+        pairs_of(&[
+            ("client_secret", "a~b-c_d.e%2Af%21g%27h%28i%29j+k%2Fl"),
+            ("grant_type", "client_credentials"),
+        ]),
+        form_pairs(&client.requests()[0].1)
     );
 }

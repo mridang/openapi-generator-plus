@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 
 use {{packageName}}::api_client::{ApiClient, RequestBody};
 use {{packageName}}::api_http_response::ApiHttpResponse;
-use {{packageName}}::auth::oauth::OpenIdConnectAuthenticator;
+use {{packageName}}::auth::oauth::{OpenIdConnectAuthenticator, SsoAuthAuthenticator};
 use {{packageName}}::auth::Authenticator;
 use {{packageName}}::auth::HttpAwareAuthenticator;
 use {{packageName}}::{
@@ -434,6 +434,67 @@ fn redacts_secret() {
 }
 
 const DISCOVERY: &str = r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#;
+
+/// The discovery document is cached for the `max-age` the server sent: a
+/// `max-age=0` document is fetched again on the next call, a positive one is not.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_is_refetched_once_its_max_age_has_passed() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "public, max-age=0");
+    client.enqueue_cached(DISCOVERY, "public, max-age=0");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
+    assert_eq!(2, client.get_count());
+
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "public, max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").await.expect("should succeed");
+    auth.build_authorization_url("").await.expect("should succeed");
+    assert_eq!(1, client.get_count());
+}
+
+/// The scheme wrapper discovers the endpoints from the URL its security scheme
+/// declares.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrapper_discovers_from_the_declared_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = SsoAuthAuthenticator::new(
+        "https://api.example.com",
+        "id",
+        "secret",
+        "https://app.example.com/callback",
+    );
+    auth.as_http_aware_mut().expect("http aware").set_api_client(client.clone());
+
+    let url = auth.build_authorization_url("").await.expect("should succeed");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"), "{}", url);
+    assert_eq!("GET", client.last_method().unwrap());
+    assert_eq!(
+        "https://auth.example.com/.well-known/openid-configuration",
+        client.last_url().unwrap()
+    );
+}
+
+/// The redacted representation shows every non-secret field.
+#[test]
+fn test_redacted_representation_shows_the_non_secret_fields() {
+    let auth = create_authenticator();
+    assert_eq!(
+        "OpenIdConnectAuthenticator { host: \"https://api.example.com\", \
+openid_connect_url: \"https://auth.example.com/.well-known/openid-configuration\", \
+client_id: \"my-client-id\", client_secret: \"***\", \
+redirect_uri: \"https://app.example.com/callback\", scopes: [\"openid\", \"profile\"] }",
+        format!("{:?}", auth)
+    );
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {

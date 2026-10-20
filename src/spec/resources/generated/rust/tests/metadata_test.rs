@@ -109,6 +109,22 @@ fn test_metadata_additional_properties_round_trip_preserves_free_form_json() {
     }
 }
 
+/// Equality covers the free-form additional properties: two models that differ
+/// only in an extra property are not equal.
+#[test]
+fn test_metadata_equality_includes_additional_properties() {
+    let one: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
+    let same: Metadata = serde_json::from_str(r#"{"extra":1}"#).expect("failed to deserialize");
+    let two: Metadata = serde_json::from_str(r#"{"extra":2}"#).expect("failed to deserialize");
+    let other_key: Metadata =
+        serde_json::from_str(r#"{"other":1}"#).expect("failed to deserialize");
+
+    assert_eq!(one, same);
+    assert_ne!(one, two);
+    assert_ne!(one, other_key);
+    assert_ne!(one, Metadata::new());
+}
+
 #[test]
 fn test_pet_location_free_form_json_round_trips() {
     /* FIX 3: Pet.location is Option<Vec<JsonValue>> (free-form JSON array). The
