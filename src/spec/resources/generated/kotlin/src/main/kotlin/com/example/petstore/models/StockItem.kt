@@ -32,5 +32,5 @@ data class StockItem(
      * Quantity grid as an array of integer arrays
      */
     @SerialName("matrix")
-    val matrix: List<List<Int>>? = mutableListOf(),
+    val matrix: List<List<Int>>? = null,
 )

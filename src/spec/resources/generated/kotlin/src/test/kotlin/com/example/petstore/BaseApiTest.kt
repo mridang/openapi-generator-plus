@@ -695,7 +695,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf("foo" to "bar"))
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo?foo=bar", client.capturedUrl)
         }
 
         @Test
@@ -706,7 +706,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf("filter" to ""))
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo?filter=", client.capturedUrl)
         }
 
         @Test
@@ -717,7 +717,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf("tags" to listOf("a", "b")))
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo?tags=a&tags=b", client.capturedUrl)
         }
 
         @Test
@@ -728,7 +728,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf("active" to true))
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo?active=true", client.capturedUrl)
         }
 
         @Test
@@ -739,7 +739,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf("limit" to 10))
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo?limit=10", client.capturedUrl)
         }
 
         @Test
@@ -750,7 +750,7 @@ class BaseApiTest {
             runBlocking {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf())
             }
-            // No exception means success
+            assertEquals("http://localhost/test/echo", client.capturedUrl)
         }
 
         @Test

@@ -433,6 +433,28 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun nonJsonTokenResponseDoesNotEchoTheBody() {
+        // A form-encoded 2xx answer carries the token in its body; the parser's
+        // own message quotes an excerpt of its input, so it must not be kept.
+        val client = FakeApiClient()
+        client.enqueue("access_token=gho_SECRET123&token_type=bearer")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val ex =
+            assertThrowsExactly(OAuth2TokenException::class.java) {
+                runBlocking {
+                    manager.getAccessToken(
+                        "https://auth.example.com/token",
+                        mapOf("grant_type" to "client_credentials"),
+                    )
+                }
+            }
+        assertEquals("Token response is not a JSON object", ex.message)
+        assertNull(ex.cause)
+    }
+
+    @Test
     fun tokenTransportFailurePropagatesNetworkException() {
         // A transport failure on the token POST reaches the caller unchanged.
         val failure =

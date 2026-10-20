@@ -116,12 +116,15 @@ class TransportOptions private constructor(
          */
         fun proxy(proxy: String?): Builder =
             apply {
+                var canonical = proxy
                 if (proxy != null) {
                     val schemeEnd = proxy.indexOf("://")
                     if (schemeEnd == -1) {
                         throw IllegalArgumentException("Invalid proxy URL (missing scheme): $proxy")
                     }
-                    val scheme = proxy.substring(0, schemeEnd)
+                    // RFC 3986 schemes are case-insensitive: accept HTTP:// and
+                    // keep the lower-case form.
+                    val scheme = proxy.substring(0, schemeEnd).lowercase()
                     if (scheme !in listOf("http", "https")) {
                         throw IllegalArgumentException(
                             "Invalid proxy URL (must use http or https scheme): $proxy",
@@ -137,8 +140,9 @@ class TransportOptions private constructor(
                     if (host.isEmpty()) {
                         throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
                     }
+                    canonical = scheme + proxy.substring(schemeEnd)
                 }
-                this.proxy = proxy
+                this.proxy = canonical
             }
 
         /**

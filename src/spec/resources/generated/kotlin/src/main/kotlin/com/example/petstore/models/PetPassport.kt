@@ -36,7 +36,7 @@ data class PetPassport(
      * Base64-encoded scans of each passport page
      */
     @SerialName("scans")
-    val scans: List<ByteArray>? = mutableListOf(),
+    val scans: List<ByteArray>? = null,
     /**
      * The `issuedAt` property.
      */
@@ -54,7 +54,9 @@ data class PetPassport(
      * reference-equal elements), so two instances decoded from identical JSON
      * would not be equal and would hash differently. The overrides below route
      * those fields through contentEquals/contentHashCode (element-wise for
-     * List<ByteArray>) while every other field keeps ordinary == semantics. */
+     * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+     * class would treat 1.5 and 1.50 as different) while every other field keeps
+     * ordinary == semantics. */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false

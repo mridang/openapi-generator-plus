@@ -56,7 +56,7 @@ data class Pet(
      * The `tags` property.
      */
     @SerialName("tags")
-    val tags: List<Tag>? = mutableListOf(),
+    val tags: List<Tag>? = null,
     /**
      * pet status in the store
      *
@@ -69,7 +69,7 @@ data class Pet(
      * The `location` property.
      */
     @SerialName("location")
-    val location: List<@Contextual Any>? = mutableListOf(),
+    val location: List<@Contextual Any>? = null,
     /**
      * Absolute URL to the pet's public profile page
      *
@@ -127,5 +127,54 @@ data class Pet(
                 entries.firstOrNull { it.value == value }
                     ?: throw IllegalArgumentException("Unexpected value '$value'")
         }
+    }
+
+  /* Kotlin's synthesized data-class equals/hashCode compare Array and
+   * ByteArray by reference identity (and List<ByteArray> bottoms out in
+   * reference-equal elements), so two instances decoded from identical JSON
+   * would not be equal and would hash differently. The overrides below route
+   * those fields through contentEquals/contentHashCode (element-wise for
+   * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+   * class would treat 1.5 and 1.50 as different) while every other field keeps
+   * ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as Pet
+        if (id != other.id) return false
+        if (name != other.name) return false
+        if (category != other.category) return false
+        if (photoUrls != other.photoUrls) return false
+        if (tags != other.tags) return false
+        if (status != other.status) return false
+        if (location != other.location) return false
+        if (homepageUrl != other.homepageUrl) return false
+        if (thumbnailRef != other.thumbnailRef) return false
+        if (linkTemplate != other.linkTemplate) return false
+        if (ownerEmail != other.ownerEmail) return false
+        if (weightKg != null) {
+            if (other.weightKg == null) return false
+            if (weightKg.compareTo(other.weightKg) != 0) return false
+        } else if (other.weightKg != null) {
+            return false
+        }
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + (id?.hashCode() ?: 0)
+        result = 31 * result + name.hashCode()
+        result = 31 * result + (category?.hashCode() ?: 0)
+        result = 31 * result + photoUrls.hashCode()
+        result = 31 * result + (tags?.hashCode() ?: 0)
+        result = 31 * result + (status?.hashCode() ?: 0)
+        result = 31 * result + (location?.hashCode() ?: 0)
+        result = 31 * result + (homepageUrl?.hashCode() ?: 0)
+        result = 31 * result + (thumbnailRef?.hashCode() ?: 0)
+        result = 31 * result + (linkTemplate?.hashCode() ?: 0)
+        result = 31 * result + (ownerEmail?.hashCode() ?: 0)
+        result = 31 * result + (weightKg?.stripTrailingZeros()?.hashCode() ?: 0)
+        return result
     }
 }

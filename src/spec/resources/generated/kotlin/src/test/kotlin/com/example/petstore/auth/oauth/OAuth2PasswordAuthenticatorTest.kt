@@ -58,6 +58,33 @@ class OAuth2PasswordAuthenticatorTest {
         )
 
     @Test
+    fun refreshUrlIsATrailingOptionalArgument() {
+        // refreshUrl comes after scopes and defaults to null (like the
+        // authorization-code authenticator and the other SDKs), so the required
+        // arguments can be passed positionally without it.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"r1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val auth =
+            OAuth2PasswordAuthenticator(
+                "https://api.example.com",
+                "id",
+                "secret",
+                "https://auth.example.com/token",
+                "user",
+                "pw",
+                listOf("read"),
+                "https://auth.example.com/refresh",
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/refresh", client.lastUrl)
+    }
+
+    @Test
     fun sendsPasswordGrantType() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","expires_in":3600}""")

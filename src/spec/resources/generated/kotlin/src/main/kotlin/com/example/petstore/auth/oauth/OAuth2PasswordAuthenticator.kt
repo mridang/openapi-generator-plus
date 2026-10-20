@@ -21,10 +21,10 @@ import com.example.petstore.auth.HttpAwareAuthenticator
  * @param clientId OAuth2 client ID
  * @param clientSecret OAuth2 client secret
  * @param tokenUrl token endpoint URL
- * @param refreshUrl refresh token endpoint URL (falls back to [tokenUrl] if null)
  * @param username resource owner username
  * @param password resource owner password
  * @param scopes requested scopes
+ * @param refreshUrl refresh token endpoint URL (falls back to [tokenUrl] if null)
  * @param clientAuthMethod how to transmit the client credentials; defaults to
  *   [ClientAuthMethod.BODY]
  */
@@ -33,10 +33,10 @@ open class OAuth2PasswordAuthenticator(
     private val clientId: String,
     private val clientSecret: String,
     private val tokenUrl: String,
-    private val refreshUrl: String?,
     private val username: String,
     private val password: String,
     private val scopes: List<String>,
+    private val refreshUrl: String? = null,
     private val clientAuthMethod: ClientAuthMethod = ClientAuthMethod.BODY,
 ) : HttpAwareAuthenticator {
     private val tokenManager = OAuth2TokenManager()

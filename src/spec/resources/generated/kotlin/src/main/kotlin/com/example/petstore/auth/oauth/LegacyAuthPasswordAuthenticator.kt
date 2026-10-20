@@ -25,9 +25,9 @@ class LegacyAuthPasswordAuthenticator : OAuth2PasswordAuthenticator {
         clientId,
         clientSecret,
         "https://auth.example.com/oauth/token",
-        "https://auth.example.com/oauth/refresh",
         username,
         password,
         listOf("read"),
+        "https://auth.example.com/oauth/refresh",
     )
 }

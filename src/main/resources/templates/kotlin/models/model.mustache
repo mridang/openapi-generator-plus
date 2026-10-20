@@ -673,7 +673,7 @@ class {{classname}}(
 {{/isUri}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
+{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
 {{/vars}}
 ){{#parent}} : {{{.}}}(){{/parent}} {
 {{#vars}}
@@ -802,7 +802,9 @@ class {{classname}}(
    * reference-equal elements), so two instances decoded from identical JSON
    * would not be equal and would hash differently. The overrides below route
    * those fields through contentEquals/contentHashCode (element-wise for
-   * List<ByteArray>) while every other field keeps ordinary == semantics. */
+   * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+   * class would treat 1.5 and 1.50 as different) while every other field keeps
+   * ordinary == semantics. */
   override fun equals(other: Any?): Boolean {
     if (this === other) return true
     if (other == null || this::class != other::class) return false
@@ -851,10 +853,25 @@ class {{classname}}(
     }
 {{/required}}
 {{/vendorExtensions.eqMapByteArray}}
+{{#vendorExtensions.eqDecimal}}
+{{#required}}
+    if ({{name}}.compareTo(other.{{name}}) != 0) return false
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.compareTo(other.{{name}}) != 0) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/required}}
+{{/vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
 {{^vendorExtensions.eqMapByteArray}}
+{{^vendorExtensions.eqDecimal}}
     if ({{name}} != other.{{name}}) return false
+{{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}
@@ -896,15 +913,26 @@ class {{classname}}(
     result = 31 * result + ({{name}}?.entries?.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) } ?: 0)
 {{/required}}
 {{/vendorExtensions.eqMapByteArray}}
+{{#vendorExtensions.eqDecimal}}
+{{! stripTrailingZeros makes 1.5 and 1.50 hash alike, matching compareTo above. }}
+{{#required}}
+    result = 31 * result + {{name}}.stripTrailingZeros().hashCode()
+{{/required}}
+{{^required}}
+    result = 31 * result + ({{name}}?.stripTrailingZeros()?.hashCode() ?: 0)
+{{/required}}
+{{/vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqByteArray}}
 {{^vendorExtensions.eqListByteArray}}
 {{^vendorExtensions.eqMapByteArray}}
+{{^vendorExtensions.eqDecimal}}
 {{#required}}
     result = 31 * result + {{name}}.hashCode()
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.hashCode() ?: 0)
 {{/required}}
+{{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}
 {{/vendorExtensions.eqListByteArray}}
 {{/vendorExtensions.eqByteArray}}

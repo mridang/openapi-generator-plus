@@ -189,7 +189,7 @@ class DefaultApiClient internal constructor(
                     throw transportFailure(e)
                 }
                 val originalUri = java.net.URI(currentUrl)
-                val redirectUri = originalUri.resolve(location)
+                val redirectUri = resolveRedirectLocation(originalUri, location)
                 // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
                 // data:, etc.). URI.resolve() preserves whatever scheme the
                 // server returned in Location, so a malicious or
@@ -615,6 +615,22 @@ internal fun sameOrigin(originalUri: java.net.URI, redirectUri: java.net.URI): B
         redirectUri.scheme.equals(originalUri.scheme, ignoreCase = true) &&
         redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
         effectivePort(redirectUri) == effectivePort(originalUri)
+}
+
+/**
+ * Resolve a Location header against the URL that produced it. java.net.URI
+ * implements the RFC 2396 rules, which resolve a query-only reference such as
+ * `?page=2` against the base DIRECTORY (dropping the last path segment); RFC
+ * 3986 keeps the base path and replaces only the query. Every other reference
+ * form resolves identically under both RFCs, so only the query-only form is
+ * handled here.
+ */
+internal fun resolveRedirectLocation(base: java.net.URI, location: String): java.net.URI {
+    if (location.startsWith("?")) {
+        val baseWithoutQuery = base.toString().substringBefore('#').substringBefore('?')
+        return java.net.URI(baseWithoutQuery + location)
+    }
+    return base.resolve(location)
 }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */

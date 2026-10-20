@@ -634,8 +634,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "null";
             return List.of("host", "clientId", "clientSecret",
-                    "\"" + spec.tokenUrl() + "\"", refreshArg,
-                    "username", "password", formatKotlinScopes(spec.scopes()));
+                    "\"" + spec.tokenUrl() + "\"",
+                    "username", "password", formatKotlinScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
@@ -855,7 +855,11 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 prop.vendorExtensions.put("eqByteArray", byteArray || array);
                 prop.vendorExtensions.put("eqListByteArray", listByteArray);
                 prop.vendorExtensions.put("eqMapByteArray", mapByteArray);
-                if (byteArray || array || listByteArray || mapByteArray) {
+                // BigDecimal.equals/hashCode depend on the scale (1.5 != 1.50), unlike
+                // the decimal types of the other SDKs: compare by numeric value.
+                final boolean decimal = "BigDecimal".equals(dataType);
+                prop.vendorExtensions.put("eqDecimal", decimal);
+                if (byteArray || array || listByteArray || mapByteArray || decimal) {
                     hasContentEqualsField = true;
                 }
             }

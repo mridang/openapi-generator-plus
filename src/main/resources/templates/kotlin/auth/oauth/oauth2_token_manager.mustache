@@ -207,10 +207,12 @@ class OAuth2TokenManager {
 
         val jsonObject = try {
             json.parseToJsonElement(response.body).jsonObject
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             /* kotlinx.serialization.SerializationException extends
-             * IllegalArgumentException, as does .jsonObject on a non-object. */
-            throw OAuth2TokenException("Token response is not a JSON object: ${e.message}", e)
+             * IllegalArgumentException, as does .jsonObject on a non-object.
+             * Neither the message nor the cause is kept: the parser quotes a
+             * "JSON input" excerpt of the body, which may hold the token. */
+            throw OAuth2TokenException("Token response is not a JSON object")
         }
         val accessTokenElement = jsonObject["access_token"] as? JsonPrimitive
         if (accessTokenElement == null || !accessTokenElement.isString || accessTokenElement.content.isEmpty()) {

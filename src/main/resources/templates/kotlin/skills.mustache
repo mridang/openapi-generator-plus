@@ -100,7 +100,7 @@ import {{invokerPackage}}.auth.oauth.OAuth2PasswordAuthenticator
 
 val authenticator = OAuth2PasswordAuthenticator(
     "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", null, "username", "password", listOf())
+    "https://auth.example.com/token", "username", "password", listOf())
 val client = {{clientClassName}}(authenticator)
 ```
 

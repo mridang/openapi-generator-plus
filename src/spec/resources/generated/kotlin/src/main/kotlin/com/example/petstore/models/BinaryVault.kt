@@ -28,19 +28,21 @@ data class BinaryVault(
      * A list of byte arrays; equality compares element contents.
      */
     @SerialName("shards")
-    val shards: List<ByteArray>? = mutableListOf(),
+    val shards: List<ByteArray>? = null,
     /**
      * A map of byte arrays; equality compares each value's contents.
      */
     @SerialName("labels")
-    val labels: Map<String, ByteArray>? = mutableMapOf(),
+    val labels: Map<String, ByteArray>? = null,
 ) {
     /* Kotlin's synthesized data-class equals/hashCode compare Array and
      * ByteArray by reference identity (and List<ByteArray> bottoms out in
      * reference-equal elements), so two instances decoded from identical JSON
      * would not be equal and would hash differently. The overrides below route
      * those fields through contentEquals/contentHashCode (element-wise for
-     * List<ByteArray>) while every other field keeps ordinary == semantics. */
+     * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+     * class would treat 1.5 and 1.50 as different) while every other field keeps
+     * ordinary == semantics. */
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || this::class != other::class) return false

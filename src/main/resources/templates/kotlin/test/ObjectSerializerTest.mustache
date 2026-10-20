@@ -244,6 +244,21 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("a minimally-built model sends no key for its unset optional arrays")
+        fun unsetOptionalArraysAreNotSent() {
+            // tags and location are optional arrays: left unset they must stay
+            // null (omitted), not default to [] which would ride the wire as
+            // "tags":[] / "location":[] (the other SDKs send neither key).
+            val pet = {{modelPackage}}.Pet(name = "fido", photoUrls = setOf("http://example.com/fido.png"))
+            assertNull(pet.tags)
+            assertNull(pet.location)
+            val json = serializer.serialize(pet)
+            assertTrue(json.contains("\"photoUrls\":[\"http://example.com/fido.png\"]"), "got: $json")
+            assertFalse(json.contains("\"tags\""), "unset tags must not be sent, got: $json")
+            assertFalse(json.contains("\"location\""), "unset location must not be sent, got: $json")
+        }
+
+        @Test
         @DisplayName("omits an explicitly-nulled optional even when its default is non-null")
         fun omitsExplicitNullEvenWithNonNullDefault() {
             // label has a non-null schema default ("untitled"). Setting it to null
@@ -280,6 +295,24 @@ class ObjectSerializerTest {
         fun deserializesStringFromJson() {
             val result: String? = serializer.deserialize("\"hello\"")
             assertEquals("hello", result)
+        }
+
+        @Test
+        @DisplayName("an absent optional array decodes to null, not an empty list")
+        fun absentOptionalArrayDecodesToNull() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"fido\",\"photoUrls\":[]}")
+            assertNotNull(pet)
+            assertNull(pet!!.tags)
+            assertNull(pet.location)
+        }
+
+        @Test
+        @DisplayName("an explicit empty optional array decodes to an empty list")
+        fun explicitEmptyOptionalArrayDecodesToEmptyList() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>(
+                "{\"name\":\"fido\",\"photoUrls\":[],\"tags\":[]}")
+            assertNotNull(pet)
+            assertEquals(emptyList<{{modelPackage}}.Tag>(), pet!!.tags)
         }
 
         @Test
@@ -1283,6 +1316,41 @@ class ObjectSerializerTest {
      * The fixture model carries all three deliberately: a bare ByteArray, a
      * list of them, and a map of them.
      */
+    @Nested
+    @DisplayName("generated equality compares decimals by value, not scale")
+    inner class DecimalEquality {
+
+        private fun petOf(weightKg: java.math.BigDecimal?): {{modelPackage}}.Pet =
+            {{modelPackage}}.Pet(name = "fido", photoUrls = setOf("u"), weightKg = weightKg)
+
+        @Test
+        @DisplayName("1.5 and 1.50 are equal and hash alike")
+        fun differentScalesAreEqual() {
+            val a = petOf(java.math.BigDecimal("1.5"))
+            val b = petOf(java.math.BigDecimal("1.50"))
+            assertEquals(a, b)
+            assertEquals(a.hashCode(), b.hashCode())
+        }
+
+        @Test
+        @DisplayName("pets decoded from 1.5 and 1.50 are equal")
+        fun decodedScalesAreEqual() {
+            val a = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":1.5}")
+            val b = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"f\",\"photoUrls\":[],\"weightKg\":1.50}")
+            assertEquals(a, b)
+            assertEquals(a.hashCode(), b.hashCode())
+        }
+
+        @Test
+        @DisplayName("different values and null versus set are unequal")
+        fun differentValuesAreUnequal() {
+            assertNotEquals(petOf(java.math.BigDecimal("1.5")), petOf(java.math.BigDecimal("1.6")))
+            assertNotEquals(petOf(java.math.BigDecimal("1.5")), petOf(null))
+            assertNotEquals(petOf(null), petOf(java.math.BigDecimal("1.5")))
+            assertEquals(petOf(null), petOf(null))
+        }
+    }
+
     @Nested
     @DisplayName("generated equality compares array content, not identity")
     inner class ByteArrayEquality {

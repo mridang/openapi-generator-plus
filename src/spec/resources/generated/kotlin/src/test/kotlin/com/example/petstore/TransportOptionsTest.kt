@@ -146,6 +146,37 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("proxy scheme is matched case insensitively")
+        fun proxySchemeIsMatchedCaseInsensitively() {
+            assertEquals(
+                "http://proxy:3128",
+                TransportOptions
+                    .builder()
+                    .proxy("HTTP://proxy:3128")
+                    .build()
+                    .proxy,
+            )
+            assertEquals(
+                "https://proxy:3128",
+                TransportOptions
+                    .builder()
+                    .proxy("Https://proxy:3128")
+                    .build()
+                    .proxy,
+            )
+        }
+
+        @Test
+        @DisplayName("an upper-case non-http proxy scheme is still rejected")
+        fun upperCaseNonHttpProxySchemeIsRejected() {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy("FTP://proxy:3128")
+                }
+            assertEquals("Invalid proxy URL (must use http or https scheme): FTP://proxy:3128", ex.message)
+        }
+
+        @Test
         @DisplayName("null proxy URL is accepted")
         fun nullProxyUrlIsAccepted() {
             val opts = TransportOptions.builder().proxy(null).build()
