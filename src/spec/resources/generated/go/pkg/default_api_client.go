@@ -328,7 +328,10 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			if v, _ := req.Context().Value(noRedirectContextKey{}).(bool); v {
 				return http.ErrUseLastResponse
 			}
-			if len(via) >= maxRedirects {
+			/* via holds the requests already sent, so len(via) is the index of
+			 * the redirect being decided; refuse only past maxRedirects so that
+			 * exactly maxRedirects hops are followed. */
+			if len(via) > maxRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxRedirects)
 			}
 			if !strings.EqualFold(req.URL.Scheme, "http") && !strings.EqualFold(req.URL.Scheme, "https") {
@@ -357,7 +360,10 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			// body would be replayed), not the original request (via[0]): an
 			// http→https→http chain downgrades on the final hop even though
 			// the first request was already http, which a via[0] anchor misses.
-			if (prevStatus == 307 || prevStatus == 308) &&
+			// Only a real body is at risk: net/http hands a bodyless GET (nil
+			// Body) and an empty POST (http.NoBody) to the redirect as no body.
+			hasBody := req.Body != nil && req.Body != http.NoBody
+			if (prevStatus == 307 || prevStatus == 308) && hasBody &&
 				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
 				strings.EqualFold(req.URL.Scheme, "http") {
 				return fmt.Errorf(

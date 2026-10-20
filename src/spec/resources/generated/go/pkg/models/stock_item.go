@@ -47,7 +47,7 @@ func NewStockItem(priority Priority) *StockItem {
 // MarshalJSON implements the json.Marshaler interface.
 func (o StockItem) MarshalJSON() ([]byte, error) {
 	type Alias StockItem
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

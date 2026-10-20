@@ -42,7 +42,7 @@ func NewPhotoMetadataLocation() *PhotoMetadataLocation {
 // MarshalJSON implements the json.Marshaler interface.
 func (o PhotoMetadataLocation) MarshalJSON() ([]byte, error) {
 	type Alias PhotoMetadataLocation
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -47,7 +47,7 @@ func NewDryFood(weightKg float64) *DryFood {
 // MarshalJSON implements the json.Marshaler interface.
 func (o DryFood) MarshalJSON() ([]byte, error) {
 	type Alias DryFood
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

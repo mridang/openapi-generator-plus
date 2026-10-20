@@ -81,6 +81,13 @@ func (a *OAuth2AuthorizationCodeAuthenticator) String() string {
 	return fmt.Sprintf("OAuth2AuthorizationCodeAuthenticator{host: %q, clientID: %q, clientSecret: ***, authorizationURL: %q, tokenURL: %q, redirectURI: %q, scopes: %q}", a.host, a.clientID, a.authorizationURL, a.tokenURL, a.redirectURI, a.scopes)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *OAuth2AuthorizationCodeAuthenticator) GoString() string {
+	return a.String()
+}
+
 // SetApiClient injects the shared API client for making token requests.
 func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.tokenManager.SetApiClient(client)

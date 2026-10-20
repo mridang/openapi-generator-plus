@@ -21,7 +21,7 @@ type PetFood struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (o PetFood) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.value)
+	return marshalJSON(o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -96,7 +96,7 @@ func NewOrder() *Order {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Order) MarshalJSON() ([]byte, error) {
 	type Alias Order
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

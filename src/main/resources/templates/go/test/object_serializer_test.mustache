@@ -52,6 +52,83 @@ func TestSerialize_MapToJSON(t *testing.T) {
 	}
 }
 
+// Model MarshalJSON must not HTML-escape either: a model field is serialized by
+// the model's own marshaller, which encoding/json does not un-escape, so a plain
+// json.Marshal there would put the unicode-escaped form on the wire.
+func TestSerialize_ModelFieldsAreNotHTMLEscaped(t *testing.T) {
+	t.Parallel()
+	name := "a<b>&c"
+	category := models.Category{Name: &name}
+
+	data, err := serialize(category)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"name":"a<b>&c"}`; string(data) != want {
+		t.Errorf("expected %s on the wire, got %s", want, string(data))
+	}
+
+	direct, err := category.MarshalJSON()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"name":"a<b>&c"}`; string(direct) != want {
+		t.Errorf("expected MarshalJSON to return %s, got %s", want, string(direct))
+	}
+}
+
+func TestSerialize_NestedModelStringsAreNotHTMLEscaped(t *testing.T) {
+	t.Parallel()
+	pet := models.NewPet("a<b>", []string{"http://x/?a=1&b=2"})
+
+	data, err := serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, want := range []string{`"name":"a<b>"`, `"http://x/?a=1&b=2"`} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("expected %s in %s", want, string(data))
+		}
+	}
+}
+
+func TestSerialize_AdditionalPropertiesAreNotHTMLEscaped(t *testing.T) {
+	t.Parallel()
+	metadata := models.Metadata{AdditionalProperties: map[string]any{"q": "a<b>&c"}}
+
+	data, err := serialize(metadata)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"q":"a<b>&c"}`; string(data) != want {
+		t.Errorf("expected %s on the wire, got %s", want, string(data))
+	}
+}
+
+func TestSerialize_AnyOfMergedVariantsAreNotHTMLEscaped(t *testing.T) {
+	t.Parallel()
+	treatment := models.PetTreatment{Medication: &models.Medication{DrugName: "a<b>&c"}}
+
+	data, err := serialize(treatment)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"drugName":"a<b>&c"}`; string(data) != want {
+		t.Errorf("expected %s on the wire, got %s", want, string(data))
+	}
+}
+
+func TestSerialize_SetItemsAreNotHTMLEscaped(t *testing.T) {
+	t.Parallel()
+	data, err := models.Set[string]{"a&b", "<c>"}.MarshalJSON()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `["a&b","<c>"]`; string(data) != want {
+		t.Errorf("expected %s, got %s", want, string(data))
+	}
+}
+
 func TestDeserialize_JSONToMap(t *testing.T) {
 	t.Parallel()
 	input := []byte(`{"name":"Fido","age":3}`)
@@ -449,6 +526,47 @@ func TestStringify_NilStringPointer(t *testing.T) {
 	result := stringify(s)
 	if result != "" {
 		t.Errorf("expected empty string for nil *string, got %q", result)
+	}
+}
+
+// An optional scalar parameter is held as a pointer; stringify must send the
+// pointed-to value, never the pointer address that %v prints.
+func TestStringify_OptionalScalarPointers(t *testing.T) {
+	t.Parallel()
+	i32, i64, n := int32(7), int64(-42), 5
+	f64, f32 := 1.5, float32(2.5)
+	whole := 2.0
+	yes, no := true, false
+	cases := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"int", &n, "5"},
+		{"int32", &i32, "7"},
+		{"int64", &i64, "-42"},
+		{"float64", &f64, "1.5"},
+		{"float32", &f32, "2.5"},
+		{"whole float64", &whole, "2.0"},
+		{"bool true", &yes, "true"},
+		{"bool false", &no, "false"},
+	}
+	for _, tc := range cases {
+		if got := stringify(tc.value); got != tc.want {
+			t.Errorf("%s: stringify = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestStringify_NilScalarPointers(t *testing.T) {
+	t.Parallel()
+	var i64 *int64
+	var f64 *float64
+	var b *bool
+	for _, v := range []any{i64, f64, b} {
+		if got := stringify(v); got != "" {
+			t.Errorf("stringify(%T(nil)) = %q, want empty string", v, got)
+		}
 	}
 }
 
@@ -1434,6 +1552,28 @@ func TestDeserialize_LiteralNullBodyIsNoError(t *testing.T) {
 	var category models.Category
 	if err := deserialize([]byte("null"), &category); err != nil {
 		t.Fatalf("expected a null body to deserialize without error, got %v", err)
+	}
+}
+
+func TestIsJSONNull(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		body string
+		want bool
+	}{
+		{"null", true},
+		{"  null\n", true},
+		{"\xEF\xBB\xBFnull", true},
+		{"", false},
+		{"nullx", false},
+		{`"null"`, false},
+		{"{}", false},
+		{"0", false},
+	}
+	for _, tc := range cases {
+		if got := isJSONNull([]byte(tc.body)); got != tc.want {
+			t.Errorf("isJSONNull(%q) = %v, want %v", tc.body, got, tc.want)
+		}
 	}
 }
 

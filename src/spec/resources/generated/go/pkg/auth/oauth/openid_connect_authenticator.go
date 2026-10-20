@@ -91,6 +91,13 @@ func (a *OpenIdConnectAuthenticator) String() string {
 	return fmt.Sprintf("OpenIdConnectAuthenticator{host: %q, openIDConnectURL: %q, clientID: %q, clientSecret: ***, redirectURI: %q}", a.host, a.openIDConnectURL, a.clientID, a.redirectURI)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *OpenIdConnectAuthenticator) GoString() string {
+	return a.String()
+}
+
 // SetApiClient injects the shared API client for making discovery and token requests.
 func (a *OpenIdConnectAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.mu.Lock()

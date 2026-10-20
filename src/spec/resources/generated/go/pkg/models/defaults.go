@@ -92,7 +92,7 @@ func NewDefaults() *Defaults {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Defaults) MarshalJSON() ([]byte, error) {
 	type Alias Defaults
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

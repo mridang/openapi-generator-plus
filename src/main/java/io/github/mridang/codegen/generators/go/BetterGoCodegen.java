@@ -550,6 +550,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
                 new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"),
                 new SupportingFileSpec(
+                        "models/json_marshal.mustache", "pkg/models", "json_marshal.go"),
+                new SupportingFileSpec(
                         "models/duration.mustache", "pkg/models", "duration.go"),
                 new SupportingFileSpec(
                         "models/date_time.mustache", "pkg/models", "date_time.go"));

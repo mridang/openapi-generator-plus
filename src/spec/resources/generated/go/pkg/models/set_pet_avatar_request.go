@@ -48,7 +48,7 @@ func NewSetPetAvatarRequest(data []byte, mimeType string) *SetPetAvatarRequest {
 // MarshalJSON implements the json.Marshaler interface.
 func (o SetPetAvatarRequest) MarshalJSON() ([]byte, error) {
 	type Alias SetPetAvatarRequest
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -231,19 +231,17 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 // into a typed *OAuth2ServerError. Falls back to a generic error using the
 // raw body when the body is not a valid OAuth2 error object.
 func parseOAuth2ServerError(statusCode int, body string) *errors_pkg.OAuth2ServerError {
-	var parsed struct {
-		Error            string `json:"error"`
-		ErrorDescription string `json:"error_description"`
-		ErrorURI         string `json:"error_uri"`
-	}
-	if err := json.Unmarshal([]byte(body), &parsed); err == nil && parsed.Error != "" {
-		return errors_pkg.NewOAuth2ServerError(
-			statusCode,
-			parsed.Error,
-			parsed.ErrorDescription,
-			parsed.ErrorURI,
-			body,
-		)
+	/* Parse dynamically rather than into a typed struct: a non-string
+	 * error_description or error_uri must be ignored on its own, not make the
+	 * whole decode fail and discard a valid error code. `error` itself must be a
+	 * non-empty JSON string. */
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(body), &parsed); err == nil {
+		if code, ok := parsed["error"].(string); ok && code != "" {
+			description, _ := parsed["error_description"].(string)
+			uri, _ := parsed["error_uri"].(string)
+			return errors_pkg.NewOAuth2ServerError(statusCode, code, description, uri, body)
+		}
 	}
 	return errors_pkg.NewOAuth2ServerError(statusCode, "", "", "", body)
 }

@@ -688,6 +688,48 @@ func TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t *testing.T) {
 	}
 }
 
+// The downgrade guard protects a request BODY, so it must not fire when there
+// is none: a bodyless GET and a POST sent with a nil body (which carries an
+// empty body to get an explicit Content-Length: 0) both follow a 307/308
+// HTTPS→HTTP redirect, as the other SDKs do.
+func TestDefaultApiClient_RedirectDowngradeIgnoresRequestsWithoutBody(t *testing.T) {
+	t.Parallel()
+
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+
+	for _, status := range []int{307, 308} {
+		for _, method := range []string{"GET", "POST"} {
+			status, method := status, method
+			t.Run(method+"_"+strconv.Itoa(status)+"_proceeds", func(t *testing.T) {
+				origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Location", plainTarget.URL+"/downgraded")
+					w.WriteHeader(status)
+				}))
+				defer origin.Close()
+
+				transport, buildErr := NewTransportOptionsBuilder().
+					VerifySsl(false).
+					FollowRedirects(true).
+					Build()
+				if buildErr != nil {
+					t.Fatal(buildErr)
+				}
+				client := NewDefaultApiClient(transport)
+				resp, err := client.SendRequest(method, origin.URL+"/start", map[string]string{}, nil)
+				if err != nil {
+					t.Fatalf("expected a bodyless %s %d HTTPS→HTTP redirect to proceed, got %v", method, status, err)
+				}
+				if resp.StatusCode != 200 {
+					t.Errorf("expected status 200 from the plaintext target, got %d", resp.StatusCode)
+				}
+			})
+		}
+	}
+}
+
 // WAVE E: redirect counting and the "too many redirects" refusal must be
 // scoped to a single in-flight request, never shared across concurrent
 // requests issued through one client. net/http tracks the redirect chain via
@@ -795,6 +837,67 @@ func TestDefaultApiClient_ConcurrentRedirectCountIsPerRequest(t *testing.T) {
 			if codes[i] != 200 {
 				t.Errorf("case %d (%d hops): expected status 200, got %d", i, c.hops, codes[i])
 			}
+		}
+	}
+}
+
+// A chain of exactly MaxRedirects hops is followed; one more hop is refused.
+// net/http calls CheckRedirect with via holding the requests already sent, so
+// the limit must compare len(via) against maxRedirects with a strict greater
+// than, otherwise only maxRedirects-1 redirects are followed (MaxRedirects(1)
+// would follow none).
+func TestDefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects(t *testing.T) {
+	t.Parallel()
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n, err := strconv.Atoi(strings.TrimPrefix(r.URL.Path, "/chain/"))
+		if err != nil || n <= 0 {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("Location", fmt.Sprintf("%s/chain/%d", server.URL, n-1))
+		w.WriteHeader(http.StatusFound)
+	}))
+	defer server.Close()
+
+	cases := []struct {
+		maxRedirects int
+		hops         int
+		wantErr      bool
+	}{
+		{maxRedirects: 1, hops: 1, wantErr: false},
+		{maxRedirects: 1, hops: 2, wantErr: true},
+		{maxRedirects: 5, hops: 5, wantErr: false},
+		{maxRedirects: 5, hops: 6, wantErr: true},
+	}
+	for _, tc := range cases {
+		transport, buildErr := NewTransportOptionsBuilder().
+			FollowRedirects(true).
+			MaxRedirects(tc.maxRedirects).
+			Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		client := NewDefaultApiClient(transport)
+
+		resp, err := client.SendRequest(
+			"GET",
+			fmt.Sprintf("%s/chain/%d", server.URL, tc.hops),
+			map[string]string{}, nil,
+		)
+		if tc.wantErr {
+			if err == nil {
+				t.Errorf("max %d, %d hops: expected the redirect limit error, got status %d", tc.maxRedirects, tc.hops, resp.StatusCode)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("max %d, %d hops: expected success, got %v", tc.maxRedirects, tc.hops, err)
+			continue
+		}
+		if resp.StatusCode != 200 {
+			t.Errorf("max %d, %d hops: expected status 200, got %d", tc.maxRedirects, tc.hops, resp.StatusCode)
 		}
 	}
 }

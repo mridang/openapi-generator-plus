@@ -47,7 +47,7 @@ func NewWetFood(volumeMl int32) *WetFood {
 // MarshalJSON implements the json.Marshaler interface.
 func (o WetFood) MarshalJSON() ([]byte, error) {
 	type Alias WetFood
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

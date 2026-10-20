@@ -21,7 +21,7 @@ type SetPetAvatarThumbnailRequest struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (o SetPetAvatarThumbnailRequest) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.value)
+	return marshalJSON(o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

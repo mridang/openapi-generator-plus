@@ -18,6 +18,39 @@ import (
 	pkgerrors "petstore/pkg/errors"
 )
 
+// An optional integer, number or boolean parameter is a pointer in the Options
+// struct; the query, header and cookie paths must send its value, not the
+// pointer address.
+func TestSerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
+	t.Parallel()
+	limit := int64(5)
+	ratio := 1.5
+	flag := true
+	cases := []struct {
+		location string
+		style    string
+		value    any
+		want     string
+	}{
+		{"query", "form", &limit, "5"},
+		{"query", "form", &ratio, "1.5"},
+		{"query", "form", &flag, "true"},
+		{"header", "simple", &limit, "5"},
+		{"header", "simple", &ratio, "1.5"},
+		{"header", "simple", &flag, "true"},
+		{"cookie", "form", &limit, "5"},
+		{"cookie", "form", &flag, "true"},
+		{"query", "", &limit, "5"},
+		{"header", "", &flag, "true"},
+	}
+	for _, tc := range cases {
+		got := serializeStyled("p", tc.value, tc.location, "integer", "", tc.style, false)
+		if got != tc.want {
+			t.Errorf("%s/%q %T: got %v, want %q", tc.location, tc.style, tc.value, got, tc.want)
+		}
+	}
+}
+
 // ── SerializeValue by location ──
 
 func TestSerializeValue_QueryString(t *testing.T) {

@@ -152,6 +152,18 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Category]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -231,6 +243,18 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Defaults]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -310,6 +334,18 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Department]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -389,6 +425,18 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]map[string]Category]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -468,6 +516,18 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[map[string]int32]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -547,6 +607,18 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[][]int32]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -635,6 +707,18 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Order]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -718,6 +802,18 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[StockItem]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -797,6 +893,18 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Swatch]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -876,6 +984,18 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]map[string]Swatch]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -955,6 +1075,18 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]map[string]DateTime]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1034,6 +1166,18 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[TreeNode]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1113,6 +1257,18 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Order]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}

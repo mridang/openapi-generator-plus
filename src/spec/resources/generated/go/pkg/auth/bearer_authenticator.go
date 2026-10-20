@@ -69,6 +69,13 @@ func (a *BearerAuthenticator) String() string {
 	return fmt.Sprintf("BearerAuthenticator{host: %q, token: ***}", a.host)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *BearerAuthenticator) GoString() string {
+	return a.String()
+}
+
 // AuthHeaders returns the Bearer authentication header.
 func (a *BearerAuthenticator) AuthHeaders() map[string]string {
 	// Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read from

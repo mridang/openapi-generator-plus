@@ -215,14 +215,14 @@ func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-las
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
-	b, err := json.Marshal((Alias)(o))
+	b, err := marshalJSON((Alias)(o))
 	if err != nil {
 		return nil, err
 	}
 	if len(o.AdditionalProperties) == 0 {
 		return b, nil
 	}
-	extra, err := json.Marshal(o.AdditionalProperties)
+	extra, err := marshalJSON(o.AdditionalProperties)
 	if err != nil {
 		return nil, err
 	}
@@ -290,7 +290,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -340,7 +340,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	type Alias {{classname}}
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 {{#hasRequired}}
@@ -434,7 +434,7 @@ type {{classname}} struct {
 
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
-	return json.Marshal(o.value)
+	return marshalJSON(o.value)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -516,7 +516,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	merged := map[string]json.RawMessage{}
 {{#anyOf}}
 	if o.{{#pascalcase}}{{{.}}}{{/pascalcase}} != nil {
-		part, err := json.Marshal(o.{{#pascalcase}}{{{.}}}{{/pascalcase}})
+		part, err := marshalJSON(o.{{#pascalcase}}{{{.}}}{{/pascalcase}})
 		if err != nil {
 			return nil, err
 		}
@@ -529,7 +529,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 		}
 	}
 {{/anyOf}}
-	return json.Marshal(merged)
+	return marshalJSON(merged)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface. It retains EVERY

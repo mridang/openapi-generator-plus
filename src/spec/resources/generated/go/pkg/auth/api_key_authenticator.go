@@ -80,6 +80,13 @@ func (a *ApiKeyAuthenticator) String() string {
 	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***, location: %s}", a.host, a.keyParamName, a.location)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *ApiKeyAuthenticator) GoString() string {
+	return a.String()
+}
+
 // AuthHeaders returns the API key as a header if the location is Header.
 func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
 	result := map[string]string{}

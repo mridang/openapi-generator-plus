@@ -43,7 +43,7 @@ func NewApiResponse() *ApiResponse {
 // MarshalJSON implements the json.Marshaler interface.
 func (o ApiResponse) MarshalJSON() ([]byte, error) {
 	type Alias ApiResponse
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

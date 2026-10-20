@@ -49,7 +49,7 @@ func NewPetPassport() *PetPassport {
 // MarshalJSON implements the json.Marshaler interface.
 func (o PetPassport) MarshalJSON() ([]byte, error) {
 	type Alias PetPassport
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

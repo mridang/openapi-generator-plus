@@ -46,7 +46,7 @@ func NewSurgery(procedureName string) *Surgery {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Surgery) MarshalJSON() ([]byte, error) {
 	type Alias Surgery
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

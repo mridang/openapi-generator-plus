@@ -46,7 +46,7 @@ func NewBinaryVault() *BinaryVault {
 // MarshalJSON implements the json.Marshaler interface.
 func (o BinaryVault) MarshalJSON() ([]byte, error) {
 	type Alias BinaryVault
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

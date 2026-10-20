@@ -17,7 +17,7 @@ type Set[T comparable] []T
 
 // MarshalJSON encodes the Set as a JSON array.
 func (s Set[T]) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]T(s))
+	return marshalJSON([]T(s))
 }
 
 // UnmarshalJSON decodes a JSON array and deduplicates entries.

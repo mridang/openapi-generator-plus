@@ -71,6 +71,13 @@ func (a *BasicAuthenticator) String() string {
 	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *BasicAuthenticator) GoString() string {
+	return a.String()
+}
+
 // AuthHeaders returns the Basic authentication header.
 func (a *BasicAuthenticator) AuthHeaders() map[string]string {
 	encoded := base64.StdEncoding.EncodeToString([]byte(a.username + ":" + a.password))

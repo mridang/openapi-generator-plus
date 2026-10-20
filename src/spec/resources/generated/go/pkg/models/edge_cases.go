@@ -53,7 +53,7 @@ func NewEdgeCases() *EdgeCases {
 // MarshalJSON implements the json.Marshaler interface.
 func (o EdgeCases) MarshalJSON() ([]byte, error) {
 	type Alias EdgeCases
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

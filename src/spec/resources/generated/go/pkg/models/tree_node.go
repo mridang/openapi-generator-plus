@@ -45,7 +45,7 @@ func NewTreeNode(value string) *TreeNode {
 // MarshalJSON implements the json.Marshaler interface.
 func (o TreeNode) MarshalJSON() ([]byte, error) {
 	type Alias TreeNode
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,13 @@ func serialize(object any) ([]byte, error) {
 		)
 	}
 	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}
+
+// isJSONNull reports whether data is exactly the JSON literal null, ignoring
+// surrounding whitespace and a leading UTF-8 byte order mark.
+func isJSONNull(data []byte) bool {
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	return string(bytes.TrimSpace(data)) == "null"
 }
 
 // maxJSONDepth caps how deeply a response JSON document can be nested.
@@ -231,6 +239,14 @@ func stringify(value any) string {
 	case fmt.Stringer:
 		return v.String()
 	default:
+		/* Optional scalars arrive as pointers (*int64, *bool, *float64). %v
+		   would print the pointer address, so dereference and re-enter. */
+		if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr {
+			if rv.IsNil() {
+				return ""
+			}
+			return stringify(rv.Elem().Interface())
+		}
 		return fmt.Sprintf("%v", v)
 	}
 }

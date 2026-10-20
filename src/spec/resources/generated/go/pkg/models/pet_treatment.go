@@ -35,7 +35,7 @@ type PetTreatment struct {
 func (o PetTreatment) MarshalJSON() ([]byte, error) {
 	merged := map[string]json.RawMessage{}
 	if o.Medication != nil {
-		part, err := json.Marshal(o.Medication)
+		part, err := marshalJSON(o.Medication)
 		if err != nil {
 			return nil, err
 		}
@@ -48,7 +48,7 @@ func (o PetTreatment) MarshalJSON() ([]byte, error) {
 		}
 	}
 	if o.Surgery != nil {
-		part, err := json.Marshal(o.Surgery)
+		part, err := marshalJSON(o.Surgery)
 		if err != nil {
 			return nil, err
 		}
@@ -60,7 +60,7 @@ func (o PetTreatment) MarshalJSON() ([]byte, error) {
 			merged[k] = v
 		}
 	}
-	return json.Marshal(merged)
+	return marshalJSON(merged)
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface. It retains EVERY

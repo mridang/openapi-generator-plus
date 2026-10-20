@@ -83,7 +83,7 @@ func TestClient_WithTokenRejectsInvalidToken(t *testing.T) {
 func TestClient_BearerStringRedactsToken(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "/api/v3", "super-secret-token")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
 		if strings.Contains(s, "super-secret-token") {
 			t.Errorf("expected token to be redacted, got %q", s)
 		}
@@ -98,7 +98,7 @@ func TestClient_BearerStringRedactsToken(t *testing.T) {
 func TestClient_ApiKeyStringRedactsKey(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "/api/v3", "X-Api-Key", "super-secret-key", auth.ApiKeyLocationHeader)
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
 		if strings.Contains(s, "super-secret-key") {
 			t.Errorf("expected api key to be redacted, got %q", s)
 		}

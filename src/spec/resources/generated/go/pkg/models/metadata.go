@@ -43,14 +43,14 @@ func NewMetadata() *Metadata {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Metadata) MarshalJSON() ([]byte, error) {
 	type Alias Metadata
-	b, err := json.Marshal((Alias)(o))
+	b, err := marshalJSON((Alias)(o))
 	if err != nil {
 		return nil, err
 	}
 	if len(o.AdditionalProperties) == 0 {
 		return b, nil
 	}
-	extra, err := json.Marshal(o.AdditionalProperties)
+	extra, err := marshalJSON(o.AdditionalProperties)
 	if err != nil {
 		return nil, err
 	}

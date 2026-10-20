@@ -45,7 +45,7 @@ func NewEmployee(name string) *Employee {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Employee) MarshalJSON() ([]byte, error) {
 	type Alias Employee
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

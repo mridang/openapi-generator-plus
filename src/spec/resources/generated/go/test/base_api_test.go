@@ -1350,6 +1350,82 @@ func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	}
 }
 
+// An omitted optional request body (a nil *Order) must put no entity and no
+// Content-Type on the wire, not a literal JSON null.
+func TestNullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewStoreApi(client, config, nil)
+	_, _ = api.PlaceOrder(nil)
+	if body, _ := client.capturedBody.([]byte); len(body) != 0 {
+		t.Errorf("expected no request body for a nil order, got %q", string(body))
+	}
+	if ct, ok := client.capturedHeaders["Content-Type"]; ok {
+		t.Errorf("Content-Type must NOT be sent for a nil order, got %q", ct)
+	}
+}
+
+func TestNullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
+	t.Parallel()
+	client := &bodyCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewStoreApi(client, config, nil)
+	_, _ = api.PlaceOrder(models.NewOrder())
+	if body, _ := client.capturedBody.([]byte); len(body) == 0 {
+		t.Error("expected a JSON body for a non-nil order")
+	}
+	if ct := client.capturedHeaders["Content-Type"]; ct != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", ct)
+	}
+}
+
+// A bare JSON null response body is an absent body: the convenience method
+// raises the uniform empty-body ApiError and WithHTTPInfo reports nil Data,
+// instead of fabricating a default-valued model or failing a required-field
+// check.
+func TestNullResponseBody_ConvenienceReturnsEmptyBodyError(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "null",
+		responseContentType: "application/json",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+
+	_, orderErr := petstore.NewStoreApi(client, config, nil).GetOrderById(int64(1))
+	if orderErr == nil || !strings.Contains(orderErr.Error(), "expected a response body for GetOrderById but received none") {
+		t.Errorf("GetOrderById: expected the empty-body error, got %v", orderErr)
+	}
+
+	_, petErr := petstore.NewPetApi(client, config, nil).GetPetById(int64(1), nil)
+	if petErr == nil || !strings.Contains(petErr.Error(), "expected a response body for GetPetById but received none") {
+		t.Errorf("GetPetById: expected the empty-body error, got %v", petErr)
+	}
+	var apiErr *apierrors.ApiError
+	if !errors.As(petErr, &apiErr) {
+		t.Errorf("GetPetById: expected *ApiError, got %T", petErr)
+	}
+}
+
+func TestNullResponseBody_WithHTTPInfoReportsNilData(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        " null\n",
+		responseContentType: "application/json",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	result, err := petstore.NewStoreApi(client, config, nil).GetOrderByIdWithHTTPInfo(int64(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Data != nil {
+		t.Errorf("expected nil Data for a null body, got %+v", result.Data)
+	}
+	if result.RawBody != " null\n" {
+		t.Errorf("expected RawBody to keep the wire bytes, got %q", result.RawBody)
+	}
+}
+
 // ── #2 WithHTTPInfo variant ──
 
 func TestWithHTTPInfo_ReturnsApiResultWithStatusAndHeaders(t *testing.T) {

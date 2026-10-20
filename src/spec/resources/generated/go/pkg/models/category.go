@@ -46,7 +46,7 @@ func NewCategory() *Category {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Category) MarshalJSON() ([]byte, error) {
 	type Alias Category
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

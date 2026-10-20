@@ -344,6 +344,15 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 		return nil, nil
 	}
 
+	/* An omitted optional body arrives as a typed nil (a nil *Order boxed in an
+	 * any is not == nil), which would serialize to a literal JSON null and keep
+	 * the Content-Type. Treat it as no body so no entity or Content-Type goes on
+	 * the wire, like the other SDKs. */
+	if rv := reflect.ValueOf(body); (rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Map ||
+		rv.Kind() == reflect.Slice) && rv.IsNil() {
+		return nil, nil
+	}
+
 	if contentType == "multipart/form-data" {
 		/* Multipart is handled by invokeApiForResult before calling serializeBody */
 		return nil, nil

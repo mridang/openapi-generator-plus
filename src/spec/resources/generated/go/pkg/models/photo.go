@@ -44,7 +44,7 @@ func NewPhoto() *Photo {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Photo) MarshalJSON() ([]byte, error) {
 	type Alias Photo
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

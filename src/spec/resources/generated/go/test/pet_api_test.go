@@ -1185,8 +1185,12 @@ func TestPetApi_CookieParamWithCRLFFailsClosed(t *testing.T) {
 		if err == nil {
 			t.Fatalf("expected DeletePet to fail closed for cookie value %q", bad)
 		}
-		if !strings.Contains(err.Error(), "RFC 6265") {
-			t.Errorf("expected the RFC 6265 cookie-validation error for %q, got: %v", bad, err)
+		if !errors.Is(err, petstore.ErrInvalidCookie) {
+			t.Errorf("expected ErrInvalidCookie for %q, got: %v", bad, err)
+		}
+		want := "invalid cookie: cookie value for 'api_key' contains characters forbidden by RFC 6265"
+		if err.Error() != want {
+			t.Errorf("cookie error for %q = %q, want %q", bad, err.Error(), want)
 		}
 	}
 	if called {

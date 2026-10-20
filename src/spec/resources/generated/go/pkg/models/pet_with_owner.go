@@ -112,7 +112,7 @@ func NewPetWithOwner(name string, photoUrls Set[string], ownerName string) *PetW
 // MarshalJSON implements the json.Marshaler interface.
 func (o PetWithOwner) MarshalJSON() ([]byte, error) {
 	type Alias PetWithOwner
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

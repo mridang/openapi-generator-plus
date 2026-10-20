@@ -330,7 +330,7 @@ func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 func TestOpenIdConnectRedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createOpenIdConnectAuthenticator()
-	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj)} {
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
 		if strings.Contains(s, "my-client-secret") {
 			t.Errorf("expected client secret to be redacted, got %q", s)
 		}

@@ -129,6 +129,13 @@ func (a *OAuth2ImplicitAuthenticator) String() string {
 	)
 }
 
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a *OAuth2ImplicitAuthenticator) GoString() string {
+	return a.String()
+}
+
 // AuthHeadersOrError returns the Bearer authentication header, or
 // ErrAccessTokenNotSet when SetAccessToken has not been called yet. base_api
 // prefers this method, so a request sent too early fails with the sentinel

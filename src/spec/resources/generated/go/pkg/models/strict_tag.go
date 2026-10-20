@@ -43,7 +43,7 @@ func NewStrictTag() *StrictTag {
 // MarshalJSON implements the json.Marshaler interface.
 func (o StrictTag) MarshalJSON() ([]byte, error) {
 	type Alias StrictTag
-	return json.Marshal((Alias)(o))
+	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.

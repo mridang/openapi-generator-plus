@@ -203,6 +203,18 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -302,6 +314,18 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]Photo]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -395,6 +419,18 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetTreatment]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -461,7 +497,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 		 * control-char value cannot be injected into the Cookie header. */
 		cookieValue := fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
 		if !isValidCookieValue(cookieValue) {
-			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265 when calling PetApi.DeletePet", ErrInvalidCookie, "api_key")
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "api_key")
 		}
 		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%s", cookieValue))
 	}
@@ -566,6 +602,18 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]byte]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -650,6 +698,18 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -760,6 +820,18 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -853,6 +925,18 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -946,6 +1030,18 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1034,6 +1130,18 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]byte]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1122,6 +1230,18 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]byte]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1224,6 +1344,18 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1320,6 +1452,18 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1408,6 +1552,18 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[PetPassport]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1504,6 +1660,18 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[[]byte]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1617,6 +1785,18 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1710,6 +1890,18 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -1957,6 +2149,18 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -2046,6 +2250,18 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[Pet]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -2144,6 +2360,18 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
@@ -2289,6 +2517,18 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 		}
 		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
 		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
 			if err := deserialize([]byte(response.Body), &data); err != nil {
 				return nil, err
 			}
