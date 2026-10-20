@@ -199,7 +199,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
     params = %{
       "grant_type" => "refresh_token",
       "refresh_token" =>
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || ""
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || "",
+      "client_id" => self.client_id,
+      "client_secret" => self.client_secret
     }
 
     token =

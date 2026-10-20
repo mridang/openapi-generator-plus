@@ -33,6 +33,33 @@ defmodule PetstoreClient.Models.MetadataTest do
       assert data["createdAt"] != nil
     end
 
+    test "captures undeclared keys into additional_properties" do
+      metadata =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"customField":"hello"}), "Metadata")
+
+      assert metadata.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "equality includes additional_properties" do
+      plain = %PetstoreClient.Models.Metadata{}
+
+      with_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      same_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      other_extra = %PetstoreClient.Models.Metadata{
+        additional_properties: %{"customField" => "other"}
+      }
+
+      assert with_extra == same_extra
+      refute plain == with_extra
+      refute with_extra == other_extra
+    end
+
     test "defines additional_properties function" do
       assert PetstoreClient.Models.Metadata.additional_properties() == true
     end

@@ -615,56 +615,6 @@ defmodule {{moduleName}}.Api.BaseApiTest do
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/echo", %{}, %{}, nil, ["application/octet-stream"], "application/octet-stream", nil)
   end
 
-  # CrossOriginRedirectTests
-
-  test "same-origin redirect forwards Authorization header" do
-    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
-    is_same_origin = true
-    original_headers = %{"Authorization" => "Bearer token123", "Accept" => "application/json"}
-
-    forwarded =
-      Enum.reject(original_headers, fn {k, _v} ->
-        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
-      end)
-      |> Enum.into(%{})
-
-    assert Map.get(forwarded, "Authorization") == "Bearer token123"
-  end
-
-  test "cross-origin redirect drops Authorization header" do
-    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
-    is_same_origin = false
-    original_headers = %{"Authorization" => "Bearer token123", "Accept" => "application/json"}
-
-    forwarded =
-      Enum.reject(original_headers, fn {k, _v} ->
-        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
-      end)
-      |> Enum.into(%{})
-
-    refute Map.has_key?(forwarded, "Authorization"),
-      "Authorization should be dropped on cross-origin redirect"
-    assert Map.has_key?(forwarded, "Accept"),
-      "Accept should be forwarded on cross-origin redirect"
-  end
-
-  test "cross-origin redirect drops Cookie header" do
-    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
-    is_same_origin = false
-    original_headers = %{"Cookie" => "session=abc123", "Accept" => "application/json"}
-
-    forwarded =
-      Enum.reject(original_headers, fn {k, _v} ->
-        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
-      end)
-      |> Enum.into(%{})
-
-    refute Map.has_key?(forwarded, "Cookie"),
-      "Cookie should be dropped on cross-origin redirect"
-    assert Map.has_key?(forwarded, "Accept"),
-      "Accept should be forwarded on cross-origin redirect"
-  end
-
   # NullBodyContentTypeTests
 
   defmodule CapturingHeadersApiClient do

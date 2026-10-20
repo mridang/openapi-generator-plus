@@ -500,13 +500,15 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "error handling 404 not found" do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
-    assert {:error, _reason} = PetstoreClient.Api.PetApi.get_pet_by_id(api, 99_999)
+
+    assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
+             PetstoreClient.Api.PetApi.get_pet_by_id(api, 99_999)
   end
 
   test "error handling 500 server error" do
     api = new_pet_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
 
-    assert {:error, _reason} =
+    assert {:error, %PetstoreClient.Errors.InternalServerError{status_code: 500}} =
              PetstoreClient.Api.PetApi.get_pet_by_id(api, :rand.uniform(1_000_000_000))
   end
 
@@ -866,6 +868,136 @@ defmodule PetstoreClient.Api.PetApiTest do
          %{state | request: %{method: method, url: url, headers: headers, body: body}}}
       end)
     end
+  end
+
+  # An operation-level server is passed as its generated variant: a variant
+  # without variables as its module, one with variables as its struct. The
+  # request goes to the variant's own URL, not to the client's base URL.
+  defp stub_pet_api(body) do
+    {:ok, name} = StubResponseApiClient.start(200, body, "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    {name, PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)}
+  end
+
+  @sample_pet ~s({"name":"sample","photoUrls":[]})
+
+  test "get_external_pet_info sends the request to the generated variant's URL" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.get_external_pet_info(
+               api,
+               1,
+               server: PetstoreClient.Api.GetExternalPetInfoServer.Server0
+             )
+
+    assert StubResponseApiClient.captured(name).url ==
+             "https://external-api.example.com/v1/pet/1/external"
+
+    Agent.stop(name)
+  end
+
+  test "get_staging_pet_info resolves the variant's variables into the request URL" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
+      environment: PetstoreClient.Api.GetStagingPetInfoServer.Environment.sandbox(),
+      version: PetstoreClient.Api.GetStagingPetInfoServer.Version.v3()
+    }
+
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.get_staging_pet_info(api, 5, server: server)
+
+    assert StubResponseApiClient.captured(name).url ==
+             "https://sandbox.example.com/api/v3/pet/5/staging"
+
+    Agent.stop(name)
+  end
+
+  test "get_multi_server_pet_info reaches whichever of its servers is passed" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.get_multi_server_pet_info(
+               api,
+               5,
+               server: PetstoreClient.Api.GetMultiServerPetInfoServer.Primary
+             )
+
+    assert StubResponseApiClient.captured(name).url ==
+             "https://primary.example.com/v1/pet/5/multi"
+
+    regional = %PetstoreClient.Api.GetMultiServerPetInfoServer.Regional{
+      region: PetstoreClient.Api.GetMultiServerPetInfoServer.Region.eu()
+    }
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, server: regional)
+
+    assert StubResponseApiClient.captured(name).url ==
+             "https://eu.example.com/v1/pet/5/multi"
+
+    Agent.stop(name)
+  end
+
+  test "get_multi_server_pet_info rejects a region outside the variable enum" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    regional = %PetstoreClient.Api.GetMultiServerPetInfoServer.Regional{region: "mars"}
+
+    assert_raise ArgumentError,
+                 ~s(Invalid value 'mars' for server variable 'region'. Allowed values: ["us", "eu", "ap"]),
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_multi_server_pet_info(api, 5, server: regional)
+                 end
+
+    assert StubResponseApiClient.captured(name) == nil
+    Agent.stop(name)
+  end
+
+  # A format: date path parameter renders as YYYY-MM-DD with no time component.
+  test "find_pets_born_on serialises the date path param as YYYY-MM-DD" do
+    {name, api} = stub_pet_api("[]")
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_born_on(api, ~D[2024-01-01])
+
+    assert StubResponseApiClient.captured(name).url == "http://localhost/pet/born-on/2024-01-01"
+
+    Agent.stop(name)
+  end
+
+  test "set_pet_avatar rejects a content type the operation does not declare" do
+    {name, api} = stub_pet_api("")
+
+    assert_raise ArgumentError,
+                 ~s(Unsupported request content-type 'application/unknown-type' for set_pet_avatar; ) <>
+                   ~s(declared types are ["image/jpeg", "image/png", "application/json"]),
+                 fn ->
+                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
+                     content_type: "application/unknown-type"
+                   )
+                 end
+
+    assert StubResponseApiClient.captured(name) == nil
+    Agent.stop(name)
+  end
+
+  test "upload_pet_document rejects a content type the operation does not declare" do
+    {name, api} = stub_pet_api("")
+
+    assert_raise ArgumentError,
+                 ~s(Unsupported request content-type 'application/unknown-type' for upload_pet_document; ) <>
+                   ~s(declared types are ["multipart/form-data", "application/octet-stream"]),
+                 fn ->
+                   PetstoreClient.Api.PetApi.upload_pet_document(
+                     api,
+                     5,
+                     %PetstoreClient.Api.Options.UploadPetDocumentOptions{file: <<1>>},
+                     content_type: "application/unknown-type"
+                   )
+                 end
+
+    assert StubResponseApiClient.captured(name) == nil
+    Agent.stop(name)
   end
 
   # getPetAvatarThumbnail returns a top-level `format: byte` value as

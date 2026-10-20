@@ -156,7 +156,9 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
 
     params = %{
       "grant_type" => "refresh_token",
-      "refresh_token" => {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || ""
+      "refresh_token" => {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || "",
+      "client_id" => self.client_id,
+      "client_secret" => self.client_secret
     }
     token = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
     %{"Authorization" => "Bearer #{token}"}

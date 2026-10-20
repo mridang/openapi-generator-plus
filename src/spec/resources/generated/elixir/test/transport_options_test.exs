@@ -98,6 +98,30 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "a proxy URL with another scheme, no host or no content is rejected with its reason" do
+    for {url, message} <- [
+          {"ftp://proxy.example.com:21",
+           "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21"},
+          {"proxy.example.com:8080",
+           "Invalid proxy URL (must use http or https scheme): proxy.example.com:8080"},
+          {"", "Invalid proxy URL (must use http or https scheme): "},
+          {"http://", "Invalid proxy URL (missing host): http://"}
+        ] do
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.TransportOptions.new(proxy: url)
+        end
+
+      assert error.message == message
+    end
+  end
+
+  test "an http and an https proxy URL are accepted" do
+    for url <- ["http://proxy.example.com:3128", "https://proxy.example.com:3129"] do
+      assert PetstoreClient.TransportOptions.new(proxy: url).proxy == url
+    end
+  end
+
   test "the README names the proxy option of new/1 as the SOCKS setter" do
     readme = File.read!("README.md")
 

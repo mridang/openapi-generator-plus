@@ -446,6 +446,63 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert target_headers["x-trace"] == "keep"
   end
 
+  # Answers the first request with a 302 to a relative Location on the same
+  # origin, then records the headers of the follow-up request it receives.
+  defp start_same_origin_redirect_server do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+    caller = self()
+
+    spawn(fn ->
+      {:ok, first} = :gen_tcp.accept(listen_socket, 5000)
+      {:ok, _data} = :gen_tcp.recv(first, 0, 5000)
+
+      :gen_tcp.send(
+        first,
+        "HTTP/1.1 302 Found\r\nLocation: /second\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+      )
+
+      :gen_tcp.close(first)
+
+      {:ok, second} = :gen_tcp.accept(listen_socket, 5000)
+      {:ok, data} = :gen_tcp.recv(second, 0, 5000)
+      send(caller, {:second_headers, parse_request_headers(data)})
+
+      :gen_tcp.send(
+        second,
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}"
+      )
+
+      :gen_tcp.close(second)
+      :gen_tcp.close(listen_socket)
+    end)
+
+    Process.sleep(20)
+    "http://127.0.0.1:#{port}"
+  end
+
+  test "3.1: keeps Authorization and Cookie on a same-origin redirect" do
+    base_url = start_same_origin_redirect_server()
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{base_url}/first",
+        %{"Authorization" => "Bearer secret", "Cookie" => "session=abc", "X-Trace" => "keep"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert_receive {:second_headers, headers}, 5000
+    assert headers["authorization"] == "Bearer secret"
+    assert headers["cookie"] == "session=abc"
+    assert headers["x-trace"] == "keep"
+  end
+
   # 3.1: spec-declared apiKey-in-header names are merged into the
   # cross-origin sensitive-header allowlist at codegen time, so an API key
   # sent in a custom header (e.g. X-API-Key) is stripped on the hop too.
@@ -620,6 +677,94 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       end
 
     refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+  end
+
+  test "a caCertPath that is not PEM raises ArgumentError at construction" do
+    path = Path.join(System.tmp_dir!(), "garbage-ca-#{System.unique_integer([:positive])}.pem")
+    File.write!(path, "this is not a certificate")
+    on_exit(fn -> File.rm(path) end)
+
+    transport = PetstoreClient.TransportOptions.new(ca_cert_path: path)
+
+    err =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.new(transport)
+      end
+
+    assert err.message ==
+             "failed to parse CA certificate from #{inspect(path)}: no PEM blocks found or unparseable"
+
+    refute PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+  end
+
+  # A server that answers with a complete header block promising 100 body bytes,
+  # sends 5 of them, then either closes the connection or stalls.
+  defp start_partial_body_server(:close) do
+    start_partial_body_server(fn socket -> :gen_tcp.close(socket) end)
+  end
+
+  defp start_partial_body_server(:stall) do
+    start_partial_body_server(fn socket ->
+      Process.sleep(3_000)
+      :gen_tcp.close(socket)
+    end)
+  end
+
+  defp start_partial_body_server(after_partial) when is_function(after_partial, 1) do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+
+    spawn(fn ->
+      case :gen_tcp.accept(listen_socket, 5000) do
+        {:ok, socket} ->
+          :gen_tcp.recv(socket, 0, 2000)
+
+          :gen_tcp.send(
+            socket,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 100\r\n\r\nhello"
+          )
+
+          after_partial.(socket)
+
+        _ ->
+          :ok
+      end
+
+      :gen_tcp.close(listen_socket)
+    end)
+
+    Process.sleep(20)
+    "http://127.0.0.1:#{port}"
+  end
+
+  # A connection that dies after the headers arrived is a NetworkError with no
+  # status: the response never completed.
+  test "a body cut off after the headers raises NetworkError with status 0" do
+    base_url = start_partial_body_server(:close)
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/cut", %{}, nil)
+      end
+
+    assert err.status_code == 0
+    assert err.cause != nil
+  end
+
+  test "a body that stalls after the headers raises NetworkTimeoutError with status 0" do
+    base_url = start_partial_body_server(:stall)
+    transport = PetstoreClient.TransportOptions.new(timeout: 300)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/stall", %{}, nil)
+      end
+
+    assert err.status_code == 0
   end
 
   # network-error: a request that gets no HTTP response (connection refused)
@@ -938,6 +1083,128 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       end
 
     assert err.status_code == 503
+  end
+
+  # HTTP "deflate" is the zlib-wrapped format (RFC 1950).
+  test "decompresses a zlib-wrapped deflate response" do
+    base_url =
+      start_server(
+        200,
+        "text/plain",
+        :zlib.compress("deflated body"),
+        [{"Content-Encoding", "deflate"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/df", %{}, nil)
+
+    assert response.status_code == 200
+    assert response.body == "deflated body"
+  end
+
+  test "a raw headerless deflate body raises ApiError with the real status" do
+    base_url =
+      start_server(
+        200,
+        "text/plain",
+        :zlib.zip("deflated body"),
+        [{"Content-Encoding", "deflate"}]
+      )
+
+    client = PetstoreClient.DefaultApiClient.new()
+
+    err =
+      assert_raise PetstoreClient.Errors.ApiError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/df", %{}, nil)
+      end
+
+    assert err.status_code == 200
+    assert err.message =~ "Failed to decompress deflate response body"
+    refute PetstoreClient.Errors.NetworkError.network_error?(err)
+  end
+
+  # Without a caller-supplied Accept-Encoding the client advertises exactly the
+  # codecs it can decode: gzip and deflate always, br only with the optional
+  # :brotli NIF loaded, zstd only on an OTP that ships :zstd.
+  test "advertises the codecs it can decode in Accept-Encoding by default" do
+    {base_url, _port} = start_header_capture_server()
+    client = PetstoreClient.DefaultApiClient.new()
+    PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+    assert_receive {:captured_headers, headers}, 5000
+
+    advertised = String.split(headers["accept-encoding"], ", ")
+
+    assert Enum.take(advertised, 2) == ["gzip", "deflate"]
+    assert "br" in advertised == Code.ensure_loaded?(:brotli)
+    assert "zstd" in advertised == Code.ensure_loaded?(:zstd)
+    assert length(advertised) == 2 + Enum.count(["br", "zstd"], &(&1 in advertised))
+  end
+
+  test "a caller-supplied Accept-Encoding is sent as given" do
+    {base_url, _port} = start_header_capture_server()
+    client = PetstoreClient.DefaultApiClient.new()
+
+    PetstoreClient.DefaultApiClient.send_request(
+      client,
+      :get,
+      "#{base_url}/test",
+      %{"Accept-Encoding" => "identity"},
+      nil
+    )
+
+    assert_receive {:captured_headers, headers}, 5000
+    assert headers["accept-encoding"] == "identity"
+  end
+
+  # A redirect's origin is scheme + host + port, and an implicit default port is
+  # the same origin as the explicit one: credentials must not be stripped on
+  # https://h -> https://h:443.
+  test "same_origin? treats an implicit and an explicit default port as one origin" do
+    assert PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example/a",
+             "https://h.example:443/b"
+           )
+
+    assert PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example:443/a",
+             "https://h.example/b"
+           )
+
+    assert PetstoreClient.DefaultApiClient.same_origin?(
+             "http://h.example/a",
+             "http://h.example:80/b"
+           )
+
+    assert PetstoreClient.DefaultApiClient.same_origin?(
+             "https://H.Example/a",
+             "https://h.example/b"
+           )
+  end
+
+  test "same_origin? separates a different scheme, host or port" do
+    refute PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example/a",
+             "http://h.example/b"
+           )
+
+    refute PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example/a",
+             "https://other.example/b"
+           )
+
+    refute PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example/a",
+             "https://h.example:8443/b"
+           )
+
+    refute PetstoreClient.DefaultApiClient.same_origin?(
+             "https://h.example:443/a",
+             "http://h.example:80/b"
+           )
+
+    refute PetstoreClient.DefaultApiClient.same_origin?("/relative", "https://h.example/b")
   end
 
   # ── Multipart filename directive (Gap BI / Gap F) ──────────────────────────

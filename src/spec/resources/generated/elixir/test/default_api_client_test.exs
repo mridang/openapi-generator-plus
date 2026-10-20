@@ -48,6 +48,30 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["method"] == "GET"
   end
 
+  # TLS verification is on by default: the fixture server's certificate is
+  # signed by a CA the system does not trust, so the handshake must fail.
+  test "verify_ssl=true without the fixture CA rejects the server certificate" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+
+    transport = PetstoreClient.TransportOptions.new()
+    assert transport.verify_ssl == true
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
   test "makes HTTP request through proxy" do
     chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")

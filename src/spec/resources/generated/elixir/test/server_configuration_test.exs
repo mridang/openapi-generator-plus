@@ -63,6 +63,75 @@ defmodule PetstoreClient.ServerConfigurationTest do
         ServerConfiguration.url(config, %{"env" => "dev"})
       end
     end
+
+    test "the rejection names the value, the variable and the allowed values" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod", enum_values: ["prod", "staging"]}
+        }
+      }
+
+      assert_raise ArgumentError,
+                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: ["prod", "staging"]),
+                   fn -> ServerConfiguration.url(config, %{"env" => "dev"}) end
+    end
+
+    test "a default outside the enum is rejected" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{
+          "env" => %ServerVariable{default_value: "dev", enum_values: ["prod", "staging"]}
+        }
+      }
+
+      assert_raise ArgumentError,
+                   ~s(Invalid value 'dev' for server variable 'env'. Allowed values: ["prod", "staging"]),
+                   fn -> ServerConfiguration.url(config) end
+    end
+
+    test "a variable with no enum accepts any override" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod"}}
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "anything-goes"}) ==
+               "https://anything-goes.api.example.com"
+    end
+
+    test "a partial override keeps the other variables' defaults" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com/v{version}",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod"},
+          "version" => %ServerVariable{default_value: "2"}
+        }
+      }
+
+      assert ServerConfiguration.url(config, %{"version" => "3"}) ==
+               "https://prod.api.example.com/v3"
+    end
+
+    test "a variable repeated in the template is replaced everywhere" do
+      config = %ServerConfiguration{
+        url_template: "https://{region}.example.com/{region}/v1",
+        variables: %{"region" => %ServerVariable{default_value: "eu"}}
+      }
+
+      assert ServerConfiguration.url(config) == "https://eu.example.com/eu/v1"
+    end
+
+    test "exposes the raw template and description" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        description: "Deployment server",
+        variables: %{"env" => %ServerVariable{default_value: "prod"}}
+      }
+
+      assert config.url_template == "https://{env}.api.example.com"
+      assert config.description == "Deployment server"
+    end
   end
 
   describe "Servers.all/0" do

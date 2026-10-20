@@ -52,6 +52,89 @@ defmodule PetstoreClient.ApiErrorTest do
            ) == default <> "\nHTTP status code: 500"
   end
 
+  test "the message lists the status, headers and body, and leaves out what is empty" do
+    full =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        status_code: 502,
+        response_headers: %{"x-id" => "1"},
+        response_body: "upstream down"
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(full) ==
+             ~s(boom\nHTTP status code: 502\nResponse headers: %{"x-id" => "1"}\nResponse body: upstream down)
+
+    bare =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "boom",
+        status_code: 0,
+        response_headers: %{},
+        response_body: ""
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(bare) == "boom"
+  end
+
+  test "from_response keeps a scalar JSON body as the error body" do
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, ~s("overloaded"))
+
+    assert err.error_body == "overloaded"
+    assert err.response_body == ~s("overloaded")
+  end
+
+  test "from_response refuses a deeply nested error body but keeps the raw one" do
+    body = String.duplicate("[", 1_500) <> String.duplicate("]", 1_500)
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, body)
+
+    assert %PetstoreClient.Errors.InternalServerError{} = err
+    assert err.error_body == nil
+    assert err.response_body == body
+  end
+
+  test "typed_error_body raises a SerializationError for a body that is not JSON" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        response_body: "<html>oops</html>",
+        response_headers: %{}
+      )
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
+    end
+  end
+
+  describe "OAuth2ServerError message" do
+    test "names the raw body when the response is not an OAuth2 error object" do
+      err =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 502,
+          raw_body: "Bad Gateway"
+        )
+
+      assert Exception.message(err) == "Token request failed with status 502: Bad Gateway"
+    end
+
+    test "names the error code" do
+      err =
+        PetstoreClient.Errors.OAuth2ServerError.exception(status_code: 400, code: "invalid_grant")
+
+      assert Exception.message(err) == "Token request failed with status 400: invalid_grant"
+    end
+
+    test "names the error code and description" do
+      err =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "refresh token expired"
+        )
+
+      assert Exception.message(err) ==
+               "Token request failed with status 400: invalid_grant -- refresh token expired"
+    end
+  end
+
   test "typed_error_body deserializes the body into the typed model" do
     err =
       PetstoreClient.Errors.ApiError.exception(

@@ -983,7 +983,11 @@ defmodule PetstoreClient.DefaultApiClient do
     _ -> nil
   end
 
-  defp same_origin?(a, b) do
+  @doc false
+  # Whether two URLs share scheme, host and port, with an implicit default port
+  # equal to the explicit one (https://h and https://h:443 are one origin).
+  @spec same_origin?(String.t(), String.t()) :: boolean()
+  def same_origin?(a, b) do
     pa = URI.parse(a)
     pb = URI.parse(b)
 
@@ -993,7 +997,7 @@ defmodule PetstoreClient.DefaultApiClient do
     same_host = pa.host && pb.host && String.downcase(pa.host) == String.downcase(pb.host)
     port_a = pa.port || default_port(pa.scheme)
     port_b = pb.port || default_port(pb.scheme)
-    same_scheme && same_host && port_a == port_b
+    same_scheme == true and same_host == true and port_a == port_b
   end
 
   @doc false

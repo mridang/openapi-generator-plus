@@ -59,6 +59,36 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
                ["read", "write"]
     end
 
+    test "scheme authenticator sends the declared scopes in the token request" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      assert auth.scopes != []
+
+      assert URI.decode_query(FakeApiClient.last_body(fake_client))["scope"] ==
+               Enum.join(auth.scopes, " ")
+    end
+
     test "sends client credentials grant type" do
       fake_client =
         FakeApiClient.new([
@@ -126,9 +156,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
 
       last_body = FakeApiClient.last_body(fake_client)
-
-      assert String.contains?(last_body, "scope=read+write") or
-               String.contains?(last_body, "scope=read%20write")
+      assert String.contains?(last_body, "scope=read+write")
     end
 
     test "returns authorization bearer header" do
@@ -277,6 +305,70 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       decoded = Base.decode64!(encoded)
       # Expected: form-urlencoded id ':' form-urlencoded secret
       assert decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
+    end
+
+    # RFC 3986 unreserved characters (including ~) stay literal; the others in
+    # the sub-delimiter set that URL encoders often miss are percent-encoded.
+    test "body credentials percent-encode * ! ' ( ) and keep ~ literal" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "id~*!'()",
+          "secret~*!'()",
+          "https://auth.example.com/token",
+          ["read"]
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      last_body = FakeApiClient.last_body(fake_client)
+      assert String.contains?(last_body, "client_id=id~%2A%21%27%28%29")
+      assert String.contains?(last_body, "client_secret=secret~%2A%21%27%28%29")
+    end
+
+    test "basic auth percent-encodes * ! ' ( ) and keeps ~ literal" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "at", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "id~*!'()",
+          "secret~*!'()",
+          "https://auth.example.com/token",
+          ["read"],
+          client_auth_method: :basic
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      "Basic " <> encoded = FakeApiClient.last_headers(fake_client)["Authorization"]
+      assert Base.decode64!(encoded) == "id~%2A%21%27%28%29:secret~%2A%21%27%28%29"
     end
 
     test "redacts the secret" do

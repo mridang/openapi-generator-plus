@@ -7,7 +7,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     def new(responses) do
       {:ok, agent} =
         Agent.start_link(fn ->
-          %{responses: responses, last_url: nil, last_body: nil, call_count: 0}
+          %{responses: responses, last_url: nil, last_body: nil, bodies: [], call_count: 0}
         end)
 
       %__MODULE__{agent: agent}
@@ -25,6 +25,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
             | responses: rest,
               last_url: url,
               last_body: body,
+              bodies: state.bodies ++ [body],
               call_count: state.call_count + 1
           }
 
@@ -36,6 +37,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def bodies(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.bodies)
     def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.call_count)
   end
 
@@ -426,6 +428,248 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # contains an empty refresh_token which must not clobber the cached value.
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+    end
+
+    test "a refresh sends the refresh token with the client credentials, not the original grant" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password", "client_id" => "cid", "client_secret" => "sec"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok2"
+
+      assert [_first, refresh] = FakeApiClient.bodies(fake_client)
+
+      assert URI.decode_query(refresh) == %{
+               "grant_type" => "refresh_token",
+               "refresh_token" => "ref1",
+               "client_id" => "cid",
+               "client_secret" => "sec"
+             }
+    end
+
+    test "a failed refresh falls back to the original grant" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok3", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password", "client_id" => "cid", "client_secret" => "sec"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok3"
+
+      assert [first, refresh, retry] = FakeApiClient.bodies(fake_client)
+      assert URI.decode_query(first)["grant_type"] == "password"
+      assert URI.decode_query(refresh)["grant_type"] == "refresh_token"
+      assert URI.decode_query(retry) == params
+    end
+
+    test "a refresh that fails again after the fallback grant raises the grant's error" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 401,
+            body: Jason.encode!(%{"error" => "invalid_client"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password"}
+      token_url = "https://auth.example.com/token"
+
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+            manager,
+            token_url,
+            params
+          )
+        end
+
+      assert error.status_code == 401
+      assert error.code == "invalid_client"
+    end
+
+    test "a token response without expires_in is cached indefinitely" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "forever"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "forever"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "forever"
+
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "a refresh response without expires_in keeps the existing expiry" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2"})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok3", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok2"
+
+      # The first token's expiry was not replaced by "never expires", so the
+      # token is still stale and the next call goes back to the endpoint.
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok3"
+
+      assert FakeApiClient.call_count(fake_client) == 3
+    end
+
+    test "a non-string refresh_token is ignored" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => 12_345,
+                "expires_in" => 3600
+              })
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               "https://auth.example.com/token",
+               %{"grant_type" => "client_credentials"}
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == nil
     end
 
     test "expires_in as JSON string is accepted" do

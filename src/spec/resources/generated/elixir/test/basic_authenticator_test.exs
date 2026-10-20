@@ -12,6 +12,37 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert headers["Authorization"] == "Basic YWxpY2U6czNjcmV0"
     end
 
+    test "non-ASCII credentials are encoded as UTF-8" do
+      auth = BasicAuthenticator.new("https://api.example.com", "ünïcødé", "pässwörd")
+      headers = BasicAuthenticator.auth_headers(auth)
+      assert headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
+    end
+
+    test "a password may contain a colon" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3:cret")
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:s3:cret")
+    end
+
+    test "rejects each invalid credential with its own message" do
+      assert_raise ArgumentError,
+                   "Basic auth username must not contain CR, LF, or NUL characters",
+                   fn ->
+                     BasicAuthenticator.new("https://api.example.com", "ali\nce", "s3cret")
+                   end
+
+      assert_raise ArgumentError,
+                   "Basic auth username must not contain ':' (RFC 7617 §2)",
+                   fn -> BasicAuthenticator.new("https://api.example.com", "ali:ce", "s3cret") end
+
+      assert_raise ArgumentError,
+                   "Basic auth password must not contain CR, LF, or NUL characters",
+                   fn ->
+                     BasicAuthenticator.new("https://api.example.com", "alice", "s3c\rret")
+                   end
+    end
+
     test "rejects username with crlf at construction" do
       assert_raise ArgumentError, fn ->
         BasicAuthenticator.new("https://api.example.com", "alice\r\n", "s3cret")
@@ -79,6 +110,14 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ ~s(password: "***")
     end
 
+    test "basic auth repr shows the host and username and masks only the password" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
+
+      assert inspect(auth) =~ ~s(host: "https://api.example.com")
+      assert inspect(auth) =~ ~s(username: "alice")
+      assert inspect(auth) =~ ~s(password: "***")
+    end
+
     test "api key is not leaked by inspect/1" do
       auth =
         ApiKeyAuthenticator.new(
@@ -89,6 +128,8 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
         )
 
       refute inspect(auth) =~ "super-secret-key"
+      assert inspect(auth) =~ ~s(key_param_name: "X-Api-Key")
+      assert inspect(auth) =~ "location: :header"
     end
   end
 end

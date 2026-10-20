@@ -77,6 +77,28 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :csv) == "a,b,c"
     end
 
+    # A nil element is an empty slot: it is neither skipped nor rendered as the
+    # word nil.
+    test "a nil element keeps its slot in every array style" do
+      for {format, expected} <- [
+            {:csv, "1,,3"},
+            {:ssv, "1  3"},
+            {:tsv, "1\t\t3"},
+            {:pipes, "1||3"},
+            {:multi, ["1", "", "3"]}
+          ] do
+        assert {{moduleName}}.ValueSerializer.serialize([1, nil, 3], :query, "array",
+                 collection_format: format
+               ) == expected
+      end
+    end
+
+    test "leading and trailing nil elements keep their slots" do
+      assert {{moduleName}}.ValueSerializer.serialize([nil, "x", nil], :query, "array",
+               collection_format: :csv
+             ) == ",x,"
+    end
+
     test "empty array returns empty string for csv" do
       assert {{moduleName}}.ValueSerializer.serialize([], :query, "array") == ""
     end
@@ -335,6 +357,43 @@ defmodule {{moduleName}}.ValueSerializerTest do
 
     test "plus preserved (sub-delimiter)" do
       assert {{moduleName}}.ValueSerializer.serialize("a+b", :path, "string") == "a+b"
+    end
+
+    # Every sub-delimiter and unreserved character OAS styles use as a
+    # separator stays literal in a path segment.
+    test "each sub-delimiter and unreserved character is preserved" do
+      for char <- String.graphemes(";=,:@!$&'()*+~-._") do
+        assert {{moduleName}}.ValueSerializer.serialize("a" <> char <> "b", :path, "string") ==
+                 "a" <> char <> "b"
+      end
+    end
+
+    test "each remaining reserved or unsafe character is percent-encoded" do
+      for {char, encoded} <- [
+            {" ", "%20"},
+            {"/", "%2F"},
+            {"?", "%3F"},
+            {"#", "%23"},
+            {"[", "%5B"},
+            {"]", "%5D"},
+            {"%", "%25"},
+            {"\"", "%22"},
+            {"<", "%3C"},
+            {">", "%3E"},
+            {"|", "%7C"},
+            {"^", "%5E"},
+            {"`", "%60"},
+            {"{", "%7B"},
+            {"}", "%7D"},
+            {"\\", "%5C"}
+          ] do
+        assert {{moduleName}}.ValueSerializer.serialize("a" <> char <> "b", :path, "string") ==
+                 "a" <> encoded <> "b"
+      end
+    end
+
+    test "a value that already looks percent-encoded is encoded again" do
+      assert {{moduleName}}.ValueSerializer.serialize("a%20b", :path, "string") == "a%2520b"
     end
 
     test "unicode encoded as UTF-8 percent" do
