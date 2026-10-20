@@ -5,7 +5,7 @@ Source audits (full detail): round 1 = core infra; round 2 = models/operations/r
 Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/won't-fix.
 
 ## Decisions taken (2026-10-08)
-- **weightKg / bare `type: number` → decimal in ALL three** offenders: ruby `Float`→`BigDecimal`, swift `Double`→`Foundation.Decimal`, go `float64`→`encoding/json.Number`. Accepts the public-field-type (breaking) change.
+- **weightKg / bare `type: number` → decimal in ALL three** offenders: ruby `Float`→`BigDecimal`, swift `Double`→`Foundation.Decimal`, go `float64`→`encoding/json.Number`. Accepts the public-field-type (breaking) change. **SUPERSEDED by T1-8 (same day): reclassified forced, not changed.**
 - **Content-type selector → THROW client-side** on an unrecognized request content-type, aligning every language to java/elixir and the generator's stated intent.
 
 ---
@@ -13,25 +13,25 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 ## TIER 1 — actionable (real wire / behavior / contract) — DOING NOW
 
 - [x] **T1-1** php OAuth2 authorize-URL emits `+` not `%20` — `http_build_query` default RFC1738. Fix: `PHP_QUERY_RFC3986`. Files: `templates/php/.../oauth2_authorization_code_authenticator.mustache`, `oauth2_implicit_authenticator.mustache`. (DONE — both authenticators pass `PHP_QUERY_RFC3986`; the checkbox was stale. See AGENTS "Resolved".)
-- [ ] **T1-2** go HTML-escapes `<` `>` `&` on serialize — `json.Marshal` w/o `SetEscapeHTML(false)`. `go/object_serializer` golden ~:73.
-- [ ] **T1-3** rust `panic!`s on empty required path param → move to catchable call-site validation (like go/swift). `rust/value_serializer.mustache:181` + rust api template; update the `#[should_panic]` test.
-- [ ] **T1-4** go error-body JSON parse bypasses depth-cap DoS guard — raw `json.Unmarshal` at `pkg/errors/api_error.go:137,166`. Route through `jsonMaxDepth` (expose/duplicate across the package boundary).
-- [ ] **T1-5** dart drops JSON body when response has no Content-Type — add `isEmpty || isJsonMime(...)` guard. `dart/base_api.mustache` (~:287-303).
-- [ ] **T1-6** rust `to_path_value` truncates ANY RFC3339 string to date-only → only truncate real `format: date` params (per-param serializer selection, like go). rust object_serializer/codegen.
-- [ ] **T1-7** content-type selector 3-way split → **THROW client-side** in ruby/go/swift (fallback) + python/csharp/php/kotlin/dart/rust (passthrough). `setPetAvatar`/`uploadPetDocument` in each api template.
+- [x] **T1-2** go HTML-escapes `<` `>` `&` on serialize — `json.Marshal` w/o `SetEscapeHTML(false)`. `go/object_serializer` golden ~:73. (DONE — `go/pkg/object_serializer.go:82` `enc.SetEscapeHTML(false)`; see AGENTS "Resolved".)
+- [x] **T1-3** rust `panic!`s on empty required path param → move to catchable call-site validation (like go/swift). `rust/value_serializer.mustache:181` + rust api template; update the `#[should_panic]` test. (DONE — rejected at the operation layer, `rust/src/value_serializer.rs:178` comment and `api/pet_api.rs:1560` `Missing the required parameter … when calling PetApi.get_pet_by_name`.)
+- [x] **T1-4** go error-body JSON parse bypasses depth-cap DoS guard — raw `json.Unmarshal` at `pkg/errors/api_error.go:137,166`. Route through `jsonMaxDepth` (expose/duplicate across the package boundary). (DONE — `go/pkg/errors/api_error.go:30` `unmarshalErrorBody` with `errorBodyJSONDepth`.)
+- [x] **T1-5** dart drops JSON body when response has no Content-Type — add `isEmpty || isJsonMime(...)` guard. `dart/base_api.mustache` (~:287-303). (DONE — `dart/lib/src/api/base_api.dart:262-298`.)
+- [x] **T1-6** rust `to_path_value` truncates ANY RFC3339 string to date-only → only truncate real `format: date` params (per-param serializer selection, like go). rust object_serializer/codegen. (DONE — `rust/src/object_serializer.rs:478` `to_path_value` is a plain `stringify`.)
+- [x] **T1-7** content-type selector 3-way split → **THROW client-side** in ruby/go/swift (fallback) + python/csharp/php/kotlin/dart/rust (passthrough). `setPetAvatar`/`uploadPetDocument` in each api template. (DONE — e.g. `go/pkg/pet_api.go:2050`, `ruby/.../pet_api.rb:1120`, `python/.../pet_api.py:1606`, swift `PetApi.swift:1166`.)
 - [-] **T1-8** weightKg bare-`number` decimal precision → **RECLASSIFIED as forced/intentional, NOT changed.** Discovered mid-implementation: ruby/swift/go each ship an identical documented "Decimal / `format: number` precision" README caveat defending the native-float choice (ruby `JSON.generate(BigDecimal)`→scientific/quoted breaks the unquoted-number wire form — asserted by an existing ruby test; Foundation `JSONDecoder`→Double; Go no stdlib JSON decimal). The round-2 audit mislabeled it "unforced." Reversing it breaks ruby's unquoted-number contract and the green Zitadel clients. Documented in AGENTS.md forced-divergences instead. **Revisit only if you want to accept the ruby wire-form change + breaking type change; flagged for your review.**
-- [ ] **T1-9** kotlin `Metadata` equals/hashCode excludes `additionalProperties` bucket (`@Transient val` in body) → hand-override like `BinaryVault`. kotlin model template.
-- [ ] **T1-10** base64 decode lenient in **python** (`b64decode` no `validate=True`) **+ node** (`Buffer.from`) → reject malformed. python/node object_serializer templates.
+- [x] **T1-9** kotlin `Metadata` equals/hashCode excludes `additionalProperties` bucket (`@Transient val` in body) → hand-override like `BinaryVault`. kotlin model template. (DONE — `kotlin/.../models/Metadata.kt:40-56` folds the bucket into `equals`/`hashCode`. `toString` still omits it, see T3-9.)
+- [x] **T1-10** base64 decode lenient in **python** (`b64decode` no `validate=True`) **+ node** (`Buffer.from`) → reject malformed. python/node object_serializer templates. (DONE — `python/petstore_client/object_serializer.py:499` `validate=True`; `node/src/object-serializer.ts:121` `decodeBase64`.)
 
 ## TIER 2 — dispositions (each item FIXED, FORCED, or DEFERRED with rationale)
-- [x] **T2-1** → **DEFERRED (genuine, risky).** kotlin brotli/zstd/otel are mandatory deps. Fixing needs more than the manifest: the kotlin transport advertises br/zstd UNCONDITIONALLY and decodes them directly, so making them `compileOnly` requires adding reflection-based conditional codec-advertising (as java does). A transport change to a green SDK; left for a focused, carefully-verified follow-up. (otel-api alone is already catch-guarded in code and could go `compileOnly` safely.)
+- [x] **T2-1** → **FIXED** (was DEFERRED). kotlin brotli/zstd/otel were mandatory deps. Now otel-api is `compileOnly` (`kotlin/build.gradle.kts:96`), the transport advertises `br`/`zstd` only when the codec class is present (`DefaultApiClient.kt:534-535` `isCodecClassPresent`) and decodes them by reflection (`decodeViaInputStream`), raising `IOException` when the class is absent; the codecs remain in the jvmTest dependencies (`build.gradle.kts:111`).
 - [x] **T2-2** → **FIXED** (optional `[compression]` extra; dev group retains for tests). Committed.
 - [x] **T2-3** → **FORCED** (csharp `<remarks>` not `[Obsolete]`; self-consumed param + `--warnaserror` escalates CS0618). Documented in AGENTS.md.
 - [x] **T2-4** → **FORCED** (kotlin `file`→`_file`; `KotlinReservedWordsSpec` deliberately reserves the soft keyword). Documented in AGENTS.md.
 - [x] **T2-5** → **FIXED.** Deprecation marker now on EVERY public variant of a deprecated operation (the `*WithHttpInfo`/`_with_http_info` variants and server/content-type overloads), not just the data variant, in all 12. Per-language marker: java/kotlin `@Deprecated`, csharp `[Obsolete]`, dart `@Deprecated(...)`, go `// Deprecated:` doc paragraph, rust `#[deprecated]`, swift `@available(*, deprecated, …)`, elixir `@deprecated`, python `.. deprecated::` docstring, ruby `# @deprecated` YARD, php `* @deprecated` docblock, node `@deprecated` JSDoc. kotlin was restructured so the per-variant conditional marker replaces the single "floating" `@Deprecated` that only landed on whichever overload rendered first. java needed no change: its single `@Deprecated` is emitted before the `hasAuthMethods` branch split, so it already covers all three `WithHttpInfo` variants (an attempt to add a per-branch guard produced a duplicate `@Deprecated` → "not a repeatable annotation interface", and was reverted). Verified self-consumption is safe under warnings-as-errors (csharp CS0618 suppressed for Models/Test + obsolete-within-obsolete in the client source; elixir same-module calls to `@deprecated` already tolerated by the existing data-method marker).
 - [x] **T2-6** → **NOT A DEFECT (edge, likely already handled).** The oversized-duration `NumberFormatException` is practically unreachable (protobuf max « Long). Invalid-base64 decode almost certainly already wraps via each language's JSON layer (java Jackson `InvalidFormatException` → `JsonProcessingException` → `SerializationException`, caught in ObjectSerializer). The round-2 agent flagged it as unverified; on inspection it is low-value/edge and not clearly broken.
 - [x] **T2-7** → **DEFERRED (low value).** python inlines `OpenAPIException`/`ApiException` in `errors/__init__.py` vs own files. Import-cycle driven; cosmetic file-layout only (no behaviour/wire impact). Not worth the cycle/risk.
-- [ ] **T2-8** → **DEFERRED (genuine, CI-only).** rust `auth/mod.rs` omits the 8 scheme-authenticator `mod` declarations, so cargo drops them as dead source (unreachable in rust only). Real, but needs codegen plumbing to collect the generated module names + rust cannot be built locally (the `rust:*-slim` image has no linux/arm64 manifest on this host), so it can only be validated on CI. Left for a focused follow-up.
+- [x] **T2-8** → **FIXED** (was DEFERRED, CI-only). rust `auth/mod.rs` used to omit the 8 scheme-authenticator `mod` declarations, so cargo dropped them as dead source. Now declared: `rust/src/auth/mod.rs:28` onward (`pub mod pet_store_basic_authenticator; …`) and the OAuth wrappers in `auth/oauth/mod.rs`. See the `needsApiKeyLocation` note in AGENTS "Resolved" for the import bug this exposed.
 - [x] **T2-9** → **NOT A DEFECT (wire-equivalent).** php has no `AllowReservedValue` wrapper; it threads an `$allowReservedKeys` name-set instead. Behaviourally identical on the wire; a structural-only difference. Accepted.
 - [x] **T2-10** → **NOT A DEFECT (intentional).** csharp `Configuration` has a public ctor while `TransportOptions` is internal. Configuration is a simple value with a convenient public ctor (used directly by the tests); TransportOptions is builder-only because it has validated invariants. Making it internal would break the tests and remove a public API. Intentional asymmetry.
 - [x] **T2-11** → **NOT A DEFECT (design decision).** Only the csharp facade is `IDisposable` (partly CA1001-mandated); the other 10 own a DefaultApiClient but expose no close. Several transports are GC/pool-managed. Adding `close()` to 10 facades is a broad public-API addition with little benefit; accepted as-is.
@@ -42,12 +42,12 @@ Status legend: `[ ]` open · `[~]` in progress · `[x]` done · `[-]` deferred/w
 - [x] **T3-1** docs: README H1 uses package name not spec title (go/rust/swift).
 - [x] **T3-2** docs: externalDocs now emitted at all levels — operation, tag (API class/module doc via `tagExternalDocs`), and model (`externalDocumentation`) — for dart + elixir; rust model link added. FIXED.
 - [x] **T3-3** docs: java/kotlin emit wrong operation externalDocs description text.
-- [x] **T3-4** docs: field-level example values omitted (python/go/swift/elixir).
-- [-] **T3-5** → **FORCED.** elixir struct fields have no per-field doc slot (only `@moduledoc`); the moduledoc already carries the model description, named examples and (now) externalDocs. Per-field descriptions/deprecation can't attach to a defstruct field. Not a defect.
+- [~] **T3-4** docs: field-level example values omitted (python/go/swift/elixir). FIXED for python/go/swift; **elixir still omits per-field examples and descriptions** (`elixir/.../models/pet.ex` has no `doggie`; ledger F311, F393). T3-5 below calls that forced, but the moduledoc already carries a per-field `**Deprecated field**` note, so a per-field line is possible.
+- [-] **T3-5** → **FORCED.** elixir struct fields have no per-field doc slot (only `@moduledoc`); the moduledoc already carries the model description, named examples and (now) externalDocs. Per-field descriptions/deprecation can't attach to a defstruct field as a doc slot (a moduledoc list can still name them, as R6-3 does for deprecation). Accepted as a limitation; see T3-4.
 - [x] **T3-6** rust advertises zstd but not brotli.
 - [x] **T3-7** java/kotlin package name generator-default `openapi-<lang>-client`.
 - [x] **T3-8** swift `Metadata` memberwise init drops `createdAt`.
-- [~] **T3-9** field-dumping repr. **java + csharp FIXED** (added `toString`/`ToString` dumping every property; node/dart already had it, kotlin/rust/swift/python/ruby/go/elixir get it from the language). **php DEFERRED** — `__toString` has real runtime-error risk for non-stringable fields (arrays, DateTime, enums) and php tests can't run while the pecl install is down; implement + verify once php CI is green again.
+- [~] **T3-9** field-dumping repr. **java + csharp partly FIXED** (added `toString`/`ToString` dumping every property, but containers are appended raw: java prints `[B@…` for byte collections, csharp prints the collection type name). **dart has NO model `toString`** (enums only), kotlin's data-class `toString` omits the `@Transient` `additionalProperties` bucket, go optional fields are pointers so `%v` prints addresses; node uses the default `util.inspect`; rust/swift/python/ruby/elixir get a dump from the language (ledger F321, F397). **php DEFERRED** — `__toString` has real runtime-error risk for non-stringable fields (arrays, DateTime, enums) and php tests can't run while the pecl install is down; implement + verify once php CI is green again.
 - [x] **T3-10** misattributed NO_AUTH comment on inherit-global ops (php/rust/elixir).
 - [-] **T3-11** → **STALE / not a defect.** Round-4 audit found bodyless-GET request content-type consistent across all 12 (all pass "application/json"); no rust empty-boilerplate divergence remains.
 - [~] **T3-12** → **DEFERRED (cosmetic, risky rename).** 8 langs name the multi-consumes selector `requestContentType`/`request_content_type`; node/php/ruby/elixir drop the "request" prefix. Aligning them is surgical: in node the param name is sourced from the Java codegen's `requestWrapperFields`, and `contentType`/`content_type` is heavily overloaded with the INTERNAL Content-Type header handling (mock servers, captured request headers) in both api and test templates, which must NOT be renamed. php can't be verified while the pecl install is down. Both names work on the wire, so this is a pure naming-consistency tweak; do all four surgically together once php CI is restored.
@@ -69,8 +69,7 @@ Two fresh divergence-sweep agents found the SDKs extremely tightly aligned; only
 second-order / latent residuals remain (NONE affect CI-green or wire behaviour on the fixture):
 
 - [x] **R5-1** `format: date` PARAMETER is a raw String in go/dart/swift vs a typed date in the
-  other 9 (`findPetsBornOn(bornOn)`). go (no date-only stdlib type) and swift (documented
-  date/date-time→one Foundation.Date ambiguity) are forced; **dart is the one unforced minority**
+  other 9 (`findPetsBornOn(bornOn)`). go (no date-only stdlib type) is forced, and swift maps `format: date` to `String` in its codegen (`BetterSwiftCodegen.java:74`; its `Date` is date-time only, so the old "one Foundation.Date ambiguity" no longer applies); **dart is the one unforced minority**
   — dart's only temporal type is `DateTime` (like node's JS `Date`), and node maps `format: date`
   params to `Date` + truncates via `ValueSerializer.stringifyDate`; dart could do the same but
   drops to String. ACTIONABLE (dart only); a public-API type change.
@@ -116,9 +115,10 @@ SDKs extremely aligned; 6 remaining differences, all now fixed:
 - [x] **R6-5** required-param "missing" error MESSAGE wording varied across all 12 (op-context,
   "the", quote style, `options.` prefix, class-qualification). Harmonised to the ruby/elixir form
   `Missing the required parameter 'X' when calling <Class>.<operation>` in java/kotlin/php/python/
-  csharp/rust/swift/node/dart (ruby/elixir already had it). go and dart's PATH-param check keep
-  the centralized value-serializer message ("path parameter 'X' must not be empty") — FORCED, the
-  serializer has no operation context.
+  csharp/rust/swift/node/dart (ruby/elixir already had it). go's PATH-param check keeps the value-serializer
+  clause ("path parameter 'X' must not be empty") but the operation layer appends `when calling
+  <Class>.<op>` (`go/pkg/pet_api.go:1442`), so the missing-context reason does not hold; only the
+  lowercase start is forced (ST1005). dart was fixed in R8-6.
 - [x] **R6-6** stale comment in go object_serializer ("C# is stricter (64)") — corrected; all 12
   use the 1000 depth cap.
 
@@ -141,20 +141,20 @@ goldens line-by-line across all 12. Findings and resolutions (details in AGENTS.
 - [x] **R7-5** elixir & dart-io passed a zero-byte gzip-declared body through; now RAISE like the
   other 6 direct-attempt decompressors.
 - [x] **R7-6** ruby model doc-comments leaked JSON-escaped `\"`; now rendered through
-  `{{#lambda.unescapeDocComment}}` like go/dart.
+  `{{#lambda.unescapeDocComment}}` like go/dart. (MODEL templates only: no api template in any language applies the lambda, and java's model slots barely do; whether operation docs leak `\"` is open, ledger F370.)
 - [x] **R7-7** README metadata: java/kotlin `Version` rendered blank (`{{packageVersion}}` →
   `{{artifactVersion}}`); node `Name` rendered blank (`{{packageName}}` → `{{npmName}}`).
 - [x] **R7-8** php README Requirements omitted the mandatory `ext-uri` / `ext-zlib`; added.
 - [x] **R7-9** java README decimal caveat described lossy `double`; java uses `BigDecimal`
-  (precision-preserving). Rewritten to match the code + kotlin's sibling caveat.
+  (precision-preserving, as kotlin/csharp; python/node are typed decimal but lossy on decode, see AGENTS `format: number`). Rewritten to match the code + kotlin's sibling caveat.
 - [x] **R7-10** AGENTS native-float list said 3 langs (ruby/swift/go); the lossy set is 7
   (+ rust/php/dart/elixir). Corrected.
 - [x] **R7-11** OAuth cosmetic: unreachable "no access token" fallback-guard message harmonised
   (csharp/php → "Token fetch did not return an access token"); csharp token-body KEY now gets the
   same `%20`→`+` normalisation as the VALUE.
-- [ ] **R7-12** (LATENT, documented) OAuth percent-encoding unreserved set (`~`/`*`/`!`/`'`/`(`/`)`)
-  not harmonised across the 12; spec-compliant servers decode identically and no fixture exercises
-  it. Deferred to a future shared-encoder pass. See AGENTS "Round 7".
+- [x] **R7-12** OAuth percent-encoding unreserved set (`~`/`*`/`!`/`'`/`(`/`)`) was not harmonised
+  across the 12. SUPERSEDED by R8-10: canonical in 11 languages (e.g. `java/.../OAuth2TokenManager.java` `formEncode`
+  maps `*`→`%2A` and `%7E`→`~`); swift's authorize URL is the residual (R8-F1).
 - [ ] **R7-13** (BORDERLINE-FORCED, documented) go/swift hard-fail the token exchange on a
   non-string token field; the 10 ignore it. Changing requires replacing their typed decoders.
 - [ ] **R7-14** (DOCUMENTED style) dart operations take an explicit non-defaulted `options` arg,
@@ -162,12 +162,12 @@ goldens line-by-line across all 12. Findings and resolutions (details in AGENTS.
 
 ### Round 7 test-coverage parity gaps (follow-up commit)
 
-- [ ] **R7-T1** Unsupported Content-Encoding "raise" regression-tested only in java; add to the
-  other 9 manual-decompressor langs.
-- [ ] **R7-T2** The R6-5 required-param message asserted in full by no test; lock the full
-  `when calling <Class>.<op>` clause per language (php + rust done in R7-1).
-- [ ] **R7-T3** Malformed-base64 model-field deserialize test missing in java/kotlin/csharp/dart/
-  swift (go/rust forced — stdlib/serde rejects).
+- [x] **R7-T1** Unsupported Content-Encoding "raise" regression-tested only in java; add to the
+  other 9 manual-decompressor langs. (DONE — all 10 manual decompressors: java `DefaultApiClientUnitTest.java:1164`, kotlin `…UnitTest.kt:1091`, csharp `…UnitTest.cs:1235`, php `…UnitTest.php:1195`, python `test_default_api_client_unit.py:153`, ruby `…_unit_test.rb:1164`, go `…_unit_test.go:1076`, rust `…_unit_test.rs:1172`, dart `…_unit_test.dart:514`, elixir `…_unit_test.exs:880`. node/swift pass through by design.)
+- [x] **R7-T2** The R6-5 required-param message asserted in full by no test; lock the full
+  `when calling <Class>.<op>` clause per language (php + rust done in R7-1). (DONE — every language's Pet API test asserts the `when calling` clause, e.g. `java/.../PetApiTest.java:575`, `rust/tests/pet_api_test.rs:215`, `go/test/base_api_test.go:871`.)
+- [x] **R7-T3** Malformed-base64 model-field deserialize test missing in java/kotlin/csharp/dart/
+  swift (go/rust forced — stdlib/serde rejects). (DONE — `java/.../ObjectSerializerTest.java:1562`, `kotlin/.../ObjectSerializerTest.kt:1524`, `csharp/Test/ObjectSerializerTest.cs:1603`, `dart/test/object_serializer_test.dart:1160`, `swift/.../ObjectSerializerTests.swift:1280`.)
 
 ## ROUND 8 — component-wise cross-language sweep (2026-10-09) — FIXED / DOCUMENTED
 
@@ -201,11 +201,11 @@ Findings + resolutions (details in AGENTS.md "Round 8"):
   `Missing the required parameter '<x>' when calling <Class>.<op>` (was leaking the serializer
   message); AGENTS R6-5 note corrected (only go is forced).
 - [x] **R8-7** empty-response-body, server-variable (T3-17), bearer, oauth2-implicit, OIDC-discovery,
-  oneOf/anyOf no-match, rust OAuth2ServerError, rust cookie messages, rust/elixir multi-consumes,
+  oneOf/anyOf no-match (central helper only: the per-model wrapper strings still differ in six wordings, see AGENTS Round 8 / ledger F396), rust OAuth2ServerError, rust cookie messages, rust/elixir multi-consumes,
   decompress-failure wording — all harmonized to one canonical string per message.
 - [x] **R8-8** swift bare-null body → nil; go/swift empty-`tracestate` strip; dart-io `x-gzip`
   alias; go Accept-Encoding reordered to `gzip, deflate, br, zstd`.
-- [x] **R8-9** OAuth2 authenticator redacted-repr non-secret field-sets unified across all 12.
+- [~] **R8-9** Basic/ApiKey authenticator redacted-repr non-secret field-sets unified across all 12 (java Basic `host`, go/node ApiKey `location`). The OAuth2 authenticator reprs are NOT unified: field counts differ per language (auth-code: 8 in java/kotlin/rust, no `refreshUrl` in python/go/csharp, extra `tokenExchanged` in php/swift/dart/elixir, 3 fields in node/ruby) and go's `ClientAuthMethod` has no `String()` (ledger F285).
 - [x] **R8-10** OAuth2 percent-encoding: all 3 paths (token body, Basic header, authorize URL) now
   keep exactly the RFC 3986 unreserved set `-._~` and %-encode `* ! ' ( )` in 11 langs; space
   handling unchanged. Swift's `URLComponents`-based authorize URL is the one remaining residual.
@@ -220,7 +220,7 @@ Findings + resolutions (details in AGENTS.md "Round 8"):
   it immediately caught a raw `TextMapPropagator` generic in the trace test, now fixed).
 
 ### Low / cleanup
-- [x] **R8-13** rust `#[deprecated(note=…)]`; kotlin unused SerializationException import removed;
+- [x] **R8-13** rust model `#[deprecated(note=…)]` (models only: `rust/models/model.mustache:64,150`; rust operations and Options fields still emit a bare `#[deprecated]`, `api/api.mustache:117,175`, `api/options.mustache:42,106` — ledger F335); kotlin unused SerializationException import removed;
   csharp ToString `AdditionalProperties` label; go field-deprecation "field"→"property"; ruby
   oneOf/anyOf no-match → SerializationError; python/ruby duplicate required-param guard removed;
   node runtime multi-consumes content-type guard added; rust depth-cap message carries `{depth}`;
@@ -238,7 +238,7 @@ Findings + resolutions (details in AGENTS.md "Round 8"):
 - [ ] **R8-F2** csharp uses the BCL `DistributedContextPropagator` (not OTel) for trace-context, and
   rejects a non-absolute OIDC endpoint URL (`System.Uri`) — forced-leaning, documented.
 - [ ] **R8-F3** `format:number` native-float set is SEVEN langs (was mis-stated as 3); go value-typed
-  body no-nil-guard; dart/swift empty-string-proxy leniency; python inert field-deprecation comment;
+  body no-nil-guard; go/rust/dart/swift empty-string-proxy leniency (`Proxy("")`/`proxy("")` clears the proxy instead of erroring: `go/pkg/transport_options.go:195`, `rust/src/transport_options.rs:214`, `dart/lib/src/transport_options.dart:162`, `swift/Sources/PetstoreClient/TransportOptions.swift:167`); python inert field-deprecation comment;
   per-model oneOf wrapper strings differ from the central-helper string (latent). All documented.
 - [ ] **R8-F4** kotlin `allWarningsAsErrors` DEFERRED (not armed). Arming it requires two cleanups
   first: (1) the kotlin query-param builder null-checks a REQUIRED non-null param (`if (options.x

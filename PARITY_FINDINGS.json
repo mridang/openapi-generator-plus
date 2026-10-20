@@ -4479,8 +4479,8 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F075",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Integer range not enforced in 7 SDKs: int32 overflow (and int64 overflow in 4) is accepted",
@@ -7721,7 +7721,7 @@
    "lens": "L09-models-scalars",
    "id": "F133",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "kotlin accepts a payload missing a REQUIRED array/set property (Pet.photoUrls) because the field defaults to an empty container",
@@ -10624,7 +10624,7 @@
    "lens": "L16-docs-packaging",
    "id": "F183",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "title": "SKILLS 'Binary / File Uploads' states the wrong upload parameter type in java, kotlin, php and go",
@@ -10980,7 +10980,7 @@
    "lens": "L16-docs-packaging",
    "id": "F189",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "Dart and Go spec setup rewrites the golden before the checks run, so the dart format gate cannot fail and go.mod/go.sum drift is hidden",
@@ -11909,7 +11909,7 @@
    "lens": "L18b-wire-response",
    "id": "F202",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "Container/primitive response leaves are lax in python, kotlin and node while model fields are strict (getInventory {\"a\":\"5\"} accepted)",
@@ -12928,8 +12928,8 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F221",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it",
@@ -12969,8 +12969,8 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F222",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises",
@@ -13016,8 +13016,8 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F223",
-   "status": "partial",
-   "note": "done in java; still open for kotlin",
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)",
    "outcomes": {
     "java": {
      "outcome": "duplicate",
@@ -13075,8 +13075,8 @@
    "unit_testable": true,
    "lens": "L21-api-surface",
    "id": "F224",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts",
@@ -14190,7 +14190,7 @@
    "lens": "L01-value-serializer",
    "id": "F241",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "title": "Duplicate JSON keys resolve differently (rust rejects, swift keeps the first, the rest keep the last)",
@@ -16117,8 +16117,8 @@
    "unit_testable": false,
    "lens": "L06-simple-auth",
    "id": "F276",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Per-scheme wrapper authenticators print differently across languages: java falls back to Object.toString, rust has no Debug, node/go/elixir print the base class name",
@@ -16560,8 +16560,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F285",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Auth-code precondition messages drift (kotlin 'or blank', ruby lowercase, rust/go prefixed wording, swift has no message)",
@@ -17117,8 +17117,8 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F296",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Proxy validation messages differ per failure, and swift drops the reason entirely",
@@ -17701,8 +17701,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F307",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Integer-enum members ignore the language's enum casing in csharp, node, go, rust and swift",
@@ -17876,7 +17876,7 @@
    "lens": "L09-models-scalars",
    "id": "F311",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "elixir's model-level `@deprecated` attaches to the next function (defstruct's __struct__), not to the module",
@@ -18334,7 +18334,7 @@
    "lens": "L10-models-composed",
    "id": "F321",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "oneOf/anyOf wrappers have value equality in some SDKs and identity-only (or no) equality in others",
@@ -19138,7 +19138,7 @@
    "lens": "L11-api-shape",
    "id": "F335",
    "status": "open",
-   "note": ""
+   "note": "documents corrected; the code or template part is still open"
   },
   {
    "title": "rust: request content-type selection exists only as `*_with_content_type`, which returns ApiResult. There is no data-returning variant, and every op carries an empty content-type comment that T3-11 says was removed",
@@ -19275,7 +19275,7 @@
    "lens": "L11-api-shape",
    "id": "F338",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "title": "Form-urlencoded and multipart field order on the wire differs (hash order, sorted, or random per process)",
@@ -19804,8 +19804,8 @@
    "unit_testable": false,
    "lens": "L13a-tests-transport",
    "id": "F349",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Path-segment sub-delimiter/unreserved set is asserted unevenly (';' '=' '~' '@' '!' '$' '&' ''' '(' ')' '*')",
@@ -20825,8 +20825,8 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F370",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Generated Makefile target names differ across the 12 SDKs",
@@ -21074,8 +21074,8 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F373",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Per-operation `options` parameter doc comment says something different in each language and is missing in several",
@@ -21726,7 +21726,7 @@
    "lens": "L16-docs-packaging",
    "id": "F379",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "title": "java pom hardcodes the MIT licence URL instead of using `{{licenseUrl}}`",
@@ -21807,7 +21807,7 @@
    "lens": "L16-docs-packaging",
    "id": "F381",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "title": "Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree",
@@ -21854,8 +21854,8 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F382",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding",
@@ -22421,8 +22421,8 @@
    "unit_testable": false,
    "lens": "L20-doc-truth",
    "id": "F393",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Minor factual misstatements in the forced-divergence and error-contract notes",
@@ -22469,8 +22469,8 @@
    "unit_testable": false,
    "lens": "L20-doc-truth",
    "id": "F394",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "Stale open or backwards status entries in AGENTS Round 7 and PARITY_TODO that the code has overtaken",
@@ -22541,8 +22541,8 @@
    "unit_testable": false,
    "lens": "L20-doc-truth",
    "id": "F395",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "oneOf/anyOf no-match wording: the per-model path is neither consistent nor limited to the four languages AGENTS lists",
@@ -22598,8 +22598,8 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F396",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "AGENTS says dart models already have a field-dumping toString; they do not, and go models print pointer addresses",
@@ -22635,8 +22635,8 @@
    "unit_testable": true,
    "lens": "L21-api-surface",
    "id": "F397",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)"
   },
   {
    "title": "ApiResult equality and header mutability differ across the 12",
@@ -23419,8 +23419,8 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F410",
-   "status": "partial",
-   "note": "done in java; still open for kotlin",
+   "status": "fixed",
+   "note": "AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)",
    "outcomes": {
     "java": {
      "outcome": "duplicate",
@@ -23464,7 +23464,7 @@
    "lens": "L22-lifecycle",
    "id": "F411",
    "status": "open",
-   "note": ""
+   "note": "template/README text, not a rule document: still open"
   },
   {
    "id": "F412",

@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 18, open 240, partial 24. Severity: critical 3, high 59, medium 294, low 174.
+Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 18, open 223, partial 22. Severity: critical 3, high 59, medium 294, low 174.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -80,7 +80,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F072 | medium | open | L01-value-serializer | csharp, python, ruby, node, php, dart, swift, elixir | uniqueItems array params (Set types) are stringified as debug text in 8 SDKs instead of being expanded as arrays |
 | F073 | medium | fixed | L02-object-serializer | java, python, node | A JSON number (and in node a boolean) is accepted for format:date-time in java/python/node with three different interpretations |
 | F074 | medium | fixed | L02-object-serializer | go, rust | Bare JSON null response body: go fabricates a default-valued model (or SerializationError), rust raises SerializationError; the other 10 treat it as an absent body |
-| F075 | medium | open | L02-object-serializer | python, node, java, kotlin, csharp | Bare type:number precision: python and node decode through IEEE doubles (AGENTS claims they preserve full precision); java emits exponent notation; node accepts any string |
+| F075 | medium | fixed | L02-object-serializer | python, node, java, kotlin, csharp | Bare type:number precision: python and node decode through IEEE doubles (AGENTS claims they preserve full precision); java emits exponent notation; node accepts any string |
 | F076 | medium | open | L02-object-serializer | swift, python, node, ruby, php, dart, elixir | Integer range not enforced in 7 SDKs: int32 overflow (and int64 overflow in 4) is accepted |
 | F077 | medium | fixed | L02-object-serializer | ruby, elixir, node | Non-object JSON where a model is expected: ruby/elixir silently return nil (nested field dropped), node keeps the raw value |
 | F078 | medium | fixed | L02-object-serializer | php, swift | The 1000-deep JSON nesting cap is not uniform: php accepts at most 999, swift at most 512 |
@@ -226,10 +226,10 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F218 | medium | needs-spec | L19-spec-coverage | php | php has no required-COOKIE guard, contradicting AGENTS Round 7, which says php guards query/header/form/cookie |
 | F219 | medium | needs-spec | L20-doc-truth | php, kotlin | R7-1 php claims are wrong: no cookie guard, and kotlin does not use baseName (golden emits '_file') |
 | F220 | medium | fixed | L20-doc-truth | swift | Swift sends an empty required date path param (bornOn: String), contradicting 'required string must not be empty in any of the 12' |
-| F221 | medium | open | L20-doc-truth | python, node | The forced-divergence note says python and node preserve full decimal precision; both lose it on decode |
-| F222 | medium | open | L20-doc-truth | go | The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it |
-| F223 | medium | partial | L20-doc-truth | java, kotlin | java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises |
-| F224 | medium | open | L21-api-surface | python, node | AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode |
+| F221 | medium | fixed | L20-doc-truth | python, node | The forced-divergence note says python and node preserve full decimal precision; both lose it on decode |
+| F222 | medium | fixed | L20-doc-truth | go | The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it |
+| F223 | medium | fixed | L20-doc-truth | java, kotlin | java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises |
+| F224 | medium | fixed | L21-api-surface | python, node | AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode |
 | F225 | medium | open | L21-api-surface | python, rust, ruby, elixir, node, php, go | Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts |
 | F226 | medium | fixed | L21-api-surface | php, python, ruby, node | TransportOptions has a public constructor that skips the builder's proxy validation in php, python, ruby and node |
 | F227 | medium | deferred | L21-api-surface | java, node, rust | java, node and rust let callers build a model that is missing required properties; the other 8 non-go SDKs reject it |
@@ -281,7 +281,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F273 | low | fixed | L05-errors | swift | swift OAuth2TokenError does not conform to LocalizedError: localizedDescription is the generic Foundation text |
 | F274 | low | open | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | 'Whitespace-only' detection uses each language's native trim, so the 12 SDKs accept and reject different API-key values |
 | F275 | low | open | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | In all 12 SDKs, a token that is only the 'Bearer ' prefix passes the empty-token guard and sends a credential-less Authorization header |
-| F276 | low | open | L06-simple-auth | rust | PARITY_TODO T2-8 is still listed as open/DEFERRED, but rust now declares the per-scheme authenticator modules |
+| F276 | low | fixed | L06-simple-auth | rust | PARITY_TODO T2-8 is still listed as open/DEFERRED, but rust now declares the per-scheme authenticator modules |
 | F277 | low | open | L06-simple-auth | java, rust, node, go, elixir | Per-scheme wrapper authenticators print differently across languages: java falls back to Object.toString, rust has no Debug, node/go/elixir print the base class name |
 | F278 | low | open | L06-simple-auth | php, node, ruby, dart, kotlin, java, csharp, python, go, rust, swift, elixir | The apiKey scheme name is pasted into each language's string literal without escaping, so legal header names can break or silently change some SDKs |
 | F279 | low | fixed | L06-simple-auth | elixir | elixir omits secret fields from inspect output instead of showing '***' as the other 11 do |
@@ -290,7 +290,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F282 | low | fixed | L06-simple-auth | python | python authenticators compare and hash by value, including the secret; every other SDK except elixir and php's loose == uses identity |
 | F283 | low | fixed | L06-simple-auth | ruby | ruby per-scheme wrappers take keyword arguments while their base authenticators (and every other SDK's wrappers) take positional ones |
 | F284 | low | fixed | L06-simple-auth | rust | rust appends authenticator query params instead of overriding, so a same-named query parameter is sent twice |
-| F285 | low | open | L07-oauth-oidc | node, ruby, go, python, csharp, php, swift, dart, elixir | AGENTS R8-9 contradicted: OAuth authenticator redacted-repr field sets are still not unified |
+| F285 | low | fixed | L07-oauth-oidc | node, ruby, go, python, csharp, php, swift, dart, elixir | AGENTS R8-9 contradicted: OAuth authenticator redacted-repr field sets are still not unified |
 | F286 | low | open | L07-oauth-oidc | kotlin, ruby, rust, swift, go | Auth-code precondition messages drift (kotlin 'or blank', ruby lowercase, rust/go prefixed wording, swift has no message) |
 | F287 | low | partial | L07-oauth-oidc | java, kotlin, csharp, python | Constructor shape drift: refreshUrl position and python's silent defaults for required OAuth config |
 | F288 | low | open | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, swift | Generator emits OAuth scopes in HashMap order, not spec order |
@@ -301,7 +301,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F293 | low | open | L07-oauth-oidc | java, kotlin, csharp, php, ruby, elixir, python, node, go, rust, swift, dart | buildAuthorizationUrl with an empty state: 6 SDKs emit '&state=', 6 omit it |
 | F294 | low | fixed | L07-oauth-oidc | ruby, node, swift, java | expires_in string grammar differs (hex, type suffixes, newline trimming) |
 | F295 | low | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | An unreadable caCertPath with verifySsl=false is rejected by 7 SDKs and accepted by 5 |
-| F296 | low | open | L08-config | go, rust, dart, swift | PARITY_TODO R8-F3 says only dart and swift treat an empty proxy as 'no proxy'; go and rust do too |
+| F296 | low | fixed | L08-config | go, rust, dart, swift | PARITY_TODO R8-F3 says only dart and swift treat an empty proxy as 'no proxy'; go and rust do too |
 | F297 | low | open | L08-config | swift, go, rust, ruby, node, kotlin, java, csharp, php, python, dart, elixir | Proxy validation messages differ per failure, and swift drops the reason entirely |
 | F298 | low | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Server-variable error message renders the allowed-values list 5 different ways, contradicting R8-7 |
 | F299 | low | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The 'not already set' checks for User-Agent and X-Request-ID are case-sensitive in all 12, so the wire result varies by HTTP library |
@@ -312,7 +312,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F304 | low | fixed | L08-config | php, python, node, ruby | php, python, node and ruby let callers skip proxy validation through a public TransportOptions constructor |
 | F305 | low | fixed | L08-config | python, dart, go | python and dart share mutable, process-wide Servers constants; go AllServers is a mutable slice |
 | F306 | low | fixed | L08-config | ruby, elixir, go | ruby and elixir per-operation server variants accept any value or nil for an enum variable and emit a malformed host |
-| F307 | low | open | L09-models-scalars | swift | AGENTS' reason that swift's date-time decoding 'cannot be made strict' is false: swift maps `format: date` to String, not Foundation.Date |
+| F307 | low | fixed | L09-models-scalars | swift | AGENTS' reason that swift's date-time decoding 'cannot be made strict' is false: swift maps `format: date` to String, not Foundation.Date |
 | F308 | low | open | L09-models-scalars | csharp, node, go, rust, swift | Integer-enum members ignore the language's enum casing in csharp, node, go, rust and swift |
 | F309 | low | partial | L09-models-scalars | swift, dart, php, ruby | Over-broad reserved-word mangling renames legal identifiers: swift `_type`, dart `type_`, php `$and_/$or_/$class_/$return_`, ruby `_and/_or/_not` |
 | F310 | low | open | L09-models-scalars | swift, python, dart, php, ruby, elixir, node, java, kotlin, csharp, go, rust | `format: int32` range is enforced by 5 SDKs; swift (Int), python, dart, php, ruby, elixir and node accept and re-send values outside int32 |
@@ -354,7 +354,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F346 | low | open | L12-api-bodies | rust | rust has no data-returning variant of the request-content-type selector |
 | F347 | low | open | L13a-tests-transport | kotlin, csharp, php, python, ruby, node, go, rust, swift, elixir | Garbage-PEM caCertPath (file exists, contents invalid) is tested only in java and dart |
 | F348 | low | open | L13a-tests-transport | java, kotlin, csharp, ruby, node, dart, elixir | Null element inside a csv/ssv/pipes/multi array (empty slot, 'a,,c') is asserted only in php, swift and python |
-| F349 | low | open | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir, swift, node | PARITY_TODO R7-T1 and R7-T3 are still unchecked although the code implements them |
+| F349 | low | fixed | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir, swift, node | PARITY_TODO R7-T1 and R7-T3 are still unchecked although the code implements them |
 | F350 | low | open | L13a-tests-transport | csharp, python, node, dart, go, rust, swift, elixir, ruby, php | Path-segment sub-delimiter/unreserved set is asserted unevenly (';' '=' '~' '@' '!' '$' '&' ''' '(' ')' '*') |
 | F351 | low | open | L13a-tests-transport | csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Redirect default-port normalization (https://h -> https://h:443 keeps Authorization) is tested only in java and kotlin |
 | F352 | low | open | L13b-tests-api-auth-models | node, dart, swift, go, rust | An OAuth2 token-fetch failure is asserted as 'any error' in node/dart/swift/go/rust |
@@ -375,10 +375,10 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F367 | low | deferred | L15-template-mechanics | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The HTML-entity formatting gate only catches named entities, so numeric entities from {{...}} (&#39;, &#x3D;, &#x60;) pass silently |
 | F368 | low | fixed | L15-template-mechanics | node | node is the only SDK that drops the operation-server variant description; hasDescription is never referenced in node's apis.mustache |
 | F369 | low | partial | L15-template-mechanics | java, kotlin, python | requiredLabelWithDefault is used only on pathParams, which are always required, so its 'default to X' branch is unreachable (java, kotlin, python only) |
-| F370 | low | open | L15-template-mechanics | java, kotlin, csharp, php, ruby, node, dart, go, rust, swift | unescapeDocComment is applied only in model templates (once in java) and in no API template; contradicts the AGENTS R7-6 'only ruby leaked' claim |
+| F370 | low | fixed | L15-template-mechanics | java, kotlin, csharp, php, ruby, node, dart, go, rust, swift | unescapeDocComment is applied only in model templates (once in java) and in no API template; contradicts the AGENTS R7-6 'only ruby leaked' claim |
 | F371 | low | deferred | L16-docs-packaging | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Generated Makefile target names differ across the 12 SDKs |
 | F372 | low | fixed | L16-docs-packaging | ruby, php | Language-specific README sections carry stale cross-language claims or internal dev notes (ruby discriminator, php dead-code) |
-| F373 | low | open | L16-docs-packaging | go, rust, kotlin, dart, python, node | PARITY_TODO.md marks fixed items as open or deferred (T1-2..T1-7, T1-9, T1-10, T2-1, T2-8) |
+| F373 | low | fixed | L16-docs-packaging | go, rust, kotlin, dart, python, node | PARITY_TODO.md marks fixed items as open or deferred (T1-2..T1-7, T1-9, T1-10, T2-1, T2-8) |
 | F374 | low | partial | L16-docs-packaging | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Per-operation `options` parameter doc comment says something different in each language and is missing in several |
 | F375 | low | fixed | L16-docs-packaging | php, python, java, kotlin | README 'Package' name does not match the manifest's package name (php, python); java/kotlin omit the artifactId entirely |
 | F376 | low | fixed | L16-docs-packaging | csharp, php, go, elixir, ruby, python, node, dart, rust, swift, kotlin, java | README 'SOCKS proxies' names the Java accessor `TransportOptions.proxy()` in all 12 READMEs |
@@ -387,7 +387,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F379 | low | open | L16-docs-packaging | dart | dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints |
 | F380 | low | fixed | L16-docs-packaging | java | java pom hardcodes the MIT licence URL instead of using `{{licenseUrl}}` |
 | F381 | low | open | L16-docs-packaging | python | python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber` |
-| F382 | low | open | L17-gates | elixir, php, swift | Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree |
+| F382 | low | fixed | L17-gates | elixir, php, swift | Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree |
 | F383 | low | open | L17-gates | swift | SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding |
 | F384 | low | open | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
 | F385 | low | fixed | L18a-wire-request | csharp, dart, kotlin | Multipart JSON part headers differ: csharp and dart add `; charset=utf-8` and change header order; kotlin adds a per-part Content-Length |
@@ -398,11 +398,11 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F390 | low | open | L18b-wire-response | java, kotlin, python, node, ruby, php, dart | Overflowing double literal (1e400) decodes to Infinity in 7 SDKs but is rejected in go/rust/swift/csharp, contradicting the stated no-non-finite decode contract |
 | F391 | low | open | L19-spec-coverage | java, swift, go, elixir, kotlin, csharp, php, python, ruby, node, dart, rust | Form body field order differs per SDK (java HashMap, swift randomized Dictionary, go/elixir sorted, others insertion order); petstore tests compare only as unordered sets |
 | F392 | low | open | L19-spec-coverage | java, php, rust, kotlin, csharp, python, node, ruby, dart, go, swift, elixir | The required-parameter message names Options params by wire name (baseName) in java/php/rust and by language identifier (paramName) in the other 9. AGENTS claims kotlin matches java; petstore already diverges for kotlin's `_file` |
-| F393 | low | open | L20-doc-truth | elixir | Elixir model docs carry no field example, contradicting 'scalar example in all 12' |
-| F394 | low | open | L20-doc-truth | php, swift, elixir | Minor factual misstatements in the forced-divergence and error-contract notes |
-| F395 | low | open | L20-doc-truth | java, kotlin, php, ruby, rust, csharp, dart, elixir, go, python, swift, node | Stale open or backwards status entries in AGENTS Round 7 and PARITY_TODO that the code has overtaken |
-| F396 | low | open | L20-doc-truth | java, csharp, kotlin, ruby, elixir, rust, python | oneOf/anyOf no-match wording: the per-model path is neither consistent nor limited to the four languages AGENTS lists |
-| F397 | low | open | L21-api-surface | dart, go | AGENTS says dart models already have a field-dumping toString; they do not, and go models print pointer addresses |
+| F393 | low | fixed | L20-doc-truth | elixir | Elixir model docs carry no field example, contradicting 'scalar example in all 12' |
+| F394 | low | fixed | L20-doc-truth | php, swift, elixir | Minor factual misstatements in the forced-divergence and error-contract notes |
+| F395 | low | fixed | L20-doc-truth | java, kotlin, php, ruby, rust, csharp, dart, elixir, go, python, swift, node | Stale open or backwards status entries in AGENTS Round 7 and PARITY_TODO that the code has overtaken |
+| F396 | low | fixed | L20-doc-truth | java, csharp, kotlin, ruby, elixir, rust, python | oneOf/anyOf no-match wording: the per-model path is neither consistent nor limited to the four languages AGENTS lists |
+| F397 | low | fixed | L21-api-surface | dart, go | AGENTS says dart models already have a field-dumping toString; they do not, and go models print pointer addresses |
 | F398 | low | open | L21-api-surface | csharp, ruby, dart, rust, swift, node, go, python, kotlin | ApiResult equality and header mutability differ across the 12 |
 | F399 | low | fixed | L21-api-surface | java, kotlin, node | Model equality on format:number fields depends on scale in java, kotlin and node, but not in csharp, python or the 7 float SDKs |
 | F400 | low | fixed | L21-api-surface | java, rust, go, node | Per-scheme authenticator wrappers differ in type hierarchy and printed form: java delegates, rust has no Debug, go and node print the base name |
@@ -415,7 +415,7 @@ Status counts: deferred 19, false-positive 15, fixed 210, forced 4, needs-spec 1
 | F407 | low | open | L22-lifecycle | go, node, swift, java, kotlin, csharp, python, ruby, php, rust, dart, elixir | Timeout budget across a redirect chain: whole chain in go/node/swift, per hop in the other 9 |
 | F408 | low | fixed | L22-lifecycle | java, go, swift, csharp | Unsynchronized mutable auth state in the implicit and authorization-code authenticators (java/go/swift/csharp); kotlin uses @Volatile and rust a Mutex |
 | F409 | low | open | L22-lifecycle | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Use-after-close: six different messages, and several doc comments still promise an SDK ApiException/ApiError |
-| F410 | low | partial | L22-lifecycle | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2 |
+| F410 | low | fixed | L22-lifecycle | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2 |
 | F411 | low | open | L22-lifecycle | rust | rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs |
 | F412 | medium | fixed | batch1-discovered | csharp | The authorize URL still builds its base from _authorizationUrl.ToString() (same Uri normalization class as F117), so a configured authorization endpoint with a default port or upper-case host is rewri |
 | F413 | medium | deferred | batch1-discovered | csharp | The redirect-replay buffering holds a whole Stream or multipart upload in memory when redirects are followed (the default), which can be costly for very large file uploads |
@@ -1530,7 +1530,7 @@ java/kotlin/csharp/python/node/ruby/php/dart/elixir/swift decode a top-level `nu
 - `src/spec/resources/generated/swift/Sources/PetstoreClient/ObjectSerializer.swift:224` — text.trimmingCharacters(in: .whitespacesAndNewlines) == "null"
 
 ## F075 [medium] Bare type:number precision: python and node decode through IEEE doubles (AGENTS claims they preserve full precision); java emits exponent notation; node accepts any string
-- Status: **open** | Lens: L02-object-serializer | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L02-object-serializer | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: python, node, java, kotlin, csharp
 
 AGENTS.md says five SDKs 'preserve full textual precision' for format:number, naming python (Decimal) and node (branded Decimal + JSON.rawJSON). In fact python parses bodies with plain json.loads (no parse_float=Decimal), so Pet.weightKg 12345678901234567890.123 becomes Decimal('1.2345678901234567E+19') and 12.30 becomes Decimal('12.3') before pydantic sees it; on encode JsonNumber widens to float again (emits 1e-7, 1.2345678901234567e19, 1000.0). node parses with JSON.parse and the Pet constructor does String(number): 12345678901234567890.123 -> "12345678901234567000", 0.0000001 -> "1e-7" which is then emitted raw as 1e-7; node also accepts ANY string for weightKg ("abc" is kept and re-sent as a quoted JSON string), python accepts quoted "12.5", while java/kotlin/csharp reject quoted decimals. java writes BigDecimal with toString (WRITE_BIGDECIMAL_AS_PLAIN off): input 0.0000001 round-trips as 1E-7 and 1E+3 as 1E+3 (verified jackson 2.19.4), whereas kotlin uses toPlainString (0.0000001, 1000) and csharp decimal emits 0.0000001/1000. Python's README also claims Decimal 'preserves exact decimal representation'. Either fix (python parse_float=Decimal; node JSON.parse reviver context.source; java WRITE_BIGDECIMAL_AS_PLAIN) or correct AGENTS/README to list python/node with the lossy set.
@@ -2241,7 +2241,7 @@ Type mapping for URI: java java.net.URI, kotlin io.ktor.http.Url, csharp System.
 - `src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/ObjectSerializer.kt:803` — override fun deserialize(decoder: Decoder): Url = Url(decoder.decodeString())
 
 ## F133 [medium] `type: number` (weightKg): python and node are lossy on decode (python on encode too) and accept quoted strings, contradicting AGENTS' 'FIVE preserve full textual precision'
-- Status: **open** | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: python, node
 
 AGENTS.md:246 lists python (`Decimal`) and node (branded `Decimal` + `JSON.rawJSON`) among the FIVE SDKs that preserve full precision. That is not true of the code. python decodes with a plain `json.loads` without `parse_float=Decimal` (object_serializer.py:220), so the value is a binary float before pydantic builds the Decimal. In pydantic 2.12, `{"weightKg": 0.1234567890123456789}` gives `Decimal('0.12345678901234568')` and 12345678901234567890.5 gives `Decimal('12345678901234567000')`. Encoding goes through `float(value)` (_types.py:87-90). node decodes with a bare `JSON.parse` (object-serializer.ts:274), so the number is already rounded before the Pet constructor applies `String(this.weightKg)` (pet.ts:161-162). Both also accept a JSON STRING for a `type: number` field. python's Decimal is lax, so `"12.345"` is accepted. node accepts ANY string (`"abc"`), because the only check is `typeof !== "string"` (pet.ts:163), and it then re-emits it quoted. java/kotlin/csharp reject a quoted number (jackson 2.19.4 with ALLOW_COERCION_OF_SCALARS=false gives MismatchedInputException; kotlin's BigDecimal(element.toString()) fails on the quotes). The python README even claims the field 'deserializes to decimal.Decimal' as the precision-safe path. Either fix decoding (python `parse_float=decimal.Decimal`; node a JSON.parse reviver using `context.source`) or move both to the lossy list in AGENTS.
@@ -2917,7 +2917,7 @@ Reviewer suspected this is forced: None. The lambdas exist precisely for this an
 - `src/main/resources/templates/csharp/servers.mustache:28` —     /// {{{serverDescription}}}{{/serverDescription}}
 
 ## F183 [medium] README tooling sections describe linters and rulesets that the shipped configs do not use (java, kotlin, csharp, php, go, dart, swift)
-- Status: **open** | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, go, dart, swift
 
 Several READMEs describe tooling that the generated project does not have. java points to a '`checkstyle.xml` at project root'; none is generated, and the pom uses the bundled `/google_checks.xml` plus checkstyle-suppressions.xml. kotlin says 'ships with three configured tools' and lists two. csharp lists `StyleCop.Analyzers` as the linter and says 'Run Roslyn / StyleCop analyzers', but the csproj comment says StyleCop.Analyzers was dropped. php claims PHP-CS-Fixer uses 'PHP84Migration + PHP82Migration:risky' and phpcs uses 'PSR-12 + SlevomatCodingStandard'; .php-cs-fixer.dist.php sets only `@PSR12` and phpcs.xml references only PSR12. php also omits the EARLY_RETURN rector set that rector.php enables. go says golangci-lint 'bundles/runs staticcheck, revive, gocritic, gosec, bodyclose', but .golangci.yml is bare `version: "2"`. dart lists 'Strict rules via `package:very_good_analysis`'; that package is neither in pubspec dev_dependencies nor included in analysis_options.yaml. swift's README table lists `NeverForceUnwrap` and `NeverUseForceTry` among the rules the generated code cannot satisfy, but .swift-format enables both (`true`). The other five READMEs (python, ruby, node, rust, elixir) describe their configs accurately.
@@ -3008,7 +3008,7 @@ Reviewer suspected this is forced: None. It is mustache standalone-line whitespa
 - `src/spec/resources/generated/ruby/Makefile:21` — bundle exec yard doc --output-dir .out/docs --fail-on-warning
 
 ## F189 [medium] swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim
-- Status: **open** | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 The swift README tells users who need exact decimals to decode 'with `JSONDecoder().userInfo[.useDecimal] = true`'. Foundation has no such CodingUserInfoKey. A compile check with the local toolchain (`swiftc -typecheck`) fails with: type 'CodingUserInfoKey' has no member 'useDecimal'. The real opt-in is to decode into a `Decimal`-typed field. CLAUDE.md requires every example to compile when pasted verbatim. AGENTS.md (forced-divergence entry for `format: number`) cites the same non-existent opt-in as the documented caller workaround.
@@ -3186,7 +3186,7 @@ Reviewer suspected this is forced: none; Faraday accepts a custom params_encoder
 - `src/spec/resources/generated/ruby/test/value_serializer_test.rb:477` — _(Petstore::Client::ValueSerializer.encode_query_allowing_reserved('v1.0/beta:rc1')).must_equal('v1.0/beta:rc1')
 
 ## F202 [medium] AGENTS claims node and python preserve full decimal precision for `type: number`, but both decode weightKg through a binary float; both also accept a quoted string
-- Status: **open** | Lens: L18b-wire-response | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L18b-wire-response | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: node, python
 
 AGENTS.md:246 lists node ('branded Decimal + JSON.rawJSON') and python ('Decimal') among the FIVE precision-preserving SDKs. That holds only on encode. On decode, node's parseJson is a plain JSON.parse, and the constructor then does `String(this.weightKg)`. I checked: 12.34567890123456789 becomes "12.345678901234567", 1.0 becomes "1", and 1e400 becomes "Infinity". python's parse_json is json.loads with the default parse_float=float, so pydantic receives a float. I checked: Decimal('12.345678901234567'). java, kotlin and csharp read the number text exactly (I checked java: 12.34567890123456789). Wire acceptance also diverges: `"weightKg":"1.5"` (quoted) is rejected by java (I checked), kotlin, csharp and the 7 native-float SDKs. python's lax Decimal accepts it, and node accepts ANY string ("abc", "NaN") as the branded Decimal. node's README 'Decimal / format: number precision' section talks only about int64 and never mentions this loss. Fixes: JSON.parse with a reviver using context.source (available in the same runtime that has JSON.rawJSON) and `json.loads(parse_float=Decimal)` or pydantic's lossless JSON path. Otherwise correct AGENTS.
@@ -3398,7 +3398,7 @@ AGENTS Round 7 says a required string parameter in any location is rejected when
 - `AGENTS.md:291` — A required STRING parameter must not be empty in any of the 12 — path, query, header, form or cookie.
 
 ## F221 [medium] The forced-divergence note says python and node preserve full decimal precision; both lose it on decode
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: python, node
 
 AGENTS says five SDKs 'preserve full textual precision' for bare `type: number`, naming python (Decimal) and node (branded Decimal + JSON.rawJSON), against seven lossy native-float SDKs. Python parses with plain `json.loads`, with no `parse_float=Decimal`, so the value is an IEEE double before pydantic turns it into a Decimal. JsonNumber's PlainSerializer then converts back through `float(value)` on encode, so python is lossy in both directions; its own README admits the encode loss. Node decodes with plain `JSON.parse`, and the model then does `String(this.weightKg)` on the already-rounded number, so only the encode path (JSON.rawJSON) keeps the text. Only java, kotlin and csharp read the number's source text, so the 'five' are really three plus two that are lossy on decode.
@@ -3409,7 +3409,7 @@ AGENTS says five SDKs 'preserve full textual precision' for bare `type: number`,
 - `AGENTS.md:246` — FIVE preserve full textual precision — java/kotlin (BigDecimal), csharp (decimal), python (Decimal), node (branded Decimal + JSON.rawJSON)
 
 ## F222 [medium] The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: go
 
 AGENTS (R6-5 note) and PARITY_TODO R6-5 say go's empty-path check keeps the serializer wording `path parameter '<x>' must not be empty` because the serializer has no operation context, and say not to add `<Class>.<operation>`. The go golden wraps every requirePathParam error at the operation layer with `when calling PetApi.<Op>`. The actual message is `missing the required parameter: path parameter 'name' must not be empty when calling PetApi.GetPetByName`. For a query param the same file emits the canonical `missing the required parameter 'category' when calling PetApi.GetPetByName`. The operation context is present, so the stated reason for forcing does not hold. Only the lowercase start is forced (ST1005); go could emit the canonical `%w '%s' when calling` form for path params as it already does for query and form.
@@ -3420,7 +3420,7 @@ AGENTS (R6-5 note) and PARITY_TODO R6-5 say go's empty-path check keeps the seri
 - `AGENTS.md:275` — the serializer has no operation context ... FORCED, do not try to add `<Class>.<operation>` there
 
 ## F223 [medium] java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises
-- Status: **partial** (done in java; still open for kotlin) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin
 
 AGENTS says php and ruby now raise when a br/zstd response arrives and the optional codec library is absent, 'rather than returning the body still-encoded — same as elixir, and required by the unsupported Content-Encoding raises contract'. python also raises, falling through to `Unsupported Content-Encoding`. java and kotlin also have optional codecs, loaded by reflection, but on ClassNotFoundException they `return data`, which hands back the still-encoded bytes. The 'library is unavailable' message is only thrown on the other ReflectiveOperationException branch, which fires when the class IS present. Kotlin's KDoc for decodeContentEncoding also still says 'any other value is returned unchanged', which contradicts its own `else -> throw`.
@@ -3432,7 +3432,7 @@ AGENTS says php and ruby now raise when a br/zstd response arrives and the optio
 - `AGENTS.md:272` — php/ruby raise when a br/zstd response arrives but the optional codec lib is absent ... same as elixir, and required by the "unsupported Content-Encoding raises" contract
 
 ## F224 [medium] AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode
-- Status: **open** | Lens: L21-api-surface | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L21-api-surface | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: python, node
 
 AGENTS.md (Forced divergences) says five SDKs "preserve full textual precision", including python (Decimal) and node (branded Decimal + JSON.rawJSON). The code contradicts this.
@@ -3676,7 +3676,7 @@ Reviewer suspected this is forced: node only: a JS number cannot tell 1 from 1.0
 - `src/spec/resources/generated/csharp/src/PetstoreClient/ObjectSerializer.cs:187` — /// Keeps a ".0" on a whole-number float so it stringifies like the other
 
 ## F241 [low] dart findPetsBornOn comment says the date param is a String, but it is a DateTime passed through stringifyDate
-- Status: **open** | Lens: L01-value-serializer | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L01-value-serializer | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: dart
 
 R5-1 changed dart's `format: date` params to `DateTime`. The generated comment still says a `format: date` param 'is mapped to `String` (already in YYYY-MM-DD form), so it flows through serializeStyled ... with no special casing'. The code directly below takes `DateTime bornOn` and calls `stringifyDate(bornOn)`, which is special casing.
@@ -4067,7 +4067,7 @@ The constructors reject an empty or whitespace-only token so that 'Authorization
 - `src/spec/resources/generated/ruby/lib/petstore/client/auth/bearer_authenticator.rb:23`
 
 ## F276 [low] PARITY_TODO T2-8 is still listed as open/DEFERRED, but rust now declares the per-scheme authenticator modules
-- Status: **open** | Lens: L06-simple-auth | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L06-simple-auth | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: rust
 
 PARITY_TODO T2-8 says rust `auth/mod.rs` omits the 8 scheme-authenticator `mod` declarations and leaves the item unchecked as deferred. The golden `rust/src/auth/mod.rs` now has `pub mod pet_store_basic_authenticator; ... pub mod session_cookie_authenticator;`, and `auth/oauth/mod.rs` declares the OAuth wrappers. AGENTS.md (the needsApiKeyLocation note) says these modules surfaced once T2-8 declared them. The TODO item is stale and should be checked off with a pointer to the AGENTS note.
@@ -4156,7 +4156,7 @@ The other 11 SDKs merge `getQueryParams()` into a map keyed by name (java put, p
 - `src/spec/resources/generated/java/src/main/java/com/example/petstore/api/BaseApi.java:168` — queryParams.put(entry.getKey(), entry.getValue());
 
 ## F285 [low] AGENTS R8-9 contradicted: OAuth authenticator redacted-repr field sets are still not unified
-- Status: **open** | Lens: L07-oauth-oidc | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L07-oauth-oidc | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: node, ruby, go, python, csharp, php, swift, dart, elixir
 
 R8-9/AGENTS say the non-secret field sets of the OAuth2 reprs were unified across all 12, but the code disagrees. Auth-code: java/kotlin/rust show 8 fields; python/go/csharp omit refreshUrl; php/swift/dart/elixir add tokenExchanged; node and ruby show only host, clientId and clientSecret. OIDC: java/kotlin/rust/php/python/swift/dart show 6; go omits scopes; ruby and csharp show 4; node shows 3; elixir's derived Inspect also dumps api_client, discovery_expiry and discovery_cache. go's ClientAuthMethod has no String(), so CC/password reprs print 0/1 instead of BODY/BASIC (the same class of issue R8 fixed for ApiKeyLocation). node hardcodes the base class name in inspect output, while the other languages print the runtime subclass name.
@@ -4268,7 +4268,7 @@ java, kotlin, csharp, php and python check the CA only in the `else if (caCertPa
 - `src/spec/resources/generated/go/pkg/transport_options.go` — if b.caCertPath != "" { caCert, err := os.ReadFile(b.caCertPath)
 
 ## F296 [low] PARITY_TODO R8-F3 says only dart and swift treat an empty proxy as 'no proxy'; go and rust do too
-- Status: **open** | Lens: L08-config | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L08-config | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: go, rust, dart, swift
 
 R8-F3 lists 'dart/swift empty-string-proxy leniency' as the documented residual. go's Proxy("") and rust's proxy("") also return early with no proxy and no error. Both take a non-optional string, so "" is their only way to clear it. java, kotlin, csharp, php, python, ruby, node and elixir reject "" as an invalid proxy URL. The note should list all four.
@@ -4381,7 +4381,7 @@ Reviewer suspected this is forced: go zero-value structs; ruby/elixir have no st
 - `src/spec/resources/generated/elixir/lib/petstore_client/api/pet_api.ex:115` — |> String.replace("{" <> "environment" <> "}", to_string(server.environment))
 
 ## F307 [low] AGENTS' reason that swift's date-time decoding 'cannot be made strict' is false: swift maps `format: date` to String, not Foundation.Date
-- Status: **open** | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: swift
 
 AGENTS.md:365-370 closes date-time input strictness by saying swift 'maps both `format: date` and `format: date-time` to one `Foundation.Date`, so it needs the date-only parse fallback'. In fact BetterSwiftCodegen.java:74 maps `date` to `String`, and only `DateTime` maps to `Date`. The `.custom` dateDecodingStrategy, including the `yyyy-MM-dd` fallback in ObjectSerializer.swift:69-79, therefore only ever runs for date-time fields. Swift accepts `"2024-01-01"` as a date-time (midnight UTC) for no reason any language forces, unlike the stricter SDKs. The date-only fallback could be removed.
@@ -4419,7 +4419,7 @@ Reviewer suspected this is forced: dart/php/ruby/elixir/node lack a native int32
 - `src/spec/resources/generated/swift/Sources/PetstoreClient/Models/Order.swift:24` — public var quantity: Int?
 
 ## F311 [low] elixir emits no field-level description or example, contrary to AGENTS 'Model field docs carry the scalar example in all 12'
-- Status: **open** | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L09-models-scalars | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 AGENTS.md:280 says field examples are present 'in all 12'. elixir/models/order.ex has zero `example` occurrences, and none of Order's 4 examples (10, 198772, 7, approved) appears. Field descriptions (Pet.homepageUrl, EdgeCases.permissionsNote, retryAfter) are missing too. Category's x-examples appear as module-level `## Small breed` sections with no mention of the `name` field. T3-5 ('elixir struct fields have no per-field doc slot') is undercut by R6-3, which already renders per-field `**Deprecated field**` notes inside @moduledoc. The same moduledoc list could carry each field's description and example.
@@ -4509,7 +4509,7 @@ Reviewer suspected this is forced: None. The split follows each template's requi
 - `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:5408` — if (setsDiscriminatorDefaultOnChildren()
 
 ## F321 [low] Model toString/repr does not dump fields consistently: dart has none (contradicting AGENTS), java/kotlin print memory addresses for byte collections, csharp prints collection type names, kotlin omits additionalProperties
-- Status: **open** | Lens: L10-models-composed | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L10-models-composed | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: dart, java, csharp, kotlin
 
 AGENTS 'Resolved' says 'node/dart already had inspect/toString' and that java/csharp dump every property 'with byte arrays rendered via Arrays.toString / base64 rather than a memory address'. The goldens contradict this. (1) dart model classes have NO toString override: the only `String toString()` in dart/models/model.mustache is on enums (lines 48-223), so `print(pet)` shows `Instance of 'Pet'`. (2) java appends container fields raw, so `List<byte[]>`/`Map<String,byte[]>` (BinaryVault.shards/labels, PetPassport.scans) print `[[B@1b6d3586]`. (3) csharp `StringBuilder.Append(List<T>/Dictionary/HashSet)` prints the type name, e.g. `System.Collections.Generic.List`1[PetstoreClient.Models.Tag]`, for Pet.Tags/PhotoUrls, BinaryVault.Shards/Labels and Metadata.AdditionalProperties. (4) kotlin data-class toString covers only primary-constructor properties, so the `@Transient` additionalProperties body property is omitted (Metadata), and ByteArray/List<ByteArray> fields print `[B@…`. Add a toString row per model shape (list, map, byte list, additionalProperties) to each language's model test, and correct the AGENTS note.
@@ -4677,7 +4677,7 @@ Reviewer suspected this is forced: None. A Default impl is idiomatic Rust.
 - `src/spec/resources/generated/go/pkg/base_api.go:92` — if apiClient == nil { 		apiClient = NewDefaultApiClient(nil) 	}
 
 ## F335 [low] rust: operations and Options fields use a bare `#[deprecated]` with no note, although AGENTS R8-13 says rust emits `#[deprecated(note=…)]` (models do; ops and options do not)
-- Status: **open** | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (documents corrected; the code or template part is still open) | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: rust
 
 R8-13 records "rust `#[deprecated(note=…)]`" as done. Only models.mustache uses `note = "This schema/property is deprecated."`. The api template emits a bare `#[deprecated]` on find_pets_by_status/get_pet_by_id and their _with_http_info variants, and options.mustache does the same on the deprecated `status` field and its setter. The rustc warning text therefore lacks the "This operation is deprecated." message the other 11 carry: kotlin @Deprecated("…"), csharp [Obsolete("…")], swift message:, dart @Deprecated('…'), elixir @deprecated "…". The data method's attribute is also placed between `///` lines, which works in rustdoc but is inconsistent with the _with_http_info placement.
@@ -4716,7 +4716,7 @@ Reviewer suspected this is forced: None. Attribute placement is free, and the te
 - `src/main/resources/templates/swift/api/api.mustache:91` — {{#allParams}}{{#vendorExtensions.pluralExamples}}
 
 ## F338 [low] swift: the requestContentType doc says an unrecognized value falls back to the first declared type, but the code throws
-- Status: **open** | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L11-api-shape | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 The AGENTS resolved-fix list says swift no longer silently falls back on an unrecognised request content type, and the generated body does throw `ConfigurationError.invalidArgument("Unsupported request content-type '…'")`. The public doc comment the template still emits says "Defaults to the first declared type (image/jpeg) when nil or unrecognized." This is the old fallback contract. The other 11 document only the nil default.
@@ -4843,7 +4843,7 @@ php ValueSerializerTest ('query array csv keeps slot for null element' => '1,,3'
 - `src/spec/resources/generated/python/test/test_object_serializer.py:426` — def test_keeps_empty_slot_for_null_array_element_in_csv
 
 ## F349 [low] PARITY_TODO R7-T1 and R7-T3 are still unchecked although the code implements them
-- Status: **open** | Lens: L13a-tests-transport | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L13a-tests-transport | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir, swift, node
 
 PARITY_TODO says R7-T1 'Unsupported Content-Encoding raise regression-tested only in java' and R7-T3 'Malformed-base64 model-field deserialize test missing in java/kotlin/csharp/dart/swift' are open ([ ]). The goldens now have the unsupported-encoding ApiError(200) test in all 10 manual-decompressor SDKs (e.g. go TestDefaultApiClient_UnsupportedContentEncodingIsApiErrorWithStatus, elixir 'unsupported Content-Encoding surfaces ApiError with the real status'), and invalid-base64 byte-field tests in java/kotlin/csharp/dart/swift. The backlog is stale and will send a future audit after work that is already done.
@@ -5061,7 +5061,7 @@ Reviewer suspected this is forced: None.
 - `src/main/resources/templates/java/api/operation_doc.mustache:7` —      * @param {{paramName}} {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}
 
 ## F370 [low] unescapeDocComment is applied only in model templates (once in java) and in no API template; contradicts the AGENTS R7-6 'only ruby leaked' claim
-- Status: **open** | Lens: L15-template-mechanics | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L15-template-mechanics | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, ruby, node, dart, go, rust, swift
 
 escapeText turns `"` into `\"` in every CodegenOperation.summary/notes, CodegenParameter.description and CodegenModel.description. The unescapeDocComment lambda reverses that, but it appears only in model templates: dart 9 uses, kotlin and php 13, node 11, csharp 8, ruby 7, go, rust and swift 5 each, java 1, and 0 in every api template.
@@ -5106,7 +5106,7 @@ Reviewer suspected this is forced: None.
 - `src/main/resources/templates/ruby/readme.mustache:99`
 
 ## F373 [low] PARITY_TODO.md marks fixed items as open or deferred (T1-2..T1-7, T1-9, T1-10, T2-1, T2-8)
-- Status: **open** | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: go, rust, kotlin, dart, python, node
 
 PARITY_TODO still shows `[ ]` for T1-2 (go SetEscapeHTML), T1-3, T1-4, T1-5, T1-6, T1-7, T1-9 and T1-10, all of which AGENTS.md 'Resolved' records as fixed. The code agrees with AGENTS: go/pkg/object_serializer.go:81 has `enc.SetEscapeHTML(false)`. T2-8 ('rust auth/mod.rs omits the 8 scheme-authenticator mod declarations') is still open, but rust/src/auth/mod.rs and oauth/mod.rs now declare all of them. T2-1 says kotlin brotli/zstd/otel are mandatory deps and the fix is deferred, but build.gradle.kts now makes otel `compileOnly` and reaches br/zstd purely by reflection, with the codecs only in jvmTest. The backlog misreports what is open.
@@ -5187,7 +5187,7 @@ Reviewer suspected this is forced: None.
 - `src/spec/resources/generated/python/petstore_client/auth/authenticator.py:12` — class Authenticator(ABC):
 
 ## F379 [low] dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints
-- Status: **open** | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: dart
 
 The dart caveat says 'For JSON numbers above 2^53 the parser silently picks `double`, so `format: int64` values larger than 9 007 199 254 740 991 ... lose precision'. On the Dart VM (Flutter mobile/desktop, server, the README's 'Native' platform), jsonDecode returns an exact 64-bit `int` for any integer literal that fits in int64. Only dart2js/web, where every number is a JS double, loses precision. The caveat warns native users about a loss that does not happen, and it does not scope the real loss to the web target. go/rust/swift/java etc. correctly state that int64 is unaffected.
@@ -5208,7 +5208,7 @@ Reviewer suspected this is forced: None.
 - `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java:550` — getPropertyOrDefault("licenseUrl", "https://opensource.org/licenses/" + licenseId);
 
 ## F381 [low] python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber`
-- Status: **open** | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L16-docs-packaging | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: python
 
 The python README 'OpenAPI type mapping' table lists `number` → `pydantic.StrictFloat`. Its own caveat 25 lines later says a bare `type: number` maps to `decimal.Decimal`, and the generated model uses `weight_kg: Optional[JsonNumber]` (the Decimal alias in _types.py). The table contradicts both the caveat and the code. The `format: date-time` row (`pydantic.AwareDatetime`) is also stale for model fields, which use the `OffsetDateTime` alias per R8-2.
@@ -5220,7 +5220,7 @@ Reviewer suspected this is forced: None.
 - `src/main/resources/templates/python/readme.mustache:59`
 
 ## F382 [low] Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree
-- Status: **open** | Lens: L17-gates | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L17-gates | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: elixir, php, swift
 
 elixir: ElixirLintingSpec says it runs 'The generated Makefile's build, lint and dialyzer targets: compile with warnings as errors'. The Makefile's build target is plain `mix compile`, and mix.exs sets no `elixirc_options: [warnings_as_errors: true]`, so a client's `make build` or `make lint` never enforces what the spec gates. php: PhpModernizationSpec says rector runs 'exactly as a client's `make format` runs it'. The php Makefile's format target is `vendor/bin/phpcbf || true`: no rector, and `|| true` swallows failures. Its lint target runs only phpcs, while PhpFormattingSpec also gates `php-cs-fixer check`. swift: the Makefile's `analyse` target (`swift build -Xswiftc -warnings-as-errors -Xswiftc -strict-concurrency=complete`) is never run by a spec. Package.swift's own comment says the generated code is not Sendable-clean ('aren't Sendable-compatible without significant refactor. Keep on v5 mode'), so this client-facing target very likely fails on the golden. That is likely but unverified, since swift-format and the SwiftPM build were not run.
@@ -5352,7 +5352,7 @@ Reviewer suspected this is forced: identifier casing is idiom, but the message i
 - `AGENTS.md:291` — php query/header/form use `{{baseName}}` in the message (matching java/kotlin)
 
 ## F393 [low] Elixir model docs carry no field example, contradicting 'scalar example in all 12'
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 AGENTS says model field docs carry the scalar `example` in all 12, and PARITY_TODO T3-4 (python/go/swift/elixir) is marked done. The other 11 goldens show `doggie` for Pet.name. The elixir Pet module has no field examples anywhere: not in @moduledoc and not as per-field notes. T3-5 says the moduledoc can carry per-model content, as the deprecated-field note already does, so this is not forced.
@@ -5361,7 +5361,7 @@ AGENTS says model field docs carry the scalar `example` in all 12, and PARITY_TO
 - `AGENTS.md:280` — Model field docs carry the scalar `example` in all 12.
 
 ## F394 [low] Minor factual misstatements in the forced-divergence and error-contract notes
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: php, swift, elixir
 
 (1) The php `errorCode` note says the SDK passes statusCode as the inherited `$code`, and calls errorCode 'the error-body code'. The only `errorCode` property is on OAuth2ServerException (the RFC 6749 error field), and that class calls `parent::__construct($message)` without a code, so `getCode()` returns 0 there. Only ApiException passes statusCode. (2) The error contract says swift caller mistakes such as 'a token requested before the auth code was exchanged' raise `ConfigurationError`. Swift actually throws its own `OAuth2AuthorizationCodeError.codeNotExchanged`, and rust has the same separate type. (3) The retryAfter note says 'the other ten non-elixir SDKs use their stdlib duration', implying elixir differs. Elixir types the field as a structured `Duration.t()` too, so swift is the only non-structured one.
@@ -5373,7 +5373,7 @@ AGENTS says model field docs carry the scalar `example` in all 12, and PARITY_TO
 - `AGENTS.md:181` — the other ten non-elixir SDKs use their stdlib duration
 
 ## F395 [low] Stale open or backwards status entries in AGENTS Round 7 and PARITY_TODO that the code has overtaken
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, php, ruby, rust, csharp, dart, elixir, go, python, swift, node
 
 (1) AGENTS Round 7 still says, in the present tense, that the OAuth2 unreserved set 'is NOT yet harmonized ... java/kotlin/php/ruby escape `~`', and PARITY_TODO R7-12 is still open. The code is canonical everywhere except swift's authorize URL: java/kotlin/ruby/node map `%7E`→`~` and `*`→`%2A`, php str_replace('%7E','~'), dart _rfc3986, rust's form_url_encode set is `-_.~`. (2) PARITY_TODO R7-T1, R7-T2 and R7-T3 are open, but the tests exist: an unsupported Content-Encoding test in all 10 manual-decompressor languages, full `when calling` message asserts in all 12 Pet API tests, and invalid-base64 byte-field tests in java/kotlin/csharp/dart/swift. (3) T2-1 says kotlin brotli/zstd/otel are mandatory and that br/zstd are advertised unconditionally, deferred. The kotlin golden makes otel compileOnly, gates br/zstd on class presence, and decodes them by reflection. (4) T2-8 is open, but rust auth/mod.rs declares every per-scheme module, and AGENTS itself treats T2-8 as landed. (5) T1-2 through T1-7, T1-9 and T1-10 are unchecked, yet AGENTS 'Resolved' records each as fixed.
@@ -5388,7 +5388,7 @@ AGENTS says model field docs carry the scalar `example` in all 12, and PARITY_TO
 - `src/spec/resources/generated/rust/src/auth/mod.rs:28` — pub mod pet_store_basic_authenticator;
 
 ## F396 [low] oneOf/anyOf no-match wording: the per-model path is neither consistent nor limited to the four languages AGENTS lists
-- Status: **open** | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, csharp, kotlin, ruby, elixir, rust, python
 
 AGENTS Round 8 says the per-model paths are 'kotlin `No oneOf variant of <X>…`, java/elixir/ruby `JSON did not match any schema in the <X> union`' and are 'consistent within each path'. PARITY_TODO R8-7 says oneOf/anyOf no-match was harmonized to one canonical string. The goldens disagree. csharp also has per-model wrappers. The java and csharp messages append the raw JSON (`...union: <raw>`), while ruby and elixir insert the keyword and give no body (`... SetPetAvatarThumbnailRequest oneOf union`). Rust has its own `PetTreatment: anyOf payload matched no member schema`, and python's wrapper raises `No match found when setting `actual_instance` in PetTreatment with anyOf schemas: ...`. That is at least six wordings for one failure.
@@ -5401,7 +5401,7 @@ AGENTS Round 8 says the per-model paths are 'kotlin `No oneOf variant of <X>…`
 - `AGENTS.md:313` — java/elixir/ruby `JSON did not match any schema in the <X> union` ... consistent within each path
 
 ## F397 [low] AGENTS says dart models already have a field-dumping toString; they do not, and go models print pointer addresses
-- Status: **open** | Lens: L21-api-surface | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L21-api-surface | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: dart, go
 
 AGENTS.md Resolved (T3-9) says java and csharp gained a field-dumping toString and that "node/dart already had `inspect`/`toString`", with go getting it from the language. In the dart golden no model class overrides toString. Of 31 model files, the only `toString` overrides belong to enum and value wrappers (`String toString() => value`). Pet, Category, Tag and the rest print `Instance of 'Pet'`. The dart model template emits `operator ==` and `hashCode` (lines 815/828) but no toString. Go models have no String() method and use pointer fields for every optional property (`Id *int64`, `Category *Category`, ...), so `fmt.Printf("%v", pet)` prints hex addresses for every optional field rather than values. The field dump the doc claims is not there. kotlin, rust, swift, python, ruby, elixir, java, csharp and node (util.inspect) do produce a value dump.
@@ -5565,7 +5565,7 @@ The error types correctly follow the AGENTS built-in-state-error rule, but the m
 - `src/spec/resources/generated/rust/src/default_api_client.rs:59` — `send_request*` call fails fast with an `ApiError`
 
 ## F410 [low] java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2
-- Status: **partial** (done in java; still open for kotlin) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin
 
 AGENTS/R6-2 make a br/zstd response arrived without the optional codec library a raised ApiException (php throw, ruby raise, as elixir does). python also raises, because the missing codec falls through to 'Unsupported Content-Encoding'. java decompressBrotli/decompressZstd and kotlin decodeViaInputStream instead catch ClassNotFoundException and return the raw compressed bytes, which then decode as garbage text or base64. This is reachable whenever a server ignores Accept-Encoding.
@@ -5574,7 +5574,7 @@ AGENTS/R6-2 make a br/zstd response arrived without the optional codec library a
 - `AGENTS.md:272` — php/ruby raise when a br/zstd response arrives but the optional codec lib is absent
 
 ## F411 [low] rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs
-- Status: **open** | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **open** (template/README text, not a rule document: still open) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: rust
 
 The trait impl documents close() as 'Releases the underlying transport'. It only stores closed=true. The reqwest::Client, with its pool, idle sockets and hyper connections, lives until the last Arc<dyn ApiClient> is dropped. The Client facade, every *Api and every HTTP-aware authenticator hold clones, so in practice it lives until all of them are dropped. java (HttpClient.close), go (CloseIdleConnections), python (pool clear), csharp (Dispose), kotlin (HttpClient.close), node (dispatcher.close), dart (client.close), swift (finishTasksAndInvalidate) and php (reset) do release their pools on close. elixir documents that its pool is global, and ruby has no pool (see the pooling finding). rust can hold Mutex<Option<reqwest::Client>> and take() it on close.
