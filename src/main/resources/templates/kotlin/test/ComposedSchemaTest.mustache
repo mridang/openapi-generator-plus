@@ -305,6 +305,17 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("missing required photoUrls array is rejected, not defaulted to empty")
+        fun missingRequiredPhotoUrlsThrows() {
+            val jsonString = """{"name":"doggie","ownerName":"John","ownerEmail":"john@example.com"}"""
+
+            val ex = assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetWithOwner>(jsonString)
+            }
+            assertTrue(ex.message!!.contains("photoUrls"), "message was: ${ex.message}")
+        }
+
+        @Test
         @DisplayName("round-trip preserves all fields")
         fun testRoundTrip() {
             val original = PetWithOwner(

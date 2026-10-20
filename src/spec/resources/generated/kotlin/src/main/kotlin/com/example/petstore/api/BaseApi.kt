@@ -19,7 +19,7 @@ import com.example.petstore.ValueSerializer
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
-import io.ktor.http.encodeURLQueryComponent
+import io.ktor.http.encodeURLParameter
 
 /**
  * Base class for all API classes. Provides the [invokeApi] method that
@@ -287,8 +287,10 @@ abstract class BaseApi {
             response.headers.entries
                 .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
                 ?.value ?: ""
+        // A void operation (T is Unit) never decodes its body: any success body,
+        // JSON or not, is ignored rather than cast or deserialized into Unit.
         val data: T? =
-            if (response.body.isNotEmpty()) {
+            if (response.body.isNotEmpty() && T::class != Unit::class) {
                 if (T::class == ByteArray::class) {
                     // Binary return types must never be JSON-deserialized, even
                     // when the negotiated response Content-Type is JSON (an
@@ -478,19 +480,23 @@ abstract class BaseApi {
     /**
      * URL-encode a string for an `application/x-www-form-urlencoded` body, where
      * a space is `+` (WHATWG form rules). Used by the form-body serializer.
+     * Everything except RFC 3986 unreserved characters is percent-encoded, so
+     * `&`, `=`, `+` and `#` in a key or value can never split or merge fields.
      *
      * @param value the string to encode
      * @return URL-encoded string
      */
-    internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
+    internal fun encode(value: String): String = value.encodeURLParameter(spaceToPlus = true)
 
     /**
      * URL-encode a string for a URI query component, where a space is `%20`
      * (RFC 3986), not `+`: a strict server reads `+` as a literal plus, and the
-     * other SDKs encode query spaces as `%20` too.
+     * other SDKs encode query spaces as `%20` too. Everything except RFC 3986
+     * unreserved characters is percent-encoded, so `&`, `=`, `+`, `#` and the
+     * brackets of a deepObject key never alter the query structure.
      *
      * @param value the string to encode
      * @return URL-encoded string
      */
-    internal fun encodeQuery(value: String): String = value.encodeURLQueryComponent(spaceToPlus = false)
+    internal fun encodeQuery(value: String): String = value.encodeURLParameter(spaceToPlus = false)
 }

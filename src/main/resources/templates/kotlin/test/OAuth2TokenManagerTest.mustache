@@ -472,6 +472,42 @@ class OAuth2TokenManagerTest {
         assertEquals("https://docs.example.com/errors/invalid_grant", ex.uri)
     }
 
+    private fun oauth2ErrorFor(body: String): OAuth2ServerException {
+        val client = FakeApiClient()
+        client.enqueue(body, statusCode = 400)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        return assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials")
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `token_endpoint_error_with_non_string_error_code_is_not_coerced`() {
+        // RFC 6749 §5.2: error is a string. A numeric error must not be coerced
+        // into the code "400"; the code stays null and the raw body is reported.
+        val ex = oauth2ErrorFor("""{"error":400}""")
+        assertNull(ex.code)
+        assertTrue(ex.message!!.contains("""{"error":400}"""), "message was: ${ex.message}")
+    }
+
+    @Test
+    fun `token_endpoint_error_with_non_string_description_keeps_the_code`() {
+        // A non-string error_description or error_uri is dropped independently
+        // and must not discard a valid error code.
+        val ex = oauth2ErrorFor(
+            """{"error":"invalid_grant","error_description":{"en":"x"},"error_uri":["u"]}"""
+        )
+        assertEquals("invalid_grant", ex.code)
+        assertNull(ex.description)
+        assertNull(ex.uri)
+    }
+
     @Test
     fun expiresInShortLivedTokenDoesNotStorm() {
         // Gap CM: short-lived token (expires_in < safety buffer) must produce

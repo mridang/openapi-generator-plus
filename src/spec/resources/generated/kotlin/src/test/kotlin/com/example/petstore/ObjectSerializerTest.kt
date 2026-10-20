@@ -376,6 +376,17 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("missing required array property throws instead of defaulting to empty")
+        fun missingRequiredArrayPropertyThrows() {
+            val json = "{\"name\":\"doggie\"}"
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Pet>(json)
+                }
+            assertTrue(ex.message!!.contains("photoUrls"), "message was: ${ex.message}")
+        }
+
+        @Test
         @DisplayName("deserializes a self-referential model preserving the nested child")
         fun deserializesSelfReferentialModel() {
             // TreeNode is recursive ({ value, child: TreeNode? }). The decoder
@@ -955,6 +966,7 @@ class ObjectSerializerTest {
             val pet =
                 com.example.petstore.models.Pet(
                     name = "fido",
+                    photoUrls = setOf("http://example.com/fido.png"),
                     weightKg = java.math.BigDecimal("1.5"),
                 )
             val json = serializer.serialize(pet)

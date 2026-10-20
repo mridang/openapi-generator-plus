@@ -181,7 +181,7 @@ class DefaultApiClient internal constructor(
             var currentMethod = method
             var currentBody: Any? = body
 
-            while (response.status.value in 300..399 && redirectsRemaining > 0) {
+            while (isRedirectStatus(response.status.value) && redirectsRemaining > 0) {
                 val location = response.headers[HttpHeaders.Location] ?: break
                 try {
                     response.bodyAsBytes() // consume redirect body to release the connection
@@ -298,7 +298,7 @@ class DefaultApiClient internal constructor(
             // Redirect budget exhausted but the server is still returning a
             // 3xx: fail loud instead of silently handing the caller the last
             // redirect response as if it were a normal result.
-            if (response.status.value in 300..399 && redirectsRemaining == 0) {
+            if (isRedirectStatus(response.status.value) && redirectsRemaining == 0) {
                 throw ApiException(
                     response.status.value,
                     "Too many redirects (exceeded maxRedirects=${transportOptions.maxRedirects ?: 20})",
@@ -494,6 +494,14 @@ class DefaultApiClient internal constructor(
     }
 }
 
+/**
+ * True for the statuses that carry a followable redirect: 301, 302, 303, 307 and
+ * 308. Other 3xx codes (300 Multiple Choices, 304, 305, 306) are not redirects to
+ * follow and surface to the caller as-is, as in the other SDKs.
+ */
+internal fun isRedirectStatus(status: Int): Boolean =
+    status == 301 || status == 302 || status == 303 || status == 307 || status == 308
+
 /** True when [className] is on the runtime classpath (optional codec libraries). */
 internal fun isCodecClassPresent(className: String): Boolean =
     runCatching { Class.forName(className) }.isSuccess
@@ -516,8 +524,8 @@ internal fun supportedEncodings(): String = buildString {
  * present; any other value is returned unchanged). Throws [java.io.IOException]
  * when the body is not valid for the declared encoding. br/zstd are reached
  * through reflection so the optional libraries can be `compileOnly` — an absent
- * library decodes to the raw bytes (the codec is never advertised, so a
- * conformant server will not have sent it).
+ * library raises [java.io.IOException] rather than returning the body still
+ * encoded (the codec is never advertised, so only a non-conformant server sends it).
  */
 internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): ByteArray {
     if (data.isEmpty()) return data
@@ -526,8 +534,8 @@ internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): By
             java.util.zip.GZIPInputStream(data.inputStream()).use { it.readBytes() }
         "deflate" ->
             java.util.zip.InflaterInputStream(data.inputStream()).use { it.readBytes() }
-        "br" -> decodeViaInputStream(data, "org.brotli.dec.BrotliInputStream")
-        "zstd" -> decodeViaInputStream(data, "com.github.luben.zstd.ZstdInputStream")
+        "br" -> decodeViaInputStream(data, "br", "org.brotli.dec.BrotliInputStream")
+        "zstd" -> decodeViaInputStream(data, "zstd", "com.github.luben.zstd.ZstdInputStream")
         "", "identity" -> data
         // An unrecognised (or multi-value) Content-Encoding is a response the
         // client cannot honour; raise so the caller surfaces an ApiException
@@ -538,24 +546,24 @@ internal fun decodeContentEncoding(data: ByteArray, contentEncoding: String): By
 }
 
 /**
- * Decode [data] through an optional codec whose decompressing `InputStream` class
- * is [className] and wraps a source `InputStream`. Returns the raw bytes when the
- * class is absent; wraps any reflective/IO failure in an [java.io.IOException].
+ * Decode [data] through an optional codec named [encoding] whose decompressing
+ * `InputStream` class is [className] and wraps a source `InputStream`. Raises
+ * [java.io.IOException] when the class is absent or fails to load, never returning
+ * the still-encoded bytes.
  */
-private fun decodeViaInputStream(data: ByteArray, className: String): ByteArray {
+internal fun decodeViaInputStream(data: ByteArray, encoding: String, className: String): ByteArray {
+    val unavailable = "Received a $encoding-encoded response but the $encoding library is unavailable"
     val cls = try {
         Class.forName(className)
-    } catch (_: ClassNotFoundException) {
-        return data
+    } catch (e: ClassNotFoundException) {
+        throw java.io.IOException(unavailable, e)
     }
     return try {
         val stream = cls.getConstructor(java.io.InputStream::class.java)
             .newInstance(data.inputStream()) as java.io.InputStream
         stream.use { it.readBytes() }
     } catch (e: ReflectiveOperationException) {
-        val enc = if (className.startsWith("org.brotli")) "br" else "zstd"
-        throw java.io.IOException(
-            "Received a $enc-encoded response but the $enc library is unavailable", e)
+        throw java.io.IOException(unavailable, e)
     }
 }
 

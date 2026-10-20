@@ -47,7 +47,7 @@ data class PetWithOwner(
      * The `photoUrls` property.
      */
     @SerialName("photoUrls")
-    val photoUrls: Set<String> = mutableSetOf(),
+    val photoUrls: Set<String>,
     /**
      * The `tags` property.
      */

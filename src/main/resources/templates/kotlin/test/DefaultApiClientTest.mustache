@@ -65,6 +65,16 @@ class DefaultApiClientTest {
         }
 
         @Test
+        @DisplayName("trusts every certificate in a multi-certificate CA bundle")
+        fun trustsEveryCertificateInBundle(@org.junit.jupiter.api.io.TempDir tempDir: java.nio.file.Path) {
+            val ca = java.io.File(caCertPath)
+            val bundle = java.io.File(tempDir.toFile(), "bundle.pem")
+            bundle.writeText(ca.resolveSibling("server.pem").readText() + ca.readText())
+            val issuers = loadCaCertTrustManager(bundle.absolutePath).acceptedIssuers
+            assertEquals(2, issuers.size, "both bundle certificates must be trust anchors")
+        }
+
+        @Test
         @DisplayName("makes HTTPS request with custom CA cert")
         fun makesHttpsRequestWithCustomCaCert() {
             val chasmUrl = ChasmContainer.getHttpsBaseUrl()

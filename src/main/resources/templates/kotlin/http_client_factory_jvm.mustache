@@ -118,16 +118,23 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
         // not strip credentials cross-origin, so we never install it here.
     }
 
-private fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
+/**
+ * Loads every certificate in a PEM bundle (a root plus intermediates, or two roots
+ * during a CA rotation) into the trust store, not just the first one.
+ */
+internal fun loadCaCertTrustManager(caCertPath: String): X509TrustManager =
     try {
         val cf = CertificateFactory.getInstance("X.509")
-        val caCert =
+        val caCerts =
             FileInputStream(caCertPath).use { fis ->
-                cf.generateCertificate(fis) as X509Certificate
+                cf.generateCertificates(fis).map { it as X509Certificate }
             }
+        if (caCerts.isEmpty()) {
+            throw java.security.cert.CertificateException("no certificate found in the file")
+        }
         val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
         trustStore.load(null, null)
-        trustStore.setCertificateEntry("ca", caCert)
+        caCerts.forEachIndexed { index, caCert -> trustStore.setCertificateEntry("ca-$index", caCert) }
         val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
         tmf.init(trustStore)
         tmf.trustManagers[0] as X509TrustManager

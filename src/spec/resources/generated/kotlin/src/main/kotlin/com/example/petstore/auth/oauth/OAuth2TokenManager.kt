@@ -17,9 +17,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import kotlin.math.floor
@@ -275,16 +273,25 @@ class OAuth2TokenManager {
     ): OAuth2ServerException {
         try {
             val root = json.parseToJsonElement(body).jsonObject
-            val code = root["error"]?.jsonPrimitive?.contentOrNull
+            val code = jsonStringOrNull(root["error"])
             if (!code.isNullOrEmpty()) {
-                val description = root["error_description"]?.jsonPrimitive?.contentOrNull
-                val uri = root["error_uri"]?.jsonPrimitive?.contentOrNull
+                val description = jsonStringOrNull(root["error_description"])
+                val uri = jsonStringOrNull(root["error_uri"])
                 return OAuth2ServerException(statusCode, code, description, uri, body)
             }
         } catch (_: Exception) {
             // Not a JSON body; fall through and report the raw body.
         }
         return OAuth2ServerException(statusCode, null, null, null, body)
+    }
+
+    /**
+     * Returns the element's text only when it is a JSON string; a number,
+     * boolean, object, array or null yields `null` instead of being coerced.
+     */
+    private fun jsonStringOrNull(element: JsonElement?): String? {
+        val primitive = element as? JsonPrimitive ?: return null
+        return if (primitive.isString) primitive.content else null
     }
 
     /**

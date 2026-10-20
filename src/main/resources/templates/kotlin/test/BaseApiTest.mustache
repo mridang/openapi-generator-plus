@@ -610,6 +610,19 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("form-urlencoded body percent-encodes reserved characters in keys and values")
+        fun formUrlencodedBodyEncodesReservedCharacters() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/test/echo",
+                    body = mapOf("note" to "a&b=c+d #e/f?", "k=v" to "C++"),
+                    contentType = "application/x-www-form-urlencoded")
+            }
+            assertEquals("note=a%26b%3Dc%2Bd+%23e%2Ff%3F&k%3Dv=C%2B%2B", client.capturedBody.toString())
+        }
+
+        @Test
         @DisplayName("passes binary body as-is")
         fun passesBinaryBody() {
             val client = CapturingApiClient()
@@ -691,6 +704,21 @@ class BaseApiTest {
                 testApi.call("GET", "/test/echo", queryParams = mutableMapOf())
             }
             // No exception means success
+        }
+
+        @Test
+        @DisplayName("percent-encodes reserved characters in query keys and values")
+        fun percentEncodesReservedCharactersInQuery() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/test/echo", queryParams = mutableMapOf(
+                    "category" to "a&b=c+d #e/f?",
+                    "filter[name]" to "x"))
+            }
+            assertEquals(
+                "http://localhost/test/echo?category=a%26b%3Dc%2Bd%20%23e%2Ff%3F&filter%5Bname%5D=x",
+                client.capturedUrl)
         }
 
         @Test
@@ -895,6 +923,39 @@ class BaseApiTest {
             }
             assertNotNull(result.data)
             assertEquals("value", result.data?.get("key"))
+        }
+
+        @Test
+        @DisplayName("void operation ignores a text/plain success body")
+        fun voidOperationIgnoresTextBody() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "Deleted", mapOf("Content-Type" to "text/plain"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking { testApi.callForResult<Unit>("DELETE", "/test/echo") }
+            assertEquals(200, result.statusCode)
+            assertNull(result.data)
+            assertEquals("Deleted", result.rawBody)
+        }
+
+        @Test
+        @DisplayName("void operation ignores a non-object JSON success body")
+        fun voidOperationIgnoresNonObjectJsonBody() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?, noRedirect: Boolean
+                ): ApiHttpResponse {
+                    return ApiHttpResponse(200, "true", mapOf("Content-Type" to "application/json"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking { testApi.callForResult<Unit>("DELETE", "/test/echo") }
+            assertEquals(200, result.statusCode)
+            assertNull(result.data)
         }
 
         @Test

@@ -986,6 +986,38 @@ class DefaultApiClientUnitTest {
                 "exception should report redirect exhaustion, got: ${ex.message}",
             )
         }
+
+        @Test
+        @DisplayName("300 and 305 with a Location are returned as-is, never followed")
+        fun nonRedirectThreeXxStatusesAreNotFollowed() {
+            for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
+                var hopCount = 0
+                val engine =
+                    MockEngine { _ ->
+                        hopCount++
+                        respond(
+                            content = "",
+                            status = status,
+                            headers = headersOf("Location", "http://localhost/elsewhere"),
+                        )
+                    }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                val response =
+                    runBlocking {
+                        apiClient.sendRequest("GET", "http://localhost/start", emptyMap(), null)
+                    }
+                assertEquals(status.value, response.statusCode)
+                assertEquals(1, hopCount, "${status.value} must not be followed")
+            }
+        }
+
+        @Test
+        @DisplayName("only 301, 302, 303, 307 and 308 are redirect statuses")
+        fun redirectStatusSetIsExact() {
+            val redirects = (300..399).filter { isRedirectStatus(it) }
+            assertEquals(listOf(301, 302, 303, 307, 308), redirects)
+        }
     }
 
     @Nested
@@ -1079,6 +1111,21 @@ class DefaultApiClientUnitTest {
             assertEquals(200, ex.statusCode)
             assertFalse(ex is com.example.petstore.errors.NetworkException, "an unsupported encoding is not a network failure")
             assertInstanceOf(java.io.IOException::class.java, ex.cause)
+        }
+
+        @Test
+        @DisplayName("br and zstd without their codec library raise instead of returning the encoded body")
+        fun missingCodecLibraryRaises() {
+            for (encoding in listOf("br", "zstd")) {
+                val ex =
+                    assertThrows(java.io.IOException::class.java) {
+                        decodeViaInputStream("payload".toByteArray(), encoding, "no.such.$encoding.InputStream")
+                    }
+                assertEquals(
+                    "Received a $encoding-encoded response but the $encoding library is unavailable",
+                    ex.message,
+                )
+            }
         }
 
         @Test
