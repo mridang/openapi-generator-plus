@@ -350,6 +350,67 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void expiresInWithTypeSuffixIsTreatedAsStale() {
+        // Double.parseDouble accepts "3600d"; the grammar is decimal digits with
+        // an optional fraction, so this is unusable and the token is not cached.
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            int n = callCount.incrementAndGet();
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"sfx" + n + "\",\"expires_in\":\"3600d\"}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        assertEquals("sfx1", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("sfx2", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(2, callCount.get(),
+                "an expires_in with a type suffix must not produce a cached expiry");
+    }
+
+    @Test
+    void expiresInQuotedWithTrailingNewlineIsAccepted() {
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"nl-tok\",\"expires_in\":\"3600\\n\"}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        manager.getAccessToken("https://auth.example.com/token", params);
+        manager.getAccessToken("https://auth.example.com/token", params);
+        assertEquals(1, callCount.get(),
+                "surrounding whitespace is trimmed before the digit grammar is applied");
+    }
+
+    @Test
+    void nonJsonTokenBodyIsNotEchoedIntoTheError() {
+        // A form-encoded 2xx answer carries the token itself; Jackson's parse
+        // message quotes the text, so the error must not repeat it.
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(200, "access_token=gho_SECRET123&token_type=bearer"));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        OAuth2TokenException ex = assertThrowsExactly(
+                OAuth2TokenException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("Token response is not valid JSON", ex.getMessage());
+        assertNull(ex.getCause());
+    }
+
+    @Test
     void expiresInAsFloatIsFloored() {
         // D1: some providers send expires_in as a JSON float (e.g. 3600.5).
         // The manager must floor it and cache the token; a second call within

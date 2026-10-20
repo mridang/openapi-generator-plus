@@ -15,6 +15,7 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -32,6 +33,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.type.LogicalType;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -442,7 +444,8 @@ public final class ObjectSerializer {
    * Build a Jackson module that serializes {@link OffsetDateTime} with {@link #DATE_TIME_FORMATTER}
    * so JSON bodies carry the canonical {@code YYYY-MM-DDTHH:mm:ss.SSS+00:00} shape (fixed
    * three-digit millis, numeric offset, never {@code Z}) — identical to the parameter path and the
-   * other eleven SDKs. Deserialization is left to {@code JavaTimeModule}.
+   * other eleven SDKs. Deserialization is left to {@code JavaTimeModule} for JSON strings only; any
+   * other JSON type is rejected.
    *
    * @return the date-time module
    */
@@ -456,6 +459,22 @@ public final class ObjectSerializer {
               OffsetDateTime value, JsonGenerator gen, SerializerProvider provider)
               throws IOException {
             gen.writeString(DATE_TIME_FORMATTER.format(value));
+          }
+        });
+    /* JavaTimeModule's own deserializer also accepts a JSON number (epoch
+    seconds) or array for an OffsetDateTime, which the other SDKs reject
+    (or read as a different instant). Only a JSON string is a date-time
+    on the wire, so hand strings to the stock parser and fail the rest. */
+    module.addDeserializer(
+        OffsetDateTime.class,
+        new JsonDeserializer<OffsetDateTime>() {
+          @Override
+          public OffsetDateTime deserialize(JsonParser parser, DeserializationContext context)
+              throws IOException {
+            if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+              return (OffsetDateTime) context.handleUnexpectedToken(OffsetDateTime.class, parser);
+            }
+            return InstantDeserializer.OFFSET_DATE_TIME.deserialize(parser, context);
           }
         });
     return module;
@@ -647,6 +666,12 @@ public final class ObjectSerializer {
       }
       return true;
     }
+    /* BigDecimal.equals compares scale too, so 1.5 and 1.50 differ; two
+    decimals are equal when they are numerically equal. */
+    if (left instanceof java.math.BigDecimal leftDecimal
+        && right instanceof java.math.BigDecimal rightDecimal) {
+      return leftDecimal.compareTo(rightDecimal) == 0;
+    }
     return left.equals(right);
   }
 
@@ -685,6 +710,10 @@ public final class ObjectSerializer {
         hash = 31 * hash + structuralHashCode(item);
       }
       return hash;
+    }
+    /* Numerically equal decimals must hash alike whatever their scale. */
+    if (value instanceof java.math.BigDecimal decimal) {
+      return decimal.signum() == 0 ? 0 : decimal.stripTrailingZeros().hashCode();
     }
     return value.hashCode();
   }

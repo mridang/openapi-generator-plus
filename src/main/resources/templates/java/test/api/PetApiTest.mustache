@@ -65,6 +65,15 @@ class PetApiTest {
     }
 
     @Test
+    void testSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
+        String baseUrl = ChasmContainer.getBaseUrl();
+        assertThat(bearerAuth.toString())
+                .isEqualTo("PetStoreBearerAuthenticator(host=" + baseUrl + ", token=***)");
+        assertThat(basicAuth.toString())
+                .isEqualTo("AdminBasicAuthenticator(host=" + baseUrl + ", username=admin, password=***)");
+    }
+
+    @Test
     void testAddPet() throws Exception {
         Pet pet = new Pet();
         pet.id = 12345L;
@@ -560,6 +569,21 @@ class PetApiTest {
         assertThatThrownBy(() -> petApi.uploadPetDocument(1L, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Missing the required parameter 'file' when calling PetApi.uploadPetDocument");
+        assertThat(capturing.capturedUrl).isNull();
+    }
+
+    @Test
+    /* A null path parameter beside a null required Options object is the
+     * violation under test; NullAway forbids it by design. */
+    @SuppressWarnings("NullAway")
+    void nullPathParameterIsReportedBeforeANullRequiredOptions() {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        assertThatThrownBy(() -> petApi.addPetPhotos(null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing the required parameter 'petId' when calling PetApi.addPetPhotos");
         assertThat(capturing.capturedUrl).isNull();
     }
 

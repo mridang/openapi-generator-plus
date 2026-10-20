@@ -42,4 +42,16 @@ public final class SessionCookieAuthenticator extends BaseAuthenticator {
   public Map<String, String> getCookieParams() {
     return delegate.getCookieParams();
   }
+
+  /**
+   * Returns the delegate's redacted representation under this wrapper's own class name, so the
+   * credential never leaks and the type stays visible.
+   *
+   * @return a redacted string representation
+   */
+  @Override
+  public String toString() {
+    String repr = delegate.toString();
+    return getClass().getSimpleName() + repr.substring(repr.indexOf('('));
+  }
 }

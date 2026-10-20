@@ -105,4 +105,13 @@ class OAuth2ImplicitAuthenticatorTest {
     assertFalse(repr.contains("implicit-tok"));
     assertTrue(repr.contains("***"));
   }
+
+  @Test
+  @DisplayName(
+      "the access token is volatile so a callback-thread write is visible to request threads")
+  void accessTokenFieldIsVolatile() throws NoSuchFieldException {
+    assertTrue(
+        java.lang.reflect.Modifier.isVolatile(
+            OAuth2ImplicitAuthenticator.class.getDeclaredField("accessToken").getModifiers()));
+  }
 }

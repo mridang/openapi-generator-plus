@@ -434,6 +434,27 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("query key and value keep only the RFC 3986 unreserved set literal")
+    void queryEncodingKeepsOnlyUnreservedLiteral() throws ApiException {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, Object> queryParams = new HashMap<>();
+      queryParams.put("k~*", "a~b*c!d'e(f)g h");
+      testApi.call(
+          "GET",
+          "/test/echo",
+          queryParams,
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          null,
+          null);
+      assertEquals(
+          "http://localhost/test/echo?k~%2A=a~b%2Ac%21d%27e%28f%29g%20h", client.capturedUrl);
+    }
+
+    @Test
     @DisplayName("serializes boolean query params")
     void serializesBooleanQueryParams() throws ApiException {
       var client = new CapturingApiClient();
@@ -1016,6 +1037,26 @@ class BaseApiTest {
       String wire = client.capturedBody.toString();
       assertEquals("full+name=Ada+Lovelace", wire);
       assertFalse(wire.contains("%20"));
+    }
+
+    @Test
+    @DisplayName("form-urlencoded body keeps ~ literal and escapes *")
+    void formUrlencodedBodyKeepsOnlyUnreservedLiteral() throws ApiException {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, String> formParams = new java.util.LinkedHashMap<>();
+      formParams.put("k~*", "a~b*c!d'e(f)g h");
+      testApi.call(
+          "POST",
+          "/test/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          formParams,
+          new String[] {"application/json"},
+          "application/x-www-form-urlencoded",
+          null,
+          null);
+      assertEquals("k~%2A=a~b%2Ac%21d%27e%28f%29g+h", client.capturedBody);
     }
 
     @Test

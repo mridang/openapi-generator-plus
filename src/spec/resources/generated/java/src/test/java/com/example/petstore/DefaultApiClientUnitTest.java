@@ -131,6 +131,39 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/redirect-query-only/item",
+        exchange -> {
+          String query = exchange.getRequestURI().getRawQuery();
+          if (!"page=2".equals(query)) {
+            exchange.getResponseHeaders().add("Location", "?page=2");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+            return;
+          }
+          byte[] body =
+              (exchange.getRequestURI().getRawPath() + "?" + query)
+                  .getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/stalled-body",
+        exchange -> {
+          // Headers promise 100 bytes, three arrive, then the server stalls.
+          exchange.sendResponseHeaders(200, 100);
+          OutputStream os = exchange.getResponseBody();
+          os.write(new byte[] {1, 2, 3});
+          os.flush();
+          try {
+            Thread.sleep(2500);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          exchange.close();
+        });
+    server.createContext(
         "/redirect-loop",
         exchange -> {
           exchange.getResponseHeaders().add("Location", "/redirect-loop");
@@ -239,6 +272,14 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    // A handler that stalls (/stalled-body) must not hold up the other requests.
+    server.setExecutor(
+        java.util.concurrent.Executors.newCachedThreadPool(
+            task -> {
+              Thread thread = new Thread(task);
+              thread.setDaemon(true);
+              return thread;
+            }));
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -612,6 +653,27 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void stalledResponseBodyRaisesNetworkTimeoutException() {
+    // The request timeout is documented as end-to-end, so a server that sends
+    // the headers and then stalls the body must time out, not block until it
+    // gives up (the JDK stops its own request timer once headers arrive).
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().timeout(400).build());
+    long started = System.nanoTime();
+    com.example.petstore.errors.NetworkTimeoutException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkTimeoutException.class,
+            () -> client.sendRequest("GET", baseUrl + "/stalled-body", Map.of(), null));
+    long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
+    assertTrue(
+        elapsedMillis < 2000,
+        "must time out near the 400 ms budget, took " + elapsedMillis + " ms");
+    assertEquals(0, ex.getStatusCode());
+    assertTrue(
+        ex.getCause() instanceof java.net.http.HttpTimeoutException,
+        "cause should be the JDK timeout exception, was: " + ex.getCause());
+  }
+
+  @Test
   void httpsToHttpBodyReplayGuardIgnoredForSameSchemeRedirects() {
     java.net.URI httpOrig = java.net.URI.create("http://api.example.com/x");
     java.net.URI httpTarg = java.net.URI.create("http://api.example.com/y");
@@ -935,6 +997,18 @@ class DefaultApiClientUnitTest {
         client.sendRequest("GET", baseUrl + "/redirect-no-location", Map.of(), null);
     assertEquals(302, response.statusCode());
     assertEquals("moved", response.body());
+  }
+
+  @Test
+  void queryOnlyRedirectLocationKeepsTheBasePath() throws Exception {
+    // RFC 3986 section 5.2: a query-only reference swaps the query and keeps the
+    // path; java.net.URI.resolve (RFC 2396) would have requested the directory.
+    TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/redirect-query-only/item?x=1", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("/redirect-query-only/item?page=2", response.body());
   }
 
   @Test

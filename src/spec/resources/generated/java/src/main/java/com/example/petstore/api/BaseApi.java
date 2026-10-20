@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.ObjectSerializer;
+import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
 import java.io.ByteArrayInputStream;
@@ -246,32 +247,25 @@ public abstract class BaseApi {
          *     (exploded, e.g. tags=a&tags=b — never tags=a,b or
          *     tags[]=);
          *   - null/absent fields are omitted entirely;
-         *   - URLEncoder uses application/x-www-form-urlencoded rules,
-         *     so a space becomes '+'. */
+         *   - a space becomes '+' (form rules) and exactly the RFC 3986
+         *     unreserved set (A-Za-z0-9-._~) stays literal, so '*' is
+         *     %2A and '~' is '~' (see formEncode). */
         StringJoiner joiner = new StringJoiner("&");
         for (Map.Entry<?, ?> entry : formParams.entrySet()) {
           Object value = entry.getValue();
           if (value == null) {
             continue;
           }
-          String key = URLEncoder.encode(String.valueOf(entry.getKey()), StandardCharsets.UTF_8);
+          String key = formEncode(String.valueOf(entry.getKey()));
           if (value instanceof Iterable<?> values) {
             for (Object element : values) {
               if (element == null) {
                 continue;
               }
-              joiner.add(
-                  key
-                      + "="
-                      + URLEncoder.encode(
-                          ObjectSerializer.toFormValue(element), StandardCharsets.UTF_8));
+              joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(element)));
             }
           } else {
-            joiner.add(
-                key
-                    + "="
-                    + URLEncoder.encode(
-                        ObjectSerializer.toFormValue(value), StandardCharsets.UTF_8));
+            joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(value)));
           }
         }
         requestBody = joiner.toString();
@@ -563,7 +557,25 @@ public abstract class BaseApi {
      * but RFC 3986 requires %20 in a query component (a strict server reads
      * '+' as a literal plus), so map '+' back to %20. A literal '+' in the
      * input is already escaped to %2B by URLEncoder, so only spaces are
-     * rewritten. The other SDKs emit %20 here too. */
-    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+     * rewritten. URLEncoder also keeps '*' literal and escapes '~' to %7E,
+     * the reverse of the RFC 3986 unreserved set (A-Za-z0-9-._~), so
+     * normalise both to match the other SDKs. */
+    return URLEncoder.encode(value, StandardCharsets.UTF_8)
+        .replace("+", "%20")
+        .replace("*", "%2A")
+        .replace("%7E", "~");
+  }
+
+  /**
+   * Percent-encode an application/x-www-form-urlencoded key or value.
+   *
+   * <p>A space stays '+' (the form convention). URLEncoder keeps '*' literal and escapes '~' to
+   * %7E, so normalise both to the RFC 3986 unreserved set.
+   *
+   * @param value the string to encode
+   * @return the form-encoded string
+   */
+  static String formEncode(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("*", "%2A").replace("%7E", "~");
   }
 }

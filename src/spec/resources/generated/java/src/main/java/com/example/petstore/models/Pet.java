@@ -209,7 +209,7 @@ public class Pet {
         && java.util.Objects.equals(this.thumbnailRef, other.thumbnailRef)
         && java.util.Objects.equals(this.linkTemplate, other.linkTemplate)
         && java.util.Objects.equals(this.ownerEmail, other.ownerEmail)
-        && java.util.Objects.equals(this.weightKg, other.weightKg);
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.weightKg, other.weightKg);
   }
 
   @Override
@@ -226,7 +226,7 @@ public class Pet {
         thumbnailRef,
         linkTemplate,
         ownerEmail,
-        weightKg);
+        com.example.petstore.ObjectSerializer.structuralHashCode(weightKg));
   }
 
   @Override

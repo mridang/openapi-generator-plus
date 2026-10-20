@@ -38,7 +38,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     private final String             redirectUri;
     private final List<String>       scopes;
     private final OAuth2TokenManager tokenManager;
-    private boolean                  tokenExchanged;
+    private volatile boolean         tokenExchanged;
 
     /**
      * Create a new authorization code authenticator.

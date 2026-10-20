@@ -228,4 +228,12 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertFalse(repr.contains("my-client-secret"));
         assertTrue(repr.contains("***"));
     }
+
+    @Test
+    @DisplayName("tokenExchanged is volatile so a callback-thread write is visible to request threads")
+    void tokenExchangedFieldIsVolatile() throws NoSuchFieldException {
+        assertTrue(java.lang.reflect.Modifier.isVolatile(
+                OAuth2AuthorizationCodeAuthenticator.class
+                        .getDeclaredField("tokenExchanged").getModifiers()));
+    }
 }

@@ -487,7 +487,7 @@ public final class DefaultApiClient implements ApiClient {
           if (location == null) {
             break;
           }
-          URI redirectUri = originalUri.resolve(location);
+          URI redirectUri = resolveLocation(originalUri, location);
           /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
            * data:, etc.). URI.resolve() preserves whatever scheme the
            * server returned in Location, so a malicious or
@@ -660,14 +660,51 @@ public final class DefaultApiClient implements ApiClient {
   private HttpResponse<byte[]> sendWithRetry(HttpRequest request)
       throws IOException, InterruptedException {
     try {
-      return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+      return sendBounded(request);
     } catch (IOException e) {
       String message = e.getMessage();
       if (message != null
           && message.contains("header parser received no bytes")
           && isIdempotentMethod(request.method())) {
-        return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        return sendBounded(request);
       }
+      throw e;
+    }
+  }
+
+  /**
+   * Send one request and wait for the whole response, body included, within the request's timeout.
+   * {@link HttpRequest#timeout()} stops counting once the response headers arrive, so a server that
+   * sends headers and then stalls the body would otherwise block {@code send} indefinitely; the
+   * timeout documented as end-to-end must cover the body read as well.
+   */
+  private HttpResponse<byte[]> sendBounded(HttpRequest request)
+      throws IOException, InterruptedException {
+    java.util.Optional<Duration> timeout = request.timeout();
+    if (timeout.isEmpty()) {
+      return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+    }
+    java.util.concurrent.CompletableFuture<HttpResponse<byte[]>> pending =
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray());
+    try {
+      return pending.get(timeout.get().toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+    } catch (java.util.concurrent.TimeoutException e) {
+      pending.cancel(true);
+      throw new HttpTimeoutException("request timed out");
+    } catch (java.util.concurrent.ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof IOException io) {
+        throw io;
+      }
+      if (cause instanceof RuntimeException runtime) {
+        throw runtime;
+      }
+      if (cause instanceof Error error) {
+        throw error;
+      }
+      throw new IOException(e);
+    } catch (InterruptedException e) {
+      pending.cancel(true);
       throw e;
     }
   }
@@ -685,6 +722,29 @@ public final class DefaultApiClient implements ApiClient {
         || statusCode == 303
         || statusCode == 307
         || statusCode == 308;
+  }
+
+  /**
+   * Resolve a redirect {@code Location} against the URI it answered.
+   *
+   * <p>{@link URI#resolve(String)} follows RFC 2396, which replaces the last path segment for a
+   * query-only reference ({@code ?page=2}); RFC 3986 keeps the base path and swaps only the query.
+   * That case is resolved here, every other reference goes through {@code URI.resolve}.
+   */
+  private static URI resolveLocation(URI base, String location) {
+    if (location.startsWith("?")) {
+      String baseText = base.toString();
+      int cut = baseText.indexOf('#');
+      if (cut >= 0) {
+        baseText = baseText.substring(0, cut);
+      }
+      cut = baseText.indexOf('?');
+      if (cut >= 0) {
+        baseText = baseText.substring(0, cut);
+      }
+      return URI.create(baseText + location);
+    }
+    return base.resolve(location);
   }
 
   /**

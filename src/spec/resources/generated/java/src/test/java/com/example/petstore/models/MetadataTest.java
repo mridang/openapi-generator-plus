@@ -84,6 +84,16 @@ class MetadataTest {
   }
 
   @Test
+  void testPomLicenseNameAndUrlComeFromTheSameLicense() throws IOException {
+    String contents = Files.readString(Path.of("pom.xml"));
+    Matcher matcher =
+        Pattern.compile("<license>\\s*<name>(.*?)</name>\\s*<url>(.*?)</url>").matcher(contents);
+    assertThat(matcher.find()).as("pom.xml must declare a license name and url").isTrue();
+    assertThat(matcher.group(1)).isEqualTo("MIT");
+    assertThat(matcher.group(2)).isEqualTo("https://opensource.org/licenses/MIT");
+  }
+
+  @Test
   void testDeclaredDevDependenciesAreInTheProjectManifest() throws IOException {
     Path declared = Path.of(".openapi-generator", "DEV-DEPENDENCIES");
     assertThat(Files.exists(declared))

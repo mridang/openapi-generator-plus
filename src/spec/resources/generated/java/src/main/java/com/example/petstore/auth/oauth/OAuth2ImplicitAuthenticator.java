@@ -38,7 +38,7 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   private final String clientId;
   private final String authorizationUrl;
   private final List<String> scopes;
-  @Nullable private String accessToken;
+  @Nullable private volatile String accessToken;
 
   /**
    * Create a new implicit flow authenticator.
@@ -112,10 +112,13 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
 
   @Override
   public Map<String, String> getAuthHeaders() {
-    if (accessToken == null) {
+    /* setAccessToken is typically called from a callback thread; read the
+     * volatile field once so the null check and the header agree. */
+    String token = accessToken;
+    if (token == null) {
       throw new IllegalStateException("Must set the access token before making API requests");
     }
-    return Collections.singletonMap("Authorization", "Bearer " + accessToken);
+    return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 
   private static String encode(String value) {

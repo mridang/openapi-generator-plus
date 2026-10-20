@@ -395,6 +395,38 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("numeric date-time is rejected instead of read as epoch seconds")
+    void numericDateTimeThrows() {
+      assertDateTimeRejected("{\"shipDate\":1700000000}");
+    }
+
+    @Test
+    @DisplayName("boolean date-time is rejected")
+    void booleanDateTimeThrows() {
+      assertDateTimeRejected("{\"shipDate\":true}");
+    }
+
+    @Test
+    @DisplayName("array date-time is rejected")
+    void arrayDateTimeThrows() {
+      assertDateTimeRejected("{\"shipDate\":[2023,11,14,22,13,20]}");
+    }
+
+    private void assertDateTimeRejected(String json) {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () -> serializer.deserialize(json, com.example.petstore.models.Order.class));
+      com.fasterxml.jackson.databind.exc.MismatchedInputException cause =
+          assertInstanceOf(
+              com.fasterxml.jackson.databind.exc.MismatchedInputException.class, ex.getCause());
+      String message = java.util.Objects.requireNonNull(cause.getMessage());
+      assertTrue(
+          message.startsWith("Cannot deserialize value of type `java.time.OffsetDateTime`"),
+          "unexpected message: " + message);
+    }
+
+    @Test
     @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
     void roundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
@@ -1110,6 +1142,31 @@ class ObjectSerializerTest {
           0,
           new java.math.BigDecimal("1.5").compareTo(back.weightKg),
           "weightKg must round-trip as numeric 1.5, got: " + back.weightKg);
+    }
+
+    @Test
+    @DisplayName("models decoded from 1.5 and 1.50 are equal and hash alike")
+    void decimalScaleDoesNotAffectModelEquality() {
+      String prefix = "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"weightKg\":";
+      com.example.petstore.models.Pet one =
+          serializer.deserialize(prefix + "1.5}", com.example.petstore.models.Pet.class);
+      com.example.petstore.models.Pet two =
+          serializer.deserialize(prefix + "1.50}", com.example.petstore.models.Pet.class);
+      assertNotNull(one);
+      assertNotNull(two);
+      assertEquals(one, two);
+      assertEquals(one.hashCode(), two.hashCode());
+    }
+
+    @Test
+    @DisplayName("models decoded from different decimals stay unequal")
+    void differentDecimalsStayUnequal() {
+      String prefix = "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"weightKg\":";
+      com.example.petstore.models.Pet one =
+          serializer.deserialize(prefix + "1.5}", com.example.petstore.models.Pet.class);
+      com.example.petstore.models.Pet two =
+          serializer.deserialize(prefix + "1.51}", com.example.petstore.models.Pet.class);
+      assertNotEquals(one, two);
     }
   }
 

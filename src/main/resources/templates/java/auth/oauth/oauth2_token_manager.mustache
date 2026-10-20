@@ -225,8 +225,11 @@ public class OAuth2TokenManager {
                 }
             }
         } catch (IOException e) {
-            /* A 2xx answer whose body is not JSON is unusable. */
-            throw new OAuth2TokenException("Token response is not valid JSON: " + e.getMessage(), e);
+            /* A 2xx answer whose body is not JSON is unusable. Neither the
+             * parser's message nor the exception is passed on: Jackson quotes
+             * the offending text, which can be the access or refresh token of
+             * a form-encoded answer. */
+            throw new OAuth2TokenException("Token response is not valid JSON");
         }
     }
 
@@ -299,11 +302,12 @@ public class OAuth2TokenManager {
             if (text.isEmpty()) {
                 return 0L;
             }
-            try {
-                return (long) Math.floor(Double.parseDouble(text));
-            } catch (NumberFormatException nfe) {
+            /* Decimal digits with an optional fraction only: Double.parseDouble
+             * would also take a type suffix ("3600d"), an exponent or "NaN". */
+            if (!text.matches("\\d+(\\.\\d+)?")) {
                 return 0L;
             }
+            return (long) Math.floor(Double.parseDouble(text));
         }
         return 0L;
     }
