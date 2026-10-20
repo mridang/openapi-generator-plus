@@ -521,6 +521,46 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestGetStagingPetInfoUsesTheResolvedVariableUrl()
+    {
+        {{! The operation's server has two enum variables. The chosen variant }}
+        {{! resolves them into the URL the SDK asks for; the client below sends }}
+        {{! that request to the mock server and records the requested URL. }}
+        const string stagingServer = "https://sandbox.example.com/api/v2";
+        var redirecting = new RedirectingApiClient(stagingServer, _baseUrl);
+        var stagingApi = new PetApi(redirecting, _config);
+
+        var result = await stagingApi.GetStagingPetInfoAsync(
+            1L,
+            new GetStagingPetInfoServerStagingServer(
+                GetStagingPetInfoServerEnvironment.SANDBOX, GetStagingPetInfoServerVersion.V2));
+
+        Assert.NotNull(result);
+        var requested = Assert.Single(redirecting.RequestedUrls);
+        Assert.Equal(stagingServer + "/pet/1/staging", requested.ToString());
+    }
+
+    [Fact]
+    public async Task TestPerOperationServerVariantsResolveIntoTheRequestedUrl()
+    {
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetStagingPetInfoAsync(
+            1L,
+            new GetStagingPetInfoServerStagingServer(
+                GetStagingPetInfoServerEnvironment.STAGING, GetStagingPetInfoServerVersion.V3));
+        Assert.Equal("https://staging.example.com/api/v3/pet/1/staging", client.CapturedUrl!.AbsoluteUri);
+
+        await api.GetMultiServerPetInfoAsync(1L, new GetMultiServerPetInfoServerPrimary());
+        Assert.Equal("https://primary.example.com/v1/pet/1/multi", client.CapturedUrl!.AbsoluteUri);
+
+        await api.GetMultiServerPetInfoAsync(
+            1L, new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.AP));
+        Assert.Equal("https://ap.example.com/v1/pet/1/multi", client.CapturedUrl!.AbsoluteUri);
+    }
+
+    [Fact]
     public void TestPerOperationServerTypesAreScopedToTheirOperation()
     {
         {{! Per-operation server variants and their variable enums carry the }}
@@ -1109,5 +1149,29 @@ public class PetApiTest
 
         Assert.Equal("test-image", System.Text.Encoding.UTF8.GetString(result));
         Assert.Equal(System.Text.Encoding.UTF8.GetBytes("test-image"), result);
+    }
+
+    [Fact]
+    public async Task FormatDatePathParamIsDateOnlyWithNoTime()
+    {
+        /* Case 15: a format:date PATH param must serialise as YYYY-MM-DD with no
+           time component and no culture-dependent separators. */
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        System.Globalization.CultureInfo.CurrentCulture =
+            new System.Globalization.CultureInfo("en-US");
+        try
+        {
+            var client = new DateWireCapturingApiClient();
+            var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+            var api = new PetApi(client, config);
+
+            await api.FindPetsBornOnAsync(new DateOnly(2024, 1, 1));
+
+            Assert.EndsWith("/pet/born-on/2024-01-01", client.CapturedUrl!.AbsolutePath);
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
     }
 }

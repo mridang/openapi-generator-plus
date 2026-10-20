@@ -90,6 +90,79 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void GetUrlRejectionMessageNamesTheValueTheVariableAndTheAllowedValues()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "invalid" })
+        );
+
+        Assert.Equal(
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]",
+            ex.Message
+        );
+    }
+
+    [Fact]
+    public void GetUrlRejectsADefaultOutsideTheEnum()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("prod", null, ["api", "staging"]),
+            }
+        );
+
+        var ex = Assert.Throws<ArgumentException>(() => server.GetUrl());
+
+        Assert.Contains("Invalid value 'prod' for server variable 'env'", ex.Message);
+    }
+
+    [Fact]
+    public void GetUrlLeavesATemplateWithoutVariablesUnchanged()
+    {
+        var server = new ServerConfiguration(
+            "https://api.example.com/v1",
+            null,
+            new Dictionary<string, ServerVariable>()
+        );
+
+        Assert.Equal("https://api.example.com/v1", server.GetUrl());
+        Assert.Equal(
+            "https://api.example.com/v1",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "ignored" })
+        );
+    }
+
+    [Fact]
+    public void GetUrlSubstitutesARepeatedVariableEverywhere()
+    {
+        var server = new ServerConfiguration(
+            "https://{region}.example.com/{region}/api",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["region"] = new ServerVariable("eu", null, ["eu", "us"]),
+            }
+        );
+
+        Assert.Equal(
+            "https://us.example.com/us/api",
+            server.GetUrl(new Dictionary<string, string> { ["region"] = "us" })
+        );
+    }
+
+    [Fact]
     public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(

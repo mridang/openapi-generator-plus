@@ -270,6 +270,55 @@ public class OpenIdConnectAuthenticatorTest
         Assert.Contains("***", repr);
     }
 
+    [Fact]
+    public void ReprShowsTheNonSecretFields()
+    {
+        Assert.Equal(
+            "OpenIdConnectAuthenticator(Host=https://api.example.com, "
+            + "OpenIdConnectUrl=https://auth.example.com/.well-known/openid-configuration, "
+            + "ClientId=my-client-id, ClientSecret=***)",
+            CreateAuthenticator().ToString());
+    }
+
+    [Theory]
+    [InlineData("max-age=0", 2)]
+    [InlineData("public, max-age=3600", 1)]
+    [InlineData("no-store", 1)]
+    public async Task DiscoveryIsReusedOnlyWhileItsMaxAgeHolds(string cacheControl, int expectedFetches)
+    {
+        /* A max-age of zero expires the cached document at once, so the second
+           call fetches it again. A positive max-age, or a header with no
+           max-age directive (which falls back to the 24 hour default), reuses
+           the cached document. */
+        var client = new CacheControlApiClient(cacheControl);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(expectedFetches, client.GetRequestCount);
+    }
+
+    private sealed class CacheControlApiClient(string cacheControl) : IApiClient
+    {
+        public int GetRequestCount { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            GetRequestCount++;
+            return Task.FromResult(new ApiHttpResponse(
+                200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                    + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                new Dictionary<string, string> { { "Cache-Control", cacheControl } }));
+        }
+    }
+
     private sealed class CountingApiClient : IApiClient
     {
         private readonly Queue<ApiHttpResponse> _responses = new();

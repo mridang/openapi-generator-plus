@@ -39,6 +39,46 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task VerifySslTrueRejectsAnUntrustedCertificate()
+    {
+        /* The mock server's certificate is signed by a test CA that the system
+           trust store does not know. With verification on and no CA supplied the
+           connection must be refused as a network failure; a transport that
+           ignored VerifySsl would answer 200 here. */
+        var transport = TransportOptions.Builder().VerifySsl(true).Build();
+
+        var client = new DefaultApiClient(transport);
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task VerifySslDefaultRejectsAnUntrustedCertificate()
+    {
+        var transport = TransportOptions.Builder().Build();
+
+        var client = new DefaultApiClient(transport);
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
         // Test runs inside the dotnet container where /work is the project mount;

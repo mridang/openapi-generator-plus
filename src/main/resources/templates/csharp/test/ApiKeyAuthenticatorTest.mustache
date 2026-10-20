@@ -114,4 +114,60 @@ public class ApiKeyAuthenticatorTest
         Assert.DoesNotContain("abc123", repr);
         Assert.Contains("***", repr);
     }
+
+    [Fact]
+    public void ReprShowsTheHostTheKeyNameAndTheLocation()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+
+        Assert.Equal(
+            "ApiKeyAuthenticator(Host=https://api.example.com, KeyParamName=X-API-Key, "
+            + "ApiKey=***, Location=Header)",
+            auth.ToString());
+    }
+
+    [Fact]
+    public void ValidCookieKeyIsEmittedAsACookieOnly()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "abc123", ApiKeyLocation.Cookie);
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["session"] = "abc123" },
+            auth.GetCookieParams());
+        Assert.Empty(auth.GetAuthHeaders());
+        Assert.Empty(auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void HeaderKeyIsNotEmittedAsACookieOrQueryParameter()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
+
+        Assert.Empty(auth.GetCookieParams());
+        Assert.Empty(auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void QueryKeyIsNotEmittedAsAHeaderOrCookie()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "api_key", "abc123", ApiKeyLocation.Query);
+
+        Assert.Empty(auth.GetAuthHeaders());
+        Assert.Empty(auth.GetCookieParams());
+    }
+
+    [Fact]
+    public void CookieAcceptsNonAscii()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "k\u00e9y", ApiKeyLocation.Cookie);
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["session"] = "k\u00e9y" },
+            auth.GetCookieParams());
+    }
 }

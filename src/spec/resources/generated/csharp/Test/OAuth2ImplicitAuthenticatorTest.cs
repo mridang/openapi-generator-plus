@@ -83,12 +83,7 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Uri url = auth.BuildAuthorizationUrl();
 
-        string scopeStr = url.ToString();
-        Assert.True(
-            scopeStr.Contains("scope=read%20write", StringComparison.Ordinal)
-                || scopeStr.Contains("scope=read+write", StringComparison.Ordinal)
-                || scopeStr.Contains("scope=read write", StringComparison.Ordinal)
-        );
+        Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -141,5 +136,62 @@ public class OAuth2ImplicitAuthenticatorTest
         string repr = auth.ToString();
         Assert.DoesNotContain("implicit-tok", repr);
         Assert.Contains("***", repr);
+    }
+
+    [Fact]
+    public void ReprShowsTheNonSecretFieldsAndWhetherATokenIsSet()
+    {
+        var auth = CreateAuthenticator();
+        string prefix =
+            "OAuth2ImplicitAuthenticator(Host=https://api.example.com, "
+            + "ClientId=my-client-id, AuthorizationUrl=https://auth.example.com/authorize, "
+            + "Scopes=[read, write], AccessToken=";
+        Assert.Equal(prefix + "null)", auth.ToString());
+
+        auth.SetAccessToken("implicit-tok");
+        Assert.Equal(prefix + "***)", auth.ToString());
+    }
+
+    [Fact]
+    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var auth = new OAuth2ImplicitAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            new Uri("https://auth.example.com/authorize"),
+            new[] { "a~b", "c*d" }
+        );
+
+        string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
+
+        Assert.Contains("client_id=id~%2A%21%27%28%29&", url, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b%20c%2Ad", url, StringComparison.Ordinal);
+        Assert.Contains("state=s%21t%28a%29te%27", url, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tok\r\nInjected: yes")]
+    [InlineData("tok\n")]
+    [InlineData("tok\0")]
+    [InlineData("t\u00f6k\u00e9n")]
+    public void SetAccessTokenRejectsAControlOrNonAsciiCharacter(string token)
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = Assert.Throws<ArgumentException>(() => auth.SetAccessToken(token));
+
+        Assert.Contains("printable ASCII", ex.Message, StringComparison.Ordinal);
+        /* A rejected token is never stored. */
+        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+    }
+
+    [Fact]
+    public void SetAccessTokenAcceptsAHorizontalTab()
+    {
+        var auth = CreateAuthenticator();
+
+        auth.SetAccessToken("tok\ten");
+
+        Assert.Equal("Bearer tok\ten", auth.GetAuthHeaders()["Authorization"]);
     }
 }

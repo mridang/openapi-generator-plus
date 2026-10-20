@@ -221,4 +221,100 @@ public class OAuth2PasswordAuthenticatorTest
         Assert.DoesNotContain("testpass", repr);
         Assert.Contains("***", repr);
     }
+
+    [Fact]
+    public void ReprShowsTheNonSecretFields()
+    {
+        string repr = CreateAuthenticator().ToString();
+
+        Assert.StartsWith(
+            "OAuth2PasswordAuthenticator(Host=https://api.example.com, ClientId=my-client-id, "
+                + "ClientSecret=***, TokenUrl=https://auth.example.com/token, "
+                + "RefreshUrl=https://auth.example.com/token, Username=testuser, Password=***, "
+                + "Scopes=[read, write], ClientAuthMethod=",
+            repr,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task SendsScopesSpaceJoinedAsPlus()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Contains("scope=read+write", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TokenBodyPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "sec~*!'()",
+            new Uri("https://auth.example.com/token"),
+            "user~*!'()",
+            "pass~*!'()",
+            new[] { "a~b", "c*d" }
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string body = client.LastBody!;
+        Assert.Contains("username=user~%2A%21%27%28%29", body, StringComparison.Ordinal);
+        Assert.Contains("password=pass~%2A%21%27%28%29", body, StringComparison.Ordinal);
+        Assert.Contains("client_id=id~%2A%21%27%28%29", body, StringComparison.Ordinal);
+        Assert.Contains("client_secret=sec~%2A%21%27%28%29", body, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b+c%2Ad", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BasicAuthPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"at\",\"expires_in\":3600}");
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "sec~*!'()",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            new[] { "read" },
+            null,
+            ClientAuthMethod.Basic
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+
+        string decoded = System.Text.Encoding.UTF8.GetString(
+            Convert.FromBase64String(client.LastHeaders["Authorization"].Substring("Basic ".Length))
+        );
+        Assert.Equal("id~%2A%21%27%28%29:sec~%2A%21%27%28%29", decoded);
+    }
+
+    [Fact]
+    public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
 }

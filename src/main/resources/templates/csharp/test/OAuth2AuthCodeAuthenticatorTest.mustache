@@ -65,10 +65,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         Assert.Contains("response_type=code", urlStr);
         Assert.Contains("client_id=my-client-id", urlStr);
         Assert.Contains("redirect_uri=", urlStr);
-        Assert.True(
-            urlStr.Contains("scope=read%20write", StringComparison.Ordinal)
-            || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
-            || urlStr.Contains("scope=read write", StringComparison.Ordinal));
+        Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
         Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
     }
 
@@ -284,5 +281,100 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         string repr = auth.ToString();
         Assert.DoesNotContain("my-client-secret", repr);
         Assert.Contains("***", repr);
+    }
+
+    [Fact]
+    public void ReprShowsTheNonSecretFields()
+    {
+        var auth = CreateAuthenticator();
+        Assert.Equal(
+            "OAuth2AuthorizationCodeAuthenticator(Host=https://api.example.com, "
+            + "ClientId=my-client-id, ClientSecret=***, "
+            + "AuthorizationUrl=https://auth.example.com/authorize, "
+            + "TokenUrl=https://auth.example.com/token, "
+            + "RedirectUri=https://app.example.com/callback, Scopes=[read, write])",
+            auth.ToString());
+    }
+
+    [Fact]
+    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            new[] { "a~b", "c*d" });
+
+        string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
+
+        Assert.Contains("client_id=id~%2A%21%27%28%29&", url, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b%20c%2Ad", url, StringComparison.Ordinal);
+        Assert.Contains("state=s%21t%28a%29te%27", url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CodeExchangeBodyPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            "sec~*!'()",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("co~*!'()de");
+
+        Assert.Contains("code=co~%2A%21%27%28%29de", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_id=id~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_secret=sec~%2A%21%27%28%29", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            new Uri("https://app.example.com/callback"),
+            Scopes,
+            new Uri("https://auth.example.com/refresh"));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
+
+    [Fact]
+    public async Task RefreshGrantFallsBackToTheTokenUrlWithoutARefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
     }
 }

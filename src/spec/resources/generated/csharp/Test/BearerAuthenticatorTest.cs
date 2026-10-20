@@ -91,4 +91,15 @@ public class BearerAuthenticatorTest
         Assert.DoesNotContain("Token=xyz", repr);
         Assert.Contains("***", repr);
     }
+
+    [Fact]
+    public void ReprShowsTheHostButMasksTheToken()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "xyz");
+
+        Assert.Equal(
+            "BearerAuthenticator(Host=https://api.example.com, Token=***)",
+            auth.ToString()
+        );
+    }
 }

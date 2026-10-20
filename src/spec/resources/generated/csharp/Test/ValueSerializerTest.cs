@@ -174,6 +174,59 @@ public class ValueSerializerTest
         Assert.Equal(new List<string> { "a", "b", "c" }, result);
     }
 
+    [Theory]
+    [InlineData("csv", "1,,3")]
+    [InlineData("ssv", "1  3")]
+    [InlineData("tsv", "1\t\t3")]
+    [InlineData("pipes", "1||3")]
+    public void QueryArrayKeepsAnEmptySlotForANullElement(string format, string expected)
+    {
+        /* A null element is an empty slot: neither skipped nor spelled out as
+           the text "null". */
+        Assert.Equal(
+            expected,
+            ValueSerializer.Serialize(new List<object?> { 1, null, 3 }, "query", "array", format)
+        );
+    }
+
+    [Fact]
+    public void QueryMultiArrayKeepsAnEmptyEntryForANullElement()
+    {
+        var result = ValueSerializer.Serialize(
+            new List<object?> { 1, null, 3 },
+            "query",
+            "array",
+            "multi"
+        );
+        Assert.Equal(new List<string> { "1", "", "3" }, result);
+    }
+
+    [Fact]
+    public void HeaderArrayKeepsAnEmptySlotForANullElement()
+    {
+        Assert.Equal(
+            "1,,3",
+            ValueSerializer.Serialize(new List<object?> { 1, null, 3 }, "header", "array")
+        );
+    }
+
+    [Fact]
+    public void FormStyleArrayKeepsAnEmptySlotForANullElement()
+    {
+        Assert.Equal(
+            "1,,3",
+            ValueSerializer.SerializeStyled(
+                "ids",
+                new List<object?> { 1, null, 3 },
+                "query",
+                "array",
+                null,
+                "form",
+                false
+            )
+        );
+    }
+
     [Fact]
     public void QueryEmptyArrayReturnsEmptyStringForCsv()
     {
@@ -721,6 +774,47 @@ public class ValueSerializerTest
     public void PathEncodingParityPlusPreserved()
     {
         Assert.Equal("a+b", ValueSerializer.Serialize("a+b", "path", "string"));
+    }
+
+    [Theory]
+    [InlineData(";")]
+    [InlineData("=")]
+    [InlineData(",")]
+    [InlineData(":")]
+    [InlineData("@")]
+    [InlineData("!")]
+    [InlineData("$")]
+    [InlineData("&")]
+    [InlineData("'")]
+    [InlineData("(")]
+    [InlineData(")")]
+    [InlineData("*")]
+    [InlineData("+")]
+    [InlineData("~")]
+    [InlineData("-")]
+    [InlineData(".")]
+    [InlineData("_")]
+    public void PathSegmentKeepsEachSubDelimiterAndUnreservedCharacterLiteral(string character)
+    {
+        string value = "a" + character + "b";
+        Assert.Equal(value, ValueSerializer.Serialize(value, "path", "string"));
+    }
+
+    [Theory]
+    [InlineData("/", "%2F")]
+    [InlineData("?", "%3F")]
+    [InlineData("#", "%23")]
+    [InlineData("[", "%5B")]
+    [InlineData("]", "%5D")]
+    [InlineData(" ", "%20")]
+    [InlineData("%", "%25")]
+    [InlineData("\"", "%22")]
+    public void PathSegmentEncodesEachReservedOrUnsafeCharacter(string character, string encoded)
+    {
+        Assert.Equal(
+            "a" + encoded + "b",
+            ValueSerializer.Serialize("a" + character + "b", "path", "string")
+        );
     }
 
     [Fact]

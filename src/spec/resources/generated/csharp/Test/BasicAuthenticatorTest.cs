@@ -69,4 +69,38 @@ public class BasicAuthenticatorTest
         Assert.DoesNotContain("s3cret", repr);
         Assert.Contains("***", repr);
     }
+
+    [Fact]
+    public void ReprShowsTheHostAndTheUsername()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+
+        Assert.Equal(
+            "BasicAuthenticator(Host=https://api.example.com, Username=alice, Password=***)",
+            auth.ToString()
+        );
+    }
+
+    [Fact]
+    public void NonAsciiCredentialsAreEncodedAsUtf8()
+    {
+        var auth = new BasicAuthenticator(
+            "https://api.example.com",
+            "\u00fcn\u00efc\u00f8d\u00e9",
+            "p\u00e4ssw\u00f6rd"
+        );
+
+        Assert.Equal(
+            "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+            auth.GetAuthHeaders()["Authorization"]
+        );
+    }
+
+    [Fact]
+    public void PasswordMayContainAColon()
+    {
+        var auth = new BasicAuthenticator("https://api.example.com", "alice", "p:ss");
+
+        Assert.Equal("Basic YWxpY2U6cDpzcw==", auth.GetAuthHeaders()["Authorization"]);
+    }
 }

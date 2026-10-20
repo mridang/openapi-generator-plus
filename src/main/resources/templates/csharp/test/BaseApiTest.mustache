@@ -747,43 +747,6 @@ public class BaseApiTest
         Assert.Empty(rawResponse.Body);
     }
 
-    // ── Cross-origin redirect tests (Gap 8) ──
-
-    [Fact]
-    public async Task CrossOriginRedirectSameOriginForwardsAuthorization()
-    {
-        // Verify that headers are forwarded on same-origin requests
-        var capturedHeaders = new Dictionary<string, string>();
-        var client = new CapturingApiClient();
-        var headers = new Dictionary<string, string> { { "Authorization", "Bearer token123" } };
-        await client.SendRequestAsync("GET", new Uri("http://localhost/test/echo"), headers, null);
-        // The capturing client stores all headers including Authorization
-        Assert.True(client.CapturedHeaders.ContainsKey("Authorization") ||
-                    headers.ContainsKey("Authorization"),
-            "Authorization header should be present on same-origin request");
-    }
-
-    [Fact]
-    public void CrossOriginRedirectSensitiveHeadersIncludeAuthorization()
-    {
-        // Verifies the guard set used in DefaultApiClient redirect logic
-        var sensitiveHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "authorization", "cookie", "proxy-authorization"
-        };
-        Assert.Contains("authorization", sensitiveHeaders);
-    }
-
-    [Fact]
-    public void CrossOriginRedirectSensitiveHeadersIncludeCookie()
-    {
-        var sensitiveHeaders = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "authorization", "cookie", "proxy-authorization"
-        };
-        Assert.Contains("cookie", sensitiveHeaders);
-    }
-
     // ── Null body Content-Type tests (Gap 11) ──
 
     [Fact]

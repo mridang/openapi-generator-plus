@@ -134,6 +134,30 @@ public class TransportOptionsTest
         );
     }
 
+    [Theory]
+    [InlineData("", "Invalid proxy URL")]
+    [InlineData("not a valid url", "Invalid proxy URL")]
+    [InlineData("http://", "Invalid proxy URL")]
+    [InlineData("ftp://proxy.example.com:21", "must use http or https scheme")]
+    [InlineData("socks5://proxy.example.com:1080", "must use http or https scheme")]
+    [InlineData("file:///tmp/proxy", "must use http or https scheme")]
+    public void InvalidProxyUrlIsRejectedWithItsReason(string proxy, string reason)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy(proxy).Build()
+        );
+        Assert.Contains(reason, ex.Message, StringComparison.Ordinal);
+        Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
+    }
+
+    [Fact]
+    public void UpperCaseProxySchemeIsAcceptedAndKeptVerbatim()
+    {
+        var opts = TransportOptions.Builder().Proxy("HTTP://proxy.example.com:8080").Build();
+
+        Assert.Equal("HTTP://proxy.example.com:8080", opts.Proxy);
+    }
+
     [Fact]
     public void NullProxyUrlIsAccepted()
     {

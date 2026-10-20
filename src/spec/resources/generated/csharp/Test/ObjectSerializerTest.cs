@@ -464,6 +464,42 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void Int32OverflowThrowsSerializationException()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"quantity\":3000000000}")
+            );
+        }
+
+        [Fact]
+        public void FractionalNumberForAnIntegerThrowsSerializationException()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"quantity\":1.5}")
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"id\":1.5}")
+            );
+        }
+
+        [Fact]
+        public void Int64AboveTwoToThe53IsKeptExactly()
+        {
+            var order = _serializer.Deserialize<Order>("{\"id\":9007199254740993}");
+
+            Assert.Equal(9007199254740993L, order!.Id);
+            Assert.Contains("9007199254740993", _serializer.Serialize(order));
+        }
+
+        [Fact]
+        public void Int32BoundariesRoundTrip()
+        {
+            var order = _serializer.Deserialize<Order>("{\"quantity\":2147483647}");
+
+            Assert.Equal(int.MaxValue, order!.Quantity);
+        }
+
+        [Fact]
         public void ThrownSerializationExceptionHasMessage()
         {
             var ex = Assert.Throws<SerializationException>(() =>

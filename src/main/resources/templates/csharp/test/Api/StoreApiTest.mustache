@@ -2,6 +2,7 @@
 
 using {{packageName}};
 using {{packageName}}.Api;
+using {{packageName}}.Api.Options;
 using {{packageName}}.Models;
 using Xunit;
 
@@ -239,5 +240,110 @@ public class StoreApiTest
         var result = await mockApi.GetSwatchAsync();
 
         Assert.Equal(Swatch.Red, result);
+    }
+
+    [Fact]
+    public async Task TestGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader()
+    {
+        // A named-enum ($ref) parameter must go out as its wire value in each
+        // location, not as the language name of the enum member.
+        var client = new RequestCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetBySwatchAsync(
+            Swatch.Red,
+            new GetBySwatchOptions { QuerySwatch = Swatch.Green, PreferredSwatch = Swatch.Blue });
+
+        Assert.EndsWith("/store/by-swatch/red", client.Url!.AbsolutePath);
+        Assert.Equal("?querySwatch=green", client.Url.Query);
+        Assert.Equal("blue", client.Headers["Preferred-Swatch"]);
+    }
+
+    [Fact]
+    public async Task TestGetBySwatchOmitsTheOptionalQueryAndHeaderWhenNotSet()
+    {
+        var client = new RequestCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetBySwatchAsync(Swatch.Blue);
+
+        Assert.EndsWith("/store/by-swatch/blue", client.Url!.AbsolutePath);
+        Assert.Equal("", client.Url.Query);
+        Assert.False(client.Headers.ContainsKey("Preferred-Swatch"));
+    }
+
+    [Fact]
+    public async Task TestGetMatrixDeserializesNestedIntegerArrays()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "[[1,2],[3]]");
+
+        var result = await mockApi.GetMatrixAsync();
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(new List<int> { 1, 2 }, result[0]);
+        Assert.Equal(new List<int> { 3 }, result[1]);
+    }
+
+    [Fact]
+    public async Task TestGetSwatchGroupsDeserializesNestedEnumLeaves()
+    {
+        var mockApi = NewStoreApiForMock(
+            200, "application/json", "[{\"a\":\"red\"},{\"b\":\"blue\"}]");
+
+        var result = await mockApi.GetSwatchGroupsAsync();
+
+        Assert.Equal(Swatch.Red, result[0]["a"]);
+        Assert.Equal(Swatch.Blue, result[1]["b"]);
+    }
+
+    [Fact]
+    public async Task TestGetTimestampGroupsDeserializesNestedTimestampLeaves()
+    {
+        var mockApi = NewStoreApiForMock(
+            200, "application/json", "[{\"t\":\"2024-01-01T00:00:00Z\"}]");
+
+        var result = await mockApi.GetTimestampGroupsAsync();
+
+        Assert.Equal(new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero), result[0]["t"]);
+    }
+
+    [Fact]
+    public async Task TestGetTreeDeserializesTheRecursiveChild()
+    {
+        var mockApi = NewStoreApiForMock(
+            200, "application/json", "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}");
+
+        var result = await mockApi.GetTreeAsync();
+
+        Assert.Equal("root", result.Value);
+        Assert.Equal("leaf", result.Child!.Value);
+        Assert.Null(result.Child.Child);
+    }
+
+    [Fact]
+    public async Task TestGetDefaultsAppliesTheSchemaDefaultsForAbsentFields()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "{}");
+
+        var result = await mockApi.GetDefaultsAsync();
+
+        Assert.Equal(3, result.Retries);
+        Assert.Equal("untitled", result.Label);
+        Assert.Equal(Defaults.ModeEnum.Medium, result.Mode);
+    }
+
+    private sealed class RequestCapturingApiClient : IApiClient
+    {
+        public Uri? Url { get; private set; }
+        public Dictionary<string, string> Headers { get; private set; } = new();
+
+        public Task<{{packageName}}.ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Url = url;
+            Headers = new Dictionary<string, string>(headers);
+            return Task.FromResult(new {{packageName}}.ApiHttpResponse(200, "{\"id\":1}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
     }
 }

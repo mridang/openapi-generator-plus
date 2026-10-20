@@ -111,4 +111,27 @@ public class MetadataTest
             );
         }
     }
+
+    [Fact]
+    public void EqualityIncludesAdditionalProperties()
+    {
+        var plain = new Metadata();
+        var withExtra = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+        };
+        var sameExtra = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "hello" },
+        };
+        var otherValue = new Metadata
+        {
+            AdditionalProperties = new Dictionary<string, object> { ["customField"] = "world" },
+        };
+
+        Assert.NotEqual(plain, withExtra);
+        Assert.NotEqual(withExtra, otherValue);
+        Assert.Equal(withExtra, sameExtra);
+        Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
+    }
 }

@@ -78,6 +78,94 @@ public class ApiExceptionTest
     }
 
     [Fact]
+    public void FromResponseRefusesAnOverDeepBodyButKeepsTheStatusType()
+    {
+        string deep = new string('[', 2000) + new string(']', 2000);
+
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), deep);
+
+        Assert.IsType<InternalServerErrorException>(ex);
+        Assert.Equal(deep, ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void FromResponseKeepsAModeratelyNestedBody()
+    {
+        string nested = new string('[', 100) + new string(']', 100);
+
+        var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), nested);
+
+        Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void FromResponseKeepsAScalarJsonBody()
+    {
+        var ex = ApiException.FromResponse(
+            400, new Dictionary<string, string>(), "\"just text\"");
+
+        var body = Assert.IsType<System.Text.Json.JsonElement>(ex.ErrorBody);
+        Assert.Equal("just text", body.GetString());
+    }
+
+    [Fact]
+    public void FromResponseWithAnEmptyBodyHasNoErrorBody()
+    {
+        var ex = ApiException.FromResponse(404, new Dictionary<string, string>(), "");
+
+        Assert.IsType<NotFoundException>(ex);
+        Assert.Equal("", ex.ResponseBody);
+        Assert.Null(ex.ErrorBody);
+    }
+
+    [Fact]
+    public void ToStringOmitsAnEmptyHeaderMapAndAnEmptyBody()
+    {
+        var ex = new ApiException(500, "boom", new Dictionary<string, string>(), "");
+
+        Assert.Equal("boom\nHTTP status code: 500", ex.ToString());
+    }
+
+    [Fact]
+    public void ToStringOmitsTheStatusWhenNoResponseArrived()
+    {
+        var ex = new ApiException(0, "connection refused", null, null);
+
+        Assert.Equal("connection refused", ex.ToString());
+    }
+
+    [Fact]
+    public void ToStringFallsBackToTheGenericMessageWhenTheMessageIsEmpty()
+    {
+        var ex = new ApiException(502, "", null, null);
+
+        Assert.Equal(
+            "Error message: the server returns an error\nHTTP status code: 502", ex.ToString());
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyWithTheWrongShapeThrowsSerializationException()
+    {
+        var ex = ApiException.FromResponse(
+            400, new Dictionary<string, string>(), "{\"id\":\"not-a-number\"}");
+
+        Assert.Throws<SerializationException>(() => ex.GetTypedErrorBody<Category>());
+    }
+
+    [Fact]
+    public void GetTypedErrorBodyToleratesALeadingByteOrderMark()
+    {
+        var ex = ApiException.FromResponse(
+            400, new Dictionary<string, string>(), "\uFEFF{\"id\":7,\"name\":\"Dogs\"}");
+
+        var typed = ex.GetTypedErrorBody<Category>();
+
+        Assert.NotNull(typed);
+        Assert.Equal(7L, typed!.Id);
+    }
+
+    [Fact]
     public void GetTypedErrorBodyReturnsNullWhenThereIsNoResponseBody()
     {
         var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null);

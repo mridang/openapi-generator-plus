@@ -517,6 +517,113 @@ public class OAuth2TokenManagerTest
         Assert.Equal("https://docs.example.com/errors/invalid_grant", ex.Uri);
     }
 
+    private static readonly Uri TokenUrl = new("https://auth.example.com/token");
+
+    private static Dictionary<string, string> ClientCredentialsGrant() =>
+        new() { ["grant_type"] = "client_credentials" };
+
+    [Fact]
+    public async Task TokenWithoutExpiresInIsCachedIndefinitely()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        string first = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+
+        Assert.Equal("tok1", first);
+        Assert.Equal("tok1", second);
+        Assert.Equal(1, client.CallCount);
+    }
+
+    [Fact]
+    public async Task RefreshResponseWithoutExpiresInKeepsTheExistingExpiry()
+    {
+        /* The first token is already stale (expires_in of one second sits
+           inside the safety margin). A refresh response that omits expires_in
+           must not turn it into a token cached forever, so the next call
+           fetches again. */
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\"}");
+        client.Enqueue("{\"access_token\":\"tok3\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        string first = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string third = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+
+        Assert.Equal("tok1", first);
+        Assert.Equal("tok2", second);
+        Assert.Equal("tok3", third);
+        Assert.Equal(3, client.CallCount);
+    }
+
+    [Fact]
+    public async Task NonStringRefreshTokenIsIgnoredNotCoerced()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":12345,\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        string token = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+
+        Assert.Equal("tok1", token);
+        Assert.Null(manager.RefreshToken);
+    }
+
+    [Fact]
+    public async Task NonStringRefreshTokenDoesNotReplaceTheStoredOne()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"refresh_token\":12345,\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+        string second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant());
+
+        Assert.Equal("tok2", second);
+        Assert.Equal("ref1", manager.RefreshToken);
+    }
+
+    [Fact]
+    public void OAuth2ServerErrorMessageHasThreeForms()
+    {
+        Assert.Equal(
+            "Token request failed with status 400: invalid_grant -- refresh token expired",
+            new OAuth2ServerException(400, "invalid_grant", "refresh token expired", null, "{}").Message);
+        Assert.Equal(
+            "Token request failed with status 400: invalid_grant",
+            new OAuth2ServerException(400, "invalid_grant", null, null, "{}").Message);
+        Assert.Equal(
+            "Token request failed with status 502: <html>bad gateway</html>",
+            new OAuth2ServerException(502, null, null, null, "<html>bad gateway</html>").Message);
+    }
+
+    [Theory]
+    [InlineData("{\"error\":\"invalid_grant\",\"error_description\":\"refresh token expired\"}", "Token request failed with status 400: invalid_grant -- refresh token expired")]
+    [InlineData("{\"error\":\"invalid_grant\"}", "Token request failed with status 400: invalid_grant")]
+    [InlineData("not json", "Token request failed with status 400: not json")]
+    [InlineData("{\"error\":\"\"}", "Token request failed with status 400: {\"error\":\"\"}")]
+    public async Task TokenEndpointFailureMessageFollowsTheBody(string body, string expected)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(body, statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant()));
+
+        Assert.Equal(expected, ex.Message);
+    }
+
     // ---- 3.2: token POSTs must refuse ALL 3xx redirects ----
 
     [Fact]
