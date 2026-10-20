@@ -174,6 +174,17 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Keeps a property named {@code type} unescaped. The reserved-word list is
+     * lowercased on load, so its {@code Type} entry (the metatype member, which
+     * only exists with a capital T) would otherwise rename the legal property
+     * {@code type} to {@code _type}.
+     */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return !"type".equals(name) && super.shouldEscapeReservedVarName(name);
+    }
+
+    /**
      * Flags a property whose type can transitively reach its enclosing model —
      * a direct self-reference (a tree node whose {@code child} is another node)
      * or mutual recursion (Department -> Employee -> Department). A Swift struct

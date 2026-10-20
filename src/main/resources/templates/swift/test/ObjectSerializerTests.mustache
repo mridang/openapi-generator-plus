@@ -1167,6 +1167,19 @@ import Testing
             "type:number weightKg must round-trip as the Double 1.5")
     }
 
+    // MARK: - Property named `type`
+
+    /* `type` is a legal Swift property name (only the capitalised `Type`
+       metatype member is special), so the model keeps the wire name instead
+       of escaping it to `_type`. */
+    @Test func testPropertyNamedTypeKeepsItsName() throws {
+        let decoded = try ObjectSerializer.deserialize(
+            "{\"code\":3,\"type\":\"info\",\"message\":\"ok\"}", as: ApiResponse.self)
+        #expect(decoded?.type == "info")
+        let json = try ObjectSerializer.serialize(ApiResponse(code: 3, type: "info", message: "ok"))
+        #expect(json.contains("\"type\":\"info\""), "type must serialize under its wire name, got: \(json)")
+    }
+
     // MARK: - Canonical serde behaviours (cross-SDK)
 
     // A non-finite float (NaN, ±Infinity) must reject on ENCODE with the SDK's

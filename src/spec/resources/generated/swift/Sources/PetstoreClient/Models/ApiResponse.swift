@@ -10,19 +10,19 @@ import Foundation
 /// ApiResponse is a model class generated from the OpenAPI schema.
 public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   public var code: Int?
-  public var _type: String?
+  public var type: String?
   public var message: String?
 
   enum CodingKeys: String, CodingKey {
     case code = "code"
-    case _type = "type"
+    case type = "type"
     case message = "message"
   }
 
   /// Creates a new ApiResponse instance.
-  public init(code: Int? = nil, _type: String? = nil, message: String? = nil) {
+  public init(code: Int? = nil, type: String? = nil, message: String? = nil) {
     self.code = code
-    self._type = _type
+    self.type = type
     self.message = message
   }
 
@@ -39,7 +39,7 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.code = try container.decodeIfPresent(Int.self, forKey: .code)
-    self._type = try container.decodeIfPresent(String.self, forKey: ._type)
+    self.type = try container.decodeIfPresent(String.self, forKey: .type)
     self.message = try container.decodeIfPresent(String.self, forKey: .message)
   }
 
@@ -51,7 +51,7 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encodeIfPresent(code, forKey: .code)
-    try container.encodeIfPresent(_type, forKey: ._type)
+    try container.encodeIfPresent(type, forKey: .type)
     try container.encodeIfPresent(message, forKey: .message)
   }
 }

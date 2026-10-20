@@ -133,7 +133,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - pet: Create a new pet in the store
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func addPet(pet: Pet, options: AddPetOptions? = nil) async throws -> Pet {
     let result = try await addPetWithHTTPInfo(pet: pet, options: options)
     guard let data = result.data else {
@@ -178,7 +178,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
     let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
     guard let data = result.data else {
@@ -236,7 +236,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Record a treatment for a pet
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func addPetTreatment(
     petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions? = nil
   ) async throws -> PetTreatment {
@@ -290,7 +290,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: Pet id to delete
   ///   - apiKey: Session cookie used for authentication
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func deletePet(petId: Int64, options: DeletePetOptions? = nil) async throws {
     let result = try await deletePetWithHTTPInfo(petId: petId, options: options)
     _ = result
@@ -354,7 +354,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
   ///
   /// - Parameters:
-
   public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
     let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId)
     guard let data = result.data else {
@@ -409,7 +408,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - bornOn: Date of birth to match
-
   public func findPetsBornOn(bornOn: String) async throws -> [Pet] {
     let result = try await findPetsBornOnWithHTTPInfo(bornOn: bornOn)
     guard let data = result.data else {
@@ -455,7 +453,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Finds Pets by status
-  @available(*, deprecated, message: "This operation is deprecated.")
   /// See https://example.com/docs/filtering Find out more about filtering
   ///
   /// - Parameters:
@@ -463,19 +460,20 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///   - filter: Filter criteria as key-value pairs
   ///   - bornAfter: Only return pets born on or after this date
   ///   - reportDate: Reference date for the report
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  ///
   /// ### `status` — Available only
   /// Show only pets currently in stock
   /// ```json
   /// available
   /// ```
-
+  ///
   /// ### `status` — Sold pets
   /// Show pets that have been sold
   /// ```json
   /// sold
   /// ```
-
+  @available(*, deprecated, message: "This operation is deprecated.")
   public func findPetsByStatus(options: FindPetsByStatusOptions? = nil) async throws -> [Pet] {
     let result = try await findPetsByStatusWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -543,7 +541,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Get external pet info
   ///
   /// - Parameters:
-
+  ///   - server: Optional per-operation server override.
   public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil)
     async throws -> Pet
   {
@@ -600,7 +598,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Get multi-server pet info
   ///
   /// - Parameters:
-
+  ///   - server: Optional per-operation server override.
   public func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil)
     async throws -> Pet
   {
@@ -658,7 +656,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw image bytes of the pet's current avatar.
   ///
   /// - Parameters:
-
   public func getPetAvatar(petId: Int64) async throws -> Data {
     let result = try await getPetAvatarWithHTTPInfo(petId: petId)
     guard let data = result.data else {
@@ -706,7 +703,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
   ///
   /// - Parameters:
-
   public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
     let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId)
     guard let data = result.data else {
@@ -752,23 +748,23 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
   /// Find pet by ID
   /// Returns a single pet
-  @available(*, deprecated, message: "This operation is deprecated.")
   ///
   /// - Parameters:
   ///   - petId: ID of pet to return
-
+  ///   - server: Optional per-operation server override.
+  ///
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
   /// 1
   /// ```
-
+  ///
   /// ### `petId` — Large breed ID
   /// A common large-breed pet identifier
   /// ```json
   /// 42
   /// ```
-
+  @available(*, deprecated, message: "This operation is deprecated.")
   public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil) async throws -> Pet {
     let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server)
     guard let data = result.data else {
@@ -824,7 +820,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Look up a pet by name (simple string path param + required query)
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
     let result = try await getPetByNameWithHTTPInfo(name: name, options: options)
     guard let data = result.data else {
@@ -886,7 +882,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
   ///
   /// - Parameters:
-
   public func getPetPassport(petId: Int64) async throws -> PetPassport {
     let result = try await getPetPassportWithHTTPInfo(petId: petId)
     guard let data = result.data else {
@@ -934,7 +929,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
   ///
   /// - Parameters:
-
   public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
     let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId)
     guard let data = result.data else {
@@ -988,7 +982,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> Pet
   {
@@ -1069,7 +1063,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Get staging pet info
   ///
   /// - Parameters:
-
+  ///   - server: Optional per-operation server override.
   public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil)
     async throws -> Pet
   {
@@ -1127,9 +1121,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
   ///
   /// - Parameters:
-
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (image/jpeg, image/png, application/json). Defaults to the first declared type (image/jpeg) when nil or unrecognized.
-
   public func setPetAvatar(petId: Int64, body: Data, requestContentType: String? = nil) async throws
   {
     let result = try await setPetAvatarWithHTTPInfo(
@@ -1192,7 +1184,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   ///
   /// - Parameters:
-
   public func setPetAvatarThumbnail(
     petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
   ) async throws {
@@ -1237,7 +1228,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
     -> ApiResponse
   {
@@ -1311,7 +1302,6 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - petId: ID of pet to update
   ///   - pet: Pet object that needs to be updated
-
   public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
     let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet)
     guard let data = result.data else {
@@ -1359,7 +1349,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
     -> ApiResponse
   {
@@ -1419,9 +1409,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   ///   - requestContentType: Optional request Content-Type, chosen from the declared types (multipart/form-data, application/octet-stream). Defaults to the first declared type (multipart/form-data) when nil or unrecognized.
-
   public func uploadPetDocument(
     petId: Int64, options: UploadPetDocumentOptions, requestContentType: String? = nil
   ) async throws -> ApiResponse {

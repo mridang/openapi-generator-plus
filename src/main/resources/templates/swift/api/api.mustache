@@ -70,13 +70,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#notes}}
     /// {{{.}}}
 {{/notes}}
-{{#isDeprecated}}
-    @available(*, deprecated, message: "This operation is deprecated.")
-{{/isDeprecated}}
 {{#externalDocs}}
     /// See {{url}} {{description}}
 {{/externalDocs}}
-{{#allParams.0}}
+{{#vendorExtensions.op.signatureArgs.0}}
     ///
     /// - Parameters:
 {{#allParams}}
@@ -84,17 +81,35 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     ///   - {{paramName}}: {{description}}
 {{/description}}
 {{/allParams}}
-{{#consumes}}{{#-last}}{{^-first}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+    ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+{{/isOptions}}
+{{#isServer}}
+    ///   - server: Optional per-operation server override.
+{{/isServer}}
+{{/vendorExtensions.op.signatureArgs}}
+{{#consumes}}
+{{#-last}}
+{{^-first}}
     ///   - requestContentType: Optional request Content-Type, chosen from the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}). Defaults to the first declared type ({{vendorExtensions.op.effectiveConsumes}}) when nil or unrecognized.
-{{/-first}}{{/-last}}{{/consumes}}
-{{/allParams.0}}
-{{#allParams}}{{#vendorExtensions.pluralExamples}}
+{{/-first}}
+{{/-last}}
+{{/consumes}}
+{{/vendorExtensions.op.signatureArgs.0}}
+{{#allParams}}
+{{#vendorExtensions.pluralExamples}}
+    ///
     /// ### `{{paramName}}` — {{summary}}
     /// {{description}}
     /// ```json
     /// {{value}}
     /// ```
-{{/vendorExtensions.pluralExamples}}{{/allParams}}
+{{/vendorExtensions.pluralExamples}}
+{{/allParams}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
     public func {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{#isServer}}(any {{{dataType}}}){{/isServer}}{{^isServer}}{{{dataType}}}{{/isServer}}{{#isBody}}{{#nullable}}? = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}? = nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{#isServer}}? = nil{{/isServer}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: String? = nil{{/-first}}{{/-last}}{{/consumes}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType: requestContentType{{/-first}}{{/-last}}{{/consumes}})
 {{#returnType}}

@@ -21,7 +21,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of the order to delete
-
   public func deleteOrder(orderId: Int64) async throws {
     let result = try await deleteOrderWithHTTPInfo(orderId: orderId)
     _ = result
@@ -60,7 +59,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Echoes a swatch supplied via path, query and header parameters.
   ///
   /// - Parameters:
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions? = nil) async throws
     -> Category
   {
@@ -119,7 +118,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a model exercising schema defaults on deserialize.
-
   public func getDefaults() async throws -> Defaults {
     let result = try await getDefaultsWithHTTPInfo()
     guard let data = result.data else {
@@ -159,7 +157,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a department (mutual-recursion codegen fixture).
-
   public func getDepartment() async throws -> Department {
     let result = try await getDepartmentWithHTTPInfo()
     guard let data = result.data else {
@@ -199,7 +196,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns categories grouped into an array of string-keyed maps.
-
   public func getGroupedCategories() async throws -> [[String: Category]] {
     let result = try await getGroupedCategoriesWithHTTPInfo()
     guard let data = result.data else {
@@ -239,7 +235,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns pet inventories by status
-
   public func getInventory() async throws -> [String: Int] {
     let result = try await getInventoryWithHTTPInfo()
     guard let data = result.data else {
@@ -279,7 +274,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a matrix as an array of integer arrays.
-
   public func getMatrix() async throws -> [[Int]] {
     let result = try await getMatrixWithHTTPInfo()
     guard let data = result.data else {
@@ -322,7 +316,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - orderId: ID of order to return
-
   public func getOrderById(orderId: Int64) async throws -> Order {
     let result = try await getOrderByIdWithHTTPInfo(orderId: orderId)
     guard let data = result.data else {
@@ -370,7 +363,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - asOf: Only consider stock as of this instant
-
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getStockItem(options: GetStockItemOptions? = nil) async throws -> StockItem {
     let result = try await getStockItemWithHTTPInfo(options: options)
     guard let data = result.data else {
@@ -418,7 +411,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a bare enum (value-type response codegen fixture).
-
   public func getSwatch() async throws -> Swatch {
     let result = try await getSwatchWithHTTPInfo()
     guard let data = result.data else {
@@ -458,7 +450,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns swatches grouped as an array of string-keyed enum maps.
-
   public func getSwatchGroups() async throws -> [[String: Swatch]] {
     let result = try await getSwatchGroupsWithHTTPInfo()
     guard let data = result.data else {
@@ -498,7 +489,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns timestamps grouped as an array of string-keyed maps.
-
   public func getTimestampGroups() async throws -> [[String: Date]] {
     let result = try await getTimestampGroupsWithHTTPInfo()
     guard let data = result.data else {
@@ -538,7 +528,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Returns a self-referential tree (recursive-type codegen fixture)
-
   public func getTree() async throws -> TreeNode {
     let result = try await getTreeWithHTTPInfo()
     guard let data = result.data else {
@@ -580,7 +569,6 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Place an order for a pet
   ///
   /// - Parameters:
-
   public func placeOrder(order: Order? = nil) async throws -> Order {
     let result = try await placeOrderWithHTTPInfo(order: order)
     guard let data = result.data else {

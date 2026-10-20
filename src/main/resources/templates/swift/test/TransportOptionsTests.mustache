@@ -88,6 +88,33 @@ import Testing
         #expect(throws: ConfigurationError.self) { try TransportOptionsBuilder().proxy("not a valid url") }
     }
 
+    @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() {
+        let urls = [
+            "socks://proxy.example.com:1080",
+            "socks4://proxy.example.com:1080",
+            "socks5://proxy.example.com:1080",
+        ]
+        for url in urls {
+            #expect(throws: ConfigurationError.invalidProxyURL(url)) {
+                try TransportOptionsBuilder().proxy(url)
+            }
+        }
+    }
+
+    /* The README names the real setter, `TransportOptionsBuilder.proxy(_:)`,
+       and not another language's accessor. */
+    @Test func testReadmeSocksSectionNamesTheSwiftSetter() throws {
+        let readme = try String(
+            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("README.md"),
+            encoding: .utf8)
+        #expect(
+            readme.contains(
+                "`TransportOptionsBuilder.proxy(_:)` accepts only `http://` and `https://` URLs."))
+        #expect(readme.contains("`ConfigurationError.invalidProxyURL`"))
+        #expect(!(readme.contains("`TransportOptions.proxy()`")))
+    }
+
     @Test func testNullProxyUrlIsAccepted() throws {
         let opts = try TransportOptionsBuilder()
             .proxy(nil)

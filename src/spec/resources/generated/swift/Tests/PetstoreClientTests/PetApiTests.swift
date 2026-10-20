@@ -30,6 +30,74 @@ final class PetApiTests {
     return PetApi(apiClient: client, config: config)
   }
 
+  // MARK: - Generated documentation
+
+  private func apiSourceDirectory() -> URL {
+    return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+      .appendingPathComponent("Sources/PetstoreClient/Api")
+  }
+
+  /* The doc comment lines and attributes that sit directly above the
+     declaration containing `signature`, in source order. */
+  private func leadingDocBlock(before signature: String, in file: String) throws -> [String] {
+    let source = try String(
+      contentsOf: apiSourceDirectory().appendingPathComponent(file), encoding: .utf8)
+    let lines = source.components(separatedBy: "\n")
+    let declaration = try #require(lines.firstIndex { $0.contains(signature) })
+    var block: [String] = []
+    var cursor = declaration - 1
+    while cursor >= 0 {
+      let line = lines[cursor].trimmingCharacters(in: .whitespaces)
+      guard line.hasPrefix("///") || line.hasPrefix("@available") else { break }
+      block.insert(line, at: 0)
+      cursor -= 1
+    }
+    return block
+  }
+
+  /* Swift takes a declaration's documentation from the doc comment lines
+     directly above its first token, and only from the last contiguous block.
+     A blank line inside the comment, or an attribute placed before the
+     remaining doc lines, silently drops everything above or below it. */
+  @Test func testApiDocCommentsAreOneContiguousBlockAboveAttributes() throws {
+    let files = try FileManager.default.contentsOfDirectory(
+      at: apiSourceDirectory(), includingPropertiesForKeys: nil
+    ).filter { $0.pathExtension == "swift" }
+    #expect(!(files.isEmpty))
+    for file in files {
+      let lines = try String(contentsOf: file, encoding: .utf8)
+        .components(separatedBy: "\n")
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+      for index in 0..<(lines.count - 1) {
+        if lines[index].hasPrefix("///") {
+          #expect(
+            !(lines[index + 1].isEmpty),
+            "\(file.lastPathComponent):\(index + 1) doc comment is followed by a blank line")
+        }
+        if lines[index].hasPrefix("@available") {
+          #expect(
+            !(lines[index + 1].hasPrefix("///")),
+            "\(file.lastPathComponent):\(index + 1) doc comment lines follow an attribute")
+        }
+      }
+    }
+  }
+
+  @Test func testDeprecatedOperationKeepsParameterDocsAboveTheAttribute() throws {
+    let block = try leadingDocBlock(before: "public func getPetById(", in: "PetApi.swift")
+    #expect(block.contains("///   - petId: ID of pet to return"))
+    #expect(block.contains("///   - server: Optional per-operation server override."))
+    #expect(block.last == "@available(*, deprecated, message: \"This operation is deprecated.\")")
+  }
+
+  @Test func testOperationDocumentsItsOptionsParameter() throws {
+    let block = try leadingDocBlock(before: "public func addPet(", in: "PetApi.swift")
+    #expect(
+      block.contains(
+        "///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator."
+      ))
+  }
+
   // MARK: - Transport failures
 
   /* A request that gets no HTTP response (connection refused) is a
