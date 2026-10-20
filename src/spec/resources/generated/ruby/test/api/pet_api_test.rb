@@ -1105,4 +1105,47 @@ describe Petstore::Client::Api::PetApi do
       end
     end
   end
+
+  describe 'YARD doc comments' do
+    # The contiguous '#' block directly above 'def find_pets_by_status(': YARD and RDoc
+    # attach nothing that sits above a blank line.
+    def doc_block(name)
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      lines = File.readlines(File.join(root, 'lib', 'petstore/client', 'api', 'pet_api.rb'))
+      index = lines.index { |line| line.lstrip.start_with?("def #{name}(") }
+      lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
+    end
+
+    it 'keeps the summary and the options param attached to find_pets_by_status' do
+      block = doc_block('find_pets_by_status')
+      _(block.first).must_equal '# Finds Pets by status'
+      _(block).must_include '# @param options [FindPetsByStatusOptions] ' \
+                            'options for query, header, form, and cookie parameters'
+      _(block).must_include '# @raise [ApiError] if fails to make API call'
+    end
+
+    it 'documents the authenticator only on options that carry one' do
+      _(doc_block('add_pet')).must_include '# @param options [AddPetOptions] ' \
+                                           'options carrying an optional per-call authenticator'
+      _(doc_block('delete_pet')).must_include '# @param options [DeletePetOptions] options for query, header, ' \
+                                              'form, and cookie parameters, plus an optional per-call authenticator'
+    end
+
+    # Binary downloads are returned as the in-memory StringIO that BaseApi
+    # builds, never a File, so the YARD tag and the RBS signature say so.
+    it 'declares the StringIO a binary download returns in YARD' do
+      %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
+        _(doc_block(name)).must_include '# @return [StringIO]'
+      end
+    end
+
+    it 'declares the StringIO a binary download returns in RBS' do
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
+      _(rbs).must_include 'def get_pet_avatar: (Integer pet_id) -> ::StringIO'
+      _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[::StringIO]'
+      _(rbs).wont_include '-> File'
+      _(rbs).wont_include 'ApiResult[File]'
+    end
+  end
 end

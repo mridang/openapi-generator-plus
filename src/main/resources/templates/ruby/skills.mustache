@@ -185,8 +185,8 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```ruby
-begin
-  result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(request)
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}def {{operationId}}_or_report(client{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}})
+  client.{{clientPropertyName}}.{{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 rescue {{moduleName}}::Errors::NotFoundError => e
   puts "Not found: #{e.message}"
 rescue {{moduleName}}::Errors::ClientError => e

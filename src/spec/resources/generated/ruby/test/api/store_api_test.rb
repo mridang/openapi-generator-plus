@@ -212,4 +212,22 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
   end
+
+  describe 'YARD doc comments' do
+    # The contiguous '#' block directly above 'def get_stock_item(': YARD and RDoc
+    # attach nothing that sits above a blank line.
+    def doc_block(name)
+      root = File.expand_path('../..', File.dirname(__FILE__))
+      lines = File.readlines(File.join(root, 'lib', 'petstore/client', 'api', 'store_api.rb'))
+      index = lines.index { |line| line.lstrip.start_with?("def #{name}(") }
+      lines.first(index.to_i).reverse.take_while { |line| line.strip.start_with?('#') }.reverse.map(&:strip)
+    end
+
+    it 'keeps the summary and the options param attached to get_stock_item' do
+      block = doc_block('get_stock_item')
+      _(block.first).must_equal '# Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.'
+      _(block.grep(/\A# @param options \[GetStockItemOptions\]/).size).must_equal 1
+      _(block).must_include '# @raise [ApiError] if fails to make API call'
+    end
+  end
 end

@@ -166,8 +166,8 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```ruby
-begin
-  result = client.pet.add_pet(request)
+def add_pet_or_report(client, pet)
+  client.pet.add_pet(pet)
 rescue Petstore::Client::Errors::NotFoundError => e
   puts "Not found: #{e.message}"
 rescue Petstore::Client::Errors::ClientError => e

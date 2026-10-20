@@ -94,7 +94,7 @@ identifiers.
 A `oneOf` payload whose discriminator value is missing, or whose
 value is not listed in the schema's `discriminator.mapping`, raises
 `SerializationError` instead of silently falling through to the
-base type. This matches Python / Swift / Dart / Go / Rust behaviour.
+base type.
 
 ## Not supported
 
@@ -126,7 +126,7 @@ round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptions.builder.proxy(url)` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying

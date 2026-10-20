@@ -59,8 +59,8 @@ module Petstore::Client
       def add_pet_treatment_with_http_info: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> ::Petstore::Client::ApiResult[Models::PetTreatment]
       def delete_pet: (Integer pet_id, ?Options::DeletePetOptions? options) -> void
       def delete_pet_with_http_info: (Integer pet_id, ?Options::DeletePetOptions? options) -> ::Petstore::Client::ApiResult[nil]
-      def download_pet_document: (Integer pet_id, Integer document_id) -> File
-      def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::Petstore::Client::ApiResult[File]
+      def download_pet_document: (Integer pet_id, Integer document_id) -> ::StringIO
+      def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::Petstore::Client::ApiResult[::StringIO]
       def find_pets_born_on: (Date born_on) -> Array[Models::Pet]
       def find_pets_born_on_with_http_info: (Date born_on) -> ::Petstore::Client::ApiResult[Array[Models::Pet]]
       def find_pets_by_status: (?Options::FindPetsByStatusOptions? options) -> Array[Models::Pet]
@@ -69,8 +69,8 @@ module Petstore::Client
       def get_external_pet_info_with_http_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_multi_server_pet_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> Models::Pet
       def get_multi_server_pet_info_with_http_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> ::Petstore::Client::ApiResult[Models::Pet]
-      def get_pet_avatar: (Integer pet_id) -> File
-      def get_pet_avatar_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[File]
+      def get_pet_avatar: (Integer pet_id) -> ::StringIO
+      def get_pet_avatar_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[::StringIO]
       def get_pet_avatar_thumbnail: (Integer pet_id) -> String
       def get_pet_avatar_thumbnail_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[String]
       def get_pet_by_id: (Integer pet_id, ?server: GetPetByIdServer?) -> Models::Pet
@@ -79,8 +79,8 @@ module Petstore::Client
       def get_pet_by_name_with_http_info: (String name, Options::GetPetByNameOptions options) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_pet_passport: (Integer pet_id) -> Models::PetPassport
       def get_pet_passport_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[Models::PetPassport]
-      def get_pet_photo: (Integer pet_id, Integer photo_id) -> File
-      def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::Petstore::Client::ApiResult[File]
+      def get_pet_photo: (Integer pet_id, Integer photo_id) -> ::StringIO
+      def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::Petstore::Client::ApiResult[::StringIO]
       def get_pet_tag: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> Models::Pet
       def get_pet_tag_with_http_info: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_staging_pet_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> Models::Pet

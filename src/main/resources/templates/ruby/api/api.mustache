@@ -106,13 +106,15 @@ module {{moduleName}}
       # Example: {{value}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#vendorExtensions.op.signatureArgs}}{{#isOptions}}
-      # @param options [{{{dataType}}}] options for query, header, form, and cookie parameters
-{{/isOptions}}{{/vendorExtensions.op.signatureArgs}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+      # @param options [{{{dataType}}}] options{{#vendorExtensions.op.hasOptionsParam}} for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}} carrying an optional per-call authenticator{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
 {{#vendorExtensions.hasMultipleConsumes}}
       # @param content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
 {{/vendorExtensions.hasMultipleConsumes}}
-      # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
+      # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.

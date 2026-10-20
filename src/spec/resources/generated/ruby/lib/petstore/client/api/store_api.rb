@@ -19,7 +19,6 @@ module Petstore::Client
 
       # Delete purchase order by ID
       # @param order_id [Integer] ID of the order to delete
-
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_order(order_id)
@@ -52,9 +51,7 @@ module Petstore::Client
 
       # Echoes a swatch supplied via path, query and header parameters.
       # @param path_swatch [Swatch]
-
       # @param options [GetBySwatchOptions] options for query, header, form, and cookie parameters
-
       # @return [Category]
       # @raise [ApiError] if fails to make API call
       def get_by_swatch(path_swatch, options = nil)
@@ -108,7 +105,6 @@ module Petstore::Client
       end
 
       # Returns a model exercising schema defaults on deserialize.
-
       # @return [Defaults]
       # @raise [ApiError] if fails to make API call
       def get_defaults
@@ -148,7 +144,6 @@ module Petstore::Client
       end
 
       # Returns a department (mutual-recursion codegen fixture).
-
       # @return [Department]
       # @raise [ApiError] if fails to make API call
       def get_department
@@ -188,7 +183,6 @@ module Petstore::Client
       end
 
       # Returns categories grouped into an array of string-keyed maps.
-
       # @return [Array<Hash<String, Category>>]
       # @raise [ApiError] if fails to make API call
       def get_grouped_categories
@@ -228,7 +222,6 @@ module Petstore::Client
       end
 
       # Returns pet inventories by status
-
       # @return [Hash<String, Integer>]
       # @raise [ApiError] if fails to make API call
       def get_inventory
@@ -268,7 +261,6 @@ module Petstore::Client
       end
 
       # Returns a matrix as an array of integer arrays.
-
       # @return [Array<Array<Integer>>]
       # @raise [ApiError] if fails to make API call
       def get_matrix
@@ -309,7 +301,6 @@ module Petstore::Client
 
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
-
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def get_order_by_id(order_id)
@@ -355,9 +346,7 @@ module Petstore::Client
       end
 
       # Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-
       # @param options [GetStockItemOptions] options for query, header, form, and cookie parameters
-
       # @return [StockItem]
       # @raise [ApiError] if fails to make API call
       def get_stock_item(options = nil)
@@ -404,7 +393,6 @@ module Petstore::Client
       end
 
       # Returns a bare enum (value-type response codegen fixture).
-
       # @return [Swatch]
       # @raise [ApiError] if fails to make API call
       def get_swatch
@@ -444,7 +432,6 @@ module Petstore::Client
       end
 
       # Returns swatches grouped as an array of string-keyed enum maps.
-
       # @return [Array<Hash<String, Swatch>>]
       # @raise [ApiError] if fails to make API call
       def get_swatch_groups
@@ -484,7 +471,6 @@ module Petstore::Client
       end
 
       # Returns timestamps grouped as an array of string-keyed maps.
-
       # @return [Array<Hash<String, Time>>]
       # @raise [ApiError] if fails to make API call
       def get_timestamp_groups
@@ -524,7 +510,6 @@ module Petstore::Client
       end
 
       # Returns a self-referential tree (recursive-type codegen fixture)
-
       # @return [TreeNode]
       # @raise [ApiError] if fails to make API call
       def get_tree
@@ -565,7 +550,6 @@ module Petstore::Client
 
       # Place an order for a pet
       # @param order [Order]
-
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def place_order(order = nil)

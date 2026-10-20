@@ -129,9 +129,7 @@ module Petstore::Client
 
       # Add a new pet to the store
       # @param pet [Pet] Create a new pet in the store
-
-      # @param options [AddPetOptions] options for query, header, form, and cookie parameters
-
+      # @param options [AddPetOptions] options carrying an optional per-call authenticator
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def add_pet(pet, options = nil)
@@ -184,9 +182,7 @@ module Petstore::Client
       # Add photos to the pet's gallery
       # Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
       # @param pet_id [Integer]
-
       # @param options [AddPetPhotosOptions] options for query, header, form, and cookie parameters
-
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
       def add_pet_photos(pet_id, options)
@@ -247,9 +243,7 @@ module Petstore::Client
       # Record a treatment for a pet
       # @param pet_id [Integer]
       # @param pet_treatment [PetTreatment]
-
-      # @param options [AddPetTreatmentOptions] options for query, header, form, and cookie parameters
-
+      # @param options [AddPetTreatmentOptions] options carrying an optional per-call authenticator
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
       def add_pet_treatment(pet_id, pet_treatment, options = nil)
@@ -307,9 +301,7 @@ module Petstore::Client
 
       # Deletes a pet
       # @param pet_id [Integer] Pet id to delete
-
-      # @param options [DeletePetOptions] options for query, header, form, and cookie parameters
-
+      # @param options [DeletePetOptions] options for query, header, form, and cookie parameters, plus an optional per-call authenticator
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_pet(pet_id, options = nil)
@@ -357,8 +349,7 @@ module Petstore::Client
       # Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
       # @param pet_id [Integer]
       # @param document_id [Integer]
-
-      # @return [File]
+      # @return [StringIO]
       # @raise [ApiError] if fails to make API call
       def download_pet_document(pet_id, document_id)
         result = download_pet_document_with_http_info(pet_id, document_id)
@@ -410,7 +401,6 @@ module Petstore::Client
 
       # List pets born on a given date
       # @param born_on [Date] Date of birth to match
-
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
       def find_pets_born_on(born_on)
@@ -456,9 +446,7 @@ module Petstore::Client
       end
 
       # Finds Pets by status
-
       # @param options [FindPetsByStatusOptions] options for query, header, form, and cookie parameters
-
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
@@ -518,7 +506,6 @@ module Petstore::Client
 
       # Get external pet info
       # @param pet_id [Integer]
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_external_pet_info(pet_id, server: nil)
@@ -569,7 +556,6 @@ module Petstore::Client
 
       # Get multi-server pet info
       # @param pet_id [Integer]
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_multi_server_pet_info(pet_id, server: nil)
@@ -621,8 +607,7 @@ module Petstore::Client
       # Get the pet's profile photo
       # Returns the raw image bytes of the pet's current avatar.
       # @param pet_id [Integer]
-
-      # @return [File]
+      # @return [StringIO]
       # @raise [ApiError] if fails to make API call
       def get_pet_avatar(pet_id)
         result = get_pet_avatar_with_http_info(pet_id)
@@ -669,7 +654,6 @@ module Petstore::Client
       # Get the pet's avatar thumbnail as base64
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
-
       # @return [String]
       # @raise [ApiError] if fails to make API call
       def get_pet_avatar_thumbnail(pet_id)
@@ -723,7 +707,6 @@ module Petstore::Client
       # Large breed ID
       # A common large-breed pet identifier
       # Example: 42
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
@@ -776,9 +759,7 @@ module Petstore::Client
 
       # Look up a pet by name (simple string path param + required query)
       # @param name [String]
-
       # @param options [GetPetByNameOptions] options for query, header, form, and cookie parameters
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_pet_by_name(name, options)
@@ -848,7 +829,6 @@ module Petstore::Client
       # Get the pet's passport
       # Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
-
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
       def get_pet_passport(pet_id)
@@ -897,8 +877,7 @@ module Petstore::Client
       # Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
       # @param pet_id [Integer]
       # @param photo_id [Integer]
-
-      # @return [File]
+      # @return [StringIO]
       # @raise [ApiError] if fails to make API call
       def get_pet_photo(pet_id, photo_id)
         result = get_pet_photo_with_http_info(pet_id, photo_id)
@@ -951,9 +930,7 @@ module Petstore::Client
       # Get a tag for a pet
       # @param pet_id [Integer]
       # @param tag_name [String]
-
       # @param options [GetPetTagOptions] options for query, header, form, and cookie parameters
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_pet_tag(pet_id, tag_name, options = nil)
@@ -1039,7 +1016,6 @@ module Petstore::Client
 
       # Get staging pet info
       # @param pet_id [Integer]
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_staging_pet_info(pet_id, server: nil)
@@ -1092,7 +1068,6 @@ module Petstore::Client
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
-
       # @param content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
       # @raise [ApiError] if fails to make API call
@@ -1159,7 +1134,6 @@ module Petstore::Client
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
-
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
@@ -1204,9 +1178,7 @@ module Petstore::Client
       # Update a pet's notification preferences
       # Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
       # @param pet_id [Integer]
-
       # @param options [SetPetPreferencesOptions] options for query, header, form, and cookie parameters
-
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
       def set_pet_preferences(pet_id, options)
@@ -1269,7 +1241,6 @@ module Petstore::Client
       # Update an existing pet
       # @param pet_id [Integer] ID of pet to update
       # @param pet [Pet] Pet object that needs to be updated
-
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def update_pet(pet_id, pet)
@@ -1328,9 +1299,7 @@ module Petstore::Client
       # Upload the pet's adoption certificate
       # Attaches a single adoption certificate document. No metadata fields are required alongside the file.
       # @param pet_id [Integer]
-
       # @param options [UploadPetCertificateOptions] options for query, header, form, and cookie parameters
-
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
       def upload_pet_certificate(pet_id, options)
@@ -1385,9 +1354,7 @@ module Petstore::Client
       # Attach a vet document or health record
       # Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
       # @param pet_id [Integer]
-
       # @param options [UploadPetDocumentOptions] options for query, header, form, and cookie parameters
-
       # @param content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call

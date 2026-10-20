@@ -574,6 +574,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/server_variable_test.mustache",
                             "test",
                             "server_variable_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile("test/readme_test.mustache", "test", "readme_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile("test/skills_test.mustache", "test", "skills_test.rb"));
         }
     }
 
