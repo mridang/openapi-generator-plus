@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 18, open 223, partial 22. Severity: critical 3, high 59, medium 294, low 174.
+Status counts: deferred 20, false-positive 15, fixed 263, forced 4, needs-spec 18, open 235, partial 29. Severity: critical 3, high 59, medium 348, low 174.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -41,14 +41,14 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F033 | high | open | L12-api-bodies | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | getPetPhoto (content negotiation, Case 9) returns 7 different things when the server picks application/json |
 | F034 | high | fixed | L12-api-bodies | go, rust | go and rust send a literal `null` JSON body (with Content-Type: application/json) when the optional request body is omitted |
 | F035 | high | open | L12-api-bodies | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | setPetAvatar application/json variant (Case 10) cannot be expressed, and selecting it puts 6+ different bodies on the wire |
-| F036 | high | open | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | BaseApi 'cross-origin redirect drops Authorization/Cookie' tests are tautological in all 12; swift has no real strip test at all |
-| F037 | high | open | L13a-tests-transport | kotlin, csharp, php, python, ruby, dart, go, rust, swift, elixir | TLS verification ON (default) is never proven to reject an untrusted/mismatched certificate in 10 of 12 SDKs |
+| F036 | high | fixed | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | BaseApi 'cross-origin redirect drops Authorization/Cookie' tests are tautological in all 12; swift has no real strip test at all |
+| F037 | high | partial | L13a-tests-transport | kotlin, csharp, php, python, ruby, dart, go, rust, swift, elixir | TLS verification ON (default) is never proven to reject an untrusted/mismatched certificate in 10 of 12 SDKs |
 | F038 | high | fixed | L13a-tests-transport | php, swift | php and swift put different JSON bytes on the wire ('/' escaped as '\/', php also \uXXXX for non-ASCII) and their tests were bent to hide it |
-| F039 | high | open | L13b-tests-api-auth-models | java, kotlin, go, rust, swift, elixir | API 404/500 tests accept any error in 6 SDKs instead of the exact status error type |
-| F040 | high | open | L13b-tests-api-auth-models | java, kotlin, python, ruby, node, dart, go, rust, swift, elixir | OAuth2 refresh grant: its request body and the fall-back to the original grant on refresh failure are tested only in php (and csharp) |
-| F041 | high | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Operation-level server variants: generated variant URLs, server variables and multi-server ops are untested; elixir's R8-4 typed-variant path has no test |
-| F042 | high | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Sending the refresh grant to refreshUrl (not tokenUrl) is untested in all 12 SDKs |
-| F043 | high | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The R8-10 OAuth2 percent-encoding change has no test in any SDK |
+| F039 | high | fixed | L13b-tests-api-auth-models | java, kotlin, go, rust, swift, elixir | API 404/500 tests accept any error in 6 SDKs instead of the exact status error type |
+| F040 | high | fixed | L13b-tests-api-auth-models | java, kotlin, python, ruby, node, dart, go, rust, swift, elixir | OAuth2 refresh grant: its request body and the fall-back to the original grant on refresh failure are tested only in php (and csharp) |
+| F041 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Operation-level server variants: generated variant URLs, server variables and multi-server ops are untested; elixir's R8-4 typed-variant path has no test |
+| F042 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Sending the refresh grant to refreshUrl (not tokenUrl) is untested in all 12 SDKs |
+| F043 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The R8-10 OAuth2 percent-encoding change has no test in any SDK |
 | F044 | high | open | L14-codegen-java | python, dart, php, ruby, java, kotlin, csharp, go, rust, swift, node, elixir | Enum string literals: python/dart/php/ruby silently STRIP a single quote from the wire value; no language escapes backslash |
 | F045 | high | open | L14-codegen-java | ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift | String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals |
 | F046 | high | needs-spec | L14-codegen-java | python | python maps format: password to pydantic SecretStr, so model bodies send "**********" on the wire |
@@ -105,14 +105,14 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F097 | medium | fixed | L04-transport | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec library is absent, contradicting the 'unsupported Content-Encoding raises' contract |
 | F098 | medium | fixed | L04-transport | swift | swift returns an EMPTY body when the bytes are not valid in the declared charset and not valid UTF-8 |
 | F099 | medium | open | L05-errors | java, kotlin, csharp, node, swift, elixir, php, python, ruby, dart, go, rust | An ApiError for a response that arrived but could not be decoded has null headers in 6 SDKs and the real headers in 6, contradicting the documented null-headers signal |
-| F100 | medium | open | L05-errors | java, kotlin, csharp, php, python, ruby, node, dart, rust, swift, elixir, go | Error-contract test coverage is uneven: the OAuth2ServerError message is tested only in go, the error-body depth cap in 5 SDKs, exact rendering in 5 |
+| F100 | medium | fixed | L05-errors | java, kotlin, csharp, php, python, ruby, node, dart, rust, swift, elixir, go | Error-contract test coverage is uneven: the OAuth2ServerError message is tested only in go, the error-body depth cap in 5 SDKs, exact rendering in 5 |
 | F101 | medium | fixed | L05-errors | go, node, dart | The typed-error-body accessor's failure contract differs: go returns a non-SDK error, node throws on an empty body, dart swallows every failure |
 | F102 | medium | fixed | L05-errors | ruby | ruby ApiError#message prints an empty headers hash and an empty body, which the other 11 omit |
 | F103 | medium | fixed | L05-errors | rust | rust error-body parsing and typed_error_body bypass ObjectSerializer: serde's ~128 depth limit instead of the shared 1000 cap, and no BOM strip |
 | F104 | medium | fixed | L05-errors | rust | rust is the only SDK with no public parsed error body (error_body is pub(crate)) |
 | F105 | medium | fixed | L05-errors | swift | swift ApiError.fromResponse drops a scalar JSON error body (JSONSerialization without .fragmentsAllowed) |
-| F106 | medium | open | L06-simple-auth | dart, node, java, ruby, php, elixir, kotlin, csharp, python, go, rust, swift | ApiKey/Basic/Bearer unit-test coverage differs by language, and no SDK tests non-ASCII (UTF-8) Basic credentials |
-| F107 | medium | open | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | Generated per-scheme authenticator wrappers are almost untested: only java and kotlin construct any, and no SDK tests an API-key wrapper |
+| F106 | medium | fixed | L06-simple-auth | dart, node, java, ruby, php, elixir, kotlin, csharp, python, go, rust, swift | ApiKey/Basic/Bearer unit-test coverage differs by language, and no SDK tests non-ASCII (UTF-8) Basic credentials |
+| F107 | medium | partial | L06-simple-auth | java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir | Generated per-scheme authenticator wrappers are almost untested: only java and kotlin construct any, and no SDK tests an API-key wrapper |
 | F108 | medium | fixed | L06-simple-auth | go | go authenticators leak secrets through %#v because they implement Stringer but not GoStringer |
 | F109 | medium | fixed | L06-simple-auth | java | java checks API-key and Bearer input in a different order, so a newline-only or control-only value gets a different error message than in the other 11 |
 | F110 | medium | fixed | L06-simple-auth | php | php authenticator constructors do not mark secret parameters #[\SensitiveParameter], so secrets appear in exception stack traces (the docblock claims they do not) |
@@ -128,7 +128,7 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F120 | medium | fixed | L07-oauth-oidc | java | java auth-code getAuthHeaders NPEs when the OP issued no refresh_token and the access token expired |
 | F121 | medium | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | A zero or negative timeout means something different in each SDK; only rust validates it |
 | F122 | medium | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Per-operation server codegen emits duplicate types when two servers of one operation share a variable or a description |
-| F123 | medium | open | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test gaps: no test covers CA sole-anchor, garbage-CA rejection outside 3 SDKs, proxy failure classes, timeout <= 0, or a shared per-operation server variable |
+| F123 | medium | fixed | L08-config | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Test gaps: no test covers CA sole-anchor, garbage-CA rejection outside 3 SDKs, proxy failure classes, timeout <= 0, or a shared per-operation server variable |
 | F124 | medium | fixed | L08-config | csharp | csharp declares per-operation server types un-prefixed at namespace level (cross-operation collisions) and emits a duplicate <summary> |
 | F125 | medium | fixed | L08-config | dart | dart's only tracing opt-in (TraceContextUtil.propagator) is not exported from the public library |
 | F126 | medium | fixed | L08-config | java, kotlin, swift | java, kotlin and swift trust only the first certificate in a caCertPath bundle |
@@ -161,20 +161,20 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F153 | medium | fixed | L12-api-bodies | java | java BaseApi treats an empty Content-Type as base64-binary while its own transport treats it as text |
 | F154 | medium | fixed | L12-api-bodies | kotlin | kotlin void operations throw when the success response carries a non-object body |
 | F155 | medium | partial | L12-api-bodies | rust, go | rust and go return an empty string for a String-returning operation that gets a text/plain body |
-| F156 | medium | open | L13a-tests-transport | java, go, rust | Malformed 2xx body test asserts only 'some error' in java, go and rust while 9 peers assert SerializationError exactly |
-| F157 | medium | open | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir | No SDK tests a successful Content-Encoding: deflate (zlib) decode; R6-4/R7-4 deflate fixes are unlocked |
-| F158 | medium | open | L13a-tests-transport | java, php, ruby, node, go, swift, elixir, dart | Post-headers body-read failure/timeout classification is tested unevenly; node asserts broad ApiError; dart arms no body-read deadline at all |
+| F156 | medium | fixed | L13a-tests-transport | java, go, rust | Malformed 2xx body test asserts only 'some error' in java, go and rust while 9 peers assert SerializationError exactly |
+| F157 | medium | fixed | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir | No SDK tests a successful Content-Encoding: deflate (zlib) decode; R6-4/R7-4 deflate fixes are unlocked |
+| F158 | medium | fixed | L13a-tests-transport | java, php, ruby, node, go, swift, elixir, dart | Post-headers body-read failure/timeout classification is tested unevenly; node asserts broad ApiError; dart arms no body-read deadline at all |
 | F159 | medium | fixed | L13a-tests-transport | php | php silently coerces wrong-typed primitive response values ("abc"->0, 1.9->1, true->1, "5"->5); no php test covers it while java/kotlin lock strict scalars |
-| F160 | medium | open | L13a-tests-transport | rust, java, kotlin, csharp, php, python, ruby, node, dart, go, swift, elixir | rust has no brotli decode test, and no SDK asserts the Accept-Encoding it advertises by default |
-| F161 | medium | open | L13a-tests-transport | swift | swift depth-cap test uses 50-deep 'within' (peers 500-600) and its comment contradicts the source and AGENTS; Foundation's ~512 nesting limit makes swift's effective cap <1000 |
-| F162 | medium | open | L13b-tests-api-auth-models | python, ruby, node, dart | A transport failure (NetworkError) during a token fetch or OIDC discovery is not tested in python/ruby/node/dart |
-| F163 | medium | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Named-enum ($ref) parameters (getBySwatch path/query/header) and several store operations are never called in any SDK |
-| F164 | medium | open | L13b-tests-api-auth-models | java, python, ruby, rust | Operation cookie-param RFC 6265 fail-closed test missing in java/python/ruby/rust |
-| F165 | medium | open | L13b-tests-api-auth-models | java, node, elixir, rust, go | Rejecting an undeclared multi-consumes content type (T1-7) is untested in java/node/elixir and only weakly asserted in rust |
-| F166 | medium | open | L13b-tests-api-auth-models | java, kotlin, csharp, python, go, rust, elixir, dart, swift | Space-encoding assertions accept either `+` or `%20` in 7 SDKs, so the authorize-URL `%20` and token-body `+` contracts are not locked |
-| F167 | medium | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, elixir | The implicit-flow setAccessToken CR/LF and non-ASCII rejection is tested only in go/rust/swift |
-| F168 | medium | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir | format:date PATH parameter (spec 'Case 15', findPetsBornOn) is tested only in swift |
-| F169 | medium | open | L13b-tests-api-auth-models | java, kotlin, swift, rust, go, php | oneOf/discriminator failure tests accept any error, or test an internal path, in java/kotlin/swift/rust/go/php |
+| F160 | medium | fixed | L13a-tests-transport | rust, java, kotlin, csharp, php, python, ruby, node, dart, go, swift, elixir | rust has no brotli decode test, and no SDK asserts the Accept-Encoding it advertises by default |
+| F161 | medium | fixed | L13a-tests-transport | swift | swift depth-cap test uses 50-deep 'within' (peers 500-600) and its comment contradicts the source and AGENTS; Foundation's ~512 nesting limit makes swift's effective cap <1000 |
+| F162 | medium | fixed | L13b-tests-api-auth-models | python, ruby, node, dart | A transport failure (NetworkError) during a token fetch or OIDC discovery is not tested in python/ruby/node/dart |
+| F163 | medium | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Named-enum ($ref) parameters (getBySwatch path/query/header) and several store operations are never called in any SDK |
+| F164 | medium | fixed | L13b-tests-api-auth-models | java, python, ruby, rust | Operation cookie-param RFC 6265 fail-closed test missing in java/python/ruby/rust |
+| F165 | medium | fixed | L13b-tests-api-auth-models | java, node, elixir, rust, go | Rejecting an undeclared multi-consumes content type (T1-7) is untested in java/node/elixir and only weakly asserted in rust |
+| F166 | medium | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, python, go, rust, elixir, dart, swift | Space-encoding assertions accept either `+` or `%20` in 7 SDKs, so the authorize-URL `%20` and token-body `+` contracts are not locked |
+| F167 | medium | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, elixir | The implicit-flow setAccessToken CR/LF and non-ASCII rejection is tested only in go/rust/swift |
+| F168 | medium | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir | format:date PATH parameter (spec 'Case 15', findPetsBornOn) is tested only in swift |
+| F169 | medium | fixed | L13b-tests-api-auth-models | java, kotlin, swift, rust, go, php | oneOf/discriminator failure tests accept any error, or test an internal path, in java/kotlin/swift/rust/go/php |
 | F170 | medium | open | L14-codegen-java | go, dart, swift, rust, java, kotlin, csharp, python, node, php, ruby, elixir | A required discriminator missing from a subtype payload is rejected by 4 SDKs and silently defaulted by 8 (Gap K) |
 | F171 | medium | open | L14-codegen-java | java, kotlin, php, python, csharp, dart, node, rust, swift, go, ruby, elixir | Component-level enum defaults on a $ref property: ignored by java/kotlin/php/python, emitted as an untyped string literal by 8 others |
 | F172 | medium | open | L14-codegen-java | python, dart, php, rust, go, csharp | Digit-leading property/param names give invalid identifiers in python/dart/php/rust and an unexported (silently dropped) field in go |
@@ -197,9 +197,9 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F189 | medium | open | L16-docs-packaging | swift | swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim |
 | F190 | medium | deferred | L17-gates | dart, go | Dart and Go spec setup rewrites the golden before the checks run, so the dart format gate cannot fail and go.mod/go.sum drift is hidden |
 | F191 | medium | deferred | L17-gates | java, kotlin, csharp, php, python, ruby, node, dart, swift, elixir, go | Every SDK ships a warnings-fatal docs build, but only rust runs it in a spec |
-| F192 | medium | open | L17-gates | ruby, python, node, go, dart | Five SDKs' decompression integration tests call a public internet host and pass whether or not the body was encoded |
+| F192 | medium | fixed | L17-gates | ruby, python, node, go, dart | Five SDKs' decompression integration tests call a public internet host and pass whether or not the body was encoded |
 | F193 | medium | deferred | L17-gates | swift, csharp, java | Generated tests get weaker compile and analysis strictness than sources in swift, csharp and java |
-| F194 | medium | open | L17-gates | kotlin, swift, php, python | Hand-written spec tests in the generated spec/ directory never run in kotlin, swift, php and python |
+| F194 | medium | partial | L17-gates | kotlin, swift, php, python | Hand-written spec tests in the generated spec/ directory never run in kotlin, swift, php and python |
 | F195 | medium | deferred | L17-gates | kotlin, rust, csharp | Inline-comment ban is switched off for kotlin and rust, and csharp's /Models/ exclusion hides a real violation |
 | F196 | medium | deferred | L17-gates | java | java's OpenRewrite modernization recipe is never run by any spec, though the pom relies on it and php gates its rector equivalent |
 | F197 | medium | fixed | L18a-wire-request | java, ruby, node | Form-body (x-www-form-urlencoded) encoding differs: java, ruby and node use the WHATWG set (* literal, ~ escaped); the other 8 do the opposite |
@@ -228,7 +228,7 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F220 | medium | fixed | L20-doc-truth | swift | Swift sends an empty required date path param (bornOn: String), contradicting 'required string must not be empty in any of the 12' |
 | F221 | medium | fixed | L20-doc-truth | python, node | The forced-divergence note says python and node preserve full decimal precision; both lose it on decode |
 | F222 | medium | fixed | L20-doc-truth | go | The go empty-path message is called FORCED for lacking operation context, but go's operation layer already appends it |
-| F223 | medium | fixed | L20-doc-truth | java, kotlin | java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises |
+| F223 | medium | partial | L20-doc-truth | java, kotlin | java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises |
 | F224 | medium | fixed | L21-api-surface | python, node | AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode |
 | F225 | medium | open | L21-api-surface | python, rust, ruby, elixir, node, php, go | Configuration and TransportOptions print secrets (proxy password, Authorization default header) in 7 SDKs; every authenticator redacts |
 | F226 | medium | fixed | L21-api-surface | php, python, ruby, node | TransportOptions has a public constructor that skips the builder's proxy validation in php, python, ruby and node |
@@ -296,7 +296,7 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F288 | low | open | L07-oauth-oidc | java, kotlin, csharp, php, python, ruby, node, dart, swift | Generator emits OAuth scopes in HashMap order, not spec order |
 | F289 | low | fixed | L07-oauth-oidc | ruby, kotlin, node, java | Non-JSON 2xx token body echoed into OAuth2TokenError message (ruby, kotlin; node/java partially) — can leak the access/refresh token into logs |
 | F290 | low | open | L07-oauth-oidc | csharp, node, dart, go, rust | Sync auth-header accessor on token-based OAuth flows: csharp throws, node/dart (and go/rust's infallible variants) silently return {} |
-| F291 | low | open | L07-oauth-oidc | java, kotlin, python, ruby, node, dart, go, rust, swift, elixir, csharp, php | Test-coverage gaps: refresh-failure fallback (2/12), OIDC max-age and rediscovery (0/12), wrapper scopes (0/12) |
+| F291 | low | fixed | L07-oauth-oidc | java, kotlin, python, ruby, node, dart, go, rust, swift, elixir, csharp, php | Test-coverage gaps: refresh-failure fallback (2/12), OIDC max-age and rediscovery (0/12), wrapper scopes (0/12) |
 | F292 | low | open | L07-oauth-oidc | java, go, elixir, rust, swift | Token-request body and authorize-URL parameter order differ (java hash order, go/elixir sorted, rust/swift random per process) |
 | F293 | low | open | L07-oauth-oidc | java, kotlin, csharp, php, ruby, elixir, python, node, go, rust, swift, dart | buildAuthorizationUrl with an empty state: 6 SDKs emit '&state=', 6 omit it |
 | F294 | low | fixed | L07-oauth-oidc | ruby, node, swift, java | expires_in string grammar differs (hex, type suffixes, newline trimming) |
@@ -350,22 +350,22 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F342 | low | fixed | L12-api-bodies | java, csharp, swift | Optional request body: java/csharp/swift force the caller to pass an explicit null |
 | F343 | low | fixed | L12-api-bodies | csharp | csharp sends `application/json; charset=utf-8` (and form `; charset=utf-8`) where the other 11 send the bare declared type |
 | F344 | low | fixed | L12-api-bodies | ruby | ruby form-urlencoded body stringifies values with to_s instead of ObjectSerializer |
-| F345 | low | open | L12-api-bodies | rust | rust body/response tests discard the operation result and assert nothing |
+| F345 | low | fixed | L12-api-bodies | rust | rust body/response tests discard the operation result and assert nothing |
 | F346 | low | open | L12-api-bodies | rust | rust has no data-returning variant of the request-content-type selector |
-| F347 | low | open | L13a-tests-transport | kotlin, csharp, php, python, ruby, node, go, rust, swift, elixir | Garbage-PEM caCertPath (file exists, contents invalid) is tested only in java and dart |
-| F348 | low | open | L13a-tests-transport | java, kotlin, csharp, ruby, node, dart, elixir | Null element inside a csv/ssv/pipes/multi array (empty slot, 'a,,c') is asserted only in php, swift and python |
+| F347 | low | fixed | L13a-tests-transport | kotlin, csharp, php, python, ruby, node, go, rust, swift, elixir | Garbage-PEM caCertPath (file exists, contents invalid) is tested only in java and dart |
+| F348 | low | fixed | L13a-tests-transport | java, kotlin, csharp, ruby, node, dart, elixir | Null element inside a csv/ssv/pipes/multi array (empty slot, 'a,,c') is asserted only in php, swift and python |
 | F349 | low | fixed | L13a-tests-transport | java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir, swift, node | PARITY_TODO R7-T1 and R7-T3 are still unchecked although the code implements them |
-| F350 | low | open | L13a-tests-transport | csharp, python, node, dart, go, rust, swift, elixir, ruby, php | Path-segment sub-delimiter/unreserved set is asserted unevenly (';' '=' '~' '@' '!' '$' '&' ''' '(' ')' '*') |
-| F351 | low | open | L13a-tests-transport | csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Redirect default-port normalization (https://h -> https://h:443 keeps Authorization) is tested only in java and kotlin |
-| F352 | low | open | L13b-tests-api-auth-models | node, dart, swift, go, rust | An OAuth2 token-fetch failure is asserted as 'any error' in node/dart/swift/go/rust |
-| F353 | low | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir | Caching a token that has no expires_in is tested only in swift |
-| F354 | low | open | L13b-tests-api-auth-models | csharp, php, python, ruby, node, dart, rust, elixir | Ignoring a non-string refresh_token (the T2-12 fix) is tested only in java/kotlin |
-| F355 | low | open | L13b-tests-api-auth-models | java, csharp, dart, python, ruby, rust, swift, elixir | Model equality including additionalProperties (the T1-9 fix) is tested only in kotlin |
-| F356 | low | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | No test checks the redacted-repr fields that T3-18/R8-9 aligned |
-| F357 | low | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | ServerConfiguration/ServerVariable test scenarios differ by SDK; the rejection message is checked in only 3 and swift accepts any error |
-| F358 | low | open | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift | The generated per-scheme authenticator classes have no unit tests outside elixir |
-| F359 | low | open | L13b-tests-api-auth-models | dart, java, kotlin, php, python, ruby, swift, elixir, rust | TransportOptions tests: dart has no 'timeout disabled' test, only 4 SDKs test rejecting a non-http proxy scheme, and only rust defines and tests a negative timeout |
-| F360 | low | open | L13b-tests-api-auth-models | dart, node, java, csharp, php, python | dart and node ApiKey/Bearer authenticator tests skip cases the other SDKs cover |
+| F350 | low | fixed | L13a-tests-transport | csharp, python, node, dart, go, rust, swift, elixir, ruby, php | Path-segment sub-delimiter/unreserved set is asserted unevenly (';' '=' '~' '@' '!' '$' '&' ''' '(' ')' '*') |
+| F351 | low | partial | L13a-tests-transport | csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Redirect default-port normalization (https://h -> https://h:443 keeps Authorization) is tested only in java and kotlin |
+| F352 | low | fixed | L13b-tests-api-auth-models | node, dart, swift, go, rust | An OAuth2 token-fetch failure is asserted as 'any error' in node/dart/swift/go/rust |
+| F353 | low | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir | Caching a token that has no expires_in is tested only in swift |
+| F354 | low | fixed | L13b-tests-api-auth-models | csharp, php, python, ruby, node, dart, rust, elixir | Ignoring a non-string refresh_token (the T2-12 fix) is tested only in java/kotlin |
+| F355 | low | fixed | L13b-tests-api-auth-models | java, csharp, dart, python, ruby, rust, swift, elixir | Model equality including additionalProperties (the T1-9 fix) is tested only in kotlin |
+| F356 | low | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | No test checks the redacted-repr fields that T3-18/R8-9 aligned |
+| F357 | low | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | ServerConfiguration/ServerVariable test scenarios differ by SDK; the rejection message is checked in only 3 and swift accepts any error |
+| F358 | low | partial | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift | The generated per-scheme authenticator classes have no unit tests outside elixir |
+| F359 | low | fixed | L13b-tests-api-auth-models | dart, java, kotlin, php, python, ruby, swift, elixir, rust | TransportOptions tests: dart has no 'timeout disabled' test, only 4 SDKs test rejecting a non-http proxy scheme, and only rust defines and tests a negative timeout |
+| F360 | low | fixed | L13b-tests-api-auth-models | dart, node, java, csharp, php, python | dart and node ApiKey/Bearer authenticator tests skip cases the other SDKs cover |
 | F361 | low | fixed | L13b-tests-api-auth-models | go, rust | go and rust append ' when calling PetApi.<op>' to the operation-cookie RFC 6265 message; the other 10 do not |
 | F362 | low | open | L14-codegen-java | ruby, python, java, kotlin, csharp, php, node, dart, go, rust, swift, elixir | Codegen classes build generated source text in Java (StringBuilder/concatenation) instead of templates, with unescaped spec strings |
 | F363 | low | open | L14-codegen-java | php, java, kotlin, csharp, go, rust, swift, dart, python, ruby, node, elixir | Whitespace-only / symbol-only enum values: php alone avoids an empty identifier |
@@ -389,7 +389,7 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F381 | low | open | L16-docs-packaging | python | python README type-mapping table says bare `number` maps to `pydantic.StrictFloat`; the code maps it to the Decimal-based `JsonNumber` |
 | F382 | low | fixed | L17-gates | elixir, php, swift | Spec comments claim the gates match the generated Makefile, but the elixir, php and swift Makefiles disagree |
 | F383 | low | open | L17-gates | swift | SwiftFormattingSpec runs swift-format lint without --strict, so it exits 0 on any formatting finding |
-| F384 | low | open | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
+| F384 | low | deferred | L17-gates | ruby, elixir | ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit |
 | F385 | low | fixed | L18a-wire-request | csharp, dart, kotlin | Multipart JSON part headers differ: csharp and dart add `; charset=utf-8` and change header order; kotlin adds a per-part Content-Length |
 | F386 | low | open | L18a-wire-request | java, go, swift, ruby, elixir, rust, python, dart | Query, form and multipart parameter order is not the declared order in 7 languages: hash order, random or sorted |
 | F387 | low | open | L18a-wire-request | node, rust, swift, php | allowReserved characters are re-escaped by the HTTP client in node and rust (') and swift ([ ]) |
@@ -415,7 +415,7 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F407 | low | open | L22-lifecycle | go, node, swift, java, kotlin, csharp, python, ruby, php, rust, dart, elixir | Timeout budget across a redirect chain: whole chain in go/node/swift, per hop in the other 9 |
 | F408 | low | fixed | L22-lifecycle | java, go, swift, csharp | Unsynchronized mutable auth state in the implicit and authorization-code authenticators (java/go/swift/csharp); kotlin uses @Volatile and rust a Mutex |
 | F409 | low | open | L22-lifecycle | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Use-after-close: six different messages, and several doc comments still promise an SDK ApiException/ApiError |
-| F410 | low | fixed | L22-lifecycle | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2 |
+| F410 | low | partial | L22-lifecycle | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2 |
 | F411 | low | open | L22-lifecycle | rust | rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs |
 | F412 | medium | fixed | batch1-discovered | csharp | The authorize URL still builds its base from _authorizationUrl.ToString() (same Uri normalization class as F117), so a configured authorization endpoint with a default port or upper-case host is rewri |
 | F413 | medium | deferred | batch1-discovered | csharp | The redirect-replay buffering holds a whole Stream or multipart upload in memory when redirects are followed (the default), which can be costly for very large file uploads |
@@ -536,6 +536,60 @@ Status counts: deferred 19, false-positive 15, fixed 229, forced 4, needs-spec 1
 | F528 | medium | open | batch3-discovered | rust | NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200 |
 | F529 | medium | open | batch3-discovered | rust | The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no longer catches it, so a caller sees no pattern for telling a timeout from other network failures |
 | F530 | medium | open | batch3-discovered | rust | rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted |
+| F531 | medium | open | batch4-discovered | kotlin | Branch name deviation: parity/b2-kotlin is already checked out by another worktree (wf_4a554f2f-32a-2, an earlier batch), so git checkout -B was refused and the work is on parity/b2-kotlin-tests creat |
+| F532 | medium | open | batch4-discovered | kotlin | Fixed in this commit: OpenIdConnectAuthenticator rebuilt its OAuth2AuthorizationCodeAuthenticator delegate on rediscovery (max-age elapsed) and dropped the exchanged tokens and the exchanged flag, so  |
+| F533 | medium | open | batch4-discovered | kotlin | src/main/resources/fixtures/certs/server.pem now lists IP Address:127.0.0.1 in its SAN, so the java DefaultApiClientTest comment ('cert has no 127.0.0.1') and its verifySslTrueRejectsHostnameMismatch  |
+| F534 | medium | open | batch4-discovered | kotlin | kotlin MAX_JSON_DEPTH is 1000 (object_serializer.mustache) while F100 notes other SDKs cap error bodies at 128; the new ApiExceptionTest case uses 5000 levels so it holds for either limit |
+| F535 | medium | open | batch4-discovered | kotlin | kotlin TransportOptions accepts a negative or zero timeout without any guard (rust rejects it, F359); no shared contract exists, so no test was added |
+| F536 | medium | open | batch4-discovered | kotlin | kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contrac |
+| F537 | medium | open | batch4-discovered | python | Branch name deviation: parity/b2-python is already checked out by the older worktree wf_4a554f2f-32a-5 (commit 031f8706c, not an ancestor of 77ef6e332), so 'git checkout -B parity/b2-python' was impos |
+| F538 | medium | open | batch4-discovered | python | python OIDC rediscovery after Cache-Control max-age builds a new delegate and drops the exchanged tokens, so get_auth_headers raises 'Must call exchange_code()' (already ledgered as F016/F230); I test |
+| F539 | medium | open | batch4-discovered | python | python int32 fields use unbounded StrictInt, so {"quantity":3000000000} deserializes and would be re-sent (the java/kotlin/csharp/go/rust/swift SDKs reject it); not fixed, needs a codegen type mapping |
+| F540 | medium | open | batch4-discovered | python | python TransportOptions accepts zero and negative timeouts at build time (only rust rejects them), so the failure would only appear when urllib3.Timeout is built at request time; no shared contract ex |
+| F541 | medium | open | batch4-discovered | python | PythonClientSpec.java still runs 'python -m pytest test/ -v' with an explicit path and mypy in the Makefile still checks only petstore_client/ and test/, so hand-written specs under spec/ are not run  |
+| F542 | medium | open | batch4-discovered | dart | Dart password and authorization-code authenticators pass an already-built refresh grant to OAuth2TokenManager, so the fall-back after a rejected refresh re-sends a refresh grant instead of the origina |
+| F543 | medium | open | batch4-discovered | dart | Dart accepts an int32 value above 2^31-1 (ApiResponse.code and other int32 fields decode into a 64-bit int), unlike java/kotlin/csharp/go/rust/swift; I did not pin that divergence with a test |
+| F544 | medium | open | batch4-discovered | dart | Dart TransportOptionsBuilder.timeout accepts zero and negative values with no guard (rust rejects them); the cross-SDK contract is undecided so no test pins it |
+| F545 | medium | open | batch4-discovered | dart | Dart barrel (barrel.mustache) did not export the generated per-scheme authenticators (fixed in this commit via perSchemeAuthModules and perSchemeOAuthModules) |
+| F546 | medium | open | batch4-discovered | dart | Dart OpenIdConnectAuthenticator dropped the exchanged tokens when a re-fetched discovery document expired and the delegate was rebuilt (fixed in this commit) |
+| F547 | medium | open | batch4-discovered | dart | Setup deviation: branch parity/b2-dart already exists with an earlier run's commit and is checked out in another worktree (wf_4a554f2f-32a-8), so git checkout -B would have orphaned that work; I branc |
+| F548 | medium | open | batch4-discovered | node | Node ApiError.fromResponse leaves errorBody null for a body with a leading UTF-8 BOM |
+| F549 | medium | open | batch4-discovered | node | Node TransportOptions and the transport accept timeout <= 0 without validation |
+| F550 | medium | open | batch4-discovered | node | Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it) |
+| F551 | medium | open | batch4-discovered | node | The golden test directory is tracked as test/Api (capital A) while the codegen writes Path.of('test','api') |
+| F552 | medium | open | batch4-discovered | php | Fixed here: AbstractApiClient::decompressBody treated a valid gzip or deflate stream that decodes to an empty string or "0" as corrupt (the ?: throw pattern tests falsiness), so such a response raised |
+| F553 | medium | open | batch4-discovered | php | Fixed here: DefaultApiClient::createHttpClient let openssl_x509_read emit an E_WARNING for an unparseable PEM, so under a framework error handler the documented InvalidArgumentException became an Erro |
+| F554 | medium | open | batch4-discovered | php | OpenIdConnectAuthenticator::getDelegate builds a brand new OAuth2AuthorizationCodeAuthenticator whenever the discovery max-age has elapsed, so the exchanged tokens are lost and the next getAuthHeaders |
+| F555 | medium | open | batch4-discovered | php | OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator pass the refresh-grant params to OAuth2TokenManager::getAccessToken, so when the refresh token is rejected the 'fall back to the or |
+| F556 | medium | open | batch4-discovered | php | OAuth2TokenManager keeps the previous (already stale) expiry when a refresh response omits expires_in, so every following call refreshes again; the intended rule (T3-16) is untested and unclear for ph |
+| F557 | medium | open | batch4-discovered | java | OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so the token from exchangeCode was lost once the Cache-Control max-age expired (getAuthHeaders then threw IllegalStateExcep |
+| F558 | medium | open | batch4-discovered | java | java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3) |
+| F559 | medium | open | batch4-discovered | ruby | Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr |
+| F560 | medium | open | batch4-discovered | ruby | Ruby gem entry point (gem.mustache) never requires the per-scheme wrapper authenticators (Auth::<Scheme>Authenticator, 12 files in the golden), so require 'petstore_client' alone leaves them undefined |
+| F561 | medium | open | batch4-discovered | ruby | Ruby OpenIdConnectAuthenticator rediscovery (default 86400s or max-age=0) builds a fresh OAuth2AuthorizationCodeAuthenticator and drops the exchanged token, so auth_headers raises 'Must call exchange_ |
+| F562 | medium | open | batch4-discovered | ruby | Ruby accepts an int32 value of 3000000000 (ObjectSerializer Integer check is unbounded) and has no negative-timeout guard in TransportOptions, so both diverge from the SDKs that reject them; left unlo |
+| F563 | medium | open | batch4-discovered | ruby | Ruby ISO-8859-1 Basic credentials raised Encoding::CompatibilityError when mixed with UTF-8 ones and otherwise went out as Latin-1 bytes; fixed in BasicAuthenticator#auth_headers in this commit |
+| F564 | medium | open | batch4-discovered | csharp | csharp DefaultApiClient custom-CA ServerCertificateCustomValidationCallback ignores the SslPolicyErrors argument and only builds the chain, so a certificate whose name does not match the host is accep |
+| F565 | medium | open | batch4-discovered | csharp | csharp TransportOptions.Timeout(-1) is passed straight to HttpClient.Timeout and silently becomes an infinite timeout (other negative values and 0 throw ArgumentOutOfRangeException); the builder does  |
+| F566 | medium | open | batch4-discovered | csharp | csharp OpenIdConnectAuthenticator rediscovery after Cache-Control max-age builds a new delegate and loses the exchanged tokens (already ledger F016; deliberately not locked by a test) |
+| F567 | medium | open | batch4-discovered | csharp | The shared TLS test certificate now lists 127.0.0.1 in its SAN, so the 'request 127.0.0.1 against a cert naming localhost' hostname-mismatch technique described in java's DefaultApiClientTest comment  |
+| F568 | medium | open | batch4-discovered | elixir | The branch name parity/b2-elixir was already checked out by an older worktree (wf_3417e94f-a6d-4) holding a batch 1 commit, so I used parity/b2-elixir-tests from 77ef6e332 instead |
+| F569 | medium | open | batch4-discovered | elixir | Before this commit the elixir password and authorization-code authenticators sent refresh requests without client_id/client_secret (fixed here), and on a failed refresh the authenticator-level fallbac |
+| F570 | medium | open | batch4-discovered | elixir | DefaultApiClient.same_origin? could return nil, so 'not same_origin?' would raise ArgumentError for a URL without scheme or host |
+| F571 | medium | open | batch4-discovered | elixir | The fixture server certificate lists IP 127.0.0.1 in its SAN, so the hostname-mismatch technique used by java and node cannot reject it in elixir |
+| F572 | medium | open | batch4-discovered | elixir | Elixir accepts an int32 value above 2^31-1 and has no negative-timeout guard in TransportOptions; no cross-SDK contract exists yet, so neither is locked |
+| F573 | medium | open | batch4-discovered | swift | The branch name parity/b2-swift could not be used because another worktree (wf_3417e94f-a6d-3, an earlier run) has it checked out, so the work is on parity/b2-swift-tests created from 77ef6e332 and no |
+| F574 | medium | open | batch4-discovered | swift | swift maps int32 to the 64-bit Int, so {"quantity":3000000000} decodes into Order.quantity instead of being rejected as the finding assumes for swift; a real fix needs an Int32 type mapping in the gen |
+| F575 | medium | open | batch4-discovered | swift | Foundation JSONDecoder rejects bodies nested more than 512 deep (and decoding a 500-deep recursive model overflows a test thread stack on macOS), so swift cannot decode the 600-deep bodies the other S |
+| F576 | medium | open | batch4-discovered | swift | OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator hand the token manager refresh-grant params once a refresh token exists, so the refresh request omits client_id/client_secret and t |
+| F577 | medium | open | batch4-discovered | swift | swift TransportOptionsBuilder.timeout accepts negative values with no ConfigurationError, unlike rust (F359 item 3 is a contract decision, not a swift test) |
+| F578 | medium | open | batch4-discovered | rust | Url normalisation makes the same_origin default-port comparison a no-op to mutate (port() and port_or_known_default() are equivalent), so the new default-port test locks behaviour but cannot catch tha |
+| F579 | medium | open | batch4-discovered | rust | The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test |
+| F580 | medium | open | batch4-discovered | rust | test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent |
+| F581 | medium | open | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
+| F582 | medium | open | batch4-discovered | go | TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of |
+| F583 | medium | open | batch4-discovered | go | OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the pas |
+| F584 | medium | open | batch4-discovered | go | OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230) |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -985,7 +1039,7 @@ Reviewer suspected this is forced: none (codegen collapses multi-content request
 - `src/spec/resources/generated/ruby/lib/petstore/client/api/pet_api.rb:1124`
 
 ## F036 [high] BaseApi 'cross-origin redirect drops Authorization/Cookie' tests are tautological in all 12; swift has no real strip test at all
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 Every BaseApi CrossOriginRedirect test builds its own local set {authorization,cookie,proxy-authorization}, filters a local dictionary with an inline lambda, and asserts on the test's own code - the SDK is never invoked. java/kotlin/csharp are even weaker (assert a literal Set.of(...) contains 'cookie'); csharp's same-origin variant asserts `client.CapturedHeaders.ContainsKey("Authorization") || headers.ContainsKey("Authorization")`, which is always true; java's same-origin test calls a capturing mock's sendRequest with no redirect at all. For 11 SDKs a real end-to-end strip test exists elsewhere (DefaultApiClient(Unit)Test), but swift has NONE: its only coverage is these tautologies, set-membership of sensitiveRedirectHeaders, and the sameOrigin predicate (DefaultApiClientTests.swift:458). Swift's URLSession willPerformHTTPRedirection strip path is therefore entirely unexercised. Replace the BaseApi tautologies with real redirect-through-SDK tests (or delete them) and add a swift end-to-end cross-origin 302 test asserting Authorization/Cookie/X-API-Key are absent on the second hop, like dart default_api_client_unit_test.dart:588.
@@ -1006,7 +1060,7 @@ Every BaseApi CrossOriginRedirect test builds its own local set {authorization,c
 - `src/spec/resources/generated/swift/Tests/PetstoreClientTests/DefaultApiClientUnitTests.swift:483`
 
 ## F037 [high] TLS verification ON (default) is never proven to reject an untrusted/mismatched certificate in 10 of 12 SDKs
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **partial** (done in csharp, dart, elixir, go, php, python, ruby, rust; still open for kotlin, swift) | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: kotlin, csharp, php, python, ruby, dart, go, rust, swift, elixir
 
 Only java (DefaultApiClientTest.verifySslTrueRejectsHostnameMismatch / verifySslFalseAcceptsHostnameMismatch) and node (default-api-client.test.ts:59/73) drive a request with verifySsl=true against a cert that must fail (cert names localhost, request goes to 127.0.0.1) and assert it is rejected. The other 10 only assert (a) the TransportOptions flag defaults to true and (b) a request SUCCEEDS with verifySsl=false or with a custom CA. A transport that silently ignored verifySsl (always insecure) would pass every one of their tests, so the single most security-relevant transport property is unasserted in 10 SDKs. The chasm fixture already supports the java/node technique (hostname mismatch with the shipped CA), so this is unit/integration-testable everywhere: add verifySsl=true + caCertPath + 127.0.0.1 => NetworkError (status 0, not ApiError(200)), and verifySsl=false => success, to each DefaultApiClientTest.
@@ -1035,7 +1089,7 @@ php ObjectSerializer::serialize calls json_encode($sanitized, $flags) with flags
 - `src/spec/resources/generated/java/src/test/java/com/example/petstore/ObjectSerializerTest.java:406` — assertTrue(result.contains("日本"), "should contain literal CJK chars, got: " + result);
 
 ## F039 [high] API 404/500 tests accept any error in 6 SDKs instead of the exact status error type
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, go, rust, swift, elixir
 
 For a 404 or 500 returned through PetApi or StoreApi, csharp, php, python, ruby, node and dart assert the exact type (NotFoundException/NotFoundError, InternalServerError...). The other six do not. java asserts `isInstanceOf(Exception.class)` in all five of these tests, and its malformed-body test is equally broad. kotlin asserts the `ApiException` supertype plus the status code. go checks only `err == nil`, rust only `result.is_err()`, swift only `error != nil`, and elixir only pattern-matches `{:error, _reason}`. AGENTS says a test expecting a broad Exception is not a contract test. In these six SDKs a regression that mapped 404 to a generic ApiError, a NetworkError or a SerializationError would pass. Fix: assert the exact type in each (java `assertThrowsExactly(NotFoundException.class)`, go `errors.As(&*NotFoundError)`, rust `matches!` on the variant, swift a typed catch, elixir `{:error, %NotFoundError{}}`).
@@ -1048,7 +1102,7 @@ For a 404 or 500 returned through PetApi or StoreApi, csharp, php, python, ruby,
 - `src/spec/resources/generated/csharp/Test/Api/StoreApiTest.cs:160` — await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(async () =>
 
 ## F040 [high] OAuth2 refresh grant: its request body and the fall-back to the original grant on refresh failure are tested only in php (and csharp)
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, python, ruby, node, dart, go, rust, swift, elixir
 
 In every SDK the token manager sends `grant_type=refresh_token` with the cached refresh token and carries over client_id/client_secret. If that refresh fails, it falls back to re-running the original grant; java also re-throws cancellation instead of falling back. Only php checks both the refresh request body and the fall-back, with 3 captured requests where the 2nd contains `grant_type=refresh_token` and the 3rd the original grant. csharp checks the fall-back by call count only. In the other 10 SDKs the `refreshTokenEmptyStringPreservesExisting` test triggers a refresh but never looks at the refresh request, and no test makes the refresh fail. A regression that dropped the refresh_token parameter, skipped the refresh, or let a refresh error escape instead of falling back would pass in 10 SDKs. Fix: add one test per SDK that copies php's three-response scenario and asserts the body of each request.
@@ -1059,7 +1113,7 @@ In every SDK the token manager sends `grant_type=refresh_token` with the cached 
 - `src/spec/resources/generated/java/src/test/java/com/example/petstore/auth/oauth/OAuth2TokenManagerTest.java:341` — manager.getAccessToken("https://auth.example.com/token", params);
 
 ## F041 [high] Operation-level server variants: generated variant URLs, server variables and multi-server ops are untested; elixir's R8-4 typed-variant path has no test
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 The petstore spec declares three operation-level `servers:` cases: getExternalPetInfo (one fixed URL), getStagingPetInfo (a templated URL whose variables have enums and defaults), and getMultiServerPetInfo (two servers, one templated). Only getExternalPetInfo is ever called, and 8 SDKs do not use the generated server type for it. java, kotlin, csharp and php pass the generated variant (`GetExternalPetInfoServer.Server0`) and assert that the requested URL starts with the spec's `https://external-api.example.com/v1`. python, ruby, node, dart, go, rust and swift pass a test-defined subclass or mock that points at the mock server, so the generated variant's URL is never checked. elixir passes a bare `%ServerConfiguration{}` and only asserts `result != nil`. AGENTS R8-4 changed elixir to route through the typed variant module's `url/1`, but the test still uses the bare struct, so that change is not locked. No SDK calls getStagingPetInfo or getMultiServerPetInfo, so variable substitution and enum checks on operation-level servers, and picking among several operation servers, are untested in all 12 (ruby only checks that the constants autoload). Fix: in every SDK, call getStagingPetInfo with the generated variant, with and without a variable override and with one value outside the enum, and assert the resolved URL and the rejection; in elixir use the generated variant module rather than a bare ServerConfiguration.
@@ -1070,7 +1124,7 @@ The petstore spec declares three operation-level `servers:` cases: getExternalPe
 - `AGENTS.md:309` — A bare `%ServerConfiguration{}` still resolves ... so the hand-built test server keeps working.
 
 ## F042 [high] Sending the refresh grant to refreshUrl (not tokenUrl) is untested in all 12 SDKs
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 The password and authorization-code authenticators send the first grant to tokenUrl and the refresh grant to refreshUrl. refreshUrl falls back to tokenUrl when it is null, and the petstore spec declares a distinct `refreshUrl: https://auth.example.com/oauth/refresh` for legacyAuth and userAuth. Every `usesRefreshTokenOnSubsequentCalls` and `includesRefreshTokenOnRefresh` test builds the authenticator without a refreshUrl (or with refreshUrl = null), so tokenUrl and refreshUrl are the same and the routing cannot be observed. The only test that mentions it is elixir's 'scheme authenticator keeps ... the declared URLs', and that only reads the struct field and never checks where the request goes. A regression that sent the refresh grant to tokenUrl, or the first grant to refreshUrl, would pass everywhere. Fix: in each SDK construct with a distinct refreshUrl and assert the URL captured for the first call and for the refresh call.
@@ -1080,7 +1134,7 @@ The password and authorization-code authenticators send the first grant to token
 - `src/spec/resources/generated/elixir/test/oauth2_password_authenticator_test.exs:65` — assert auth.refresh_url == "https://auth.example.com/oauth/refresh"
 
 ## F043 [high] The R8-10 OAuth2 percent-encoding change has no test in any SDK
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 AGENTS R8-10 records that 11 SDKs now keep exactly `-._~` literal and %-encode `* ! ' ( )` in three places: the token-request body, the RFC 6749 §2.3.1 Basic client-auth header, and the authorize URL. No test in any of the 12 SDKs uses one of these characters: grepping every test tree for `%2A`, `%21`, `%27`, `%28` or `%29` in an OAuth context finds nothing. Every `basicAuthUrlEncodesClientIdAndSecret` test uses the same inputs, `id+with/special` and `secret&with=stuff`, so `+`, `/`, `&` and `=` are the only characters exercised. The change can silently revert in any SDK. Swift's authorize URL is the documented exception (R8-F1); its body and Basic header paths are still in scope. Fix: add `~` and `*!'()` to the client_id/secret/scope fixtures in the Basic-header, body and authorize-URL tests and assert the exact bytes.
@@ -1895,7 +1949,7 @@ AGENTS.md ('responseHeaders null vs empty is a signal') says null headers mean t
 - `src/spec/resources/generated/python/petstore_client/default_api_client.py:752`
 
 ## F100 [medium] Error-contract test coverage is uneven: the OAuth2ServerError message is tested only in go, the error-body depth cap in 5 SDKs, exact rendering in 5
-- Status: **open** | Lens: L05-errors | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L05-errors | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, rust, swift, elixir, go
 
 (1) The OAuth2ServerError three-form message ('Token request failed with status N: <raw>' / '…: code' / '…: code -- desc') is asserted only by go/test/oauth2_token_manager_test.go:698. The other 11 never assert it. (2) The 'refuses a deeply nested error body' test exists in python, ruby, node, dart and go, but not in java, kotlin, csharp, php, rust, swift or elixir. A 500-deep fromResponse body test in rust would immediately expose the 128-limit divergence. (3) The exact rendered string is asserted in java, kotlin, csharp, php and node. python, ruby, dart, go, rust, swift and elixir only assert 'non-empty', which is why ruby's empty-headers/empty-body rendering and rust's wrapper Display go unnoticed. Adding a case with an empty body and empty headers to every rendering test would lock the omission rule. (4) No SDK tests fromResponse with a scalar JSON body, the swift gap, or with a BOM-prefixed body. (5) No test asserts the TYPE of a getTypedErrorBody failure (go's raw error) or the empty-string body case (node). These all belong in the existing per-language ApiError test files, as table rows. Optionally, extend the petstore /test/status/* routes with one whose error content schema is `type: string`, so the chasm mock returns a scalar error body end to end.
@@ -1963,7 +2017,7 @@ swift's fromResponse calls JSONSerialization.jsonObject(with: data) with no opti
 - `src/spec/resources/generated/python/petstore_client/object_serializer.py:220` — return json.loads(
 
 ## F106 [medium] ApiKey/Basic/Bearer unit-test coverage differs by language, and no SDK tests non-ASCII (UTF-8) Basic credentials
-- Status: **open** | Lens: L06-simple-auth | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L06-simple-auth | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: dart, node, java, ruby, php, elixir, kotlin, csharp, python, go, rust, swift
 
 Missing cases by language. dart Bearer: no prefix-dedup test at all (already-prefixed, lowercase, mixed-case). dart ApiKey: no empty or whitespace rejection test, no CR/LF/NUL test for query or cookie, no cookie-location test; its test 'non-header locations accept arbitrary chars' is misleading, because CR/LF/NUL are rejected at every location. node ApiKey: no cookie-location test and no CR/LF/NUL query or cookie test. node Bearer: no mixed-case dedup test. java Bearer: no CR/LF or non-ASCII rejection test. java ApiKey: no cookie happy path, no header non-ASCII rejection, no query-accepts-non-ASCII test. Most suites assert `throws` or a substring instead of the exact message for every branch, which is how the java order divergence and the go/rust wording drift went unnoticed. No language has a Basic test with non-ASCII credentials: all fixtures use 'alice:s3cret' or 'user:pass'. Nine SDKs transcode to UTF-8 by construction. php, elixir and ruby base64 the raw string bytes, and ruby strings carry their own encoding: an ISO-8859-1 `"café"` yields Latin-1 bytes (`Y2Fm6Q==` instead of `Y2Fmw6k=`), and mixing UTF-8 and Latin-1 parts raises Encoding::CompatibilityError. Fix: add a shared table to every language's Basic test, e.g. `('ünïcødé','pässwörd') -> Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==`. Consider `.encode(Encoding::UTF_8)` in ruby.
@@ -1974,7 +2028,7 @@ Missing cases by language. dart Bearer: no prefix-dedup test at all (already-pre
 - `src/spec/resources/generated/ruby/lib/petstore/client/auth/basic_authenticator.rb:40` — auth_header = "Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"
 
 ## F107 [medium] Generated per-scheme authenticator wrappers are almost untested: only java and kotlin construct any, and no SDK tests an API-key wrapper
-- Status: **open** | Lens: L06-simple-auth | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **partial** (done in csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust; still open for swift) | Lens: L06-simple-auth | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, go, dart, rust, swift, elixir
 
 The 8 non-OAuth wrappers carry spec-derived behaviour: fixed key names X-API-Key, X-Internal-Key, api_key and SESSION_ID, fixed locations header/query/cookie, and constructor signatures. Only java/kotlin PetApiTest construct a wrapper, and only PetStoreBearer and AdminBasic. No test in any of the 12 constructs ApiKeyHeader, InternalApiKey, ApiKeyQuery or SessionCookie, or checks that a wrapper emits its key at the right location, still validates eagerly, or redacts. This is how three wrapper problems went uncaught: the rust wrapper modules were dead source until T2-8 and then shipped a missing import (AGENTS documents both); ruby wrappers take keyword args while their bases take positional args; and the java wrapper toString falls back to Object.toString. Fix: add one wrapper case per base class to each language's existing ApiKey/Basic/Bearer authenticator unit test file, using the petstore schemes that already exist: `SessionCookieAuthenticator(host,k).cookieParams() == {SESSION_ID:k}`, `ApiKeyQueryAuthenticator` puts api_key in query params, the wrapper rejects an empty key, and the wrapper repr masks the key.
@@ -2143,7 +2197,7 @@ AbstractBetterCodegen.enrichOperationServers builds serverVariables per variant 
 - `src/spec/resources/specs/petstore/openapi.yaml:911` — servers: - url: https://primary.example.com/v1 ... - url: https://{region}.example.com/v1
 
 ## F123 [medium] Test gaps: no test covers CA sole-anchor, garbage-CA rejection outside 3 SDKs, proxy failure classes, timeout <= 0, or a shared per-operation server variable
-- Status: **open** | Lens: L08-config | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L08-config | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 These gaps let several findings above go unnoticed. (1) An unparseable CA file is tested only in java (garbagePemCaCertPathThrowsIllegalArgumentException), kotlin (ClientTest) and dart. The other 9 test only a missing file, so rust's lazy from_pem passes. Add a garbage-PEM row to every DefaultApiClient unit test. (2) Nothing checks that caCertPath is the sole trust anchor, so the dart/rust/ruby add-to-system-roots split goes unseen. Petstore/fixture expansion: point a client with caCertPath=fixtures/certs/ca.pem at a TLS endpoint signed by a different CA (a second chasm cert, or the publicly trusted proxy path) and expect NetworkError. (3) Proxy validation tests use one garbage string, except go (ftp, 'http://', socks5) and node (ftp). Missing-host, non-http scheme, upper-case scheme and empty-string cases are untested in 10 SDKs, and no SDK asserts the message. Add it.each/table rows to each TransportOptionsTest. (4) Negative/zero timeout is tested only in rust (test_transport_options_negative_timeout_is_rejected). (5) Server-variable message: no full-message assertion anywhere. (6) Petstore spec expansion: add an operation with two servers that share an enum variable (for example `https://{region}.a.example.com` and `https://{region}.b.example.com`), one with an undescribed server (a second `Server0` across operations, for csharp), and a URL template that repeats a variable. That catches the duplicate-type codegen defect, the csharp namespace collisions and node's first-occurrence replace. (7) swift: all HTTPS/CA/proxy integration tests sit under `#if !os(Linux)` and CI runs Linux, so the PEM-vs-DER, Linux-silent-TLS and HTTPSProxy-key bugs have zero coverage. A Linux-runnable unit test should at least assert that verifySsl(false) and caCertPath throw like proxyUnsupported.
@@ -2535,7 +2589,7 @@ Reviewer suspected this is forced: none
 - `src/spec/resources/specs/petstore/openapi.yaml:1408`
 
 ## F156 [medium] Malformed 2xx body test asserts only 'some error' in java, go and rust while 9 peers assert SerializationError exactly
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, go, rust
 
 Canonical scenario 11 (2xx JSON body that does not parse must raise the SDK's SerializationError, not return raw text). kotlin/csharp/php/python/ruby/node/dart/swift/elixir assert the exact SerializationException/SerializationError. java asserts assertThatThrownBy(...).isInstanceOf(Exception.class) - the broad-Exception pattern AGENTS explicitly calls 'not a contract test'; go asserts only err != nil (no errors.As(*SerializationError)); rust asserts only result.is_err(). A regression that surfaced this as ApiError, NetworkError or a leaked Jackson/serde type would pass in these three. Tighten to the exact type (java SerializationException, go errors.As(&serErr), rust downcast_ref::<SerializationError>).
@@ -2548,7 +2602,7 @@ Canonical scenario 11 (2xx JSON body that does not parse must raise the SDK's Se
 - `src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:1265` — assertThrows(com.example.petstore.errors.SerializationException::class.java) {
 
 ## F157 [medium] No SDK tests a successful Content-Encoding: deflate (zlib) decode; R6-4/R7-4 deflate fixes are unlocked
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, dart, go, rust, elixir
 
 Every SDK advertises deflate (rust 'gzip, deflate, br, zstd', dart 'gzip, deflate', etc.) and the 10 manual decompressors have a deflate arm, but there is no deflate-decode test anywhere: the integration suites cover gzip/br/zstd only (chasm fixtures compressed-gzip/-br/-zstd), and the only 'deflate' in any test is dart's 'deflate Content-Encoding with non-deflate body' lie test (and ruby's Brotli.deflate helper call). AGENTS R7-4 (csharp switched DeflateStream -> ZLibStream) and R6-4 (elixir decodes zlib-wrapped only, raises on raw DEFLATE) were fixed with no regression test, so a revert to raw DEFLATE would pass CI. Add a compressed-deflate (zlib-wrapped) chasm fixture + 'decompresses deflate response' integration test in all manual decompressors, and a unit test that raw (headerless) DEFLATE raises ApiError(status) uniformly.
@@ -2558,7 +2612,7 @@ Every SDK advertises deflate (rust 'gzip, deflate, br, zstd', dart 'gzip, deflat
 - `src/spec/resources/generated/ruby/test/default_api_client_unit_test.rb:1089` — compressed = Brotli.deflate('{"ok":true}')
 
 ## F158 [medium] Post-headers body-read failure/timeout classification is tested unevenly; node asserts broad ApiError; dart arms no body-read deadline at all
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, php, ruby, node, go, swift, elixir, dart
 
 'A connection reset/truncation AFTER headers is NetworkError(status 0, cause kept)' is asserted with the exact type in kotlin, csharp, python, dart and rust. java, php, ruby, swift and elixir have no such test; go tests only the body-read TIMEOUT variant. node's test asserts rejects.toBeInstanceOf(ApiError), which also passes if the client regressed to ApiError(200) (the source throws NetworkError, abstract-api-client.ts:507). The body-read TIMEOUT case (headers arrive, body stalls) is tested only in go and rust. dart io would fail it: Future.timeout wraps only the pending send() (headers), and streamedResponse.stream.toBytes() runs with no deadline, so a stalled body hangs forever despite TransportOptions.timeout. Add a truncated-body NetworkError test and a stalled-body NetworkTimeoutError test per SDK (exact type + statusCode 0), and give dart a body-read deadline.
@@ -2585,7 +2639,7 @@ php deserializeInternal for 'int'/'integer': a non-numeric string json_decodes t
 - `src/spec/resources/generated/ruby/lib/petstore/client/object_serializer.rb:374`
 
 ## F160 [medium] rust has no brotli decode test, and no SDK asserts the Accept-Encoding it advertises by default
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: rust, java, kotlin, csharp, php, python, ruby, node, dart, go, swift, elixir
 
 Eleven SDKs have a 'decompresses brotli response' integration test; rust has gzip and zstd only, although T3-6 added a 'br' arm (brotli::Decompressor) and 'br' to rust's Accept-Encoding and called it 'CI-validated' - nothing exercises it. Separately, every compression test passes Accept-Encoding EXPLICITLY in the request headers, so no SDK asserts the header it sends on its own. Those values are the documented forced differences (dart 'gzip, deflate'; csharp no zstd; swift none; rust/go 'gzip, deflate, br, zstd' with go's order changed in R8-8), and the decode path a server reaches when the SDK advertised the codec itself is untested. Add a rust br test (template default_api_client_test.mustache next to :657/:671), and a per-language unit test pinning the default Accept-Encoding value (asserted as the documented per-language set).
@@ -2596,7 +2650,7 @@ Eleven SDKs have a 'decompresses brotli response' integration test; rust has gzi
 - `src/spec/resources/generated/go/test/default_api_client_test.go:472` — map[string]string{"Accept-Encoding": "gzip"}, nil)
 
 ## F161 [medium] swift depth-cap test uses 50-deep 'within' (peers 500-600) and its comment contradicts the source and AGENTS; Foundation's ~512 nesting limit makes swift's effective cap <1000
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: swift
 
 Ten SDKs assert a 600-deep payload decodes and 1500-deep is rejected (rust 500/1500). swift asserts only nestedObjects(50) decodes. Its comment says swift 'relies on the platform decoder's guard rather than a 1000-deep pre-flight cap', which contradicts the swift source (ObjectSerializer.maxJsonDepth = 1000 with a jsonMaxDepth pre-flight) and AGENTS R6-6 ('all 12 use the 1000 depth cap'). Foundation's JSON parser has its own nesting limit (512 in swift-corelibs-foundation / swift-foundation), so a 513..1000-deep body that the other 11 accept is rejected by swift; the 50-deep 'within' value hides exactly that. Raise the swift 'within' case to 600 like peers (it will expose the limit) and either document a forced 512 cap or decode through a path without the 512 limit; fix the stale comment.
@@ -2607,7 +2661,7 @@ Ten SDKs assert a 600-deep payload decodes and 1500-deep is rejected (rust 500/1
 - `src/spec/resources/generated/java/src/test/java/com/example/petstore/ObjectSerializerTest.java:1360` — assertNotNull(serializer.deserialize("[".repeat(600) + "]".repeat(600), objectType));
 
 ## F162 [medium] A transport failure (NetworkError) during a token fetch or OIDC discovery is not tested in python/ruby/node/dart
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: python, ruby, node, dart
 
 java, kotlin, csharp and php have `tokenTransportFailurePropagatesNetworkException` and `discoveryTransportFailurePropagatesNetworkException`; go, rust, swift and elixir cover the same in their 'failures are typed' tests. Each asserts that a NetworkError thrown by the ApiClient reaches the caller unchanged, not rewrapped as OAuth2TokenError or SerializationError. python, ruby, node and dart have neither test: their token-manager and OIDC test files contain no NetworkError or connection-refused case at all. A regression that wraps transport failures into OAuth2TokenError would pass in these four. Fix: add both tests, asserting exact type and identity as java does (`assertSame(failure, ex)`).
@@ -2616,7 +2670,7 @@ java, kotlin, csharp and php have `tokenTransportFailurePropagatesNetworkExcepti
 - `src/spec/resources/generated/python/test/test_openid_connect_authenticator.py:152` — [(404, NotFoundException), (500, InternalServerErrorException)],
 
 ## F163 [medium] Named-enum ($ref) parameters (getBySwatch path/query/header) and several store operations are never called in any SDK
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 getBySwatch exists to exercise a named-enum ($ref Swatch) parameter as a required path argument, an optional query parameter and an optional header. No SDK test calls it, and none mentions `querySwatch` or `Preferred-Swatch`. The enum's wire value in a path, query or header is therefore unchecked in all 12; a bug that sends the enum's language repr (python `Swatch.RED`, a kotlin enum name, a swift case name) instead of `red` would pass. Separately, getMatrix, getSwatchGroups and getTimestampGroups are called only in node and dart, getSwatch only in csharp, node and dart, and getTree, getDepartment, getDefaults, getStockItem and addPetTreatment are not called through the API layer in any SDK. Fix: add getBySwatch tests that assert `/store/by-swatch/red`, `querySwatch=green` and the header `Preferred-Swatch: blue`, and bring the node/dart nested-container store tests to the other 10 SDKs.
@@ -2625,7 +2679,7 @@ getBySwatch exists to exercise a named-enum ($ref Swatch) parameter as a require
 - `src/spec/resources/generated/python/petstore_client/api/store_api.py:156` — query_params["querySwatch"] = ValueSerializer.maybe_allow_reserved(
 
 ## F164 [medium] Operation cookie-param RFC 6265 fail-closed test missing in java/python/ruby/rust
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, python, ruby, rust
 
 deletePet's `api_key` cookie param is checked against RFC 6265 in every SDK, so a CR/LF or NUL value fails closed instead of injecting a header. kotlin, csharp, php, node, dart, go, swift and elixir test it (for example swift `testOperationCookieParamWithControlCharFailsClosed` asserts the case, the '6265' text and that the transport was not called). java, python, ruby and rust have no test for the operation cookie param; their only CR/LF tests cover authenticator keys and multipart filenames. The guard exists in their sources (java PetApi.java:603, python pet_api.py:452, rust pet_api.rs:596). Fix: add the test to these four.
@@ -2634,7 +2688,7 @@ deletePet's `api_key` cookie param is checked against RFC 6265 in every SDK, so 
 - `src/spec/resources/generated/python/petstore_client/api/pet_api.py:471` — "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
 
 ## F165 [medium] Rejecting an undeclared multi-consumes content type (T1-7) is untested in java/node/elixir and only weakly asserted in rust
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, node, elixir, rust, go
 
 The resolved T1-7 contract says all 12 SDKs reject an unrecognised request content type on setPetAvatar/uploadPetDocument with the language's own argument error. kotlin, csharp, php, python, ruby, dart, go, rust and swift each call setPetAvatar with `application/unknown-type` and expect a rejection. java, node and elixir have no such test, although their sources throw `Unsupported request content-type ...` (java PetApi.java:1626, node pet-api.ts:1535, elixir pet_api.ex:2535). java and elixir only test the default and image/png selections, and node only the selection, in base-api.test.ts. rust asserts `result.is_err()` only, which also passes on a network or HTTP error; it should match `ConfigurationError::InvalidArgument`. go matches only on a message substring. Fix: add the rejection test to java, node and elixir and tighten the rust assertion to the variant.
@@ -2644,7 +2698,7 @@ The resolved T1-7 contract says all 12 SDKs reject an unrecognised request conte
 - `src/spec/resources/generated/rust/tests/pet_api_test.rs:274` — result.is_err(),
 
 ## F166 [medium] Space-encoding assertions accept either `+` or `%20` in 7 SDKs, so the authorize-URL `%20` and token-body `+` contracts are not locked
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, python, go, rust, elixir, dart, swift
 
 The resolved contract is `%20` in the authorize URL (php T1-1) and `+` in the x-www-form-urlencoded token body. For the authorize URL, php, ruby, node, dart and swift assert `scope=read%20write` exactly. java, kotlin and elixir accept `+` or `%20`, and csharp also accepts a raw space. python parses the URL with parse_qs, so `+` and `%20` look the same. go and rust check only `scope=read`. For the token body (`sendsScopes`), csharp, php, ruby and rust assert `scope=read+write`. java, kotlin, python and elixir accept either encoding (python also a raw space). dart, go and swift check only `scope=read` plus `write`. node compares the decoded value, which cannot tell the encodings apart. A regression to a default RFC 1738 encoder in the authorize URL, the T1-1 bug class, would pass in 7 SDKs. Fix: assert the exact encoded substring in every SDK, matching the php/ruby/node/dart/swift authorize tests and the csharp/php/ruby/rust body tests.
@@ -2656,7 +2710,7 @@ The resolved contract is `%20` in the authorize URL (php T1-1) and `+` in the x-
 - `src/spec/resources/generated/php/tests/OAuth2AuthorizationCodeAuthenticatorTest.php:53` — expect($url)->toContain('scope=read%20write');
 
 ## F167 [medium] The implicit-flow setAccessToken CR/LF and non-ASCII rejection is tested only in go/rust/swift
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, elixir
 
 Every SDK's OAuth2ImplicitAuthenticator.setAccessToken rejects a token outside printable ASCII or containing CR/LF (F-A5-04), because the token comes from a redirect fragment and would otherwise allow header injection. Only go, rust and swift have a `SetAccessTokenRejectsInvalidToken` test. The other 9 implicit test files contain no invalid-token case: grepping them for ascii/crlf/invalid finds no assertion. A regression that removed the guard would pass in 9 SDKs. Fix: add the test to those 9 and assert the language's argument-error type.
@@ -2665,7 +2719,7 @@ Every SDK's OAuth2ImplicitAuthenticator.setAccessToken rejects a token outside p
 - `src/spec/resources/generated/rust/src/auth/oauth/oauth2_implicit_authenticator.rs:68` — pub fn set_access_token(&self, token: &str) -> Result<(), ConfigurationError> {
 
 ## F168 [medium] format:date PATH parameter (spec 'Case 15', findPetsBornOn) is tested only in swift
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir
 
 The spec comment on findPetsBornOn says the format:date path param must serialize as YYYY-MM-DD with no time component 'in every SDK'. This is the parameter class behind R5-1 (dart typed date param) and T1-6 (rust to_path_value date handling). Only swift calls findPetsBornOn, in testFormatDatePathParamIsDateOnly, and asserts `/pet/born-on/2024-01-01` with no `T`. The other 11 never call the operation: grepping all their tests for `born-on` finds nothing, so a date-time leak or a double-encoded date in the path is not caught. The query and header date variants (bornAfter / Report-Date) are covered in all 12, except that go asserts only bornAfter and not the Report-Date header. Fix: copy swift's test into the other 11 SDKs and add a Report-Date header assertion to go.
@@ -2674,7 +2728,7 @@ The spec comment on findPetsBornOn says the format:date path param must serializ
 - `src/spec/resources/generated/go/test/base_api_test.go:666` — if !strings.Contains(client.capturedURL, "bornAfter=2024-01-01") {
 
 ## F169 [medium] oneOf/discriminator failure tests accept any error, or test an internal path, in java/kotlin/swift/rust/go/php
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, swift, rust, go, php
 
 The error contract says every decode failure is a SerializationError. csharp, ruby, elixir, node, dart and python assert exactly that for an unknown, missing or empty PetFood discriminator. java asserts `.isInstanceOf(Exception.class)` (ComposedSchemaTest lines 64, 87, 97 and 319). kotlin skips the SDK ObjectSerializer and calls `json.decodeFromString`, then turns any exception into null with `runCatching{}.getOrNull()` before `assertNull`. swift calls `JSONDecoder` directly and expects `(any Error).self`. rust asserts only `is_err()`. go asserts a non-nil error plus a message substring. php calls the internal `PetFood::build()` and asserts `\InvalidArgumentException`; the public `ObjectSerializer::deserialize` wraps that into SerializationException, so the php test checks the internal type, not the contract. None of these six would notice if the SDK began leaking a library exception or the wrong error type for a malformed union. Fix: decode through the public SDK serializer and assert the SDK SerializationError type exactly.
@@ -3045,7 +3099,7 @@ Each generated Makefile has a `docs` target meant to fail on documentation warni
 - `src/spec/resources/generated/kotlin/build.gradle.kts:237` — failOnWarning.set(true)
 
 ## F192 [medium] Five SDKs' decompression integration tests call a public internet host and pass whether or not the body was encoded
-- Status: **open** | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: ruby, python, node, go, dart
 
 java, kotlin, csharp, php, rust and elixir run their 'decompresses gzip/brotli/zstd response' integration tests against the chasm fixture's `/test/compressed/<enc>` endpoints. The fixture's `x-chasm-content-encoding` makes it really send that encoding, so asserting on the body proves the client decoded it. ruby, python, node, go and dart send the same three tests to `https://jsonplaceholder.typicode.com/posts/1` and assert only status 200 and that the body contains 'userId'. Nothing makes that server use the requested encoding: an identity response passes, so the tests do not show that the br/zstd/gzip decode path ran. The tests also depend on the public internet and a third-party host (node's own comment adds a 30s timeout 'because jsonplaceholder.typicode.com is an external host'), so CI can be flaky or blocked offline. The chasm endpoints are already in every SDK's fixture openapi.yaml.
@@ -3073,7 +3127,7 @@ Reviewer suspected this is forced: None for swift, csharp or java. elixir's test
 - `src/spec/resources/generated/java/pom.xml:223` — <effort>Default</effort> <threshold>Low</threshold>  (no <includeTests>)
 
 ## F194 [medium] Hand-written spec tests in the generated spec/ directory never run in kotlin, swift, php and python
-- Status: **open** | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): False
+- Status: **partial** (done in php, python, swift; still open for kotlin) | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): False
 - SDKs: kotlin, swift, php, python
 
 AbstractBetterCodegen.getSpecDir() documents a directory 'where user-written spec tests should be placed', and every SDK gets one. In java (build-helper add-test-source plus a failsafe `**/*Spec.java` include), csharp (the root test csproj globs Spec/**), ruby (Rakefile pattern spec/**/*_spec.rb), node (jest testMatch `**/spec/**/*.spec.ts`), go (`./...`), dart (test/spec) and elixir (test/spec), files placed there are compiled and run. In four languages they are not. kotlin: `src/spec/kotlin` is in no KMP sourceSet (jvmTest is only src/test/kotlin) and not in detekt's source list, so it is never compiled, run or linted. swift: Package.swift excludes `Spec` from the only test target. php: phpunit.xml's single testsuite is `<directory suffix="Test.php">tests</directory>`, and composer autoload-dev maps only tests/. python: pyproject sets `testpaths = ["test", "spec"]`, but both PythonClientSpec and the generated Makefile run `python -m pytest test/ -v`, and the explicit path overrides testpaths, so spec/ is skipped. mypy also checks only `petstore_client/ test/`. A client's hand-written specs in these four SDKs pass silently because nothing runs them.
@@ -3301,7 +3355,7 @@ Every model sets `ConfigDict(populate_by_name=True)` and responses decode via `k
 - `src/main/resources/templates/elixir/object_serializer.mustache:998` — defp deserialize_model(_data, _module), do: nil
 
 ## F213 [medium] Integer formats: int32 overflow and fractional numbers are accepted by 6 SDKs and rejected by 6; java silently truncates 1.5 to 1; node keeps 1.5 and rounds int64 above 2^53. No boundary test
-- Status: **partial** (done in java; still open for csharp, dart, elixir, go, kotlin, node, php, python, ruby, rust, swift) | Lens: L19-spec-coverage | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **partial** (done in csharp, dart, go, java, kotlin, python, ruby, rust, swift; still open for elixir, node, php) | Lens: L19-spec-coverage | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, node, python, ruby, php, dart, elixir, kotlin, csharp, go, rust, swift
 
 Petstore has int32 (Order.quantity, WetFood.volumeMl, ApiResponse.code) and int64 fields but never sends a boundary value. Behaviour on decode: `3000000000` into int32 is rejected by java/kotlin/csharp/go/rust/swift. python (StrictInt is unbounded), ruby (`is_a?(Integer)`), node (`typeof === 'number'`), php (64-bit int), dart (64-bit int) and elixir (`is_integer`) accept it and later re-send a value the schema forbids. `1.5` into int32/int64: java truncates SILENTLY to 1 (Jackson ACCEPT_FLOAT_AS_INT stays at its default; ALLOW_COERCION_OF_SCALARS=false does not cover float-to-int; checked against jackson-databind 2.21.1). node accepts 1.5 unchanged. python/ruby/kotlin/go/rust/swift/csharp reject it. int64 `9007199254740993` is silently rounded by node's `number`. Proposed fixture: a probe op `/probe.v1.RELAYService/Counters` returning `{type: object, properties: {small: {type: integer, format: int32}, big: {type: integer, format: int64}}}`. Add per-SDK unit tests decoding `{"small":3000000000}`, `{"small":1.5}` and `{"big":9007199254740993}`, with one agreed outcome (reject as SerializationError).
@@ -3420,7 +3474,7 @@ AGENTS (R6-5 note) and PARITY_TODO R6-5 say go's empty-path check keeps the seri
 - `AGENTS.md:275` — the serializer has no operation context ... FORCED, do not try to add `<Class>.<operation>` there
 
 ## F223 [medium] java and kotlin return a still-encoded br/zstd body when the optional codec is absent; the docs say this case raises
-- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **partial** (done in java; still open for kotlin) | Lens: L20-doc-truth | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin
 
 AGENTS says php and ruby now raise when a br/zstd response arrives and the optional codec library is absent, 'rather than returning the body still-encoded — same as elixir, and required by the unsupported Content-Encoding raises contract'. python also raises, falling through to `Unsupported Content-Encoding`. java and kotlin also have optional codecs, loaded by reflection, but on ClassNotFoundException they `return data`, which hands back the still-encoded bytes. The 'library is unavailable' message is only thrown on the other ReflectiveOperationException branch, which fires when the class IS present. Kotlin's KDoc for decodeContentEncoding also still says 'any other value is returned unchanged', which contradicts its own `else -> throw`.
@@ -4216,7 +4270,7 @@ Among the value-wrapped-async SDKs, csharp's GetAuthHeaders() on the CC/password
 - `src/spec/resources/generated/go/pkg/auth/oauth/oauth2_authorization_code_authenticator.go:181`
 
 ## F291 [low] Test-coverage gaps: refresh-failure fallback (2/12), OIDC max-age and rediscovery (0/12), wrapper scopes (0/12)
-- Status: **open** | Lens: L07-oauth-oidc | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L07-oauth-oidc | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, python, ruby, node, dart, go, rust, swift, elixir, csharp, php
 
 Only csharp (RefreshFailureWithMalformedBodyFallsBackToOriginalGrant) and php ('rejected refresh token falls back to the original grant') test the refresh-fails-then-re-run-the-original-grant path. The other 10 token-manager suites have no such test. No language tests Cache-Control max-age parsing, rediscovery, or token state surviving rediscovery. No language asserts the per-scheme wrappers send the spec scopes. These gaps hide the high-severity findings above. All of these are unit-testable against the existing petstore schemes; no spec expansion is needed.
@@ -4802,7 +4856,7 @@ Reviewer suspected this is forced: none
 - `src/spec/resources/generated/ruby/lib/petstore/client/api/pet_api.rb:1250` — request_body['renewalDate'] = options.renewal_date unless options.renewal_date.nil?
 
 ## F345 [low] rust body/response tests discard the operation result and assert nothing
-- Status: **open** | Lens: L12-api-bodies | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L12-api-bodies | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: rust
 
 Several rust tests in this lens are `let _ = api.<op>(...).await;` with no assertion, so they pass even if the call returns Err: test_pet_api_get_pet_photo (binary content negotiation), test_pet_api_set_pet_avatar_thumbnail (oneOf byte request body), test_pet_api_add_pet_photos (multipart array plus JSON part), test_pet_api_download_binary_mock (binary response) and test_pet_api_upload_multipart_mock. The other SDKs assert at least non-null or no-throw: java testGetPetPhoto asserts the stream, go asserts non-nil. Together with the silent empty-Vec fallbacks in rust base_api, a broken rust binary decode cannot fail any test.
@@ -4824,7 +4878,7 @@ Reviewer suspected this is forced: none
 - `src/spec/resources/generated/rust/src/api/pet_api.rs:2260` — pub async fn set_pet_avatar_with_content_type(
 
 ## F347 [low] Garbage-PEM caCertPath (file exists, contents invalid) is tested only in java and dart
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: kotlin, csharp, php, python, ruby, node, go, rust, swift, elixir
 
 All 12 test a NON-EXISTENT caCertPath. Only java (garbagePemCaCertPathThrowsIllegalArgumentException, which also asserts the message names the path) and dart (ArgumentError containing 'CA certificate', no TlsException leak) test a readable file with garbage PEM. Several SDKs have dedicated code for that case (ruby validate_ca_cert_path raises ArgumentError 'no PEM blocks found'; python wraps ssl.SSLError as ValueError; rust maps reqwest::Certificate::from_pem errors to ConfigurationError::InvalidCaCertificate), but none of it is tested. Per the error contract this is a caller mistake (language built-in / Go sentinel / Rust typed Err / Swift ConfigurationError), so where it is raised (construction vs first request) is exactly what can drift.
@@ -4834,7 +4888,7 @@ All 12 test a NON-EXISTENT caCertPath. Only java (garbagePemCaCertPathThrowsIlle
 - `src/spec/resources/generated/rust/src/transport_options.rs:322` — reqwest::Certificate::from_pem(&pem).map_err(|e| {
 
 ## F348 [low] Null element inside a csv/ssv/pipes/multi array (empty slot, 'a,,c') is asserted only in php, swift and python
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, ruby, node, dart, elixir
 
 php ValueSerializerTest ('query array csv keeps slot for null element' => '1,,3'; multi => ['1','','3']), swift (testSerializeValueCsvArrayKeepsNilSlot, MultipleNils => ',x,,y,') and python test_object_serializer (keeps_empty_slot_for_null_array_element in csv/ssv/pipes/multi) pin that a null element becomes an empty slot, not skipped and not the text 'null'/'None'/'nil'. java/kotlin/csharp/ruby/node/dart/elixir accept nullable elements but never test it; each relies on its own stringify(null) (a String.valueOf/str/to_s slip would emit 'null'/'None'). go and rust are forced out (typed slices cannot hold null). Add the same table rows to the other 7 ValueSerializer tests.
@@ -4854,7 +4908,7 @@ PARITY_TODO says R7-T1 'Unsupported Content-Encoding raise regression-tested onl
 - `src/spec/resources/generated/swift/Tests/PetstoreClientTests/ObjectSerializerTests.swift:1236`
 
 ## F350 [low] Path-segment sub-delimiter/unreserved set is asserted unevenly (';' '=' '~' '@' '!' '$' '&' ''' '(' ')' '*')
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: csharp, python, node, dart, go, rust, swift, elixir, ruby, php
 
 All 12 encoders keep ;=,:@!$&'()*+ (and ~) literal in a path segment, but the parity tests diverge: java/kotlin assert semicolonPreserved, equalsPreserved, tildePreserved, tildePreservedInStyledArray and alreadyEncodedReencoded; ruby asserts tilde; php asserts the full OAS sub-delimiter set ('encode path segment preserves oas sub delimiters'). The other 8 only assert ',', ':' and '+'. Each language implements the set by hand (java/kotlin/go/rust/node/csharp replace chains, python quote(safe=...), swift CharacterSet, elixir char list), so a dropped character in one chain would go unnoticed in 8 SDKs. Turn the java/php rows into a shared table in every ValueSerializer test.
@@ -4864,7 +4918,7 @@ All 12 encoders keep ;=,:@!$&'()*+ (and ~) literal in a path segment, but the pa
 - `src/spec/resources/generated/go/pkg/value_serializer.go:86`
 
 ## F351 [low] Redirect default-port normalization (https://h -> https://h:443 keeps Authorization) is tested only in java and kotlin
-- Status: **open** | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **partial** (done in csharp, elixir, go, node, php, python, ruby, rust, swift; still open for dart) | Lens: L13a-tests-transport | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 java/kotlin DefaultApiClientTest 'redirect_to_explicit_default_port_preserves_authorization' lock that an implicit and explicit default port count as the same origin, so credentials are not wrongly stripped (the bug it guarded: :443 treated as cross-origin). The other 10 compare origins with their own code (python _effective_port/_same_origin, ruby same_origin?, swift sameOrigin, ...) but none tests the default-port equivalence, so they can drift silently on the same bug class. Add a same-origin-with-explicit-default-port case next to each SDK's cross-origin strip test.
@@ -4874,7 +4928,7 @@ java/kotlin DefaultApiClientTest 'redirect_to_explicit_default_port_preserves_au
 - `src/spec/resources/generated/ruby/lib/petstore/client/default_api_client.rb:500`
 
 ## F352 [low] An OAuth2 token-fetch failure is asserted as 'any error' in node/dart/swift/go/rust
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: node, dart, swift, go, rust
 
 `tokenFetchErrorIsSurfacedNotSwallowed` (a 401 or 500 from the token endpoint) asserts the exact OAuth2ServerException/OAuth2ServerError in java, kotlin, csharp, php, python, ruby and elixir. node uses `.rejects.toThrow()` with no type, dart `throwsA(isA<Object>())`, swift `(any Error).self`, go `err != nil` and rust `result.is_err()`. A regression that surfaced a NetworkError or ApiError instead of OAuth2ServerError would pass in these five. Fix: assert the exact OAuth2ServerError type and status code.
@@ -4884,7 +4938,7 @@ java/kotlin DefaultApiClientTest 'redirect_to_explicit_default_port_preserves_au
 - `src/spec/resources/generated/java/src/test/java/com/example/petstore/auth/oauth/OAuth2ClientCredentialsAuthenticatorTest.java:150` — assertThrowsExactly(OAuth2ServerException.class, auth::getAuthHeaders);
 
 ## F353 [low] Caching a token that has no expires_in is tested only in swift
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, elixir
 
 A token response without expires_in must be cached indefinitely: the second getAccessToken makes no second request. swift's test notes this matches java (null expiry) and go (zero time), but swift's `testNoExpiresInCachesTokenIndefinitely` is the only test of it. The 11 other token-manager suites have no response without expires_in followed by a call-count check. The related T3-16 rule, that a refresh response without expires_in keeps the existing expiry, is untested everywhere. Fix: copy swift's test into all 12 and add a refresh-without-expires_in case.
@@ -4892,7 +4946,7 @@ A token response without expires_in must be cached indefinitely: the second getA
 - `AGENTS.md:284` — swift's OAuth2 token manager leaves a known expiry untouched when a refresh response omits `expires_in`
 
 ## F354 [low] Ignoring a non-string refresh_token (the T2-12 fix) is tested only in java/kotlin
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: csharp, php, python, ruby, node, dart, rust, elixir
 
 T2-12 made java and kotlin ignore a numeric refresh_token so they match the other SDKs, and added `ignoresNonStringRefreshToken` to those two. The 8 dynamic-parse SDKs that already ignore it (for example node `typeof json.refresh_token === "string"`, python `isinstance(new_refresh_token, str)`) have no test, so nothing stops one of them from starting to coerce `12345` to a string. go and swift hard-fail on it (R7-13, documented) and should have a test pinning that documented behaviour. Fix: add the java test to the other SDKs (expecting a hard failure in go and swift).
@@ -4901,7 +4955,7 @@ T2-12 made java and kotlin ignore a numeric refresh_token so they match the othe
 - `src/spec/resources/generated/python/petstore_client/auth/oauth/oauth2_token_manager.py:199` — if isinstance(new_refresh_token, str) and new_refresh_token:
 
 ## F355 [low] Model equality including additionalProperties (the T1-9 fix) is tested only in kotlin
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, csharp, dart, python, ruby, rust, swift, elixir
 
 T1-9 made kotlin's Metadata equals/hashCode include the additionalProperties bucket, and kotlin `testEqualsIncludesAdditionalProperties` checks it. java, csharp and dart write the same rule by hand (Metadata.equals compares additionalProperties) and nothing tests it. python, ruby, rust, swift and elixir get equality from the language and are also untested. node, php and go have no value equality, which is forced. A regression in the hand-written java/csharp/dart equals or hashCode would pass. AGENTS requires a fix's test in all twelve. Fix: add kotlin's two-instances-differing-only-in-extras test wherever the model has value equality.
@@ -4912,7 +4966,7 @@ Reviewer suspected this is forced: node/php/go have no structural model equality
 - `src/spec/resources/generated/dart/lib/src/models/metadata.dart:59` — const DeepCollectionEquality().equals(
 
 ## F356 [low] No test checks the redacted-repr fields that T3-18/R8-9 aligned
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 T3-18 and R8-9 aligned which non-secret fields each authenticator's redacted repr shows: java Basic gained `host`, go/node ApiKey gained `location`, and the OAuth2 field sets were aligned. Every `redactsSecret` test checks only that the secret is absent and `***` is present. Only python (Basic host), ruby (Bearer host) and elixir (Bearer/Basic host and username) check any visible field, and none checks the full field set. Removing `host` from java's BasicAuthenticator.toString or `location` from go's ApiKey String() would pass every test. Fix: assert the agreed non-secret fields in each SDK's redacted-repr test.
@@ -4921,7 +4975,7 @@ T3-18 and R8-9 aligned which non-secret fields each authenticator's redacted rep
 - `AGENTS.md:285` — Authenticator debug/repr field-sets are uniform: java `BasicAuthenticator` includes `host`
 
 ## F357 [low] ServerConfiguration/ServerVariable test scenarios differ by SDK; the rejection message is checked in only 3 and swift accepts any error
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir
 
 The ServerConfiguration suites test different scenarios. 'Variable with no enum accepts any override' is tested only in kotlin, csharp, php, go and rust. 'Template with no variables returns unchanged' is missing in java, csharp, dart, go and rust. 'Partial override keeps the other defaults' is missing in node, swift and elixir. 'Exposes the raw template and description' is missing in kotlin, node, swift and elixir. 'Default value outside the enum is rejected' is tested only in swift. R8-7/T3-17 harmonised the message `Invalid value '<v>' for server variable '<name>'. Allowed values: ...`, but only kotlin and csharp ('Invalid value') and ruby (includes 'dev' and 'env') check its text. In ServerConfigurationTests swift asserts only `ConfigurationError.self` without the case, and in ConfigurationTests `(any Error).self`. The ServerVariable suites also test different properties per SDK (equality, freezing/copying, or 'enum contains'). Fix: settle on one scenario table and add the full message assertion.
@@ -4931,7 +4985,7 @@ The ServerConfiguration suites test different scenarios. 'Variable with no enum 
 - `src/spec/resources/generated/python/petstore_client/server_configuration.py:87` — f"Invalid value '{value}' for server variable '{var_name}'. Allowed values: {var.enum_values}"
 
 ## F358 [low] The generated per-scheme authenticator classes have no unit tests outside elixir
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **partial** (done in csharp, dart, go, java, kotlin, node, php, python, ruby, rust; still open for swift) | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift
 
 Each SDK generates one authenticator class per security scheme in the spec (InternalApiKeyAuthenticator, SessionCookieAuthenticator, ApiKeyQueryAuthenticator, LegacyAuthPasswordAuthenticator, UserAuthAuthorizationCodeAuthenticator, MachineAuthClientCredentialsAuthenticator, BrowserAuthImplicitAuthenticator, SsoAuthAuthenticator, ...). Each fills in the spec's key name, location and token/authorize/refresh URLs. Only elixir has a test that builds two of them and checks the URLs. java and kotlin use PetStoreBearerAuthenticator and AdminBasicAuthenticator only as fixtures in PetApiTest, and the other 9 never reference any of them. A template regression in a wrapper (wrong key name, wrong location, dropped refreshUrl, or the rust missing-import class from T2-8) is caught at compile time at best and never on behaviour. Fix: add a table-driven test per SDK that builds each wrapper and checks the emitted header, query or cookie name and the token/authorize URLs.
@@ -4939,7 +4993,7 @@ Each SDK generates one authenticator class per security scheme in the spec (Inte
 - `src/spec/resources/generated/dart/lib/src/auth/internal_api_key_authenticator.dart:15` — : super(keyParamName: 'X-Internal-Key', location: ApiKeyLocation.header);
 
 ## F359 [low] TransportOptions tests: dart has no 'timeout disabled' test, only 4 SDKs test rejecting a non-http proxy scheme, and only rust defines and tests a negative timeout
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: dart, java, kotlin, php, python, ruby, swift, elixir, rust
 
 (1) dart supports `timeout(null)` (`int? timeout`, documented 'set to null to disable'), but it is the only SDK with no 'timeout can be explicitly disabled' test; the other 11 have one. (2) All 12 reject a proxy URL whose scheme is not http/https, but only node (ftp), csharp (socks5), go (ftp, socks5, `http://` with no host) and rust (ftp, socks5) test that; java, kotlin, php, python, ruby, dart, swift and elixir test only a malformed string. swift's invalid-proxy test also asserts only `ConfigurationError.self`, not the `.invalidProxy` case. (3) rust rejects a negative timeout (`ConfigurationError::InvalidTimeout(-1)`) and tests it; no other SDK has a guard or a test, so the same input is rejected in one SDK and accepted in eleven, with no shared expectation. Fix: add the missing tests and decide one negative-timeout contract for all 12.
@@ -4950,7 +5004,7 @@ Each SDK generates one authenticator class per security scheme in the spec (Inte
 - `src/spec/resources/generated/swift/Tests/PetstoreClientTests/TransportOptionsTests.swift:95` — #expect(throws: ConfigurationError.self) {
 
 ## F360 [low] dart and node ApiKey/Bearer authenticator tests skip cases the other SDKs cover
-- Status: **open** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
+- Status: **fixed** | Lens: L13b-tests-api-auth-models | Category: test-gap | Unit-testable (reviewer's view): True
 - SDKs: dart, node, java, csharp, php, python
 
 dart's ApiKeyAuthenticator tests (5) do not cover rejecting an empty or whitespace key, CR/LF/NUL in a QUERY or COOKIE key, or cookie emission, although the source rejects all of these for every location. dart's BearerAuthenticator tests (4) do not cover removing an existing `Bearer `/`bearer `/mixed-case prefix, which the other 11 test and dart's source does at bearer_authenticator.dart:47. node's ApiKey tests do not cover CR/LF/NUL in a query or cookie key or cookie emission, and node Bearer has no mixed-case-prefix test. Asserting that a COOKIE-location key comes out through cookieParams is also missing in java, csharp, php, python, node and dart (kotlin, ruby, go, rust, swift and elixir assert it). Fix: align each suite to the kotlin/ruby matrix.
@@ -5240,7 +5294,7 @@ swift-format lint reports findings as warnings and exits non-zero only when `--s
 - `src/spec/java/io/github/mridang/codegen/spec/swift/SwiftLintingSpec.java:26` — "swift build", "swift-format lint --strict --recursive Sources Tests"
 
 ## F384 [low] ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit
-- Status: **open** | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): False
+- Status: **deferred** | Lens: L17-gates | Category: test-gap | Unit-testable (reviewer's view): False
 - SDKs: ruby, elixir
 
 AGENTS.md allows skips only for 'a genuine platform limit (a codec the runtime lacks)'. php's optional brotli/zstd extensions are just as optional, but PhpSpec's setup installs them so its decode tests run, and python keeps brotli/zstandard in its dev group for the same reason. Two languages skip instead. ruby: RubySpec sets `BUNDLE_WITHOUT=optional`, which removes the brotli and zstd-ruby gems, so both the integration tests ('decompresses brotli/zstd response') and the unit test default_api_client_unit_test.rb:1087 always skip. ruby's br/zstd decode branches therefore run no test in CI. The stated reason ('do not compile cleanly on Alpine') comes from choosing an alpine image, not from a ruby limit. elixir: mix.exs declares `{:brotli, "~> 0.3", only: :prod, optional: true}`, so the NIF can never load in :test, and the brotli test carries a hard-coded `@tag skip`. Restricting the dependency to :prod is a config choice; java, kotlin, python and rust all add their optional codecs to the test classpath.
@@ -5565,7 +5619,7 @@ The error types correctly follow the AGENTS built-in-state-error rule, but the m
 - `src/spec/resources/generated/rust/src/default_api_client.rs:59` — `send_request*` call fails fast with an `ApiError`
 
 ## F410 [low] java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2
-- Status: **fixed** (AGENTS.md / PARITY_TODO.md corrected against the code (round 9 doc pass)) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): True
+- Status: **partial** (done in java; still open for kotlin) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): True
 - SDKs: java, kotlin
 
 AGENTS/R6-2 make a br/zstd response arrived without the optional codec library a raised ApiException (php throw, ruby raise, as elixir does). python also raises, because the missing codec falls through to 'Unsupported Content-Encoding'. java decompressBrotli/decompressZstd and kotlin decodeViaInputStream instead catch ClassNotFoundException and return the raw compressed bytes, which then decode as garbage text or base64. This is reachable whenever a server ignores Accept-Encoding.
@@ -6295,3 +6349,327 @@ The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no 
 - SDKs: rust
 
 rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted.
+
+## F531 [medium] Branch name deviation: parity/b2-kotlin is already checked out by another worktree (wf_4a554f2f-32a-2, an earlier batch), so git checkout -B was refused and the work is on parity/b2-kotlin-tests creat
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Branch name deviation: parity/b2-kotlin is already checked out by another worktree (wf_4a554f2f-32a-2, an earlier batch), so git checkout -B was refused and the work is on parity/b2-kotlin-tests created from 77ef6e332; rename or cherry-pick as needed.
+
+## F532 [medium] Fixed in this commit: OpenIdConnectAuthenticator rebuilt its OAuth2AuthorizationCodeAuthenticator delegate on rediscovery (max-age elapsed) and dropped the exchanged tokens and the exchanged flag, so 
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Fixed in this commit: OpenIdConnectAuthenticator rebuilt its OAuth2AuthorizationCodeAuthenticator delegate on rediscovery (max-age elapsed) and dropped the exchanged tokens and the exchanged flag, so getAuthHeaders threw 'Must call exchangeCode()' after the discovery cache expired; the new delegate now adopts the previous session (OAuth2TokenManager.copyStateFrom, OAuth2AuthorizationCodeAuthenticator.adoptSession).
+
+## F533 [medium] src/main/resources/fixtures/certs/server.pem now lists IP Address:127.0.0.1 in its SAN, so the java DefaultApiClientTest comment ('cert has no 127.0.0.1') and its verifySslTrueRejectsHostnameMismatch 
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+src/main/resources/fixtures/certs/server.pem now lists IP Address:127.0.0.1 in its SAN, so the java DefaultApiClientTest comment ('cert has no 127.0.0.1') and its verifySslTrueRejectsHostnameMismatch premise look stale; no fixture address produces a hostname mismatch in any SDK.
+
+## F534 [medium] kotlin MAX_JSON_DEPTH is 1000 (object_serializer.mustache) while F100 notes other SDKs cap error bodies at 128; the new ApiExceptionTest case uses 5000 levels so it holds for either limit
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+kotlin MAX_JSON_DEPTH is 1000 (object_serializer.mustache) while F100 notes other SDKs cap error bodies at 128; the new ApiExceptionTest case uses 5000 levels so it holds for either limit.
+
+## F535 [medium] kotlin TransportOptions accepts a negative or zero timeout without any guard (rust rejects it, F359); no shared contract exists, so no test was added
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+kotlin TransportOptions accepts a negative or zero timeout without any guard (rust rejects it, F359); no shared contract exists, so no test was added.
+
+## F536 [medium] kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contrac
+- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+kotlin OAuth2TokenManager keeps the old (expired) expiry when a refresh response omits expires_in (T3-16), which makes the next call refresh again; behaviour left untested because the intended contract is unclear.
+
+## F537 [medium] Branch name deviation: parity/b2-python is already checked out by the older worktree wf_4a554f2f-32a-5 (commit 031f8706c, not an ancestor of 77ef6e332), so 'git checkout -B parity/b2-python' was impos
+- Status: **open** (reported by the python fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Branch name deviation: parity/b2-python is already checked out by the older worktree wf_4a554f2f-32a-5 (commit 031f8706c, not an ancestor of 77ef6e332), so 'git checkout -B parity/b2-python' was impossible without destroying that work; this batch is on parity/b2-python-tests from 77ef6e332.
+
+## F538 [medium] python OIDC rediscovery after Cache-Control max-age builds a new delegate and drops the exchanged tokens, so get_auth_headers raises 'Must call exchange_code()' (already ledgered as F016/F230); I test
+- Status: **open** (reported by the python fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+python OIDC rediscovery after Cache-Control max-age builds a new delegate and drops the exchanged tokens, so get_auth_headers raises 'Must call exchange_code()' (already ledgered as F016/F230); I tested max-age parsing and the refetch count but not token survival, because that test would fail today.
+
+## F539 [medium] python int32 fields use unbounded StrictInt, so {"quantity":3000000000} deserializes and would be re-sent (the java/kotlin/csharp/go/rust/swift SDKs reject it); not fixed, needs a codegen type mapping
+- Status: **open** (reported by the python fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+python int32 fields use unbounded StrictInt, so {"quantity":3000000000} deserializes and would be re-sent (the java/kotlin/csharp/go/rust/swift SDKs reject it); not fixed, needs a codegen type mapping change.
+
+## F540 [medium] python TransportOptions accepts zero and negative timeouts at build time (only rust rejects them), so the failure would only appear when urllib3.Timeout is built at request time; no shared contract ex
+- Status: **open** (reported by the python fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+python TransportOptions accepts zero and negative timeouts at build time (only rust rejects them), so the failure would only appear when urllib3.Timeout is built at request time; no shared contract exists to test against.
+
+## F541 [medium] PythonClientSpec.java still runs 'python -m pytest test/ -v' with an explicit path and mypy in the Makefile still checks only petstore_client/ and test/, so hand-written specs under spec/ are not run 
+- Status: **open** (reported by the python fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+PythonClientSpec.java still runs 'python -m pytest test/ -v' with an explicit path and mypy in the Makefile still checks only petstore_client/ and test/, so hand-written specs under spec/ are not run by the Maven spec or type-checked; the spec Java class is outside my scope.
+
+## F542 [medium] Dart password and authorization-code authenticators pass an already-built refresh grant to OAuth2TokenManager, so the fall-back after a rejected refresh re-sends a refresh grant instead of the origina
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Dart password and authorization-code authenticators pass an already-built refresh grant to OAuth2TokenManager, so the fall-back after a rejected refresh re-sends a refresh grant instead of the original password/code grant, and in body client-auth mode the refresh request carries no client_id/client_secret (read from source, not exercised by a failing test).
+
+## F543 [medium] Dart accepts an int32 value above 2^31-1 (ApiResponse.code and other int32 fields decode into a 64-bit int), unlike java/kotlin/csharp/go/rust/swift; I did not pin that divergence with a test
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Dart accepts an int32 value above 2^31-1 (ApiResponse.code and other int32 fields decode into a 64-bit int), unlike java/kotlin/csharp/go/rust/swift; I did not pin that divergence with a test.
+
+## F544 [medium] Dart TransportOptionsBuilder.timeout accepts zero and negative values with no guard (rust rejects them); the cross-SDK contract is undecided so no test pins it
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Dart TransportOptionsBuilder.timeout accepts zero and negative values with no guard (rust rejects them); the cross-SDK contract is undecided so no test pins it.
+
+## F545 [medium] Dart barrel (barrel.mustache) did not export the generated per-scheme authenticators (fixed in this commit via perSchemeAuthModules and perSchemeOAuthModules)
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Dart barrel (barrel.mustache) did not export the generated per-scheme authenticators (fixed in this commit via perSchemeAuthModules and perSchemeOAuthModules).
+
+## F546 [medium] Dart OpenIdConnectAuthenticator dropped the exchanged tokens when a re-fetched discovery document expired and the delegate was rebuilt (fixed in this commit)
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Dart OpenIdConnectAuthenticator dropped the exchanged tokens when a re-fetched discovery document expired and the delegate was rebuilt (fixed in this commit).
+
+## F547 [medium] Setup deviation: branch parity/b2-dart already exists with an earlier run's commit and is checked out in another worktree (wf_4a554f2f-32a-8), so git checkout -B would have orphaned that work; I branc
+- Status: **open** (reported by the dart fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: dart
+
+Setup deviation: branch parity/b2-dart already exists with an earlier run's commit and is checked out in another worktree (wf_4a554f2f-32a-8), so git checkout -B would have orphaned that work; I branched parity/b2-dart-tests from 77ef6e332 instead. Rename or cherry-pick if parity/b2-dart is required.
+
+## F548 [medium] Node ApiError.fromResponse leaves errorBody null for a body with a leading UTF-8 BOM
+- Status: **open** (reported by the node fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Node ApiError.fromResponse leaves errorBody null for a body with a leading UTF-8 BOM. base_api strips the BOM only for success responses, and ObjectSerializer.parseJson does not, whereas python strips it before parsing. I dropped the BOM test because it fails today.
+
+## F549 [medium] Node TransportOptions and the transport accept timeout <= 0 without validation
+- Status: **open** (reported by the node fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Node TransportOptions and the transport accept timeout <= 0 without validation. AbortSignal.timeout(negative) would throw a RangeError instead of a typed error. This needs a behaviour decision, not just a test.
+
+## F550 [medium] Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it)
+- Status: **open** (reported by the node fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Node operation-server variants take TypeScript enum types only, so a server-variable value outside the enum is not rejected at runtime (the ServerConfiguration class does reject it).
+
+## F551 [medium] The golden test directory is tracked as test/Api (capital A) while the codegen writes Path.of('test','api')
+- Status: **open** (reported by the node fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+The golden test directory is tracked as test/Api (capital A) while the codegen writes Path.of('test','api'). It only works on a case-insensitive filesystem.
+
+## F552 [medium] Fixed here: AbstractApiClient::decompressBody treated a valid gzip or deflate stream that decodes to an empty string or "0" as corrupt (the ?: throw pattern tests falsiness), so such a response raised
+- Status: **open** (reported by the php fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Fixed here: AbstractApiClient::decompressBody treated a valid gzip or deflate stream that decodes to an empty string or "0" as corrupt (the ?: throw pattern tests falsiness), so such a response raised ApiException; it now only fails on a false return.
+
+## F553 [medium] Fixed here: DefaultApiClient::createHttpClient let openssl_x509_read emit an E_WARNING for an unparseable PEM, so under a framework error handler the documented InvalidArgumentException became an Erro
+- Status: **open** (reported by the php fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Fixed here: DefaultApiClient::createHttpClient let openssl_x509_read emit an E_WARNING for an unparseable PEM, so under a framework error handler the documented InvalidArgumentException became an ErrorException; the call is now suppressed.
+
+## F554 [medium] OpenIdConnectAuthenticator::getDelegate builds a brand new OAuth2AuthorizationCodeAuthenticator whenever the discovery max-age has elapsed, so the exchanged tokens are lost and the next getAuthHeaders
+- Status: **open** (reported by the php fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+OpenIdConnectAuthenticator::getDelegate builds a brand new OAuth2AuthorizationCodeAuthenticator whenever the discovery max-age has elapsed, so the exchanged tokens are lost and the next getAuthHeaders throws 'Must call exchangeCode() before making API requests'.
+
+## F555 [medium] OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator pass the refresh-grant params to OAuth2TokenManager::getAccessToken, so when the refresh token is rejected the 'fall back to the or
+- Status: **open** (reported by the php fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator pass the refresh-grant params to OAuth2TokenManager::getAccessToken, so when the refresh token is rejected the 'fall back to the original grant' step re-sends the refresh grant instead of the password or code grant, and the authenticator fails permanently.
+
+## F556 [medium] OAuth2TokenManager keeps the previous (already stale) expiry when a refresh response omits expires_in, so every following call refreshes again; the intended rule (T3-16) is untested and unclear for ph
+- Status: **open** (reported by the php fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+OAuth2TokenManager keeps the previous (already stale) expiry when a refresh response omits expires_in, so every following call refreshes again; the intended rule (T3-16) is untested and unclear for php.
+
+## F557 [medium] OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so the token from exchangeCode was lost once the Cache-Control max-age expired (getAuthHeaders then threw IllegalStateExcep
+- Status: **open** (reported by the java fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so the token from exchangeCode was lost once the Cache-Control max-age expired (getAuthHeaders then threw IllegalStateException). Fixed in this commit.
+
+## F558 [medium] java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3)
+- Status: **open** (reported by the java fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3).
+
+## F559 [medium] Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr
+- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkError; fix is f.adapter :net_http { |http| http.ignore_eof = false } in build_connection plus a Faraday#adapter RBS declaration (reproduced with a loopback TCPServer; chunked truncation and stalled bodies are already classified correctly).
+
+## F560 [medium] Ruby gem entry point (gem.mustache) never requires the per-scheme wrapper authenticators (Auth::<Scheme>Authenticator, 12 files in the golden), so require 'petstore_client' alone leaves them undefined
+- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby gem entry point (gem.mustache) never requires the per-scheme wrapper authenticators (Auth::<Scheme>Authenticator, 12 files in the golden), so require 'petstore_client' alone leaves them undefined and scheme_authenticator_test's positional-args check was vacuous for wrappers until this commit made it load them.
+
+## F561 [medium] Ruby OpenIdConnectAuthenticator rediscovery (default 86400s or max-age=0) builds a fresh OAuth2AuthorizationCodeAuthenticator and drops the exchanged token, so auth_headers raises 'Must call exchange_
+- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby OpenIdConnectAuthenticator rediscovery (default 86400s or max-age=0) builds a fresh OAuth2AuthorizationCodeAuthenticator and drops the exchanged token, so auth_headers raises 'Must call exchange_code' (already a behavior finding in the ledger); I wrote the test, confirmed it fails, and did not commit it.
+
+## F562 [medium] Ruby accepts an int32 value of 3000000000 (ObjectSerializer Integer check is unbounded) and has no negative-timeout guard in TransportOptions, so both diverge from the SDKs that reject them; left unlo
+- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby accepts an int32 value of 3000000000 (ObjectSerializer Integer check is unbounded) and has no negative-timeout guard in TransportOptions, so both diverge from the SDKs that reject them; left unlocked because no contract is agreed.
+
+## F563 [medium] Ruby ISO-8859-1 Basic credentials raised Encoding::CompatibilityError when mixed with UTF-8 ones and otherwise went out as Latin-1 bytes; fixed in BasicAuthenticator#auth_headers in this commit
+- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby ISO-8859-1 Basic credentials raised Encoding::CompatibilityError when mixed with UTF-8 ones and otherwise went out as Latin-1 bytes; fixed in BasicAuthenticator#auth_headers in this commit.
+
+## F564 [medium] csharp DefaultApiClient custom-CA ServerCertificateCustomValidationCallback ignores the SslPolicyErrors argument and only builds the chain, so a certificate whose name does not match the host is accep
+- Status: **open** (reported by the csharp fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+csharp DefaultApiClient custom-CA ServerCertificateCustomValidationCallback ignores the SslPolicyErrors argument and only builds the chain, so a certificate whose name does not match the host is accepted whenever caCertPath is set (java/node reject this).
+
+## F565 [medium] csharp TransportOptions.Timeout(-1) is passed straight to HttpClient.Timeout and silently becomes an infinite timeout (other negative values and 0 throw ArgumentOutOfRangeException); the builder does 
+- Status: **open** (reported by the csharp fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+csharp TransportOptions.Timeout(-1) is passed straight to HttpClient.Timeout and silently becomes an infinite timeout (other negative values and 0 throw ArgumentOutOfRangeException); the builder does not validate it.
+
+## F566 [medium] csharp OpenIdConnectAuthenticator rediscovery after Cache-Control max-age builds a new delegate and loses the exchanged tokens (already ledger F016; deliberately not locked by a test)
+- Status: **open** (reported by the csharp fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+csharp OpenIdConnectAuthenticator rediscovery after Cache-Control max-age builds a new delegate and loses the exchanged tokens (already ledger F016; deliberately not locked by a test).
+
+## F567 [medium] The shared TLS test certificate now lists 127.0.0.1 in its SAN, so the 'request 127.0.0.1 against a cert naming localhost' hostname-mismatch technique described in java's DefaultApiClientTest comment 
+- Status: **open** (reported by the csharp fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+The shared TLS test certificate now lists 127.0.0.1 in its SAN, so the 'request 127.0.0.1 against a cert naming localhost' hostname-mismatch technique described in java's DefaultApiClientTest comment (and F037) no longer produces a mismatch.
+
+## F568 [medium] The branch name parity/b2-elixir was already checked out by an older worktree (wf_3417e94f-a6d-4) holding a batch 1 commit, so I used parity/b2-elixir-tests from 77ef6e332 instead
+- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+The branch name parity/b2-elixir was already checked out by an older worktree (wf_3417e94f-a6d-4) holding a batch 1 commit, so I used parity/b2-elixir-tests from 77ef6e332 instead.
+
+## F569 [medium] Before this commit the elixir password and authorization-code authenticators sent refresh requests without client_id/client_secret (fixed here), and on a failed refresh the authenticator-level fallbac
+- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Before this commit the elixir password and authorization-code authenticators sent refresh requests without client_id/client_secret (fixed here), and on a failed refresh the authenticator-level fallback re-sends the refresh grant, not the original grant. The manager-level fallback works, but the authenticators hand it refresh params. Not fixed because the refresh URL and the token URL are separate and the manager takes one URL.
+
+## F570 [medium] DefaultApiClient.same_origin? could return nil, so 'not same_origin?' would raise ArgumentError for a URL without scheme or host
+- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+DefaultApiClient.same_origin? could return nil, so 'not same_origin?' would raise ArgumentError for a URL without scheme or host. Fixed to return a strict boolean.
+
+## F571 [medium] The fixture server certificate lists IP 127.0.0.1 in its SAN, so the hostname-mismatch technique used by java and node cannot reject it in elixir
+- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+The fixture server certificate lists IP 127.0.0.1 in its SAN, so the hostname-mismatch technique used by java and node cannot reject it in elixir.
+
+## F572 [medium] Elixir accepts an int32 value above 2^31-1 and has no negative-timeout guard in TransportOptions; no cross-SDK contract exists yet, so neither is locked
+- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Elixir accepts an int32 value above 2^31-1 and has no negative-timeout guard in TransportOptions; no cross-SDK contract exists yet, so neither is locked.
+
+## F573 [medium] The branch name parity/b2-swift could not be used because another worktree (wf_3417e94f-a6d-3, an earlier run) has it checked out, so the work is on parity/b2-swift-tests created from 77ef6e332 and no
+- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+The branch name parity/b2-swift could not be used because another worktree (wf_3417e94f-a6d-3, an earlier run) has it checked out, so the work is on parity/b2-swift-tests created from 77ef6e332 and not pushed.
+
+## F574 [medium] swift maps int32 to the 64-bit Int, so {"quantity":3000000000} decodes into Order.quantity instead of being rejected as the finding assumes for swift; a real fix needs an Int32 type mapping in the gen
+- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+swift maps int32 to the 64-bit Int, so {"quantity":3000000000} decodes into Order.quantity instead of being rejected as the finding assumes for swift; a real fix needs an Int32 type mapping in the generator.
+
+## F575 [medium] Foundation JSONDecoder rejects bodies nested more than 512 deep (and decoding a 500-deep recursive model overflows a test thread stack on macOS), so swift cannot decode the 600-deep bodies the other S
+- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Foundation JSONDecoder rejects bodies nested more than 512 deep (and decoding a 500-deep recursive model overflows a test thread stack on macOS), so swift cannot decode the 600-deep bodies the other SDKs accept even though ObjectSerializer.maxJsonDepth is 1000; the test now pins the 1000-cap message and nests 200 deep.
+
+## F576 [medium] OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator hand the token manager refresh-grant params once a refresh token exists, so the refresh request omits client_id/client_secret and t
+- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+OAuth2PasswordAuthenticator and OAuth2AuthorizationCodeAuthenticator hand the token manager refresh-grant params once a refresh token exists, so the refresh request omits client_id/client_secret and the failed-refresh fallback re-sends the refresh grant instead of the original grant (the manager itself falls back correctly; kotlin has the same authenticator design).
+
+## F577 [medium] swift TransportOptionsBuilder.timeout accepts negative values with no ConfigurationError, unlike rust (F359 item 3 is a contract decision, not a swift test)
+- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+swift TransportOptionsBuilder.timeout accepts negative values with no ConfigurationError, unlike rust (F359 item 3 is a contract decision, not a swift test).
+
+## F578 [medium] Url normalisation makes the same_origin default-port comparison a no-op to mutate (port() and port_or_known_default() are equivalent), so the new default-port test locks behaviour but cannot catch tha
+- Status: **open** (reported by the rust fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+Url normalisation makes the same_origin default-port comparison a no-op to mutate (port() and port_or_known_default() are equivalent), so the new default-port test locks behaviour but cannot catch that particular rewrite.
+
+## F579 [medium] The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test
+- Status: **open** (reported by the rust fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test.
+
+## F580 [medium] test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent
+- Status: **open** (reported by the rust fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent.
+
+## F581 [medium] Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th
+- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go
+
+Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into the enum type because GetUrl never validates, so out-of-enum values are not rejected at runtime in go (F041/F357 rejection cases cannot be locked here).
+
+## F582 [medium] TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of
+- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go
+
+TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of zero or negative values (F123 item 4), so a test would first need a decision on the intended behaviour.
+
+## F583 [medium] OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the pas
+- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go
+
+OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the password and client-credentials flows and the token manager's own refresh path, which copies them from the original params).
+
+## F584 [medium] OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230)
+- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go
+
+OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230). The new OpenID Connect test failed against the current code, so this batch fixes it in the go template (openid_connect_authenticator.mustache, about 8 lines). Another agent's F016/F230 go fix may conflict textually.
