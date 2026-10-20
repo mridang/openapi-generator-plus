@@ -25,6 +25,28 @@ class FakeOidcClient
     Petstore::Client::ApiHttpResponse.new(
       status_code: response[:status],
       body: response[:body].is_a?(String) ? response[:body] : response[:body].to_json,
+      headers: { 'content-type' => 'application/json' }.merge(response[:headers] || {})
+    )
+  end
+end
+
+# Client whose transport always fails, as when the endpoint is unreachable.
+class FailingOidcClient
+  # With a discovery response the first request is answered, so a later one
+  # (the code exchange) is the one that fails.
+  def initialize(error, discovery: nil)
+    @error = error
+    @discovery = discovery
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    raise @error if @discovery.nil?
+
+    response = @discovery
+    @discovery = nil
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: response[:status],
+      body: response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
     )
   end
@@ -271,5 +293,75 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.inspect).must_include '***'
     _(auth.to_s).wont_include 'leaky_client_secret'
     _(auth.to_s).must_include '***'
+  end
+
+  def oidc_authenticator(client)
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    auth
+  end
+
+  def discovery_requests(client)
+    client.requests.select { |r| r[:method] == :get }
+  end
+
+  it 'a transport failure during discovery reaches the caller unchanged' do
+    failure = Petstore::Client::Errors::NetworkError.new(message: 'connection refused')
+    auth = oidc_authenticator(FailingOidcClient.new(failure))
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) { auth.build_authorization_url }
+    _(err).must_be_same_as failure
+  end
+
+  it 'a transport failure during the code exchange reaches the caller unchanged' do
+    failure = Petstore::Client::Errors::NetworkError.new(message: 'connection reset')
+    auth = oidc_authenticator(FailingOidcClient.new(failure, discovery: discovery_response))
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) { auth.exchange_code('oidc_code_123') }
+    _(err).must_be_same_as failure
+  end
+
+  it 'caches the discovery document for the Cache-Control max-age' do
+    client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'public, max-age=3600' })])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 1
+  end
+
+  it 'rediscovers on every call when max-age is zero' do
+    no_cache = discovery_response.merge(headers: { 'cache-control' => 'max-age=0' })
+    client = FakeOidcClient.new([no_cache, no_cache])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 2
+  end
+
+  it 'uses the rediscovered endpoints once the cached document has expired' do
+    moved = { status: 200, body: { 'authorization_endpoint' => 'https://auth.example.com/v2/authorize',
+                                   'token_endpoint' => 'https://auth.example.com/v2/token' } }
+    client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }), moved])
+    auth = oidc_authenticator(client)
+
+    _(auth.build_authorization_url).must_include 'https://auth.example.com/authorize?'
+    _(auth.build_authorization_url).must_include 'https://auth.example.com/v2/authorize?'
+  end
+
+  it 'shows the host, discovery URL and client id but not the secret in inspect' do
+    auth = oidc_authenticator(FakeOidcClient.new([discovery_response]))
+
+    _(auth.inspect).must_equal(
+      "#<#{auth.class.name} host=\"https://api.example.com\" " \
+      'openid_connect_url="https://auth.example.com/.well-known/openid-configuration" ' \
+      'client_id="my_client_id" client_secret="***">'
+    )
   end
 end

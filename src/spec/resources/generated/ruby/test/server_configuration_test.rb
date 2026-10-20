@@ -103,4 +103,42 @@ describe Petstore::Client::ServerConfiguration do
     _(config).must_be :frozen?
     _(config.variables).must_be :frozen?
   end
+
+  it 'names the value, the variable and the allowed values when an override is rejected' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+      }
+    )
+    err = _(-> { config.url({ 'env' => 'dev' }) }).must_raise ArgumentError
+    _(err.message).must_equal "Invalid value 'dev' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]"
+  end
+
+  it 'rejects a default value that is not in the variable enum' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'qa', enum_values: %w[prod staging])
+      }
+    )
+    err = _(-> { config.url }).must_raise ArgumentError
+    _(err.message).must_equal "Invalid value 'qa' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]"
+  end
+
+  it 'accepts any override for a variable that declares no enum' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{region}.api.example.com',
+      variables: { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    )
+    _(config.url({ 'region' => 'anything-goes' })).must_equal 'https://anything-goes.api.example.com'
+  end
+
+  it 'leaves an unknown override out of the URL' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url({ 'unknown' => 'x' })).must_equal 'https://prod.api.example.com'
+  end
 end

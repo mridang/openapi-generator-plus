@@ -1210,4 +1210,29 @@ describe {{moduleName}}::ObjectSerializer do
       }).must_raise({{moduleName}}::Errors::SerializationError)
     end
   end
+
+  # An integer property holds a Ruby Integer: a fractional number is refused,
+  # and an int64 above 2**53 (where a double stops being exact) survives intact.
+  describe 'integer properties' do
+    it 'refuses a fractional number for an int32 property' do
+      err = assert_raises({{moduleName}}::Errors::SerializationError) do
+        {{moduleName}}::ObjectSerializer.deserialize('{"quantity":1.5}', '{{moduleName}}::Models::Order')
+      end
+      _(err.message).must_equal('Failed to deserialize JSON to {{moduleName}}::Models::Order: Expected Integer, got Float: 1.5')
+    end
+
+    it 'refuses a quoted number for an int64 property' do
+      err = assert_raises({{moduleName}}::Errors::SerializationError) do
+        {{moduleName}}::ObjectSerializer.deserialize('{"id":"7"}', '{{moduleName}}::Models::Order')
+      end
+      _(err.message).must_equal('Failed to deserialize JSON to {{moduleName}}::Models::Order: Expected Integer, got String: "7"')
+    end
+
+    it 'keeps an int64 above 2**53 exact through decode and encode' do
+      order = {{moduleName}}::ObjectSerializer.deserialize('{"id":9007199254740993}', '{{moduleName}}::Models::Order')
+
+      _(order.id).must_equal(9_007_199_254_740_993)
+      _({{moduleName}}::ObjectSerializer.serialize(order)).must_include('"id":9007199254740993')
+    end
+  end
 end

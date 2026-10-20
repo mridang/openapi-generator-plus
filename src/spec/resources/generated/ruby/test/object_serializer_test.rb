@@ -1210,4 +1210,29 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
   end
+
+  # An integer property holds a Ruby Integer: a fractional number is refused,
+  # and an int64 above 2**53 (where a double stops being exact) survives intact.
+  describe 'integer properties' do
+    it 'refuses a fractional number for an int32 property' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"quantity":1.5}', 'Petstore::Client::Models::Order')
+      end
+      _(err.message).must_equal('Failed to deserialize JSON to Petstore::Client::Models::Order: Expected Integer, got Float: 1.5')
+    end
+
+    it 'refuses a quoted number for an int64 property' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"id":"7"}', 'Petstore::Client::Models::Order')
+      end
+      _(err.message).must_equal('Failed to deserialize JSON to Petstore::Client::Models::Order: Expected Integer, got String: "7"')
+    end
+
+    it 'keeps an int64 above 2**53 exact through decode and encode' do
+      order = Petstore::Client::ObjectSerializer.deserialize('{"id":9007199254740993}', 'Petstore::Client::Models::Order')
+
+      _(order.id).must_equal(9_007_199_254_740_993)
+      _(Petstore::Client::ObjectSerializer.serialize(order)).must_include('"id":9007199254740993')
+    end
+  end
 end

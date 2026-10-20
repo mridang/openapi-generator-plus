@@ -12,6 +12,28 @@ require 'socket'
 require 'base64'
 require 'date'
 
+# An ApiClient that records the URL and headers it is handed and answers 200
+# with a minimal pet, so the request an operation builds can be inspected
+# without a server.
+class RecordingPetClient
+  attr_reader :url, :headers, :calls
+
+  def initialize
+    @calls = 0
+  end
+
+  def send_request(_method, url, headers, _body, **_kwargs)
+    @calls += 1
+    @url = url
+    @headers = headers
+    {{moduleName}}::ApiHttpResponse.new(
+      status_code: 200,
+      body: '{"name":"Rex","photoUrls":["u"]}',
+      headers: { 'content-type' => 'application/json' }
+    )
+  end
+end
+
 describe {{moduleName}}::Api::PetApi do
   parallelize_me!
 
@@ -1148,6 +1170,91 @@ describe {{moduleName}}::Api::PetApi do
       _(rbs).must_include 'def get_pet_avatar_with_http_info: (Integer pet_id) -> ::{{moduleName}}::ApiResult[::StringIO]'
       _(rbs).wont_include '-> File'
       _(rbs).wont_include 'ApiResult[File]'
+    end
+  end
+
+  describe 'format:date path parameter' do
+    it 'serializes find_pets_born_on as YYYY-MM-DD with no time component' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_born_on(Date.new(2024, 1, 1))
+
+        _(captured.pop[:request_line]).must_equal 'GET /pet/born-on/2024-01-01 HTTP/1.1'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'operation cookie parameter' do
+    ["abc\r\nInjected: yes", "abc\ndef", "abc\0def"].each do |value|
+      it "fails closed for #{value.inspect} without sending a request" do
+        client = RecordingPetClient.new
+        config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = {{moduleName}}::Api::PetApi.new(client, config)
+
+        err = assert_raises(ArgumentError) do
+          api.delete_pet(1, {{moduleName}}::Api::Options::DeletePetOptions.new(api_key: value))
+        end
+        _(err.message).must_equal "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        _(client.calls).must_equal 0
+      end
+    end
+
+    it 'sends a valid value in the Cookie header' do
+      client = RecordingPetClient.new
+      config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(client, config)
+
+      api.delete_pet(1, {{moduleName}}::Api::Options::DeletePetOptions.new(api_key: 'abc123'))
+      _(client.headers['Cookie']).must_equal 'api_key=abc123'
+    end
+  end
+
+  describe 'generated operation server variants' do
+    def url_sent_to(operation_server)
+      client = RecordingPetClient.new
+      config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = {{moduleName}}::Api::PetApi.new(client, config)
+      yield api, operation_server
+      client.url
+    end
+
+    it 'sends the single-server operation to its fixed URL' do
+      url = url_sent_to({{moduleName}}::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
+    end
+
+    it 'sends the operation to the client base URL when no server is passed' do
+      url = url_sent_to(nil) { |api, server| api.get_external_pet_info(7, server: server) }
+      _(url).must_equal 'http://127.0.0.1:1/pet/7/external'
+    end
+
+    it 'substitutes the server variables into the templated URL' do
+      environment = {{moduleName}}::Api::GetStagingPetInfoServerEnvironment
+      version = {{moduleName}}::Api::GetStagingPetInfoServerVersion
+      server = {{moduleName}}::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: environment::SANDBOX, version: version::V3
+      )
+      url = url_sent_to(server) { |api, chosen| api.get_staging_pet_info(7, server: chosen) }
+      _(url).must_equal 'https://sandbox.example.com/api/v3/pet/7/staging'
+    end
+
+    it 'sends the multi-server operation to whichever server is chosen' do
+      primary = url_sent_to({{moduleName}}::Api::GetMultiServerPetInfoServerPrimary.new) do |api, server|
+        api.get_multi_server_pet_info(7, server: server)
+      end
+      regional = url_sent_to(
+        {{moduleName}}::Api::GetMultiServerPetInfoServerRegional.new(
+          region: {{moduleName}}::Api::GetMultiServerPetInfoServerRegion::EU
+        )
+      ) { |api, server| api.get_multi_server_pet_info(7, server: server) }
+
+      _(primary).must_equal 'https://primary.example.com/v1/pet/7/multi'
+      _(regional).must_equal 'https://eu.example.com/v1/pet/7/multi'
     end
   end
 end

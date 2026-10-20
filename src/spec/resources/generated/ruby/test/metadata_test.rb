@@ -55,6 +55,17 @@ describe Petstore::Client::Models::Metadata, 'round-trip and constants' do
     _(data['createdAt']).wont_be_nil
   end
 
+  it 'equality includes the additional properties' do
+    first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
+
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
+  end
+
   it 'defines ADDITIONAL_PROPERTIES constant' do
     _(Petstore::Client::Models::Metadata.const_defined?(:ADDITIONAL_PROPERTIES)).must_equal(true)
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES).must_equal(true)

@@ -735,35 +735,6 @@ describe Petstore::Client::Api::BaseApi do
     _(result.raw_body).must_equal '{}'
   end
 
-  # ── CrossOriginRedirectTests ──
-
-  it 'same-origin redirect forwards Authorization header' do
-    sensitive = %w[authorization cookie proxy-authorization]
-    same_origin = true
-    original = { 'Authorization' => 'Bearer token123', 'Accept' => 'application/json' }
-    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
-    _(forwarded).must_include 'Authorization'
-    _(forwarded['Authorization']).must_equal 'Bearer token123'
-  end
-
-  it 'cross-origin redirect drops Authorization header' do
-    sensitive = %w[authorization cookie proxy-authorization]
-    same_origin = false
-    original = { 'Authorization' => 'Bearer token123', 'Accept' => 'application/json' }
-    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
-    _(forwarded).wont_include 'Authorization'
-    _(forwarded).must_include 'Accept'
-  end
-
-  it 'cross-origin redirect drops Cookie header' do
-    sensitive = %w[authorization cookie proxy-authorization]
-    same_origin = false
-    original = { 'Cookie' => 'session=abc123', 'Accept' => 'application/json' }
-    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
-    _(forwarded).wont_include 'Cookie'
-    _(forwarded).must_include 'Accept'
-  end
-
   # ── NullBodyContentTypeTests ──
 
   it 'null body POST does not send Content-Type' do

@@ -13,14 +13,16 @@ require 'uri'
 require 'petstore_client'
 
 class FakeAuthCodeClient
-  attr_reader :last_url, :last_body
+  attr_reader :last_url, :last_body, :urls
 
   def initialize(responses)
     @responses = responses
     @call_index = 0
+    @urls = []
   end
 
   def send_request(_method, url, _headers, body, **_kwargs)
+    @urls << url
     @last_url = url
     @last_body = body
     response = @responses[@call_index] || @responses.last
@@ -181,5 +183,49 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.inspect).must_include '***'
     _(auth.to_s).wont_include 'leaky_client_secret'
     _(auth.to_s).must_include '***'
+  end
+
+  it 'sends the code exchange to the token URL and the refresh grant to the refresh URL' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
+    split_auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/authorize',
+      'https://auth.example.com/token', 'https://app.example.com/callback', %w[read],
+      refresh_url: 'https://auth.example.com/refresh'
+    )
+    split_auth.api_client = client
+
+    split_auth.exchange_code('auth_code_123')
+    split_auth.auth_headers
+    _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/refresh']
+  end
+
+  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
+    url = auth.build_authorization_url("state~*!'()")
+    _(url).must_include 'state=state~%2A%21%27%28%29'
+  end
+
+  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the code exchange body' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+                                    ])
+    special_auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
+      'https://api.example.com', "id~*!'()", "secret~*!'()", 'https://auth.example.com/authorize',
+      'https://auth.example.com/token', 'https://app.example.com/callback', %w[read]
+    )
+    special_auth.api_client = client
+
+    special_auth.exchange_code("code~*!'()")
+    _(client.last_body).must_include 'code=code~%2A%21%27%28%29'
+    _(client.last_body).must_include 'client_id=id~%2A%21%27%28%29'
+    _(client.last_body).must_include 'client_secret=secret~%2A%21%27%28%29'
+  end
+
+  it 'shows the host and client id but not the secret in inspect' do
+    _(auth.inspect).must_equal(
+      "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" client_secret=\"***\">"
+    )
   end
 end

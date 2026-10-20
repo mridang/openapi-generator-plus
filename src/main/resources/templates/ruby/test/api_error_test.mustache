@@ -234,4 +234,36 @@ describe {{moduleName}}::Errors::ApiError do
     _(body.id).must_equal(1)
     _(body.name).must_equal('Cat')
   end
+
+  it 'OAuth2ServerError names the status and the raw body when the body carries no error code' do
+    err = {{moduleName}}::Errors::OAuth2ServerError.new(502, nil, nil, nil, '<html>bad gateway</html>')
+
+    _(err.message).must_equal('Token request failed with status 502: <html>bad gateway</html>')
+  end
+
+  it 'OAuth2ServerError names the status and the error code' do
+    err = {{moduleName}}::Errors::OAuth2ServerError.new(400, 'invalid_grant', nil, nil, '{}')
+
+    _(err.message).must_equal('Token request failed with status 400: invalid_grant')
+  end
+
+  it 'OAuth2ServerError names the status, the error code and the description' do
+    err = {{moduleName}}::Errors::OAuth2ServerError.new(400, 'invalid_grant', 'refresh token expired', nil, '{}')
+
+    _(err.message).must_equal('Token request failed with status 400: invalid_grant -- refresh token expired')
+  end
+
+  it 'from_response leaves a scalar JSON error body as the parsed scalar' do
+    err = {{moduleName}}::Errors::ApiError.from_response(500, {}, '"upstream unavailable"')
+
+    _(err.response_body).must_equal('"upstream unavailable"')
+    _(err.error_body).must_equal('upstream unavailable')
+  end
+
+  it 'typed_error_body raises SerializationError for a body that is not the model' do
+    err = {{moduleName}}::Errors::ApiError.from_response(400, {}, '<html>oops</html>')
+
+    raised = assert_raises({{moduleName}}::Errors::SerializationError) { err.typed_error_body('Category') }
+    _(raised).must_be_instance_of({{moduleName}}::Errors::SerializationError)
+  end
 end

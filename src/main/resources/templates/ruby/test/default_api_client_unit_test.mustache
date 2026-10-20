@@ -3,6 +3,7 @@
 require 'minitest/autorun'
 require 'json'
 require 'openssl'
+require 'socket'
 require 'stringio'
 require 'tempfile'
 require 'zlib'
@@ -1249,5 +1250,193 @@ describe {{moduleName}}::DefaultApiClient do
       _(JSON.parse(response.body)['ok']).must_equal true
     end
     stubs.verify_stubbed_calls
+  end
+
+  # ── redirect origin comparison ──
+  # Credentials follow a redirect only to the same origin: scheme, host and
+  # effective port. An explicit default port (:80 on http, :443 on https) names
+  # the same origin as the bare host and must not strip them.
+  def headers_followed_to(start_url, location)
+    captured = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => location }, ''] }
+      stub.get('/landing') do |env|
+        captured = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    headers = { 'Authorization' => 'Bearer secret', 'Cookie' => 'session=abc', 'X-Trace' => 'keep' }
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, start_url, headers, nil)
+    end
+    captured&.transform_keys(&:downcase)
+  end
+
+  [
+    ['http://origin.test/start', 'http://origin.test/landing'],
+    ['http://origin.test/start', '/landing'],
+    ['http://origin.test/start', 'http://origin.test:80/landing'],
+    ['http://origin.test:80/start', 'http://origin.test/landing'],
+    ['https://origin.test/start', 'https://origin.test:443/landing'],
+    ['https://origin.test:443/start', 'https://origin.test/landing'],
+    ['http://origin.test:8080/start', 'http://origin.test:8080/landing']
+  ].each do |start_url, location|
+    it "keeps Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+      followed = headers_followed_to(start_url, location)
+      _(followed).wont_be_nil
+      _(followed['authorization']).must_equal 'Bearer secret'
+      _(followed['cookie']).must_equal 'session=abc'
+      _(followed['x-trace']).must_equal 'keep'
+    end
+  end
+
+  [
+    ['http://origin.test/start', 'http://origin.test:8080/landing'],
+    ['http://origin.test/start', 'https://origin.test/landing'],
+    ['https://origin.test/start', 'https://origin.test:8443/landing'],
+    ['http://origin.test/start', 'http://other.test/landing'],
+    ['http://origin.test/start', 'http://sub.origin.test/landing']
+  ].each do |start_url, location|
+    it "strips Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+      followed = headers_followed_to(start_url, location)
+      _(followed).wont_be_nil
+      _(followed.key?('authorization')).must_equal false
+      _(followed.key?('cookie')).must_equal false
+      _(followed['x-trace']).must_equal 'keep'
+    end
+  end
+
+  # ── a CA file that exists but holds no certificate ──
+  it 'raises ArgumentError at construction for a ca_cert_path that holds no PEM certificate' do
+    file = Tempfile.new(['not-a-ca', '.pem'])
+    file.write("this is not a certificate\n")
+    file.close
+    transport = {{moduleName}}::TransportOptions.builder.ca_cert_path(file.path).build
+
+    err = assert_raises(ArgumentError) { {{moduleName}}::DefaultApiClient.new(transport) }
+    _(err).must_be_instance_of ArgumentError
+    _(err.message).must_include %(failed to parse CA certificate from "#{file.path}")
+    _(err.message).must_include 'no PEM blocks found or unparseable'
+  ensure
+    file&.unlink
+  end
+
+  # ── deflate ──
+  # Content-Encoding: deflate is the zlib format (RFC 1950), not raw DEFLATE.
+  it 'decompresses a valid deflate-encoded body' do
+    compressed = Zlib::Deflate.deflate('{"ok":true}')
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/deflate') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'deflate' }, compressed]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/deflate', {}, nil)
+      _(JSON.parse(response.body)['ok']).must_equal true
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'surfaces ApiError for a raw headerless DEFLATE body' do
+    raw = Zlib::Deflate.new(Zlib::DEFAULT_COMPRESSION, -Zlib::MAX_WBITS)
+    compressed = raw.deflate('{"ok":true}', Zlib::FINISH)
+    raw.close
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/deflate') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'deflate' }, compressed]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/deflate', {}, nil)
+      end
+      _(err).wont_be_kind_of {{moduleName}}::Errors::NetworkError
+      _(err.status_code).must_equal 200
+      refute_kind_of Zlib::Error, err
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  # ── Accept-Encoding ──
+  # With no Accept-Encoding of its own the client advertises exactly the codings
+  # it can decode: gzip and deflate always, br and zstd when their gems loaded.
+  def accept_encoding_sent(headers)
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        sent = env.request_headers['Accept-Encoding']
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/echo', headers, nil)
+    end
+    sent
+  end
+
+  it 'advertises the codings it can decode when the caller sets no Accept-Encoding' do
+    expected = %w[gzip deflate]
+    expected << 'br' if defined?(Brotli)
+    expected << 'zstd' if defined?(Zstd)
+
+    _(accept_encoding_sent({})).must_equal expected.join(', ')
+    _({{moduleName}}::DefaultApiClient.supported_encodings).must_equal expected.join(', ')
+  end
+
+  it 'keeps a caller-supplied Accept-Encoding' do
+    _(accept_encoding_sent({ 'Accept-Encoding' => 'gzip' })).must_equal 'gzip'
+  end
+
+  # ── a body that fails after the response head arrived ──
+  # Serves one connection on a loopback port: reads the request head, then lets
+  # the block write whatever the scenario needs before the socket is closed.
+  def serve_once(&block)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    thread = Thread.new do
+      socket = server.accept
+      loop { break if socket.gets.to_s.strip.empty? }
+      block.call(socket)
+    ensure
+      socket&.close
+      server.close
+    end
+    [port, thread]
+  end
+
+  it 'raises NetworkError, not a response, when the connection closes mid-body' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Transfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\n{\"a\":\r\n")
+    end
+
+    err = assert_raises({{moduleName}}::Errors::NetworkError) do
+      {{moduleName}}::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/truncated", {}, nil)
+    end
+    _(err).must_be_instance_of {{moduleName}}::Errors::NetworkError
+    _(err.status_code).must_equal 0
+    _(err.cause).must_be_kind_of Faraday::ConnectionFailed
+    thread.join
+  end
+
+  it 'raises NetworkTimeoutError when the body stalls after the response head' do
+    port, thread = serve_once do |socket|
+      socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{\"a\":")
+      sleep 1.5
+    end
+    transport = {{moduleName}}::TransportOptions.builder.timeout(300).build
+
+    err = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
+      {{moduleName}}::DefaultApiClient.new(transport).send_request('GET', "http://127.0.0.1:#{port}/stalled", {}, nil)
+    end
+    _(err).must_be_instance_of {{moduleName}}::Errors::NetworkTimeoutError
+    _(err.status_code).must_equal 0
+    _(err.cause).must_be_kind_of Faraday::TimeoutError
+    thread.join
   end
 end

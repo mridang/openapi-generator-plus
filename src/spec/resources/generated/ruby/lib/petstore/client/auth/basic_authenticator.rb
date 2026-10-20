@@ -52,8 +52,13 @@ module Petstore::Client
 
       # @return [Hash{String => String}]
       def auth_headers
-        auth_header = "Basic #{Base64.strict_encode64("#{@username}:#{@password}")}"
-        { 'Authorization' => auth_header }
+        # RFC 7617 §2.1: the credentials are sent as UTF-8. A Ruby string
+        # carries its own encoding, so a Latin-1 one is transcoded rather than
+        # sent as Latin-1 bytes, and mixing encodings does not raise.
+        credentials = [@username, @password].map do |part|
+          part.encoding == Encoding::BINARY ? part : part.encode(Encoding::UTF_8)
+        end
+        { 'Authorization' => "Basic #{Base64.strict_encode64(credentials.join(':'))}" }
       end
     end
   end

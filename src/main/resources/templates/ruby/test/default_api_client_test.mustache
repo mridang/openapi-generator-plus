@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'openssl'
+require 'tempfile'
 require 'test_helper'
 
 describe {{moduleName}}::DefaultApiClient do
@@ -39,6 +41,44 @@ describe {{moduleName}}::DefaultApiClient do
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
       _(json['method']).must_equal('GET')
+    end
+  end
+
+  describe 'TLS verification enabled' do
+    it 'rejects a server certificate signed by a CA the system does not trust' do
+      client = {{moduleName}}::DefaultApiClient.new
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, "#{ENV.fetch('CHASM_HTTPS_URL')}/test/echo", {}, nil)
+      end
+
+      _(err.status_code).must_equal(0)
+      _(err.cause).must_be_kind_of(Faraday::SSLError)
+    end
+
+    it 'rejects a server certificate the configured CA did not sign' do
+      key = OpenSSL::PKey::RSA.new(2048)
+      other_ca = OpenSSL::X509::Certificate.new
+      other_ca.version = 2
+      other_ca.serial = 1
+      other_ca.subject = other_ca.issuer = OpenSSL::X509::Name.parse('/CN=unrelated-test-ca')
+      other_ca.public_key = key.public_key
+      other_ca.not_before = Time.now - 60
+      other_ca.not_after = Time.now + 3600
+      other_ca.sign(key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+      file = Tempfile.new(['other-ca', '.pem'])
+      file.write(other_ca.to_pem)
+      file.close
+
+      transport = {{moduleName}}::TransportOptions.builder.verify_ssl(true).ca_cert_path(file.path).build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request(:GET, "#{ENV.fetch('CHASM_HTTPS_URL')}/test/echo", {}, nil)
+      end
+
+      _(err.status_code).must_equal(0)
+      _(err.cause).must_be_kind_of(Faraday::SSLError)
+    ensure
+      file&.unlink
     end
   end
 
@@ -506,39 +546,32 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'HTTP compression' do
-    it 'decompresses gzip response' do
+    # The fixture really answers with the requested Content-Encoding, so the
+    # decoded body and the surviving header together show the decoder ran.
+    def assert_decodes(encoding)
       client = {{moduleName}}::DefaultApiClient.new
       response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'gzip' }, nil
+        :GET, "#{ENV.fetch('CHASM_HTTP_URL')}/test/compressed/#{encoding}",
+        { 'Accept-Encoding' => encoding }, nil
       )
 
       _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
+      _(response.headers['content-encoding']).must_equal(encoding)
+      _(JSON.parse(response.body)['title']).must_equal('compressed fixture body')
+    end
+
+    it 'decompresses gzip response' do
+      assert_decodes('gzip')
     end
 
     it 'decompresses brotli response' do
       skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
-      client = {{moduleName}}::DefaultApiClient.new
-      response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'br' }, nil
-      )
-
-      _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
+      assert_decodes('br')
     end
 
     it 'decompresses zstd response' do
       skip 'zstd-ruby gem not installed (optional group)' unless defined?(Zstd)
-      client = {{moduleName}}::DefaultApiClient.new
-      response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'zstd' }, nil
-      )
-
-      _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
+      assert_decodes('zstd')
     end
   end
 

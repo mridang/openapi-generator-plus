@@ -10,6 +10,11 @@
 require 'minitest/autorun'
 require 'petstore_client'
 
+# The entry point does not require the per-scheme wrappers: an autoloader maps
+# each file to its constant. Load them here, or the checks below would
+# enumerate only the generic authenticators and never see a wrapper.
+Dir[File.expand_path('../lib/petstore/client/auth/**/*_authenticator.rb', File.dirname(__FILE__))].each { |file| require file }
+
 # The per-scheme authenticators subclass the generic ones, whose constructors
 # take positional arguments. A wrapper that took keywords instead would reject
 # the very call its base accepts, so no authenticator may require a keyword.
@@ -31,5 +36,50 @@ describe 'scheme authenticators' do
       klass.instance_method(:initialize).parameters.any? { |kind, _name| kind == :keyreq }
     end
     _(offenders.map(&:name)).must_equal([])
+  end
+
+  def wrappers_of(base)
+    authenticator_classes.select { |klass| klass < base }
+  end
+
+  it 'every API-key wrapper emits its key at exactly one location' do
+    wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-key')
+      emitted = [auth.auth_headers, auth.query_params, auth.cookie_params].reject(&:empty?)
+      _(emitted.length).must_equal 1, klass.name
+      _(emitted.first.values).must_equal ['wrapper-key'], klass.name
+      _(emitted.first.keys.first).wont_be_empty
+    end
+  end
+
+  it 'every API-key wrapper validates eagerly and redacts the key' do
+    wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).each do |klass|
+      _(-> { klass.new('https://api.example.com', '') }).must_raise ArgumentError
+      _(klass.new('https://api.example.com', 'wrapper-key').inspect).wont_include 'wrapper-key'
+    end
+  end
+
+  it 'the API-key wrappers emit every header name the spec declares' do
+    emitted = wrappers_of(Petstore::Client::Auth::ApiKeyAuthenticator).flat_map do |klass|
+      klass.new('https://api.example.com', 'wrapper-key').auth_headers.keys
+    end
+    _(emitted).must_include 'X-API-Key'
+    _(emitted).must_include 'X-Internal-Key'
+  end
+
+  it 'every Bearer wrapper sends the token as a Bearer credential' do
+    wrappers_of(Petstore::Client::Auth::BearerAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'wrapper-token')
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer wrapper-token' }, klass.name)
+      _(auth.inspect).wont_include 'wrapper-token'
+    end
+  end
+
+  it 'every Basic wrapper sends the credentials as a Basic credential' do
+    wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|
+      auth = klass.new('https://api.example.com', 'alice', 's3cret')
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Basic YWxpY2U6czNjcmV0' }, klass.name)
+      _(auth.inspect).wont_include 's3cret'
+    end
   end
 end

@@ -228,4 +228,27 @@ describe Petstore::Client::TransportOptions do
       .build
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'
   end
+
+  {
+    'socks5://proxy.example.com:1080' => 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080',
+    'ftp://proxy.example.com:21' => 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21',
+    'proxy.example.com:8080' => 'Invalid proxy URL (must use http or https scheme): proxy.example.com:8080',
+    '' => 'Invalid proxy URL (must use http or https scheme): ',
+    'http://' => 'Invalid proxy URL (missing host): http://'
+  }.each do |proxy, message|
+    it "rejects the proxy #{proxy.inspect} through the builder" do
+      error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy(proxy) }
+      _(error.message).must_equal message
+    end
+  end
+
+  it 'accepts an upper-case proxy scheme and keeps it as given' do
+    opts = Petstore::Client::TransportOptions.builder.proxy('HTTPS://proxy.example.com:8443').build
+    _(opts.proxy).must_equal 'HTTPS://proxy.example.com:8443'
+  end
+
+  it 'accepts proxy credentials in the URL' do
+    opts = Petstore::Client::TransportOptions.builder.proxy('http://user:pass@proxy.example.com:8080').build
+    _(opts.proxy).must_equal 'http://user:pass@proxy.example.com:8080'
+  end
 end

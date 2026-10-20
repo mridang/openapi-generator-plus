@@ -123,4 +123,38 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.to_s).wont_include 'super-secret-key'
     _(auth.inspect).must_include '***'
   end
+
+  it 'names the reason in each rejection' do
+    location = Petstore::Client::Auth::ApiKeyLocation
+    # @type var cases: Array[untyped]
+    cases = [
+      ['', location::HEADER, "API key value for 'X-API-Key' must not be empty"],
+      ['   ', location::QUERY, "API key value for 'X-API-Key' must not be empty"],
+      ["abc\r\n", location::COOKIE, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"],
+      ["abc\0def", location::QUERY, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"],
+      ['kéy', location::HEADER, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)"]
+    ]
+    cases.each do |key, where, message|
+      err = _(-> { Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where) }).must_raise ArgumentError
+      _(err.message).must_equal message
+    end
+  end
+
+  it 'a cookie key accepts a non-ASCII value' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'session', 'kéy', Petstore::Client::Auth::ApiKeyLocation::COOKIE
+    )
+    _(auth.cookie_params).must_equal({ 'session' => 'kéy' })
+  end
+
+  it 'shows the host, key name and location but not the key in inspect' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'super-secret-key', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    location = Petstore::Client::Auth::ApiKeyLocation::HEADER.inspect
+    _(auth.inspect).must_equal(
+      "#<#{auth.class.name} host=\"https://api.example.com\" key_param_name=\"X-Api-Key\" " \
+      "api_key=\"***\" location=#{location}>"
+    )
+  end
 end

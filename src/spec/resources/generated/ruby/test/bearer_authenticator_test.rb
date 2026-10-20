@@ -75,4 +75,21 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     _(auth.inspect).must_include '***'
     _(auth.inspect).must_include 'host='
   end
+
+  it 'names the reason in each rejection' do
+    cases = {
+      '' => 'Bearer token must not be empty',
+      "tok\r\nInjected: yes" => 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
+      'ñoño' => 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+    }
+    cases.each do |token, message|
+      err = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token) }).must_raise ArgumentError
+      _(err.message).must_equal message
+    end
+  end
+
+  it 'shows the host but not the token in inspect' do
+    auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
+    _(auth.inspect).must_equal "#<#{auth.class.name} host=\"https://api.example.com\" token=\"***\">"
+  end
 end

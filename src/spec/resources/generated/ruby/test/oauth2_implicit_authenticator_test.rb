@@ -75,4 +75,26 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(auth.to_s).wont_include 'super_secret_token'
     _(auth.to_s).must_include '***'
   end
+
+  it 'keeps ~ literal and percent-encodes * ! \' ( ) in the authorize URL' do
+    url = auth.build_authorization_url("state~*!'()")
+    _(url).must_include 'state=state~%2A%21%27%28%29'
+  end
+
+  ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each do |token|
+    it "rejects the access token #{token.inspect}" do
+      err = assert_raises(ArgumentError) { auth.access_token = token }
+      _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+      err = assert_raises(RuntimeError) { auth.auth_headers }
+      _(err.message).must_include 'Must set the access token before making API requests'
+    end
+  end
+
+  it 'shows the host, client id, authorization URL and scopes but not the token in inspect' do
+    auth.access_token = 'leaky_token'
+    _(auth.inspect).must_equal(
+      "#<#{auth.class.name} host=\"https://api.example.com\" client_id=\"my_client_id\" " \
+      'authorization_url="https://auth.example.com/authorize" scopes=["read", "write"] access_token="***">'
+    )
+  end
 end

@@ -16,6 +16,37 @@ describe {{moduleName}}::Api::StoreApi do
     @api = {{moduleName}}::Api::StoreApi.new(nil, TEST_CONFIGURATION)
   end
 
+  # Starts a one-shot TCP server that records the real outgoing request line
+  # and headers (lower-cased names), then answers 200 with the given JSON
+  # +response_body+. The returned Queue receives one { request_line:, headers: }
+  # Hash.
+  def capture_wire_request(response_body)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    captured = Queue.new
+    thread = Thread.new do
+      client = begin
+        server.accept
+      rescue StandardError
+        next
+      end
+      request_line = client.gets.to_s.strip
+      headers = {}
+      while (line = client.gets)
+        break if line.strip.empty?
+
+        name, value = line.split(':', 2)
+        headers[name.to_s.strip.downcase] = value.to_s.strip
+      end
+      captured << { request_line: request_line, headers: headers }
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
+                   "Content-Length: #{response_body.bytesize}\r\nConnection: close\r\n\r\n#{response_body}")
+      client.close
+    end
+    config = {{moduleName}}::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+    [{{moduleName}}::Api::StoreApi.new(nil, config), server, thread, captured]
+  end
+
   describe '#get_inventory' do
     it 'returns inventory' do
       result = @api.get_inventory
@@ -228,6 +259,89 @@ describe {{moduleName}}::Api::StoreApi do
       _(block.first).must_equal '# Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.'
       _(block.grep(/\A# @param options \[GetStockItemOptions\]/).size).must_equal 1
       _(block).must_include '# @raise [ApiError] if fails to make API call'
+    end
+  end
+
+  # A named-enum ($ref) parameter goes on the wire as its value, never as the
+  # language's representation of the constant.
+  describe '#get_by_swatch' do
+    it 'sends the enum value in the path, the query and the header' do
+      api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
+      begin
+        swatch = {{moduleName}}::Models::Swatch
+        # The options are typed as the enum class, while the values passed are
+        # its string constants, which is what goes on the wire.
+        options = {{moduleName}}::Api::Options::GetBySwatchOptions.new(
+          query_swatch: swatch::GREEN, preferred_swatch: swatch::BLUE # steep:ignore ArgumentTypeMismatch
+        )
+        api.get_by_swatch(swatch::RED, options)
+        request = captured.pop
+
+        _(request[:request_line]).must_equal 'GET /store/by-swatch/red?querySwatch=green HTTP/1.1'
+        _(request[:headers]['preferred-swatch']).must_equal 'blue'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'omits the optional query and header when they are not given' do
+      api, server, thread, captured = capture_wire_request('{"id":1,"name":"x"}')
+      begin
+        api.get_by_swatch({{moduleName}}::Models::Swatch::BLUE)
+        request = captured.pop
+
+        _(request[:request_line]).must_equal 'GET /store/by-swatch/blue HTTP/1.1'
+        _(request[:headers]).wont_include 'preferred-swatch'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'nested container responses' do
+    it 'decodes Array<Array<Integer>> from get_matrix' do
+      api, server, thread, = capture_wire_request('[[1,2],[3]]')
+      begin
+        _(api.get_matrix).must_equal [[1, 2], [3]]
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes Array<Hash<String, Swatch>> from get_swatch_groups' do
+      api, server, thread, = capture_wire_request('[{"a":"red"},{"b":"blue"}]')
+      begin
+        _(api.get_swatch_groups).must_equal [{ 'a' => 'red' }, { 'b' => 'blue' }]
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes Array<Hash<String, Time>> from get_timestamp_groups into Time values' do
+      api, server, thread, = capture_wire_request('[{"t":"2024-01-01T00:00:00Z"}]')
+      begin
+        result = api.get_timestamp_groups
+
+        _(result.first['t']).must_be_kind_of Time
+        _(result.first['t'].utc.iso8601).must_equal '2024-01-01T00:00:00Z'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'decodes a top-level enum from get_swatch' do
+      api, server, thread, = capture_wire_request('"red"')
+      begin
+        _(api.get_swatch).must_equal 'red'
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 end

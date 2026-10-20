@@ -104,6 +104,25 @@ describe Petstore::Client::ValueSerializer do
     it 'array of booleans stringifies elements' do
       _(Petstore::Client::ValueSerializer.serialize([true, false], :query, 'array')).must_equal('true,false')
     end
+
+    # A null element keeps its slot: it is neither skipped nor spelled out as
+    # the language's null text.
+    {
+      csv: '1,,3',
+      ssv: '1  3',
+      tsv: "1\t\t3",
+      pipes: '1||3'
+    }.each do |format, expected|
+      it "array keeps an empty slot for a null element with #{format}" do
+        result = Petstore::Client::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: format)
+        _(result).must_equal(expected)
+      end
+    end
+
+    it 'array keeps an empty slot for a null element with multi' do
+      result = Petstore::Client::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: :multi)
+      _(result).must_equal(['1', '', '3'])
+    end
   end
 
   describe 'header location' do
@@ -395,6 +414,25 @@ describe Petstore::Client::ValueSerializer do
       # canonical encoding (Java, Kotlin, Node, C#, etc.) keeps a literal '~'.
       _(Petstore::Client::ValueSerializer.serialize('a~b', :path, 'string')).must_equal('a~b')
       _(Petstore::Client::ValueSerializer.serialize('~', :path, 'string')).must_equal('~')
+    end
+
+    # The OAS path sub-delimiters and the unreserved ~ stay literal, one
+    # character per row so a dropped one names itself.
+    [';', '=', '~', '@', '!', '$', '&', "'", '(', ')', '*', '+'].each do |char|
+      it "#{char.inspect} preserved in a path segment" do
+        _(Petstore::Client::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{char}b")
+      end
+    end
+
+    ['%', '[', ']', '{', '}', '|', '"', '<', '>', '^', '`', '\\'].each do |char|
+      it "#{char.inspect} encoded in a path segment" do
+        encoded = char.bytes.map { |byte| format('%%%02X', byte) }.join
+        _(Petstore::Client::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{encoded}b")
+      end
+    end
+
+    it 'an already percent-encoded value is encoded again' do
+      _(Petstore::Client::ValueSerializer.serialize('a%20b', :path, 'string')).must_equal('a%2520b')
     end
 
     it 'unicode encoded as UTF-8 percent' do

@@ -12,14 +12,16 @@ require 'json'
 require 'petstore_client'
 
 class FakeTokenClient
-  attr_reader :last_url, :last_headers, :last_body, :call_count, :last_no_redirect
+  attr_reader :last_url, :last_headers, :last_body, :call_count, :last_no_redirect, :bodies
 
   def initialize(responses)
     @responses = responses
     @call_count = 0
+    @bodies = []
   end
 
   def send_request(_method, url, headers, body, no_redirect: false)
+    @bodies << body
     @last_url = url
     @last_headers = headers
     @last_body = body
@@ -31,6 +33,18 @@ class FakeTokenClient
       body: response[:body].is_a?(String) ? response[:body] : response[:body].to_json,
       headers: { 'content-type' => 'application/json' }
     )
+  end
+end
+
+# Client whose transport always fails, as when the token endpoint is
+# unreachable.
+class FailingTokenClient
+  def initialize(error)
+    @error = error
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    raise @error
   end
 end
 
@@ -484,5 +498,93 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
     _(client.call_count).must_equal 2
     _(tokens.all? { |t| t == 'tok2' }).must_equal true
+  end
+
+  it 'sends the refresh grant with the cached refresh token and the client credentials' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'cached_refresh', 'expires_in' => -1 } },
+                                   { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'authorization_code', 'code' => 'abc', 'client_id' => 'cid', 'client_secret' => 'csecret' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
+
+    _(client.bodies[1]).must_equal 'grant_type=refresh_token&refresh_token=cached_refresh&client_id=cid&client_secret=csecret'
+  end
+
+  it 'falls back to the original grant when the refresh grant fails' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'revoked', 'expires_in' => -1 } },
+                                   { status: 400, body: { 'error' => 'invalid_grant' } },
+                                   { status: 200, body: { 'access_token' => 'third', 'expires_in' => 3600 } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'third'
+
+    _(client.call_count).must_equal 3
+    _(client.bodies[1]).must_include 'grant_type=refresh_token'
+    _(client.bodies[2]).must_equal 'grant_type=client_credentials'
+  end
+
+  it 'a response without expires_in is cached indefinitely' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'no_expiry' } },
+                                   { status: 200, body: { 'access_token' => 'unexpected' } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'no_expiry'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'no_expiry'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'a refresh response without expires_in keeps the existing expiry' do
+    # The first token is stale on arrival (expires_in is inside the safety
+    # margin). A refresh answer that omits expires_in must not turn it into a
+    # token that never expires, so the next call refreshes again.
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'r', 'expires_in' => 40 } },
+                                   { status: 200, body: { 'access_token' => 'second' } },
+                                   { status: 200, body: { 'access_token' => 'third' } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'authorization_code' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'third'
+    _(client.call_count).must_equal 3
+  end
+
+  it 'ignores a non-string refresh_token' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => 12_345, 'expires_in' => 3600 } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(manager.refresh_token).must_be_nil
+  end
+
+  it 'a transport failure during the token fetch reaches the caller unchanged' do
+    failure = Petstore::Client::Errors::NetworkError.new(message: 'connection refused')
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = FailingTokenClient.new(failure)
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(err).must_be_same_as failure
   end
 end
