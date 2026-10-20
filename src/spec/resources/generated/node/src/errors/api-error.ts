@@ -145,9 +145,10 @@ export class ApiError<T = unknown> extends OpenAPIError {
    */
   getTypedErrorBody<U>(clazz: ClassConstructor<U>): U | null {
     /* F5: depth-cap JSON parsing before deserializing, since the error body
-     * is attacker-controlled. */
+     * is attacker-controlled. An absent or empty body is "no body" (null),
+     * like every other SDK; only a malformed body is a SerializationError. */
     const json =
-      this.responseBody != null
+      this.responseBody != null && this.responseBody !== ""
         ? ObjectSerializer.parseJson(this.responseBody)
         : null;
     return ObjectSerializer.deserialize(json, clazz);

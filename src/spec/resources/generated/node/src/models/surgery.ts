@@ -49,6 +49,15 @@ export class Surgery {
         `durationMinutes must be a number, got ${typeof this.durationMinutes}`,
       );
     }
+    if (
+      this.durationMinutes != null &&
+      typeof this.durationMinutes === "number" &&
+      !Number.isInteger(this.durationMinutes)
+    ) {
+      throw new TypeError(
+        `durationMinutes must be an integer, got ${this.durationMinutes}`,
+      );
+    }
     if (this.notes != null && typeof this.notes !== "string") {
       throw new TypeError(`notes must be a string, got ${typeof this.notes}`);
     }
@@ -60,7 +69,7 @@ export class Surgery {
    * Buffers and Date values are compared structurally; nested model fields
    * fall through to their own {@link equals} when present, otherwise to a
    * recursive structural compare. Mirrors the value-equality exposed by the
-   * other SDKs (node-model-equality).
+   * other SDKs (node-model-equality). Decimal fields compare by numeric value.
    */
   equals(other: unknown): boolean {
     if (this === other) {
@@ -96,12 +105,24 @@ export class Surgery {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(a: unknown, b: unknown): boolean {
+  private static __deepEquals(
+    a: unknown,
+    b: unknown,
+    decimal = false,
+  ): boolean {
     if (a === b) {
       return true;
     }
     if (a == null || b == null) {
       return a === b;
+    }
+    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
+     * the same number: compare the canonical form with trailing fractional
+     * zeros dropped. */
+    if (decimal && typeof a === "string" && typeof b === "string") {
+      const canonical = (d: string): string =>
+        /^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, "").replace(/\.$/, "") : d;
+      return canonical(a) === canonical(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === "function" &&

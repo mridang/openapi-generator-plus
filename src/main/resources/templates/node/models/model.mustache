@@ -339,10 +339,30 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isByteArray}}
 {{#isDateTime}}
   @Type(() => Date)
+  /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
+   * into an epoch-millisecond instant, so hand the raw wire value on and let the
+   * constructor reject anything that is not a string. */
+  @Transform(
+    ({ value, obj }) => {
+      const raw = (obj as Record<string, unknown>)['{{baseName}}'];
+      return raw === undefined || raw === null || typeof raw === 'string' || raw instanceof Date ? value : raw;
+    },
+    { toClassOnly: true }
+  )
 {{/isDateTime}}
 {{^isDateTime}}
 {{#isDate}}
   @Type(() => Date)
+  /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
+   * into an epoch-millisecond instant, so hand the raw wire value on and let the
+   * constructor reject anything that is not a string. */
+  @Transform(
+    ({ value, obj }) => {
+      const raw = (obj as Record<string, unknown>)['{{baseName}}'];
+      return raw === undefined || raw === null || typeof raw === 'string' || raw instanceof Date ? value : raw;
+    },
+    { toClassOnly: true }
+  )
 {{/isDate}}
 {{^isDate}}
 {{^isPrimitiveType}}
@@ -556,16 +576,25 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
     }
+    if (this.{{name}} != null && typeof this.{{name}} === 'number' && !Number.isInteger(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an integer, got ${this.{{name}}}`);
+    }
 {{/isInteger}}
 {{#isLong}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+    if (this.{{name}} != null && typeof this.{{name}} === 'number' && !Number.isInteger(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an integer, got ${this.{{name}}}`);
     }
 {{/isLong}}
 {{^isInteger}}
 {{#isShort}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
       throw new TypeError(`{{name}} must be a number, got ${typeof this.{{name}}}`);
+    }
+    if (this.{{name}} != null && typeof this.{{name}} === 'number' && !Number.isInteger(this.{{name}})) {
+      throw new TypeError(`{{name}} must be an integer, got ${this.{{name}}}`);
     }
 {{/isShort}}
 {{/isInteger}}
@@ -724,6 +753,23 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/uniqueItems}}
 {{/isArray}}
 {{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{^isArray}}
+{{^isDateTime}}
+{{^isDate}}
+{{#complexType}}
+{{^vendorExtensions.prop.complexTypeIsEnum}}
+{{^isFreeFormObject}}
+    if (this.{{name}} != null && (typeof this.{{name}} !== 'object' || Array.isArray(this.{{name}}))) {
+      throw new TypeError(`{{name}} must be an object, got ${Array.isArray(this.{{name}}) ? 'array' : typeof this.{{name}}}`);
+    }
+{{/isFreeFormObject}}
+{{/vendorExtensions.prop.complexTypeIsEnum}}
+{{/complexType}}
+{{/isDate}}
+{{/isDateTime}}
+{{/isArray}}
+{{/isPrimitiveType}}
 {{#vendorExtensions.prop.isMapOfModel}}
     /**
      * 4.6 — Map-of-Model deep deserialise. When a field is typed
@@ -850,7 +896,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * Buffers and Date values are compared structurally; nested model fields
    * fall through to their own {@link equals} when present, otherwise to a
    * recursive structural compare. Mirrors the value-equality exposed by the
-   * other SDKs (node-model-equality).
+   * other SDKs (node-model-equality). Decimal fields compare by numeric value.
    */
   equals(other: unknown): boolean {
     if (this === other) {
@@ -865,7 +911,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     }
 {{/parent}}
 {{#vars}}
-    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}})) {
+    if (!{{classname}}.__deepEquals(this.{{name}}, (other as {{classname}}).{{name}}{{#vendorExtensions.isDecimalFormat}}, true{{/vendorExtensions.isDecimalFormat}})) {
       return false;
     }
 {{/vars}}
@@ -897,12 +943,19 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(a: unknown, b: unknown): boolean {
+  private static __deepEquals(a: unknown, b: unknown, decimal = false): boolean {
     if (a === b) {
       return true;
     }
     if (a == null || b == null) {
       return a === b;
+    }
+    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
+     * the same number: compare the canonical form with trailing fractional
+     * zeros dropped. */
+    if (decimal && typeof a === 'string' && typeof b === 'string') {
+      const canonical = (d: string): string => (/^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, '').replace(/\.$/, '') : d);
+      return canonical(a) === canonical(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === 'function' &&

@@ -362,7 +362,9 @@ export class StoreApi extends BaseApi {
       ["application/json"],
       "application/json",
       (json: unknown) =>
-        ObjectSerializer.deserializeMap(json, (x: unknown) => x as number),
+        ObjectSerializer.deserializeMap(json, (x: unknown) =>
+          ObjectSerializer.deserializeLeaf<number>(x, "integer"),
+        ),
       NO_AUTH,
     );
   }
@@ -407,7 +409,9 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) =>
         ObjectSerializer.deserializeArray(json, (x: unknown) =>
-          ObjectSerializer.deserializeArray(x, (x: unknown) => x as number),
+          ObjectSerializer.deserializeArray(x, (x: unknown) =>
+            ObjectSerializer.deserializeLeaf<number>(x, "integer"),
+          ),
         ),
       NO_AUTH,
     );
@@ -678,7 +682,7 @@ export class StoreApi extends BaseApi {
       (json: unknown) =>
         ObjectSerializer.deserializeArray(json, (x: unknown) =>
           ObjectSerializer.deserializeMap(x, (x: unknown) =>
-            x === null || x === undefined ? null : new Date(x as string),
+            ObjectSerializer.deserializeLeaf<Date | null>(x, "date"),
           ),
         ),
       NO_AUTH,

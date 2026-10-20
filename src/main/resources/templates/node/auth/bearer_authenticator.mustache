@@ -54,7 +54,7 @@ export class BearerAuthenticator extends BaseAuthenticator {
    * `console.log(auth)` / `util.inspect(auth)` / JSON.stringify never
    * exfiltrate the live bearer token into application logs. */
   [Symbol.for('nodejs.util.inspect.custom')](): string {
-    return `BearerAuthenticator(host=${this.host}, token=***)`;
+    return `${this.constructor.name}(host=${this.host}, token=***)`;
   }
 
   toJSON(): Record<string, string> {

@@ -180,10 +180,10 @@ export class OAuth2TokenManager {
     let parsed: unknown;
     try {
       parsed = JSON.parse(response.body);
-    } catch (error) {
-      throw new OAuth2TokenError(
-        `Token response is not valid JSON: ${(error as Error).message}`
-      );
+    } catch {
+      /* The parser's message quotes part of the body, which may be a token:
+       * report the failure without echoing it. */
+      throw new OAuth2TokenError('Token response is not valid JSON');
     }
     if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
       throw new OAuth2TokenError('Token response is not a JSON object');
@@ -260,11 +260,12 @@ export class OAuth2TokenManager {
       if (trimmed.length === 0) {
         return 0;
       }
-      const parsed = Number(trimmed);
-      if (!Number.isFinite(parsed)) {
+      /* Plain decimal digits with an optional fraction only: Number() would
+       * also read hex ("0x10"), exponents and "Infinity". */
+      if (!/^\d+(\.\d+)?$/.test(trimmed)) {
         return 0;
       }
-      return Math.floor(parsed);
+      return Math.floor(Number(trimmed));
     }
     return 0;
   }

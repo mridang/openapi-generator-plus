@@ -55,6 +55,12 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     authenticator.setApiClient(mockClient);
   });
 
+  test("the synchronous getAuthHeaders throws instead of returning unauthenticated headers", () => {
+    expect(() => authenticator.getAuthHeaders()).toThrow(
+      "OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.",
+    );
+  });
+
   test("client secret is not leaked in default string representation", () => {
     // client-secret-leak-in-default-repr: console.log / util.inspect /
     // JSON.stringify must never expose the stored OAuth2 client secret.

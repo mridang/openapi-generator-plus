@@ -131,8 +131,8 @@ export abstract class BaseApi {
         const encodeQueryValue = (v: string): string =>
           allowReserved
             ? ValueSerializer.encodeQueryAllowingReserved(v)
-            : encodeURIComponent(v);
-        const encodedKey = encodeURIComponent(k);
+            : ValueSerializer.encodeQueryComponent(v);
+        const encodedKey = ValueSerializer.encodeQueryComponent(k);
         return Array.isArray(value)
           ? value.map(
               (item) => `${encodedKey}=${encodeQueryValue(String(item))}`,
@@ -373,7 +373,9 @@ export abstract class BaseApi {
        *   - null / undefined fields are OMITTED entirely, never serialized
        *     as the literal string "null"/"undefined";
        *   - URLSearchParams.append encodes a space as `+` (not %20), the
-       *     canonical application/x-www-form-urlencoded form. */
+       *     canonical application/x-www-form-urlencoded form;
+       *   - the unreserved set is `A-Za-z0-9-._~`: URLSearchParams keeps `*`
+       *     literal and escapes `~`, so both are flipped after serializing. */
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(
         body as Record<string, unknown>,
@@ -392,7 +394,9 @@ export abstract class BaseApi {
           params.append(key, ObjectSerializer.stringify(value));
         }
       }
-      return params.toString();
+      /* The serialized text only contains a percent sign as an escape, so
+       * %7E is always an encoded tilde and a bare asterisk is always literal. */
+      return params.toString().replace(/\*/g, "%2A").replace(/%7E/g, "~");
     }
     return ObjectSerializer.serialize(body);
   }

@@ -225,6 +225,20 @@ export class ValueSerializer {
   }
 
   /**
+   * Percent-encodes a query key or value, leaving only the RFC 3986 unreserved
+   * characters `A-Za-z0-9-._~` literal.
+   *
+   * `encodeURIComponent` also keeps `! ' ( ) *` literal; those are escaped here
+   * so the bytes match the other SDKs.
+   */
+  static encodeQueryComponent(value: string): string {
+    return encodeURIComponent(value).replace(
+      /[!'()*]/g,
+      (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase(),
+    );
+  }
+
+  /**
    * Percent-encodes a query value while leaving RFC 3986 reserved characters
    * literal (OAS `allowReserved: true`).
    *

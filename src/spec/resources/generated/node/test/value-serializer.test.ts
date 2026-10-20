@@ -824,6 +824,20 @@ describe("ValueSerializer", () => {
     });
   });
 
+  describe("encodeQueryComponent", () => {
+    test("keeps only the RFC 3986 unreserved characters literal", () => {
+      expect(ValueSerializer.encodeQueryComponent("a~b*c!d'e(f)g-h_i.j")).toBe(
+        "a~b%2Ac%21d%27e%28f%29g-h_i.j",
+      );
+    });
+
+    test("percent-encodes a space and a reserved character", () => {
+      expect(ValueSerializer.encodeQueryComponent("a b&c=d")).toBe(
+        "a%20b%26c%3Dd",
+      );
+    });
+  });
+
   describe("allowReserved query encoding", () => {
     test("reserved characters are left literal, other characters still encoded", () => {
       expect(ValueSerializer.encodeQueryAllowingReserved("v1.0/beta:rc1")).toBe(

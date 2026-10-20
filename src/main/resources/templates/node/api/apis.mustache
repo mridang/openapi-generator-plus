@@ -56,17 +56,18 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
   getUrl(): string {
 {{#serverVariables}}
 {{#-first}}
-    let url = '{{url}}';
+    const resolved = new Map<string, string>([
 {{/-first}}
-    url = url.replaceAll('{' + '{{name}}' + '}', () => this.{{camelName}});
+      ['{{name}}', this.{{camelName}}]{{^-last}},{{/-last}}
+{{#-last}}
+    ]);
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return '{{url}}'.replace(/\{([^{}]+)\}/g, (placeholder, name: string) => resolved.get(name) ?? placeholder);
+{{/-last}}
 {{/serverVariables}}
 {{^serverVariables}}
     return '{{url}}';
-{{/serverVariables}}
-{{#serverVariables}}
-{{#-last}}
-    return url;
-{{/-last}}
 {{/serverVariables}}
   }
 }

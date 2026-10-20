@@ -222,7 +222,7 @@ export abstract class AbstractApiClient implements ApiClient {
       ...headers
     };
 
-    if (this.transportOptions.userAgent != null && !mergedHeaders['User-Agent']) {
+    if (this.transportOptions.userAgent != null && mergedHeaders['User-Agent'] === undefined) {
       mergedHeaders['User-Agent'] = this.transportOptions.userAgent;
     }
     if (this.transportOptions.injectRequestId && !mergedHeaders['X-Request-ID']) {

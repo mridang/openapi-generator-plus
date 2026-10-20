@@ -154,6 +154,15 @@ describe('DefaultApiClient unit', () => {
     expect(body['user-agent']).toBe('MyApp/1.0');
   });
 
+  it('keeps a caller-supplied empty User-Agent instead of replacing it', async () => {
+    const transport = TransportOptions.builder().userAgent('MyApp/1.0').build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, { 'User-Agent': '' }, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['user-agent']).toBe('');
+  });
+
   it('injects default User-Agent when not explicitly set', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);

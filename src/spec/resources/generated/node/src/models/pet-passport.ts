@@ -74,6 +74,21 @@ export class PetPassport {
   scans?: Array<Buffer>;
   @Expose({ name: "issuedAt" })
   @Type(() => Date)
+  /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
+   * into an epoch-millisecond instant, so hand the raw wire value on and let the
+   * constructor reject anything that is not a string. */
+  @Transform(
+    ({ value, obj }) => {
+      const raw = (obj as Record<string, unknown>)["issuedAt"];
+      return raw === undefined ||
+        raw === null ||
+        typeof raw === "string" ||
+        raw instanceof Date
+        ? value
+        : raw;
+    },
+    { toClassOnly: true },
+  )
   issuedAt?: Date;
   /**
    * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
@@ -93,6 +108,14 @@ export class PetPassport {
 
   constructor(data?: Partial<PetPassport>) {
     Object.assign(this, data);
+    if (
+      this.pet != null &&
+      (typeof this.pet !== "object" || Array.isArray(this.pet))
+    ) {
+      throw new TypeError(
+        `pet must be an object, got ${Array.isArray(this.pet) ? "array" : typeof this.pet}`,
+      );
+    }
     /**
      * 2.1 — format: byte. The wire form is base64; the model field is a
      * Buffer. Lives outside the isString block because typeMapping
@@ -170,7 +193,7 @@ export class PetPassport {
    * Buffers and Date values are compared structurally; nested model fields
    * fall through to their own {@link equals} when present, otherwise to a
    * recursive structural compare. Mirrors the value-equality exposed by the
-   * other SDKs (node-model-equality).
+   * other SDKs (node-model-equality). Decimal fields compare by numeric value.
    */
   equals(other: unknown): boolean {
     if (this === other) {
@@ -214,12 +237,24 @@ export class PetPassport {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(a: unknown, b: unknown): boolean {
+  private static __deepEquals(
+    a: unknown,
+    b: unknown,
+    decimal = false,
+  ): boolean {
     if (a === b) {
       return true;
     }
     if (a == null || b == null) {
       return a === b;
+    }
+    /* A Decimal is a branded string, so 1.5 and 1.50 differ as text but are
+     * the same number: compare the canonical form with trailing fractional
+     * zeros dropped. */
+    if (decimal && typeof a === "string" && typeof b === "string") {
+      const canonical = (d: string): string =>
+        /^-?\d+\.\d+$/.test(d) ? d.replace(/0+$/, "").replace(/\.$/, "") : d;
+      return canonical(a) === canonical(b);
     }
     if (
       typeof (a as { equals?: unknown }).equals === "function" &&

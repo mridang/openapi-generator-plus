@@ -1074,6 +1074,15 @@ describe("PetApi operation servers", () => {
     expect(server.getUrl()).toBe("https://a$&b.example.com/api/v2");
   });
 
+  test("a server variable value containing another placeholder is not substituted again", () => {
+    const server = new GetStagingPetInfoServerStagingServer(
+      "{version}" as unknown as GetStagingPetInfoServerEnvironment,
+      GetStagingPetInfoServerVersion.V2,
+    );
+
+    expect(server.getUrl()).toBe("https://{version}.example.com/api/v2");
+  });
+
   test("a server variant documents itself with the operation server description", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "src/api/pet-api.ts"),

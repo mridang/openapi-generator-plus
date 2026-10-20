@@ -110,6 +110,16 @@ describe("ApiError", () => {
       expect(err.getTypedErrorBody(Category)).toBeNull();
     });
 
+    test("returns null for an empty-string response body", () => {
+      const err = ApiError.fromResponse(500, {}, "");
+      expect(err.getTypedErrorBody(Category)).toBeNull();
+    });
+
+    test("throws SerializationError for a malformed response body", () => {
+      const err = ApiError.fromResponse(500, {}, "{not json");
+      expect(() => err.getTypedErrorBody(Category)).toThrow(SerializationError);
+    });
+
     test("ignores extraneous fields not declared on the model", () => {
       const err = ApiError.fromResponse(
         422,

@@ -72,16 +72,16 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
   }
 
   /**
-   * Returns the authentication headers synchronously.
+   * Always throws: a token cannot be fetched synchronously, and returning
+   * empty headers would silently send an unauthenticated request. Use
+   * {@link getAuthHeadersAsync} to obtain a valid Bearer token.
    *
-   * Because the client credentials flow requires async token exchange,
-   * this method returns empty headers. Use {@link getAuthHeadersAsync}
-   * to obtain a valid Bearer token.
-   *
-   * @returns empty headers
+   * @throws Error always
    */
   getAuthHeaders(): Record<string, string> {
-    return {};
+    throw new Error(
+      "OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.",
+    );
   }
 
   /**

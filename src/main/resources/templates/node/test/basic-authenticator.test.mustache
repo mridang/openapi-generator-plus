@@ -10,6 +10,14 @@ describe('BasicAuthenticator', () => {
     expect(headers['Authorization']).toBe('Basic YWxpY2U6czNjcmV0');
   });
 
+  it('a scheme-specific subclass prints its own class name', () => {
+    class PetStoreBasicAuthenticator extends BasicAuthenticator {}
+    const auth = new PetStoreBasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+    expect(util.inspect(auth)).toBe(
+      'PetStoreBasicAuthenticator(host=https://api.example.com, username=alice, password=***)'
+    );
+  });
+
   it('rejects username with crlf at construction', () => {
     expect(
       () => new BasicAuthenticator('https://api.example.com', 'alice\r\n', 's3cret')

@@ -60,6 +60,17 @@ describe("BearerAuthenticator", () => {
     ).toThrow(TypeError);
   });
 
+  it("a scheme-specific subclass prints its own class name", () => {
+    class PetStoreBearerAuthenticator extends BearerAuthenticator {}
+    const auth = new PetStoreBearerAuthenticator(
+      "https://api.example.com",
+      "super-secret-token",
+    );
+    expect(util.inspect(auth)).toBe(
+      "PetStoreBearerAuthenticator(host=https://api.example.com, token=***)",
+    );
+  });
+
   it("redacts the secret from default string/inspect/JSON", () => {
     // authenticator-secret-in-default-string-repr: console.log / util.inspect
     // / JSON.stringify must never leak the live credential.

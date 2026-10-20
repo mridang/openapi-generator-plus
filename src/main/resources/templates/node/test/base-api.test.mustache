@@ -320,6 +320,15 @@ describe('BaseApi query serialization', () => {
     expect(client.capturedUrl).not.toContain('limit=10.0');
   });
 
+  test('query keys and values escape ! * \' ( ) and keep ~ literal', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/test/echo', { "k*'": "a~b*c!d'e(f)g" }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g');
+  });
+
   test('handles empty query params', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
@@ -423,6 +432,15 @@ describe('BaseApi body serialization', () => {
       ['application/json'], 'application/x-www-form-urlencoded', null);
     expect(client.capturedBody).toBe('full+name=Ada+Lovelace');
     expect(client.capturedBody).not.toContain('%20');
+  });
+
+  test('form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/test/echo', {}, {}, { nickname: "a~b*c!d'e(f)g" },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('nickname=a~b%2Ac%21d%27e%28f%29g');
   });
 
   test('passes binary body as-is', async () => {
@@ -1013,6 +1031,29 @@ describe('SecurityNoneSuppressesClientAuth', () => {
   });
 });
 
+describe('Container response leaves are type-checked', () => {
+  test('getInventory rejects a quoted number in the integer map', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"available":"5"}';
+    const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(storeApi.getInventory()).rejects.toThrow('Expected integer but received: string');
+  });
+
+  test('getInventory rejects a fractional number in the integer map', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"available":7.5}';
+    const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(storeApi.getInventory()).rejects.toThrow('Expected integer but received: number');
+  });
+
+  test('getInventory still decodes integer values', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"available":5,"sold":2}';
+    const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(storeApi.getInventory()).resolves.toEqual({ available: 5, sold: 2 });
+  });
+});
+
 describe('TypedErrorBodyTests', () => {
   test('getTypedErrorBody deserializes the raw body into the requested class', () => {
     const err = new BadRequestError('boom', {}, '{"id":42,"name":"Dogs"}');
@@ -1025,6 +1066,11 @@ describe('TypedErrorBodyTests', () => {
 
   test('getTypedErrorBody returns null when there is no response body', () => {
     const err = new BadRequestError('boom', {}, null);
+    expect(err.getTypedErrorBody(Category)).toBeNull();
+  });
+
+  test('getTypedErrorBody returns null for an empty-string response body', () => {
+    const err = new BadRequestError('boom', {}, '');
     expect(err.getTypedErrorBody(Category)).toBeNull();
   });
 });

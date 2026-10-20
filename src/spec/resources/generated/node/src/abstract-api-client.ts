@@ -242,7 +242,7 @@ export abstract class AbstractApiClient implements ApiClient {
 
     if (
       this.transportOptions.userAgent != null &&
-      !mergedHeaders["User-Agent"]
+      mergedHeaders["User-Agent"] === undefined
     ) {
       mergedHeaders["User-Agent"] = this.transportOptions.userAgent;
     }

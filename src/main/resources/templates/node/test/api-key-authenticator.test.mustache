@@ -15,6 +15,13 @@ describe('ApiKeyAuthenticator', () => {
     expect(auth.getQueryParams()).toEqual({ api_key: 'abc123' });
   });
 
+  it('a scheme-specific subclass prints its own class name', () => {
+    class PetStoreApiKeyAuthenticator extends ApiKeyAuthenticator {}
+    const auth = new PetStoreApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'abc123', ApiKeyLocation.HEADER);
+    expect(util.inspect(auth)).toMatch(/^PetStoreApiKeyAuthenticator\(host=https:\/\/api\.example\.com, /);
+    expect(util.inspect(auth)).not.toContain('abc123');
+  });
+
   it('rejects an empty key at construction', () => {
     expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '', ApiKeyLocation.HEADER)).toThrow(TypeError);
     expect(() => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', '   ', ApiKeyLocation.HEADER)).toThrow(TypeError);

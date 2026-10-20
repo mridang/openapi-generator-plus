@@ -76,9 +76,13 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
     this.region = region;
   }
   getUrl(): string {
-    let url = "https://{region}.example.com/v1";
-    url = url.replaceAll("{" + "region" + "}", () => this.region);
-    return url;
+    const resolved = new Map<string, string>([["region", this.region]]);
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return "https://{region}.example.com/v1".replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
   }
 }
 export abstract class GetPetByIdServer {
@@ -125,10 +129,16 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
     this.version = version;
   }
   getUrl(): string {
-    let url = "https://{environment}.example.com/api/{version}";
-    url = url.replaceAll("{" + "environment" + "}", () => this.environment);
-    url = url.replaceAll("{" + "version" + "}", () => this.version);
-    return url;
+    const resolved = new Map<string, string>([
+      ["environment", this.environment],
+      ["version", this.version],
+    ]);
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return "https://{environment}.example.com/api/{version}".replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
   }
 }
 /**

@@ -23,7 +23,7 @@ charset decoding, and header injection are identical everywhere:
   portable transport that uses only the Fetch API and imports no `undici` or
   `node:*` module, so the package loads on runtimes that provide `fetch` but no
   Node built-ins. Proxy / custom-CA / TLS-off are not expressible through the
-  standard Fetch API there, so requesting one throws a typed `ApiError` rather
+  standard Fetch API there, so requesting one throws a `TypeError` rather
   than being silently ignored; everything else (including the `maxRedirects`
   cap) works unchanged. Browsers are best-effort only — the manual redirect loop
   relies on reading `Location` from a `redirect: 'manual'` response, which CORS

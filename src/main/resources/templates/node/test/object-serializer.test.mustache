@@ -694,11 +694,96 @@ describe('ObjectSerializer', () => {
       );
     });
 
+    test.each([
+      ['a string', 'oops', 'string'],
+      ['a number', 5, 'number'],
+      ['an array', [1, 2], 'array'],
+    ])('rejects %s where a nested model is expected', (_label, value, received) => {
+      const json = { name: 'x', photoUrls: [], category: value };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        new RegExp(`^Failed to deserialize object: category must be an object, got ${received}$`),
+      );
+    });
+
     test('collapses a nested uniqueItems array into a Set and keeps Decimal as a string', () => {
       const json = { pet: { name: 'x', photoUrls: ['a', 'a', 'b'], weightKg: 12.5 } };
       const passport = ObjectSerializer.deserialize(json, PetPassport)!;
       expect(passport.pet!.photoUrls).toEqual(new Set(['a', 'b']));
       expect(passport.pet!.weightKg).toBe('12.5');
+    });
+  });
+
+  describe('WireScalarStrictness', () => {
+    test('rejects a fractional number for an int64 field', () => {
+      const json = { id: 1.5, name: 'x', photoUrls: [] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        /^Failed to deserialize object: id must be an integer, got 1\.5$/,
+      );
+    });
+
+    test('rejects a fractional number for an int32 field', () => {
+      expect(() => ObjectSerializer.deserialize({ quantity: 7.5 }, Order)).toThrow(
+        /^Failed to deserialize object: quantity must be an integer, got 7\.5$/,
+      );
+    });
+
+    test('rejects a fractional number handed to a model constructor', () => {
+      expect(() => new Order({ quantity: 1.5 })).toThrow('quantity must be an integer, got 1.5');
+    });
+
+    test('accepts an integral JSON number for an integer field', () => {
+      expect(ObjectSerializer.deserialize({ quantity: 100 }, Order)!.quantity).toBe(100);
+    });
+
+    test.each([
+      ['a number', 1700000000],
+      ['a boolean', true],
+      ['an array', [2024]],
+    ])('rejects %s for a date-time field', (_label, value) => {
+      expect(() => ObjectSerializer.deserialize({ shipDate: value }, Order)).toThrow(
+        `Failed to deserialize object: shipDate must be a valid Date, got ${String(value)}`,
+      );
+    });
+
+    test('still decodes an ISO date-time string and an absent date-time', () => {
+      const order = ObjectSerializer.deserialize({ shipDate: '2024-01-02T03:04:05.000Z' }, Order)!;
+      expect(order.shipDate!.getTime()).toBe(new Date('2024-01-02T03:04:05.000Z').getTime());
+      expect(ObjectSerializer.deserialize({ id: 1 }, Order)!.shipDate).toBeUndefined();
+    });
+
+    test('rejects an unparseable date-time string', () => {
+      expect(() => ObjectSerializer.deserialize({ shipDate: 'garbage' }, Order)).toThrow(
+        /^Failed to deserialize object: shipDate must be a valid Date, got Invalid Date$/,
+      );
+    });
+  });
+
+  describe('deserializeLeaf', () => {
+    test.each([
+      ['integer', 5],
+      ['boolean', false],
+    ] as const)('passes a valid %s through', (kind, value) => {
+      expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
+    });
+
+    test.each([
+      ['integer', '5', 'string'],
+      ['integer', 7.5, 'number'],
+      ['integer', true, 'boolean'],
+      ['boolean', 1, 'number'],
+      ['date', 1700000000, 'number'],
+      ['date', 'garbage', 'string'],
+    ] as const)('rejects a %s leaf given %p', (kind, value, received) => {
+      expect(() => ObjectSerializer.deserializeLeaf(value, kind)).toThrow(
+        new SerializationError(`Expected ${kind} but received: ${received}`),
+      );
+    });
+
+    test('maps a null leaf to null and parses a date string', () => {
+      expect(ObjectSerializer.deserializeLeaf(null, 'integer')).toBeNull();
+      expect(ObjectSerializer.deserializeLeaf<Date>('2024-01-02T03:04:05.000Z', 'date').getTime()).toBe(
+        new Date('2024-01-02T03:04:05.000Z').getTime(),
+      );
     });
   });
 
@@ -902,8 +987,7 @@ describe('ObjectSerializer', () => {
     // epoch Date(0) and `new Date(undefined)` an Invalid Date, either of which
     // silently corrupts a nullable timestamp container. This mirrors the exact
     // arrow text emitted by deserialize_arg.mustache.
-    const dateLeaf = (x: unknown) =>
-      x === null || x === undefined ? null : new Date(x as string);
+    const dateLeaf = (x: unknown) => ObjectSerializer.deserializeLeaf<Date | null>(x, 'date');
 
     test('deserializeMap preserves a null value for a Date leaf instead of epoch', () => {
       const out = ObjectSerializer.deserializeMap(
@@ -1528,6 +1612,16 @@ describe('model value-equality', () => {
     const b = new Category({ id: 1, name: 'Cats' });
     expect(a.equals(b)).toBe(false);
     expect(b.equals(a)).toBe(false);
+  });
+
+  test('Decimal fields compare by numeric value, not by scale', () => {
+    const photoUrls = new Set(['u']);
+    const a = new Pet({ name: 'x', photoUrls, weightKg: '1.5' as unknown as Pet['weightKg'] });
+    expect(a.equals(new Pet({ name: 'x', photoUrls, weightKg: '1.50' as unknown as Pet['weightKg'] }))).toBe(true);
+    expect(a.equals(new Pet({ name: 'x', photoUrls, weightKg: '1.51' as unknown as Pet['weightKg'] }))).toBe(false);
+    const whole = new Pet({ name: 'x', photoUrls, weightKg: '10' as unknown as Pet['weightKg'] });
+    expect(whole.equals(new Pet({ name: 'x', photoUrls, weightKg: '10.0' as unknown as Pet['weightKg'] }))).toBe(true);
+    expect(whole.equals(new Pet({ name: 'x', photoUrls, weightKg: '1' as unknown as Pet['weightKg'] }))).toBe(false);
   });
 
   test('a model is never equal to a non-model value', () => {

@@ -868,6 +868,41 @@ export class ObjectSerializer {
   }
 
   /**
+   * Validate the type of a primitive or date leaf of a container response
+   * (a map or array element). A plain `as number` cast is erased at compile
+   * time, so `{"a": "5"}` for a `Record<string, number>` would be returned as
+   * the string "5" and `"garbage"` for a date element would become an Invalid
+   * Date. A `null` element is passed through unchanged: a nullable element is
+   * legitimate and a non-nullable one is not distinguished here. The error
+   * names the expected and received types only, never the value.
+   *
+   * @param value the parsed wire value
+   * @param kind the expected leaf type
+   * @returns the value, typed as the expected leaf
+   */
+  static deserializeLeaf<T>(
+    value: unknown,
+    kind: "integer" | "boolean" | "date",
+  ): T {
+    if (value === null || value === undefined) {
+      return null as T;
+    }
+    const valid =
+      kind === "integer"
+        ? Number.isInteger(value)
+        : kind === "boolean"
+          ? typeof value === "boolean"
+          : typeof value === "string" &&
+            !Number.isNaN(new Date(value).getTime());
+    if (!valid) {
+      throw new SerializationError(
+        `Expected ${kind} but received: ${typeof value}`,
+      );
+    }
+    return (kind === "date" ? new Date(value as string) : value) as T;
+  }
+
+  /**
    * Convert a single scalar value to its string representation.
    *
    * This is the canonical scalar-to-string conversion used by all parameter

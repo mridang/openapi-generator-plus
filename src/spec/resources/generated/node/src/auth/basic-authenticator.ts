@@ -61,7 +61,7 @@ export class BasicAuthenticator extends BaseAuthenticator {
   /* Redact the password from the default string/inspect representation so
    * logging or inspecting the authenticator never leaks the credential. */
   [Symbol.for("nodejs.util.inspect.custom")](): string {
-    return `BasicAuthenticator(host=${this.host}, username=${this.username}, password=***)`;
+    return `${this.constructor.name}(host=${this.host}, username=${this.username}, password=***)`;
   }
 
   toJSON(): Record<string, string> {

@@ -42,6 +42,18 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://prod.api.example.com/prod");
   });
 
+  it("does not expand a placeholder that a substituted value introduces", () => {
+    const config = new ServerConfiguration(
+      "https://{env}.api.example.com/{version}",
+      null,
+      {
+        env: new ServerVariable("{version}", null, []),
+        version: new ServerVariable("v2", null, []),
+      },
+    );
+    expect(config.getUrl()).toBe("https://{version}.api.example.com/v2");
+  });
+
   it("substitutes a value containing replacement patterns literally", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",

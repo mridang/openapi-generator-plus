@@ -95,7 +95,7 @@ export class ServerConfiguration {
    * @throws TypeError if an override value is not in the variable's enum
    */
   getUrl(overrides: Record<string, string> = {}): string {
-    let url = this.urlTemplate;
+    const resolved = new Map<string, string>();
     for (const [varName, variable] of Object.entries(this.variables)) {
       const value = overrides[varName] ?? variable.defaultValue;
 
@@ -108,8 +108,13 @@ export class ServerConfiguration {
         );
       }
 
-      url = url.replaceAll(`{${varName}}`, () => value);
+      resolved.set(varName, value);
     }
-    return url;
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return this.urlTemplate.replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
   }
 }

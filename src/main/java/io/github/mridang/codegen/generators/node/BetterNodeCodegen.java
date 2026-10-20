@@ -1267,6 +1267,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return Boolean.TRUE.equals(ext.get("isTimeFormat"))
                 || Boolean.TRUE.equals(ext.get("isDurationFormat"))
                 || prop.isByteArray
+                || prop.isDateTime
+                || prop.isDate
                 || (prop.isArray && prop.items != null && prop.items.isByteArray);
     }
 
