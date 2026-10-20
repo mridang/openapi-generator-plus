@@ -239,7 +239,7 @@ $model = new ApiResponse();
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `SplFileInfo`. Binary response bodies are returned as `string`.
+File upload parameters are typed as `\SplFileObject`. Binary response bodies are returned as `string`.
 
 ## Comment Style
 

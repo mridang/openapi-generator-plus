@@ -33,7 +33,6 @@ class StoreApi extends BaseApi
     /**
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
-
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function deleteOrder(int $orderId): void
@@ -43,7 +42,6 @@ class StoreApi extends BaseApi
 
     /**
      * @param int $orderId ID of the order to delete
-
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -100,7 +98,7 @@ class StoreApi extends BaseApi
 
     /**
      * Echoes a swatch supplied via path, query and header parameters.
-     * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
+     * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): \PetstoreClient\Models\Category
@@ -125,9 +123,7 @@ class StoreApi extends BaseApi
     }
 
     /**
-
-     * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
-
+     * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Category>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -233,7 +229,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Defaults>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -296,7 +291,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Department>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -335,7 +329,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns categories grouped into an array of string-keyed maps.
-
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -361,7 +354,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -400,7 +392,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns pet inventories by status
-
      * @return \Ds\Map<string, int>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -426,7 +417,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\Ds\Map<string, int>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -465,7 +455,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a matrix as an array of integer arrays.
-
      * @return \Ds\Vector<\Ds\Vector<int>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -491,7 +480,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\Ds\Vector<\Ds\Vector<int>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -556,7 +544,6 @@ class StoreApi extends BaseApi
 
     /**
      * @param int $orderId ID of order to return
-
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -613,7 +600,7 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-     * @param GetStockItemOptions $options Options for query, header, form, and cookie parameters
+     * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getStockItem(?GetStockItemOptions $options = null): \PetstoreClient\Models\StockItem
@@ -638,9 +625,7 @@ class StoreApi extends BaseApi
     }
 
     /**
-
-     * @param GetStockItemOptions $options Options for query, header, form, and cookie parameters
-
+     * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\StockItem>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -714,7 +699,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Swatch>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -753,7 +737,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns swatches grouped as an array of string-keyed enum maps.
-
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -779,7 +762,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -818,7 +800,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns timestamps grouped as an array of string-keyed maps.
-
      * @return \Ds\Vector<\Ds\Map<string, \DateTime>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -844,7 +825,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \DateTime>>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -907,7 +887,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\TreeNode>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -970,7 +949,6 @@ class StoreApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
      */

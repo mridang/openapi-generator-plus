@@ -45,7 +45,8 @@ vendor/bin/rector
 
 ## Package
 
-- Name: `PetstoreClient`
+- Name: `openapi/petstoreclient`
+- Namespace: `PetstoreClient`
 - Version: `1.0.0`
 
 ## Custom HTTP client (PSR-18)
@@ -131,7 +132,7 @@ round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptions::builder()->proxy()` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying
@@ -153,15 +154,3 @@ into the generated tree as part of your release pipeline before
 publishing to a registry — most registries warn or block on a missing
 file, and the GitHub license auto-detect cannot pick up a manifest-only
 declaration.
-
-### `serializeValue` non-styled path-array branch is unsafe (dead code)
-
-`ObjectSerializer::serializeValue` has a legacy non-styled branch that
-joins path-array items with `,` **without** percent-encoding each item
-first. The sibling fix landed for Dart (`_serializeArray`), but this
-PHP branch is left as-is because the PHP `invokeApi` routing layer
-always goes through the styled path (`serializeStyled`) for array path
-parameters — the unsafe branch is currently dead code in the
-generation pipeline. If a future refactor wires array path params
-through the legacy path, this will become a real wire bug. Documented
-here as a latent hazard rather than fixed pre-emptively.

@@ -583,6 +583,30 @@ test('multipart scalar parts use the canonical text form', function (): void {
     expect($capturedBody)->toMatch('/name="ratio"\r\n(?:[^\r\n]+\r\n)*\r\n1\.0\r\n/');
 });
 
+test('multipart text parts carry only a content disposition like the psr18 client', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['yes' => true, 'count' => 7, 'ratio' => 1.0]
+    );
+
+    expect($capturedBody)->toContain("name=\"yes\"\r\n\r\ntrue\r\n");
+    expect($capturedBody)->toContain("name=\"count\"\r\n\r\n7\r\n");
+    expect($capturedBody)->toContain("name=\"ratio\"\r\n\r\n1.0\r\n");
+    expect($capturedBody)->not->toContain('Content-Transfer-Encoding');
+    expect($capturedBody)->not->toContain('Content-Type');
+});
+
 test('decodes iso 8859 1 error body to utf 8', function (): void {
     $body = "\xE9rreur"; // ISO-8859-1 'érreur'
     $mockResponse = new MockResponse($body, [

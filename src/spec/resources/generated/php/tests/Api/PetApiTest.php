@@ -69,6 +69,21 @@ test('data methods declare a native return type', function (string $method, stri
     ['deletePet', 'void'],
 ]);
 
+test('the options parameter doc names the authenticator only where the options carry one', function (string $method, string $expected): void {
+    $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
+    expect($doc)->toBeString();
+    assert(is_string($doc));
+    expect($doc)->toContain($expected);
+    expect(substr_count($doc, 'authenticator') > 0)->toBe(str_contains($expected, 'authenticator'));
+})->with([
+    ['addPet', '$options Options carrying an optional per-operation authenticator'],
+    ['addPetWithHttpInfo', '$options Options carrying an optional per-operation authenticator'],
+    ['deletePet', 'cookie parameters, and an optional per-operation authenticator'],
+    ['deletePetWithHttpInfo', 'cookie parameters, and an optional per-operation authenticator'],
+    ['getPetByName', '$options Options for query, header, form, and cookie parameters' . "\n"],
+    ['getPetByNameWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
+]);
+
 // -- Integration tests via Chasm --
 
 test('add pet', function (): void {

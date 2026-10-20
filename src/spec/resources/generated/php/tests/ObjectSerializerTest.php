@@ -1383,6 +1383,22 @@ test('a composed-model container leaf given as JSON text is rejected, not parsed
     ))->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
+test('a model container leaf given as JSON text is rejected, not parsed', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize(
+        '["{\"quantity\":3}"]',
+        \PetstoreClient\Models\Order::class . '[]'
+    ))->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Expected a JSON object, got string');
+});
+
+test('a model container leaf that is an object still deserializes', function (): void {
+    /** @var list<\PetstoreClient\Models\Order> $orders */
+    $orders = ObjectSerializer::deserialize('[{"quantity":3}]', \PetstoreClient\Models\Order::class . '[]');
+
+    expect($orders)->toBeArray()->toHaveCount(1);
+    expect($orders[0])->toBeInstanceOf(\PetstoreClient\Models\Order::class);
+    expect($orders[0]->quantity)->toBe(3);
+});
+
 test('deep JSON within the depth cap decodes but past it is rejected', function (): void {
     // json_decode is called with the MAX_JSON_DEPTH cap; a payload nested past
     // it is rejected, while one within it decodes. Uses 'object[]' so the

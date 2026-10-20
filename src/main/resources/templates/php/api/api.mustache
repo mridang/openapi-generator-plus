@@ -63,15 +63,14 @@ class {{classname}} extends BaseApi
      * @example {{value}} {{{summary}}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
@@ -129,15 +128,14 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
@@ -338,11 +336,11 @@ class {{classname}} extends BaseApi
         $requestBody = [];
 {{#formParams}}
 {{#required}}
-        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{^isDate}}$options->{{paramName}}{{/isDate}};
+        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{^isDate}}$options->{{paramName}}{{/isDate}};
+            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
         }
 {{/required}}
 {{/formParams}}
@@ -426,15 +424,14 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{/bodyParam}}
-{{#queryParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}} $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options for query, header, form, and cookie parameters
-{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#vendorExtensions.op.hasOptionsParam}}
+     * @param {{vendorExtensions.op.optionsClassName}}{{^vendorExtensions.op.optionsParamRequired}}|null{{/vendorExtensions.op.optionsParamRequired}} $options Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+{{#hasAuthMethods}}
+     * @param {{vendorExtensions.op.optionsClassName}}|null $options Options carrying an optional per-operation authenticator
+{{/hasAuthMethods}}
+{{/vendorExtensions.op.hasOptionsParam}}
 {{#vendorExtensions.op.hasMultipleConsumes}}
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first ({{vendorExtensions.op.effectiveConsumes}})
 {{/vendorExtensions.op.hasMultipleConsumes}}
@@ -635,11 +632,11 @@ class {{classname}} extends BaseApi
         $requestBody = [];
 {{#formParams}}
 {{#required}}
-        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{^isDate}}$options->{{paramName}}{{/isDate}};
+        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{^isDate}}$options->{{paramName}}{{/isDate}};
+            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
         }
 {{/required}}
 {{/formParams}}

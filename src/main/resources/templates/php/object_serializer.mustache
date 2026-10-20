@@ -738,23 +738,25 @@ class ObjectSerializer
             return $built;
         }
 
-        if (is_string($data)) {
+        /* Only a raw body is JSON text. A container element is already a decoded
+         * value, so a string element is never parsed again into an object. */
+        if (!$decoded && is_string($data)) {
             try {
-                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
+                $payload = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
                 /* A bare JSON `null` body decodes to a null return, matching the
                  * absent/null body the other 10 SDKs return null for, rather
                  * than throwing "Expected a JSON object, got null". */
-                if ($decoded === null) {
+                if ($payload === null) {
                     return null;
                 }
-                if (!is_array($decoded)) {
+                if (!is_array($payload)) {
                     throw new \InvalidArgumentException(
-                        sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
+                        sprintf('Expected a JSON object, got %s', get_debug_type($payload))
                     );
                 }
-                self::assertRequiredPresent($decoded, $class);
-                self::assertPrimitiveTypes($decoded, $class);
-                self::assertNoUnknownProperties($decoded, $class);
+                self::assertRequiredPresent($payload, $class);
+                self::assertPrimitiveTypes($payload, $class);
+                self::assertNoUnknownProperties($payload, $class);
                 /* Canonical #4: pass the JSON format so Symfony widens an
                  * integral JSON value to a `float` property (e.g. {"lat":5}
                  * into a `?float $lat`). validateAndDenormalize only applies
@@ -765,14 +767,19 @@ class ObjectSerializer
                  * format is correct and matches the int-from-double widening
                  * the other SDKs perform. */
                 /** @var object $result */
-                $result = self::getSerializer()->denormalize($decoded, $class, JsonEncoder::FORMAT);
-                return self::captureAdditionalProperties($result, $decoded);
+                $result = self::getSerializer()->denormalize($payload, $class, JsonEncoder::FORMAT);
+                return self::captureAdditionalProperties($result, $payload);
             } catch (\Throwable $e) {
                 throw new SerializationException($e->getMessage(), 0, $e);
             }
         }
 
         try {
+            if ($decoded && !is_array($data)) {
+                throw new \InvalidArgumentException(
+                    sprintf('Expected a JSON object, got %s', get_debug_type($data))
+                );
+            }
             if (is_array($data)) {
                 self::assertRequiredPresent($data, $class);
                 self::assertPrimitiveTypes($data, $class);

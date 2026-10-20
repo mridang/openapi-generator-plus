@@ -40,6 +40,7 @@ class PetApi extends BaseApi
     /**
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
+     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
@@ -65,7 +66,7 @@ class PetApi extends BaseApi
 
     /**
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-
+     * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -106,9 +107,7 @@ class PetApi extends BaseApi
     /**
      * Add photos to the pet's gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
-
      * @return \Ds\Vector<\PetstoreClient\Models\Photo>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -134,9 +133,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
-
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Photo>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -195,6 +192,7 @@ class PetApi extends BaseApi
 
     /**
      * Record a treatment for a pet
+     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
@@ -219,7 +217,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
+     * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator
      * @return ApiResult<\PetstoreClient\Models\PetTreatment>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -279,9 +277,7 @@ class PetApi extends BaseApi
     /**
      * Deletes a pet
      * @param int $petId Pet id to delete
-
-     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
-
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters, and an optional per-operation authenticator
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function deletePet(int $petId, ?DeletePetOptions $options = null): void
@@ -291,9 +287,7 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId Pet id to delete
-
-     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
-
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters, and an optional per-operation authenticator
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -396,7 +390,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -473,7 +466,6 @@ class PetApi extends BaseApi
     /**
      * List pets born on a given date
      * @param \DateTime $bornOn Date of birth to match
-
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -500,7 +492,6 @@ class PetApi extends BaseApi
 
     /**
      * @param \DateTime $bornOn Date of birth to match
-
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -557,9 +548,7 @@ class PetApi extends BaseApi
 
     /**
      * Finds Pets by status
-
-     * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
-
+     * @param FindPetsByStatusOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
@@ -587,9 +576,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
-     * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
-
+     * @param FindPetsByStatusOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Pet>>
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
@@ -686,7 +673,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -773,7 +759,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -861,7 +846,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -943,7 +927,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1030,7 +1013,6 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId ID of pet to return
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
@@ -1119,9 +1101,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1213,7 +1193,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\PetPassport>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1295,7 +1274,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<string>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1371,7 +1349,7 @@ class PetApi extends BaseApi
 
     /**
      * Get a tag for a pet
-     * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
+     * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null): \PetstoreClient\Models\Pet
@@ -1396,9 +1374,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
-     * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
-
+     * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1542,7 +1518,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1606,7 +1581,6 @@ class PetApi extends BaseApi
     /**
      * Set the pet's profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1616,7 +1590,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (image/jpeg)
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
@@ -1685,7 +1658,6 @@ class PetApi extends BaseApi
     /**
      * Set the pet's avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
@@ -1694,7 +1666,6 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1777,9 +1748,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
-
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1877,7 +1846,6 @@ class PetApi extends BaseApi
     /**
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
-
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -1960,9 +1928,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
-
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
      */
@@ -2047,9 +2013,7 @@ class PetApi extends BaseApi
     }
 
     /**
-
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
-
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException

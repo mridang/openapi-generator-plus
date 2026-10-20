@@ -495,6 +495,11 @@ test('format date only helper drops the time component', function (): void {
     expect(ValueSerializer::formatDateOnly(new \DateTimeImmutable('2024-12-31T23:59:59+00:00')))->toBe('2024-12-31');
     expect(ValueSerializer::formatDateOnly(null))->toBeNull();
     expect(ValueSerializer::formatDateOnly('already-a-string'))->toBe('already-a-string');
+    expect(ValueSerializer::formatDateOnly([
+        new \DateTime('2024-01-01T10:30:45+00:00'),
+        new \DateTimeImmutable('2024-12-31T23:59:59+00:00'),
+    ]))->toBe(['2024-01-01', '2024-12-31']);
+    expect(ValueSerializer::formatDateOnly([]))->toBe([]);
 });
 
 // -- allowReserved query encoding --

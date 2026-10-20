@@ -16,8 +16,10 @@ namespace PetstoreClient;
 use PetstoreClient\Errors\NetworkException;
 use PetstoreClient\Errors\NetworkTimeoutException;
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mime\Header\Headers;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
+use Symfony\Component\Mime\Part\TextPart;
 use Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -134,6 +136,29 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * Builds a plain text form field part that carries only its
+     * Content-Disposition header.
+     *
+     * FormDataPart wraps a bare string in a text/plain part with a
+     * Content-Transfer-Encoding of 8bit, which the in-memory multipart encoder
+     * of {@see Psr18ApiClient} never sends; both headers are dropped so the two
+     * transports put the same bytes on the wire.
+     */
+    private function plainFormPart(string $value): TextPart
+    {
+        return new class ($value) extends TextPart {
+            public function getPreparedHeaders(): Headers
+            {
+                $headers = parent::getPreparedHeaders();
+                $headers->remove('Content-Type');
+                $headers->remove('Content-Transfer-Encoding');
+
+                return $headers;
+            }
+        };
+    }
+
+    /**
      * Perform a single Symfony HTTP request with no automatic redirect
      * following, returning the raw status, body, and multi-value headers.
      *
@@ -218,9 +243,9 @@ class DefaultApiClient extends AbstractApiClient
                             fclose($v);
                         }
                     } elseif (is_scalar($v)) {
-                        $parts[] = ObjectSerializer::stringify($v);
+                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
                     } else {
-                        $parts[] = '';
+                        $parts[] = $this->plainFormPart('');
                     }
                 }
                 $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;

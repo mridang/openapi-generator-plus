@@ -239,3 +239,22 @@ test('every SDK class autoloads cold from its own file', function (): void {
     }
     expect($checked)->toBeGreaterThan(0);
 });
+
+test('the README names the composer package and the real proxy setter', function (): void {
+    $root = dirname(__DIR__);
+    /** @var array{name: string} $composer */
+    $composer = json_decode((string) file_get_contents($root . '/composer.json'), true);
+    $readme = (string) file_get_contents($root . '/README.md');
+
+    expect($readme)->toContain('- Name: `' . $composer['name'] . '`');
+    expect($readme)->toContain('- Namespace: `' . substr(Configuration::class, 0, -strlen('\\Configuration')) . '`');
+    expect($readme)->toContain('`TransportOptions::builder()->proxy()` accepts only');
+    expect($readme)->not->toContain('dead code');
+});
+
+test('SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
+
+    expect($skills)->toContain('File upload parameters are typed as `\SplFileObject`.');
+    expect($skills)->not->toContain('SplFileInfo');
+});

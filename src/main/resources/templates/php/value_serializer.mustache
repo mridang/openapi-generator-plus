@@ -92,8 +92,9 @@ final class ValueSerializer
      *
      * PHP types both `format: date` and `format: date-time` as
      * \DateTimeInterface, so the type alone cannot tell them apart; the
-     * generated operation code calls this only for date-only form fields, whose
-     * value would otherwise reach the form encoder as a full date-time.
+     * generated operation code calls this only for date-only form fields (a
+     * single date or an array of dates), whose value would otherwise reach the
+     * form encoder as a full date-time. An array is formatted item by item.
      * Non-date values (including null) pass through unchanged.
      *
      * @param mixed $value the raw form field value
@@ -101,6 +102,10 @@ final class ValueSerializer
      */
     public static function formatDateOnly(mixed $value): mixed
     {
+        if (is_array($value)) {
+            return array_map(static fn (mixed $item): mixed => self::formatDateOnly($item), $value);
+        }
+
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
     }
 
