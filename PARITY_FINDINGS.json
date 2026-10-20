@@ -420,13 +420,13 @@
     },
     "swift": {
      "outcome": "too-big",
-     "note": "swift side only: Foundation JSONDecoder accepts 7.0 and 1e2 into Int. Rejecting them needs a custom decoding layer for every integer field, so no small template fix.",
-     "batch": 2,
+     "note": "Swift side only. Already recorded as too-big in the ledger. Foundation JSONDecoder accepts 7.0 and 1e2 into Int, and rejecting them needs a custom decoding layer for every integer field.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "python format:byte MODEL fields (pydantic Base64Bytes) reject/corrupt raw bytes on construction and decode malformed base64 leniently",
@@ -638,8 +638,8 @@
     },
     "php": {
      "outcome": "skipped",
-     "note": "php side only. Not verified: no TLS fixture here, and php 8.5 is not installed locally. DefaultApiClient sets Symfony 'cafile' (default_api_client.mustache:89), which I expect libcurl to treat as replacing its default verify paths, so php likely pins already. That is an expectation, not a check. Needs a server whose cert chains to a system-store CA but not the configured one.",
-     "batch": 2,
+     "note": "php side only. DefaultApiClient sets Symfony 'cafile', which is CURLOPT_CAINFO. libcurl may still trust its compiled-in CApath, so this needs a TLS fixture whose cert chains to a system CA but not the configured one. No such fixture exists and php is not installed locally, so I could not verify it. Pinning would probably also need the 'capath' option.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -654,7 +654,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "csharp drops a multipart body (and a binary body's Content-Type) on a 307/308 redirect, and throws for a Stream body",
@@ -1253,15 +1253,13 @@
    "outcomes": {
     "go": {
      "outcome": "too-big",
-     "note": "Go operations take no context.Context, so the propagator can only ever receive Background. A real fix needs ctx-accepting operation variants. I only removed the unused headerCarrier type and rewrote the SetTraceContextPropagator doc to show the closure-capture pattern instead of the misleading ctx example. There is no test for the cleanup beyond the build and lint specs.",
-     "batch": 2,
-     "test": "none (the dead-code removal is covered by GoBuildSpec and GoLintingSpec)",
-     "files": [
-      "src/main/resources/templates/go/trace_context_util.mustache"
-     ]
+     "note": "The go ctx limitation is stdlib-forced (operations take no context.Context). The unused headerCarrier is already gone and the doc already shows the closure-capture pattern (trace_context_util.mustache). A real fix needs ctx-accepting operation variants.",
+     "batch": 3,
+     "test": "",
+     "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "rust caCertPath validation cannot fail under rustls: a non-PEM file is silently ignored, and a PEM block with bad DER panics",
@@ -2934,8 +2932,20 @@
    "suspected_forced_reason": "None. It is mustache standalone-line whitespace. Putting each section tag on its own line, and emitting `//` before `Deprecated:`, fixes it.",
    "lens": "L16-docs-packaging",
    "id": "F049",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "The example loop in api.mustache is split into standalone section lines so no blank line detaches the doc comment, and Deprecated is now its own paragraph, placed last and preceded by a // line.",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: TestPetApi_OperationDocCommentsAttachToTheMethod and TestPetApi_DeprecatedOperationsCarryADeprecatedParagraph. Not run. I did not prove they fail without the fix; by reading, the blank line makes FuncDecl.Doc nil.",
+     "files": [
+      "src/main/resources/templates/go/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "go: golangci-lint is vacuous because every generated .go file carries the `// Code generated ... DO NOT EDIT.` marker (contradicts AGENTS 'Not vacuous')",
@@ -2976,8 +2986,21 @@
    "suspected_forced_reason": "The marker is a go convention, but `linters.exclusions.generated: disable` in .golangci.yml turns linting back on, so nothing forces the gate to be empty.",
    "lens": "L16-docs-packaging",
    "id": "F050",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "too-big",
+     "note": "Lint with generated-file exclusion disabled reports 42 issues (33 errcheck, 9 govet) in the generated code and tests, so it needs an unchecked-error cleanup first; the golangci setting was reverted, README lint wording corrected. AGENTS.md still says golangci-lint is not vacuous and should be corrected.",
+     "batch": 3,
+     "test": "test/golangci_test.mustache: TestGolangciConfig_LintsGeneratedFiles, and test/readme_test.mustache: TestReadme_LintNoteNamesOnlyTheLintersTheConfigRuns. Not run.",
+     "files": [
+      "src/main/resources/templates/go/golangci.mustache",
+      "src/main/resources/templates/go/readme.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "kotlin: query and form-body encoder leaves & = + # ? / [ ] literal, so values split, truncate or change on the wire",
@@ -3076,20 +3099,21 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F052",
-   "status": "deferred",
+   "status": "fixed",
    "note": "",
    "outcomes": {
     "node": {
-     "outcome": "too-big",
-     "note": "The nested-validation walk (see F031) now fixes the nested cases: {category:{id:'42'}}, tags:[{id:'7'}], PetPassport.pet:{} required check, unknown nested enum, nested Set coercion, and Decimal coerced to a string. Still accepted, verified with a probe: a raw primitive or array in a model-typed field (category:'oops', [1,2], tags:'abc', TreeNode child:'oops') and photoUrls:[1,2] element types. Closing those needs a per-field model-type registry emitted by models/model.mustache for @Type fields and primitive-array item types (an estimated 30-50 template lines plus every model golden), because class-transformer @Type metadata is not exposed through its public API. Do not close F052 on this commit alone.",
-     "batch": 1,
-     "test": "test/object-serializer.test.ts 'NestedModelValidation' > 'rejects a wrong-typed field on a nested single model', 'rejects a wrong-typed field on a model inside an array', 'applies required-field checks to a nested Pet', 'applies the unknown-enum check to a nested Pet', 'collapses a nested uniqueItems array into a Set and keeps Decimal as a string'",
+     "outcome": "fixed",
+     "note": "The category cases the ledger lists were already fixed in batch 1 and 2; I re-probed and category/tags[{id:'7'}] now reject. Still open were tags:'abc', tags:[5] and photoUrls:[1,2]. models/model.mustache now checks array-ness for model arrays and the element wire type for plain-string and model arrays. Integer, number and boolean arrays have no petstore fixture, so I left them out rather than ship unlocked code. Formatted items such as uuid, date and byte are skipped.",
+     "batch": 3,
+     "test": "test/object-serializer.test.ts 'NestedModelValidation' > 'rejects %s where an array of models is expected', 'rejects %s as an element of an array of models', 'rejects a non-string element of a string set', 'rejects a non-string element of a string set on a nested model'. Confirmed failing without the fix.",
      "files": [
-      "src/main/resources/templates/node/object_serializer.mustache"
+      "src/main/resources/templates/node/models/model.mustache",
+      "src/main/resources/templates/node/test/object-serializer.test.mustache"
      ]
     }
    },
-   "batch": 1
+   "batch": 3
   },
   {
    "title": "php container leaves re-json_decode already-decoded values: enum maps fail, and int/string leaves are coerced (\"abc\"->0, 7.5->7, \"true\"->\"1\")",
@@ -4140,15 +4164,15 @@
    "outcomes": {
     "dart": {
      "outcome": "needs-spec",
-     "note": "Dart builds date params through stringifyDate on the isDate flag, which is false for an array of dates, so the item-level formatting has nothing to run on without a date-array parameter. Add to the petstore spec: a query param { name: bornDates, in: query, schema: { type: array, items: { type: string, format: date } } } on listPetsByBirthDate or a new op, plus a path param { name: bornOn, in: path, style: matrix, schema: { type: string, format: date } }.",
-     "batch": 2,
+     "note": "dart side only: list params whose items are format:date go through formatDateTimeOffset, a real defect, but no petstore op has a date-array param so no existing test can lock an api.mustache change. Spec YAML to add under GET /pet/findByStatus (or a new op): - name: bornDates, in: query, required: false, style: form, explode: false, schema: {type: array, items: {type: string, format: date}}; also a path param bornOn with style: matrix.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "node": {
      "outcome": "needs-spec",
-     "note": "Node part only. The date path-param style bypass (apis.mustache:229-231) and date-array items need a petstore param to lock them. YAML: add a path param `bornOn` with `schema: {type: string, format: date}`, `style: matrix`, and a query param `dates` with `schema: {type: array, items: {type: string, format: date}}`.",
-     "batch": 2,
+     "note": "Node part only. A date path param with style label or matrix bypasses serializeStyled (apis.mustache ~line 229), and date-array items go through the date-time stringify. The petstore has neither a date path param with a non-simple style nor a date array param. YAML: path param {name: bornOn, in: path, required: true, style: matrix, schema: {type: string, format: date}} and query param {name: dates, in: query, schema: {type: array, items: {type: string, format: date}}}.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -4163,7 +4187,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "format: time param stringify: kotlin throws a java.time exception, php sends a full date-time, and the others disagree on sub-seconds",
@@ -7811,13 +7835,13 @@
    "outcomes": {
     "php": {
      "outcome": "too-big",
-     "note": "php byte fields holding the base64 text plus a getXAsBytes/setXFromBytes accessor pair is the documented design (AGENTS.md:306 'a php accessor pair'). Changing the property type is a breaking redesign. Rejecting malformed base64 on decode needs byte-field metadata on every model (a generated static list read by assertPrimitiveTypes) plus a model template change. Design: emit 'public static function byteProperties(): array' on models and make assertPrimitiveTypes base64-validate those wire names. The AGENTS 'native bytes in memory in all 12' claim is false for php model fields and needs a doc edit, which I cannot make here.",
-     "batch": 1,
+     "note": "php only. The base64-text property plus getXAsBytes/setXFromBytes accessor pair is the documented design (AGENTS.md:306). Rejecting malformed base64 needs generated per-model byte-field metadata read by assertPrimitiveTypes, which is a model-template redesign. The AGENTS 'native bytes in memory in all 12' claim is false for php model fields and needs a doc edit outside my scope.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 1
+   "batch": 3
   },
   {
    "title": "python alone enforces minLength/maxLength/pattern/minimum/maximum/multipleOf/minItems/maxItems on models; the other 11 accept any value",
@@ -8033,27 +8057,27 @@
    "outcomes": {
     "kotlin": {
      "outcome": "too-big",
-     "note": "Kotlin side only. Capturing and re-emitting additionalProperties on nested models and list elements needs a recursive reflective walk (or per-model serializers) in object_serializer.mustache, well past 60 lines. It also cannot be locked without a petstore change. Needs a spec change: add `metadata: {$ref: '#/components/schemas/Metadata'}` to Photo (or PetPassport) and an operation returning `type: array, items: {$ref: Metadata}`.",
-     "batch": 2,
+     "note": "Kotlin side only; carries the existing batch 2 outcome. Capturing and re-emitting additionalProperties on nested models and list elements needs a recursive reflective walk in object_serializer.mustache, far over 60 lines. It also cannot be locked without a petstore change. Spec: add `metadata: {$ref: '#/components/schemas/Metadata'}` to Photo (or PetPassport) and an operation returning `type: array, items: {$ref: Metadata}`.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "node": {
      "outcome": "too-big",
-     "note": "Node part only. Nested models are built by plainToInstance with excludeExtraneousValues, which drops undeclared keys. Fixing it needs a json-aligned walk with a per-field type map in the serializer, and the petstore never nests a Metadata model. YAML: add `metadata: {$ref: Metadata}` to Photo and an operation returning `array of Metadata`.",
-     "batch": 2,
+     "note": "Node part only. Nested models are built by plainToInstance with excludeExtraneousValues, which drops extras, so a fix needs a json-aligned walk with a per-field type map in the serializer. The petstore also never nests Metadata. YAML: add metadata: {$ref: '#/components/schemas/Metadata'} to Photo and an operation returning an array of Metadata.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "php": {
      "outcome": "too-big",
-     "note": "php side only. captureAdditionalProperties and the additionalProperties flatten in sanitizeForSerialization (object_serializer.mustache) act only on the root model. Fixing nested models needs a recursive walk over typed properties, well over 60 lines. It also needs a petstore change that nests Metadata. Spec: add 'metadata: {$ref: Metadata}' to Photo (or PetPassport) and an operation returning an array of Metadata.",
-     "batch": 2,
+     "note": "php only. captureAdditionalProperties and the sanitizeForSerialization flatten act only on the root model. Fixing nested models needs a recursive typed-property walk of well over 60 lines. It also needs a petstore change that nests Metadata: add `metadata: {$ref: '#/components/schemas/Metadata'}` to Photo (or PetPassport) and an operation returning `type: array, items: {$ref: Metadata}`.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "csharp: a non-string discriminator value leaks a raw System.InvalidOperationException instead of SerializationException",
@@ -8474,8 +8498,21 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F147",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F049, plus the Options-field and model deprecation paragraphs (see F313).",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: TestPetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph. Not run.",
+     "files": [
+      "src/main/resources/templates/go/api/api.mustache",
+      "src/main/resources/templates/go/api/options.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "ruby and elixir: per-operation server variables are plain strings with no enum validation, so any string is placed into the request host (the global ServerConfiguration rejects it)",
@@ -8928,12 +8965,10 @@
    "outcomes": {
     "go": {
      "outcome": "needs-spec",
-     "note": "I added a string branch to the go response handling in api.mustache: a *string return with a non-JSON Content-Type now returns the body verbatim instead of an empty string. It compiles, but cannot be tested because no public petstore operation returns a string. The model-return case is deliberately left unchanged, per TestBaseApi_SkipsDeserializationForNonJSON. The spec change needed is a public operation GET /pets/{petId}/note with a 200 response of content text/plain and schema type string, plus a go test that stubs text/plain and asserts the returned string. The rust half is not mine.",
-     "batch": 2,
-     "test": "none (needs a string-returning operation)",
-     "files": [
-      "src/main/resources/templates/go/api/api.mustache"
-     ]
+     "note": "Go side only. The *string branch for non-JSON responses is already in api.mustache from the previous batch, but it is untestable because no public petstore operation returns a string. Spec needed: path /pets/{petId}/note, get, operationId getPetNote, 200 response with content text/plain and schema type: string. Then add a go test that stubs text/plain and asserts the returned string.",
+     "batch": 3,
+     "test": "",
+     "files": []
     },
     "rust": {
      "outcome": "fixed",
@@ -8945,7 +8980,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Malformed 2xx body test asserts only 'some error' in java, go and rust while 9 peers assert SerializationError exactly",
@@ -10212,8 +10247,101 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F179",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp; still open for dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift",
+   "outcomes": {
+    "python": {
+     "outcome": "needs-spec",
+     "note": "Python side only: operation/param/tag/externalDocs slots already use triple braces; the remaining escaped slots are model.mustache:43,197,352 (model externalDocs description) and :362-363 (plural example summary/description). No petstore text in those slots contains ' \" & < > so no generated test can fail without the fix. Needs the spec YAML: give a model schema externalDocs.description: Don't \"quote\" & <tag> and an example/examples entry on a property with summary: Don't \"quote\" & <tag>, description: a<b & c=d; then change those four to triple braces and assert the exact docstring/comment.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "java": {
+     "outcome": "needs-spec",
+     "note": "Java side only. Operation and parameter prose already uses triple braces. Model externalDocs description and plural-example summary (java/models/model.mustache lines 162-514 and 682) still escape, but no petstore text contains a special character, so nothing can lock a fix. Spec YAML: components.schemas.Pet.externalDocs.description: Learn more about the \"Pet\" model (the existing gate generatedCodeShouldNotContainHtmlEntities then fails on &quot;).",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "dart": {
+     "outcome": "needs-spec",
+     "note": "dart side only: api.mustache escapes the tag description (line 67), param description (88), pluralExamples summary/description/value (92-95) and model.mustache externalDocs description (132) and pluralExamples (239-242) with double braces; fix is to use triple braces (plus lambda.unescapeDocComment for param descriptions). No petstore param/tag/externalDocs text contains a quote, apostrophe, ampersand, angle bracket or equals, so nothing fails today. Needs YAML: on a query param add description: the pet's \"nickname\" & <tag>=x; on a tag add description: group of pet's \"things\"; and on an operation externalDocs.description: see pet's \"docs\".",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp side only: the plural-example doc lines in models/model.mustache (two sites) and api/api.mustache (two sites) used escaped tags inside the escapeXml lambda, which escaped twice; now raw triple-brace inside the lambda. No executable test: the petstore golden has no example prose with special characters, so only the regenerated golden and CS1570 under --warnaserror guard it. Not fixed here: the other prose slots in the finding.",
+     "batch": 3,
+     "test": "none possible without a spec change (needs an example summary containing an ampersand or angle bracket)",
+     "files": [
+      "src/main/resources/templates/csharp/models/model.mustache",
+      "src/main/resources/templates/csharp/api/api.mustache"
+     ]
+    },
+    "kotlin": {
+     "outcome": "needs-spec",
+     "note": "Kotlin side only. Real: models/model.mustache:165,176,188,407,418 use double-brace {{description}} in `@see` externalDocs links, and api.mustache uses {{value}} in `Example` lines. They are HTML-escaped (kotlin's api-level description slots already use triple braces). The petstore prose has no special characters, so fixing changes no golden output and nothing can lock it. YAML: give an externalDocs description containing an apostrophe and a quote, e.g. `externalDocs: {description: \"the pet's \\\"guide\\\" a<b & c=d\", url: https://example.com/guide}` on a schema and on an operation, and `description: \"the pet's \\\"id\\\"\"` on a path parameter or plural example summary.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "node": {
+     "outcome": "needs-spec",
+     "note": "Node part only. In node, parameter description, example summary and value, tag description and externalDocs description use the escaping double-brace form (apis.mustache lines 79, 82, 102-148; model.mustache externalDocs and plural examples), while summary and notes already use the raw form. No petstore parameter, tag or externalDocs prose contains ' \" & < > = or a backtick, so a template fix could not be locked by a generated test. YAML: parameter {name: nickname, in: query, description: \"the pet's \\\"nickname\\\" a<b & c=d\", schema: {type: string}} plus a tag description and an externalDocs description containing the same characters.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "needs-spec",
+     "note": "Go side only. Prose slots now use triple braces in api.mustache (op-server description, tag description, tag and operation externalDocs, parameter description, example summary and value) and in model.mustache (externalDocs description, plural-example summary and value). Written but unvalidated. No petstore parameter, tag or externalDocs prose contains ' \" & < > = or a backtick, so nothing can lock it. Spec needed: give any operation parameter the description: the pet's \"nickname\" a<b & c=d, and assert that the generated pet_api.go contains it verbatim.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/go/api/api.mustache",
+      "src/main/resources/templates/go/models/model.mustache"
+     ]
+    },
+    "ruby": {
+     "outcome": "needs-spec",
+     "note": "Ruby side only. Ruby already uses triple braces for operation/tag prose. Model externalDocs and plural-example summary/description (models/model.mustache:55,219,338,441-442,484) and servers.mustache:23 still use escaped double braces. The petstore has no apostrophe, quote or ampersand in those slots, so no test can fail. Needed YAML: give the Category name example description a mix such as `(the breed's \"toy\" size & <small>)`, and give the Pet externalDocs description `Learn more about the Pet model's \"docs\" & more`. Then switch ruby to triple braces.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "php": {
+     "outcome": "needs-spec",
+     "note": "php only. The claim is real: model.mustache lines 83, 93, 105, 301, 311, 323, 404, 414, 426 use double-brace url and description in `@see`; lines 459 and 523 use double-brace value and summary in `@example`; api.mustache lines 29 and 86 (url) and 50 and 63 (value) use double-brace too. jmustache HTML-escapes all of these. I did not change them: the petstore has no prose containing an apostrophe, quote, ampersand, angle bracket or equals sign, so no generated test can fail without the fix. Needs a petstore spec change: put `Find out more about the pet's \"nickname\" & friends` in a model externalDocs description and an externalDocs url with a `?a=b&c=d` query. Then switch those tags to triple braces.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "elixir": {
+     "outcome": "needs-spec",
+     "note": "elixir API templates already use triple braces for every spec-prose slot (api.mustache lines 23,75,79,113-137,155); only the model plural-example summary and model externalDocs description (model.mustache lines 308,318,327,337,466,476,485,495) are HTML-escaped, and no petstore prose has an apostrophe, quote or ampersand there, so no test can lock a template fix. Needs the spec edit: in src/spec/resources/specs/petstore/openapi.yaml Category x-examples small_breed (about line 1546) change 'summary: Small breed' to 'summary: Small breed (the dog''s \"tiny\" kind)' and the Pet externalDocs description (line 1571) to 'Learn more about the pet''s \"Pet\" model'; then the elixir model.mustache can use triple braces and a metadata_test source assertion can lock it. Elixir only; template left unchanged.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "swift": {
+     "outcome": "needs-spec",
+     "note": "Swift side only. api.mustache uses double-brace tags for parameter description, tag and externalDocs description, and example summary/description (lines 55, 58, 77, 84, 92-93), so they are HTML-escaped. The golden has no operation, tag or parameter prose containing ' \" & < > = or a backtick, so no test can fail without the fix. Spec YAML needed: add `description: the pet's \"nickname\" a<b & c=d` to a query parameter of an existing operation, and an externalDocs description with an apostrophe on a tag. The template fix is then to switch those tags to triple braces. I did not change the template without a locking test.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "needs-spec",
+     "note": "Rust side only. The api.mustache sites (param description, tag description, externalDocs, server variant description) use escaped double braces. The petstore spec has no operation, parameter or tag prose with an apostrophe, quote, ampersand or angle bracket, so no generated test can observe a fix. Needs petstore YAML: add to an existing operation parameter, for example description: \"the pet's \\\"nickname\\\" a<b & c=d\"; then a test can assert pet_api.rs contains that text unescaped.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "String default literals are escaped ad hoc per language: ruby/php keep stray backslashes, four SDKs break on an apostrophe, and python skips escapeText",
@@ -10381,8 +10509,34 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F182",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp; still open for java, rust",
+   "outcomes": {
+    "java": {
+     "outcome": "needs-spec",
+     "note": "Java side only. javadocDescription wraps only the property description (model.mustache:671). Operation summary and notes, tag, model class and server prose are unwrapped. No petstore prose contains angle brackets. Spec YAML: paths./pet/findByName.get.description: Returns the matching item for the <admin> view (doclint=all then fails in JavaBuildSpec).",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp only: servers.mustache doc summary now wraps serverUrl and serverDescription in the escapeXml lambda, so an ampersand or angle bracket no longer raises CS1570. No executable test: petstore server URLs and descriptions have no special characters. The string-literal uses on the same lines are still raw (see discovered).",
+     "batch": 3,
+     "test": "none possible without a spec change (needs a server description containing an ampersand or angle bracket)",
+     "files": [
+      "src/main/resources/templates/csharp/servers.mustache"
+     ]
+    },
+    "rust": {
+     "outcome": "needs-spec",
+     "note": "Rust side only. The rustdoc lambda is applied only to model descriptions; operation summary and notes, parameter, tag and server prose are unwrapped. Not observable without petstore prose containing an angle bracket or square bracket. Needs YAML: an operation description such as description: \"Returns [items] for <admin>\" so cargo doc -D warnings and a pet_api.rs source assertion lock the lambda.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "README tooling sections describe linters and rulesets that the shipped configs do not use (java, kotlin, csharp, php, go, dart, swift)",
@@ -10545,8 +10699,48 @@
    "suspected_forced_reason": "None. These are hardcoded template strings that do not match the codegen type mapping.",
    "lens": "L16-docs-packaging",
    "id": "F184",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Java side only. SKILLS now says file uploads are java.io.InputStream (List<InputStream> for multi-file) and binary responses are java.io.InputStream. The old text said File and byte[]. Docs text only, no test mirror exists.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/java/skills.mustache"
+     ]
+    },
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin side only. SKILLS 'Binary / File Uploads' now says `ByteArray` (`List<ByteArray>` for multi-file), matching UploadPetDocumentOptions.kt (`_file: ByteArray`) and AddPetPhotosOptions.kt (`files: List<ByteArray>`). Docs text: locked only by the committed golden SKILLS.md.",
+     "batch": 3,
+     "test": "no test reads SKILLS.md; golden diff only",
+     "files": [
+      "src/main/resources/templates/kotlin/skills.mustache",
+      "src/spec/resources/generated/kotlin/SKILLS.md"
+     ]
+    },
+    "go": {
+     "outcome": "fixed",
+     "note": "The go SKILLS text now says *os.File, matching the Options field type.",
+     "batch": 3,
+     "test": "test/skills_test.mustache: TestSkills_UploadParametersAreDocumentedAsOsFile. Not run.",
+     "files": [
+      "src/main/resources/templates/go/skills.mustache"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php SKILLS now says file uploads are typed as `\\SplFileObject`, matching the Options classes (e.g. `public readonly \\SplFileObject $file`). The other SDKs named in the finding (java, kotlin, go) are not touched.",
+     "batch": 3,
+     "test": "tests/ConfigurationTest.php: 'SKILLS types file upload parameters as the SplFileObject the options require'",
+     "files": [
+      "src/main/resources/templates/php/skills.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "kotlin README and Makefile run `./gradlew`, but no Gradle wrapper is generated; README's 'Gradle toolchain pins to 17' JVM floor is not enforced",
@@ -10592,8 +10786,23 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F185",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "README and Makefile used ./gradlew, but no wrapper is generated (KotlinBuildSpec runs plain `gradle`); they now use `gradle` and say it must be on the PATH. The false 'Gradle toolchain pins to 17' claim is replaced by what build.gradle.kts really does (JDK on PATH, detekt jvmTarget 17). I did not arm a jvmToolchain, to avoid toolchain provisioning in CI. The JVM floor difference from java (21) is left as is.",
+     "batch": 3,
+     "test": "no test reads README/Makefile; golden diff only",
+     "files": [
+      "src/main/resources/templates/kotlin/makefile.mustache",
+      "src/main/resources/templates/kotlin/readme.mustache",
+      "src/spec/resources/generated/kotlin/Makefile",
+      "src/spec/resources/generated/kotlin/README.md"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "node README says edge runtimes throw 'a typed `ApiError`' for proxy/CA/TLS-off; the code throws a built-in TypeError",
@@ -10677,8 +10886,20 @@
    "suspected_forced_reason": "None. The examples should import from the package entry point.",
    "lens": "L16-docs-packaging",
    "id": "F187",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "skills.mustache now imports every example from the package entry point ('{{npmName}}') instead of ./src/... paths. The Servers, Testing and Transport examples now also import Client. The Bearer section is gated on hasBearerAuth because the barrel only exports BearerAuthenticator in that case.",
+     "batch": 3,
+     "test": "test/client.test.ts 'generated documentation' > 'SKILLS imports every symbol from the published package, never from a source path' and 'SKILLS imports only values the package entry point exports'. The first fails without the fix.",
+     "files": [
+      "src/main/resources/templates/node/skills.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "ruby: blank lines inside the generated YARD block detach the operation summary and @param tags from the method",
@@ -10714,8 +10935,20 @@
    "suspected_forced_reason": "None. It is mustache standalone-line whitespace.",
    "lens": "L16-docs-packaging",
    "id": "F188",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Verified in the golden: the non-standalone `{{#signatureArgs}}{{#isOptions}}` line emitted blank comment lines that detached the summary and @param tags. Split into standalone section lines in api/api.mustache. The golden blocks are now contiguous.",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache and test/api/store_api_test.mustache: describe 'YARD doc comments' > 'keeps the summary and the options param attached to find_pets_by_status' / '... to get_stock_item'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "swift README decimal caveat recommends a non-existent API (`JSONDecoder().userInfo[.useDecimal]`); AGENTS.md repeats the false claim",
@@ -10793,8 +11026,25 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F190",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "too-big",
+     "note": "gate in src/spec/java/.../dart/DartSpec.java setup (dart fix --apply, dart format .); a Spec Java class, outside dart template scope. The stale setup comment is in the same file.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "too-big",
+     "note": "Go side: GoSpec.getSetupCommands runs go mod tidy before the checks. This is spec Java (src/spec/java/.../go/GoSpec.java), outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "Every SDK ships a warnings-fatal docs build, but only rust runs it in a spec",
@@ -10847,8 +11097,88 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F191",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "too-big",
+     "note": "Python-side docs build (sphinx-build -W in makefile.mustache) exists but running it in CI needs a new spec Java class (PythonDocsSpec); outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "java": {
+     "outcome": "too-big",
+     "note": "Needs a new or extended Spec Java class that runs javadoc with failOnWarnings; spec classes are not mine.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "dart": {
+     "outcome": "too-big",
+     "note": "needs a new docs-build invocation in a dart Spec Java class plus CI; dart's Makefile docs target already uses dart doc --validate-links with a warning grep. Not a template change.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "too-big",
+     "note": "Needs a new docfx spec invocation (spec Java class and CI), outside the csharp template scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "kotlin": {
+     "outcome": "too-big",
+     "note": "Kotlin side only. Needs a new warnings-fatal docs invocation (dokka) in a spec Java class (e.g. KotlinLintingSpec), which is outside the allowed edit scope, plus a Docker/dokka run.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "node": {
+     "outcome": "too-big",
+     "note": "A warnings-fatal typedoc run needs a new Spec Java class and CI wiring, which are outside my scope. The node Makefile docs target already uses --treatWarningsAsErrors.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "too-big",
+     "note": "Needs a new spec Java class that runs a docs build. Not a template change, and go's gomarkdoc has no warnings-fatal mode.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "ruby": {
+     "outcome": "too-big",
+     "note": "Ruby side: the Makefile docs target (yard doc --fail-on-warning) is shipped but no spec runs it. A docs-gate spec needs a new Spec Java class under src/spec, which is outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "php": {
+     "outcome": "too-big",
+     "note": "php only. The phpDocumentor 'make docs' target is not run by any Php*Spec. Running it needs a new Spec Java class or CI change, which is outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "elixir": {
+     "outcome": "too-big",
+     "note": "Needs a new warnings-fatal docs invocation in an ElixirLintingSpec/Spec Java class and a docs dependency in the elixir mix.exs run; spec classes are out of scope. elixir makefile.mustache:27 already has mix docs --warnings-as-errors. Elixir only.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "swift": {
+     "outcome": "too-big",
+     "note": "The swift docs target (`docc --warnings-as-errors`) already exists in makefile.mustache. Running it in CI needs a new Spec Java class and the docc plugin in Docker, which are outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "Five SDKs' decompression integration tests call a public internet host and pass whether or not the body was encoded",
@@ -10955,8 +11285,32 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F193",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "too-big",
+     "note": "Java side only. A local probe of the golden pom with spotbugs includeTests=true reports 140 bugs in generated tests (THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION, DE_MIGHT_IGNORE, BC_IMPOSSIBLE_INSTANCEOF, RV_RETURN_VALUE_IGNORED and others). Arming it needs a test-cleanup cascade or an exclude filter.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "too-big",
+     "note": "Adding AnalysisLevel, AnalysisMode and EnforceCodeStyleInBuild to the test csproj will surface an unknown number of CA/IDE findings in test code (for example CA2007), which needs iterative triage that does not fit the 3 run budget. Not attempted.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "swift": {
+     "outcome": "too-big",
+     "note": "Adding `-warnings-as-errors` to the test target in package_swift.mustache is easy, but the generated tests currently emit hundreds of warnings. I counted ~100 distinct sites in the native build: comparing a non-optional to nil, an always-true `is`, `try` with no throwing call, and 79+36+27 calls to deprecated operations that would need `-Wwarning DeprecatedDeclaration`. Making the tests clean touches most test templates.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "Hand-written spec tests in the generated spec/ directory never run in kotlin, swift, php and python",
@@ -11072,8 +11426,32 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F195",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "csharp": {
+     "outcome": "too-big",
+     "note": "The // comments sit in models/model.mustache (lines near 504 and 674), but the gate that would lock a fix is the '/Models/' exclusion in CSharpFormattingSpec.java:50, which is a spec class I may not edit. I did not change the template without that lock.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "kotlin": {
+     "outcome": "too-big",
+     "note": "Kotlin side only. Enabling the ban means changing KotlinFormattingSpec.getInlineCommentPattern (a spec class, out of scope) and converting about 406 `//` comments in 20 generated files (e.g. default_api_client.mustache, transport_options.mustache) to block comments. Far over 60 lines. csharp and rust are not mine.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "too-big",
+     "note": "Rust side only. Turning on the inline-comment ban means converting about 1179 line comments across the rust templates to block or doc comments and changing RustFormattingSpec.getInlineCommentPattern (a Java spec class I may not edit).",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "java's OpenRewrite modernization recipe is never run by any spec, though the pom relies on it and php gates its rector equivalent",
@@ -11111,8 +11489,18 @@
    "unit_testable": false,
    "lens": "L17-gates",
    "id": "F196",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "too-big",
+     "note": "Needs rewrite:dryRun added to JavaStaticAnalysisSpec or a new Spec Java class; spec classes are not mine.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "Form-body (x-www-form-urlencoded) encoding differs: java, ruby and node use the WHATWG set (* literal, ~ escaped); the other 8 do the opposite",
@@ -11256,7 +11644,7 @@
    "lens": "L18a-wire-request",
    "id": "F198",
    "status": "partial",
-   "note": "done in php, swift; still open for csharp, go",
+   "note": "done in csharp, php, swift; still open for go",
    "outcomes": {
     "php": {
      "outcome": "duplicate",
@@ -11268,17 +11656,17 @@
      ]
     },
     "csharp": {
-     "outcome": "too-big",
-     "note": "csharp side only: UnsafeRelaxedJsonEscaping still escapes supplementary-plane characters as surrogate pairs; avoiding that needs a custom JavaScriptEncoder subclass (object_serializer.mustache:339), too large and risky without a wire-level fixture. The php and swift halves belong to other agents.",
-     "batch": 2,
+     "outcome": "forced",
+     "note": "csharp side: Utf8JsonWriter always escapes supplementary-plane characters even with UnsafeRelaxedJsonEscaping (ObjectSerializer.cs:358); avoiding it needs a custom writer or post-processing, which is not a small template change. The finding itself marks it borderline-forced. php/swift parts are not mine.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "go": {
      "outcome": "skipped",
-     "note": "The go part is only that encoding/json always escapes U+2028 and U+2029 (even with SetEscapeHTML(false), and again when compacting Marshaler output). Fixing it needs a post-pass that tracks escape pairs; the two forms are equivalent JSON, so I judged it borderline and low value. The php and swift parts are not mine.",
-     "batch": 2,
-     "test": "none",
+     "note": "Go side only: encoding/json always escapes U+2028 and U+2029. Fixing it needs a post-pass, and the two forms are equivalent JSON. Same call as the previous batch.",
+     "batch": 3,
+     "test": "",
      "files": []
     },
     "swift": {
@@ -11291,7 +11679,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Query-value encoding differs in 2 languages: java escapes ~ but not *; node keeps ! * ' ( ) ~ literal",
@@ -11573,8 +11961,8 @@
    "outcomes": {
     "kotlin": {
      "outcome": "too-big",
-     "note": "Kotlin side only. Map<String,Int> and List<List<Int>> use kotlinx's lenient built-in Int serializer. Making them strict means annotating type arguments with StrictIntSerializer in every dataType and in each invokeApiForResult<...> call, which is a Java codegen type-mapping change across models and the api template. That is risky and cannot be verified here.",
-     "batch": 2,
+     "note": "Kotlin side only; carries the existing batch 2 outcome. Strict Int for Map<String,Int> and List<List<Int>> means annotating type arguments with StrictIntSerializer in every dataType and each invokeApiForResult<...> call, a Java codegen type-mapping change across models and the api template. The python and node halves were fixed elsewhere.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -11598,7 +11986,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Fractional/float literal for an integer field: java silently truncates (7.5->7), node keeps 1.5, swift accepts 7.0/1e2; the rest reject",
@@ -11658,13 +12046,13 @@
     },
     "swift": {
      "outcome": "too-big",
-     "note": "swift side only. Same root cause as F007: Foundation accepts 7.0 and 1e2 into Int, and there is no small fix.",
-     "batch": 2,
+     "note": "Swift side only. Same root cause as F007. Already recorded as too-big in the ledger.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Integer range not enforced on decode in 7 SDKs: int32 3000000000 accepted by swift/python/node/dart/php/ruby/elixir; int64 overflow accepted by python/ruby/elixir",
@@ -12974,8 +13362,8 @@
    "outcomes": {
     "java": {
      "outcome": "too-big",
-     "note": "Removing the public no-arg model constructor breaks the jackson/test-tooling construction path. PetApiTest and users do new Pet() then set fields. It needs a model API redesign, not a small template change.",
-     "batch": 2,
+     "note": "Java side only. Same as the batch 2 outcome: removing the public no-arg model constructor breaks the test-tooling and user construction path and needs a model API redesign.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -12988,13 +13376,13 @@
     },
     "rust": {
      "outcome": "too-big",
-     "note": "Models derive Default and parent models need the child Default, so removing it for models with required fields cascades through every model and ..Default::default() users. Needs a design decision.",
-     "batch": 2,
+     "note": "Rust side only. Models derive Default and parent models rely on the child Default, so removing it for models with required fields cascades through every model and Default::default() user. Needs a design decision (the previous batch reached the same conclusion).",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Cancellation is impossible in go, csharp and node, which accept no context.Context, CancellationToken or AbortSignal; python's asyncio cancellation leaves the request running. AGENTS' C# cancellation claim is unreachable",
@@ -13112,12 +13500,10 @@
     },
     "ruby": {
      "outcome": "too-big",
-     "note": "ruby never keeps a connection alive (default net_http adapter); real fix needs the faraday-net_http_persistent dependency and gemspec change. I only removed the false keepalive claim from the connection doc comment (no test possible).",
-     "batch": 2,
+     "note": "Ruby side: Faraday's default net_http adapter makes a new Net::HTTP per request. Real keep-alive needs a new faraday-net_http_persistent dependency and adapter wiring; a comment-only change could not be locked by a test, so I left the false 'socket pool / keepalive' comment in default_api_client.mustache:444 alone.",
+     "batch": 3,
      "test": "",
-     "files": [
-      "src/main/resources/templates/ruby/default_api_client.mustache"
-     ]
+     "files": []
     },
     "go": {
      "outcome": "fixed",
@@ -13129,7 +13515,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "OIDC rediscovery after the Cache-Control max-age expires throws away the exchanged authorization-code tokens (all 12); discovery is single-flight only in java/go",
@@ -13960,8 +14346,8 @@
    "outcomes": {
     "elixir": {
      "outcome": "too-big",
-     "note": "Preserving declaration order needs Jason.OrderedObject out of sanitize_for_serialization. Its output is consumed as a plain map by form, multipart and query encoding and by many existing tests, so the change is cross-cutting and risky.",
-     "batch": 2,
+     "note": "elixir builds models as plain maps in sanitize_for_serialization (object_serializer.mustache ~line 404) and models expose only unordered attribute_map/openapi_types maps; ordered output needs a declaration-order list on every model and Jason.OrderedObject through every serialize consumer (anyOf merge, form encoding, tests), which cannot be done as a small local change. swift side is not mine.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -13975,7 +14361,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Serializer error messages drift: serialize-failure (kotlin, elixir), decode-failure and depth-cap wording differ across the 12",
@@ -14724,20 +15110,20 @@
     },
     "go": {
      "outcome": "too-big",
-     "note": "Supporting more charsets in go needs a new golang.org/x/text dependency, with go.mod and go.sum churn. Outside the small-template-change scope.",
-     "batch": 2,
-     "test": "none",
+     "note": "Go side only. More charsets need a golang.org/x/text dependency, which means go.mod and go.sum churn.",
+     "batch": 3,
+     "test": "",
      "files": []
     },
     "swift": {
      "outcome": "skipped",
-     "note": "swift side only. Widening the hard-coded charset table needs CFString IANA lookups that exist on Apple only, so the Linux run cannot lock it. Low priority.",
-     "batch": 2,
+     "note": "Swift side only. Widening the hard-coded charset table needs CFString IANA lookups that exist on Apple only, so the Linux run cannot lock it. Already recorded as skipped in the ledger.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Follow-up request headers after a 301/302 POST->GET demotion differ: go keeps Content-Type; python/rust send Content-Length: 0 on the GET",
@@ -14895,8 +15281,8 @@
    "outcomes": {
     "rust": {
      "outcome": "skipped",
-     "note": "Rust side only. The stripping is deliberate, since the headers describe the decoded body. The csharp/swift split and which side moves is a cross-SDK ruling; no change.",
-     "batch": 2,
+     "note": "Rust side only. The stripping is deliberate: after manual decompression the headers must describe the decoded body (default_api_client.mustache comment). Which side of the rust/csharp/swift versus nine-SDK split moves is a cross-SDK ruling; the previous batch skipped it too.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -14915,7 +15301,7 @@
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "csharp alone enables online certificate-revocation checking",
@@ -14940,18 +15326,18 @@
    "suspected_forced_reason": "None (it may be there for an analyzer rule such as CA5400, which can be suppressed with a rationale).",
    "lens": "L04-transport",
    "id": "F262",
-   "status": "open",
+   "status": "forced",
    "note": "",
    "outcomes": {
     "csharp": {
-     "outcome": "skipped",
-     "note": "CheckCertificateRevocationList = true (default_api_client.mustache:141) is a fail-closed security posture present since the first commit. Removing it or setting it false would likely trip CA5399/CA5400 under AnalysisMode All and needs an owner decision plus an editorconfig suppression; there is no cheap observable test.",
-     "batch": 2,
+     "outcome": "forced",
+     "note": "Tried removing CheckCertificateRevocationList = true: run 1 failed every csharp build and analysis spec with 'error CA5400: HttpClient may be created without enabling CheckCertificateRevocationList' (DefaultApiClient.cs:239, --warnaserror, AnalysisMode All). Reverted; the property must stay, and no generated file may carry a suppression per editorconfig.mustache policy.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "dart AbstractApiClient drops a Map (multipart) body on a 307/308 replay (latent: BaseApi pre-serializes)",
@@ -15078,7 +15464,7 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F265",
-   "status": "partial",
+   "status": "fixed",
    "note": "done in csharp, dart, swift; still open for rust",
    "outcomes": {
     "csharp": {
@@ -15132,14 +15518,25 @@
      ]
     },
     "rust": {
-     "outcome": "skipped",
-     "note": "Rust side only. From<ClientError> is the infallible public constructor, and pinning the status needs an API change (TryFrom) that existing tests building wrappers from arbitrary statuses would break. ApiError::from_response is the only path that guarantees the pairing.",
-     "batch": 2,
-     "test": "",
-     "files": []
+     "outcome": "fixed",
+     "note": "Rust side only. The seven named leaves (BadRequest, Unauthorized, Forbidden, NotFound, Conflict, UnprocessableEntity, InternalServer) now implement TryFrom<ClientError> or TryFrom<ServerError> instead of From, accept only their own status and hand the wrapped error back otherwise. ApiError::from_response uses try_from and falls back to ClientError or ServerError. This is a public API change: the infallible From is gone.",
+     "batch": 3,
+     "test": "api_error_test.mustache: test_named_errors_accept_only_their_own_status (all 7 leaves refuse a wrong status and return the wrapped error); the existing per-leaf chain tests and base_api_test test_typed_error_wrappers_accessor_only now build via try_from",
+     "files": [
+      "src/main/resources/templates/rust/errors/bad_request_error.mustache",
+      "src/main/resources/templates/rust/errors/unauthorized_error.mustache",
+      "src/main/resources/templates/rust/errors/forbidden_error.mustache",
+      "src/main/resources/templates/rust/errors/not_found_error.mustache",
+      "src/main/resources/templates/rust/errors/conflict_error.mustache",
+      "src/main/resources/templates/rust/errors/unprocessable_entity_error.mustache",
+      "src/main/resources/templates/rust/errors/internal_server_error.mustache",
+      "src/main/resources/templates/rust/errors/api_error.mustache",
+      "src/main/resources/templates/rust/test/api_error_test.mustache",
+      "src/main/resources/templates/rust/test/base_api_test.mustache"
+     ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "OAuth2TokenError messages and cause retention were never harmonised across the 12",
@@ -15968,8 +16365,30 @@
    "unit_testable": false,
    "lens": "L06-simple-auth",
    "id": "F281",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "default_api_client.mustache comment now guards the separator with the last-item section, giving '(X-API-Key, X-Internal-Key)'. Node side not touched.",
+     "batch": 3,
+     "test": "test_default_api_client_unit.mustache: TestApiKeyHeaderStrippedOnCrossOrigin.test_sensitive_header_comment_lists_names_without_a_dangling_separator",
+     "files": [
+      "src/main/resources/templates/python/default_api_client.mustache",
+      "src/main/resources/templates/python/test/test_default_api_client_unit.mustache"
+     ]
+    },
+    "node": {
+     "outcome": "fixed",
+     "note": "The test comment in default-api-client-unit.test.mustache now guards the separator with the last-item marker, so it reads '(X-API-Key, X-Internal-Key)'. The python side of the finding is not mine.",
+     "batch": 3,
+     "test": "test/default-api-client-unit.test.ts 'SENSITIVE_HEADER_NAMES allowlist' > 'lists the spec-declared apiKey-in-header names in its comment with no dangling separator'. It reads its own source and fails without the fix.",
+     "files": [
+      "src/main/resources/templates/node/test/default-api-client-unit.test.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "python authenticators compare and hash by value, including the secret; every other SDK except elixir and php's loose == uses identity",
@@ -16218,7 +16637,7 @@
    "lens": "L07-oauth-oidc",
    "id": "F287",
    "status": "partial",
-   "note": "done in kotlin, python; still open for csharp, java",
+   "note": "done in csharp, kotlin, python; still open for java",
    "outcomes": {
     "kotlin": {
      "outcome": "fixed",
@@ -16232,11 +16651,19 @@
      ]
     },
     "csharp": {
-     "outcome": "too-big",
-     "note": "Moving refreshUrl to the end of the password and auth-code constructors is a breaking signature change that also requires BetterCSharpCodegen generated-subclass superCall edits (BetterCSharpCodegen.java around lines 733-764), openid_connect, skills.mustache and about 6 tests.",
-     "batch": 2,
-     "test": "",
-     "files": []
+     "outcome": "fixed",
+     "note": "csharp: refreshUrl moved from after tokenUrl to a trailing optional parameter (password: after scopes, before clientAuthMethod; auth-code: last), matching php/ruby. Updated BetterCSharpCodegen superCall for generated scheme subclasses, the OIDC delegate, skills.mustache and the tests. The python default-field part of the finding is not mine.",
+     "batch": 3,
+     "test": "test/OAuth2PasswordAuthenticatorTest.mustache: new RefreshGrantGoesToTheOptionalTrailingRefreshUrl (positional trailing refreshUrl, asserts the refresh grant URL); all positional constructions in OAuth2PasswordAuthenticatorTest and OAuth2AuthCodeAuthenticatorTest use the new order and fail to compile with the old one.",
+     "files": [
+      "src/main/resources/templates/csharp/auth/oauth/oauth2_password_authenticator.mustache",
+      "src/main/resources/templates/csharp/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/csharp/auth/oauth/openid_connect_authenticator.mustache",
+      "src/main/resources/templates/csharp/skills.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/csharp/BetterCSharpCodegen.java",
+      "src/main/resources/templates/csharp/test/OAuth2PasswordAuthenticatorTest.mustache",
+      "src/main/resources/templates/csharp/test/OAuth2AuthCodeAuthenticatorTest.mustache"
+     ]
     },
     "python": {
      "outcome": "fixed",
@@ -16250,13 +16677,13 @@
     },
     "java": {
      "outcome": "skipped",
-     "note": "Java has no optional arguments. Moving refreshUrl to the end would break every public OAuth2 password and auth-code constructor, and openid_connect_authenticator and skills.mustache call them positionally. Python's defaults are not mine.",
-     "batch": 2,
+     "note": "Java side only. Same as batch 2: java has no optional arguments, and moving refreshUrl would break the public OAuth2 constructors and the positional calls in openid_connect_authenticator and skills.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Generator emits OAuth scopes in HashMap order, not spec order",
@@ -17348,39 +17775,44 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F309",
-   "status": "open",
-   "note": "",
+   "status": "partial",
+   "note": "done in dart, swift; still open for php, ruby",
    "outcomes": {
     "dart": {
-     "outcome": "skipped",
-     "note": "The dart `type` to `type_` rename comes from the reserved-words list that AbstractBetterCodegen loads. That resource is outside my allowed edit scope, and DartReservedWordsSpec pins the list.",
-     "batch": 2,
-     "test": "",
-     "files": []
+     "outcome": "fixed",
+     "note": "dart side only: BetterDartCodegen.shouldEscapeReservedVarName now keeps type and function as plain variable names (neither is a Dart reserved word, and the list is matched case-insensitively), so ApiResponse.type_ is now type. swift, php and ruby sides not touched.",
+     "batch": 3,
+     "test": "test/base_api_test.mustache: 'getTypedErrorBody ...' now asserts typed.type equals 'validation' (does not compile without the fix); DartClientSpec ran it",
+     "files": [
+      "src/main/java/io/github/mridang/codegen/generators/dart/BetterDartCodegen.java"
+     ]
     },
     "ruby": {
      "outcome": "skipped",
-     "note": "the reserved-word list that renames and/or/not is loaded by AbstractBetterCodegen.loadReservedWords from a resource outside the ruby template directory, so it is out of my scope; not verified whether keyword parameters make the rename partly forced.",
-     "batch": 2,
+     "note": "Ruby side: the and/or/not escapes come from src/main/resources/reserved-words/ruby.txt, outside my editable set. The words are real clashes in generated Options keyword args and locals (`def initialize(and: nil)` cannot be read back as a local), so dropping them is not safe.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "php": {
      "outcome": "skipped",
-     "note": "php side only. The php escapes ($and_, $class_ and so on) come from src/main/resources/reserved-words/php.txt, outside the allowed edit scope. PhpReservedWordsSpec also checks that list against PHP's own keyword list, so shrinking it would need that spec changed too.",
-     "batch": 2,
+     "note": "php side only. The $and_ and $class_ names come from src/main/resources/reserved-words/php.txt via AbstractBetterCodegen.loadReservedWords. Both are outside my scope, and PhpReservedWordsSpec checks that list against PHP's own keywords.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "swift": {
-     "outcome": "skipped",
-     "note": "The cause is the shared src/main/resources/reserved-words/swift.txt, which is outside my file set. A case-sensitive override of isReservedWord in the codegen class would also rename the public ApiResponse._type field. Left alone.",
-     "batch": 2,
-     "test": "",
-     "files": []
+     "outcome": "fixed",
+     "note": "Swift side only. BetterSwiftCodegen overrides shouldEscapeReservedVarName so a property named `type` is no longer escaped to `_type` (reserved-words/swift.txt is lowercased on load, so its `Type` entry matched `type`). `Type`, `self`, `protocol` and the other keywords are still escaped. ApiResponse now has `public var type`.",
+     "batch": 3,
+     "test": "test/ObjectSerializerTests.mustache: testPropertyNamedTypeKeepsItsName (does not compile without the fix, since ApiResponse has no `type` member)",
+     "files": [
+      "src/main/java/io/github/mridang/codegen/generators/swift/BetterSwiftCodegen.java",
+      "src/spec/resources/generated/swift/Sources/PetstoreClient/Models/ApiResponse.swift"
+     ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "`format: int32` range is enforced by 5 SDKs; swift (Int), python, dart, php, ruby, elixir and node accept and re-send values outside int32",
@@ -17468,8 +17900,23 @@
    "unit_testable": false,
    "lens": "L09-models-scalars",
    "id": "F312",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "model.mustache now emits 'moduledoc deprecated:' right after defmodule for deprecated struct models (both the hasVars and no-vars branches) instead of the function attribute that landed on __struct__; the module is now marked in the docs metadata and __info__(:deprecated) is empty. Verified failing before the fix.",
+     "batch": 3,
+     "test": "metadata_test: 'a deprecated schema is marked in its module docs, not on a function'",
+     "files": [
+      "src/main/resources/templates/elixir/models/model.mustache",
+      "src/main/resources/templates/elixir/test/metadata_test.mustache",
+      "src/spec/resources/generated/elixir/lib/petstore_client/models/tag.ex",
+      "src/spec/resources/generated/elixir/test/metadata_test.exs"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "go deprecation markers on models, data methods and Options params are not a separate 'Deprecated:' paragraph, so go tooling does not see them",
@@ -17501,8 +17948,22 @@
    "unit_testable": false,
    "lens": "L09-models-scalars",
    "id": "F313",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "model.mustache gets a // separator before Deprecated on the type docs (plain, oneOf, anyOf) and the field doc replaces the blank line with //. options.mustache adds // between the description block and Deprecated.",
+     "batch": 3,
+     "test": "New mirror file test/model_test.mustache (registered in BetterGoCodegen next to pet_api_test): TestModel_DeprecatedSchemaCarriesADeprecatedParagraph and TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph. Not run.",
+     "files": [
+      "src/main/resources/templates/go/models/model.mustache",
+      "src/main/resources/templates/go/api/options.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/go/BetterGoCodegen.java"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "kotlin and ruby strip null entries nested inside free-form model values; AGENTS' closed 'free-form null retention' item mislabels the split",
@@ -17616,8 +18077,8 @@
    "outcomes": {
     "ruby": {
      "outcome": "too-big",
-     "note": "making ruby model attributes strict (Types::Any to typed, including ref enums) changes every model template, serializer and RBS; far over the small-fix threshold.",
-     "batch": 2,
+     "note": "Ruby side: moving model attributes from Types::Any to Types::Strict::* changes coercion and construction semantics across all models. That is a large behaviour change, not a small template fix.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -17641,7 +18102,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "ruby request bodies send a DateTime in non-canonical form because `when Date` matches DateTime first",
@@ -18053,8 +18514,8 @@
     },
     "java": {
      "outcome": "too-big",
-     "note": "An optional-body overload (placeOrder()) must be added to every data, WithHttpInfo, server and content-type variant of api.mustache. That risks overload ambiguity with null arguments. Java side only; csharp and swift are not mine.",
-     "batch": 2,
+     "note": "Java side only. Same as batch 2: an optional-body overload is needed on every data, WithHttpInfo, server and content-type variant, with null-argument overload ambiguity risk.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -18068,7 +18529,7 @@
      ]
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "ApiResult.headers immutability differs: copied and read-only in java/csharp/rust/node; mutable and uncopied in python/dart/go/kotlin; ruby freezes the transport's own hash in place",
@@ -18305,8 +18766,84 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F329",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python only: the ':param options:' doc (data and _with_http_info variants) now adds 'plus an optional per-call authenticator' only when the operation has auth methods, and says 'options carrying an optional per-call authenticator' when the Options class holds only auth (add_pet). Ops without an auth field keep the plain wording.",
+     "batch": 3,
+     "test": "test_pet_api.mustache: TestPetApi.test_options_doc_mentions_the_authenticator_only_where_the_options_class_has_one",
+     "files": [
+      "src/main/resources/templates/python/api/api.mustache",
+      "src/main/resources/templates/python/test/api/test_pet_api.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java side only. The options @param in operation_doc, operation_doc_noserver and operation_doc_result, and the two no-options convenience overload docs in api.mustache, now mention the per-call authenticator only when hasAuthMethods, which equals the Options auth field. This is docs only; the golden Javadoc of StoreApi changed accordingly and no test mirror exists.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/java/api/operation_doc.mustache",
+      "src/main/resources/templates/java/api/operation_doc_noserver.mustache",
+      "src/main/resources/templates/java/api/operation_doc_result.mustache",
+      "src/main/resources/templates/java/api/api.mustache"
+     ]
+    },
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp only: the options param doc in api.mustache (two sites) now says 'Options for query, header, form, and cookie parameters' plus 'and an optional per-operation authenticator' only when hasAuthMethods, and 'Options carrying an optional per-operation authenticator' when the Options holds only the auth field. Verified in the golden: getBySwatch and getStockItem lose the auth clause, addPet gains the auth-only wording. No executable test can observe doc text.",
+     "batch": 3,
+     "test": "none possible; locked only by the regenerated golden (PetApi.cs, StoreApi.cs)",
+     "files": [
+      "src/main/resources/templates/csharp/api/api.mustache"
+     ]
+    },
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin side only. The `, and per-operation auth` clause of the @param options KDoc is now gated on hasAuthMethods, matching the generated Options (auth field only when hasAuthMethods). In the golden, 9 of 10 PetApi/StoreApi docs lose the false clause. java, csharp and elixir are not mine.",
+     "batch": 3,
+     "test": "no test reads KDoc; golden diff only",
+     "files": [
+      "src/main/resources/templates/kotlin/api/api.mustache",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/PetApi.kt",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/StoreApi.kt"
+     ]
+    },
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby side only. The `@param options` doc now says 'plus an optional per-call authenticator' only when hasAuthMethods, and 'carrying an optional per-call authenticator' when the options hold only auth. It uses the same wording as java, driven by vendorExtensions.op.hasOptionsParam. Golden: AddPetOptions (auth only), DeletePetOptions (both), FindPetsByStatusOptions (no auth).",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: 'YARD doc comments' > 'documents the authenticator only on options that carry one'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php side only. The php options docblock now comes from hasOptionsParam, optionsParamRequired and hasAuthMethods. With params and auth it says '..., and an optional per-operation authenticator'. With auth only (addPet, addPetTreatment) it says 'Options carrying an optional per-operation authenticator'. With params only it is unchanged. The `|null` now follows the real optionality of the argument. Auth-only operations previously had no @param at all.",
+     "batch": 3,
+     "test": "tests/Api/PetApiTest.php: 'the options parameter doc names the authenticator only where the options carry one'",
+     "files": [
+      "src/main/resources/templates/php/api/api.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "fixed",
+     "note": "api.mustache gates the per-operation-auth clause of the opts doc and the authenticator clause of the options doc on hasAuthMethods, and the options bullet no longer claims query/header/form/cookie params when the Options struct only carries auth (vendorExtensions.op.hasOptionsParam); golden now differs per operation (add_pet, delete_pet vs get_pet_by_name, get_pet_avatar). Verified failing before the fix.",
+     "batch": 3,
+     "test": "pet_api_test: 'docs name the auth field only on operations whose options carry it'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache",
+      "src/main/resources/templates/elixir/test/api/pet_api_test.mustache",
+      "src/spec/resources/generated/elixir/lib/petstore_client/api/pet_api.ex",
+      "src/spec/resources/generated/elixir/lib/petstore_client/api/store_api.ex",
+      "src/spec/resources/generated/elixir/test/pet_api_test.exs"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "kotlin: *WithHttpInfo variants and server-taking overloads have no KDoc; each op's single KDoc lands on whichever overload renders first, and `server` is never documented",
@@ -18337,8 +18874,22 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F330",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Every public variant now has KDoc: the no-server convenience overloads, the WithHttpInfo variants and the full op doc with a new `@param server`. For server ops the full doc now sits on the real `server` overload instead of the convenience overload. The redundant no-server overloads are kept, since removing them is an API change.",
+     "batch": 3,
+     "test": "no test reads KDoc; golden diff only (ktlint and detekt pass on it)",
+     "files": [
+      "src/main/resources/templates/kotlin/api/api.mustache",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/PetApi.kt",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/api/StoreApi.kt"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "php: body-returning data methods declare no native return type (docblock only), while void data methods declare `: void` and WithHttpInfo declares `: ApiResult`",
@@ -18422,8 +18973,8 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F332",
-   "status": "deferred",
-   "note": "",
+   "status": "partial",
+   "note": "done in kotlin, ruby; still open for csharp, java",
    "outcomes": {
     "kotlin": {
      "outcome": "false-positive",
@@ -18434,27 +18985,30 @@
     },
     "csharp": {
      "outcome": "too-big",
-     "note": "Returning byte[] instead of MemoryStream for format:binary responses is a type-mapping change in the Java codegen plus every binary-response call site and test; csharp-only change would diverge from the generator's shared mapping.",
-     "batch": 2,
+     "note": "Changing csharp's format:binary response from MemoryStream to bytes is a public API change across the BaseApi return type and generated tests; the ledger marks it deferred and it is a cross-language decision.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "ruby": {
-     "outcome": "too-big",
-     "note": "the File vs StringIO return signature needs a cross-SDK decision (bytes vs stream) and a return-type-only RBS lambda change in BetterRubyCodegen; File is also used for request-side params, so a blanket type rename would be wrong.",
-     "batch": 2,
-     "test": "",
-     "files": []
+     "outcome": "fixed",
+     "note": "Ruby side only. Binary downloads now declare `-> ::StringIO` and `ApiResult[::StringIO]` in the RBS and `@return [StringIO]` in YARD, via isResponseFile. This matches BaseApi's StringIO.new(raw_bytes). The runtime 'File' return_type marker and upload params are unchanged. The java/csharp/kotlin shape split is not touched.",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: 'declares the StringIO a binary download returns in YARD' and '... in RBS'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache",
+      "src/main/resources/templates/ruby/api/api_rbs.mustache"
+     ]
     },
     "java": {
      "outcome": "too-big",
-     "note": "Changing format:binary responses from InputStream to byte[] is a public API change across BaseApi, every API method and the readme. Java side only; the ruby RBS lie is not mine.",
-     "batch": 2,
+     "note": "Java side only. Same as batch 2: changing format:binary responses from InputStream to byte[] is a public API change across BaseApi, every API method and the README.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "ruby: blank lines inside each data method's comment block split it, so RDoc/YARD attach only the trailing @return/@raise lines (summary and @param are lost)",
@@ -18485,8 +19039,20 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F333",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F188: the non-standalone options @param line in api/api.mustache. Fixed once.",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: 'YARD doc comments'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "rust: PetApi/StoreApi cannot be constructed with defaults; the other 11 allow no-arg or nil-defaulted construction",
@@ -18662,8 +19228,22 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F337",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "Swift side only. api.mustache now emits `@available` after the last doc line, and every conditional doc line is a standalone mustache tag, so no blank lines split the doc block. The golden had a blank line before every public func and the attribute before the parameter and example docs. Example blocks are now separated by a `///` line.",
+     "batch": 3,
+     "test": "test/api/PetApiTests.mustache: testApiDocCommentsAreOneContiguousBlockAboveAttributes (scans every generated Api source), testDeprecatedOperationKeepsParameterDocsAboveTheAttribute",
+     "files": [
+      "src/main/resources/templates/swift/api/api.mustache",
+      "src/spec/resources/generated/swift/Sources/PetstoreClient/Api/PetApi.swift",
+      "src/spec/resources/generated/swift/Sources/PetstoreClient/Api/StoreApi.swift"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "swift: the requestContentType doc says an unrecognized value falls back to the first declared type, but the code throws",
@@ -19089,13 +19669,13 @@
    "outcomes": {
     "rust": {
      "outcome": "skipped",
-     "note": "A data-returning request-content-type variant needs a public method name that does not collide with the existing _with_content_type, which returns ApiResult. Awaiting an API naming decision.",
-     "batch": 2,
+     "note": "Rust side only. A data-returning variant needs a new public method name that does not collide with the existing _with_content_type (which returns ApiResult); renaming it would break callers. Awaiting an API naming decision (previous batch reached the same).",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "Garbage-PEM caCertPath (file exists, contents invalid) is tested only in java and dart",
@@ -19865,13 +20445,13 @@
    "outcomes": {
     "java": {
      "outcome": "skipped",
-     "note": "The fix is in src/main/resources/reserved-words/java.txt and its test in src/test, both outside the allowed edit scope (templates/java and BetterJavaCodegen).",
-     "batch": 2,
+     "note": "The fix lives in src/main/resources/reserved-words/java.txt and its test is outside the allowed edit scope.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "swift maps int32 to platform Int (64-bit), accepting out-of-range values that java/kotlin/csharp/go/rust reject",
@@ -19952,13 +20532,13 @@
     },
     "go": {
      "outcome": "too-big",
-     "note": "There are about 34 pascalcase lambda sites in api.mustache and model.mustache, and they must stay in lockstep with the Options struct field names. nativeNameInPascalCase may differ from NamingConvention.PASCAL_CASE for escaped or unusual parameter names. Not verifiable without a spec change.",
-     "batch": 2,
-     "test": "none",
+     "note": "About 34 pascalcase lambda sites that must stay in step with the Options field names. Same as the previous batch.",
+     "batch": 3,
+     "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "The HTML-entity formatting gate only catches named entities, so numeric entities from {{...}} (&#39;, &#x3D;, &#x60;) pass silently",
@@ -19990,8 +20570,95 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F367",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "too-big",
+     "note": "The gate is the regex in AbstractFormattingSpec.java:62, a shared spec Java class, not a python template; needs an explicit csharp &#38; allow-list.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "java": {
+     "outcome": "too-big",
+     "note": "The gate is AbstractFormattingSpec, a spec Java class, and csharp's legitimate &#38; needs an allow-list; not mine.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "dart": {
+     "outcome": "too-big",
+     "note": "gate is AbstractFormattingSpec.java (shared Spec Java class), not in dart scope; widening it also needs an allow-list for csharp &#38; and would hit all 12 goldens.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "too-big",
+     "note": "The gate is AbstractFormattingSpec.java:62 (spec Java class, shared by all 12), outside my scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "kotlin": {
+     "outcome": "too-big",
+     "note": "The gate lives in AbstractFormattingSpec.java, a spec class outside the allowed scope, and tightening it needs an allow-list for csharp's legitimate &#38;. It is cross-language and not kotlin's.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "node": {
+     "outcome": "too-big",
+     "note": "The gate is AbstractFormattingSpec.java (spec Java), outside my scope. It needs an explicit allow-list for the legitimate numeric entity in csharp.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "too-big",
+     "note": "The entity regex lives in AbstractFormattingSpec.java, which is spec Java, not mine.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "ruby": {
+     "outcome": "too-big",
+     "note": "The gate is the shared AbstractFormattingSpec.java:62 regex, a spec Java class, not a ruby template. Not mine to edit.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "php": {
+     "outcome": "too-big",
+     "note": "The gate is AbstractFormattingSpec.java (a Spec Java class), outside my scope. It also needs an allow-list for csharp's deliberate &#38;.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "elixir": {
+     "outcome": "too-big",
+     "note": "The entity gate lives in src/spec/java AbstractFormattingSpec.java:62 (a spec Java class, with an allow-list needed for csharp's deliberate &#38;), out of scope for the elixir templates. Elixir only.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "swift": {
+     "outcome": "skipped",
+     "note": "The gate is AbstractFormattingSpec in src/spec/java, which I may not edit. It needs an allow-list for csharp's deliberate `&#38;` and a change across all 12 languages.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "too-big",
+     "note": "The gate is AbstractFormattingSpec.generatedCodeShouldNotContainHtmlEntities in src/spec Java, which I may not edit; it needs an allow-list for csharp's deliberate numeric entity.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "node is the only SDK that drops the operation-server variant description; hasDescription is never referenced in node's apis.mustache",
@@ -20078,32 +20745,32 @@
    "unit_testable": false,
    "lens": "L15-template-mechanics",
    "id": "F369",
-   "status": "open",
-   "note": "",
+   "status": "partial",
+   "note": "done in kotlin; still open for java, python",
    "outcomes": {
     "kotlin": {
-     "outcome": "skipped",
-     "note": "Kotlin side only. The `requiredLabelWithDefault` branch in api.mustache:91 is dead because it sits under pathParams, which are always required. The fix would be in shared AbstractBetterCodegen, out of scope. Editing the kotlin template alone changes no generated output, so no test could lock it.",
-     "batch": 2,
+     "outcome": "duplicate",
+     "note": "Kotlin side only; carries the existing batch 2 outcome (skipped). requiredLabelWithDefault under pathParams is dead because path params are always required, and the rendered output is identical, so no test can fail without a change. The fix belongs in the shared AbstractBetterCodegen.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "python": {
      "outcome": "skipped",
-     "note": "Verified the 'default to' branch is unreachable for pathParams (always required), so output is identical and no test can fail without a change; pure template hygiene across java/kotlin/python.",
-     "batch": 2,
+     "note": "Python side only: requiredLabelWithDefault under pathParams (api.mustache:107,174) is dead because path params are always required, so changing it alters no generated output and no test can fail; same skipped outcome as batch 2.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "java": {
      "outcome": "skipped",
-     "note": "The default-to branch is dead because path params are always required. The rendered Javadoc is identical, so there is no observable behaviour to lock with a test. Java side only.",
-     "batch": 2,
+     "note": "Java side only. The default-to branch is dead because path params are always required; the rendered Javadoc is identical, so no test can lock a change.",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "unescapeDocComment is applied only in model templates (once in java) and in no API template; contradicts the AGENTS R7-6 'only ruby leaked' claim",
@@ -20204,8 +20871,95 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F371",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "skipped",
+     "note": "Python's Makefile target is typecheck; renaming only python would widen the divergence and no language feature forces any name. Needs a cross-SDK naming decision first.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "java": {
+     "outcome": "skipped",
+     "note": "Java side only. Makefile target vocabulary needs a cross-language decision, and java already has analyze.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "dart": {
+     "outcome": "skipped",
+     "note": "dart side only: dart already has analyze, lint and all, but the common Makefile vocabulary across 12 SDKs is a cross-language naming decision, not a dart-local fix.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "too-big",
+     "note": "Makefile target vocabulary must be agreed across all 12 SDKs; not a csharp-only change. csharp already uses analyze, build, test, lint, format and docs.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "kotlin": {
+     "outcome": "too-big",
+     "note": "Kotlin side only. Aligning Makefile target names (kotlin has no analyze or typecheck target; lint = ktlintCheck+detekt) needs one cross-12-SDK vocabulary decision. A kotlin-only rename would add a 13th spelling.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "node": {
+     "outcome": "skipped",
+     "note": "Makefile target names (typecheck in node) are a twelve-language naming decision with no canonical vocabulary chosen, and renaming only node would add a divergence. Left for a cross-language decision.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "skipped",
+     "note": "Makefile target vocabulary needs a cross-SDK decision on names first. Changing only go would add a thirteenth variant.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "ruby": {
+     "outcome": "too-big",
+     "note": "Makefile target names need a cross-language vocabulary decision across 12 SDKs. Ruby's typecheck/lint/format/docs targets are consistent internally; renaming only ruby would worsen the split.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "php": {
+     "outcome": "skipped",
+     "note": "php side only. Renaming the php Makefile 'analyze' target means agreeing a common vocabulary across all 12 languages, which is a cross-SDK decision outside my scope. No php language feature forces the name.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "elixir": {
+     "outcome": "too-big",
+     "note": "A common Makefile target vocabulary across 12 SDKs is a cross-SDK naming decision with no forcing feature; renaming only elixir's dialyzer/credo targets (makefile.mustache:1-27) would add divergence without a decided common name. Elixir only.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "swift": {
+     "outcome": "too-big",
+     "note": "Swift side only. Swift's `analyse` target could be renamed, but there is no agreed common Makefile vocabulary across the 12 SDKs. Renaming one SDK alone would not align them, so it needs a cross-SDK decision.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "skipped",
+     "note": "Rust side only. rust's Makefile has lint, audit, docs and no analyze target. Choosing the common target vocabulary across 12 SDKs is a cross-SDK naming decision, so I did not pick a rust name alone.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "Language-specific README sections carry stale cross-language claims or internal dev notes (ruby discriminator, php dead-code)",
@@ -20246,8 +21000,30 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F372",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby side only. Removed 'This matches Python / Swift / Dart / Go / Rust behaviour.' from the README discriminator section. The php note is not mine.",
+     "batch": 3,
+     "test": "test/readme_test.mustache (new mirror of readme.mustache, registered in BetterRubyCodegen): 'makes no claim about how the other SDKs treat a discriminator no-match'",
+     "files": [
+      "src/main/resources/templates/ruby/readme.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/ruby/BetterRubyCodegen.java"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php side only. I removed the README-only section about the serializeValue dead-code branch. It was an internal generator note, and ObjectSerializer::serializeValue no longer exists in any php template. The ruby half of the finding is not touched.",
+     "batch": 3,
+     "test": "tests/ConfigurationTest.php: 'the README names the composer package and the real proxy setter' (asserts no 'dead code')",
+     "files": [
+      "src/main/resources/templates/php/readme.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "PARITY_TODO.md marks fixed items as open or deferred (T1-2..T1-7, T1-9, T1-10, T2-1, T2-8)",
@@ -20356,8 +21132,113 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F374",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp, elixir, java, kotlin, php, python, ruby, rust, swift; still open for dart, go, node",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python side only: the options param wording is now explicit about the authenticator (shares the F329 change, wording follows java's 'options carrying an optional per-call authenticator' and 'plus an optional per-call authenticator'). Other languages untouched.",
+     "batch": 3,
+     "test": "test_pet_api.mustache: TestPetApi.test_options_doc_mentions_the_authenticator_only_where_the_options_class_has_one",
+     "files": [
+      "src/main/resources/templates/python/api/api.mustache",
+      "src/main/resources/templates/python/test/api/test_pet_api.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "duplicate",
+     "note": "Java side only. Duplicate of F329; java's options doc now reads 'options for query, header, form, and cookie parameters' plus the authenticator clause only where an auth field exists. The canonical cross-language wording is undecided.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "dart": {
+     "outcome": "skipped",
+     "note": "dart side only: dart documents no `options` param, but the canonical wording is undefined across the 11 differing languages; a dart-only guess would add another variant. Needs a cross-SDK decision first.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "csharp": {
+     "outcome": "duplicate",
+     "note": "csharp side is the same options doc text as F329: the missing cookie mention and the unconditional authenticator clause are fixed by that change. The cross-language wording alignment is not csharp's to do alone.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Kotlin side only. Duplicate of F329 for kotlin: the options doc is now accurate (auth clause only where Options has auth). The cross-language wording alignment needs a shared choice across 12 templates and is not done.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/kotlin/api/api.mustache"
+     ]
+    },
+    "node": {
+     "outcome": "skipped",
+     "note": "Node documents only '@param options.auth' and has no '@param options'. The canonical wording is undecided across the twelve languages (java, kotlin, csharp, python and elixir all differ), so picking one text for node alone would add another variant.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "go": {
+     "outcome": "skipped",
+     "note": "There is no canonical wording for the options parameter doc across SDKs. Adding one for go alone would make the drift worse.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "ruby": {
+     "outcome": "duplicate",
+     "note": "Ruby side: the options doc omitted the authenticator. Same fix as F329, which aligns ruby with the java wording.",
+     "batch": 3,
+     "test": "test/api/pet_api_test.mustache: 'documents the authenticator only on options that carry one'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php side only. This shares a root cause with F329: the options parameter is now documented for every operation that has an Options argument, including auth-only ones that were missing it. The wording is php-specific and the other SDKs are not aligned to it.",
+     "batch": 3,
+     "test": "tests/Api/PetApiTest.php: 'the options parameter doc names the authenticator only where the options carry one'",
+     "files": [
+      "src/main/resources/templates/php/api/api.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F329 on the elixir side: the options bullet in api.mustache now states the authenticator exactly where the Options struct has the auth field, locked by the F329 test; the cross-language wording harmonisation is not decidable in the elixir templates alone. Elixir only.",
+     "batch": 3,
+     "test": "pet_api_test: 'docs name the auth field only on operations whose options carry it'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache"
+     ]
+    },
+    "swift": {
+     "outcome": "fixed",
+     "note": "Swift side only. The per-operation doc now lists `- options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.` and `- server: Optional per-operation server override.` when those arguments exist. The text follows csharp's wording and adds cookie. No canonical text exists across the 12 SDKs.",
+     "batch": 3,
+     "test": "test/api/PetApiTests.mustache: testOperationDocumentsItsOptionsParameter, testDeprecatedOperationKeepsParameterDocsAboveTheAttribute (server line)",
+     "files": [
+      "src/main/resources/templates/swift/api/api.mustache",
+      "src/spec/resources/generated/swift/Sources/PetstoreClient/Api/PetApi.swift",
+      "src/spec/resources/generated/swift/Sources/PetstoreClient/Api/StoreApi.swift"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "Rust side only. Every operation that takes an options argument now documents it: 'options: Options for query, header, form, and cookie parameters', plus ', and an optional per-operation authenticator' only when the options struct carries auth (hasAuthMethods). The wording follows the csharp phrasing with cookie added; the other 11 SDKs still differ.",
+     "batch": 3,
+     "test": "pet_api_test.mustache: test_operations_document_their_options_argument (with-auth form on add_pet, without-auth form on add_pet_photos)",
+     "files": [
+      "src/main/resources/templates/rust/api/api.mustache",
+      "src/main/resources/templates/rust/test/api/pet_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "README 'Package' name does not match the manifest's package name (php, python); java/kotlin omit the artifactId entirely",
@@ -20406,8 +21287,50 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F375",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python only: README 'Name' and SKILLS 'pip install' now use projectName (the pyproject name, petstore-client) instead of the import package name. php/java/kotlin untouched.",
+     "batch": 3,
+     "test": "test_metadata.mustache: TestReadmeAndSkillsText.test_readme_package_name_is_the_manifest_name and test_skills_install_command_uses_the_manifest_name",
+     "files": [
+      "src/main/resources/templates/python/readme.mustache",
+      "src/main/resources/templates/python/skills.mustache",
+      "src/main/resources/templates/python/test/test_metadata.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java side only. The README Package section now also states the artifact (Artifact: {{artifactId}}), the value pom.xml uses. Docs only, no test mirror.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/java/readme.mustache"
+     ]
+    },
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin side only. README Package now lists `Group: {{groupId}}` and `Artifact: {{artifactId}}` (golden: petstore-client, the settings.gradle.kts rootProject.name). The old Group used invokerPackage, which equals groupId only by coincidence. The php and python halves are not mine.",
+     "batch": 3,
+     "test": "no test reads README; golden diff only",
+     "files": [
+      "src/main/resources/templates/kotlin/readme.mustache",
+      "src/spec/resources/generated/kotlin/README.md"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php side only. The README Package section now shows Name as the composer name, using the same expression as composer.json (`openapi/petstoreclient`), and adds a separate `Namespace` line holding invokerPackage. The python, java and kotlin halves are not touched.",
+     "batch": 3,
+     "test": "tests/ConfigurationTest.php: 'the README names the composer package and the real proxy setter'",
+     "files": [
+      "src/main/resources/templates/php/readme.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "README 'SOCKS proxies' names the Java accessor `TransportOptions.proxy()` in all 12 READMEs",
@@ -20453,8 +21376,127 @@
    "suspected_forced_reason": "Only the token is language-specific; it should be the language's real setter.",
    "lens": "L16-docs-packaging",
    "id": "F376",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python only: the README SOCKS paragraph now says 'TransportOptions.builder().proxy()', the real builder setter (transport_options.mustache:189), instead of the nonexistent TransportOptions.proxy().",
+     "batch": 3,
+     "test": "test_metadata.mustache: TestReadmeAndSkillsText.test_readme_socks_note_names_the_builder_setter",
+     "files": [
+      "src/main/resources/templates/python/readme.mustache",
+      "src/main/resources/templates/python/test/test_metadata.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java side only. The README SOCKS paragraph names TransportOptions.builder().proxy(...) (the real setter; proxy() is the getter) instead of TransportOptions.proxy(). Docs only, no test mirror.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/java/readme.mustache"
+     ]
+    },
+    "dart": {
+     "outcome": "fixed",
+     "note": "dart side only: README SOCKS paragraph now names TransportOptionsBuilder.proxy(), which is the real setter (transport_options.dart line 161). No test infrastructure exists for README prose; locked only by the regenerated golden README.md.",
+     "batch": 3,
+     "test": "none (docs prose); golden src/spec/resources/generated/dart/README.md",
+     "files": [
+      "src/main/resources/templates/dart/readme.mustache",
+      "src/spec/resources/generated/dart/README.md"
+     ]
+    },
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp only: readme.mustache SOCKS paragraph now names TransportOptionsBuilder.Proxy(...) and says it throws ArgumentException when the proxy is set on the builder (TransportOptions.cs:180-192), instead of the Java accessor and 'at construction time'. No executable test can observe README text.",
+     "batch": 3,
+     "test": "none possible; locked only by the regenerated golden README.md",
+     "files": [
+      "src/main/resources/templates/csharp/readme.mustache"
+     ]
+    },
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin side only. The README SOCKS paragraph now names `TransportOptions.builder().proxy(...)`, the real kotlin setter (SKILLS already used .proxy on the builder).",
+     "batch": 3,
+     "test": "no test reads README; golden diff only",
+     "files": [
+      "src/main/resources/templates/kotlin/readme.mustache",
+      "src/spec/resources/generated/kotlin/README.md"
+     ]
+    },
+    "node": {
+     "outcome": "fixed",
+     "note": "The node README SOCKS paragraph now says `TransportOptionsBuilder.proxy()`, the real setter, instead of `TransportOptions.proxy()` (no such accessor). Only the node token changed.",
+     "batch": 3,
+     "test": "test/client.test.ts 'generated documentation' > 'README names the builder setter that rejects a SOCKS proxy'. Confirmed failing without the fix.",
+     "files": [
+      "src/main/resources/templates/node/readme.mustache"
+     ]
+    },
+    "go": {
+     "outcome": "fixed",
+     "note": "The go README SOCKS note now names TransportOptionsBuilder.Proxy(...), the real setter.",
+     "batch": 3,
+     "test": "test/readme_test.mustache: TestReadme_SocksNoteNamesTheGoProxySetter. Not run.",
+     "files": [
+      "src/main/resources/templates/go/readme.mustache"
+     ]
+    },
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby side only. The README SOCKS paragraph now names `TransportOptions.builder.proxy(url)`, the real ruby setter, instead of `TransportOptions.proxy()`.",
+     "batch": 3,
+     "test": "test/readme_test.mustache: 'names the real proxy setter in the SOCKS section'",
+     "files": [
+      "src/main/resources/templates/ruby/readme.mustache"
+     ]
+    },
+    "php": {
+     "outcome": "fixed",
+     "note": "php side only. The README SOCKS paragraph now says `TransportOptions::builder()->proxy()`, matching TransportOptions::builder() and TransportOptionsBuilder::proxy. The other 11 READMEs are not touched.",
+     "batch": 3,
+     "test": "tests/ConfigurationTest.php: 'the README names the composer package and the real proxy setter'",
+     "files": [
+      "src/main/resources/templates/php/readme.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "fixed",
+     "note": "readme.mustache SOCKS paragraph now names 'The `proxy:` option of `TransportOptions.new/1`' (elixir has no builder; transport_options.mustache:93,110-116 validates in new/1) instead of the Java accessor `TransportOptions.proxy()`. Verified failing before the fix. Elixir only.",
+     "batch": 3,
+     "test": "transport_options_test: 'the README names the proxy option of new/1 as the SOCKS setter' and 'a SOCKS proxy scheme is rejected at construction'",
+     "files": [
+      "src/main/resources/templates/elixir/readme.mustache",
+      "src/main/resources/templates/elixir/test/transport_options_test.mustache",
+      "src/spec/resources/generated/elixir/README.md",
+      "src/spec/resources/generated/elixir/test/transport_options_test.exs"
+     ]
+    },
+    "swift": {
+     "outcome": "fixed",
+     "note": "Swift side only. The README SOCKS paragraph now names `TransportOptionsBuilder.proxy(_:)` and says the rejection is a `ConfigurationError.invalidProxyURL` when the proxy is set. It previously named the Java-style `TransportOptions.proxy()` and said \"at construction time\".",
+     "batch": 3,
+     "test": "test/TransportOptionsTests.mustache: testReadmeSocksSectionNamesTheSwiftSetter, testSocksProxySchemesAreRejectedWhenTheProxyIsSet",
+     "files": [
+      "src/main/resources/templates/swift/readme.mustache",
+      "src/spec/resources/generated/swift/README.md"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "Rust side only. The README SOCKS note named TransportOptions.proxy(); it now names TransportOptionsBuilder::proxy(), the real setter (transport_options.mustache:206).",
+     "batch": 3,
+     "test": "transport_options_test.mustache: test_readme_socks_note_names_the_builder_proxy_setter",
+     "files": [
+      "src/main/resources/templates/rust/readme.mustache",
+      "src/main/resources/templates/rust/test/transport_options_test.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "SKILLS 'Error Handling' examples are not runnable in python/node/dart/ruby and the catch arms differ across languages",
@@ -20505,8 +21547,71 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F377",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python only: the SKILLS Error Handling example now imports the body model from the models package and passes real arguments (client.pet.add_pet(Pet.model_construct())) via a new skills_example_arg partial (path params get \"value\"/1, models get model_construct(), arrays get []); the test parses the block and executes its imports. The catch-arm differences in other languages are not mine. Known limit: an operation whose first Options class has required fields is still not covered, same as java.",
+     "batch": 3,
+     "test": "test_metadata.mustache: TestReadmeAndSkillsText.test_skills_error_handling_example_passes_real_arguments",
+     "files": [
+      "src/main/resources/templates/python/skills.mustache",
+      "src/main/resources/templates/python/skills_example_arg.mustache",
+      "src/main/resources/templates/python/test/test_metadata.mustache"
+     ]
+    },
+    "dart": {
+     "outcome": "fixed",
+     "note": "dart side only: SKILLS Error Handling example is now a function taking the first operation's real signature args (addPetOrReport(Client client, Pet pet, AddPetOptions? options)) and calling the operation with them, replacing the non-compiling addPet(/* parameters */); catch arms unchanged. Only inspected by eye, not compiled; no test covers SKILLS prose. The python, node and ruby sides were not touched.",
+     "batch": 3,
+     "test": "none (docs prose); golden src/spec/resources/generated/dart/SKILLS.md",
+     "files": [
+      "src/main/resources/templates/dart/skills.mustache",
+      "src/spec/resources/generated/dart/SKILLS.md"
+     ]
+    },
+    "node": {
+     "outcome": "fixed",
+     "note": "Node side only. The SKILLS error-handling example called addPet(/* ... */), a type error. It now passes real arguments built by a new skills_example_arg.mustache partial (path params, then body) and adds the base ApiError arm like java. Compiled in the scratch copy: client.pet.addPet(new Pet()) type-checks. Python, dart, ruby, go and rust are not mine.",
+     "batch": 3,
+     "test": "test/client.test.ts 'generated documentation' > 'SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm'. Confirmed failing without the fix.",
+     "files": [
+      "src/main/resources/templates/node/skills.mustache",
+      "src/main/resources/templates/node/skills_example_arg.mustache"
+     ]
+    },
+    "go": {
+     "outcome": "fixed",
+     "note": "Go side only: the SKILLS error-handling example now ends with a base *ApiError arm. The go example already passes a real pet, so only the missing arm changed.",
+     "batch": 3,
+     "test": "test/skills_test.mustache: TestSkills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm. Not run.",
+     "files": [
+      "src/main/resources/templates/go/skills.mustache"
+     ]
+    },
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby side only. The SKILLS Error Handling example no longer calls an undefined `request`. It is now a method, `def add_pet_or_report(client, pet)`, that takes the path and body arguments as the php example does, and it parses. The catch arms already include the base ApiError. The python/node/dart/go/rust sides are not touched.",
+     "batch": 3,
+     "test": "test/skills_test.mustache (new mirror of skills.mustache, registered in BetterRubyCodegen): 'defines the Error Handling example as a method taking the operation arguments', 'leaves no undefined variable...', 'parses the Error Handling example'",
+     "files": [
+      "src/main/resources/templates/ruby/skills.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/ruby/BetterRubyCodegen.java"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "Rust side only. The rust SKILLS error example already used a real call; I removed the NetworkTimeoutError arm no other SDK has, so it catches NotFound, Client, Server then the generic Err arm like the others.",
+     "batch": 3,
+     "test": "api_error_test.mustache: test_skills_error_handling_example_has_the_common_catch_arms",
+     "files": [
+      "src/main/resources/templates/rust/skills.mustache",
+      "src/main/resources/templates/rust/test/api_error_test.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "SKILLS 'Servers' and 'Testing' prose diverges: rust/elixir omit the all-servers list, java has a typo, python calls its ABC a 'protocol'",
@@ -20550,8 +21655,52 @@
    "suspected_forced_reason": "None.",
    "lens": "L16-docs-packaging",
    "id": "F378",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Python only: the Testing section now calls Authenticator an 'abstract base class' (it is abc.ABC, authenticator.py:12) instead of a 'protocol'. rust/elixir/java wording untouched.",
+     "batch": 3,
+     "test": "test_metadata.mustache: TestReadmeAndSkillsText.test_skills_call_the_authenticator_an_abstract_base_class",
+     "files": [
+      "src/main/resources/templates/python/skills.mustache",
+      "src/main/resources/templates/python/test/test_metadata.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java side only. SKILLS 'plus an `Servers.ALL` list' now reads 'plus a'. Docs only, no test mirror.",
+     "batch": 3,
+     "test": "",
+     "files": [
+      "src/main/resources/templates/java/skills.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "fixed",
+     "note": "skills.mustache Servers sentence now ends 'plus a `<Module>.Servers.all/0` list' like the other SKILLS; all/0 exists in servers.ex:67. Rust, java and python parts of the finding are not mine. Verified failing before the fix.",
+     "batch": 3,
+     "test": "server_configuration_test: 'Servers.all/0 lists every server in declaration order, as SKILLS.md documents'",
+     "files": [
+      "src/main/resources/templates/elixir/skills.mustache",
+      "src/main/resources/templates/elixir/test/server_configuration_test.mustache",
+      "src/spec/resources/generated/elixir/SKILLS.md",
+      "src/spec/resources/generated/elixir/test/server_configuration_test.exs"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "Rust side only. The SKILLS Servers sentence now says 'plus an all_servers() function returning a Vec of them' (servers.rs all_servers()). The java typo and python wording belong to other agents.",
+     "batch": 3,
+     "test": "server_configuration_test.mustache: test_skills_servers_section_documents_all_servers",
+     "files": [
+      "src/main/resources/templates/rust/skills.mustache",
+      "src/main/resources/templates/rust/test/server_configuration_test.mustache"
+     ]
+    }
+   },
+   "batch": 3
   },
   {
    "title": "dart README claims jsonDecode turns integers above 2^53 into double; on the Dart VM they stay exact 64-bit ints",
@@ -20732,7 +21881,17 @@
    "lens": "L17-gates",
    "id": "F383",
    "status": "open",
-   "note": ""
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "skipped",
+     "note": "The fix is a one-word change (`--strict`) in SwiftFormattingSpec.java under src/spec/java, which is outside my allowed paths.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 3
   },
   {
    "title": "ruby (brotli, zstd) and elixir (brotli) codec tests are always skipped in CI because of build-config choices, not a runtime limit",
@@ -20986,15 +22145,15 @@
     },
     "php": {
      "outcome": "skipped",
-     "note": "php side only. Not verified. Only Psr18ApiClient builds a PSR-7 Uri, and the nyholm/psr7 query filter is the likely cause of any [ ] escaping; changing that means bypassing the PSR-7 Uri, which is not a small template change. The default Symfony client was not checked either.",
-     "batch": 2,
+     "note": "php side only. Not verified. The likely cause is that nyholm/psr7's Uri query filter escapes [ and ] in Psr18ApiClient. Avoiding that would mean bypassing the PSR-7 Uri, which is not a small template change. The default Symfony client's behaviour was not checked either. php is not installed locally.",
+     "batch": 3,
      "test": "",
      "files": []
     },
     "swift": {
      "outcome": "skipped",
-     "note": "swift side only. The '[' ']' re-escaping comes from Foundation URL(string:), which behaves differently on macOS and Linux. A fix would need URLComponents with percentEncodedQuery, and I could not lock it on Linux.",
-     "batch": 2,
+     "note": "Swift side only. URL(string:) re-escaping of `[` and `]` differs between macOS and Linux, and a URLComponents.percentEncodedQuery fix cannot be locked in the Linux run. Already recorded as skipped in the ledger.",
+     "batch": 3,
      "test": "",
      "files": []
     },
@@ -21006,7 +22165,7 @@
      "files": []
     }
    },
-   "batch": 2
+   "batch": 3
   },
   {
    "title": "elixir omits an empty array for a non-exploded delimited query parameter; the other 11 send `colors=`",
@@ -21081,13 +22240,20 @@
    "outcomes": {
     "swift": {
      "outcome": "too-big",
-     "note": "Swift's JSONDecoder keeps the first duplicate key while the others keep the last. Fixing it needs a pre-pass (re-serialize through JSONSerialization, or a custom decoder), which changes number precision and cost and is more than 60 lines. There is no spec change needed, but the design needs a decision first.",
-     "batch": 1,
+     "note": "Swift side only. JSONDecoder keeps the first duplicate key. Taking the last needs a pre-pass or a custom decoder, which is more than 60 lines and needs a design decision. Already recorded as too-big in the ledger.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "false-positive",
+     "note": "Rust side only. Already fixed in 7d4424198: object_serializer.mustache deserialize falls back to deserialize_last_duplicate_wins, so rust keeps the last duplicate key; locked by the in-file test test_deserialize_duplicate_key_keeps_the_last_value (object_serializer.mustache:1159).",
+     "batch": 3,
      "test": "",
      "files": []
     }
    },
-   "batch": 1
+   "batch": 3
   },
   {
    "title": "Overflowing double literal (1e400) decodes to Infinity in 7 SDKs but is rejected in go/rust/swift/csharp, contradicting the stated no-non-finite decode contract",
@@ -22342,12 +23508,12 @@
    "unit_testable": null,
    "status": "deferred",
    "note": "reported by the csharp fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "csharp": {
      "outcome": "too-big",
-     "note": "Verified real but inherent: replaying a 307/308 multipart or Stream body needs the bytes (default_api_client.mustache around line 396). Avoiding the copy would need a seekable-stream or lazy multipart redesign.",
-     "batch": 2,
+     "note": "Avoiding the in-memory redirect-replay buffer for Stream or multipart uploads needs a redesign of the redirect body handling in default_api_client.mustache; the ledger already marks it deferred.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -22609,13 +23775,13 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the go fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "go": {
      "outcome": "skipped",
-     "note": "The go.mod and go.sum drift comes from go mod tidy in the Docker formatter at regeneration, not from a template. I reverted it before committing, as instructed.",
-     "batch": 2,
-     "test": "none",
+     "note": "go.mod and go.sum drift comes from the Docker formatter at regeneration, not from a template. It must be reverted before committing, and nothing is committed yet.",
+     "batch": 3,
+     "test": "",
      "files": []
     }
    }
@@ -22661,12 +23827,12 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the dart fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "dart": {
      "outcome": "skipped",
-     "note": "It is a documentation remark about AGENTS.md and PARITY_TODO.md plus php, none of which are in my scope. Dart already base64-encodes byte-map values (model.mustache around lines 396-401).",
-     "batch": 2,
+     "note": "claim is about AGENTS.md line 306 / PARITY_TODO R8-1 prose (not editable by me). Dart itself is correct: binary_vault.dart base64Decodes and base64Encodes map values (lines 39 and 54). The php residual is another SDK.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -22736,12 +23902,12 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the java fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "java": {
      "outcome": "skipped",
-     "note": "Not a defect. It is a note that the earlier batch did not revert its fixes to check the tests. This batch has the same limitation, stated honestly in validation.notes.",
-     "batch": 2,
+     "note": "Not a defect, only an observation that the earlier batch did not revert its fixes. This batch has the same limitation, stated in validation.notes.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -23124,12 +24290,12 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the rust fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "rust": {
      "outcome": "skipped",
-     "note": "Cosmetic: the layout is stable and cargo fmt --check passes. No behaviour change.",
-     "batch": 2,
+     "note": "Cosmetic: the oddly laid-out format! lines are stable and cargo fmt --check passes. Fixing needs a missing-parameter helper touching 13 sites for no behaviour change; the previous batch skipped it for the same reason.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -23149,12 +24315,12 @@
    "unit_testable": null,
    "status": "deferred",
    "note": "reported by the node fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "node": {
      "outcome": "too-big",
-     "note": "Needs the same json-aligned nested walk as F140, covering both the additionalProperties re-attach and the strict-key check. Not a small template change.",
-     "batch": 2,
+     "note": "Same root cause as F140: the nested additionalProperties re-attach and the unevaluatedProperties:false strict-key check need a json-aligned nested walk, and the petstore has no nested strict or additionalProperties model.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -23280,12 +24446,12 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the python fix agent, unverified",
-   "batch": 2,
+   "batch": 3,
    "outcomes": {
     "python": {
      "outcome": "skipped",
-     "note": "Undecided design choice (drop EmailStr/IPv4Address/IPv6Address validation vs keep): changes public attribute types and the readme type table, and pet.owner_email is exercised by test_composed_schema; needs an owner decision first.",
-     "batch": 2,
+     "note": "Undecided design choice (drop EmailStr/IPv4Address/IPv6Address validation vs keep): changes public attribute types and the README type table, pet_with_owner.owner_email is exercised by test_composed_schema; needs an owner decision. Same conclusion as the batch 2 outcome.",
+     "batch": 3,
      "test": "",
      "files": []
     }
@@ -23381,9 +24547,23 @@
    "description": "The kotlin OIDC discovery path (openid_connect_authenticator.mustache:99) still puts the kotlinx parser's e.message, which quotes a JSON input excerpt, into its SerializationException message.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the kotlin fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "openid_connect_authenticator.mustache now throws SerializationException(\"OIDC discovery document is not a JSON object\") with no message tail and no cause, matching the token manager.",
+     "batch": 3,
+     "test": "OpenIdConnectAuthenticatorTest.malformedDiscoveryDocumentDoesNotEchoTheBody (exact message, null cause)",
+     "files": [
+      "src/main/resources/templates/kotlin/auth/oauth/openid_connect_authenticator.mustache",
+      "src/main/resources/templates/kotlin/test/OpenIdConnectAuthenticatorTest.mustache",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/auth/oauth/OpenIdConnectAuthenticator.kt",
+      "src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/auth/oauth/OpenIdConnectAuthenticatorTest.kt"
+     ]
+    }
+   }
   },
   {
    "id": "F454",
@@ -23397,9 +24577,23 @@
    "description": "Kotlin DefaultApiClient redirect resolution only special-cases a query-only Location; a fragment-only or empty Location still goes through java.net.URI.resolve, which follows RFC 2396 and may differ from RFC 3986.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the kotlin fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Verified: java.net.URI.resolve already handles a fragment-only Location the RFC 3986 way, but an EMPTY Location drops the last path segment and the query. resolveRedirectLocation now returns the base URL minus fragment for an empty Location. The fragment-only half of the claim is a false positive.",
+     "batch": 3,
+     "test": "DefaultApiClientTest 'resolves an empty Location to the base URL (RFC 3986)' (resolvesEmptyLocationToBaseUrl)",
+     "files": [
+      "src/main/resources/templates/kotlin/default_api_client.mustache",
+      "src/main/resources/templates/kotlin/test/DefaultApiClientTest.mustache",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/DefaultApiClient.kt",
+      "src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/DefaultApiClientTest.kt"
+     ]
+    }
+   }
   },
   {
    "id": "F455",
@@ -23413,9 +24607,18 @@
    "description": "Kotlin List<BigDecimal> and Map<String,BigDecimal> fields still compare scale-sensitively because eqDecimal covers only a direct BigDecimal property.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "needs-spec",
    "note": "reported by the kotlin fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "kotlin": {
+     "outcome": "needs-spec",
+     "note": "Real: BetterKotlinCodegen eqDecimal only matches dataType == BigDecimal, so List<BigDecimal> and Map<String,BigDecimal> compare scale-sensitively. The petstore has no such field, so no test can lock a fix. YAML: add to the Pet schema `weightHistory: {type: array, items: {type: number}}` and `weightByDate: {type: object, additionalProperties: {type: number}}`; then add eqListDecimal/eqMapDecimal in BetterKotlinCodegen.postProcessModels and the model template, and test that Pet lists [1.5] and [1.50] are equal.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F456",
@@ -23429,9 +24632,23 @@
    "description": "Kotlin TransportOptions.proxy('http://@:3128') passes the hand-rolled host check (host is '@'), while java rejects it.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the kotlin fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "The host check now drops the user-info (text up to the last @) and parses bracketed IPv6 literals, so http://@:3128, http://user:pw@:3128, http://:3128, http://[]:3128 and http:// are rejected with 'missing host'. user-info, IPv6 and path forms are still accepted.",
+     "batch": 3,
+     "test": "TransportOptionsTest 'a proxy URL with no host is rejected' and 'a proxy URL with user-info, an IPv6 literal or a path is accepted'",
+     "files": [
+      "src/main/resources/templates/kotlin/transport_options.mustache",
+      "src/main/resources/templates/kotlin/test/TransportOptionsTest.mustache",
+      "src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt",
+      "src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/TransportOptionsTest.kt"
+     ]
+    }
+   }
   },
   {
    "id": "F457",
@@ -23445,9 +24662,18 @@
    "description": "dart's repeated multipart scalar parts (array fields) use MultipartFile.fromString, so each carries 'content-type: text/plain; charset=utf-8' while a single scalar part carries none, which is the F385 charset split for text parts.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "deferred",
    "note": "reported by the dart fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "dart": {
+     "outcome": "too-big",
+     "note": "verified in package:http 1.6.0 multipart_request.dart _headerForFile: every MultipartFile part always writes a content-type header, and repeated scalars cannot use the fields map (one value per name). A bare part needs a custom MultipartRequest.finalize (well over 60 lines).",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F458",
@@ -23461,9 +24687,21 @@
    "description": "dart's redirect loop still drains a 3xx body with stream.drain(), which is not under the end-to-end timeout, so a server that stalls a redirect body can hang a call.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the dart fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "both stream.drain() calls in the redirect loop and the max-redirects branch now go through _drainWithin, a discard mode of _readWithin, so a stalled 3xx body hits the end-to-end timeout and raises NetworkTimeoutException.",
+     "batch": 3,
+     "test": "test/default_api_client_unit_test.mustache: 'a redirect body that stalls throws NetworkTimeoutException'",
+     "files": [
+      "src/main/resources/templates/dart/abstract_api_client.mustache",
+      "src/main/resources/templates/dart/test/default_api_client_unit_test.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F459",
@@ -23477,9 +24715,18 @@
    "description": "Two variants of the same operation that declare a server variable with the same name still emit duplicate enum classes (the enum is declared per variant in api.mustache), the same gap as php and go.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "needs-spec",
    "note": "reported by the csharp fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "csharp": {
+     "outcome": "needs-spec",
+     "note": "Confirmed: api.mustache emits the server-variable enum class as serverTypeName + pascalName inside each variant loop, so two variants of one operation with the same variable name duplicate the class. The petstore has no such operation (getMultiServerPetInfo has a variable on only one variant). Spec change needed: under an operation add servers: [{url: 'https://{region}.a.example.com', variables: {region: {default: us, enum: [us, eu]}}}, {url: 'https://{region}.b.example.com', variables: {region: {default: us, enum: [us, eu]}}}]. The fix is then to prefix the enum with variantName.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F460",
@@ -23493,9 +24740,22 @@
    "description": "Required Options fields that are missing individually still throw ArgumentNullException via ThrowIfNull with no canonical 'Missing the required parameter' text, unlike the empty-string case, which uses the canonical message.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the csharp fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "Verified: required query, header, form and cookie options used ArgumentNullException.ThrowIfNull, giving no canonical text. They now call RequireOption (marked NotNull) with 'Missing the required parameter <p> when calling <Class>.<op>'; the exception type and ParamName are unchanged.",
+     "batch": 3,
+     "test": "test/Api/PetApiTest.mustache: TestGetPetByNameMissingRequiredQueryParamThrows (message assertion added) and new TestAddPetPhotosMissingRequiredFormParamThrows. Not run against the pre-fix code, but the old ThrowIfNull message is the framework default, which cannot contain the canonical text.",
+     "files": [
+      "src/main/resources/templates/csharp/api/api.mustache",
+      "src/main/resources/templates/csharp/base_api.mustache",
+      "src/main/resources/templates/csharp/test/Api/PetApiTest.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F461",
@@ -23509,9 +24769,21 @@
    "description": "ObjectSerializer._sanitize_for_serialization returns model.model_dump() in python mode, so a list or dict of models containing datetimes, Decimals or bytes is then written by json.dumps(default=str) as str() text (space-separated datetimes, \"b'...'\" for bytes) instead of the model wire form; mode='json' would fix it but risks plain format:binary bytes fields (read from code, not run end to end).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the python fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "ObjectSerializer._sanitize_for_serialization now routes a BaseModel through json.loads(cls().serialize(obj)), the same path as a lone model, so a list or dict of models emits canonical date-times, base64 bytes and numeric decimals instead of str() text. The anyOf merged-dump path (model.mustache anyof_merged_dump, python-mode model_dump) has the same shape but no petstore anyOf member has date/bytes fields, so it is left and noted under discovered.",
+     "batch": 3,
+     "test": "test_object_serializer.mustache: TestCollectionsOfModelsUseTheModelWireForm (test_list_of_models_emits_canonical_date_time, test_dict_of_models_emits_canonical_date_time, test_list_of_models_emits_bytes_as_base64)",
+     "files": [
+      "src/main/resources/templates/python/object_serializer.mustache",
+      "src/main/resources/templates/python/test/test_object_serializer.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F462",
@@ -23525,9 +24797,18 @@
    "description": "AGENTS.md says python's models accept both attribute and wire names in constructors, but the generated Metadata(created_at=...) fails mypy (call-arg) because pydantic's alias-only __init__ signature is typed by alias; typed callers must use the alias or model_validate.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "deferred",
    "note": "reported by the python fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "python": {
+     "outcome": "too-big",
+     "note": "mypy flags Metadata(created_at=...) because pydantic's synthesized __init__ is typed by alias; fixing it needs the pydantic mypy plugin or hand-written __init__ signatures across all models, which changes the type-check gate for every test and client. The AGENTS.md claim itself is out of my edit scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F463",
@@ -23541,9 +24822,18 @@
    "description": "The batch-1 scratchpad path /private/tmp/claude-501/-Users-mridang-Code/70adedf6-4990-4a88-aa68-26e699219c8c/scratchpad is shared by all agents, and another agent overwrote my edit1.py mid-session, so concurrent agents should use unique script names.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the ruby fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "ruby": {
+     "outcome": "false-positive",
+     "note": "A note about the shared scratchpad path and script names in the agent workflow, not a defect in the ruby SDK or its templates.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F464",
@@ -23557,9 +24847,20 @@
    "description": "ruby TransportOptions.validate_proxy! cannot assert the 'missing host' message portably because URI.parse('http://') returns host nil on ruby 2.6 but may raise InvalidURIError on newer rubies, so the second direct-construction test matches either message.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the ruby fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Verified in test/transport_options_test.mustache: the missing-host test used http:// and a regex alternation (missing host|.+) that matched any message. It now builds with http:///path, which parses on every ruby and reaches the missing-host branch, and asserts the exact message.",
+     "batch": 3,
+     "test": "test/transport_options_test.mustache: 'constructing directly with a proxy that has no host raises ArgumentError'",
+     "files": [
+      "src/main/resources/templates/ruby/test/transport_options_test.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F465",
@@ -23573,9 +24874,18 @@
    "description": "RBS for per-scheme wrappers is rendered from AbstractBetterCodegen.postWriteSchemeAuthenticator without hasCustomConstructor, so passthrough wrappers still declare an initialize in sig/ that the lib file does not define.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the ruby fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "ruby": {
+     "outcome": "false-positive",
+     "note": "Verified: the wrapper RBS declares an initialize the lib file inherits (e.g. pet_store_bearer_authenticator.rbs). It restates the inherited signature, which has the same arity and types as infrastructure_rbs.mustache:322. That is valid RBS and steep passes. Fixing it means overriding postWriteSchemeAuthenticator, a negligible gain, and no test can fail.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F466",
@@ -23589,9 +24899,21 @@
    "description": "java ObjectSerializer.durationModule calls text.matches on parser.getValueAsString(), which is null for an object or array token, so a Duration field sent as a JSON object would throw a NullPointerException rather than a SerializationException (not verified).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the java fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Verified: durationModule called parseDuration(parser.getValueAsString()), which is null for an object or array token, so the text.matches call throws NullPointerException. At the root level that NPE escapes unwrapped. The deserializer now throws SerializationException 'Invalid protobuf duration: expected a string but found START_OBJECT' (or START_ARRAY).",
+     "batch": 3,
+     "test": "test/ObjectSerializerTest.mustache DurationSerializationTests: objectTokenRejectedAsSerializationException, arrayTokenRejectedAsSerializationException",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache",
+      "src/main/resources/templates/java/test/ObjectSerializerTest.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F467",
@@ -23605,9 +24927,21 @@
    "description": "java BaseApi.invokeApi still uses the removed behaviour of URLEncoder for multipart filenames in DefaultApiClient.buildMultipartBody (URLEncoder at default_api_client.mustache line ~1145), which has the same '*' and '~' safe-set drift (not verified against the other SDKs).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the java fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Verified the multipart half; the finding names BaseApi.invokeApi wrongly. buildFilenameDirective left '*' literal and escaped '~' to %7E in filename*, while go/rust/dart keep only A-Za-z0-9-._~. It now maps '*' to %2A and %7E back to '~'.",
+     "batch": 3,
+     "test": "test/DefaultApiClientUnitTest.mustache multipartFilenameStarKeepsOnlyUnreservedLiteral (exact directive for a non-ASCII name containing a space, '*' and '~')",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F468",
@@ -23623,7 +24957,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the java fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "java": {
+     "outcome": "skipped",
+     "note": "A note about the workflow environment, not a template defect. The devbox mvn defaults to JDK 21, so JAVA_HOME was set to the devbox JDK 25.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F469",
@@ -23637,9 +24980,18 @@
    "description": "Node container leaves for plain string, Decimal, UUID and Buffer element types still use compile-time-only `x as T` casts in deserialize_arg.mustache, so a wrong-typed string leaf is not rejected.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "needs-spec",
    "note": "reported by the node fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "node": {
+     "outcome": "needs-spec",
+     "note": "Confirmed: deserialize_arg.mustache still emits 'x as T' for plain string, Decimal, UUID and Buffer container leaves. No petstore operation returns a container of those types, so the template wiring cannot be locked. YAML: an operation with a 200 response of type: array, items: {type: string}, and another with type: object, additionalProperties: {type: string, format: uuid}.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F470",
@@ -23653,9 +25005,18 @@
    "description": "Node primitive top-level response returns (apis.mustache line 347 area) use `json as <returnType>` with no runtime type check, so an operation returning a bare integer or boolean accepts any JSON value.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "needs-spec",
    "note": "reported by the node fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "node": {
+     "outcome": "needs-spec",
+     "note": "Confirmed: apis.mustache line 348 emits 'json as <returnType>' for a bare primitive return. No petstore operation returns a bare integer, boolean or string. YAML: an operation whose 200 response is content application/json with schema {type: integer}, plus another with {type: boolean}.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F471",
@@ -23669,9 +25030,21 @@
    "description": "Node form-body encoding via URLSearchParams replaces lone surrogates with U+FFFD, while the query encoder (encodeURIComponent) throws URIError on them, so the two encoders disagree on malformed strings.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the node fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "The form-urlencoded branch of base_api.mustache now throws URIError('URI malformed') for a lone surrogate in a key, value or array item, matching encodeQueryComponent, instead of URLSearchParams silently writing U+FFFD. A well-formed surrogate pair still encodes as %F0%9F%98%80.",
+     "batch": 3,
+     "test": "test/base-api.test.ts 'BaseApi body serialization' > 'form-urlencoded body rejects a lone surrogate in %s with URIError' (value, key, array item), plus 'keeps a well-formed surrogate pair'. Confirmed failing without the fix.",
+     "files": [
+      "src/main/resources/templates/node/base_api.mustache",
+      "src/main/resources/templates/node/test/base-api.test.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F472",
@@ -23685,9 +25058,20 @@
    "description": "DefaultApiClient multipart text parts still carry Content-Type: text/plain and Content-Transfer-Encoding: 8bit (Symfony FormDataPart defaults), which Psr18ApiClient does not send.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the php fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "DefaultApiClient scalar and empty multipart parts are now an anonymous TextPart subclass (private static plainFormPart) that removes Content-Type and Content-Transfer-Encoding from getPreparedHeaders. The body bytes now match Psr18ApiClient. JSON and file parts still carry Symfony's Content-Transfer-Encoding: 8bit because DataPart::fromPath cannot be subclassed. The finding named text parts only.",
+     "batch": 3,
+     "test": "tests/DefaultApiClientUnitTest.php: 'multipart text parts carry only a content disposition like the psr18 client'",
+     "files": [
+      "src/main/resources/templates/php/default_api_client.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F473",
@@ -23701,9 +25085,20 @@
    "description": "deserializeInternal's final model branch still json_decodes a decoded string leaf when the target is a model class, so a container element holding JSON text may be parsed as an object (same class as F436).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the php fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "The final model branch of deserializeInternal now runs only for raw bodies (`!$decoded && is_string`). A decoded string leaf, or any non-array leaf, in a model container now throws SerializationException 'Expected a JSON object, got string'. Before, it was json_decoded into an object. Object leaves are unchanged.",
+     "batch": 3,
+     "test": "tests/ObjectSerializerTest.php: 'a model container leaf given as JSON text is rejected, not parsed' and 'a model container leaf that is an object still deserializes'",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F474",
@@ -23717,9 +25112,21 @@
    "description": "php form-body arrays of format: date items are not formatted date-only, because formatDateOnly in api.mustache only handles a scalar DateTimeInterface.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the php fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "ValueSerializer::formatDateOnly now recurses into arrays. The form-body assignment in api.mustache (4 sites: required and optional, in both method variants) now calls it when the param or its items are format: date, via items.isDate. The petstore has no form array of dates, so the unit test locks the helper but nothing in the golden exercises the template wiring. To exercise it, add a multipart or form operation with `{type: array, items: {type: string, format: date}}`.",
+     "batch": 3,
+     "test": "tests/ValueSerializerTest.php: 'format date only helper drops the time component'",
+     "files": [
+      "src/main/resources/templates/php/value_serializer.mustache",
+      "src/main/resources/templates/php/api/api.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F475",
@@ -23735,7 +25142,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the php fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "php": {
+     "outcome": "skipped",
+     "note": "The test belongs in src/test (a Java unit test for BetterPHPCodegen.phpNativeReturnType), which is outside my edit scope.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F476",
@@ -23749,9 +25165,18 @@
    "description": "The elixir OAuth wrapper tests call petstore-named wrapper modules (UserAuth..., MachineAuth..., LegacyAuth..., BrowserAuth...) directly. This is pre-existing: they sit under {{#generateTests}} and have no guard on the spec's scheme names, so a client spec with different scheme names would get test files that do not compile.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "deferred",
    "note": "reported by the elixir fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "elixir": {
+     "outcome": "too-big",
+     "note": "All elixir test templates are petstore fixtures by design (pet_api_test, store_api_test, object_serializer_test use Pet/Order/Category), and the oauth tests are registered in BetterElixirCodegen.java:629-656 without scheme-name flags; guarding them needs new codegen context and gating across 6 test files, and the same petstore binding exists in every SDK. Elixir only.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F477",
@@ -23765,9 +25190,18 @@
    "description": "OIDC delegate rediscovery also builds a new OAuth2AuthorizationCodeAuthenticator, which starts a linked token-manager Agent every time. Before this fix those Agents leaked on each expiry; the fix now stops them.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the elixir fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "elixir": {
+     "outcome": "false-positive",
+     "note": "No leak remains: openid_connect_authenticator.mustache keep_token_manager/2 (line 244-248) stops the rebuilt delegate's fresh token-manager Agent and keeps the previous manager; the remaining start/stop pair happens once per discovery expiry (default 86400 s), and the existing test 'rediscovery after expiry keeps the exchanged tokens' covers the survival of tokens. Elixir only.",
+     "batch": 3,
+     "test": "test/openid_connect_authenticator_test.mustache: rediscovery after expiry keeps the exchanged tokens (pre-existing)",
+     "files": []
+    }
+   }
   },
   {
    "id": "F478",
@@ -23781,9 +25215,23 @@
    "description": "deserialize/2 has no generic rescue wrapper, so other non-SerializationError exceptions raised while converting still escape as raw errors. This was not widened beyond the known paths.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the elixir fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "deserialize/2 now routes both the JSON and the pre-decoded clause through a private convert_guarded/2 that re-raises SerializationError unchanged and wraps any other exception as SerializationError ('Failed to convert to <type>: <message>') with the original as cause; e.g. an object where a date-time string is expected previously escaped as Protocol.UndefinedError from to_string/1. Verified failing before the fix against the old golden.",
+     "batch": 3,
+     "test": "object_serializer_test: 'an object where a date-time string is expected raises SerializationError with the cause' and 'a bare object where a date-time string is expected raises SerializationError'",
+     "files": [
+      "src/main/resources/templates/elixir/object_serializer.mustache",
+      "src/main/resources/templates/elixir/test/object_serializer_test.mustache",
+      "src/spec/resources/generated/elixir/lib/petstore_client/object_serializer.ex",
+      "src/spec/resources/generated/elixir/test/object_serializer_test.exs"
+     ]
+    }
+   }
   },
   {
    "id": "F479",
@@ -23797,9 +25245,21 @@
    "description": "The go OAuth sentinels (ErrInvalidAccessToken from SetAccessToken, ErrAuthCodeEmpty) still use the prefixed '%w: ...' message shape that F280 identified for the api-key and bearer errors.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the go fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "SetAccessToken now returns a typed error whose text is 'access token must contain only printable ASCII characters (RFC 7230 §3.2.6)', matching the canonical text of the other SDKs, and it still matches ErrInvalidAccessToken via errors.Is. ErrAuthCodeEmpty now reads 'authorization code must not be empty'.",
+     "batch": 3,
+     "test": "test/oauth2_implicit_authenticator_test.mustache: TestOAuth2Implicit_SetAccessTokenRejectsInvalidToken (exact message). test/oauth2_auth_code_authenticator_test.mustache: TestOAuth2AuthCode_ExchangeCodeRejectsEmptyCode (exact message). Not run.",
+     "files": [
+      "src/main/resources/templates/go/auth/oauth/oauth2_implicit_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/oauth2_auth_code_authenticator.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F480",
@@ -23815,7 +25275,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the go fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "go": {
+     "outcome": "skipped",
+     "note": "Deliberate behaviour locked by TestBaseApi_SkipsDeserializationForNonJSON (base_api_test.mustache:522). Changing it needs a cross-SDK decision.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F481",
@@ -23831,7 +25300,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the go fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "go": {
+     "outcome": "skipped",
+     "note": "OpenIdConnectAuthenticator keeps pointer receivers because of the by-value sync.Mutex. go vet copylocks already rejects the dereferenced copy that would expose the fields. Changing the mutex to a pointer is a larger change.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F482",
@@ -23847,7 +25325,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the go fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "go": {
+     "outcome": "skipped",
+     "note": "Hardening only. Every base String starts with its type name today, and the wrapper tests (for example TestMachineAuthWrapper_PrintsItsOwnNameAndRedactsSecret) would fail if that stopped holding, so a new test cannot fail without the change.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F483",
@@ -23861,9 +25348,18 @@
    "description": "DefaultApiClientTests.testTimesOutOnSlowEndpoint (Apple-only) fails deterministically on macOS: it uses timeout(1), a 1 ms deadline, with an instant stub. The cause is probably the 1 ms deadline. I did not check a baseline build, so it may predate this change.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the swift fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "swift": {
+     "outcome": "false-positive",
+     "note": "Could not reproduce. I ran DefaultApiClientTests natively on macOS 15 with Swift 6.2.4 against the golden, and testTimesOutOnSlowEndpoint passed in 0.001s. I made no change.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F484",
@@ -23879,7 +25375,16 @@
    "unit_testable": null,
    "status": "open",
    "note": "reported by the swift fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "swift": {
+     "outcome": "skipped",
+     "note": "The Proxy-Authorization leak to the origin comes from connectionProxyDictionary on Apple platforms. It cannot be observed or locked in the Linux Docker run.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F485",
@@ -23893,9 +25398,18 @@
    "description": "BaseApi and DefaultApiClient still carry two separate multipart builders. The scalar-part bug (F254) had to be fixed in both, and the builders could drift again.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "forced",
    "note": "reported by the swift fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "swift": {
+     "outcome": "forced",
+     "note": "AGENTS.md (\"swift dual multipart builder\", second parity-audit tail) documents the dual BaseApi/DefaultApiClient builders as closed and not to be re-opened. BaseApi's helpers are private and the tests call DefaultApiClient's directly.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F486",
@@ -23909,9 +25423,18 @@
    "description": "swift.txt reserved words escape the legal property name `type` to `_type` (F309). Fixing it needs a case-sensitive isReservedWord override in BetterSwiftCodegen, since lowercasing also affects `Type`.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the swift fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "swift": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F309. The `type` to `_type` rename is fixed there.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F487",
@@ -23925,9 +25448,18 @@
    "description": "reqwest::Certificate::from_pem in build_http_client may only add the first certificate of a multi-certificate CA bundle, while other SDKs trust every certificate in the file; not verified, and from_pem_bundle may be the right call.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the rust fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "rust": {
+     "outcome": "false-positive",
+     "note": "reqwest 0.12.28 src/tls.rs:218-226 (Cert::Pem in add_to_rustls) reads every certificate in the PEM buffer and adds each to the root store; from_pem_bundle is only needed for the native-tls backend, and the generated Cargo.toml uses rustls only. validate_ca_pem already walks every CERTIFICATE block.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F488",
@@ -23941,9 +25473,18 @@
    "description": "OIDC delegate expiry recreates the delegate after max-age (default 86400s), discarding the exchanged tokens; other SDKs may keep session state across discovery refresh.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "false-positive",
    "note": "reported by the rust fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "rust": {
+     "outcome": "false-positive",
+     "note": "All 11 other SDKs recreate the OIDC delegate on discovery expiry too (java openid_connect_authenticator.mustache:74-115, python :106-153, go :155-209, csharp :71-113, swift :82-170, ruby :99-138). rust matches them; its only extra guarantee, the Arc-shared delegate surviving concurrent calls, is already fixed and tested.",
+     "batch": 3,
+     "test": "",
+     "files": []
+    }
+   }
   },
   {
    "id": "F489",
@@ -23957,9 +25498,24 @@
    "description": "The ApiClient for the OIDC authenticator is held in a Mutex<Option<Arc>> under unsafe impl Send/Sync; the unsafe impls on OpenIdConnectAuthenticator look unnecessary now that the delegate is an Arc.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
+   "status": "fixed",
    "note": "reported by the rust fix agent, unverified",
-   "batch": null
+   "batch": 3,
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "Removed the unsafe impl Send/Sync from OpenIdConnectAuthenticator and OAuth2TokenManager (Send and Sync follow from the fields; ApiClient is Send + Sync) and added unsafe_code = forbid to the generated Cargo.toml lints so none can return.",
+     "batch": 3,
+     "test": "openid_connect_authenticator_test.mustache: test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls; oauth2_token_manager_test.mustache: test_oauth2_token_manager_is_send_and_sync_without_unsafe_impls (Send + Sync assertion plus no 'unsafe impl' in the source)",
+     "files": [
+      "src/main/resources/templates/rust/auth/oauth/openid_connect_authenticator.mustache",
+      "src/main/resources/templates/rust/auth/oauth/oauth2_token_manager.mustache",
+      "src/main/resources/templates/rust/cargo_toml.mustache",
+      "src/main/resources/templates/rust/test/openid_connect_authenticator_test.mustache",
+      "src/main/resources/templates/rust/test/oauth2_token_manager_test.mustache"
+     ]
+    }
+   }
   },
   {
    "id": "F490",
@@ -23971,6 +25527,657 @@
     "rust"
    ],
    "description": "The rust base_api_test and default_api_client_test integration cases hang when Docker is not reachable from inside the arm64 cargo container instead of failing fast.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "fixed",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": 3,
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "Cause: with_creation_lock removed its lock file only after the body returned, so the panic from a failed container start leaked it. Every later test then waited up to 240 s for the lock, and each re-ran initialisation because OnceLock stayed empty. Now a Drop guard releases the lock and the initialisation outcome is cached as a Result, so later callers fail at once with 'fixture containers are unavailable: <reason>'. Measured with no Docker socket: 25 tests still running after 250 s before; failing in 4 s after.",
+     "batch": 3,
+     "test": "testcontainers_helper.mustache (in-file cfg(test) module, since the helper has no test file): creation_lock_is_released_when_the_guarded_body_panics, creation_lock_is_released_when_the_guarded_body_returns, panic_message_reports_str_and_string_payloads",
+     "files": [
+      "src/main/resources/templates/rust/test/testcontainers_helper.mustache"
+     ]
+    }
+   }
+  },
+  {
+   "id": "F491",
+   "severity": "medium",
+   "title": "model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() text; the fix is mode='json' but the petstore anyOf members have no such fields, so it needs a spec change to lock.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F492",
+   "severity": "medium",
+   "title": "The test templates for README/SKILLS text live in test_metadata.mustache because a dedicated mirror test_readme file would need a new SupportingFileSpec entry in BetterPythonCodegen",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "The test templates for README/SKILLS text live in test_metadata.mustache because a dedicated mirror test_readme file would need a new SupportingFileSpec entry in BetterPythonCodegen.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F493",
+   "severity": "medium",
+   "title": "Stale worktree wf_4a554f2f-32a-5 still holds the branch name parity/b2-python (same for the other b2 branches), which blocks the documented 'checkout -B parity/b2-<lang>' setup step for re-runs",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Stale worktree wf_4a554f2f-32a-5 still holds the branch name parity/b2-python (same for the other b2 branches), which blocks the documented 'checkout -B parity/b2-<lang>' setup step for re-runs.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F494",
+   "severity": "medium",
+   "title": "java model.mustache renders externalDocs description and plural-example summary with double braces (about 14 @see sites plus line 682), so an apostrophe or quote in spec prose is HTML-escaped into gen",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "java model.mustache renders externalDocs description and plural-example summary with double braces (about 14 @see sites plus line 682), so an apostrophe or quote in spec prose is HTML-escaped into generated Javadoc.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F495",
+   "severity": "medium",
+   "title": "Setup step 1 failed: branch parity/b2-java is already checked out in another worktree (wf_4a554f2f-32a-1, at f16a8a5fb), so this work is on parity/b2-java-r2, branched from f8d625c89; the orchestrator",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Setup step 1 failed: branch parity/b2-java is already checked out in another worktree (wf_4a554f2f-32a-1, at f16a8a5fb), so this work is on parity/b2-java-r2, branched from f8d625c89; the orchestrator must merge or rename it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F496",
+   "severity": "medium",
+   "title": "javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F497",
+   "severity": "medium",
+   "title": "operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F498",
+   "severity": "medium",
+   "title": "dart's reserved-word list (src/main/resources/reserved-words/dart.txt) is matched lowercase by every isReservedWord caller, so a model named Type still becomes model_type while a model named Function ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "dart's reserved-word list (src/main/resources/reserved-words/dart.txt) is matched lowercase by every isReservedWord caller, so a model named Type still becomes model_type while a model named Function is not distinguished; outside the dart template scope.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F499",
+   "severity": "medium",
+   "title": "dart date-array params and model date-array properties are typed List<DateTime> and serialized through the generic date-time path, so the date-only wire form is lost for arrays (F070), and no petstore",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "dart date-array params and model date-array properties are typed List<DateTime> and serialized through the generic date-time path, so the date-only wire form is lost for arrays (F070), and no petstore op exercises it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F500",
+   "severity": "medium",
+   "title": "servers.mustache still embeds serverUrl, serverDescription and varDescription raw inside C# string literals, so a double quote or backslash in a server URL or description breaks compilation (only the ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "servers.mustache still embeds serverUrl, serverDescription and varDescription raw inside C# string literals, so a double quote or backslash in a server URL or description breaks compilation (only the XML doc comment is escaped now).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F501",
+   "severity": "medium",
+   "title": "api.mustache path parameters of non-primitive type still use ArgumentNullException.ThrowIfNull(param, nameof(param)) with no canonical 'Missing the required parameter' text, the same gap F460 fixed fo",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "api.mustache path parameters of non-primitive type still use ArgumentNullException.ThrowIfNull(param, nameof(param)) with no canonical 'Missing the required parameter' text, the same gap F460 fixed for Options fields.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F502",
+   "severity": "medium",
+   "title": "Branch name parity/b2-csharp is already checked out by the stale worktree wf_4a554f2f-32a-3 (commit 1e246e228), so git checkout -B failed; work was done on parity/b2-csharp-2 from f8d625c89 instead",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "Branch name parity/b2-csharp is already checked out by the stale worktree wf_4a554f2f-32a-3 (commit 1e246e228), so git checkout -B failed; work was done on parity/b2-csharp-2 from f8d625c89 instead.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F503",
+   "severity": "medium",
+   "title": "The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parity-findings.py; checking out f8d625c89 under the new branch name fixed that",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parity-findings.py; checking out f8d625c89 under the new branch name fixed that.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F504",
+   "severity": "medium",
+   "title": "The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for exam",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for example PetApi.kt around the `Example` lines).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F505",
+   "severity": "medium",
+   "title": "Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]. java rejects it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F506",
+   "severity": "medium",
+   "title": "Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme. A spec without one produces a node client that imports a missing file.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F507",
+   "severity": "medium",
+   "title": "Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator. The barrel only exports ClientAuthMethod for client-credentials or password flows, so an authorization-code-only or implicit-only spec gets an example that does not compile.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F508",
+   "severity": "medium",
+   "title": "Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F509",
+   "severity": "medium",
+   "title": "Node model constructors have no element checks for arrays of integer, number or boolean",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node model constructors have no element checks for arrays of integer, number or boolean. No petstore field has one. YAML to lock a fix: add `ratings: {type: array, items: {type: integer}}` and `flags: {type: array, items: {type: boolean}}` to a model.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F510",
+   "severity": "medium",
+   "title": "Branch parity/b2-go is held by a stale worktree (wf_3417e94f-a6d-1, commit 12db9544e, the pre-merge copy of 88768c89f), so the setup command git checkout -B parity/b2-go failed and I used parity/b3-go",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Branch parity/b2-go is held by a stale worktree (wf_3417e94f-a6d-1, commit 12db9544e, the pre-merge copy of 88768c89f), so the setup command git checkout -B parity/b2-go failed and I used parity/b3-go.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F511",
+   "severity": "medium",
+   "title": "Sandbox rules in this run blocked eval, source and heredocs, so devbox shellenv had to be wrapped in scratchpad scripts (b3go-run.sh, b3go-verify.sh)",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Sandbox rules in this run blocked eval, source and heredocs, so devbox shellenv had to be wrapped in scratchpad scripts (b3go-run.sh, b3go-verify.sh).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F512",
+   "severity": "medium",
+   "title": "The go OpenIdConnectAuthenticator and OAuth2ImplicitAuthenticator String methods use pointer receivers because of the by-value sync.Mutex, so a %v of a dereferenced value would print secret fields if ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "The go OpenIdConnectAuthenticator and OAuth2ImplicitAuthenticator String methods use pointer receivers because of the by-value sync.Mutex, so a %v of a dereferenced value would print secret fields if it ever compiled past vet copylocks.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F513",
+   "severity": "medium",
+   "title": "The ruby _with_http_info variants carry only @return/@raise in their doc comments, with no summary or @param tags, so YARD shows them undocumented (api/api.mustache around line 146)",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "The ruby _with_http_info variants carry only @return/@raise in their doc comments, with no summary or @param tags, so YARD shows them undocumented (api/api.mustache around line 146).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F514",
+   "severity": "medium",
+   "title": "The ruby `@param options` line always lists 'query, header, form, and cookie parameters' even when the operation has only one kind (e.g",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "The ruby `@param options` line always lists 'query, header, form, and cookie parameters' even when the operation has only one kind (e.g. only a query param), which over-claims.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F515",
+   "severity": "medium",
+   "title": "A stale branch parity/b2-ruby (9f96f906d) is still checked out in worktree wf_4a554f2f-32a-6",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "A stale branch parity/b2-ruby (9f96f906d) is still checked out in worktree wf_4a554f2f-32a-6. Its content is already in the base as 3090c0e1d, and it blocks `git checkout -B parity/b2-ruby` for later batches.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F516",
+   "severity": "medium",
+   "title": "Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits. DataPart::fromPath returns self and cannot be subclassed, so file parts need a different construction.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F517",
+   "severity": "medium",
+   "title": "api.mustache emits the `@param ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "api.mustache emits the `@param ... $options` line with three near-identical per-branch blocks, repeated in the data method, the WithHttpInfo method and a third variant. I collapsed them to hasOptionsParam but the structure is still triplicated.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F518",
+   "severity": "medium",
+   "title": "server_variant.mustache emits the server url through a double-brace tag inside a PHP single-quoted string, so a server url containing `=` or `&` is written as an HTML entity into code; I left it becau",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "server_variant.mustache emits the server url through a double-brace tag inside a PHP single-quoted string, so a server url containing `=` or `&` is written as an HTML entity into code; I left it because switching to a raw tag has quoting implications.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F519",
+   "severity": "medium",
+   "title": "composer.mustache emits appDescription through a double-brace tag inside a JSON string, so a description with an apostrophe or ampersand would be entity-escaped rather than JSON-escaped",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "composer.mustache emits appDescription through a double-brace tag inside a JSON string, so a description with an apostrophe or ampersand would be entity-escaped rather than JSON-escaped.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F520",
+   "severity": "medium",
+   "title": "The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc ma",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc marker.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F521",
+   "severity": "medium",
+   "title": "Elixir model docs render plural-example values with the escaping double-brace form (value) inside the moduledoc, so a JSON or quoted example value would be HTML-escaped there (same root cause as F179,",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Elixir model docs render plural-example values with the escaping double-brace form (value) inside the moduledoc, so a JSON or quoted example value would be HTML-escaped there (same root cause as F179, no petstore example exercises it).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F522",
+   "severity": "medium",
+   "title": "The elixir oneOf/anyOf wrapper modules were not checked for the same entity-escaping slots; only the struct-model summary and externalDocs description slots were",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "The elixir oneOf/anyOf wrapper modules were not checked for the same entity-escaping slots; only the struct-model summary and externalDocs description slots were.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F523",
+   "severity": "medium",
+   "title": "Swift operation docs emit a `- Parameters:` heading with no items for operations whose parameters have no description (for example downloadPetDocument), because the list only includes parameters that ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Swift operation docs emit a `- Parameters:` heading with no items for operations whose parameters have no description (for example downloadPetDocument), because the list only includes parameters that carry a description.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F524",
+   "severity": "medium",
+   "title": "The Swift WithHTTPInfo variants have only a one-line doc comment, with no parameter list, so Xcode quick help for them is much thinner than for the data methods",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The Swift WithHTTPInfo variants have only a one-line doc comment, with no parameter list, so Xcode quick help for them is much thinner than for the data methods.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F525",
+   "severity": "medium",
+   "title": "Swift test templates compare non-optional values to nil (about 100 distinct sites, from `#expect(x != nil)`), so the generated tests cannot be compiled with warnings-as-errors until those are cleaned ",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Swift test templates compare non-optional values to nil (about 100 distinct sites, from `#expect(x != nil)`), so the generated tests cannot be compiled with warnings-as-errors until those are cleaned up.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F526",
+   "severity": "medium",
+   "title": "DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout. It uses an instant stub, so it only checks that a 1 ms configuration is accepted, and its name is misleading.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F527",
+   "severity": "medium",
+   "title": "Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (no",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (not verified against a deprecated multi-consumes operation).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F528",
+   "severity": "medium",
+   "title": "NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F529",
+   "severity": "medium",
+   "title": "The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no longer catches it, so a caller sees no pattern for telling a timeout from other network failures",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no longer catches it, so a caller sees no pattern for telling a timeout from other network failures.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F530",
+   "severity": "medium",
+   "title": "rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted",
+   "lens": "batch3-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "rust test fixtures do not exercise a multi-certificate CA bundle, so nothing locks that every certificate in a bundle is trusted.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
