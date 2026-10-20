@@ -51,7 +51,7 @@ module Petstore::Client
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
       def initialize(region:)
         super()
-        allowed = GetMultiServerPetInfoServerRegion.constants.map { |constant| GetMultiServerPetInfoServerRegion.const_get(constant) }
+        allowed = [GetMultiServerPetInfoServerRegion::US, GetMultiServerPetInfoServerRegion::EU, GetMultiServerPetInfoServerRegion::AP]
         raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
 
         @region = region
@@ -59,7 +59,7 @@ module Petstore::Client
 
       def url
         url = 'https://{region}.example.com/v1'
-        url.gsub('{region}', @region.to_s)
+        url.gsub('{region}') { @region.to_s }
       end
     end
 
@@ -102,11 +102,11 @@ module Petstore::Client
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
       def initialize(environment:, version:)
         super()
-        allowed = GetStagingPetInfoServerEnvironment.constants.map { |constant| GetStagingPetInfoServerEnvironment.const_get(constant) }
+        allowed = [GetStagingPetInfoServerEnvironment::STAGING, GetStagingPetInfoServerEnvironment::SANDBOX]
         raise ArgumentError, format("Invalid value '%<value>s' for server variable 'environment'. Allowed values: %<allowed>s", value: environment, allowed: allowed) unless allowed.include?(environment)
 
         @environment = environment
-        allowed = GetStagingPetInfoServerVersion.constants.map { |constant| GetStagingPetInfoServerVersion.const_get(constant) }
+        allowed = [GetStagingPetInfoServerVersion::V2, GetStagingPetInfoServerVersion::V3]
         raise ArgumentError, format("Invalid value '%<value>s' for server variable 'version'. Allowed values: %<allowed>s", value: version, allowed: allowed) unless allowed.include?(version)
 
         @version = version
@@ -114,8 +114,8 @@ module Petstore::Client
 
       def url
         url = 'https://{environment}.example.com/api/{version}'
-        url = url.gsub('{environment}', @environment.to_s)
-        url.gsub('{version}', @version.to_s)
+        url = url.gsub('{environment}') { @environment.to_s }
+        url.gsub('{version}') { @version.to_s }
       end
     end
 

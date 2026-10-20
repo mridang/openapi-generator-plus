@@ -84,6 +84,12 @@ Style/ArgumentsForwarding:
 Style/ClassAndModuleChildren:
   Enabled: false
 
+# A per-scheme authenticator whose constructor only forwards to its base class
+# defines no constructor of its own (a redundant one is a different offence),
+# which leaves the class body empty. The class is the scheme's name for callers.
+Lint/EmptyClass:
+  Enabled: false
+
 # The only undocumented module is the empty namespace shim the gem entrypoint
 # opens so that the compact `module A::B` form in every other file has its
 # parent defined. There is nothing there to document.

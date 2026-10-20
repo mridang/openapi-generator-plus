@@ -11,7 +11,7 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the apiKeyQuery security scheme.
     class ApiKeyQueryAuthenticator < ApiKeyAuthenticator
-      def initialize(host:, api_key:)
+      def initialize(host, api_key)
         super(
           host,
           'api_key',

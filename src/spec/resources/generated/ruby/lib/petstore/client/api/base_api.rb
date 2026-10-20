@@ -273,7 +273,9 @@ module Petstore::Client
             items = value.is_a?(Array) || value.is_a?(Set) ? value.to_a : [value]
             items.compact.map { |item| [key.to_s, ::Petstore::Client::ObjectSerializer.stringify(item)] }
           end
-          URI.encode_www_form(pairs)
+          # encode_www_form keeps '*' literal and escapes '~' to %7E; the other
+          # SDKs (and the OAuth2 token body) keep '~' and escape '*'.
+          URI.encode_www_form(pairs).gsub('%7E', '~').gsub('*', '%2A')
         else
           ::Petstore::Client::ObjectSerializer.serialize(body)
         end

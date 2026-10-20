@@ -12,7 +12,7 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the legacyAuth security scheme.
       class LegacyAuthPasswordAuthenticator < OAuth2PasswordAuthenticator
-        def initialize(host:, client_id:, client_secret:, username:, password:)
+        def initialize(host, client_id, client_secret, username, password)
           super(
             host,
             client_id,

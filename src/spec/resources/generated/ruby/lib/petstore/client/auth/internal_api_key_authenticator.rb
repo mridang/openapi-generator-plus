@@ -11,7 +11,7 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the internalApiKey security scheme.
     class InternalApiKeyAuthenticator < ApiKeyAuthenticator
-      def initialize(host:, api_key:)
+      def initialize(host, api_key)
         super(
           host,
           'X-Internal-Key',

@@ -58,7 +58,8 @@ module Petstore::Client
         value = overrides.fetch(var_name, var.default_value)
         raise ArgumentError, "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: #{var.enum_values}" unless var.enum_values.empty? || var.enum_values.include?(value)
 
-        result = result.gsub("{#{var_name}}", value)
+        # Block form: a replacement string would expand backslash sequences in the value.
+        result = result.gsub("{#{var_name}}") { value }
       end
       result
     end

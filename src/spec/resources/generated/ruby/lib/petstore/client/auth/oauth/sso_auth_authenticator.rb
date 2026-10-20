@@ -12,7 +12,7 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the ssoAuth security scheme.
       class SsoAuthAuthenticator < OpenIdConnectAuthenticator
-        def initialize(host:, client_id:, client_secret:, redirect_uri:)
+        def initialize(host, client_id, client_secret, redirect_uri)
           super(
             host,
             'https://auth.example.com/.well-known/openid-configuration',

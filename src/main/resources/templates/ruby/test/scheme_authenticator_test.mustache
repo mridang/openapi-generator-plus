@@ -1,0 +1,30 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+require 'minitest/autorun'
+require '{{gemName}}'
+
+# The per-scheme authenticators subclass the generic ones, whose constructors
+# take positional arguments. A wrapper that took keywords instead would reject
+# the very call its base accepts, so no authenticator may require a keyword.
+describe 'scheme authenticators' do
+  parallelize_me!
+
+  def authenticator_classes
+    modules = [{{moduleName}}::Auth, {{moduleName}}::Auth::OAuth]
+    modules.flat_map { |mod| mod.constants.map { |name| mod.const_get(name) } }
+           .select { |const| const.is_a?(Class) && const < {{moduleName}}::Auth::Authenticator }
+  end
+
+  it 'finds the generated authenticators' do
+    _(authenticator_classes).wont_be_empty
+  end
+
+  it 'take positional arguments like their base authenticators' do
+    offenders = authenticator_classes.select do |klass|
+      klass.instance_method(:initialize).parameters.any? { |kind, _name| kind == :keyreq }
+    end
+    _(offenders.map(&:name)).must_equal([])
+  end
+end

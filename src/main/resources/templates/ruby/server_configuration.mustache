@@ -55,7 +55,8 @@ module {{moduleName}}
           raise ArgumentError, "Invalid value '#{value}' for server variable '#{var_name}'. Allowed values: #{var.enum_values}"
         end
 
-        result = result.gsub("{#{var_name}}", value)
+        # Block form: a replacement string would expand backslash sequences in the value.
+        result = result.gsub("{#{var_name}}") { value }
       end
       result
     end

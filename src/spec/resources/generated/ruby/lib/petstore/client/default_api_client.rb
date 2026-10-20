@@ -209,8 +209,11 @@ module Petstore::Client
             # cleartext would leak sensitive form data the application
             # sent under TLS. Refuse the downgrade only when there is
             # actually a body to replay — 301/302/303 demotions to GET
-            # drop the body and are allowed.
-            if !next_body.nil? && https_to_http_downgrade?(url, next_url)
+            # drop the body and are allowed. The empty body substituted for a
+            # bodyless POST/PUT/PATCH (the Content-Length: 0 workaround above)
+            # is not a body either, so it is followed like the other SDKs do.
+            replays_body = [307, 308].include?(status_code) && !next_body.nil? && !next_body.to_s.empty?
+            if replays_body && https_to_http_downgrade?(url, next_url)
               raise unusable_response(response, 'Refusing to replay body across HTTPS -> HTTP ' \
                                                 "redirect (TLS downgrade): #{next_url}")
             end
@@ -450,8 +453,7 @@ module Petstore::Client
     end
 
     # Returns the cached Faraday connection, building it on first use.
-    # The connection is built once per ApiClient instance to preserve the
-    # underlying socket pool / keepalive across requests; the build step is
+    # The connection is built once per ApiClient instance; the build step is
     # delegated to {#build_connection} so tests can stub it per-instance.
     def connection
       @connection ||= build_connection
@@ -463,7 +465,13 @@ module Petstore::Client
         f.options.params_encoder = QueryParamsEncoder
         f.proxy = @transport_options.proxy if @transport_options.proxy
         f.ssl.verify = @transport_options.verify_ssl
-        f.ssl.ca_file = @transport_options.ca_cert_path if @transport_options.ca_cert_path
+        if @transport_options.ca_cert_path
+          f.ssl.ca_file = @transport_options.ca_cert_path
+          # faraday-net_http seeds an unset store with the system roots, which
+          # would trust public CAs alongside the configured one. An empty store
+          # leaves ca_file as the only trust anchor, as in the other SDKs.
+          f.ssl.cert_store = OpenSSL::X509::Store.new
+        end
 
         if @transport_options.timeout
           # The one deadline is applied to every phase Faraday times

@@ -217,6 +217,18 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(err).must_be_instance_of Petstore::Client::Errors::OAuth2TokenError
   end
 
+  it 'a non-JSON 2xx token response does not echo the body in the message or cause' do
+    client = FakeTokenClient.new([{ status: 200, body: 'access_token=gho_SECRET123&token_type=bearer' }])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
+      manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    end
+    _(err.message).must_equal 'Token response is not valid JSON'
+    _(err.cause).must_be_nil
+  end
+
   it 'token endpoint error response parsed to typed OAuth2ServerError' do
     # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     # typed OAuth2ServerError carrying code/description/uri.
@@ -326,6 +338,35 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
     _(first).must_equal 'str-tok'
     _(second).must_equal 'str-tok'
+    _(client.call_count).must_equal 1
+  end
+
+  ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
+    it "expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+      client = FakeTokenClient.new([
+                                     { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
+                                     { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
+                                   ])
+      manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+      manager.api_client = client
+
+      params = { 'grant_type' => 'client_credentials' }
+      _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'first'
+      _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
+      _(client.call_count).must_equal 2
+    end
+  end
+
+  it 'expires_in as a padded decimal string with a fraction is accepted' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    manager.get_access_token('https://auth.example.com/token', params)
     _(client.call_count).must_equal 1
   end
 

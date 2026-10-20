@@ -35,6 +35,8 @@ module Faraday
   class SSLOptions
     def verify=: (bool) -> void
     def ca_file=: (String?) -> void
+    def cert_store=: (OpenSSL::X509::Store) -> void
+    def cert_store: () -> OpenSSL::X509::Store?
   end
 
   class RequestOptions

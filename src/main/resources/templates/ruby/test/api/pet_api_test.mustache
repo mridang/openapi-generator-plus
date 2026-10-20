@@ -520,9 +520,9 @@ describe {{moduleName}}::Api::PetApi do
         {{moduleName}}::Api::GetStagingPetInfoServerStagingServer.new(environment: 'attacker.net/x#', version: 'v2')
       }).must_raise(ArgumentError)
 
-      _(err.message).must_include("Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [")
-      _(err.message).must_include('"staging"')
-      _(err.message).must_include('"sandbox"')
+      _(err.message).must_equal(
+        %q(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: ["staging", "sandbox"])
+      )
     end
 
     it 'rejects a value outside the enum on a later variable' do

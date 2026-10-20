@@ -51,6 +51,14 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'version' => '3' })).must_equal 'https://prod.api.example.com/v3'
   end
 
+  it 'substitutes a value containing backslash sequences literally' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{host}.example.com/{host}',
+      variables: { 'host' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url({ 'host' => 'a\\0b\\&c' })).must_equal 'https://a\\0b\\&c.example.com/a\\0b\\&c'
+  end
+
   it 'accepts an override value that is in the variable enum' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com',

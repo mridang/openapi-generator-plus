@@ -501,6 +501,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/scheme_authenticator_test.mustache",
+                            "test",
+                            "scheme_authenticator_test.rb"));
         }
         if (generateTests) {
             // The petstore golden has no gem_rbs_collection, so steep cannot see
@@ -886,9 +891,29 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             param.put("type", "String");
             constructorParams.add(param);
         }
+        final List<String> superArgs = buildRubySuperArgs(spec);
         ctx.put("constructorParams", constructorParams);
-        ctx.put("superArgs", buildRubySuperArgs(spec));
+        ctx.put("superArgs", superArgs);
+        ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Whether the wrapper's constructor would only forward its own
+     * parameters, in order, to the base class. Ruby inherits such a
+     * constructor, and RuboCop rejects the redundant definition.
+     */
+    private static boolean isPassthroughConstructor(
+            List<Map<String, String>> constructorParams, List<String> superArgs) {
+        if (constructorParams.size() != superArgs.size()) {
+            return false;
+        }
+        for (int i = 0; i < constructorParams.size(); i++) {
+            if (!superArgs.get(i).equals(constructorParams.get(i).get("name"))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String formatRubyScopes(@Nullable Map<String, String> scopes) {

@@ -11,12 +11,6 @@ module Petstore::Client
   module Auth
     # Scheme-specific authenticator for the serviceToken security scheme.
     class ServiceTokenAuthenticator < BearerAuthenticator
-      def initialize(host:, token:)
-        super(
-          host,
-          token
-        )
-      end
     end
   end
 end

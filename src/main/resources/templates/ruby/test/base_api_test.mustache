@@ -29,6 +29,16 @@ class CapturingApiClient
   end
 end
 
+class FixedResponseApiClient
+  def initialize(response)
+    @response = response
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    @response
+  end
+end
+
 class TestAuthenticator < {{moduleName}}::Auth::Authenticator
   def initialize(headers: {}, query_params: {}, cookies: {})
     super()
@@ -466,6 +476,15 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).wont_include '%20'
   end
 
+  it 'form-urlencoded body keeps ~ literal and escapes * in keys and values' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, { 'a~b*c' => "a~b*c!'()" },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'a~b%2Ac=a~b%2Ac%21%27%28%29'
+  end
+
   # Canonical behavior 1 — a form-body array property serializes to
   # repeated keys (`tags=a&tags=b`), not a single comma-joined value or a
   # `tags[]` bracket form. URI.encode_www_form repeats the key for each
@@ -538,10 +557,9 @@ describe {{moduleName}}::Api::BaseApi do
   # ── Content-type deserialization ──
 
   it 'skips deserialization for non-JSON content type' do
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
+    client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
-    end
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test', {}, {}, nil,
@@ -550,14 +568,13 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   it 'deserializes vendor JSON MIME types like application/problem+json' do
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
+    client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(
         status_code: 200,
         body: '{"title":"Not Found"}',
         headers: { 'Content-Type' => 'application/problem+json' }
       )
-    end
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test', {}, {}, nil,
@@ -635,11 +652,9 @@ describe {{moduleName}}::Api::BaseApi do
     require 'base64'
     original_bytes = "\x00\xFF\x42".b
     encoded = Base64.strict_encode64(original_bytes)
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
-      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'application/octet-stream' })
-    end
-    client.instance_variable_set(:@_encoded, encoded)
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
@@ -652,11 +667,9 @@ describe {{moduleName}}::Api::BaseApi do
     require 'base64'
     original_bytes = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".b
     encoded = Base64.strict_encode64(original_bytes)
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
-      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'image/png' })
-    end
-    client.instance_variable_set(:@_encoded, encoded)
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: encoded, headers: { 'Content-Type' => 'image/png' })
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
@@ -675,10 +688,9 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   it 'returns string for text/plain response' do
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
+    client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: 'hello world', headers: { 'Content-Type' => 'text/plain' })
-    end
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
@@ -687,10 +699,9 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   it 'returns nil when response body is empty' do
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
+    client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
-    end
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
@@ -701,10 +712,9 @@ describe {{moduleName}}::Api::BaseApi do
   # ── apiresult-rawbody-nullability: raw_body is always a non-nil String ──
 
   it 'ApiResult#raw_body is a non-nil String even for an empty body' do
-    client = CapturingApiClient.new
-    def client.send_request(_method, _url, _headers, _body)
+    client = FixedResponseApiClient.new(
       {{moduleName}}::ApiHttpResponse.new(status_code: 204, body: '', headers: { 'Content-Type' => 'application/json' })
-    end
+    )
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call_for_result('GET', '/test/echo', {}, {}, nil,

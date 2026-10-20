@@ -12,7 +12,7 @@ module Petstore::Client
     module OAuth
       # Scheme-specific authenticator for the userAuth security scheme.
       class UserAuthAuthorizationCodeAuthenticator < OAuth2AuthorizationCodeAuthenticator
-        def initialize(host:, client_id:, client_secret:, redirect_uri:)
+        def initialize(host, client_id, client_secret, redirect_uri)
           super(
             host,
             client_id,

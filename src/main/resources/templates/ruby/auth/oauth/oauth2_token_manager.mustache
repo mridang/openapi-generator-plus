@@ -161,13 +161,15 @@ module {{moduleName}}
 
         # A 2xx token response that is not a JSON object cannot yield a
         # token: surface it as OAuth2TokenError rather than a raw parser error.
+        # The parser's message quotes the input, which may hold a token, so it
+        # is neither put in the message nor kept as the cause.
         def parse_token_response(body)
           parsed = JSON.parse(body.to_s)
           raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Token response is not a JSON object' unless parsed.is_a?(Hash)
 
           parsed
-        rescue JSON::ParserError => e
-          raise ::{{moduleName}}::Errors::OAuth2TokenError, "Token response is not valid JSON: #{e.message}"
+        rescue JSON::ParserError
+          raise ::{{moduleName}}::Errors::OAuth2TokenError, 'Token response is not valid JSON', cause: nil
         end
 
         def parse_oauth2_server_error(status_code, body)
@@ -237,11 +239,9 @@ module {{moduleName}}
             trimmed = raw.strip
             return 0 if trimmed.empty?
 
-            begin
-              Float(trimmed).floor
-            rescue ArgumentError, TypeError
-              0
-            end
+            # Plain decimal digits with an optional fraction only: Float()
+            # would also accept hex ("0x10"), exponents and underscores.
+            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.to_f.floor : 0
           else
             0
           end

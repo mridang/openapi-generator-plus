@@ -2,7 +2,9 @@
 
 require 'minitest/autorun'
 require 'json'
+require 'openssl'
 require 'stringio'
+require 'tempfile'
 require 'zlib'
 require 'petstore_client'
 
@@ -750,6 +752,26 @@ describe Petstore::Client::DefaultApiClient do
     _(call_count).must_equal 1
   end
 
+  it 'follows a 307 HTTPS -> HTTP redirect of a POST that has no body' do
+    # The empty string sent so Net::HTTP emits Content-Length: 0 is not a
+    # body, so there is nothing to leak across the downgrade.
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [307, { 'location' => 'http://localhost/landing' }, '']
+      end
+      stub.post('/landing') do
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'https://localhost/r', {}, nil)
+      _(resp.status_code).must_equal 200
+      _(resp.body).must_equal 'ok'
+    end
+  end
+
   it 'allows HTTPS -> HTTP redirect when method demotes to GET with no body' do
     # 302 of a POST demotes to GET and drops the body, so there is no
     # body to replay across the downgrade — the guard MUST NOT refuse.
@@ -972,6 +994,43 @@ describe Petstore::Client::DefaultApiClient do
     end
     _(err).must_be_instance_of ArgumentError
     _(err).wont_be_kind_of ::Petstore::Client::Errors::OpenAPIError
+  end
+
+  # A configured CA pins trust to that CA alone: the connection gets an empty
+  # certificate store, because faraday-net_http would otherwise seed an unset
+  # one with the system roots and accept public CAs as well.
+  it 'trusts only the configured CA, not the system roots' do
+    key = OpenSSL::PKey::RSA.new(2048)
+    ca = OpenSSL::X509::Certificate.new
+    ca.version = 2
+    ca.serial = 1
+    ca.subject = ca.issuer = OpenSSL::X509::Name.parse('/CN=pinned-test-ca')
+    ca.public_key = key.public_key
+    ca.not_before = Time.now - 60
+    ca.not_after = Time.now + 3600
+    ca.sign(key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+    file = Tempfile.new(['ca', '.pem'])
+    file.write(ca.to_pem)
+    file.close
+
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path(file.path).build
+    ssl = Petstore::Client::DefaultApiClient.new(transport).send(:build_connection).ssl
+    _(ssl.ca_file).must_equal file.path
+    store = ssl.cert_store
+    _(store).must_be_instance_of OpenSSL::X509::Store
+    _(store.verify(ca)).must_equal false
+    system_bundle = OpenSSL::X509::DEFAULT_CERT_FILE
+    if File.file?(system_bundle)
+      root = OpenSSL::X509::Certificate.new(File.read(system_bundle))
+      _(store.verify(root)).must_equal false
+    end
+  ensure
+    file&.unlink
+  end
+
+  it 'leaves the certificate store unset when no CA is configured' do
+    ssl = Petstore::Client::DefaultApiClient.new.send(:build_connection).ssl
+    _(ssl.cert_store).must_be_nil
   end
 
   # A request that gets no HTTP response raises NetworkError, and one that

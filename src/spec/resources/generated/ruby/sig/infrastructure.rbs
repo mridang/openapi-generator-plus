@@ -49,6 +49,7 @@ module Petstore::Client
     attr_reader inject_request_id: bool
     def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool) -> void
     def self.builder: () -> TransportOptions::Builder
+    def self.validate_proxy!: (String?) -> void
 
     class Builder
       def verify_ssl: (bool) -> Builder

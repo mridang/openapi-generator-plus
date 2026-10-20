@@ -74,6 +74,7 @@ module Petstore::Client
     def initialize(verify_ssl:, ca_cert_path:, proxy:, timeout:,
                    follow_redirects:, max_redirects:, user_agent:,
                    default_headers:, inject_request_id:)
+      self.class.validate_proxy!(proxy)
       @verify_ssl = verify_ssl
       @ca_cert_path = ca_cert_path
       @proxy = proxy
@@ -90,6 +91,24 @@ module Petstore::Client
     # @return [Builder]
     def self.builder
       Builder.new
+    end
+
+    # Validate a proxy URL, so the check holds for direct construction as well
+    # as for the builder.
+    # @api private
+    # @param val [String, nil] proxy URL, or +nil+ for none
+    # @return [void]
+    # @raise [ArgumentError] if the URL is invalid
+    def self.validate_proxy!(val)
+      return unless val
+
+      begin
+        uri = URI.parse(val)
+      rescue URI::InvalidURIError => e
+        raise ArgumentError, "Invalid proxy URL (#{e.message}): #{val}"
+      end
+      raise ArgumentError, "Invalid proxy URL (must use http or https scheme): #{val}" unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
+      raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
     end
 
     # Builder for creating immutable {TransportOptions} instances.
@@ -135,15 +154,7 @@ module Petstore::Client
       # @return [self]
       # @raise [ArgumentError] if the URL is invalid
       def proxy(val)
-        if val
-          begin
-            uri = URI.parse(val)
-          rescue URI::InvalidURIError => e
-            raise ArgumentError, "Invalid proxy URL (#{e.message}): #{val}"
-          end
-          raise ArgumentError, "Invalid proxy URL (must use http or https scheme): #{val}" unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
-          raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
-        end
+        TransportOptions.validate_proxy!(val)
         @proxy = val
         self
       end

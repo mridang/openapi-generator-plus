@@ -42,7 +42,7 @@ module {{moduleName}}
         super()
 {{#serverVariables}}
 {{#hasEnumValues}}
-        allowed = {{serverTypeName}}{{pascalName}}.constants.map { |constant| {{serverTypeName}}{{pascalName}}.const_get(constant) }
+        allowed = [{{#enumValues}}{{serverTypeName}}{{pascalName}}::{{name}}{{^-last}}, {{/-last}}{{/enumValues}}]
         unless allowed.include?({{snakeName}})
           raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: %<allowed>s", value: {{snakeName}}, allowed: allowed)
         end
@@ -58,10 +58,10 @@ module {{moduleName}}
         url = '{{url}}'
 {{#serverVariables}}
 {{^-last}}
-        url = url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+        url = url.gsub('{' + '{{name}}' + '}') { @{{snakeName}}.to_s }
 {{/-last}}
 {{#-last}}
-        url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+        url.gsub('{' + '{{name}}' + '}') { @{{snakeName}}.to_s }
 {{/-last}}
 {{/serverVariables}}
 {{/hasVariables}}

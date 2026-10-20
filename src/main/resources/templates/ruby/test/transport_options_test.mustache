@@ -100,6 +100,26 @@ describe {{moduleName}}::TransportOptions do
     _(error).must_be_instance_of ArgumentError
   end
 
+  it 'constructing directly with a non-http proxy scheme raises ArgumentError' do
+    error = assert_raises(ArgumentError) do
+      {{moduleName}}::TransportOptions.new(
+        verify_ssl: true, ca_cert_path: nil, proxy: 'ftp://x', timeout: nil, follow_redirects: true,
+        max_redirects: nil, user_agent: nil, default_headers: {}, inject_request_id: false
+      )
+    end
+    _(error.message).must_equal 'Invalid proxy URL (must use http or https scheme): ftp://x'
+  end
+
+  it 'constructing directly with a proxy that has no host raises ArgumentError' do
+    error = assert_raises(ArgumentError) do
+      {{moduleName}}::TransportOptions.new(
+        verify_ssl: true, ca_cert_path: nil, proxy: 'http://', timeout: nil, follow_redirects: true,
+        max_redirects: nil, user_agent: nil, default_headers: {}, inject_request_id: false
+      )
+    end
+    _(error.message).must_match(/\AInvalid proxy URL \((missing host|.+)\): http:\/\/\z/)
+  end
+
   it 'null proxy URL is accepted' do
     opts = {{moduleName}}::TransportOptions.builder.proxy(nil).build
     _(opts.proxy).must_be_nil
