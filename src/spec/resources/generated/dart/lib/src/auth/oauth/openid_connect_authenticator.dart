@@ -33,6 +33,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   final List<String> _scopes;
   ApiClient? _apiClient;
   OAuth2AuthorizationCodeAuthenticator? _delegate;
+  String _authorizationEndpoint = '';
+  String _tokenEndpoint = '';
   DateTime _discoveryExpiry = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// RFC 8414 recommended default max-age for OIDC discovery documents.
@@ -155,6 +157,22 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       );
     }
 
+    final expiry = DateTime.now().add(
+      Duration(seconds: _parseMaxAge(response.headers)),
+    );
+
+    /* A re-fetched document that names the same endpoints keeps the existing
+     * delegate: replacing it would drop the exchanged tokens it holds and the
+     * next authHeadersAsync would fail until the code was exchanged again. */
+    if (_delegate != null &&
+        _authorizationEndpoint == authorizationEndpoint &&
+        _tokenEndpoint == tokenEndpoint) {
+      _discoveryExpiry = expiry;
+      return _delegate!;
+    }
+    _authorizationEndpoint = authorizationEndpoint;
+    _tokenEndpoint = tokenEndpoint;
+
     _delegate = OAuth2AuthorizationCodeAuthenticator(
       host: _host,
       clientId: _clientId,
@@ -165,9 +183,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       scopes: _scopes,
     );
     _delegate!.setApiClient(client);
-    _discoveryExpiry = DateTime.now().add(
-      Duration(seconds: _parseMaxAge(response.headers)),
-    );
+    _discoveryExpiry = expiry;
 
     return _delegate!;
   }

@@ -14,12 +14,19 @@ class _FakeApiClient implements ApiClient {
   final List<ApiHttpResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
+  final List<String> urls = [];
+  final List<String> bodies = [];
+  Object? failure;
   String? lastMethod;
   int getCount = 0;
 
-  void enqueue(String body, {int statusCode = 200}) {
+  void enqueue(
+    String body, {
+    int statusCode = 200,
+    Map<String, String> headers = const {},
+  }) {
     _responses.add(
-      ApiHttpResponse(statusCode: statusCode, body: body, headers: {}),
+      ApiHttpResponse(statusCode: statusCode, body: body, headers: headers),
     );
   }
 
@@ -33,11 +40,18 @@ class _FakeApiClient implements ApiClient {
   }) async {
     lastMethod = method;
     lastUrl = url;
+    urls.add(url);
+    final error = failure;
+    if (error != null) {
+      throw error;
+    }
     if (method == 'GET') {
       getCount++;
     }
     if (body != null) {
-      lastBody = utf8.decode(body as List<int>);
+      final text = utf8.decode(body as List<int>);
+      lastBody = text;
+      bodies.add(text);
     }
     return _responses.removeAt(0);
   }
@@ -283,5 +297,146 @@ void main() {
       expect(auth.toString(), isNot(contains('my-client-secret')));
       expect(auth.toString(), contains('***'));
     });
+  });
+
+  group('OpenIdConnectAuthenticator discovery lifecycle', () {
+    const document =
+        '{"authorization_endpoint":"https://auth.example.com/authorize",'
+        '"token_endpoint":"https://auth.example.com/token"}';
+
+    test(
+      'a transport failure during discovery reaches the caller unchanged',
+      () async {
+        const failure = NetworkException(message: 'connection refused');
+        final client = _FakeApiClient();
+        client.failure = failure;
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.buildAuthorizationUrl(), throwsA(same(failure)));
+      },
+    );
+
+    test(
+      'a transport failure during the token exchange reaches the caller unchanged',
+      () async {
+        const failure = NetworkException(message: 'connection refused');
+        final client = _FakeApiClient();
+        client.enqueue(document);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+        await auth.buildAuthorizationUrl();
+        client.failure = failure;
+
+        await expectLater(
+          auth.exchangeCode('oidc-code'),
+          throwsA(same(failure)),
+        );
+      },
+    );
+
+    test(
+      'Cache-Control max-age=0 forces a rediscovery on the next call',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(2));
+      },
+    );
+
+    test('Cache-Control max-age keeps the document for that long', () async {
+      final client = _FakeApiClient();
+      client.enqueue(document, headers: {'cache-control': 'max-age=3600'});
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.buildAuthorizationUrl();
+      await auth.buildAuthorizationUrl();
+
+      expect(client.getCount, equals(1));
+    });
+
+    test(
+      'a Cache-Control header without max-age falls back to the default lifetime',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'no-transform'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(1));
+      },
+    );
+
+    test(
+      'the exchanged tokens survive a rediscovery that names the same endpoints',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('oidc-code');
+        final headers = await auth.authHeadersAsync();
+
+        expect(client.getCount, equals(2));
+        expect(headers['Authorization'], equals('Bearer oidc-tok'));
+      },
+    );
+
+    test('the redacted repr shows the non-secret fields', () {
+      expect(
+        _createAuthenticator().toString(),
+        equals(
+          'OpenIdConnectAuthenticator(host: https://api.example.com, openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration, clientId: my-client-id, clientSecret: ***, redirectUri: https://app.example.com/callback, scopes: [openid, profile])',
+        ),
+      );
+    });
+
+    test(
+      'SsoAuthAuthenticator discovers from the declared OpenID Connect URL',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(document);
+        final auth = SsoAuthAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'cid',
+          clientSecret: 'sec',
+          redirectUri: 'https://app.example.com/callback',
+        );
+        auth.setApiClient(client);
+
+        final url = await auth.buildAuthorizationUrl();
+
+        expect(
+          client.urls,
+          equals(['https://auth.example.com/.well-known/openid-configuration']),
+        );
+        expect(
+          url,
+          equals(
+            'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback',
+          ),
+        );
+      },
+    );
   });
 }

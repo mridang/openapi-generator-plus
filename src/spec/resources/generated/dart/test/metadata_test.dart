@@ -169,4 +169,34 @@ void main() {
       );
     });
   });
+
+  group('Metadata value equality', () {
+    test('instances differing only in additionalProperties are not equal', () {
+      const first = Metadata(additionalProperties: {'region': 'eu'});
+      const second = Metadata(additionalProperties: {'region': 'us'});
+
+      expect(first, isNot(equals(second)));
+    });
+
+    test(
+      'instances with equal additionalProperties are equal and hash alike',
+      () {
+        final first = Metadata(
+          additionalProperties: {
+            'tags': ['a', 'b'],
+            'region': 'eu',
+          },
+        );
+        final second = Metadata(
+          additionalProperties: {
+            'region': 'eu',
+            'tags': ['a', 'b'],
+          },
+        );
+
+        expect(first, equals(second));
+        expect(first.hashCode, equals(second.hashCode));
+      },
+    );
+  });
 }

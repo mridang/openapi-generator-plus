@@ -100,5 +100,74 @@ void main() {
       expect(auth.toString(), contains('***'));
     });
   });
+
+  group('OAuth2ImplicitAuthenticator wire format', () {
+    test('rejects a non-ASCII access token with the RFC 7230 message', () {
+      final auth = _createAuthenticator();
+
+      expect(
+        () => auth.setAccessToken('tök'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals(
+              'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)',
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('rejects CR, LF and NUL in the access token', () {
+      final auth = _createAuthenticator();
+
+      for (final token in ['a\rb', 'a\nb', 'a\x00b']) {
+        expect(() => auth.setAccessToken(token), throwsArgumentError);
+      }
+      expect(() => auth.authHeaders(), throwsStateError);
+    });
+
+    test('the authorize URL is exact and separates scopes with %20', () {
+      expect(
+        _createAuthenticator().buildAuthorizationUrl(),
+        equals(
+          'https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write',
+        ),
+      );
+    });
+
+    test('the authorize URL keeps ~ literal and percent-encodes * ! \' ( )', () {
+      final url = _createAuthenticator().buildAuthorizationUrl("a~b*c!d'e(f)");
+
+      expect(url, endsWith('&state=a~b%2Ac%21d%27e%28f%29'));
+    });
+
+    test('the redacted repr shows the non-secret fields', () {
+      final auth = _createAuthenticator();
+      auth.setAccessToken('implicit-tok');
+
+      expect(
+        auth.toString(),
+        equals(
+          'OAuth2ImplicitAuthenticator(host: https://api.example.com, clientId: my-client-id, authorizationUrl: https://auth.example.com/authorize, scopes: [read, write], accessToken: ***)',
+        ),
+      );
+    });
+
+    test('BrowserAuthImplicitAuthenticator uses the declared authorize URL and scopes', () {
+      final auth = BrowserAuthImplicitAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'cid',
+      );
+
+      expect(
+        auth.buildAuthorizationUrl(),
+        equals(
+          'https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read',
+        ),
+      );
+    });
+  });
 }
 {{/generateTests}}

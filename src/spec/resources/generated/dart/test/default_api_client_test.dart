@@ -703,44 +703,52 @@ void main() {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
         'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
+        '$chasmHttpUrl/test/compressed/gzip',
         {'Accept-Encoding': 'gzip'},
         null,
       );
       expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('userId'));
+      expect(resp.body, contains('compressed fixture body'));
     });
 
-    test(
-      'decompresses brotli response',
-      () async {
+    for (final coding in ['br', 'zstd']) {
+      test('refuses a $coding response it cannot decode', () async {
         final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'https://jsonplaceholder.typicode.com/posts/1',
-          {'Accept-Encoding': 'br'},
-          null,
+        await expectLater(
+          client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
+            'Accept-Encoding': coding,
+          }, null),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', 200)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  equals("Unsupported Content-Encoding '$coding'"),
+                ),
+          ),
         );
-        expect(resp.statusCode, equals(200));
-        expect(resp.body, contains('userId'));
-      },
-      skip: 'brotli decompression not supported by dart:io',
-    );
+      });
+    }
 
     test(
-      'decompresses zstd response',
+      'verifySsl=true rejects a certificate the system does not trust',
       () async {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'https://jsonplaceholder.typicode.com/posts/1',
-          {'Accept-Encoding': 'zstd'},
-          null,
+        final transport = TransportOptionsBuilder().verifySsl(true).build();
+        final client = DefaultApiClient(transportOptions: transport);
+        await expectLater(
+          client.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+          throwsA(
+            isA<NetworkException>()
+                .having((e) => e.statusCode, 'statusCode', 0)
+                .having(
+                  (e) => e.underlyingError,
+                  'underlyingError',
+                  isA<TlsException>(),
+                ),
+          ),
         );
-        expect(resp.statusCode, equals(200));
-        expect(resp.body, contains('userId'));
       },
-      skip: 'zstd decompression not supported by dart:io',
     );
 
     // -- Gap BI: RFC 5987 filename* for non-ASCII multipart filenames --

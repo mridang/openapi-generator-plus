@@ -593,5 +593,53 @@ void main() {
       });
     });
   });
+
+  group('ValueSerializer null elements and path sub-delimiters', () {
+    final withNull = <Object?>['1', null, '3'];
+
+    test('a null array element becomes an empty slot in every collection format', () {
+      expect(serializeValue(withNull, 'query', 'array', 'csv'), equals('1,,3'));
+      expect(serializeValue(withNull, 'query', 'array', 'ssv'), equals('1  3'));
+      expect(serializeValue(withNull, 'query', 'array', 'tsv'), equals('1\t\t3'));
+      expect(serializeValue(withNull, 'query', 'array', 'pipes'), equals('1||3'));
+      expect(
+        serializeValue(withNull, 'query', 'array', 'multi'),
+        equals(['1', '', '3']),
+      );
+      expect(serializeValue(withNull, 'header', 'array', 'csv'), equals('1,,3'));
+    });
+
+    const preserved = {
+      ';': 'semicolon',
+      '=': 'equals sign',
+      '~': 'tilde',
+      '@': 'at sign',
+      '!': 'exclamation mark',
+      r'$': 'dollar sign',
+      '&': 'ampersand',
+      "'": 'apostrophe',
+      '(': 'opening parenthesis',
+      ')': 'closing parenthesis',
+      '*': 'asterisk',
+      '+': 'plus sign',
+      ',': 'comma',
+      ':': 'colon',
+    };
+    preserved.forEach((char, name) {
+      test('the $name is kept literal in a path segment', () {
+        expect(
+          serializeValue('a${char}b', 'path', 'string', ''),
+          equals('a${char}b'),
+        );
+      });
+    });
+
+    test('an already percent-encoded value is encoded again', () {
+      expect(
+        serializeValue('a%20b', 'path', 'string', ''),
+        equals('a%2520b'),
+      );
+    });
+  });
 }
 {{/generateTests}}

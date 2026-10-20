@@ -2112,80 +2112,6 @@ void main() {
       }
     });
 
-    // -- CrossOriginRedirectTests --
-
-    test('same-origin redirect forwards Authorization header', () {
-      final originalHeaders = {
-        'Authorization': 'Bearer token123',
-        'Accept': 'application/json',
-      };
-      // Same-origin: all headers are forwarded without filtering
-      final forwarded = Map<String, String>.from(originalHeaders);
-      expect(
-        forwarded['Authorization'],
-        equals('Bearer token123'),
-        reason: 'Authorization should be forwarded on same-origin redirect',
-      );
-    });
-
-    test('cross-origin redirect drops Authorization header', () {
-      const sensitiveHeaders = {
-        'authorization',
-        'cookie',
-        'proxy-authorization',
-      };
-      const isSameOrigin = false;
-      final originalHeaders = {
-        'Authorization': 'Bearer token123',
-        'Accept': 'application/json',
-      };
-      final forwarded = Map.fromEntries(
-        originalHeaders.entries.where(
-          (e) =>
-              isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase()),
-        ),
-      );
-      expect(
-        forwarded.containsKey('Authorization'),
-        isFalse,
-        reason: 'Authorization should be dropped on cross-origin redirect',
-      );
-      expect(
-        forwarded.containsKey('Accept'),
-        isTrue,
-        reason: 'Accept should be forwarded on cross-origin redirect',
-      );
-    });
-
-    test('cross-origin redirect drops Cookie header', () {
-      const sensitiveHeaders = {
-        'authorization',
-        'cookie',
-        'proxy-authorization',
-      };
-      const isSameOrigin = false;
-      final originalHeaders = {
-        'Cookie': 'session=abc123',
-        'Accept': 'application/json',
-      };
-      final forwarded = Map.fromEntries(
-        originalHeaders.entries.where(
-          (e) =>
-              isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase()),
-        ),
-      );
-      expect(
-        forwarded.containsKey('Cookie'),
-        isFalse,
-        reason: 'Cookie should be dropped on cross-origin redirect',
-      );
-      expect(
-        forwarded.containsKey('Accept'),
-        isTrue,
-        reason: 'Accept should be forwarded on cross-origin redirect',
-      );
-    });
-
     // -- NullBodyContentTypeTests --
 
     test('null body POST does not send Content-Type', () async {
@@ -2280,5 +2206,78 @@ void main() {
         await server.close();
       }
     });
+  });
+
+  group('Parameters on the wire', () {
+    test(
+      'a format:date path parameter is sent as YYYY-MM-DD with no time component',
+      () async {
+        String? capturedPath;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedPath = request.uri.path;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.findPetsBornOn(DateTime.utc(2024, 1, 1));
+
+          expect(capturedPath, equals('/pet/born-on/2024-01-01'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'a named-enum path, query and header parameter send the enum wire value',
+      () async {
+        String? capturedPath;
+        String? capturedQuery;
+        String? capturedHeader;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedPath = request.uri.path;
+          capturedQuery = request.uri.query;
+          capturedHeader = request.headers.value('preferred-swatch');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"sample"}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.getBySwatch(
+            Swatch.red,
+            GetBySwatchOptions(
+              querySwatch: Swatch.green,
+              preferredSwatch: Swatch.blue,
+            ),
+          );
+
+          expect(result.name, equals('sample'));
+          expect(capturedPath, equals('/store/by-swatch/red'));
+          expect(capturedQuery, equals('querySwatch=green'));
+          expect(capturedHeader, equals('blue'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
   });
 }

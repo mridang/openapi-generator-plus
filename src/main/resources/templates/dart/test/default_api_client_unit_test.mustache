@@ -1719,5 +1719,149 @@ void main() {
       }
     });
   });
+
+  group('Accept-Encoding and Content-Encoding', () {
+    Future<HttpServer> serve(
+      void Function(HttpRequest request) handler,
+    ) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen(handler);
+      return server;
+    }
+
+    test('advertises exactly gzip and deflate when the caller sets none', () async {
+      String? received;
+      final server = await serve((request) {
+        received = request.headers.value('accept-encoding');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        await DefaultApiClient().sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {},
+          null,
+        );
+        expect(received, equals('gzip, deflate'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('decompresses a gzip response', () async {
+      final server = await serve((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'gzip')
+          ..add(GZipCodec().encode(utf8.encode('{"ok":true}')))
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://localhost:${server.port}/gzip',
+          {},
+          null,
+        );
+        expect(resp.body, equals('{"ok":true}'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('decompresses a zlib-wrapped deflate response', () async {
+      final server = await serve((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'deflate')
+          ..add(ZLibCodec().encode(utf8.encode('{"ok":true}')))
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://localhost:${server.port}/deflate',
+          {},
+          null,
+        );
+        expect(resp.body, equals('{"ok":true}'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('raw headerless DEFLATE surfaces an ApiException with the real status', () async {
+      final server = await serve((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Encoding', 'deflate')
+          ..add(ZLibCodec(raw: true).encode(utf8.encode('{"ok":true}')))
+          ..close();
+      });
+
+      try {
+        await expectLater(
+          DefaultApiClient().sendRequest(
+            'GET',
+            'http://localhost:${server.port}/raw-deflate',
+            {},
+            null,
+          ),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.runtimeType, 'runtimeType', ApiException)
+                .having((e) => e.statusCode, 'statusCode', 200)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('Failed to decompress deflate response body'),
+                ),
+          ),
+        );
+      } finally {
+        await server.close();
+      }
+    });
+  });
+
+  group('Same-origin redirects', () {
+    test('forward Authorization and Cookie to the same origin', () async {
+      final seen = <String, String?>{};
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        if (request.uri.path == '/start') {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', '/landed')
+            ..close();
+          return;
+        }
+        seen['authorization'] = request.headers.value('authorization');
+        seen['cookie'] = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final resp = await DefaultApiClient().sendRequest(
+          'GET',
+          'http://127.0.0.1:${server.port}/start',
+          {'Authorization': 'Bearer token123', 'Cookie': 'session=abc123'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(seen['authorization'], equals('Bearer token123'));
+        expect(seen['cookie'], equals('session=abc123'));
+      } finally {
+        await server.close();
+      }
+    });
+  });
 }
 {{/generateTests}}

@@ -56,4 +56,61 @@ void main() {
       expect(auth.toString(), contains('***'));
     });
   });
+
+  group('BearerAuthenticator prefix handling', () {
+    for (final token in [
+      'Bearer xyz',
+      'bearer xyz',
+      'BEARER xyz',
+      'BeArEr xyz',
+    ]) {
+      test('"$token" is not prefixed twice', () {
+        final auth = BearerAuthenticator(host: '/api/v3', token: token);
+
+        expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+      });
+    }
+
+    test('a token that merely begins with the word bearer is kept whole', () {
+      final auth = BearerAuthenticator(host: '/api/v3', token: 'bearerxyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer bearerxyz'}));
+    });
+
+    test('the redacted repr shows the host and masks the token', () {
+      expect(
+        BearerAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+        equals('BearerAuthenticator(host: /api/v3, token: ***)'),
+      );
+    });
+  });
+
+  group('BearerAuthenticator scheme wrappers', () {
+    final builders = <String, BearerAuthenticator Function(String)>{
+      'ServiceTokenAuthenticator': (token) =>
+          ServiceTokenAuthenticator(host: '/api/v3', token: token),
+      'PetStoreBearerAuthenticator': (token) =>
+          PetStoreBearerAuthenticator(host: '/api/v3', token: token),
+    };
+
+    builders.forEach((name, build) {
+      test('$name sends the token as a Bearer header', () {
+        expect(
+          build('xyz').authHeaders(),
+          equals({'Authorization': 'Bearer xyz'}),
+        );
+      });
+
+      test('$name rejects an empty token at construction', () {
+        expect(() => build(''), throwsArgumentError);
+      });
+
+      test('$name prints its own name with the token masked', () {
+        expect(
+          build('xyz').toString(),
+          equals('$name(host: /api/v3, token: ***)'),
+        );
+      });
+    });
+  });
 }

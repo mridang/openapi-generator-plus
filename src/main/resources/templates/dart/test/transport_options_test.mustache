@@ -230,5 +230,45 @@ void main() {
       );
     });
   });
+
+  group('TransportOptions validation', () {
+    test('timeout can be explicitly disabled', () {
+      final opts = TransportOptionsBuilder().timeout(null).build();
+
+      expect(opts.timeout, isNull);
+    });
+
+    const rejected = {
+      'not-a-valid-url': 'Invalid proxy URL',
+      'ftp://proxy.example.com:21':
+          'Invalid proxy URL (must use http or https scheme)',
+      'socks5://proxy.example.com:1080':
+          'Invalid proxy URL (must use http or https scheme)',
+      'http://': 'Invalid proxy URL (missing host)',
+    };
+    rejected.forEach((url, message) {
+      test('proxy "$url" is rejected with "$message"', () {
+        expect(
+          () => TransportOptionsBuilder().proxy(url),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              equals(message),
+            ),
+          ),
+        );
+      });
+    });
+
+    test('an upper-case proxy scheme is accepted', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('HTTP://proxy.example.com:8080')
+          .build();
+
+      expect(opts.proxy!.scheme, equals('http'));
+      expect(opts.proxy!.host, equals('proxy.example.com'));
+    });
+  });
 }
 {{/generateTests}}

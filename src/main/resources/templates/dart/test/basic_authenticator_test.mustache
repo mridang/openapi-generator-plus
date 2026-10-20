@@ -109,5 +109,72 @@ void main() {
       expect(auth.toString(), contains('***'));
     });
   });
+
+  group('BasicAuthenticator encoding', () {
+    test('non-ASCII credentials are base64-encoded as UTF-8', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'ünïcødé',
+        password: 'pässwörd',
+      );
+
+      expect(
+        auth.authHeaders()['Authorization'],
+        equals('Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=='),
+      );
+    });
+
+    test('the redacted repr shows host and username and masks the password', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'alice',
+        password: 's3cret',
+      );
+
+      expect(
+        auth.toString(),
+        equals(
+          'BasicAuthenticator(host: https://api.example.com, username: alice, password: ***)',
+        ),
+      );
+    });
+  });
+
+  group('BasicAuthenticator scheme wrappers', () {
+    final builders = <String, BasicAuthenticator Function(String, String)>{
+      'AdminBasicAuthenticator': (user, pass) => AdminBasicAuthenticator(
+        host: 'https://api.example.com',
+        username: user,
+        password: pass,
+      ),
+      'PetStoreBasicAuthenticator': (user, pass) => PetStoreBasicAuthenticator(
+        host: 'https://api.example.com',
+        username: user,
+        password: pass,
+      ),
+    };
+
+    builders.forEach((name, build) {
+      test('$name sends the credentials as a Basic header', () {
+        expect(
+          build('alice', 's3cret').authHeaders()['Authorization'],
+          equals('Basic YWxpY2U6czNjcmV0'),
+        );
+      });
+
+      test('$name still rejects a colon in the username', () {
+        expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
+      });
+
+      test('$name prints its own name with the password masked', () {
+        expect(
+          build('alice', 's3cret').toString(),
+          equals(
+            '$name(host: https://api.example.com, username: alice, password: ***)',
+          ),
+        );
+      });
+    });
+  });
 }
 {{/generateTests}}

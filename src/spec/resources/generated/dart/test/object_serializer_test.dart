@@ -1175,4 +1175,22 @@ void main() {
       expect(() => parseJson(beyond), throwsA(isA<SerializationException>()));
     });
   });
+
+  group('integer fields', () {
+    test('a fractional number is rejected for an integer field', () {
+      expect(
+        () => deserialize<ApiResponse>('{"code":1.5}', ApiResponse.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('an int64 above 2^53 keeps every digit', () {
+      final order = deserialize<Order>(
+        '{"id":9007199254740993}',
+        Order.fromJson,
+      );
+
+      expect(order!.id.toString(), equals('9007199254740993'));
+    });
+  });
 }

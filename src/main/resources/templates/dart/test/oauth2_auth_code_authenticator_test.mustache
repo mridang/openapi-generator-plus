@@ -10,6 +10,8 @@ class _FakeApiClient implements ApiClient {
   final List<ApiHttpResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
+  final List<String> urls = [];
+  final List<String> bodies = [];
 
   void enqueue(String body, {int statusCode = 200}) {
     _responses.add(ApiHttpResponse(statusCode: statusCode, body: body, headers: {}));
@@ -24,8 +26,11 @@ class _FakeApiClient implements ApiClient {
     bool noRedirect = false,
   }) async {
     lastUrl = url;
+    urls.add(url);
     if (body != null) {
-      lastBody = utf8.decode(body as List<int>);
+      final text = utf8.decode(body as List<int>);
+      lastBody = text;
+      bodies.add(text);
     }
     return _responses.removeAt(0);
   }
@@ -207,6 +212,133 @@ void main() {
 
       expect(auth.toString(), isNot(contains('my-client-secret')));
       expect(auth.toString(), contains('***'));
+    });
+  });
+
+  group('OAuth2AuthorizationCodeAuthenticator wire format', () {
+    test('the authorize URL is exact and separates scopes with %20', () {
+      expect(
+        _createAuthenticator().buildAuthorizationUrl(),
+        equals(
+          'https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write',
+        ),
+      );
+    });
+
+    test('the authorize URL keeps ~ literal and percent-encodes * ! \' ( )', () {
+      final url = _createAuthenticator().buildAuthorizationUrl("a~b*c!d'e(f)");
+
+      expect(url, endsWith('&state=a~b%2Ac%21d%27e%28f%29'));
+    });
+
+    test('the token body keeps ~ literal and percent-encodes * ! \' ( )', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode("a~b*c!d'e(f) g");
+
+      expect(
+        client.lastBody,
+        equals(
+          'grant_type=authorization_code&code=a~b%2Ac%21d%27e%28f%29+g&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback',
+        ),
+      );
+    });
+
+    test('the code exchange goes to tokenUrl and the refresh grant to refreshUrl', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = OAuth2AuthorizationCodeAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'my-client-id',
+        clientSecret: 'my-client-secret',
+        authorizationUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+        refreshUrl: 'https://auth.example.com/oauth/refresh',
+        redirectUri: 'https://app.example.com/callback',
+      );
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('auth-code-xyz');
+      await auth.authHeadersAsync();
+
+      expect(
+        client.urls,
+        equals([
+          'https://auth.example.com/token',
+          'https://auth.example.com/oauth/refresh',
+        ]),
+      );
+    });
+
+    test('without a refreshUrl the refresh grant also goes to tokenUrl', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('auth-code-xyz');
+      await auth.authHeadersAsync();
+
+      expect(
+        client.urls,
+        equals([
+          'https://auth.example.com/token',
+          'https://auth.example.com/token',
+        ]),
+      );
+    });
+
+    test('the redacted repr shows the non-secret fields', () {
+      expect(
+        _createAuthenticator().toString(),
+        equals(
+          'OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientId: my-client-id, clientSecret: ***, authorizationUrl: https://auth.example.com/authorize, tokenUrl: https://auth.example.com/token, refreshUrl: https://auth.example.com/token, redirectUri: https://app.example.com/callback, scopes: [read, write], tokenExchanged: false)',
+        ),
+      );
+    });
+  });
+
+  group('OAuth2AuthorizationCodeAuthenticator scheme wrapper', () {
+    test('UserAuthAuthorizationCodeAuthenticator uses the declared URLs and scopes', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = UserAuthAuthorizationCodeAuthenticator(
+        host: 'https://api.example.com',
+        clientId: 'cid',
+        clientSecret: 'sec',
+        redirectUri: 'https://app.example.com/callback',
+      );
+      auth.setApiClient(client);
+
+      expect(
+        auth.buildAuthorizationUrl(),
+        equals(
+          'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=pets%3Awrite%20pets%3Aread',
+        ),
+      );
+
+      await auth.exchangeCode('auth-code-xyz');
+      await auth.authHeadersAsync();
+
+      expect(
+        client.urls,
+        equals([
+          'https://auth.example.com/oauth/token',
+          'https://auth.example.com/oauth/refresh',
+        ]),
+      );
     });
   });
 }

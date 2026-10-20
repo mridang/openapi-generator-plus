@@ -289,4 +289,67 @@ void main() {
       expect(err.errorBody, isNull);
     });
   });
+
+  group('ApiException rendering', () {
+    test('renders the message, status, headers and body one field per line', () {
+      const err = ApiException(
+        statusCode: 404,
+        message: 'not found',
+        responseBody: '{"id":7}',
+        responseHeaders: {'x-request-id': 'abc'},
+      );
+
+      expect(
+        err.toString(),
+        equals(
+          'not found\nHTTP status code: 404\nResponse headers: {x-request-id: abc}\nResponse body: {"id":7}',
+        ),
+      );
+    });
+
+    test('omits the status for a transport failure', () {
+      const err = NetworkException(message: 'connection refused');
+
+      expect(err.toString(), equals('connection refused'));
+    });
+
+    test('omits empty headers and an empty body', () {
+      const err = ApiException(
+        statusCode: 500,
+        message: 'boom',
+        responseBody: '',
+        responseHeaders: {},
+      );
+
+      expect(err.toString(), equals('boom\nHTTP status code: 500'));
+    });
+
+    test('an empty message renders the generic line', () {
+      const err = ApiException(statusCode: 0, message: '');
+
+      expect(
+        err.toString(),
+        equals('Error message: the server returns an error'),
+      );
+    });
+
+    test(
+      'a scalar JSON error body is exposed but not deserializable into a model',
+      () {
+        final err = ApiException.fromResponse(400, const {}, '"boom"');
+
+        expect(err.errorBody, equals('boom'));
+        expect(
+          () => err.getTypedErrorBody(Category.fromJson),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              equals('Expected JSON object, got String'),
+            ),
+          ),
+        );
+      },
+    );
+  });
 }

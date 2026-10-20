@@ -26,6 +26,12 @@ export 'src/auth/oauth/oauth2_implicit_authenticator.dart';
 export 'src/auth/oauth/oauth2_password_authenticator.dart';
 export 'src/auth/oauth/oauth2_token_manager.dart';
 export 'src/auth/oauth/openid_connect_authenticator.dart';
+{{#perSchemeAuthModules}}
+export 'src/auth/{{module}}.dart';
+{{/perSchemeAuthModules}}
+{{#perSchemeOAuthModules}}
+export 'src/auth/oauth/{{module}}.dart';
+{{/perSchemeOAuthModules}}
 export 'src/client.dart';
 export 'src/configuration.dart';
 export 'src/default_api_client.dart';

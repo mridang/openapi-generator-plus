@@ -74,5 +74,88 @@ void main() {
       );
     });
   });
+
+  group('ServerConfiguration variable validation', () {
+    test('the rejection names the value, the variable and the allowed values', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com',
+        variables: {
+          'env': ServerVariable(
+            defaultValue: 'prod',
+            enumValues: ['prod', 'staging'],
+          ),
+        },
+      );
+
+      expect(
+        () => config.url({'env': 'dev'}),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals(
+              "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]",
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('a default outside the enum is rejected as well', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com',
+        variables: {
+          'env': ServerVariable(
+            defaultValue: 'dev',
+            enumValues: ['prod', 'staging'],
+          ),
+        },
+      );
+
+      expect(
+        () => config.url(),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            startsWith("Invalid value 'dev' for server variable 'env'."),
+          ),
+        ),
+      );
+    });
+
+    test('a variable without an enum accepts any override', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{env}.api.example.com',
+        variables: {'env': ServerVariable(defaultValue: 'prod')},
+      );
+
+      expect(
+        config.url({'env': 'anything'}),
+        equals('https://anything.api.example.com'),
+      );
+    });
+
+    test('a template without variables is returned unchanged', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://api.example.com/v1',
+      );
+
+      expect(config.url(), equals('https://api.example.com/v1'));
+    });
+
+    test('a variable that appears twice is substituted everywhere', () {
+      const config = ServerConfiguration(
+        urlTemplate: 'https://{region}.example.com/{region}',
+        variables: {'region': ServerVariable(defaultValue: 'eu')},
+      );
+
+      expect(config.url(), equals('https://eu.example.com/eu'));
+      expect(
+        config.url({'region': 'us'}),
+        equals('https://us.example.com/us'),
+      );
+    });
+  });
 }
 {{/generateTests}}

@@ -1014,4 +1014,46 @@ void main() {
       }
     });
   });
+
+  group('operation-level server variants', () {
+    test('the fixed external variant resolves its URL', () {
+      expect(
+        GetExternalPetInfoServerServer0().getUrl(),
+        equals('https://external-api.example.com/v1'),
+      );
+    });
+
+    test('the templated staging variant substitutes its variables', () {
+      expect(
+        GetStagingPetInfoServerStagingServer(
+          GetStagingPetInfoServerEnvironment.SANDBOX,
+          GetStagingPetInfoServerVersion.V2,
+        ).getUrl(),
+        equals('https://sandbox.example.com/api/v2'),
+      );
+      expect(
+        GetStagingPetInfoServerStagingServer(
+          GetStagingPetInfoServerEnvironment.STAGING,
+          GetStagingPetInfoServerVersion.V3,
+        ).getUrl(),
+        equals('https://staging.example.com/api/v3'),
+      );
+    });
+
+    test(
+      'the multi-server operation offers a fixed and a templated server',
+      () {
+        expect(
+          GetMultiServerPetInfoServerPrimary().getUrl(),
+          equals('https://primary.example.com/v1'),
+        );
+        expect(
+          GetMultiServerPetInfoServerRegional(
+            GetMultiServerPetInfoServerRegion.EU,
+          ).getUrl(),
+          equals('https://eu.example.com/v1'),
+        );
+      },
+    );
+  });
 }
