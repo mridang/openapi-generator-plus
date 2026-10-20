@@ -76,6 +76,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
 
       refute inspect(auth) =~ "super-secret-pw"
       assert inspect(auth) =~ "alice"
+      assert inspect(auth) =~ ~s(password: "***")
     end
 
     test "api key is not leaked by inspect/1" do

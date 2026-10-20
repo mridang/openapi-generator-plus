@@ -62,6 +62,7 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
 
       refute inspect(auth) =~ "super-secret-token"
       assert inspect(auth) =~ "api.example.com"
+      assert inspect(auth) =~ ~s(token: "***")
     end
   end
 end

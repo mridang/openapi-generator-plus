@@ -78,6 +78,7 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
         ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "super-secret-key", :header)
 
       refute inspect(auth) =~ "super-secret-key"
+      assert inspect(auth) =~ ~s(api_key: "***")
     end
   end
 end

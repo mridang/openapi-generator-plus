@@ -20,10 +20,16 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
           location: atom()
         }
 
-  # Redact the API key from the default Inspect representation so credentials
-  # never leak into logs or stack traces.
-  @derive {Inspect, except: [:api_key]}
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
   defstruct [:host, :key_param_name, :api_key, :location]
+
+  defimpl Inspect do
+    def inspect(auth, opts), do: Inspect.Any.inspect(%{auth | api_key: mask(auth.api_key)}, opts)
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
 
   @doc """
   Create a new API key authenticator.

@@ -171,6 +171,37 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert headers["Authorization"] == "Bearer oidc-tok"
     end
 
+    # set_api_client returns a copy for the client to hold; the caller's own
+    # struct must still reach the injected ApiClient, and an exchange done on it
+    # must ready the client's copy.
+    test "exchange_code on the caller's copy readies the client's copy" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      client_copy =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      _ = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+      headers = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(client_copy)
+
+      assert headers["Authorization"] == "Bearer oidc-tok"
+    end
+
     test "throws when no ApiClient injected" do
       auth = create_authenticator()
 
@@ -304,6 +335,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"
+      assert inspect(auth) =~ ~s(client_secret: "***")
     end
 
     # The discovery document must be cached: a second build should reuse it

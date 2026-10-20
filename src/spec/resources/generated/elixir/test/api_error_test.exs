@@ -40,6 +40,18 @@ defmodule PetstoreClient.ApiErrorTest do
     assert PetstoreClient.Errors.ApiError.message(err) != ""
   end
 
+  test "an empty message renders the default text, like a missing one" do
+    default = "Error message: the server returns an error"
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(message: "")
+           ) == default
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(status_code: 500)
+           ) == default <> "\nHTTP status code: 500"
+  end
+
   test "typed_error_body deserializes the body into the typed model" do
     err =
       PetstoreClient.Errors.ApiError.exception(

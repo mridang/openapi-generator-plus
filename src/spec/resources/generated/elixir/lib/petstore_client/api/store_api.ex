@@ -70,6 +70,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `delete_order`. Raises on error.
   """
+  @spec delete_order!(t(), integer(), keyword()) ::
+          nil
   def delete_order!(%__MODULE__{} = api, order_id, opts \\ []) do
     case delete_order(api, order_id, opts) do
       {:ok, data} -> data
@@ -83,11 +85,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -183,6 +185,13 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_by_swatch`. Raises on error.
   """
+  @spec get_by_swatch!(
+          t(),
+          PetstoreClient.Models.Swatch.t(),
+          PetstoreClient.Api.Options.GetBySwatchOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.Category.t()
   def get_by_swatch!(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
     case get_by_swatch(api, path_swatch, options, opts) do
       {:ok, data} -> data
@@ -201,11 +210,11 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_by_swatch_with_http_info(%__MODULE__{} = api, path_swatch, options \\ nil, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -341,6 +350,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_defaults`. Raises on error.
   """
+  @spec get_defaults!(t(), keyword()) ::
+          PetstoreClient.Models.Defaults.t()
   def get_defaults!(%__MODULE__{} = api, opts \\ []) do
     case get_defaults(api, opts) do
       {:ok, data} -> data
@@ -354,11 +365,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_defaults_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_defaults_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -427,6 +438,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_department`. Raises on error.
   """
+  @spec get_department!(t(), keyword()) ::
+          PetstoreClient.Models.Department.t()
   def get_department!(%__MODULE__{} = api, opts \\ []) do
     case get_department(api, opts) do
       {:ok, data} -> data
@@ -440,11 +453,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_department_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_department_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -513,6 +526,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_grouped_categories`. Raises on error.
   """
+  @spec get_grouped_categories!(t(), keyword()) ::
+          [%{String.t() => Category}]
   def get_grouped_categories!(%__MODULE__{} = api, opts \\ []) do
     case get_grouped_categories(api, opts) do
       {:ok, data} -> data
@@ -526,11 +541,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_grouped_categories_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_grouped_categories_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -599,6 +614,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_inventory`. Raises on error.
   """
+  @spec get_inventory!(t(), keyword()) ::
+          %{String.t() => integer()}
   def get_inventory!(%__MODULE__{} = api, opts \\ []) do
     case get_inventory(api, opts) do
       {:ok, data} -> data
@@ -612,11 +629,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_inventory_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -685,6 +702,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_matrix`. Raises on error.
   """
+  @spec get_matrix!(t(), keyword()) ::
+          [[integer()]]
   def get_matrix!(%__MODULE__{} = api, opts \\ []) do
     case get_matrix(api, opts) do
       {:ok, data} -> data
@@ -698,11 +717,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_matrix_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_matrix_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -772,6 +791,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_order_by_id`. Raises on error.
   """
+  @spec get_order_by_id!(t(), integer(), keyword()) ::
+          PetstoreClient.Models.Order.t()
   def get_order_by_id!(%__MODULE__{} = api, order_id, opts \\ []) do
     case get_order_by_id(api, order_id, opts) do
       {:ok, data} -> data
@@ -785,11 +806,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.
@@ -879,6 +900,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_stock_item`. Raises on error.
   """
+  @spec get_stock_item!(t(), PetstoreClient.Api.Options.GetStockItemOptions.t() | nil, keyword()) ::
+          PetstoreClient.Models.StockItem.t()
   def get_stock_item!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
     case get_stock_item(api, options, opts) do
       {:ok, data} -> data
@@ -896,11 +919,11 @@ defmodule PetstoreClient.Api.StoreApi do
         ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_stock_item_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -992,6 +1015,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_swatch`. Raises on error.
   """
+  @spec get_swatch!(t(), keyword()) ::
+          PetstoreClient.Models.Swatch.t()
   def get_swatch!(%__MODULE__{} = api, opts \\ []) do
     case get_swatch(api, opts) do
       {:ok, data} -> data
@@ -1005,11 +1030,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_swatch_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1078,6 +1103,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_swatch_groups`. Raises on error.
   """
+  @spec get_swatch_groups!(t(), keyword()) ::
+          [%{String.t() => Swatch}]
   def get_swatch_groups!(%__MODULE__{} = api, opts \\ []) do
     case get_swatch_groups(api, opts) do
       {:ok, data} -> data
@@ -1091,11 +1118,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_swatch_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_swatch_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1164,6 +1191,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_timestamp_groups`. Raises on error.
   """
+  @spec get_timestamp_groups!(t(), keyword()) ::
+          [%{String.t() => DateTime.t()}]
   def get_timestamp_groups!(%__MODULE__{} = api, opts \\ []) do
     case get_timestamp_groups(api, opts) do
       {:ok, data} -> data
@@ -1177,11 +1206,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_timestamp_groups_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_timestamp_groups_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1250,6 +1279,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_tree`. Raises on error.
   """
+  @spec get_tree!(t(), keyword()) ::
+          PetstoreClient.Models.TreeNode.t()
   def get_tree!(%__MODULE__{} = api, opts \\ []) do
     case get_tree(api, opts) do
       {:ok, data} -> data
@@ -1263,11 +1294,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_tree_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def get_tree_with_http_info(%__MODULE__{} = api, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation declared `security: []` — no auth applied even if the client
     # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
@@ -1337,6 +1368,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `place_order`. Raises on error.
   """
+  @spec place_order!(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
+          PetstoreClient.Models.Order.t()
   def place_order!(%__MODULE__{} = api, order \\ nil, opts \\ []) do
     case place_order(api, order, opts) do
       {:ok, data} -> data
@@ -1350,11 +1383,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec place_order_with_http_info(t(), PetstoreClient.Models.Order.t() | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
   def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
 
     # Operation inherits the global security requirement; pass nil so BaseApi
     # falls back to the client-level authenticator.

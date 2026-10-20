@@ -41,6 +41,19 @@ defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
   @impl true
   def url({{#hasVariables}}%__MODULE__{} = server{{/hasVariables}}{{^hasVariables}}_server{{/hasVariables}}) do
   {{#hasVariables}}
+  {{#serverVariables}}
+  {{#hasEnumValues}}
+    # Like the global ServerConfiguration, refuse a value outside the variable's
+    # enum: it would otherwise be spliced into the request host unchecked.
+    allowed_{{snakeName}} = [{{#enumValues}}"{{value}}"{{^-last}}, {{/-last}}{{/enumValues}}]
+
+    if server.{{snakeName}} not in allowed_{{snakeName}} do
+      raise ArgumentError,
+            "Invalid value '#{server.{{snakeName}}}' for server variable '{{name}}'. Allowed values: #{inspect(allowed_{{snakeName}})}"
+    end
+
+  {{/hasEnumValues}}
+  {{/serverVariables}}
     "{{url}}"
   {{#serverVariables}}
     |> String.replace("{" <> "{{name}}" <> "}", to_string(server.{{snakeName}}))
@@ -177,6 +190,11 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Bang version of `{{operationId}}`. Raises on error.
   """
+  {{#isDeprecated}}
+  @deprecated "This operation is deprecated."
+  {{/isDeprecated}}
+  @spec {{operationId}}!(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
+          {{#lambda.elixirTypespec}}{{{returnType}}}{{/lambda.elixirTypespec}}{{^returnType}}nil{{/returnType}}
   def {{operationId}}!(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
     case {{operationId}}(api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts) do
       {:ok, data} -> data
@@ -193,13 +211,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @spec {{operationId}}_with_http_info(t(){{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isPath}}{{#isBody}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{#nullable}} | nil{{/nullable}}{{/isBody}}{{#isOptions}}{{moduleName}}.Api.Options.{{vendorExtensions.op.optionsClassName}}.t(){{^vendorExtensions.op.optionsParamRequired}} | nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
   def {{operationId}}_with_http_info(%__MODULE__{} = api{{#vendorExtensions.op.signatureArgsNoServer}}, {{paramName}}{{#isBody}}{{#nullable}} \\ nil{{/nullable}}{{/isBody}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}} \\ nil{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}, opts \\ []) do
-{{^servers}}{{^consumes.1}}
-    # This operation reads neither `:server` (no operation-level servers) nor
-    # `:content_type` (a single declared content-type) from `opts`, so discard
-    # it explicitly — the arity stays uniform (`opts \\ []`) without tripping
-    # the unused-variable warning that `--warnings-as-errors` makes fatal.
-    _ = opts
-{{/consumes.1}}{{/servers}}
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [{{#servers}}{{#-first}}:server{{#consumes.1}}, {{/consumes.1}}{{/-first}}{{/servers}}{{#consumes.1}}:content_type{{/consumes.1}}])
+
 {{#hasAuthMethods}}
     # Per-operation auth is sourced solely from the Options struct's optional
     # `auth` field (the uniform "auth folded into Options" model shared by every
@@ -345,7 +362,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryStyled}}
     query_params =
-      if not is_nil(options) and not is_nil(options.{{paramName}}) and options.{{paramName}} != [] do
+      if not is_nil(options) and not is_nil(options.{{paramName}}){{#isExplode}} and options.{{paramName}} != []{{/isExplode}} do
         Map.put(query_params, "{{baseName}}",
           {{moduleName}}.ValueSerializer.maybe_allow_reserved(
             {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}),

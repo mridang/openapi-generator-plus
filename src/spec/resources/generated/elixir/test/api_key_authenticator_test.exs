@@ -82,6 +82,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
         )
 
       refute inspect(auth) =~ "super-secret-key"
+      assert inspect(auth) =~ ~s(api_key: "***")
     end
   end
 end

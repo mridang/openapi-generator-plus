@@ -173,6 +173,85 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert result != nil
   end
 
+  # A deprecated operation carries @deprecated on every public variant (data,
+  # bang and with_http_info), and each of them has a typespec.
+  test "a deprecated operation marks every public variant and types the bang one" do
+    deprecated =
+      PetstoreClient.Api.PetApi.__info__(:deprecated)
+      |> Enum.map(fn {key, _message} -> elem(key, 0) end)
+      |> Enum.uniq()
+
+    {:ok, specs} = Code.Typespec.fetch_specs(PetstoreClient.Api.PetApi)
+    spec_text = Enum.map(specs, &inspect/1)
+
+    for operation <- [:find_pets_by_status, :get_pet_by_id] do
+      bang = String.to_atom("#{operation}!")
+      with_http_info = String.to_atom("#{operation}_with_http_info")
+
+      for variant <- [operation, bang, with_http_info] do
+        assert variant in deprecated, "#{variant} is not marked @deprecated"
+
+        assert Enum.any?(spec_text, &String.contains?(&1, ":#{variant},")),
+               "#{variant} has no @spec"
+      end
+    end
+  end
+
+  # An operation reads only the opts keys it supports; any other key is an
+  # error instead of being silently dropped (a `:server` on an operation without
+  # servers would otherwise go to the default server, a misspelt `:content_type`
+  # would send the default content-type).
+  test "an operation without servers rejects the :server opt", %{api: api} do
+    pet = %PetstoreClient.Models.Pet{name: "Rex", photo_urls: []}
+    server = %PetstoreClient.ServerConfiguration{url_template: "http://other.example.com"}
+
+    assert_raise ArgumentError,
+                 ~r/unknown keys \[:server\] in .*, the allowed keys are: \[\]/,
+                 fn -> PetstoreClient.Api.PetApi.update_pet(api, 1, pet, server: server) end
+  end
+
+  test "an operation rejects a misspelt :content_type opt", %{api: api} do
+    assert_raise ArgumentError,
+                 ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:content_type\]/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, <<1, 2, 3>>,
+                     contnet_type: "image/png"
+                   )
+                 end
+  end
+
+  # A per-operation server variable that declares an enum accepts only a member
+  # of it, as the global ServerConfiguration does: any other value would be
+  # spliced into the request host (and a nil one would leave it empty).
+  test "per-operation server variant resolves a value inside the variable enum" do
+    server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
+      environment: PetstoreClient.Api.GetStagingPetInfoServer.Environment.sandbox(),
+      version: PetstoreClient.Api.GetStagingPetInfoServer.Version.v3()
+    }
+
+    assert PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) ==
+             "https://sandbox.example.com/api/v3"
+  end
+
+  test "per-operation server variant rejects a value outside the variable enum" do
+    server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{
+      environment: "attacker.net/x#",
+      version: "v2"
+    }
+
+    assert_raise ArgumentError,
+                 ~s(Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: ["staging", "sandbox"]),
+                 fn -> PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) end
+  end
+
+  test "per-operation server variant rejects a variable left unset" do
+    server = %PetstoreClient.Api.GetStagingPetInfoServer.StagingServer{environment: "staging"}
+
+    assert_raise ArgumentError,
+                 ~s(Invalid value '' for server variable 'version'. Allowed values: ["v2", "v3"]),
+                 fn -> PetstoreClient.Api.GetStagingPetInfoServer.StagingServer.url(server) end
+  end
+
   # path-double-encoding: a string path param carrying an encodable char
   # must be percent-encoded exactly ONCE. The ValueSerializer already
   # encodes path segments per-item; the api template must NOT re-wrap the
@@ -279,6 +358,33 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     refute url =~ ~r/colors=blue%2C/,
            "colors must use its declared pipeDelimited style, not a comma blob, got: #{url}"
+
+    Agent.stop(name)
+  end
+
+  # A non-exploded delimited array serialises to a single (empty) value, so an
+  # explicitly empty list is sent as `colors=` / `sizes=` like in the other
+  # SDKs, rather than dropping the key.
+  test "get_pet_tag sends an empty non-exploded array query param as an empty value" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result =
+      PetstoreClient.Api.PetApi.get_pet_tag(
+        api,
+        5,
+        "cute",
+        %PetstoreClient.Api.Options.GetPetTagOptions{colors: [], sizes: []}
+      )
+
+    url = PathCapturingApiClient.captured_url(name)
+
+    assert url =~ ~r/[?&]colors=(&|$)/,
+           "Expected an empty colors= on the wire, got: #{url}"
+
+    assert url =~ ~r/[?&]sizes=(&|$)/,
+           "Expected an empty sizes= on the wire, got: #{url}"
 
     Agent.stop(name)
   end
@@ -598,10 +704,10 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   # per-op-auth-precedence: per-operation auth is sourced SOLELY from the
   # Options struct's `auth` field. There is no `opts[:auth]` channel — an
-  # `:auth` entry in the trailing keyword list is ignored and must never
-  # override an explicit `options.auth`. 11 sibling SDKs source per-op auth
-  # only from `options.auth`; this pins Elixir to the same contract.
-  test "per-op auth comes only from options.auth; opts[:auth] is ignored" do
+  # `:auth` entry in the trailing keyword list is rejected as an unknown key, so
+  # it can never override an explicit `options.auth`. 11 sibling SDKs source
+  # per-op auth only from `options.auth`; this pins Elixir to the same contract.
+  test "per-op auth comes only from options.auth; opts[:auth] is rejected" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
@@ -610,12 +716,14 @@ defmodule PetstoreClient.Api.PetApiTest do
     opts_auth = %{auth_headers: %{"Authorization" => "Bearer from-opts"}}
 
     options = %PetstoreClient.Api.Options.DeletePetOptions{auth: options_auth}
-
-    {:ok, _result} =
-      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options, auth: opts_auth)
+    {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options)
 
     headers = HeaderCapturingApiClient.captured_headers(name)
     assert headers["Authorization"] == "Bearer from-options"
+
+    assert_raise ArgumentError, ~r/unknown keys \[:auth\]/, fn ->
+      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, options, auth: opts_auth)
+    end
 
     Agent.stop(name)
   end

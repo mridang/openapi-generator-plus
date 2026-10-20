@@ -156,6 +156,42 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok2"
     end
 
+    # The exchange is recorded in the shared token manager, not in the struct, so
+    # a copy of the authenticator (such as the one the client holds) is ready as
+    # soon as exchange_code ran on any other copy, whatever it returned.
+    test "exchange_code readies the authenticator without using its return value" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      _ =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+
+      headers = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok1"
+    end
+
     test "rejects empty authorization code" do
       auth = create_authenticator()
 
@@ -234,6 +270,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       auth = create_authenticator()
 
       refute inspect(auth) =~ "my-client-secret"
+      assert inspect(auth) =~ ~s(client_secret: "***")
     end
   end
 end

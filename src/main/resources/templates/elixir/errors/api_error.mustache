@@ -76,7 +76,10 @@ defmodule {{moduleName}}.Errors.ApiError do
   # labelled field per line.
   @impl true
   def message(%__MODULE__{} = error) do
-    msg = error.message || "Error message: the server returns an error"
+    msg =
+      if error.message in [nil, ""],
+        do: "Error message: the server returns an error",
+        else: error.message
 
     msg =
       if error.status_code in [nil, 0],

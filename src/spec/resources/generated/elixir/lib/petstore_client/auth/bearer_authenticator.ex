@@ -17,10 +17,16 @@ defmodule PetstoreClient.Auth.BearerAuthenticator do
           token: String.t()
         }
 
-  # Redact the token from the default Inspect representation so credentials
-  # never leak into logs or stack traces.
-  @derive {Inspect, except: [:token]}
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
   defstruct [:host, :token]
+
+  defimpl Inspect do
+    def inspect(auth, opts), do: Inspect.Any.inspect(%{auth | token: mask(auth.token)}, opts)
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
 
   @doc """
   Create a new Bearer authenticator.

@@ -18,10 +18,17 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
           password: String.t()
         }
 
-  # Redact the password from the default Inspect representation so credentials
-  # never leak into logs or stack traces.
-  @derive {Inspect, except: [:password]}
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
   defstruct [:host, :username, :password]
+
+  defimpl Inspect do
+    def inspect(auth, opts),
+      do: Inspect.Any.inspect(%{auth | password: mask(auth.password)}, opts)
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
 
   @doc """
   Create a new Basic authenticator.

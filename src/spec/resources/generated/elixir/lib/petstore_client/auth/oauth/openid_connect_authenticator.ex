@@ -34,9 +34,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
           discovery_cache: pid()
         }
 
-  # Redact the client secret and the delegate (which holds the live token
-  # manager) from the default Inspect representation.
-  @derive {Inspect, except: [:client_secret, :delegate]}
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
   defstruct [
     :host,
     :openid_connect_url,
@@ -49,6 +48,18 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     :discovery_expiry,
     :discovery_cache
   ]
+
+  defimpl Inspect do
+    def inspect(auth, opts),
+      do:
+        Inspect.Any.inspect(
+          %{auth | client_secret: mask(auth.client_secret), delegate: mask(auth.delegate)},
+          opts
+        )
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
 
   # RFC 8414 recommended default max-age for OIDC discovery documents.
   @default_discovery_max_age_seconds 86_400
@@ -70,8 +81,10 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
   def new(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes) do
     # The struct is immutable and build_authorization_url/2 returns only the
     # URL, so the resolved discovery document is cached in a process that
-    # every copy of this struct shares, like the token manager's token.
-    {:ok, discovery_cache} = Agent.start_link(fn -> nil end)
+    # every copy of this struct shares, like the token manager's token. The
+    # injected ApiClient is kept there too, so the client's copy and the
+    # caller's copy of the authenticator both see it.
+    {:ok, discovery_cache} = Agent.start_link(fn -> %{api_client: nil, discovery: nil} end)
 
     %__MODULE__{
       host: host,
@@ -89,6 +102,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
 
   @impl PetstoreClient.Auth.HttpAwareAuthenticator
   def set_api_client(%__MODULE__{} = self, client) do
+    Agent.update(self.discovery_cache, &Map.put(&1, :api_client, client))
     %{self | api_client: client}
   end
 
@@ -118,7 +132,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         code
       )
 
-    Agent.update(self.discovery_cache, fn _ -> {delegate, self.discovery_expiry} end)
+    Agent.update(
+      self.discovery_cache,
+      &Map.put(&1, :discovery, {delegate, self.discovery_expiry})
+    )
+
     %{self | delegate: delegate}
   end
 
@@ -131,6 +149,15 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(self.delegate)
   end
 
+  # A copy of the authenticator that was never handed the ApiClient (the caller's,
+  # when the client was built from it) borrows the one in the shared cache.
+  defp resolve_delegate(%__MODULE__{api_client: nil} = self) do
+    case Agent.get(self.discovery_cache, & &1.api_client) do
+      nil -> raise_client_not_injected()
+      client -> resolve_delegate(%{self | api_client: client})
+    end
+  end
+
   defp resolve_delegate(%__MODULE__{delegate: delegate, discovery_expiry: expiry} = self)
        when not is_nil(delegate) do
     if expiry != nil and System.system_time(:second) < expiry do
@@ -140,14 +167,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     end
   end
 
-  defp resolve_delegate(%__MODULE__{api_client: nil}) do
-    raise "ApiClient has not been injected. " <>
-            "Ensure the Client constructor calls set_api_client " <>
-            "on HttpAwareAuthenticator before making API requests."
-  end
-
   defp resolve_delegate(%__MODULE__{} = self) do
-    case Agent.get(self.discovery_cache, & &1) do
+    case Agent.get(self.discovery_cache, & &1.discovery) do
       {delegate, expiry} when is_integer(expiry) ->
         if System.system_time(:second) < expiry do
           %{self | delegate: delegate, discovery_expiry: expiry}
@@ -160,16 +181,23 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     end
   end
 
-  defp cache_discovery(%__MODULE__{} = self) do
-    Agent.update(self.discovery_cache, fn _ -> {self.delegate, self.discovery_expiry} end)
-    self
-  end
-
-  defp fetch_discovery(%__MODULE__{api_client: nil}) do
+  @spec raise_client_not_injected() :: no_return()
+  defp raise_client_not_injected do
     raise "ApiClient has not been injected. " <>
             "Ensure the Client constructor calls set_api_client " <>
             "on HttpAwareAuthenticator before making API requests."
   end
+
+  defp cache_discovery(%__MODULE__{} = self) do
+    Agent.update(
+      self.discovery_cache,
+      &Map.put(&1, :discovery, {self.delegate, self.discovery_expiry})
+    )
+
+    self
+  end
+
+  defp fetch_discovery(%__MODULE__{api_client: nil}), do: raise_client_not_injected()
 
   defp fetch_discovery(%__MODULE__{} = self) do
     headers = %{"Accept" => "application/json"}

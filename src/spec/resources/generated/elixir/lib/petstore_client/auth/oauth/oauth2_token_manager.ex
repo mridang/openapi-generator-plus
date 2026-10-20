@@ -27,7 +27,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           api_client: term() | nil,
           access_token: String.t() | nil,
           refresh_token: String.t() | nil,
-          token_expiry: float() | nil
+          token_expiry: float() | nil,
+          token_exchanged: boolean()
         }
 
   @doc """
@@ -41,7 +42,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           api_client: nil,
           access_token: nil,
           refresh_token: nil,
-          token_expiry: nil
+          token_expiry: nil,
+          token_exchanged: false
         }
       end,
       opts
@@ -54,6 +56,25 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
   @spec set_api_client(pid(), term()) :: :ok
   def set_api_client(manager, client) do
     Agent.update(manager, &Map.put(&1, :api_client, client))
+  end
+
+  @doc """
+  Record that the authorization code has been exchanged.
+
+  The flag lives here, not in the authenticator struct, so every copy of the
+  authenticator (such as the one the client holds) sees the exchange.
+  """
+  @spec mark_exchanged(pid()) :: :ok
+  def mark_exchanged(manager) do
+    Agent.update(manager, &Map.put(&1, :token_exchanged, true))
+  end
+
+  @doc """
+  Whether the authorization code has been exchanged.
+  """
+  @spec exchanged?(pid()) :: boolean()
+  def exchanged?(manager) do
+    Agent.get(manager, & &1.token_exchanged)
   end
 
   @doc """

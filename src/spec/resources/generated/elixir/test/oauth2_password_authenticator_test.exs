@@ -232,6 +232,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
       refute inspect(auth) =~ "my-client-secret"
       refute inspect(auth) =~ "testpass"
+      assert inspect(auth) =~ ~s(client_secret: "***")
+      assert inspect(auth) =~ ~s(password: "***")
     end
   end
 end

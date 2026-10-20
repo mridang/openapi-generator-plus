@@ -88,6 +88,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
         )
 
       refute inspect(auth) =~ "implicit-tok"
+      assert inspect(auth) =~ ~s(access_token: "***")
     end
   end
 end

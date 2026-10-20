@@ -73,6 +73,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       auth = {{moduleName}}.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "implicit-tok")
 
       refute inspect(auth) =~ "implicit-tok"
+      assert inspect(auth) =~ ~s(access_token: "***")
     end
   end
 end

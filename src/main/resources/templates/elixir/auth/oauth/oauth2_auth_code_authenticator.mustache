@@ -28,13 +28,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
           refresh_url: String.t(),
           redirect_uri: String.t(),
           scopes: [String.t()],
-          token_manager: pid() | nil,
-          token_exchanged: boolean()
+          token_manager: pid() | nil
         }
 
-  # Redact the client secret and the live token manager (which holds
-  # access/refresh tokens) from the default Inspect representation.
-  @derive {Inspect, except: [:client_secret, :token_manager]}
+  # Credential fields are masked as `***` in the Inspect representation (they stay
+  # visible but never leak into logs or stack traces); see the impl below.
   defstruct [
     :host,
     :client_id,
@@ -44,9 +42,15 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
     :refresh_url,
     :redirect_uri,
     :scopes,
-    :token_manager,
-    token_exchanged: false
+    :token_manager
   ]
+
+  defimpl Inspect do
+    def inspect(auth, opts), do: Inspect.Any.inspect(%{auth | client_secret: mask(auth.client_secret), token_manager: mask(auth.token_manager)}, opts)
+
+    defp mask(nil), do: nil
+    defp mask(_secret), do: "***"
+  end
 
   @doc """
   Create a new authorization code authenticator.
@@ -64,8 +68,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       refresh_url: Keyword.get(opts, :refresh_url, token_url),
       redirect_uri: redirect_uri,
       scopes: scopes,
-      token_manager: manager,
-      token_exchanged: false
+      token_manager: manager
     }
   end
 
@@ -115,7 +118,9 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
 
   ## Returns
 
-    The updated authenticator with token_exchanged set to true.
+    The authenticator. The exchange is recorded in the shared token manager, so
+    every copy of the authenticator (including the one the client holds) is
+    ready for API requests.
   """
   @spec exchange_code(t(), String.t()) :: t()
   def exchange_code(%__MODULE__{} = self, code) do
@@ -136,18 +141,19 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
     }
 
     _token = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.token_url, params)
-    %{self | token_exchanged: true}
+    {{moduleName}}.Auth.OAuth.OAuth2TokenManager.mark_exchanged(self.token_manager)
+    self
   end
 
   @impl {{moduleName}}.Auth.Authenticator
   def host(%__MODULE__{} = self), do: self.host
 
   @impl {{moduleName}}.Auth.Authenticator
-  def auth_headers(%__MODULE__{token_exchanged: false}) do
-    raise "Must call exchange_code before making API requests"
-  end
-
   def auth_headers(%__MODULE__{} = self) do
+    unless {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchanged?(self.token_manager) do
+      raise "Must call exchange_code before making API requests"
+    end
+
     params = %{
       "grant_type" => "refresh_token",
       "refresh_token" => {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || ""
