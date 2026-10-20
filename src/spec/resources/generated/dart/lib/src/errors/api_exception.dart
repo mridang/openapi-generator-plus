@@ -94,7 +94,6 @@ class ApiException extends OpenAPIException {
     switch (statusCode) {
       case 400:
         return BadRequestException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -102,7 +101,6 @@ class ApiException extends OpenAPIException {
         );
       case 401:
         return UnauthorizedException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -110,7 +108,6 @@ class ApiException extends OpenAPIException {
         );
       case 403:
         return ForbiddenException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -118,7 +115,6 @@ class ApiException extends OpenAPIException {
         );
       case 404:
         return NotFoundException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -126,7 +122,6 @@ class ApiException extends OpenAPIException {
         );
       case 409:
         return ConflictException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -134,7 +129,6 @@ class ApiException extends OpenAPIException {
         );
       case 422:
         return UnprocessableEntityException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,
@@ -142,7 +136,6 @@ class ApiException extends OpenAPIException {
         );
       case 500:
         return InternalServerErrorException(
-          statusCode: statusCode,
           message: message,
           responseBody: responseBody,
           responseHeaders: responseHeaders,

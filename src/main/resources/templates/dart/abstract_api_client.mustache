@@ -129,9 +129,7 @@ abstract class AbstractApiClient implements ApiClient {
     merged.addAll(headers);
 
     final userAgent = _transportOptions.userAgent;
-    if (!merged.containsKey('User-Agent') &&
-        userAgent != null &&
-        userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') && userAgent != null) {
       merged['User-Agent'] = userAgent;
     }
 
@@ -216,11 +214,9 @@ abstract class AbstractApiClient implements ApiClient {
     http.StreamedResponse streamedResponse;
     Uri currentUri = uri;
     Uint8List rawBytes;
+    final clock = Stopwatch()..start();
     try {
-      final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
-      streamedResponse = _transportOptions.timeout != null
-          ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
-          : await pendingResponse;
+      streamedResponse = await _sendWithin(request, clock);
       if (_transportOptions.followRedirects && !noRedirect) {
         final maxRedirects = _transportOptions.maxRedirects ?? 20;
         /* Extend the cross-origin strip set with API-key header names declared
@@ -345,10 +341,7 @@ abstract class AbstractApiClient implements ApiClient {
           currentMethod = nextMethod;
           currentBody = nextBody;
           currentHeaders = redirectHeaders;
-          final p = _httpClient.send(next);
-          streamedResponse = _transportOptions.timeout != null
-              ? await p.timeout(Duration(milliseconds: _transportOptions.timeout!))
-              : await p;
+          streamedResponse = await _sendWithin(next, clock);
           hops++;
         }
         /* The redirect chain was followed up to `maxRedirects` hops but the
@@ -368,7 +361,7 @@ abstract class AbstractApiClient implements ApiClient {
        * occurs AFTER the response headers arrive is wrapped in the same
        * error type a send-phase failure produces (status code 0, underlying
        * error preserved). */
-      rawBytes = await streamedResponse.stream.toBytes();
+      rawBytes = await _readWithin(streamedResponse.stream, clock);
     } on ApiException {
       /* SDK-typed errors raised inside the redirect loop (unsupported
        * scheme, refused downgrade, too many redirects) already carry the
@@ -463,6 +456,60 @@ abstract class AbstractApiClient implements ApiClient {
     );
   }
 
+  /// Time left of the end-to-end timeout, measured on [clock] since the
+  /// request started. Never negative.
+  Duration _remaining(Stopwatch clock) {
+    final left = _transportOptions.timeout! - clock.elapsedMilliseconds;
+    return Duration(milliseconds: left < 0 ? 0 : left);
+  }
+
+  /// Sends [request] within the end-to-end timeout. A response that arrives
+  /// after the deadline is never read, so its stream is cancelled to release
+  /// the connection.
+  Future<http.StreamedResponse> _sendWithin(
+    http.BaseRequest request,
+    Stopwatch clock,
+  ) {
+    final pending = _httpClient.send(request);
+    final limit = _transportOptions.timeout;
+    if (limit == null) return pending;
+    return pending.timeout(_remaining(clock), onTimeout: () {
+      unawaited(pending.then<void>(
+        (unread) => unread.stream.listen(null).cancel(),
+        onError: (Object _) {},
+      ));
+      throw TimeoutException('Request timed out after $limit ms');
+    });
+  }
+
+  /// Reads the whole response body within what is left of the end-to-end
+  /// timeout. `Future.timeout` over `toBytes()` would leave the subscription
+  /// open, so the body is collected through a subscription that is cancelled
+  /// (closing the connection) when the deadline passes.
+  Future<Uint8List> _readWithin(http.ByteStream stream, Stopwatch clock) {
+    final limit = _transportOptions.timeout;
+    if (limit == null) return stream.toBytes();
+    final done = Completer<Uint8List>();
+    final builder = BytesBuilder(copy: false);
+    final subscription = stream.listen(
+      builder.add,
+      onError: (Object error, StackTrace stack) {
+        if (!done.isCompleted) done.completeError(error, stack);
+      },
+      onDone: () {
+        if (!done.isCompleted) done.complete(builder.takeBytes());
+      },
+      cancelOnError: true,
+    );
+    final timer = Timer(_remaining(clock), () {
+      subscription.cancel();
+      if (!done.isCompleted) {
+        done.completeError(TimeoutException('Request timed out after $limit ms'));
+      }
+    });
+    return done.future.whenComplete(timer.cancel);
+  }
+
   /// Builds a [http.MultipartRequest] for [method] and [uri] from the form
   /// [fields], carrying [headers] and with automatic redirects disabled.
   ///
@@ -544,9 +591,12 @@ abstract class AbstractApiClient implements ApiClient {
       }
     } else {
       final json = jsonEncode(value);
-      request.files.add(http.MultipartFile.fromString(
+      /* fromString would add a charset parameter to the part's content type;
+       * JSON is always UTF-8, so the bytes go out under the bare media type
+       * like the other SDKs. */
+      request.files.add(http.MultipartFile.fromBytes(
         name,
-        json,
+        utf8.encode(json),
         contentType: MediaType('application', 'json'),
       ));
     }
@@ -559,6 +609,15 @@ abstract class AbstractApiClient implements ApiClient {
     _closed = true;
     _httpClient.close();
   }
+
+  /// Code points of windows-1252 bytes 0x80..0x9F. The five bytes it leaves
+  /// undefined map to the C1 control of the same value, like the WHATWG table.
+  static const List<int> _windows1252High = [
+    0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+    0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+    0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+    0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178,
+  ];
 
   /// Decodes response [bytes] into a string honouring the `charset=`
   /// parameter in [contentType].
@@ -579,6 +638,12 @@ abstract class AbstractApiClient implements ApiClient {
       case 'latin1':
       case 'latin-1':
         return latin1.decode(bytes, allowInvalid: true);
+      case 'windows-1252':
+      case 'cp1252':
+      case 'x-cp1252':
+        return String.fromCharCodes(
+          bytes.map((b) => b >= 0x80 && b <= 0x9F ? _windows1252High[b - 0x80] : b),
+        );
       case 'us-ascii':
       case 'ascii':
         return ascii.decode(bytes, allowInvalid: true);

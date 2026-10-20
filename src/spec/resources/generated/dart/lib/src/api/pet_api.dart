@@ -176,7 +176,7 @@ class PetApi extends BaseApi {
   /// `pet` Create a new pet in the store
 
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
-    final result = await addPetWithHTTPInfo(pet, options);
+    final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -195,7 +195,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPet operation and returns the full API result.
-  Future<ApiResult<Pet>> addPetWithHTTPInfo(
+  Future<ApiResult<Pet>> addPetWithHttpInfo(
     Pet pet,
     AddPetOptions? options,
   ) async {
@@ -231,7 +231,7 @@ class PetApi extends BaseApi {
     int petId,
     AddPetPhotosOptions options,
   ) async {
-    final result = await addPetPhotosWithHTTPInfo(petId, options);
+    final result = await addPetPhotosWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -250,7 +250,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
-  Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
+  Future<ApiResult<List<Photo>>> addPetPhotosWithHttpInfo(
     int petId,
     AddPetPhotosOptions options,
   ) async {
@@ -325,7 +325,7 @@ class PetApi extends BaseApi {
     PetTreatment petTreatment,
     AddPetTreatmentOptions? options,
   ) async {
-    final result = await addPetTreatmentWithHTTPInfo(
+    final result = await addPetTreatmentWithHttpInfo(
       petId,
       petTreatment,
       options,
@@ -349,7 +349,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
-  Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
+  Future<ApiResult<PetTreatment>> addPetTreatmentWithHttpInfo(
     int petId,
     PetTreatment petTreatment,
     AddPetTreatmentOptions? options,
@@ -407,11 +407,11 @@ class PetApi extends BaseApi {
   /// `apiKey` Session cookie used for authentication
 
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
-    await deletePetWithHTTPInfo(petId, options);
+    await deletePetWithHttpInfo(petId, options);
   }
 
   /// Performs the deletePet operation and returns the full API result.
-  Future<ApiResult<void>> deletePetWithHTTPInfo(
+  Future<ApiResult<void>> deletePetWithHttpInfo(
     int petId,
     DeletePetOptions? options,
   ) async {
@@ -492,7 +492,7 @@ class PetApi extends BaseApi {
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
 
   Future<Uint8List> downloadPetDocument(int petId, int documentId) async {
-    final result = await downloadPetDocumentWithHTTPInfo(petId, documentId);
+    final result = await downloadPetDocumentWithHttpInfo(petId, documentId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -512,7 +512,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
-  Future<ApiResult<Uint8List>> downloadPetDocumentWithHTTPInfo(
+  Future<ApiResult<Uint8List>> downloadPetDocumentWithHttpInfo(
     int petId,
     int documentId,
   ) async {
@@ -586,7 +586,7 @@ class PetApi extends BaseApi {
   /// `bornOn` Date of birth to match
 
   Future<List<Pet>> findPetsBornOn(DateTime bornOn) async {
-    final result = await findPetsBornOnWithHTTPInfo(bornOn);
+    final result = await findPetsBornOnWithHttpInfo(bornOn);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -606,7 +606,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the findPetsBornOn operation and returns the full API result.
-  Future<ApiResult<List<Pet>>> findPetsBornOnWithHTTPInfo(
+  Future<ApiResult<List<Pet>>> findPetsBornOnWithHttpInfo(
     DateTime bornOn,
   ) async {
     var path = '/pet/born-on/{bornOn}';
@@ -675,7 +675,7 @@ class PetApi extends BaseApi {
   /// See <https://example.com/docs/filtering> Find out more about filtering
   @Deprecated('This operation is deprecated.')
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
-    final result = await findPetsByStatusWithHTTPInfo(options);
+    final result = await findPetsByStatusWithHttpInfo(options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -696,7 +696,7 @@ class PetApi extends BaseApi {
 
   /// Performs the findPetsByStatus operation and returns the full API result.
   @Deprecated('This operation is deprecated.')
-  Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
+  Future<ApiResult<List<Pet>>> findPetsByStatusWithHttpInfo(
     FindPetsByStatusOptions? options,
   ) async {
     var path = '/pet/findByStatus';
@@ -770,7 +770,7 @@ class PetApi extends BaseApi {
     int petId,
     GetExternalPetInfoServer? server,
   ) async {
-    final result = await getExternalPetInfoWithHTTPInfo(petId, server);
+    final result = await getExternalPetInfoWithHttpInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -790,7 +790,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
+  Future<ApiResult<Pet>> getExternalPetInfoWithHttpInfo(
     int petId,
     GetExternalPetInfoServer? server,
   ) async {
@@ -851,7 +851,7 @@ class PetApi extends BaseApi {
     int petId,
     GetMultiServerPetInfoServer? server,
   ) async {
-    final result = await getMultiServerPetInfoWithHTTPInfo(petId, server);
+    final result = await getMultiServerPetInfoWithHttpInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -871,7 +871,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
+  Future<ApiResult<Pet>> getMultiServerPetInfoWithHttpInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
   ) async {
@@ -930,7 +930,7 @@ class PetApi extends BaseApi {
   /// Returns the raw image bytes of the pet's current avatar.
 
   Future<Uint8List> getPetAvatar(int petId) async {
-    final result = await getPetAvatarWithHTTPInfo(petId);
+    final result = await getPetAvatarWithHttpInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -949,7 +949,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarWithHTTPInfo(int petId) async {
+  Future<ApiResult<Uint8List>> getPetAvatarWithHttpInfo(int petId) async {
     var path = '/pet/{petId}/avatar';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -998,7 +998,7 @@ class PetApi extends BaseApi {
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
 
   Future<Uint8List> getPetAvatarThumbnail(int petId) async {
-    final result = await getPetAvatarThumbnailWithHTTPInfo(petId);
+    final result = await getPetAvatarThumbnailWithHttpInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1018,7 +1018,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHTTPInfo(
+  Future<ApiResult<Uint8List>> getPetAvatarThumbnailWithHttpInfo(
     int petId,
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
@@ -1083,7 +1083,7 @@ class PetApi extends BaseApi {
 
   @Deprecated('This operation is deprecated.')
   Future<Pet> getPetById(int petId, GetPetByIdServer? server) async {
-    final result = await getPetByIdWithHTTPInfo(petId, server);
+    final result = await getPetByIdWithHttpInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1103,7 +1103,7 @@ class PetApi extends BaseApi {
 
   /// Performs the getPetById operation and returns the full API result.
   @Deprecated('This operation is deprecated.')
-  Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
+  Future<ApiResult<Pet>> getPetByIdWithHttpInfo(
     int petId,
     GetPetByIdServer? server,
   ) async {
@@ -1161,7 +1161,7 @@ class PetApi extends BaseApi {
   /// Look up a pet by name (simple string path param + required query)
 
   Future<Pet> getPetByName(String name, GetPetByNameOptions options) async {
-    final result = await getPetByNameWithHTTPInfo(name, options);
+    final result = await getPetByNameWithHttpInfo(name, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1180,7 +1180,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetByName operation and returns the full API result.
-  Future<ApiResult<Pet>> getPetByNameWithHTTPInfo(
+  Future<ApiResult<Pet>> getPetByNameWithHttpInfo(
     String name,
     GetPetByNameOptions options,
   ) async {
@@ -1259,7 +1259,7 @@ class PetApi extends BaseApi {
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
 
   Future<PetPassport> getPetPassport(int petId) async {
-    final result = await getPetPassportWithHTTPInfo(petId);
+    final result = await getPetPassportWithHttpInfo(petId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1279,7 +1279,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHttpInfo(int petId) async {
     var path = '/pet/{petId}/passport';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -1330,7 +1330,7 @@ class PetApi extends BaseApi {
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
 
   Future<Uint8List> getPetPhoto(int petId, int photoId) async {
-    final result = await getPetPhotoWithHTTPInfo(petId, photoId);
+    final result = await getPetPhotoWithHttpInfo(petId, photoId);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1349,7 +1349,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
-  Future<ApiResult<Uint8List>> getPetPhotoWithHTTPInfo(
+  Future<ApiResult<Uint8List>> getPetPhotoWithHttpInfo(
     int petId,
     int photoId,
   ) async {
@@ -1427,7 +1427,7 @@ class PetApi extends BaseApi {
     String tagName,
     GetPetTagOptions? options,
   ) async {
-    final result = await getPetTagWithHTTPInfo(petId, tagName, options);
+    final result = await getPetTagWithHttpInfo(petId, tagName, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1446,7 +1446,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetTag operation and returns the full API result.
-  Future<ApiResult<Pet>> getPetTagWithHTTPInfo(
+  Future<ApiResult<Pet>> getPetTagWithHttpInfo(
     int petId,
     String tagName,
     GetPetTagOptions? options,
@@ -1586,7 +1586,7 @@ class PetApi extends BaseApi {
     int petId,
     GetStagingPetInfoServer? server,
   ) async {
-    final result = await getStagingPetInfoWithHTTPInfo(petId, server);
+    final result = await getStagingPetInfoWithHttpInfo(petId, server);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1606,7 +1606,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
+  Future<ApiResult<Pet>> getStagingPetInfoWithHttpInfo(
     int petId,
     GetStagingPetInfoServer? server,
   ) async {
@@ -1669,11 +1669,11 @@ class PetApi extends BaseApi {
     Uint8List body, [
     String? requestContentType,
   ]) async {
-    await setPetAvatarWithHTTPInfo(petId, body, requestContentType);
+    await setPetAvatarWithHttpInfo(petId, body, requestContentType);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
+  Future<ApiResult<void>> setPetAvatarWithHttpInfo(
     int petId,
     Uint8List body, [
     String? requestContentType,
@@ -1738,14 +1738,14 @@ class PetApi extends BaseApi {
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
   ) async {
-    await setPetAvatarThumbnailWithHTTPInfo(
+    await setPetAvatarThumbnailWithHttpInfo(
       petId,
       setPetAvatarThumbnailRequest,
     );
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(
+  Future<ApiResult<void>> setPetAvatarThumbnailWithHttpInfo(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
   ) async {
@@ -1799,7 +1799,7 @@ class PetApi extends BaseApi {
     int petId,
     SetPetPreferencesOptions options,
   ) async {
-    final result = await setPetPreferencesWithHTTPInfo(petId, options);
+    final result = await setPetPreferencesWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1819,7 +1819,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the setPetPreferences operation and returns the full API result.
-  Future<ApiResult<ApiResponse>> setPetPreferencesWithHTTPInfo(
+  Future<ApiResult<ApiResponse>> setPetPreferencesWithHttpInfo(
     int petId,
     SetPetPreferencesOptions options,
   ) async {
@@ -1903,7 +1903,7 @@ class PetApi extends BaseApi {
   /// `pet` Pet object that needs to be updated
 
   Future<Pet> updatePet(int petId, Pet pet) async {
-    final result = await updatePetWithHTTPInfo(petId, pet);
+    final result = await updatePetWithHttpInfo(petId, pet);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1922,7 +1922,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet) async {
+  Future<ApiResult<Pet>> updatePetWithHttpInfo(int petId, Pet pet) async {
     var path = '/pet/{petId}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
@@ -1975,7 +1975,7 @@ class PetApi extends BaseApi {
     int petId,
     UploadPetCertificateOptions options,
   ) async {
-    final result = await uploadPetCertificateWithHTTPInfo(petId, options);
+    final result = await uploadPetCertificateWithHttpInfo(petId, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1995,7 +1995,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
-  Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
+  Future<ApiResult<ApiResponse>> uploadPetCertificateWithHttpInfo(
     int petId,
     UploadPetCertificateOptions options,
   ) async {
@@ -2068,7 +2068,7 @@ class PetApi extends BaseApi {
     UploadPetDocumentOptions options, [
     String? requestContentType,
   ]) async {
-    final result = await uploadPetDocumentWithHTTPInfo(
+    final result = await uploadPetDocumentWithHttpInfo(
       petId,
       options,
       requestContentType,
@@ -2092,7 +2092,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
-  Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
+  Future<ApiResult<ApiResponse>> uploadPetDocumentWithHttpInfo(
     int petId,
     UploadPetDocumentOptions options, [
     String? requestContentType,

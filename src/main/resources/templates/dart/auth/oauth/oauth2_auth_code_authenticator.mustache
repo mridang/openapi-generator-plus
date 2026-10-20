@@ -112,7 +112,10 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
     if (!_tokenExchanged) {
       throw StateError('Must call exchangeCode before making API requests');
     }
-    return {};
+    /* A valid token may need an async refresh; an empty map would send the
+     * request unauthenticated without any error. */
+    throw StateError(
+        'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.');
   }
 
   /// Asynchronously retrieves auth headers with a valid access token.

@@ -90,6 +90,27 @@ void main() {
       expect(restored['foodType'], equals('dry'));
     });
 
+    test(
+      'PetFood.value wraps a variant that serializes with its discriminator',
+      () {
+        final food = PetFood.value(DryFood(weightKg: 2.5));
+
+        expect(food.value, isA<DryFood>());
+        expect(
+          food.toJson(),
+          equals(<String, dynamic>{'foodType': 'dry', 'weightKg': 2.5}),
+        );
+      },
+    );
+
+    test('PetFood.value round trips through fromJson', () {
+      final wire =
+          jsonDecode(jsonEncode(PetFood.value(WetFood(volumeMl: 400)).toJson()))
+              as Map<String, dynamic>;
+
+      expect(PetFood.fromJson(wire).value, isA<WetFood>());
+    });
+
     // anyOf without discriminator: PetTreatment
 
     test('PetTreatment deserialize medication', () {

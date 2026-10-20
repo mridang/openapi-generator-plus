@@ -10,10 +10,9 @@ import 'client_exception.dart';
 /// Exception for HTTP 400 Bad Request.
 class BadRequestException extends ClientException {
   const BadRequestException({
-    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
-  });
+  }) : super(statusCode: 400);
 }

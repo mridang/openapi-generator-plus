@@ -57,9 +57,11 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
   Map<String, String> authHeaders() {
     /* The client credentials flow requires an async token exchange, which
      * cannot be performed from this synchronous method. Returning an empty
-     * map here is intentional — callers must use [authHeadersAsync] to
-     * obtain a valid Bearer token for OAuth flows. */
-    return {};
+     * map would send the request unauthenticated without any error, so this
+     * raises; callers must use [authHeadersAsync]. */
+    throw StateError(
+      'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.',
+    );
   }
 
   /// Asynchronously retrieves auth headers with a valid access token.

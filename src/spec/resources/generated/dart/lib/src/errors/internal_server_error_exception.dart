@@ -10,10 +10,9 @@ import 'server_exception.dart';
 /// Exception for HTTP 500 Internal Server Error.
 class InternalServerErrorException extends ServerException {
   const InternalServerErrorException({
-    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
-  });
+  }) : super(statusCode: 500);
 }

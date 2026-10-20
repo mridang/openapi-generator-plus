@@ -60,8 +60,12 @@ class DefaultApiClient extends AbstractApiClient {
   /// Configures TLS certificate verification, custom CA certificates,
   /// and proxy routing based on transport option settings.
   static http.Client _createClient(TransportOptions options) {
-    final context = SecurityContext(withTrustedRoots: true);
-    if (options.caCertPath != null) {
+    /* A custom CA certificate REPLACES the system trust store (it pins), like
+     * java/kotlin/go/swift/python/node: only a server certificate chaining to
+     * that CA is accepted. Without one the system roots are trusted. */
+    final pinned = options.caCertPath != null;
+    final context = SecurityContext(withTrustedRoots: !pinned);
+    if (pinned) {
       /* A caller-supplied custom CA certificate (TLS pinning) that is
        * missing, unreadable, or unparseable must fail fast. It is a
        * configuration error, so it surfaces as an ArgumentError rather than

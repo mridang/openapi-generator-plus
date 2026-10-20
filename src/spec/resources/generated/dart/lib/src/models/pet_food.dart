@@ -16,6 +16,10 @@ class PetFood {
 
   const PetFood._(this._value);
 
+  /// Wraps a variant value, so a oneOf body can be built in code and not
+  /// only decoded from JSON.
+  const PetFood.value(Object? value) : _value = value;
+
   /// Returns the underlying value of the union type.
   Object? get value => _value;
 

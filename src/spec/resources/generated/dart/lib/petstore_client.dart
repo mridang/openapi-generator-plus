@@ -17,7 +17,7 @@ export 'src/api_http_response.dart';
 export 'src/api_result.dart';
 export 'src/auth/api_key_authenticator.dart';
 export 'src/auth/api_key_location.dart';
-export 'src/auth/authenticator.dart';
+export 'src/auth/authenticator.dart' hide NoAuthAuthenticator, noAuth;
 export 'src/auth/base_authenticator.dart';
 export 'src/auth/basic_authenticator.dart';
 export 'src/auth/bearer_authenticator.dart';

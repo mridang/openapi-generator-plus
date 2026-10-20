@@ -51,6 +51,22 @@ OAuth2ClientCredentialsAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2ClientCredentialsAuthenticator', () {
+    test(
+      'the synchronous authHeaders raises instead of returning no credentials',
+      () {
+        expect(
+          () => _createAuthenticator().authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.',
+            ),
+          ),
+        );
+      },
+    );
+
     test('sends client credentials grant type', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');

@@ -78,11 +78,11 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('addPetWithHTTPInfo', () async {
+    test('addPetWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPetWithHTTPInfo(
+      final result = await api.addPetWithHttpInfo(
         Pet(name: 'Buddy', photoUrls: <String>{'http://example.com/buddy.jpg'}),
         AddPetOptions(auth: auth),
       );
@@ -99,10 +99,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getPetByIdWithHTTPInfo', () async {
+    test('getPetByIdWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetByIdWithHTTPInfo(1, null);
+      final result = await api.getPetByIdWithHttpInfo(1, null);
       expect(result.statusCode, equals(200));
       expect(result.rawBody, isNotEmpty);
       expect(result.headers, isNotNull);
@@ -117,10 +117,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('findPetsByStatusWithHTTPInfo', () async {
+    test('findPetsByStatusWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.findPetsByStatusWithHTTPInfo(
+      final result = await api.findPetsByStatusWithHttpInfo(
         const FindPetsByStatusOptions(status: 'available'),
       );
       expect(result.statusCode, equals(200));
@@ -139,10 +139,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('updatePetWithHTTPInfo', () async {
+    test('updatePetWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.updatePetWithHTTPInfo(
+      final result = await api.updatePetWithHttpInfo(
         1,
         Pet(
           name: 'UpdatedFido',
@@ -160,11 +160,11 @@ void main() {
       await api.deletePet(1, DeletePetOptions(auth: auth));
     });
 
-    test('deletePetWithHTTPInfo', () async {
+    test('deletePetWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.deletePetWithHTTPInfo(
+      final result = await api.deletePetWithHttpInfo(
         1,
         DeletePetOptions(auth: auth),
       );
@@ -179,10 +179,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getPetPassportWithHTTPInfo', () async {
+    test('getPetPassportWithHttpInfo', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.getPetPassportWithHTTPInfo(1);
+      final result = await api.getPetPassportWithHttpInfo(1);
       expect(result.statusCode, equals(200));
     });
 
@@ -527,7 +527,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetAvatarWithHTTPInfo(1);
+        final result = await api.getPetAvatarWithHttpInfo(1);
         expect(result.statusCode, equals(200));
       } finally {
         await server.close();
@@ -733,7 +733,7 @@ void main() {
     });
 
     /* per-call-auth-override: an Authenticator passed to the BASE operation
-     * method (not just WithHTTPInfo) must be applied to the outgoing request.
+     * method (not just WithHttpInfo) must be applied to the outgoing request.
      * The default header carries one token; the per-call authenticator carries
      * a different one and must win on the wire. */
     test('addPet per-call auth override', () async {

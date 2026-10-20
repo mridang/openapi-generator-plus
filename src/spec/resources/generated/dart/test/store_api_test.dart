@@ -38,10 +38,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('placeOrderWithHTTPInfo', () async {
+    test('placeOrderWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.placeOrderWithHTTPInfo(Order());
+      final result = await api.placeOrderWithHttpInfo(Order());
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -64,10 +64,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getInventoryWithHTTPInfo', () async {
+    test('getInventoryWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getInventoryWithHTTPInfo();
+      final result = await api.getInventoryWithHttpInfo();
       expect(result.statusCode, equals(200));
       expect(result.data, isNotNull);
     });
@@ -79,10 +79,10 @@ void main() {
       expect(result, isNotNull);
     });
 
-    test('getOrderByIdWithHTTPInfo', () async {
+    test('getOrderByIdWithHttpInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.getOrderByIdWithHTTPInfo(1);
+      final result = await api.getOrderByIdWithHttpInfo(1);
       expect(result.statusCode, equals(200));
       expect(result.headers, isNotNull);
     });

@@ -72,10 +72,10 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
 
   @override
   Map<String, String> authHeaders() {
-    if (_delegate == null) {
-      return {};
-    }
-    return _delegate!.authHeaders();
+    /* The delegate is resolved by a network discovery call, so there is no
+     * synchronous way to get a token; fail instead of sending an empty map. */
+    throw StateError(
+        'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.');
   }
 
   /// Asynchronously retrieves auth headers with a valid access token.

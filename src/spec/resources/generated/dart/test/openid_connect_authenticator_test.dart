@@ -111,6 +111,22 @@ void main() {
       expect(client.lastBody!, contains('code=oidc-code'));
     });
 
+    test(
+      'the synchronous authHeaders raises instead of returning no credentials',
+      () {
+        expect(
+          () => _createAuthenticator().authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.',
+            ),
+          ),
+        );
+      },
+    );
+
     test('getAuthHeaders returns Bearer after exchange', () async {
       final client = _FakeApiClient();
       client.enqueue(

@@ -114,6 +114,29 @@ void main() {
       );
     });
 
+    test('invalid proxy URL errors never carry the embedded credentials', () {
+      const rejected = {
+        'a secret@proxy:3128': 'Invalid proxy URL',
+        'ftp://user:secret@proxy:21':
+            'Invalid proxy URL (must use http or https scheme)',
+        'http://user:secret@:3128': 'Invalid proxy URL (missing host)',
+      };
+      rejected.forEach((url, message) {
+        expect(
+          () => TransportOptionsBuilder().proxy(url),
+          throwsA(
+            isA<ArgumentError>()
+                .having((e) => e.message, 'message', equals(message))
+                .having(
+                  (e) => e.toString(),
+                  'toString',
+                  isNot(contains('secret')),
+                ),
+          ),
+        );
+      });
+    });
+
     test('null proxy URL is accepted', () {
       final opts = TransportOptionsBuilder().proxy('').build();
 

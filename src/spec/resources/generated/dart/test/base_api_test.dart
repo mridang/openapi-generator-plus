@@ -331,10 +331,10 @@ void main() {
 
     // -- WithHttpInfoVariantTests --
     //
-    // Every operation method has a sibling `<op>WithHTTPInfo` that returns an
+    // Every operation method has a sibling `<op>WithHttpInfo` that returns an
     // `ApiResult<T>` exposing status, data, raw body, and headers.
     test(
-      'WithHTTPInfo variant returns ApiResult exposing status/data/body/headers',
+      'WithHttpInfo variant returns ApiResult exposing status/data/body/headers',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -352,7 +352,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final result = await api.getPetByIdWithHTTPInfo(1, null);
+          final result = await api.getPetByIdWithHttpInfo(1, null);
           expect(result, isA<ApiResult<dynamic>>());
           expect(result.statusCode, equals(200));
           expect(result.data, isNotNull);
@@ -743,7 +743,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHTTPInfo(1, null);
+        final result = await api.getPetByIdWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
         expect(result.data, isNull);
         expect(result.rawBody, equals('hello'));
@@ -772,7 +772,7 @@ void main() {
               .build();
           final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-          final result = await api.getPetByIdWithHTTPInfo(1, null);
+          final result = await api.getPetByIdWithHttpInfo(1, null);
           expect(result.statusCode, equals(200));
           expect(
             result.data,
@@ -811,7 +811,7 @@ void main() {
             .build();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        final result = await api.getPetByIdWithHTTPInfo(1, null);
+        final result = await api.getPetByIdWithHttpInfo(1, null);
         expect(result.statusCode, equals(200));
         expect(
           result.data,
@@ -1811,6 +1811,19 @@ void main() {
         'environment': 'staging',
       }).build();
       expect(config.baseUrl, startsWith('https://staging.example.com'));
+    });
+
+    test('the shared server constants cannot be modified', () {
+      expect(() => allServers.add(server0), throwsUnsupportedError);
+      expect(
+        () =>
+            server1.variables['evil'] = const ServerVariable(defaultValue: 'x'),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => server1.variables['environment']!.enumValues.add('evil'),
+        throwsUnsupportedError,
+      );
     });
 
     test('invalid enum value throws error', () {

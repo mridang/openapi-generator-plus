@@ -103,7 +103,7 @@ class {{classname}} extends BaseApi {
 {{/isDeprecated}}
   Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
 {{#returnType}}
-    final result = await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    final result = await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -121,7 +121,7 @@ class {{classname}} extends BaseApi {
     return data;
 {{/returnType}}
 {{^returnType}}
-    await {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
+    await {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, requestContentType{{/vendorExtensions.op.hasMultipleConsumes}});
 {{/returnType}}
   }
 
@@ -129,7 +129,7 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
-  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHttpInfo({{#vendorExtensions.op.signatureArgs}}{{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}}{{#vendorExtensions.op.hasMultipleConsumes}}, [String? requestContentType]{{/vendorExtensions.op.hasMultipleConsumes}}) async {
 {{#hasAuthMethods}}
     {{! Source the per-operation authenticator from the Options object. When }}
     {{! null, the base client falls back to the Configuration credentials. }}

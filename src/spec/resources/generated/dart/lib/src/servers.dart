@@ -30,7 +30,7 @@ import 'server_configuration.dart';
 /// Server 0: `/api/v3`
 ///
 /// Relative URL (no variables)
-final server0 = ServerConfiguration(
+const server0 = ServerConfiguration(
   urlTemplate: '/api/v3',
   description: 'Relative URL (no variables)',
   variables: {},
@@ -39,7 +39,7 @@ final server0 = ServerConfiguration(
 /// Server 1: `https://{environment}.example.com/api/{version}`
 ///
 /// Main API server with variables
-final server1 = ServerConfiguration(
+const server1 = ServerConfiguration(
   urlTemplate: 'https://{environment}.example.com/api/{version}',
   description: 'Main API server with variables',
   variables: {
@@ -57,4 +57,7 @@ final server1 = ServerConfiguration(
 );
 
 /// All server configurations in declaration order.
-final allServers = <ServerConfiguration>[server0, server1];
+///
+/// The servers and this list are compile-time constants, so none of them can
+/// be modified by a caller.
+const allServers = <ServerConfiguration>[server0, server1];

@@ -65,6 +65,22 @@ void main() {
       expect(url, contains('state=csrf-state-123'));
     });
 
+    test('the synchronous authHeaders raises after the exchange instead of returning no credentials',
+        () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+      await auth.exchangeCode('auth-code-xyz');
+
+      expect(
+        () => auth.authHeaders(),
+        throwsA(isA<StateError>().having((e) => e.message, 'message',
+            'OAuth2 authenticators require async token exchange; use authHeadersAsync() instead.')),
+      );
+    });
+
     test('exchanges code with correct grant type', () async {
       final client = _FakeApiClient();
       client.enqueue(

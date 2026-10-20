@@ -177,10 +177,7 @@ void main() {
     test(
       'BadRequestException is ClientException, ApiException and OpenAPIException',
       () {
-        const err = BadRequestException(
-          statusCode: 400,
-          message: 'bad request',
-        );
+        const err = BadRequestException(message: 'bad request');
 
         expect(err, isA<BadRequestException>());
         expect(err, isA<ClientException>());
@@ -193,16 +190,29 @@ void main() {
     test(
       'InternalServerErrorException is ServerException, ApiException and OpenAPIException',
       () {
-        const err = InternalServerErrorException(
-          statusCode: 500,
-          message: 'boom',
-        );
+        const err = InternalServerErrorException(message: 'boom');
 
         expect(err, isA<ServerException>());
         expect(err, isA<ApiException>());
         expect(err, isA<OpenAPIException>());
       },
     );
+
+    test('each named error pins its own status code', () {
+      expect(const BadRequestException(message: 'x').statusCode, equals(400));
+      expect(const UnauthorizedException(message: 'x').statusCode, equals(401));
+      expect(const ForbiddenException(message: 'x').statusCode, equals(403));
+      expect(const NotFoundException(message: 'x').statusCode, equals(404));
+      expect(const ConflictException(message: 'x').statusCode, equals(409));
+      expect(
+        const UnprocessableEntityException(message: 'x').statusCode,
+        equals(422),
+      );
+      expect(
+        const InternalServerErrorException(message: 'x').statusCode,
+        equals(500),
+      );
+    });
 
     test(
       'NetworkTimeoutException is NetworkException and ApiException with status 0',

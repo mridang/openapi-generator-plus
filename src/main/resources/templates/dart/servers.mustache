@@ -25,7 +25,7 @@ import 'server_configuration.dart';
 /// Server {{serverIndex}}: `{{serverUrl}}`{{#serverDescription}}
 ///
 /// {{serverDescription}}{{/serverDescription}}
-final server{{serverIndex}} = ServerConfiguration(
+const server{{serverIndex}} = ServerConfiguration(
   urlTemplate: '{{{serverUrl}}}',
   description: '{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}',
   variables: {{#hasVariables}}{
@@ -39,6 +39,9 @@ final server{{serverIndex}} = ServerConfiguration(
 {{/serverConfigs}}
 
 /// All server configurations in declaration order.
-final allServers = <ServerConfiguration>[
+///
+/// The servers and this list are compile-time constants, so none of them can
+/// be modified by a caller.
+const allServers = <ServerConfiguration>[
 {{#serverConfigs}}  server{{serverIndex}},
 {{/serverConfigs}}];

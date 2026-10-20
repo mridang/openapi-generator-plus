@@ -31,8 +31,8 @@ class TransportOptions {
 
   /// Path to a custom CA certificate bundle for TLS verification.
   ///
-  /// When set together with `verifySsl: true`, the client trusts certificates
-  /// signed by this CA in addition to (or instead of) the system trust store.
+  /// When set together with `verifySsl: true`, the client trusts only
+  /// certificates signed by this CA; the system trust store is not consulted.
   final String? caCertPath;
 
   /// HTTP or HTTPS proxy URL for all outbound requests.
@@ -156,22 +156,23 @@ class TransportOptionsBuilder {
   /// Pass a proxy URL (e.g. `http://proxy:3128`), or null (or an empty
   /// string) for no proxy. Only HTTP and HTTPS proxy URLs are supported.
   ///
-  /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL.
+  /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL. The
+  /// error never carries the URL, which may embed `user:password` credentials.
   TransportOptionsBuilder proxy(String? val) {
     if (val == null || val.isEmpty) {
       _proxy = null;
     } else {
       final parsed = Uri.tryParse(val);
       if (parsed == null || parsed.scheme.isEmpty) {
-        throw ArgumentError('Invalid proxy URL: $val');
+        throw ArgumentError('Invalid proxy URL');
       }
       if (parsed.scheme != 'http' && parsed.scheme != 'https') {
         throw ArgumentError(
-          'Invalid proxy URL (must use http or https scheme): $val',
+          'Invalid proxy URL (must use http or https scheme)',
         );
       }
       if (parsed.host.isEmpty) {
-        throw ArgumentError('Invalid proxy URL (missing host): $val');
+        throw ArgumentError('Invalid proxy URL (missing host)');
       }
       _proxy = parsed;
     }

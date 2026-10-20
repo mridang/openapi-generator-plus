@@ -41,6 +41,20 @@ void main() {
     });
   });
 
+  group('package barrel', () {
+    test('hides the internal no-auth sentinel from the public API', () {
+      final barrel = File(
+        '${Directory.current.path}/lib/petstore_client.dart',
+      ).readAsStringSync();
+      expect(
+        barrel,
+        contains(
+          "export 'src/auth/authenticator.dart' hide NoAuthAuthenticator, noAuth;",
+        ),
+      );
+    });
+  });
+
   group('Metadata model', () {
     test('serialize empty metadata', () {
       final obj = <String, dynamic>{};
