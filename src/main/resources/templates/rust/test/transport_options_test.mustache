@@ -354,3 +354,17 @@ fn test_transport_options_setting_proxy_is_supported_on_all_platforms() {
         .build().expect("valid transport options");
     assert!(opts.proxy().is_some(), "expected proxy to be set");
 }
+
+/// The README names the real builder setter, not another language's accessor.
+#[test]
+fn test_readme_socks_note_names_the_builder_proxy_setter() {
+    let readme = include_str!("../README.md");
+    assert!(
+        readme.contains("`TransportOptionsBuilder::proxy()` accepts only `http://` and `https://` URLs."),
+        "the SOCKS note must name TransportOptionsBuilder::proxy()"
+    );
+    assert!(
+        !readme.contains("`TransportOptions.proxy()`"),
+        "the README must not use the Java accessor spelling"
+    );
+}

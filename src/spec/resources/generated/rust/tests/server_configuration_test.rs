@@ -102,3 +102,14 @@ fn test_unconstrained_variable_accepts_any_override() {
         .expect("unconstrained value accepted");
     assert_eq!(url, "https://globex.example.com");
 }
+
+/// SKILLS.md documents the `all_servers()` list next to the `server_N()`
+/// functions, like the other SDKs' Servers section.
+#[test]
+fn test_skills_servers_section_documents_all_servers() {
+    let skills = include_str!("../SKILLS.md");
+    assert!(
+        skills.contains("returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them."),
+        "the Servers section must mention all_servers()"
+    );
+}

@@ -1523,7 +1523,7 @@ fn test_typed_error_wrappers_accessor_only() {
     let client_error = ClientError::from(api_error);
     assert_eq!(client_error.api_error().status_code(), 400);
 
-    let bad_request = BadRequestError::from(client_error);
+    let bad_request = BadRequestError::try_from(client_error).expect("the status is 400");
     assert_eq!(bad_request.client_error().api_error().status_code(), 400);
     assert_eq!(bad_request.client_error().api_error().message(), "bad request");
 }

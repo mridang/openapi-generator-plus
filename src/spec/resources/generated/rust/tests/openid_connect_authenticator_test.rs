@@ -542,3 +542,17 @@ async fn test_cancelled_code_exchange_keeps_the_delegate() {
         .expect("the delegate must survive a dropped call");
     assert_eq!(1, client.get_count());
 }
+
+/// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
+/// that would assert them regardless of what the fields hold.
+#[test]
+fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<OpenIdConnectAuthenticator>();
+
+    let source = include_str!("../src/auth/oauth/openid_connect_authenticator.rs");
+    assert!(
+        !source.contains("unsafe impl"),
+        "openid_connect_authenticator.rs must not carry an unsafe impl"
+    );
+}

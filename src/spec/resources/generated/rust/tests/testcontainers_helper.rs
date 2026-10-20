@@ -33,7 +33,10 @@ struct TestContainers {
     ca_cert_path: String,
 }
 
-static CONTAINERS: OnceLock<TestContainers> = OnceLock::new();
+/// The outcome of the one initialisation attempt. A failure is kept as its
+/// message so every later caller fails at once with the same reason instead of
+/// trying Docker again.
+static CONTAINERS: OnceLock<Result<TestContainers, String>> = OnceLock::new();
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -42,14 +45,30 @@ fn fixtures_dir() -> PathBuf {
 }
 
 fn init_containers() -> &'static TestContainers {
-    CONTAINERS.get_or_init(|| {
-        // Spawn a separate OS thread for container initialization because
-        // SyncRunner uses block_on internally, which panics if called from
-        // within an existing tokio runtime (e.g. #[tokio::test]).
-        std::thread::spawn(init_containers_inner)
-            .join()
-            .expect("container initialization thread panicked")
-    })
+    CONTAINERS
+        .get_or_init(|| {
+            // Spawn a separate OS thread for container initialization because
+            // SyncRunner uses block_on internally, which panics if called from
+            // within an existing tokio runtime (e.g. #[tokio::test]).
+            std::thread::spawn(init_containers_inner)
+                .join()
+                .map_err(|payload| panic_message(payload.as_ref()))
+        })
+        .as_ref()
+        .unwrap_or_else(|reason| panic!("fixture containers are unavailable: {reason}"))
+}
+
+/// Returns the message a thread panicked with.
+fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<String>()
+        .cloned()
+        .or_else(|| {
+            payload
+                .downcast_ref::<&str>()
+                .map(|text| (*text).to_string())
+        })
+        .unwrap_or_else(|| "container initialization panicked".to_string())
 }
 
 /// Returns the host override from TESTCONTAINERS_HOST_OVERRIDE or TC_HOST
@@ -103,24 +122,41 @@ fn port_when_mapped(
 /// winner creates the pair, everyone else then finds and attaches to it.
 fn with_creation_lock<T>(body: impl FnOnce() -> T) -> T {
     let lock_path = std::env::temp_dir().join("openapi-generator-fixture-containers.lock");
+    with_lock_file(&lock_path, body)
+}
+
+/// Removes the lock file when dropped, so a panic in the guarded body (Docker
+/// unreachable, an image that will not start) releases the lock instead of
+/// leaving every other test binary to wait out its staleness window.
+struct LockGuard<'a> {
+    path: &'a std::path::Path,
+}
+
+impl Drop for LockGuard<'_> {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(self.path);
+    }
+}
+
+fn with_lock_file<T>(lock_path: &std::path::Path, body: impl FnOnce() -> T) -> T {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
     loop {
         match std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(&lock_path)
+            .open(lock_path)
         {
             Ok(_) => break,
             Err(_) => {
                 // A binary that died mid-creation would otherwise block every
                 // later one for the whole run, so an old lock counts as free.
-                let stale = std::fs::metadata(&lock_path)
+                let stale = std::fs::metadata(lock_path)
                     .ok()
                     .and_then(|meta| meta.modified().ok())
                     .and_then(|modified| modified.elapsed().ok())
                     .is_some_and(|age| age > std::time::Duration::from_secs(240));
                 if stale {
-                    let _ = std::fs::remove_file(&lock_path);
+                    let _ = std::fs::remove_file(lock_path);
                     continue;
                 }
                 // Proceed unlocked rather than fail the run outright: a
@@ -132,9 +168,8 @@ fn with_creation_lock<T>(body: impl FnOnce() -> T) -> T {
             }
         }
     }
-    let result = body();
-    let _ = std::fs::remove_file(&lock_path);
-    result
+    let _guard = LockGuard { path: lock_path };
+    body()
 }
 
 /// Returns an empty, world-writable directory to copy over the Squid image's
@@ -315,4 +350,63 @@ pub fn chasm_internal_https_url() -> &'static str {
 
 pub fn ca_cert_path() -> &'static str {
     &init_containers().ca_cert_path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lock_path_for(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "openapi-generator-{}-{}.lock",
+            name,
+            std::process::id()
+        ))
+    }
+
+    #[test]
+    fn creation_lock_is_released_when_the_guarded_body_panics() {
+        let path = lock_path_for("panic");
+        let _ = std::fs::remove_file(&path);
+
+        let outcome = std::panic::catch_unwind(|| {
+            with_lock_file(&path, || panic!("docker is not reachable"))
+        });
+
+        assert!(outcome.is_err(), "the panic must propagate to the caller");
+        assert!(
+            !path.exists(),
+            "a panicking body must not leave the lock file behind"
+        );
+    }
+
+    #[test]
+    fn creation_lock_is_released_when_the_guarded_body_returns() {
+        let path = lock_path_for("return");
+        let _ = std::fs::remove_file(&path);
+
+        let value = with_lock_file(&path, || {
+            assert!(
+                path.exists(),
+                "the lock file must exist while the body runs"
+            );
+            7
+        });
+
+        assert_eq!(7, value);
+        assert!(
+            !path.exists(),
+            "the lock file must be removed after the body returns"
+        );
+    }
+
+    #[test]
+    fn panic_message_reports_str_and_string_payloads() {
+        let from_str = std::panic::catch_unwind(|| panic!("static reason")).unwrap_err();
+        assert_eq!("static reason", panic_message(from_str.as_ref()));
+
+        let from_string =
+            std::panic::catch_unwind(|| panic!("{} reason", "formatted")).unwrap_err();
+        assert_eq!("formatted reason", panic_message(from_string.as_ref()));
+    }
 }

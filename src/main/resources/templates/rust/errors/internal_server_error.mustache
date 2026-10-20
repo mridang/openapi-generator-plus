@@ -29,8 +29,16 @@ impl std::error::Error for InternalServerError {
     }
 }
 
-impl From<ServerError> for InternalServerError {
-    fn from(server_error: ServerError) -> Self {
-        Self { server_error }
+/// Wraps a [`ServerError`] whose status is 500. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ServerError> for InternalServerError {
+    type Error = ServerError;
+
+    fn try_from(server_error: ServerError) -> Result<Self, Self::Error> {
+        if server_error.api_error().status_code() == 500 {
+            Ok(Self { server_error })
+        } else {
+            Err(server_error)
+        }
     }
 }

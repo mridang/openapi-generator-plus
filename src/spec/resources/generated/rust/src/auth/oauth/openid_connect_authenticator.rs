@@ -319,6 +319,3 @@ impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
         *guard = Some(client);
     }
 }
-
-unsafe impl Send for OpenIdConnectAuthenticator {}
-unsafe impl Sync for OpenIdConnectAuthenticator {}

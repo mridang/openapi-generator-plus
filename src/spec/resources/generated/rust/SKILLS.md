@@ -146,7 +146,7 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`, plus an `all_servers()` function returning a `Vec` of them. Pass the desired server's URL to the client:
 
 ```rust
 use std::collections::HashMap;
@@ -205,7 +205,7 @@ All API errors derive from `ApiError`. The error hierarchy is:
 ```rust
 use std::error::Error;
 
-use petstore::{ClientError, NetworkTimeoutError, NotFoundError, ServerError};
+use petstore::{ClientError, NotFoundError, ServerError};
 
 /// Whether `err` is a `T`. Rust has no inheritance: each error's `source()` is
 /// its parent in the hierarchy above, so the check walks that chain.
@@ -218,7 +218,6 @@ match client.pet.add_pet(pet, None).await {
     Err(e) if is_a::<NotFoundError>(&*e) => println!("Not found: {}", e),
     Err(e) if is_a::<ClientError>(&*e) => println!("Client error: {}", e),
     Err(e) if is_a::<ServerError>(&*e) => println!("Server error: {}", e),
-    Err(e) if is_a::<NetworkTimeoutError>(&*e) => println!("Timed out: {}", e),
     Err(e) => println!("Error: {}", e),
 }
 ```

@@ -795,3 +795,17 @@ async fn test_invalidate_triggers_single_refetch_under_concurrency() {
     );
 }
 
+
+/// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
+/// that would assert them regardless of what the fields hold.
+#[test]
+fn test_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<OAuth2TokenManager>();
+
+    let source = include_str!("../src/auth/oauth/oauth2_token_manager.rs");
+    assert!(
+        !source.contains("unsafe impl"),
+        "oauth2_token_manager.rs must not carry an unsafe impl"
+    );
+}

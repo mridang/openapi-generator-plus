@@ -129,6 +129,7 @@ impl StoreApi {
     }
 
     /// Echoes a swatch supplied via path, query and header parameters.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_by_swatch(
         &self,
         path_swatch: Swatch,
@@ -738,6 +739,7 @@ impl StoreApi {
 
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
     /// * `as_of`: Only consider stock as of this instant
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_stock_item(
         &self,
         options: Option<&GetStockItemOptions>,

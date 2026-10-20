@@ -290,7 +290,8 @@ fn test_server_error_is_open_api_error_and_chains_to_api_error() {
 
 #[test]
 fn test_bad_request_error_is_open_api_error_and_chains() {
-    let err = BadRequestError::from(client_chain(400, "bad request"));
+    let err =
+        BadRequestError::try_from(client_chain(400, "bad request")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     // source() -> ClientError -> ApiError(400).
     let client = std::error::Error::source(branded)
@@ -301,7 +302,7 @@ fn test_bad_request_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_unauthorized_error_is_open_api_error_and_chains() {
-    let err = UnauthorizedError::from(client_chain(401, "nope"));
+    let err = UnauthorizedError::try_from(client_chain(401, "nope")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ClientError>())
@@ -311,7 +312,7 @@ fn test_unauthorized_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_forbidden_error_is_open_api_error_and_chains() {
-    let err = ForbiddenError::from(client_chain(403, "denied"));
+    let err = ForbiddenError::try_from(client_chain(403, "denied")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ClientError>())
@@ -321,7 +322,7 @@ fn test_forbidden_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_not_found_error_is_open_api_error_and_chains() {
-    let err = NotFoundError::from(client_chain(404, "missing"));
+    let err = NotFoundError::try_from(client_chain(404, "missing")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ClientError>())
@@ -331,7 +332,7 @@ fn test_not_found_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_conflict_error_is_open_api_error_and_chains() {
-    let err = ConflictError::from(client_chain(409, "conflict"));
+    let err = ConflictError::try_from(client_chain(409, "conflict")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ClientError>())
@@ -341,7 +342,8 @@ fn test_conflict_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
-    let err = UnprocessableEntityError::from(client_chain(422, "unprocessable"));
+    let err = UnprocessableEntityError::try_from(client_chain(422, "unprocessable"))
+        .expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ClientError>())
@@ -351,13 +353,59 @@ fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
 
 #[test]
 fn test_internal_server_error_is_open_api_error_and_chains() {
-    let err = InternalServerError::from(server_chain(500, "boom"));
+    let err = InternalServerError::try_from(server_chain(500, "boom")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     // source() -> ServerError -> ApiError(500).
     let server = std::error::Error::source(branded)
         .and_then(|s| s.downcast_ref::<ServerError>())
         .expect("InternalServerError chains to ServerError");
     assert_eq!(server.api_error().status_code(), 500);
+}
+
+/// A named error is only ever the error for its own status: wrapping a
+/// `ClientError` or `ServerError` that carries another status is refused and the
+/// wrapped error is handed back unchanged.
+#[test]
+fn test_named_errors_accept_only_their_own_status() {
+    fn refuses<T: std::fmt::Debug>(name: &str, wrong_status: u16, attempt: Result<T, ClientError>) {
+        let handed_back = attempt.expect_err(&format!("{name} must refuse status {wrong_status}"));
+        assert_eq!(wrong_status, handed_back.api_error().status_code());
+    }
+
+    refuses(
+        "BadRequestError",
+        500,
+        BadRequestError::try_from(client_chain(500, "x")),
+    );
+    refuses(
+        "UnauthorizedError",
+        400,
+        UnauthorizedError::try_from(client_chain(400, "x")),
+    );
+    refuses(
+        "ForbiddenError",
+        404,
+        ForbiddenError::try_from(client_chain(404, "x")),
+    );
+    refuses(
+        "NotFoundError",
+        403,
+        NotFoundError::try_from(client_chain(403, "x")),
+    );
+    refuses(
+        "ConflictError",
+        0,
+        ConflictError::try_from(client_chain(0, "x")),
+    );
+    refuses(
+        "UnprocessableEntityError",
+        409,
+        UnprocessableEntityError::try_from(client_chain(409, "x")),
+    );
+
+    let handed_back = InternalServerError::try_from(server_chain(503, "x"))
+        .expect_err("InternalServerError must refuse status 503");
+    assert_eq!(503, handed_back.api_error().status_code());
 }
 
 #[test]
@@ -377,8 +425,10 @@ fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
     // transport/API and (de)serialization branches of the hierarchy.
     let errors: Vec<Box<dyn OpenAPIError>> = vec![
         Box::new(ApiError::new(500, "api".to_string(), None, None)),
-        Box::new(BadRequestError::from(client_chain(400, "bad"))),
-        Box::new(InternalServerError::from(server_chain(500, "boom"))),
+        Box::new(BadRequestError::try_from(client_chain(400, "bad")).expect("the status matches")),
+        Box::new(
+            InternalServerError::try_from(server_chain(500, "boom")).expect("the status matches"),
+        ),
         Box::new(SerializationError::new("serde".to_string(), None)),
     ];
     for err in &errors {
@@ -571,5 +621,27 @@ fn test_network_wrappers_display_the_wrapped_api_error() {
     assert_eq!(
         "connection refused",
         NetworkTimeoutError::from(network).to_string()
+    );
+}
+
+/// The SKILLS.md error-handling example catches NotFound, Client and Server
+/// and then falls back to any other error, the same arms as the other SDKs.
+#[test]
+fn test_skills_error_handling_example_has_the_common_catch_arms() {
+    let skills = include_str!("../SKILLS.md");
+    for arm in [
+        "Err(e) if is_a::<NotFoundError>(&*e) =>",
+        "Err(e) if is_a::<ClientError>(&*e) =>",
+        "Err(e) if is_a::<ServerError>(&*e) =>",
+        "Err(e) => println!(\"Error: {}\", e),",
+    ] {
+        assert!(
+            skills.contains(arm),
+            "SKILLS.md error example must contain `{arm}`"
+        );
+    }
+    assert!(
+        !skills.contains("is_a::<NetworkTimeoutError>"),
+        "SKILLS.md error example must not add an arm the other SDKs lack"
     );
 }

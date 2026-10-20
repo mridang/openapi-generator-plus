@@ -124,6 +124,10 @@ impl {{classname}} {
     /// * `{{paramName}}`: {{description}}
 {{/description}}
 {{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}    /// * `options`: Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
 {{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{summary}}
     /// {{description}}
     /// ```json

@@ -196,6 +196,7 @@ impl PetApi {
 
     /// Add a new pet to the store
     /// * `pet`: Create a new pet in the store
+    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
     pub async fn add_pet(
         &self,
         pet: Pet,
@@ -278,6 +279,7 @@ impl PetApi {
 
     /// Add photos to the pet's gallery
     /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn add_pet_photos(
         &self,
         pet_id: i64,
@@ -406,6 +408,7 @@ impl PetApi {
     }
 
     /// Record a treatment for a pet
+    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
     pub async fn add_pet_treatment(
         &self,
         pet_id: i64,
@@ -513,6 +516,7 @@ impl PetApi {
     /// Deletes a pet
     /// * `pet_id`: Pet id to delete
     /// * `api_key`: Session cookie used for authentication
+    /// * `options`: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
     pub async fn delete_pet(
         &self,
         pet_id: i64,
@@ -850,6 +854,7 @@ impl PetApi {
     /// * `filter`: Filter criteria as key-value pairs
     /// * `born_after`: Only return pets born on or after this date
     /// * `report_date`: Reference date for the report
+    /// * `options`: Options for query, header, form, and cookie parameters.
     /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
@@ -1500,6 +1505,7 @@ impl PetApi {
     }
 
     /// Look up a pet by name (simple string path param + required query)
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_by_name(
         &self,
         name: String,
@@ -1843,6 +1849,7 @@ impl PetApi {
 
     /// Get a tag for a pet
     /// * `revision`: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_tag(
         &self,
         pet_id: i64,
@@ -2376,6 +2383,7 @@ impl PetApi {
 
     /// Update a pet's notification preferences
     /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn set_pet_preferences(
         &self,
         pet_id: i64,
@@ -2588,6 +2596,7 @@ impl PetApi {
 
     /// Upload the pet's adoption certificate
     /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn upload_pet_certificate(
         &self,
         pet_id: i64,
@@ -2702,6 +2711,7 @@ impl PetApi {
 
     /// Attach a vet document or health record
     /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn upload_pet_document(
         &self,
         pet_id: i64,

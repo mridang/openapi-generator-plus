@@ -363,6 +363,3 @@ fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
     }
     0
 }
-
-unsafe impl Send for OAuth2TokenManager {}
-unsafe impl Sync for OAuth2TokenManager {}

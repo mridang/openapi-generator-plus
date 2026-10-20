@@ -182,25 +182,31 @@ impl ApiError {
             Some(headers.clone()),
         );
 
+        type Boxed = Box<dyn std::error::Error + Send + Sync>;
+
         if (400..500).contains(&status_code) {
             let client_err = ClientError::from(base_err);
-            return match status_code {
-                400 => Box::new(BadRequestError::from(client_err)),
-                401 => Box::new(UnauthorizedError::from(client_err)),
-                403 => Box::new(ForbiddenError::from(client_err)),
-                404 => Box::new(NotFoundError::from(client_err)),
-                409 => Box::new(ConflictError::from(client_err)),
-                422 => Box::new(UnprocessableEntityError::from(client_err)),
-                _ => Box::new(client_err),
+            /* Each named wrapper accepts only its own status, so a status
+             * without one falls through to the ClientError itself. */
+            let named: Result<Boxed, ClientError> = match status_code {
+                400 => BadRequestError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                401 => UnauthorizedError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                403 => ForbiddenError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                404 => NotFoundError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                409 => ConflictError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                422 => UnprocessableEntityError::try_from(client_err).map(|e| Box::new(e) as Boxed),
+                _ => Err(client_err),
             };
+            return named.unwrap_or_else(|client_err| Box::new(client_err));
         }
 
         if (500..600).contains(&status_code) {
             let server_err = ServerError::from(base_err);
-            return match status_code {
-                500 => Box::new(InternalServerError::from(server_err)),
-                _ => Box::new(server_err),
+            let named: Result<Boxed, ServerError> = match status_code {
+                500 => InternalServerError::try_from(server_err).map(|e| Box::new(e) as Boxed),
+                _ => Err(server_err),
             };
+            return named.unwrap_or_else(|server_err| Box::new(server_err));
         }
 
         Box::new(base_err)

@@ -1068,3 +1068,23 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
 fn test_pet_api_default_constructs_without_arguments() {
     let _api = PetApi::default();
 }
+
+/// The `options` argument is documented on every operation that takes one, and
+/// names the per-operation authenticator only where the options struct carries it.
+#[test]
+fn test_operations_document_their_options_argument() {
+    let source = include_str!("../src/api/pet_api.rs");
+    let with_auth = "    /// * `options`: Options for query, header, form, and cookie parameters, \
+and an optional per-operation authenticator.\n    pub async fn add_pet(";
+    let without_auth =
+        "    /// * `options`: Options for query, header, form, and cookie parameters.\n    \
+pub async fn add_pet_photos(";
+    assert!(
+        source.contains(with_auth),
+        "add_pet must document options with the authenticator"
+    );
+    assert!(
+        source.contains(without_auth),
+        "add_pet_photos must document options without one"
+    );
+}

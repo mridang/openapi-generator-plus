@@ -14,6 +14,10 @@ description = "A simplified Pet Store API for integration testing."
 # Everything else stays at its default level and `cargo clippy -- -D warnings`
 # enforces it.
 [lints.rust]
+# The SDK has no use for `unsafe`: its shared state sits behind `Arc`, `Mutex`
+# and `RwLock`, so `Send` and `Sync` follow from the field types. Forbidding it
+# keeps a hand-written `unsafe impl Send` from masking a field that is not.
+unsafe_code = "forbid"
 # A schema may mark models, fields and operations deprecated, and the generated
 # constructors, accessors and tests must still set and read them.
 deprecated = "allow"

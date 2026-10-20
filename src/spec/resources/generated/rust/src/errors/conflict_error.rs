@@ -34,8 +34,16 @@ impl std::error::Error for ConflictError {
     }
 }
 
-impl From<ClientError> for ConflictError {
-    fn from(client_error: ClientError) -> Self {
-        Self { client_error }
+/// Wraps a [`ClientError`] whose status is 409. Any other status is handed back
+/// unchanged as the error, so the type and its status cannot disagree.
+impl TryFrom<ClientError> for ConflictError {
+    type Error = ClientError;
+
+    fn try_from(client_error: ClientError) -> Result<Self, Self::Error> {
+        if client_error.api_error().status_code() == 409 {
+            Ok(Self { client_error })
+        } else {
+            Err(client_error)
+        }
     }
 }
