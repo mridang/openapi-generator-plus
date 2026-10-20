@@ -179,6 +179,36 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestGetPetByNameNullOptionsNamesTheFirstRequiredField()
+    {
+        // A null Options object is reported like its first missing required
+        // field, with the canonical message, not as a bare null 'options'.
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _api.GetPetByNameAsync("Rex", null!)
+        );
+        Assert.Equal("options.Category", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task TestAddPetPhotosNullOptionsNamesTheFirstRequiredField()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            _api.AddPetPhotosAsync(1L, null!)
+        );
+        Assert.Equal("options.Files", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'files' when calling PetApi.AddPetPhotos",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
     public async Task TestGetPetByNameEmptyRequiredStringQueryParamThrows()
     {
         // The required 'category' query parameter is a string. An empty string is
@@ -502,11 +532,31 @@ public class PetApiTest
         var redirecting = new RedirectingApiClient(externalServer, _baseUrl);
         var externalApi = new PetApi(redirecting, _config);
 
-        var result = await externalApi.GetExternalPetInfoAsync(1L, new Server0());
+        var result = await externalApi.GetExternalPetInfoAsync(
+            1L,
+            new GetExternalPetInfoServerServer0()
+        );
 
         Assert.NotNull(result);
         var requested = Assert.Single(redirecting.RequestedUrls);
         Assert.StartsWith(externalServer + "/", requested.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TestPerOperationServerTypesAreScopedToTheirOperation()
+    {
+        Assert.Equal(
+            "https://external-api.example.com/v1",
+            new GetExternalPetInfoServerServer0().Url
+        );
+        Assert.Equal(
+            "https://eu.example.com/v1",
+            new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.EU).Url
+        );
+        Assert.Equal(
+            "https://primary.example.com/v1",
+            new GetMultiServerPetInfoServerPrimary().Url
+        );
     }
 
     private sealed class RedirectingApiClient(string from, string to) : IApiClient

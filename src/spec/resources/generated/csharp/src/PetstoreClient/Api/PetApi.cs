@@ -23,8 +23,7 @@ public abstract class GetExternalPetInfoServer
 }
 
 /// <summary>Server variant Server0 for the GetExternalPetInfo operation.</summary>
-/// <summary>Server variant Server0 for the GetExternalPetInfo operation.</summary>
-public sealed class Server0 : GetExternalPetInfoServer
+public sealed class GetExternalPetInfoServerServer0 : GetExternalPetInfoServer
 {
     /// <inheritdoc />
     public override string Url => "https://external-api.example.com/v1";
@@ -40,9 +39,9 @@ public abstract class GetMultiServerPetInfoServer
 }
 
 /// <summary>Enum for the region server variable.</summary>
-public sealed class RegionValue
+public sealed class GetMultiServerPetInfoServerRegion
 {
-    private RegionValue(string value)
+    private GetMultiServerPetInfoServerRegion(string value)
     {
         Value = value;
     }
@@ -51,27 +50,28 @@ public sealed class RegionValue
     public string Value { get; }
 
     /// <summary>The us value.</summary>
-    public static RegionValue US { get; } = new("us");
+    public static GetMultiServerPetInfoServerRegion US { get; } = new("us");
 
     /// <summary>The eu value.</summary>
-    public static RegionValue EU { get; } = new("eu");
+    public static GetMultiServerPetInfoServerRegion EU { get; } = new("eu");
 
     /// <summary>The ap value.</summary>
-    public static RegionValue AP { get; } = new("ap");
+    public static GetMultiServerPetInfoServerRegion AP { get; } = new("ap");
 }
 
 /// <summary>Primary</summary>
-public sealed class Primary : GetMultiServerPetInfoServer
+public sealed class GetMultiServerPetInfoServerPrimary : GetMultiServerPetInfoServer
 {
     /// <inheritdoc />
     public override string Url => "https://primary.example.com/v1";
 }
 
 /// <summary>Regional</summary>
-public sealed class Regional(RegionValue region) : GetMultiServerPetInfoServer
+public sealed class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
+    : GetMultiServerPetInfoServer
 {
     /// <summary>Gets the region value.</summary>
-    public RegionValue Region { get; } = region;
+    public GetMultiServerPetInfoServerRegion Region { get; } = region;
 
     /// <inheritdoc />
     public override string Url
@@ -95,7 +95,7 @@ public abstract class GetPetByIdServer
 }
 
 /// <summary>CDN-backed read endpoint for pet details</summary>
-public sealed class CDNBackedReadEndpointForPetDetails : GetPetByIdServer
+public sealed class GetPetByIdServerCDNBackedReadEndpointForPetDetails : GetPetByIdServer
 {
     /// <inheritdoc />
     public override string Url => "https://cdn.petstore.io/v3";
@@ -111,9 +111,9 @@ public abstract class GetStagingPetInfoServer
 }
 
 /// <summary>Enum for the environment server variable.</summary>
-public sealed class EnvironmentValue
+public sealed class GetStagingPetInfoServerEnvironment
 {
-    private EnvironmentValue(string value)
+    private GetStagingPetInfoServerEnvironment(string value)
     {
         Value = value;
     }
@@ -122,16 +122,16 @@ public sealed class EnvironmentValue
     public string Value { get; }
 
     /// <summary>The staging value.</summary>
-    public static EnvironmentValue STAGING { get; } = new("staging");
+    public static GetStagingPetInfoServerEnvironment STAGING { get; } = new("staging");
 
     /// <summary>The sandbox value.</summary>
-    public static EnvironmentValue SANDBOX { get; } = new("sandbox");
+    public static GetStagingPetInfoServerEnvironment SANDBOX { get; } = new("sandbox");
 }
 
 /// <summary>Enum for the version server variable.</summary>
-public sealed class VersionValue
+public sealed class GetStagingPetInfoServerVersion
 {
-    private VersionValue(string value)
+    private GetStagingPetInfoServerVersion(string value)
     {
         Value = value;
     }
@@ -140,21 +140,23 @@ public sealed class VersionValue
     public string Value { get; }
 
     /// <summary>The v2 value.</summary>
-    public static VersionValue V2 { get; } = new("v2");
+    public static GetStagingPetInfoServerVersion V2 { get; } = new("v2");
 
     /// <summary>The v3 value.</summary>
-    public static VersionValue V3 { get; } = new("v3");
+    public static GetStagingPetInfoServerVersion V3 { get; } = new("v3");
 }
 
 /// <summary>Staging server</summary>
-public sealed class StagingServer(EnvironmentValue environment, VersionValue version)
-    : GetStagingPetInfoServer
+public sealed class GetStagingPetInfoServerStagingServer(
+    GetStagingPetInfoServerEnvironment environment,
+    GetStagingPetInfoServerVersion version
+) : GetStagingPetInfoServer
 {
     /// <summary>Gets the environment value.</summary>
-    public EnvironmentValue Environment { get; } = environment;
+    public GetStagingPetInfoServerEnvironment Environment { get; } = environment;
 
     /// <summary>Gets the version value.</summary>
-    public VersionValue Version { get; } = version;
+    public GetStagingPetInfoServerVersion Version { get; } = version;
 
     /// <inheritdoc />
     public override string Url
@@ -357,6 +359,21 @@ public class PetApi : BaseApi
         AddPetPhotosOptions options
     )
     {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".Files",
+                "Missing the required parameter 'files' when calling PetApi.AddPetPhotos"
+            );
+            RequireOption(
+                null,
+                nameof(options) + ".Metadata",
+                "Missing the required parameter 'metadata' when calling PetApi.AddPetPhotos"
+            );
+        }
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(
             options.Files,
@@ -1369,6 +1386,16 @@ public class PetApi : BaseApi
         GetPetByNameOptions options
     )
     {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".Category",
+                "Missing the required parameter 'category' when calling PetApi.GetPetByName"
+            );
+        }
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(
             options.Category,
@@ -2075,6 +2102,16 @@ public class PetApi : BaseApi
         SetPetPreferencesOptions options
     )
     {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".Nickname",
+                "Missing the required parameter 'nickname' when calling PetApi.SetPetPreferences"
+            );
+        }
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(
             options.Nickname,
@@ -2263,6 +2300,16 @@ public class PetApi : BaseApi
         UploadPetCertificateOptions options
     )
     {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".File",
+                "Missing the required parameter 'file' when calling PetApi.UploadPetCertificate"
+            );
+        }
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(
             options.File,
@@ -2363,6 +2410,16 @@ public class PetApi : BaseApi
         string? requestContentType = null
     )
     {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".File",
+                "Missing the required parameter 'file' when calling PetApi.UploadPetDocument"
+            );
+        }
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(
             options.File,

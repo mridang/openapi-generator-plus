@@ -23,7 +23,9 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     private readonly string _clientId;
     private readonly Uri _authorizationUrl;
     private readonly string[] _scopes;
-    private string? _accessToken;
+    /* Written by SetAccessToken (typically from a callback thread) and read
+     * by request threads, so volatile gives the reader a happens-before. */
+    private volatile string? _accessToken;
 
     /// <summary>
     /// Create a new implicit flow authenticator.
@@ -70,8 +72,10 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         );
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
-         * present so existing params are preserved, '?' otherwise. */
-        string authUrl = _authorizationUrl.ToString();
+         * present so existing params are preserved, '?' otherwise. The base is
+         * the configured text verbatim: Uri.ToString() would drop a default
+         * port and lower-case the host. */
+        string authUrl = _authorizationUrl.OriginalString;
         string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
         return new Uri(authUrl + separator + query);
     }
@@ -110,11 +114,12 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     /// <inheritdoc/>
     public override Dictionary<string, string> GetAuthHeaders()
     {
-        return _accessToken is null
+        string? token = _accessToken;
+        return token is null
             ? throw new InvalidOperationException(
                 "Must set the access token before making API requests"
             )
-            : new() { ["Authorization"] = "Bearer " + _accessToken };
+            : new() { ["Authorization"] = "Bearer " + token };
     }
 
     /// <summary>

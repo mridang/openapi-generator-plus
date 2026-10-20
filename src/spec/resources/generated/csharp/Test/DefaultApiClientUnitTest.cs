@@ -512,6 +512,10 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireText);
         Assert.Contains("Content-Type: image/png", wireText);
+        Assert.Matches(
+            "Content-Disposition: form-data; name=\"avatar.png\"; [^\r\n]*\r\nContent-Type: image/png\r\n\r\n",
+            wireText
+        );
     }
 
     [Fact]
@@ -1476,6 +1480,11 @@ public class DefaultApiClientUnitTest
         // The JSON part carries the bare declared type, no charset suffix.
         Assert.Contains("Content-Type: application/json", wireText);
         Assert.DoesNotContain("charset", wireText);
+        // Content-Disposition leads the part headers, as in the other SDKs.
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n",
+            wireText
+        );
         // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
         Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
         // Null-omission from the configured options: the unset "caption" and

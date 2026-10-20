@@ -2,6 +2,8 @@
 
 using {{packageName}};
 using {{packageName}}.Auth.OAuth;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using Xunit;
 
 namespace Test;
@@ -42,6 +44,15 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             null,
             new Uri("https://app.example.com/callback"),
             Scopes);
+    }
+
+    [Fact]
+    public void TokenExchangedFieldIsVolatile()
+    {
+        FieldInfo field = typeof(OAuth2AuthorizationCodeAuthenticator).GetField(
+            "_tokenExchanged", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
     }
 
     [Fact]
@@ -221,6 +232,28 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         string url = auth.BuildAuthorizationUrl().ToString();
 
         Assert.Contains(expected, url);
+    }
+
+    /// <summary>
+    /// The authorization endpoint must reach the authorize URL exactly as
+    /// configured: no default port dropped and no host lower-casing.
+    /// </summary>
+    [Fact]
+    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    {
+        var auth = new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://Auth.Example.com:443/authorize"),
+            new Uri("https://auth.example.com/token"),
+            null,
+            new Uri("https://app.example.com/callback"),
+            Scopes);
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=code&", url);
     }
 
     /// <summary>

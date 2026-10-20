@@ -25,16 +25,16 @@ public abstract class {{serverTypeName}}
 {{#hasEnumValues}}
 
 /// <summary>Enum for the {{name}} server variable.</summary>
-public sealed class {{pascalName}}Value
+public sealed class {{serverTypeName}}{{pascalName}}
 {
-    private {{pascalName}}Value(string value) { Value = value; }
+    private {{serverTypeName}}{{pascalName}}(string value) { Value = value; }
 
     /// <summary>Gets the string value.</summary>
     public string Value { get; }
 {{#enumValues}}
 
     /// <summary>The {{value}} value.</summary>
-    public static {{pascalName}}Value {{name}} { get; } = new("{{value}}");
+    public static {{serverTypeName}}{{pascalName}} {{name}} { get; } = new("{{value}}");
 {{/enumValues}}
 }
 {{/hasEnumValues}}
@@ -49,11 +49,11 @@ public sealed class {{pascalName}}Value
 /// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
 {{/hasDescription}}
 {{#hasVariables}}
-public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
+public sealed class {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
 {
 {{#serverVariables}}
     /// <summary>Gets the {{name}} value.</summary>
-    public {{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
+    public {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
 
 {{/serverVariables}}
     /// <inheritdoc />
@@ -71,10 +71,7 @@ public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pasc
 }
 {{/hasVariables}}
 {{^hasVariables}}
-{{^hasDescription}}
-/// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
-{{/hasDescription}}
-public sealed class {{variantName}} : {{serverTypeName}}
+public sealed class {{serverTypeName}}{{variantName}} : {{serverTypeName}}
 {
     /// <inheritdoc />
     public override string Url => "{{url}}";
@@ -163,7 +160,7 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
     {
         {{#returnType}}
         Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, requestContentType{{/-first}}{{/-last}}{{/consumes}});
@@ -226,7 +223,7 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#vendorExtensions.op.signatureArgs}}{{^-first}}, {{/-first}}{{{dataType}}}{{#nullable}}?{{/nullable}} {{paramName}}{{#nullable}}{{^isBody}} = null{{/isBody}}{{#isBody}}{{^vendorExtensions.op.optionsParamRequired}} = null{{/vendorExtensions.op.optionsParamRequired}}{{/isBody}}{{/nullable}}{{/vendorExtensions.op.signatureArgs}}{{#consumes}}{{#-last}}{{^-first}}, string? requestContentType = null{{/-first}}{{/-last}}{{/consumes}})
     {
 {{! L10: only guard `options` against null when the Options arg is non-nullable
     (i.e. the operation has at least one REQUIRED query/header/form/cookie
@@ -234,8 +231,35 @@ public class {{classname}} : BaseApi
     `Options? options = null`, so the natural no-arg call passes null on
     purpose; an unconditional ThrowIfNull(options) would make that call throw.
     In that all-optional case the per-param accesses below are already null-safe
-    (`options != null && options.X`), so no guard is needed here. }}
+    (`options != null && options.X`), so no guard is needed here. A null Options
+    object is reported through its first required field with the canonical
+    "Missing the required parameter" message. }}
 {{#vendorExtensions.op.optionsParamRequired}}
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+{{#queryParams}}
+{{#required}}
+            RequireOption(null, nameof(options) + ".{{vendorExtensions.pascalName}}", "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+            RequireOption(null, nameof(options) + ".{{vendorExtensions.pascalName}}", "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+            RequireOption(null, nameof(options) + ".{{vendorExtensions.pascalName}}", "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+            RequireOption(null, nameof(options) + ".{{vendorExtensions.pascalName}}", "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+{{/required}}
+{{/cookieParams}}
+        }
         ArgumentNullException.ThrowIfNull(options);
 {{/vendorExtensions.op.optionsParamRequired}}
 {{#queryParams}}

@@ -925,7 +925,7 @@ public class StoreApi : BaseApi
     /// <param name="order"></param>
     /// <returns><![CDATA[Order]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Order> PlaceOrderAsync(Order? order)
+    public async Task<Order> PlaceOrderAsync(Order? order = null)
     {
         Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order);
         ApiResult<Order> result = await task.ConfigureAwait(false);
@@ -959,7 +959,7 @@ public class StoreApi : BaseApi
     /// <param name="order"></param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order)
+    public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order = null)
     {
         string path = "/store/order";
 

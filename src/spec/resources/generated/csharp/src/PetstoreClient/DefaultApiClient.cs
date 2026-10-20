@@ -832,15 +832,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 bytesContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
                     GetMimeType(name)
                 );
-                _ = bytesContent.Headers.Remove("Content-Disposition");
-                _ = bytesContent.Headers.TryAddWithoutValidation(
-                    "Content-Disposition",
-                    EncodeHeaderValueUtf8(
-                        "form-data; name=\""
-                            + EscapeQuotedString(name)
-                            + "\"; "
-                            + BuildFilenameDirective(name)
-                    )
+                SetPartDisposition(
+                    bytesContent,
+                    "form-data; name=\""
+                        + EscapeQuotedString(name)
+                        + "\"; "
+                        + BuildFilenameDirective(name)
                 );
                 multipart.Add(bytesContent);
                 break;
@@ -849,15 +846,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 StreamContent streamContent = new(stream);
                 streamContent.Headers.ContentType =
                     new System.Net.Http.Headers.MediaTypeHeaderValue(GetMimeType(name));
-                _ = streamContent.Headers.Remove("Content-Disposition");
-                _ = streamContent.Headers.TryAddWithoutValidation(
-                    "Content-Disposition",
-                    EncodeHeaderValueUtf8(
-                        "form-data; name=\""
-                            + EscapeQuotedString(name)
-                            + "\"; "
-                            + BuildFilenameDirective(name)
-                    )
+                SetPartDisposition(
+                    streamContent,
+                    "form-data; name=\""
+                        + EscapeQuotedString(name)
+                        + "\"; "
+                        + BuildFilenameDirective(name)
                 );
                 multipart.Add(streamContent);
                 break;
@@ -902,17 +896,33 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                        date-time format consistent across the SDK. */
                     string json = serializer.Serialize(value);
                     StringContent jsonContent = CreateStringContent(json, "application/json");
-                    _ = jsonContent.Headers.Remove("Content-Disposition");
-                    _ = jsonContent.Headers.TryAddWithoutValidation(
-                        "Content-Disposition",
-                        EncodeHeaderValueUtf8(
-                            "form-data; name=\"" + EscapeQuotedString(name) + "\""
-                        )
+                    SetPartDisposition(
+                        jsonContent,
+                        "form-data; name=\"" + EscapeQuotedString(name) + "\""
                     );
                     multipart.Add(jsonContent);
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Gives a multipart part its Content-Disposition ahead of its
+    /// Content-Type. .NET writes part headers in insertion order and the
+    /// content types are set when the part is built, so adding the
+    /// disposition afterwards would put Content-Type first; the other 11 SDKs
+    /// send Content-Disposition first.
+    /// </summary>
+    private static void SetPartDisposition(HttpContent part, string disposition)
+    {
+        System.Net.Http.Headers.MediaTypeHeaderValue? contentType = part.Headers.ContentType;
+        part.Headers.ContentType = null;
+        _ = part.Headers.Remove("Content-Disposition");
+        _ = part.Headers.TryAddWithoutValidation(
+            "Content-Disposition",
+            EncodeHeaderValueUtf8(disposition)
+        );
+        part.Headers.ContentType = contentType;
     }
 
     /// <summary>

@@ -50,6 +50,36 @@ public class StoreApiTest
     }
 
     [Fact]
+    public async Task TestPlaceOrderWithoutBodyCanBeCalledWithNoArguments()
+    {
+        {{! placeOrder has an optional body and no required Options, so the }}
+        {{! body defaults to null and the call needs no explicit argument. }}
+        var client = new CapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var result = await api.PlaceOrderAsync();
+
+        Assert.Equal(1L, result.Id);
+        Assert.Equal("POST", client.Method);
+        Assert.Null(client.Body);
+    }
+
+    private sealed class CapturingApiClient : IApiClient
+    {
+        public string? Method { get; private set; }
+        public object? Body { get; private set; }
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            Method = method;
+            Body = body;
+            return Task.FromResult(new ApiHttpResponse(200, "{\"id\":1}",
+                new Dictionary<string, string> { { "Content-Type", "application/json" } }));
+        }
+    }
+
+    [Fact]
     public async Task TestGetInventoryWithHttpInfo()
     {
         var result = await _api.GetInventoryWithHttpInfoAsync();

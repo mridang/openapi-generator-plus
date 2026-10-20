@@ -34,7 +34,10 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
     private readonly Uri _redirectUri;
     private readonly string[] _scopes;
     private readonly OAuth2TokenManager _tokenManager = new();
-    private bool _tokenExchanged;
+
+    /* Written by ExchangeCodeAsync (typically from a callback thread) and read
+     * by request threads, so volatile gives the reader a happens-before. */
+    private volatile bool _tokenExchanged;
 
     /// <summary>
     /// Create a new authorization code authenticator.
@@ -105,8 +108,10 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
         );
         /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
          * a query component. Use '&' as the separator when one is already
-         * present so existing params are preserved, '?' otherwise. */
-        string authUrl = _authorizationUrl.ToString();
+         * present so existing params are preserved, '?' otherwise. The base is
+         * the configured text verbatim: Uri.ToString() would drop a default
+         * port and lower-case the host. */
+        string authUrl = _authorizationUrl.OriginalString;
         string separator = authUrl.Contains('?', StringComparison.Ordinal) ? "&" : "?";
         return new Uri(authUrl + separator + query);
     }
