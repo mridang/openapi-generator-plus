@@ -34,6 +34,7 @@ mvn test
 ## Package
 
 - Group: `com.example.petstore`
+- Artifact: `petstore-client`
 - Version: `1.0.0`
 
 ## GraalVM native image
@@ -101,7 +102,7 @@ round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying

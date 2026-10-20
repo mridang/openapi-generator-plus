@@ -151,7 +151,7 @@ public class {{classname}} extends BaseApi {
      * {{{summary}}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
-     * any per-call authenticator and optional parameters default to unset and
+     * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
      * the client's configured credentials are used.
      *
 {{#returnType}}
@@ -170,7 +170,7 @@ public class {{classname}} extends BaseApi {
      * {{{summary}}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
-     * any per-call authenticator and optional parameters default to unset and
+     * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
      * the client's configured credentials are used.
      *
      * @return the API result wrapping {{#returnType}}{@code {{{returnType}}}}{{/returnType}}{{^returnType}}no body{{/returnType}}

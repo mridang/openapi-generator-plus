@@ -16,13 +16,13 @@
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-     * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+     * @param options options for query, header, form, and cookie parameters{{#hasAuthMethods}}, plus an optional per-call authenticator{{/hasAuthMethods}}
 {{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
      * @param options options carrying an optional per-call authenticator
 {{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}

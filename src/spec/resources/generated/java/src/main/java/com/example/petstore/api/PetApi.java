@@ -305,8 +305,8 @@ public class PetApi extends BaseApi {
   /**
    * Add a new pet to the store
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @return {@code Pet}
@@ -319,8 +319,8 @@ public class PetApi extends BaseApi {
   /**
    * Add a new pet to the store
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @return the API result wrapping {@code Pet}
@@ -380,8 +380,7 @@ public class PetApi extends BaseApi {
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
@@ -394,8 +393,7 @@ public class PetApi extends BaseApi {
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code List<Photo>}
    * @throws ApiException if fails to make API call
    */
@@ -440,8 +438,8 @@ public class PetApi extends BaseApi {
   /**
    * Record a treatment for a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @return {@code PetTreatment}
@@ -454,8 +452,8 @@ public class PetApi extends BaseApi {
   /**
    * Record a treatment for a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @return the API result wrapping {@code PetTreatment}
@@ -530,8 +528,8 @@ public class PetApi extends BaseApi {
   /**
    * Deletes a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @throws ApiException if fails to make API call
@@ -543,8 +541,8 @@ public class PetApi extends BaseApi {
   /**
    * Deletes a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and per-call authenticator default to unset and the client's configured credentials
    * are used.
    *
    * @return the API result wrapping no body
@@ -735,9 +733,8 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
@@ -750,9 +747,8 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
@@ -765,8 +761,7 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
@@ -780,8 +775,7 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
@@ -1167,8 +1161,7 @@ public class PetApi extends BaseApi {
    * Look up a pet by name (simple string path param + required query)
    *
    * @param name (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1180,8 +1173,7 @@ public class PetApi extends BaseApi {
    * Look up a pet by name (simple string path param + required query)
    *
    * @param name (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1333,9 +1325,8 @@ public class PetApi extends BaseApi {
   /**
    * Get a tag for a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
@@ -1347,9 +1338,8 @@ public class PetApi extends BaseApi {
   /**
    * Get a tag for a pet
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
@@ -1363,8 +1353,7 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param tagName (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1377,8 +1366,7 @@ public class PetApi extends BaseApi {
    *
    * @param petId (required)
    * @param tagName (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
    */
@@ -1704,8 +1692,7 @@ public class PetApi extends BaseApi {
    * serialization and optional-field omission so the wire bytes are identical across every SDK.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1719,8 +1706,7 @@ public class PetApi extends BaseApi {
    * serialization and optional-field omission so the wire bytes are identical across every SDK.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1824,8 +1810,7 @@ public class PetApi extends BaseApi {
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1838,8 +1823,7 @@ public class PetApi extends BaseApi {
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1883,8 +1867,7 @@ public class PetApi extends BaseApi {
    * to stream bytes directly.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */
@@ -1933,8 +1916,7 @@ public class PetApi extends BaseApi {
    * to stream bytes directly.
    *
    * @param petId (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
    */

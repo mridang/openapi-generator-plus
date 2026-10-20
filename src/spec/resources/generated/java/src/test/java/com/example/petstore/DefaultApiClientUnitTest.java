@@ -882,6 +882,13 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void multipartFilenameStarKeepsOnlyUnreservedLiteral() {
+    String directive = DefaultApiClient.buildFilenameDirective("日本 *~.pdf");
+    assertEquals(
+        "filename=\"__ *~.pdf\"; filename*=UTF-8''%E6%97%A5%E6%9C%AC%20%2A~.pdf", directive);
+  }
+
+  @Test
   void multipartFilenameAsciiOnlyOmitsFilenameStar() {
     String directive = DefaultApiClient.buildFilenameDirective("file.png");
     assertEquals("filename=\"file.png\"", directive);

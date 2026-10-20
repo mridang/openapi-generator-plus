@@ -143,9 +143,8 @@ public class StoreApi extends BaseApi {
   /**
    * Echoes a swatch supplied via path, query and header parameters.
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return {@code Category}
    * @throws ApiException if fails to make API call
@@ -157,9 +156,8 @@ public class StoreApi extends BaseApi {
   /**
    * Echoes a swatch supplied via path, query and header parameters.
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
@@ -172,8 +170,7 @@ public class StoreApi extends BaseApi {
    * Echoes a swatch supplied via path, query and header parameters.
    *
    * @param pathSwatch (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code Category}
    * @throws ApiException if fails to make API call
    */
@@ -185,8 +182,7 @@ public class StoreApi extends BaseApi {
    * Echoes a swatch supplied via path, query and header parameters.
    *
    * @param pathSwatch (required)
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code Category}
    * @throws ApiException if fails to make API call
    */
@@ -445,9 +441,8 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return {@code StockItem}
    * @throws ApiException if fails to make API call
@@ -459,9 +454,8 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
-   * <p>Convenience overload that omits the optional {@code options} argument; any per-call
-   * authenticator and optional parameters default to unset and the client's configured credentials
-   * are used.
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
    *
    * @return the API result wrapping {@code StockItem}
    * @throws ApiException if fails to make API call
@@ -473,8 +467,7 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code StockItem}
    * @throws ApiException if fails to make API call
    */
@@ -485,8 +478,7 @@ public class StoreApi extends BaseApi {
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
-   * @param options options for query, header, form, and cookie parameters, plus an optional
-   *     per-call authenticator
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code StockItem}
    * @throws ApiException if fails to make API call
    */

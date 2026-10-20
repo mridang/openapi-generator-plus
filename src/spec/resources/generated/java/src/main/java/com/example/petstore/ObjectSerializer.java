@@ -503,7 +503,13 @@ public final class ObjectSerializer {
           @Override
           public Duration deserialize(JsonParser parser, DeserializationContext context)
               throws IOException {
-            return parseDuration(parser.getValueAsString());
+            String text = parser.getValueAsString();
+            if (text == null) {
+              throw new SerializationException(
+                  "Invalid protobuf duration: expected a string but found "
+                      + parser.currentToken());
+            }
+            return parseDuration(text);
           }
         });
     return module;

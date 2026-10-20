@@ -1189,7 +1189,13 @@ public final class DefaultApiClient implements ApiClient {
     }
     String asciiFallback =
         filename.replaceAll("[^\\x20-\\x7E]", "_").replace("\\", "\\\\").replace("\"", "\\\"");
-    String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+    /* Keep exactly the RFC 3986 unreserved set (RFC 5987 value-chars):
+    URLEncoder leaves '*' literal and escapes '~' to %7E. */
+    String encoded =
+        URLEncoder.encode(filename, StandardCharsets.UTF_8)
+            .replace("+", "%20")
+            .replace("*", "%2A")
+            .replace("%7E", "~");
     return "filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded;
   }
 

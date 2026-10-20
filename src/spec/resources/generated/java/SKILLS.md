@@ -158,7 +158,7 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus an `Servers.ALL` list. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
 
 ```java
 import com.example.petstore.Servers;
@@ -248,7 +248,7 @@ var model = new ApiResponse();
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `File`. Binary response bodies are returned as `byte[]`.
+File upload parameters are typed as `java.io.InputStream` (`List<InputStream>` for a multi-file field). Binary response bodies are returned as `java.io.InputStream`.
 
 ## Comment Style
 

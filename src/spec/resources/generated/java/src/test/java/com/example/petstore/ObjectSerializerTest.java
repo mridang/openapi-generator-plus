@@ -1032,6 +1032,28 @@ class ObjectSerializerTest {
                           DurationHolder>() {}.getType()));
       assertInstanceOf(OpenAPIException.class, ex);
     }
+
+    @Test
+    @DisplayName("a JSON object where a Duration is expected is a SerializationException")
+    void objectTokenRejectedAsSerializationException() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () -> serializer.deserialize("{\"a\":1}", java.time.Duration.class));
+      assertEquals(
+          "Invalid protobuf duration: expected a string but found START_OBJECT", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("a JSON array where a Duration is expected is a SerializationException")
+    void arrayTokenRejectedAsSerializationException() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () -> serializer.deserialize("[1]", java.time.Duration.class));
+      assertEquals(
+          "Invalid protobuf duration: expected a string but found START_ARRAY", ex.getMessage());
+    }
   }
 
   static class DurationHolder {
