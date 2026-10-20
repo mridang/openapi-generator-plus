@@ -82,3 +82,71 @@ class TestOAuth2ImplicitAuthenticator:
         rendered = repr(auth)
         assert 'implicit-tok' not in rendered
         assert '***' in rendered
+
+
+class TestImplicitAuthorizationUrl:
+    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+        url = _create_authenticator().build_authorization_url(state="a b")
+
+        assert url == (
+            "https://auth.example.com/authorize?response_type=token"
+            "&client_id=my_implicit_client_id&scope=read%20write&state=a%20b"
+        )
+
+
+class TestSetAccessTokenValidation:
+    @pytest.mark.parametrize(
+        "token",
+        ["abc\r\nInjected: yes", "abc\ndef", "abc\x00def", "abc\x7fdef", "töken"],
+    )
+    def test_a_token_outside_printable_ascii_is_rejected(self, token: str) -> None:
+        auth = _create_authenticator()
+        auth.set_access_token("kept")
+
+        with pytest.raises(ValueError) as excinfo:
+            auth.set_access_token(token)
+
+        assert type(excinfo.value) is ValueError
+        assert str(excinfo.value) == (
+            "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+        )
+        assert auth.get_auth_headers() == {"Authorization": "Bearer kept"}
+
+    def test_a_tab_is_allowed_inside_a_token(self) -> None:
+        auth = _create_authenticator()
+
+        auth.set_access_token("a\tb")
+
+        assert auth.get_auth_headers() == {"Authorization": "Bearer a\tb"}
+
+
+class TestBrowserAuthWrapper:
+    def test_uses_the_spec_authorization_url_and_scope(self) -> None:
+        from {{packageName}}.auth.oauth.browser_auth_implicit_authenticator import (
+            BrowserAuthImplicitAuthenticator,
+        )
+
+        auth = BrowserAuthImplicitAuthenticator("https://api.example.com", "cid")
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=token"
+            "&client_id=cid&scope=read"
+        )
+        assert auth.get_host() == "https://api.example.com"
+
+
+class TestImplicitRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_token(self) -> None:
+        auth = _create_authenticator()
+        prefix = (
+            "OAuth2ImplicitAuthenticator(host='https://api.example.com', "
+            "client_id='my_implicit_client_id', "
+            "authorization_url='https://auth.example.com/authorize', "
+            "scopes=('read', 'write'), "
+        )
+
+        assert repr(auth) == prefix + "access_token=None)"
+
+        auth.set_access_token("implicit-tok")
+
+        assert repr(auth) == prefix + "access_token='***')"

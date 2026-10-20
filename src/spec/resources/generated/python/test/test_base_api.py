@@ -1421,54 +1421,6 @@ class TestNoPerCallBaseUrlParam:
         )
 
 
-class TestCrossOriginRedirect:
-    def test_same_origin_redirect_forwards_authorization(self) -> None:
-        sensitive_headers = {"authorization", "cookie", "proxy-authorization"}
-        is_same_origin = True
-        auth_header = "Bearer token123"
-        original_headers = {"Authorization": auth_header, "Accept": "application/json"}
-        forwarded_headers = {}
-
-        for key, value in original_headers.items():
-            if not is_same_origin and key.lower() in sensitive_headers:
-                continue
-            forwarded_headers[key] = value
-
-        assert "Authorization" in forwarded_headers
-        assert forwarded_headers["Authorization"] == auth_header
-
-    def test_cross_origin_redirect_drops_authorization(self) -> None:
-        sensitive_headers = {"authorization", "cookie", "proxy-authorization"}
-        is_same_origin = False
-        original_headers = {
-            "Authorization": "Bearer token123",
-            "Accept": "application/json",
-        }
-        forwarded_headers = {}
-
-        for key, value in original_headers.items():
-            if not is_same_origin and key.lower() in sensitive_headers:
-                continue
-            forwarded_headers[key] = value
-
-        assert "Authorization" not in forwarded_headers
-        assert "Accept" in forwarded_headers
-
-    def test_cross_origin_redirect_drops_cookie(self) -> None:
-        sensitive_headers = {"authorization", "cookie", "proxy-authorization"}
-        is_same_origin = False
-        original_headers = {"Cookie": "session=abc123", "Accept": "application/json"}
-        forwarded_headers = {}
-
-        for key, value in original_headers.items():
-            if not is_same_origin and key.lower() in sensitive_headers:
-                continue
-            forwarded_headers[key] = value
-
-        assert "Cookie" not in forwarded_headers
-        assert "Accept" in forwarded_headers
-
-
 class TestNullBodyContentType:
     async def test_null_body_post_does_not_send_content_type(self) -> None:
         client = CapturingApiClient()
@@ -1541,3 +1493,213 @@ class TestTypedErrorBody:
     def test_get_typed_error_body_returns_none_for_empty_body(self) -> None:
         err = BadRequestException(message="boom", response_headers={}, response_body="")
         assert err.get_typed_error_body(Category) is None
+
+
+class JsonReplyApiClient(CapturingApiClient):
+    """Capturing client that answers 200 with a fixed JSON body."""
+
+    def __init__(self, reply: str) -> None:
+        super().__init__()
+        self._reply = reply
+
+    def send_request(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        body: Any = None,
+        no_redirect: bool = False,
+    ) -> ApiHttpResponse:
+        super().send_request(method, url, headers, body)
+        return ApiHttpResponse(
+            status_code=200,
+            body=self._reply,
+            headers={"content-type": "application/json"},
+        )
+
+
+_PET_REPLY = '{"id":1,"name":"sample","photoUrls":[]}'
+
+
+class TestDatePathParam:
+    async def test_format_date_path_param_is_date_only(self) -> None:
+        client = JsonReplyApiClient("[]")
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.find_pets_born_on(datetime.date(2024, 1, 1))
+
+        assert client.captured_url == "http://localhost/pet/born-on/2024-01-01"
+
+
+class TestNamedEnumParams:
+    async def test_path_query_and_header_carry_the_wire_value(self) -> None:
+        from petstore_client.api.options.get_by_swatch_options import (
+            GetBySwatchOptions,
+        )
+        from petstore_client.models.swatch import Swatch
+
+        client = JsonReplyApiClient("{}")
+        api = StoreApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.get_by_swatch(
+            Swatch.RED,
+            GetBySwatchOptions(query_swatch=Swatch.GREEN, preferred_swatch=Swatch.BLUE),
+        )
+
+        assert (
+            client.captured_url
+            == "http://localhost/store/by-swatch/red?querySwatch=green"
+        )
+        assert client.captured_headers["Preferred-Swatch"] == "blue"
+
+    async def test_optional_enum_params_are_omitted_when_unset(self) -> None:
+        from petstore_client.models.swatch import Swatch
+
+        client = JsonReplyApiClient("{}")
+        api = StoreApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.get_by_swatch(Swatch.BLUE)
+
+        assert client.captured_url == "http://localhost/store/by-swatch/blue"
+        assert "Preferred-Swatch" not in client.captured_headers
+
+
+class TestOperationCookieParam:
+    async def test_cookie_value_is_sent_in_the_cookie_header(self) -> None:
+        from petstore_client.api.options.delete_pet_options import DeletePetOptions
+
+        client = JsonReplyApiClient("")
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.delete_pet(1, DeletePetOptions(api_key="abc123"))
+
+        assert client.captured_headers["Cookie"] == "api_key=abc123"
+
+    @pytest.mark.parametrize("value", ["abc\r\nInjected: yes", "abc\x00def"])
+    async def test_control_characters_fail_closed_before_the_transport(
+        self, value: str
+    ) -> None:
+        from petstore_client.api.options.delete_pet_options import DeletePetOptions
+
+        client = JsonReplyApiClient("")
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        with pytest.raises(ValueError) as excinfo:
+            await api.delete_pet(1, DeletePetOptions(api_key=value))
+
+        assert type(excinfo.value) is ValueError
+        assert str(excinfo.value) == (
+            "Cookie value for 'api_key' contains characters forbidden by RFC 6265"
+        )
+        assert client.captured_url == ""
+
+
+class TestOperationServerVariants:
+    def test_fixed_url_variant(self) -> None:
+        from petstore_client.api.pet_api import GetExternalPetInfoServerServer0
+
+        assert (
+            GetExternalPetInfoServerServer0().get_url()
+            == "https://external-api.example.com/v1"
+        )
+
+    @pytest.mark.parametrize(
+        ("environment", "version", "expected"),
+        [
+            ("staging", "v2", "https://staging.example.com/api/v2"),
+            ("sandbox", "v3", "https://sandbox.example.com/api/v3"),
+        ],
+    )
+    def test_templated_variant_substitutes_every_variable(
+        self, environment: str, version: str, expected: str
+    ) -> None:
+        from petstore_client.api.pet_api import (
+            GetStagingPetInfoServerEnvironment,
+            GetStagingPetInfoServerStagingServer,
+            GetStagingPetInfoServerVersion,
+        )
+
+        server = GetStagingPetInfoServerStagingServer(
+            GetStagingPetInfoServerEnvironment(environment),
+            GetStagingPetInfoServerVersion(version),
+        )
+
+        assert server.get_url() == expected
+
+    def test_a_value_outside_the_variable_enum_is_rejected(self) -> None:
+        from petstore_client.api.pet_api import GetStagingPetInfoServerEnvironment
+
+        with pytest.raises(ValueError, match="'production' is not a valid"):
+            GetStagingPetInfoServerEnvironment("production")
+
+    def test_multi_server_operation_offers_each_server(self) -> None:
+        from petstore_client.api.pet_api import (
+            GetMultiServerPetInfoServerPrimary,
+            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegional,
+        )
+
+        assert (
+            GetMultiServerPetInfoServerPrimary().get_url()
+            == "https://primary.example.com/v1"
+        )
+        assert (
+            GetMultiServerPetInfoServerRegional(
+                GetMultiServerPetInfoServerRegion.EU
+            ).get_url()
+            == "https://eu.example.com/v1"
+        )
+
+    async def test_request_goes_to_the_selected_variant(self) -> None:
+        from petstore_client.api.pet_api import (
+            GetStagingPetInfoServerEnvironment,
+            GetStagingPetInfoServerStagingServer,
+            GetStagingPetInfoServerVersion,
+        )
+
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.get_staging_pet_info(
+            7,
+            server=GetStagingPetInfoServerStagingServer(
+                GetStagingPetInfoServerEnvironment.SANDBOX,
+                GetStagingPetInfoServerVersion.V3,
+            ),
+        )
+
+        assert client.captured_url == "https://sandbox.example.com/api/v3/pet/7/staging"
+
+    async def test_request_goes_to_the_regional_server_of_a_multi_server_operation(
+        self,
+    ) -> None:
+        from petstore_client.api.pet_api import (
+            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegional,
+        )
+
+        client = JsonReplyApiClient(_PET_REPLY)
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.get_multi_server_pet_info(
+            7,
+            server=GetMultiServerPetInfoServerRegional(
+                GetMultiServerPetInfoServerRegion.AP
+            ),
+        )
+
+        assert client.captured_url == "https://ap.example.com/v1/pet/7/multi"

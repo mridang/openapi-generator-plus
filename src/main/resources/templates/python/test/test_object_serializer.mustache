@@ -1477,3 +1477,25 @@ class TestDeprecatedFieldWarnsOnAccessOnly:
         pet = ObjectSerializer().deserialize(self.WIRE, 'Pet')
         with pytest.warns(DeprecationWarning, match="field 'status' on Pet is deprecated"):
             assert pet.status is not None
+
+
+class TestIntegerFieldBoundaries:
+    @pytest.mark.parametrize("raw", ["1.5", "1.0", '"7"', "true"])
+    def test_non_integer_number_for_an_integer_field_is_rejected(
+        self, raw: str
+    ) -> None:
+        with pytest.raises(SerializationException) as excinfo:
+            ObjectSerializer().deserialize('{"quantity":' + raw + "}", "Order")
+
+        assert type(excinfo.value) is SerializationException
+        assert "Input should be a valid integer" in str(excinfo.value)
+
+    def test_int64_beyond_two_to_the_53_survives_a_round_trip(self) -> None:
+        import json
+
+        big = 9007199254740993
+
+        order = ObjectSerializer().deserialize('{"id":' + str(big) + "}", "Order")
+
+        assert order.id == big
+        assert json.loads(ObjectSerializer().serialize(order))["id"] == big

@@ -6,7 +6,7 @@ install:
 build: install
 
 test: install
-	python -m pytest test/ -v
+	python -m pytest -v
 
 lint: install
 	ruff check .

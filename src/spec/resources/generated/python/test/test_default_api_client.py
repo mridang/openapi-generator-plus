@@ -1,10 +1,13 @@
 import json
+import socket
 
 import pytest
 import urllib3
 from typing import Any
+from urllib.parse import urlsplit
 
 from petstore_client.default_api_client import DefaultApiClient
+from petstore_client.errors import NetworkException
 from petstore_client.transport_options import TransportOptions
 
 
@@ -749,41 +752,24 @@ class TestMultipartBody:
 
 
 class TestHttpCompression:
-    def test_decompresses_gzip_response(self) -> None:
+    """The fixture serves one JSON body under each codec whatever the request
+    advertises, so the plain text proves the client decoded it."""
+
+    @pytest.mark.parametrize("encoding", ["gzip", "br", "zstd"])
+    def test_decompresses_the_response(
+        self, chasm_http_url: Any, encoding: str
+    ) -> None:
         client = DefaultApiClient()
         response = client.send_request(
             "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
-            {"Accept-Encoding": "gzip"},
+            f"{chasm_http_url}/test/compressed/{encoding}",
+            {"Accept-Encoding": encoding},
             None,
         )
 
         assert response.status_code == 200
-        assert "userId" in response.body
-
-    def test_decompresses_brotli_response(self) -> None:
-        client = DefaultApiClient()
-        response = client.send_request(
-            "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
-            {"Accept-Encoding": "br"},
-            None,
-        )
-
-        assert response.status_code == 200
-        assert "userId" in response.body
-
-    def test_decompresses_zstd_response(self) -> None:
-        client = DefaultApiClient()
-        response = client.send_request(
-            "GET",
-            "https://jsonplaceholder.typicode.com/posts/1",
-            {"Accept-Encoding": "zstd"},
-            None,
-        )
-
-        assert response.status_code == 200
-        assert "userId" in response.body
+        assert response.headers["content-encoding"] == encoding
+        assert json.loads(response.body)["title"] == "compressed fixture body"
 
 
 class TestNullBodyContentLength:
@@ -818,3 +804,61 @@ class TestClientLifecycle:
             client.send_request("GET", "https://example.com", {}, None)
         assert type(excinfo.value) is RuntimeError
         assert "closed" in str(excinfo.value)
+
+
+class TestTlsVerificationEnforced:
+    """Certificate verification is ON by default and a failed check surfaces as
+    a NetworkException, never as a response."""
+
+    @staticmethod
+    def _address_url(chasm_https_url: str) -> str:
+        # The fixture certificate names `chasm`, `localhost`,
+        # `host.docker.internal` and 127.0.0.1, so the resolved address of the
+        # fixture host is a name the certificate does not carry.
+        parts = urlsplit(chasm_https_url)
+        assert parts.hostname is not None
+        return f"https://{socket.gethostbyname(parts.hostname)}:{parts.port}"
+
+    def test_default_transport_rejects_a_certificate_from_an_untrusted_ca(
+        self, chasm_https_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+        assert type(excinfo.value) is NetworkException
+        assert excinfo.value.status_code == 0
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
+    def test_verify_ssl_true_rejects_an_address_the_certificate_does_not_name(
+        self, chasm_https_url: Any, ca_cert_path: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(ca_cert_path)
+            .build()
+        )
+        client = DefaultApiClient(transport)
+
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request(
+                "GET", self._address_url(chasm_https_url) + "/test/echo", {}, None
+            )
+
+        assert excinfo.value.status_code == 0
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
+    def test_verify_ssl_false_accepts_an_address_the_certificate_does_not_name(
+        self, chasm_https_url: Any
+    ) -> None:
+        transport = TransportOptions.builder().verify_ssl(False).build()
+        client = DefaultApiClient(transport)
+
+        response = client.send_request(
+            "GET", self._address_url(chasm_https_url) + "/test/echo", {}, None
+        )
+
+        assert response.status_code == 200
+        assert '"method"' in response.body

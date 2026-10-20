@@ -77,11 +77,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
         call_args = mock_client.send_request.call_args
         body = call_args[0][3]
-        assert (
-            "scope=read+write" in body
-            or "scope=read%20write" in body
-            or "scope=read write" in body
-        )
+        assert body.endswith("&scope=read+write")
 
     def test_returns_authorization_bearer_header(self) -> None:
         auth = _create_authenticator()
@@ -212,3 +208,97 @@ class TestOAuth2ClientCredentialsImmutability:
         assert first != second
         assert first == first
         assert len({first, second}) == 2
+
+
+def _reply_token() -> ApiHttpResponse:
+    return ApiHttpResponse(
+        status_code=200,
+        body=json.dumps({"access_token": "at", "expires_in": 3600}),
+        headers={"content-type": "application/json"},
+    )
+
+
+class TestClientCredentialsWireEncoding:
+    def test_body_separates_scopes_with_a_plus(self) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+
+        auth.get_auth_headers()
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=client_credentials&client_id=my_client_id"
+            "&client_secret=my_client_secret&scope=read+write"
+        )
+
+    def test_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(self) -> None:
+        auth = OAuth2ClientCredentialsAuthenticator(
+            host="https://api.example.com",
+            client_id="id~*!'()",
+            client_secret="s-._~(x)",
+            token_url="https://auth.example.com/token",
+            scopes=["a*b", "c!d"],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _reply_token()
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=client_credentials&client_id=id~%2A%21%27%28%29"
+            "&client_secret=s-._~%28x%29&scope=a%2Ab+c%21d"
+        )
+
+    def test_basic_header_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+        self,
+    ) -> None:
+        auth = OAuth2ClientCredentialsAuthenticator(
+            host="https://api.example.com",
+            client_id="id~*!'()",
+            client_secret="s-._~(x)",
+            token_url="https://auth.example.com/token",
+            client_auth_method=ClientAuthMethod.BASIC,
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _reply_token()
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+
+        header = mock_client.send_request.call_args[0][2]["Authorization"]
+        assert base64.b64decode(header[len("Basic ") :]).decode("utf-8") == (
+            "id~%2A%21%27%28%29:s-._~%28x%29"
+        )
+
+
+class TestMachineAuthWrapper:
+    def test_sends_the_spec_token_url_and_scopes(self) -> None:
+        from petstore_client.auth.oauth.machine_auth_client_credentials_authenticator import (
+            MachineAuthClientCredentialsAuthenticator,
+        )
+
+        auth = MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com", "cid", "sec"
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _reply_token()
+        auth.set_api_client(mock_client)
+
+        assert auth.get_auth_headers() == {"Authorization": "Bearer at"}
+
+        call = mock_client.send_request.call_args
+        assert call[0][1] == "https://auth.example.com/oauth/token"
+        assert call[0][3] == (
+            "grant_type=client_credentials&client_id=cid&client_secret=sec"
+            "&scope=pets%3Awrite+pets%3Aread"
+        )
+        assert auth.get_host() == "https://api.example.com"
+
+
+class TestClientCredentialsRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+        assert repr(_create_authenticator()) == (
+            "OAuth2ClientCredentialsAuthenticator(host='https://api.example.com', "
+            "client_id='my_client_id', client_secret='***', "
+            "token_url='https://auth.example.com/token', scopes=('read', 'write'), "
+            f"client_auth_method={ClientAuthMethod.BODY!r})"
+        )

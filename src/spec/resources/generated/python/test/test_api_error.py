@@ -275,3 +275,102 @@ class TestApiErrorTypedBody:
         assert isinstance(typed, Category)
         assert typed.id == 1
         assert typed.name == "Cat"
+
+
+class TestApiErrorRendering:
+    def test_renders_every_present_part_in_order(self) -> None:
+        err = ApiException(
+            status_code=404,
+            message="not found",
+            response_headers={"x-id": "7"},
+            response_body='{"a":1}',
+        )
+
+        assert str(err) == (
+            "not found\nHTTP status code: 404"
+            "\nResponse headers: {'x-id': '7'}\nResponse body: " + '{"a":1}'
+        )
+
+    def test_omits_empty_headers_and_an_empty_body(self) -> None:
+        err = ApiException(
+            status_code=502,
+            message="bad gateway",
+            response_headers={},
+            response_body="",
+        )
+
+        assert str(err) == "bad gateway\nHTTP status code: 502"
+
+    def test_omits_the_status_line_when_no_response_arrived(self) -> None:
+        err = ApiException(status_code=0, message="boom")
+
+        assert str(err) == "boom"
+
+
+class TestFromResponseBodyShapes:
+    def test_a_scalar_json_body_becomes_the_error_body(self) -> None:
+        err = ApiException.from_response(400, {}, '"just a string"')
+
+        assert type(err) is BadRequestException
+        assert err.error_body == "just a string"
+        assert err.response_body == '"just a string"'
+
+    def test_a_bom_prefixed_body_is_kept_raw_without_an_error_body(self) -> None:
+        body = '﻿{"a":1}'
+
+        err = ApiException.from_response(400, {}, body)
+
+        assert type(err) is BadRequestException
+        assert err.error_body is None
+        assert err.response_body == body
+
+
+class TestApiErrorTypedBodyFailures:
+    def test_a_body_that_does_not_fit_the_type_raises_a_serialization_exception(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=400, message="bad request", response_body='{"id":"abc"}'
+        )
+
+        with pytest.raises(SerializationException) as excinfo:
+            err.get_typed_error_body(Category)
+
+        assert type(excinfo.value) is SerializationException
+
+    def test_an_empty_string_body_yields_no_typed_body(self) -> None:
+        err = ApiException(status_code=400, message="bad request", response_body="")
+
+        assert err.get_typed_error_body(Category) is None
+
+
+class TestOAuth2ServerExceptionMessage:
+    @pytest.mark.parametrize(
+        ("code", "description", "raw_body", "expected"),
+        [
+            (None, None, "oops", "Token request failed with status 400: oops"),
+            (
+                "invalid_grant",
+                None,
+                "{}",
+                "Token request failed with status 400: invalid_grant",
+            ),
+            (
+                "invalid_grant",
+                "refresh token expired",
+                "{}",
+                "Token request failed with status 400: invalid_grant -- refresh token expired",
+            ),
+        ],
+    )
+    def test_message_has_three_forms(
+        self,
+        code: Any,
+        description: Any,
+        raw_body: str,
+        expected: str,
+    ) -> None:
+        err = OAuth2ServerException(400, code, description, None, raw_body)
+
+        assert str(err) == expected
+        assert err.raw_body == raw_body

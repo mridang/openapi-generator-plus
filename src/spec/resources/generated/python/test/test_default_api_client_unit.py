@@ -1458,3 +1458,197 @@ class TestZstdDecompression:
             DefaultApiClient._decompress_body(
                 compressed[: len(compressed) // 2], "zstd"
             )
+
+
+class _RedirectPool:
+    """Pool double: the first call answers 302 to ``location``, the next 200."""
+
+    def __init__(self, location: str) -> None:
+        self.location = location
+        self.calls: list[Any] = []
+
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+        if len(self.calls) == 1:
+            return _FakeResp(302, {"location": self.location})
+        return _FakeResp(200, {})
+
+
+def _headers_on_second_hop(
+    start: str, location: str, headers: dict[str, str]
+) -> dict[str, str]:
+    pool = _RedirectPool(location)
+    client = DefaultApiClient(
+        TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+    )
+    client.send_request("GET", start, headers, None)
+    assert len(pool.calls) == 2
+    assert pool.calls[1][1] == location
+    return {k.lower(): v for k, v in pool.calls[1][2].items()}
+
+
+class TestRedirectCredentialForwarding:
+    """The credential trio is dropped on a cross-origin hop and kept on a
+    same-origin one, driven through the client's own redirect loop."""
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("Authorization", "Bearer secret"),
+            ("Cookie", "session=abc123"),
+            ("Proxy-Authorization", "Basic c2VjcmV0"),
+        ],
+    )
+    def test_cross_origin_redirect_drops_the_credential_header(
+        self, name: str, value: str
+    ) -> None:
+        followed = _headers_on_second_hop(
+            "https://example.com/start",
+            "https://other.example.com/dest",
+            {name: value, "X-Trace": "keep"},
+        )
+
+        assert name.lower() not in followed
+        assert followed["x-trace"] == "keep"
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("Authorization", "Bearer secret"),
+            ("Cookie", "session=abc123"),
+            ("Proxy-Authorization", "Basic c2VjcmV0"),
+        ],
+    )
+    def test_same_origin_redirect_keeps_the_credential_header(
+        self, name: str, value: str
+    ) -> None:
+        followed = _headers_on_second_hop(
+            "https://example.com/start", "https://example.com/dest", {name: value}
+        )
+
+        assert followed[name.lower()] == value
+
+    @pytest.mark.parametrize(
+        ("start", "location"),
+        [
+            ("https://example.com/start", "https://example.com:443/dest"),
+            ("https://example.com:443/start", "https://example.com/dest"),
+            ("http://example.com/start", "http://example.com:80/dest"),
+            ("http://example.com:80/start", "http://example.com/dest"),
+        ],
+    )
+    def test_explicit_default_port_is_the_same_origin(
+        self, start: str, location: str
+    ) -> None:
+        followed = _headers_on_second_hop(
+            start, location, {"Authorization": "Bearer secret"}
+        )
+
+        assert followed["authorization"] == "Bearer secret"
+
+    @pytest.mark.parametrize(
+        ("start", "location"),
+        [
+            ("https://example.com/start", "https://example.com:8443/dest"),
+            ("https://example.com/start", "https://example.com:80/dest"),
+            ("http://example.com/start", "http://example.com:443/dest"),
+        ],
+    )
+    def test_a_different_port_is_a_different_origin(
+        self, start: str, location: str
+    ) -> None:
+        followed = _headers_on_second_hop(
+            start, location, {"Authorization": "Bearer secret"}
+        )
+
+        assert "authorization" not in followed
+
+
+class TestGarbageCaCertPath:
+    def test_unparseable_ca_file_raises_value_error_naming_the_path(
+        self, tmp_path: Any
+    ) -> None:
+        from petstore_client.errors import OpenAPIException
+
+        ca_file = tmp_path / "ca.pem"
+        ca_file.write_text("this is not a certificate")
+        transport = TransportOptions.builder().ca_cert_path(str(ca_file)).build()
+
+        with pytest.raises(ValueError) as excinfo:
+            DefaultApiClient(transport)
+
+        assert type(excinfo.value) is ValueError
+        assert not isinstance(excinfo.value, OpenAPIException)
+        assert str(excinfo.value).startswith(
+            f"failed to load CA certificate from {str(ca_file)!r}: "
+        )
+
+
+class _EncodingHandler(BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        import zlib
+
+        payload = b'{"ok":true}'
+        if self.path == "/deflate":
+            body = zlib.compress(payload)
+            encoding = "deflate"
+        elif self.path == "/raw-deflate":
+            compressor = zlib.compressobj(wbits=-15)
+            body = compressor.compress(payload) + compressor.flush()
+            encoding = "deflate"
+        else:
+            body = self.headers.get("Accept-Encoding", "").encode()
+            encoding = "identity"
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.send_header("Content-Encoding", encoding)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: Any) -> None:
+        pass
+
+
+class TestResponseContentEncoding:
+    server: HTTPServer
+    base_url: str
+
+    @classmethod
+    def setup_class(cls) -> None:
+        cls.server = HTTPServer(("127.0.0.1", 0), _EncodingHandler)
+        cls.base_url = f"http://127.0.0.1:{cls.server.server_address[1]}"
+        Thread(target=cls.server.serve_forever, daemon=True).start()
+
+    @classmethod
+    def teardown_class(cls) -> None:
+        cls.server.shutdown()
+
+    def test_decompresses_a_zlib_wrapped_deflate_response(self) -> None:
+        response = DefaultApiClient().send_request(
+            "GET", f"{self.base_url}/deflate", {}, None
+        )
+
+        assert response.status_code == 200
+        assert response.body == '{"ok":true}'
+
+    def test_raw_deflate_without_the_zlib_header_raises_with_the_status(self) -> None:
+        from petstore_client.errors import ApiException, NetworkException
+
+        with pytest.raises(ApiException) as excinfo:
+            DefaultApiClient().send_request(
+                "GET", f"{self.base_url}/raw-deflate", {}, None
+            )
+
+        assert not isinstance(excinfo.value, NetworkException)
+        assert excinfo.value.status_code == 200
+        assert str(excinfo.value.message).startswith(
+            "Failed to decompress deflate response body: "
+        )
+
+    def test_advertises_every_supported_codec_by_default(self) -> None:
+        response = DefaultApiClient().send_request(
+            "GET", f"{self.base_url}/accept-encoding", {}, None
+        )
+
+        assert response.body == "gzip, deflate, br, zstd"

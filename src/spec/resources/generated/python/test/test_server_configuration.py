@@ -105,3 +105,60 @@ class TestGeneratedServers:
                 server.variables["injected"] = ServerVariable(default_value="x")  # type: ignore[index]
             for variable in server.variables.values():
                 assert isinstance(variable.enum_values, tuple)
+
+
+class TestServerVariableResolution:
+    def test_variable_without_an_enum_accepts_any_override(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url({"env": "anything-goes"}) == (
+            "https://anything-goes.api.example.com"
+        )
+
+    def test_default_value_outside_the_enum_is_rejected(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="dev", enum_values=["prod", "staging"]
+                )
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            config.get_url()
+
+        assert str(exc_info.value) == (
+            "Invalid value 'dev' for server variable 'env'. "
+            "Allowed values: ('prod', 'staging')"
+        )
+
+    def test_rejection_names_the_value_the_variable_and_the_allowed_values(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "version": ServerVariable(default_value="1", enum_values=["1", "2"]),
+            },
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            config.get_url({"version": "3"})
+
+        assert str(exc_info.value) == (
+            "Invalid value '3' for server variable 'version'. "
+            "Allowed values: ('1', '2')"
+        )
+
+    def test_a_variable_repeated_in_the_template_is_replaced_everywhere(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.a.example.com/{region}/v1",
+            variables={"region": ServerVariable(default_value="eu")},
+        )
+
+        assert config.get_url({"region": "us"}) == "https://us.a.example.com/us/v1"

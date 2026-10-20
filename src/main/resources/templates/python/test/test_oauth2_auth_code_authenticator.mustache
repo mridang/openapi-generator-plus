@@ -1,5 +1,6 @@
 {{>api_info}}
 import json
+from typing import Any
 import pytest
 from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
@@ -179,3 +180,154 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert 'audience=api' in url, f'existing query param must be preserved: {url}'
         assert 'response_type=code' in url, f'response_type must be appended: {url}'
         assert url.count('?') == 1, f"result must contain exactly one '?': {url}"
+
+
+def _code_reply(**fields: object) -> ApiHttpResponse:
+    return ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(fields),
+        headers={"content-type": "application/json"},
+    )
+
+
+class TestAuthorizationUrlEncoding:
+    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+        url = _create_authenticator().build_authorization_url()
+
+        assert url == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=my_client_id"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=read%20write"
+        )
+
+    def test_authorize_url_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+        self,
+    ) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="id~*!'()",
+            client_secret="my_secret",
+            authorization_url="https://auth.example.com/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["a*b", "c!d"],
+        )
+
+        url = auth.build_authorization_url(state="s t~(1)")
+
+        assert url == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=id~%2A%21%27%28%29"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=a%2Ab%20c%21d&state=s%20t~%281%29"
+        )
+
+    def test_code_exchange_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(
+        self,
+    ) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="id~*",
+            client_secret="s!'()",
+            authorization_url="https://auth.example.com/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["read"],
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _code_reply(
+            access_token="at", expires_in=3600
+        )
+        auth.set_api_client(mock_client)
+
+        auth.exchange_code("c~*(1)")
+
+        assert mock_client.send_request.call_args[0][3] == (
+            "grant_type=authorization_code&code=c~%2A%281%29&client_id=id~%2A"
+            "&client_secret=s%21%27%28%29"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+        )
+
+
+class TestAuthorizationCodeRefreshUrlRouting:
+    @staticmethod
+    def _urls_of_exchange_then_refresh(refresh_url: Any) -> list[str]:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="my_client_id",
+            client_secret="my_secret",
+            authorization_url="https://auth.example.com/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://app.example.com/callback",
+            scopes=["read"],
+            refresh_url=refresh_url,
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=0),
+            _code_reply(access_token="t2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+
+        auth.exchange_code("code")
+        auth.get_auth_headers()
+
+        return [call[0][1] for call in mock_client.send_request.call_args_list]
+
+    def test_code_goes_to_the_token_url_and_the_refresh_to_the_refresh_url(
+        self,
+    ) -> None:
+        assert self._urls_of_exchange_then_refresh(
+            "https://auth.example.com/oauth/refresh"
+        ) == [
+            "https://auth.example.com/token",
+            "https://auth.example.com/oauth/refresh",
+        ]
+
+    def test_refresh_falls_back_to_the_token_url_without_a_refresh_url(self) -> None:
+        assert self._urls_of_exchange_then_refresh(None) == [
+            "https://auth.example.com/token",
+            "https://auth.example.com/token",
+        ]
+
+
+class TestUserAuthWrapper:
+    def test_uses_the_spec_urls_and_scopes(self) -> None:
+        from {{packageName}}.auth.oauth.user_auth_authorization_code_authenticator import (
+            UserAuthAuthorizationCodeAuthenticator,
+        )
+
+        auth = UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=0),
+            _code_reply(access_token="t2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=code&client_id=cid"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb"
+            "&scope=pets%3Awrite%20pets%3Aread"
+        )
+        auth.exchange_code("code")
+        auth.get_auth_headers()
+
+        first, second = mock_client.send_request.call_args_list
+        assert first[0][1] == "https://auth.example.com/oauth/token"
+        assert second[0][1] == "https://auth.example.com/oauth/refresh"
+
+
+class TestAuthorizationCodeRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+        assert repr(_create_authenticator()) == (
+            "OAuth2AuthorizationCodeAuthenticator(host='https://api.example.com', "
+            "client_id='my_client_id', client_secret='***', "
+            "authorization_url='https://auth.example.com/authorize', "
+            "token_url='https://auth.example.com/token', "
+            "redirect_uri='https://app.example.com/callback', "
+            "scopes=('read', 'write'))"
+        )

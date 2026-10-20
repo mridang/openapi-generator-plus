@@ -1,4 +1,6 @@
 {{>api_info}}
+from typing import Any
+
 import pytest
 
 from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator
@@ -149,3 +151,99 @@ class TestApiKeyAuthenticator:
         assert first != second
         assert first == first
         assert len({first, second}) == 2
+
+
+class TestApiKeyRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_key(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="X-API-Key",
+            api_key="abc123",
+            location=ApiKeyLocation.HEADER,
+        )
+
+        assert repr(auth) == (
+            "ApiKeyAuthenticator(host='https://api.example.com', "
+            "key_param_name='X-API-Key', api_key='***', "
+            f"location={ApiKeyLocation.HEADER!r})"
+        )
+
+
+class TestApiKeyLocationEmission:
+    @pytest.mark.parametrize(
+        ("location", "headers", "query", "cookies"),
+        [
+            (ApiKeyLocation.HEADER, {"k": "abc123"}, {}, {}),
+            (ApiKeyLocation.QUERY, {}, {"k": "abc123"}, {}),
+            (ApiKeyLocation.COOKIE, {}, {}, {"k": "abc123"}),
+        ],
+    )
+    def test_key_is_emitted_only_at_its_own_location(
+        self,
+        location: ApiKeyLocation,
+        headers: dict[str, str],
+        query: dict[str, str],
+        cookies: dict[str, str],
+    ) -> None:
+        auth = ApiKeyAuthenticator(
+            host="https://api.example.com",
+            key_param_name="k",
+            api_key="abc123",
+            location=location,
+        )
+
+        assert auth.get_auth_headers() == headers
+        assert auth.get_query_params() == query
+        assert auth.get_cookie_params() == cookies
+
+
+_API_KEY_WRAPPERS = [
+    ("api_key_header_authenticator", "ApiKeyHeaderAuthenticator", "X-API-Key", "header"),
+    (
+        "internal_api_key_authenticator",
+        "InternalApiKeyAuthenticator",
+        "X-Internal-Key",
+        "header",
+    ),
+    ("api_key_query_authenticator", "ApiKeyQueryAuthenticator", "api_key", "query"),
+    ("session_cookie_authenticator", "SessionCookieAuthenticator", "SESSION_ID", "cookie"),
+]
+
+
+def _api_key_wrapper(module: str, name: str) -> Any:
+    import importlib
+
+    return getattr(importlib.import_module(f"{{packageName}}.auth.{module}"), name)
+
+
+class TestApiKeySchemeWrappers:
+    @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
+    def test_wrapper_emits_the_key_under_the_declared_name_and_location(
+        self, module: str, name: str, key_name: str, where: str
+    ) -> None:
+        auth = _api_key_wrapper(module, name)("https://api.example.com", "abc123")
+
+        emitted = {
+            "header": auth.get_auth_headers(),
+            "query": auth.get_query_params(),
+            "cookie": auth.get_cookie_params(),
+        }
+        assert emitted.pop(where) == {key_name: "abc123"}
+        assert all(value == {} for value in emitted.values())
+        assert auth.get_host() == "https://api.example.com"
+
+    @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
+    def test_wrapper_rejects_an_empty_key_at_construction(
+        self, module: str, name: str, key_name: str, where: str
+    ) -> None:
+        with pytest.raises(ValueError, match=f"API key value for '{key_name}' must not be empty"):
+            _api_key_wrapper(module, name)("https://api.example.com", "")
+
+    @pytest.mark.parametrize(("module", "name", "key_name", "where"), _API_KEY_WRAPPERS)
+    def test_wrapper_masks_the_key_in_its_repr(
+        self, module: str, name: str, key_name: str, where: str
+    ) -> None:
+        auth = _api_key_wrapper(module, name)("https://api.example.com", "topsecret")
+
+        assert "topsecret" not in repr(auth)
+        assert f"key_param_name='{key_name}', api_key='***'" in repr(auth)

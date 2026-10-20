@@ -62,3 +62,35 @@ class TestBearerAuthenticator:
         assert first != second
         assert first == first
         assert len({first, second}) == 2
+
+
+class TestBearerRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_token(self) -> None:
+        auth = BearerAuthenticator(host="https://api.example.com", token="xyz")
+
+        assert repr(auth) == (
+            "BearerAuthenticator(host='https://api.example.com', token='***')"
+        )
+
+
+class TestBearerSchemeWrappers:
+    @pytest.mark.parametrize(
+        ("module", "name"),
+        [
+            ("pet_store_bearer_authenticator", "PetStoreBearerAuthenticator"),
+            ("service_token_authenticator", "ServiceTokenAuthenticator"),
+        ],
+    )
+    def test_wrapper_sends_the_bearer_token_and_still_validates(
+        self, module: str, name: str
+    ) -> None:
+        import importlib
+
+        cls = getattr(importlib.import_module(f"{{packageName}}.auth.{module}"), name)
+
+        auth = cls("https://api.example.com", "xyz")
+
+        assert auth.get_auth_headers() == {"Authorization": "Bearer xyz"}
+        assert "xyz" not in repr(auth)
+        with pytest.raises(ValueError, match="Bearer token must not be empty"):
+            cls("https://api.example.com", "")

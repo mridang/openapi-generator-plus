@@ -200,3 +200,40 @@ class TestTransportOptions:
         # Proxy configuration must not raise on any platform.
         opts = TransportOptions.builder().proxy("http://proxy.example.com:8080").build()
         assert opts.proxy == "http://proxy.example.com:8080"
+
+
+class TestProxyUrlValidation:
+    @pytest.mark.parametrize(
+        ("proxy", "message"),
+        [
+            ("", "Invalid proxy URL (must use http or https scheme): "),
+            (
+                "ftp://proxy.example.com:21",
+                "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21",
+            ),
+            (
+                "socks5://proxy.example.com:1080",
+                "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+            ),
+            (
+                "not a valid url ^%$",
+                "Invalid proxy URL (must use http or https scheme): not a valid url ^%$",
+            ),
+            ("http://", "Invalid proxy URL (missing host): http://"),
+            ("https:///path", "Invalid proxy URL (missing host): https:///path"),
+        ],
+    )
+    def test_builder_rejects_the_proxy_with_the_exact_message(
+        self, proxy: str, message: str
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy(proxy)
+
+        assert type(exc_info.value) is ValueError
+        assert str(exc_info.value) == message
+
+    @pytest.mark.parametrize(
+        "proxy", ["HTTP://proxy.example.com:3128", "Https://proxy.example.com:3128"]
+    )
+    def test_an_upper_case_scheme_is_accepted(self, proxy: str) -> None:
+        assert TransportOptions.builder().proxy(proxy).build().proxy == proxy

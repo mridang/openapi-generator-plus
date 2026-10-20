@@ -132,6 +132,21 @@ class TestPackageManifest:
         assert description.strip() != ''
 
 
+class TestMakefileTestTarget:
+    def test_make_test_runs_the_configured_testpaths_not_only_the_test_directory(
+        self,
+    ) -> None:
+        with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
+            testpaths = tomllib.load(handle)["tool"]["pytest"]["ini_options"][
+                "testpaths"
+            ]
+        with open(os.path.join(os.getcwd(), "Makefile"), encoding="utf-8") as handle:
+            pytest_lines = [line for line in handle if "python -m pytest" in line]
+
+        assert "spec" in testpaths
+        assert pytest_lines == ["\tpython -m pytest -v\n"]
+
+
 class TestReadmeAndSkillsText:
 
     @staticmethod
@@ -189,3 +204,29 @@ class TestOptionsImmutability:
 
         with pytest.raises(dataclasses.FrozenInstanceError):
             cast(Any, options).status = 'sold'
+
+
+class TestMetadataEquality:
+    @staticmethod
+    def _decode(raw: str) -> Any:
+        return ObjectSerializer().deserialize(raw, "Metadata")
+
+    def test_equal_known_and_extra_properties_are_equal(self) -> None:
+        raw = '{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}'
+
+        assert self._decode(raw) == self._decode(raw)
+
+    def test_instances_differing_only_in_additional_properties_are_not_equal(
+        self,
+    ) -> None:
+        first = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')
+        second = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"b"}')
+
+        assert first.created_at == second.created_at
+        assert first != second
+
+    def test_an_extra_property_makes_instances_unequal(self) -> None:
+        bare = self._decode('{"createdAt":"2024-01-01T00:00:00Z"}')
+        extra = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')
+
+        assert bare != extra

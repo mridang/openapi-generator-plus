@@ -558,3 +558,31 @@ class TestValueSerializerFormatDatePath:
         # stringifyDate UTC behaviour of Go/Node/Swift/Dart.
         date = datetime.date(2024, 12, 31)
         assert ValueSerializer.serialize(date, "path", "string") == "2024-12-31"
+
+
+class TestPathSegmentCharacterSet:
+    @pytest.mark.parametrize("char", list(";=,:@!$&'()*+~"))
+    def test_sub_delimiters_and_tilde_stay_literal(self, char: str) -> None:
+        assert ValueSerializer.serialize(f"a{char}b", "path", "string") == f"a{char}b"
+
+    @pytest.mark.parametrize(
+        ("raw", "encoded"),
+        [
+            ("a b", "a%20b"),
+            ("a/b", "a%2Fb"),
+            ("a?b", "a%3Fb"),
+            ("a#b", "a%23b"),
+            ("a%b", "a%25b"),
+            ("a%20b", "a%2520b"),
+            ('a"b', "a%22b"),
+            ("a<b>", "a%3Cb%3E"),
+            ("a[b]", "a%5Bb%5D"),
+            ("a|b", "a%7Cb"),
+            ("a\\b", "a%5Cb"),
+            ("a^b", "a%5Eb"),
+            ("a`b", "a%60b"),
+            ("a{b}", "a%7Bb%7D"),
+        ],
+    )
+    def test_everything_else_is_percent_encoded(self, raw: str, encoded: str) -> None:
+        assert ValueSerializer.serialize(raw, "path", "string") == encoded

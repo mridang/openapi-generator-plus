@@ -8,6 +8,7 @@
 import json
 import threading
 import time
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -608,3 +609,163 @@ class TestOAuth2TokenManager:
         assert all(token == "tok2" for token in tokens), (
             "all callers must observe the refreshed token"
         )
+
+
+def _token_reply(**fields: object) -> ApiHttpResponse:
+    return ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(fields),
+        headers={"content-type": "application/json"},
+    )
+
+
+_TOKEN_URL = "https://auth.example.com/token"
+_FIRST_GRANT = {
+    "grant_type": "authorization_code",
+    "code": "c",
+    "client_id": "cid",
+    "client_secret": "sec",
+}
+
+
+def _manager_replying(*replies: object) -> tuple[OAuth2TokenManager, MagicMock]:
+    manager = OAuth2TokenManager()
+    mock_client = MagicMock()
+    mock_client.send_request.side_effect = list(replies)
+    manager.set_api_client(mock_client)
+    return manager, mock_client
+
+
+def _form(call: Any) -> dict[str, list[str]]:
+    from urllib.parse import parse_qs
+
+    return parse_qs(call[0][3], keep_blank_values=True)
+
+
+class TestRefreshGrant:
+    def test_refresh_request_carries_the_cached_refresh_token_and_client_credentials(
+        self,
+    ) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a2", expires_in=3600),
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        token = manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert token == "a2"
+        refresh_call = client.send_request.call_args_list[1]
+        assert refresh_call[0][1] == _TOKEN_URL
+        assert _form(refresh_call) == {
+            "grant_type": ["refresh_token"],
+            "refresh_token": ["r1"],
+            "client_id": ["cid"],
+            "client_secret": ["sec"],
+        }
+
+    def test_a_rejected_refresh_falls_back_to_the_original_grant(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            ApiHttpResponse(
+                status_code=400,
+                body=json.dumps({"error": "invalid_grant"}),
+                headers={"content-type": "application/json"},
+            ),
+            _token_reply(access_token="a2", expires_in=3600),
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        token = manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert token == "a2"
+        calls = client.send_request.call_args_list
+        assert len(calls) == 3
+        assert _form(calls[1])["grant_type"] == ["refresh_token"]
+        assert _form(calls[2]) == {key: [value] for key, value in _FIRST_GRANT.items()}
+
+    def test_a_refresh_response_without_expires_in_keeps_the_existing_expiry(
+        self,
+    ) -> None:
+        from unittest.mock import patch
+
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=100),
+            _token_reply(access_token="a2"),
+            _token_reply(access_token="a3"),
+        )
+        with patch("petstore_client.auth.oauth.oauth2_token_manager.time") as clock:
+            clock.time.return_value = 1000.0
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+            clock.time.return_value = 1005.0
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
+            assert client.send_request.call_count == 1
+
+            clock.time.return_value = 1011.0
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a2"
+            assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a3"
+
+        assert client.send_request.call_count == 3
+
+
+class TestTokenWithoutExpiresIn:
+    def test_a_token_without_expires_in_is_cached_indefinitely(self) -> None:
+        manager, client = _manager_replying(_token_reply(access_token="forever"))
+
+        first = manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+        second = manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert (first, second) == ("forever", "forever")
+        assert client.send_request.call_count == 1
+
+
+class TestNonStringRefreshToken:
+    @pytest.mark.parametrize("value", [12345, True, ["r"], {"a": 1}])
+    def test_a_non_string_refresh_token_is_ignored(self, value: object) -> None:
+        manager, _ = _manager_replying(
+            _token_reply(access_token="a1", refresh_token=value, expires_in=3600)
+        )
+
+        assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
+        assert manager.refresh_token is None
+
+    def test_a_non_string_refresh_token_keeps_the_cached_one(self) -> None:
+        manager, _ = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a2", refresh_token=12345, expires_in=3600),
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert manager.refresh_token == "r1"
+
+
+class TestTokenTransportFailure:
+    def test_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+        from petstore_client.errors import NetworkException
+
+        failure = NetworkException(message="connection refused")
+        manager, _ = _manager_replying(failure)
+
+        with pytest.raises(NetworkException) as excinfo:
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert excinfo.value is failure
+
+    def test_a_network_failure_on_the_fallback_grant_is_not_rewrapped(self) -> None:
+        from petstore_client.errors import NetworkException
+
+        refresh_failure = NetworkException(message="reset during refresh")
+        grant_failure = NetworkException(message="reset during grant")
+        manager, _ = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            refresh_failure,
+            grant_failure,
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        with pytest.raises(NetworkException) as excinfo:
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+
+        assert excinfo.value is grant_failure

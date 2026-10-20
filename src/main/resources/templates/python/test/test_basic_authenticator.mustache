@@ -80,3 +80,51 @@ class TestApiKeyAuthenticatorRedaction:
         )
         assert 'topsecretkey' not in repr(auth)
         assert 'topsecretkey' not in str(auth)
+
+
+class TestBasicNonAsciiCredentials:
+    def test_non_ascii_credentials_are_utf8_encoded(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com",
+            username="ünïcødé",
+            password="pässwörd",
+        )
+
+        assert auth.get_auth_headers() == {
+            "Authorization": "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
+        }
+
+
+class TestBasicRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_password(self) -> None:
+        auth = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+
+        assert repr(auth) == (
+            "BasicAuthenticator(host='https://api.example.com', "
+            "username='alice', password='***')"
+        )
+
+
+class TestBasicSchemeWrappers:
+    @pytest.mark.parametrize(
+        ("module", "name"),
+        [
+            ("admin_basic_authenticator", "AdminBasicAuthenticator"),
+            ("pet_store_basic_authenticator", "PetStoreBasicAuthenticator"),
+        ],
+    )
+    def test_wrapper_sends_basic_credentials_and_still_validates(
+        self, module: str, name: str
+    ) -> None:
+        import importlib
+
+        cls = getattr(importlib.import_module(f"{{packageName}}.auth.{module}"), name)
+
+        auth = cls("https://api.example.com", "alice", "s3cret")
+
+        assert auth.get_auth_headers() == {"Authorization": "Basic YWxpY2U6czNjcmV0"}
+        assert "s3cret" not in repr(auth)
+        with pytest.raises(ValueError):
+            cls("https://api.example.com", "ali:ce", "s3cret")

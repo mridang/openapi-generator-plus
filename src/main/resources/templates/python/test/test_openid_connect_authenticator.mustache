@@ -1,6 +1,7 @@
 {{>api_info}}
 import json
 import pytest
+from typing import Any
 from unittest.mock import MagicMock
 from urllib.parse import urlparse, parse_qs
 
@@ -199,3 +200,136 @@ class TestOpenIdConnectAuthenticator:
         auth.set_api_client(mock_client)
         with pytest.raises(SerializationException):
             auth.build_authorization_url()
+
+
+def _discovery_client(cache_control: Any) -> MagicMock:
+    mock_client = MagicMock()
+    headers = {"content-type": "application/json"}
+    if cache_control is not None:
+        headers["cache-control"] = cache_control
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(
+            {
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+            }
+        ),
+        headers=headers,
+    )
+    return mock_client
+
+
+class TestDiscoveryCacheLifetime:
+    @pytest.mark.parametrize(
+        ("headers", "expected"),
+        [
+            ({"Cache-Control": "max-age=120"}, 120),
+            ({"cache-control": "public, MAX-AGE=45"}, 45),
+            ({"Cache-Control": "max-age=0"}, 0),
+            ({"Cache-Control": "no-store"}, 86400),
+            ({"Cache-Control": "max-age=abc"}, 86400),
+            ({"content-type": "application/json"}, 86400),
+            ({}, 86400),
+            (None, 86400),
+        ],
+    )
+    def test_max_age_is_read_from_the_cache_control_header(
+        self, headers: Any, expected: int
+    ) -> None:
+        from {{packageName}}.auth.oauth.openid_connect_authenticator import (
+            _parse_max_age,
+        )
+
+        assert _parse_max_age(headers) == expected
+
+    def test_a_document_is_refetched_once_its_max_age_has_passed(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=100")
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.build_authorization_url()
+            clock.monotonic.return_value = 1099.0
+            auth.build_authorization_url()
+            assert mock_client.send_request.call_count == 1
+
+            clock.monotonic.return_value = 1100.0
+            auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    def test_max_age_zero_refetches_on_every_use(self) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=0")
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+
+class TestDiscoveryTransportFailure:
+    def test_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+        from {{packageName}}.errors import NetworkException
+
+        failure = NetworkException(message="connection refused")
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = failure
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(NetworkException) as excinfo:
+            auth.build_authorization_url()
+
+        assert excinfo.value is failure
+
+
+class TestOidcAuthorizationUrl:
+    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=oidc_client"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=openid%20profile"
+        )
+
+
+class TestSsoAuthWrapper:
+    def test_discovers_from_the_spec_url_and_requests_no_scope(self) -> None:
+        from {{packageName}}.auth.oauth.sso_auth_authenticator import (
+            SsoAuthAuthenticator,
+        )
+
+        auth = SsoAuthAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+        mock_client = _discovery_client(None)
+        auth.set_api_client(mock_client)
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=code&client_id=cid"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb"
+        )
+        assert mock_client.send_request.call_args[0][1] == (
+            "https://auth.example.com/.well-known/openid-configuration"
+        )
+
+
+class TestOpenIdConnectRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+        assert repr(_create_authenticator()) == (
+            "OpenIdConnectAuthenticator(host='https://api.example.com', "
+            "openid_connect_url="
+            "'https://auth.example.com/.well-known/openid-configuration', "
+            "client_id='oidc_client', client_secret='***', "
+            "redirect_uri='https://app.example.com/callback', "
+            "scopes=('openid', 'profile'))"
+        )
