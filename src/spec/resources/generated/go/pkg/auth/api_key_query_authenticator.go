@@ -6,6 +6,18 @@ type ApiKeyQueryAuthenticator struct {
 	*ApiKeyAuthenticator
 }
 
+// String prints the wrapper's own name with the ApiKeyAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a ApiKeyQueryAuthenticator) String() string {
+	return "ApiKeyQueryAuthenticator" + a.ApiKeyAuthenticator.String()[len("ApiKeyAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a ApiKeyQueryAuthenticator) GoString() string {
+	return a.String()
+}
+
 // NewApiKeyQueryAuthenticator returns the ApiKeyAuthenticator constructor's error when the
 // credentials are invalid. Match it with errors.Is.
 func NewApiKeyQueryAuthenticator(host string, apiKey string) (*ApiKeyQueryAuthenticator, error) {

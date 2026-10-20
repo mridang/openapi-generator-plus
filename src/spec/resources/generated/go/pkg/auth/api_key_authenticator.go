@@ -33,6 +33,14 @@ type ApiKeyAuthenticator struct {
 // errors.Is.
 var ErrInvalidApiKey = errors.New("invalid API key")
 
+// invalidApiKeyError carries the message the other SDKs use for a bad key while
+// still matching ErrInvalidApiKey through errors.Is.
+type invalidApiKeyError struct{ message string }
+
+func (e *invalidApiKeyError) Error() string { return e.message }
+
+func (e *invalidApiKeyError) Unwrap() error { return ErrInvalidApiKey }
+
 // NewApiKeyAuthenticator creates a new API key authenticator.
 //
 // Parameters:
@@ -47,17 +55,17 @@ func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLo
 	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
 	// printable-ASCII rule still applies to HEADER values.
 	if strings.TrimSpace(apiKey) == "" {
-		return nil, fmt.Errorf("%w: value for '%s' must not be empty", ErrInvalidApiKey, keyParamName)
+		return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' must not be empty", keyParamName)}
 	}
 	for _, c := range apiKey {
 		if c == '\r' || c == '\n' || c == 0 {
-			return nil, fmt.Errorf("%w: value for '%s' contains forbidden control characters (CR/LF/NUL)", ErrInvalidApiKey, keyParamName)
+			return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' contains forbidden control characters (CR/LF/NUL)", keyParamName)}
 		}
 	}
 	if location == ApiKeyLocationHeader {
 		for _, c := range apiKey {
 			if c != '\t' && (c < 0x20 || c >= 0x7F) {
-				return nil, fmt.Errorf("%w: value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidApiKey, keyParamName)
+				return nil, &invalidApiKeyError{fmt.Sprintf("API key value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", keyParamName)}
 			}
 		}
 	}
@@ -76,14 +84,14 @@ func (a *ApiKeyAuthenticator) Host() string {
 
 // String returns a string representation that redacts the API key so
 // credentials never leak into logs or stack traces (matching the other SDKs).
-func (a *ApiKeyAuthenticator) String() string {
+func (a ApiKeyAuthenticator) String() string {
 	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***, location: %s}", a.host, a.keyParamName, a.location)
 }
 
 // GoString redacts the same secrets for the %#v verb. fmt ignores String()
 // for %#v and would otherwise reflect over every unexported field, secrets
 // included, into logs and test-failure output.
-func (a *ApiKeyAuthenticator) GoString() string {
+func (a ApiKeyAuthenticator) GoString() string {
 	return a.String()
 }
 

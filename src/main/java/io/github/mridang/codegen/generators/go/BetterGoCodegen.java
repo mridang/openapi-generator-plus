@@ -846,6 +846,22 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
+    /**
+     * Renders the scopes a scheme declares as a Go {@code []string} literal, or
+     * {@code nil} when it declares none, so each per-scheme wrapper requests the
+     * spec's scopes instead of the provider's defaults.
+     */
+    private static String formatGoScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "nil";
+        }
+        final List<String> quoted = new ArrayList<>();
+        for (final String scope : scopes.keySet()) {
+            quoted.add("\"" + scope.replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+        }
+        return "[]string{" + String.join(", ", quoted) + "}";
+    }
+
     @SuppressFBWarnings(value = "IMPROPER_UNICODE",
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
@@ -862,25 +878,25 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId", "clientSecret",
-                    "\"" + spec.tokenUrl() + "\"", "nil");
+                    "\"" + spec.tokenUrl() + "\"", formatGoScopes(spec.scopes()));
         }
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
             return List.of("host", "clientId", "clientSecret",
                     "\"" + spec.tokenUrl() + "\"",
-                    "username", "password", "nil", refreshArg);
+                    "username", "password", formatGoScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
             return List.of("host", "clientId", "clientSecret",
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                    "redirectUri", "nil", refreshArg);
+                    "redirectUri", formatGoScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId",
-                    "\"" + spec.authorizationUrl() + "\"", "nil");
+                    "\"" + spec.authorizationUrl() + "\"", formatGoScopes(spec.scopes()));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",

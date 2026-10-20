@@ -10,6 +10,7 @@
 package errors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 )
@@ -24,12 +25,20 @@ const errorBodyMaxJSONDepth = 1000
 
 // unmarshalErrorBody parses an error-response JSON body with the same
 // nesting-depth cap the success path uses, so a non-2xx response can't be a DoS
-// vector. Returns an error if the depth limit is exceeded or parsing fails.
+// vector. A leading UTF-8 byte order mark is stripped, like the success path.
+// Returns a *SerializationError if the depth limit is exceeded or parsing fails.
 func unmarshalErrorBody(data []byte, target any) error {
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 	if depth := errorBodyJSONDepth(data); depth > errorBodyMaxJSONDepth {
-		return fmt.Errorf("JSON nesting depth %d exceeds limit %d", depth, errorBodyMaxJSONDepth)
+		return NewSerializationError(
+			fmt.Sprintf("JSON nesting depth %d exceeds limit %d", depth, errorBodyMaxJSONDepth),
+			nil,
+		)
 	}
-	return json.Unmarshal(data, target)
+	if err := json.Unmarshal(data, target); err != nil {
+		return NewSerializationError(fmt.Sprintf("failed to deserialize JSON: %v", err), err)
+	}
+	return nil
 }
 
 // errorBodyJSONDepth returns the maximum `{`/`[` nesting depth in the JSON byte
@@ -184,7 +193,8 @@ func (e *ApiError) Error() string {
 // Useful when the API returns a structured error body that you want to access
 // in a strongly-typed way: pass a pointer to the generated model struct you
 // expect (e.g. `var e MyErrorBody; apiErr.GetTypedErrorBody(&e)`). An empty
-// body leaves the target untouched and reports no error.
+// body leaves the target untouched and reports no error; a malformed body
+// returns a *SerializationError.
 func (e *ApiError) GetTypedErrorBody(target any) error {
 	if e.responseBody == "" {
 		return nil

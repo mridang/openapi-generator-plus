@@ -62,3 +62,14 @@ func (v *Availability) UnmarshalJSON(data []byte) error {
 	}
 	return fmt.Errorf("unexpected value %v for enum Availability", raw)
 }
+
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v Availability) MarshalJSON() ([]byte, error) {
+	for _, allowed := range AllAvailabilityValues() {
+		if allowed == v {
+			return marshalJSON(string(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum Availability", string(v))
+}

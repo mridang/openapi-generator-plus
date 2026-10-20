@@ -53,7 +53,7 @@ func (o BinaryVault) MarshalJSON() ([]byte, error) {
 func (o *BinaryVault) UnmarshalJSON(data []byte) error {
 	type Alias BinaryVault
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "seal", "shards", "labels"), aux); err != nil {
 		return err
 	}
 	*o = BinaryVault(*aux)

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/textproto"
 	"net/url"
@@ -262,7 +263,22 @@ func (c *DefaultApiClient) Close() error {
 }
 
 func buildHTTPClient(opts *TransportOptions) *http.Client {
-	transport := &http.Transport{}
+	/* Mirror the standard library's default transport limits rather than a
+	 * zero-value Transport, which has no idle-connection timeout, no dial or
+	 * TLS-handshake timeout and no TCP keep-alive. Built literally (not cloned
+	 * from http.DefaultTransport) so a replaced global cannot change it. There is
+	 * no environment proxy and no HTTP/2 upgrade: a proxy is opt-in through the
+	 * transport options and the transport stays HTTP/1.1. */
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 
 	tlsConfig := &tls.Config{}
 
@@ -373,7 +389,10 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 			 * outbound request so it reflects the empty body — matches
 			 * the Java/Kotlin/PHP/Node code paths and prevents stale
 			 * Content-Length: N being sent on a now-empty GET. */
-			if prevStatus == 303 {
+			/* The same holds for a 301 / 302 that demotes a POST to GET: net/http
+			 * re-copies the ORIGINAL request's headers onto each hop, so without
+			 * this the bodyless GET would still carry the POST's Content-Type. */
+			if prevStatus == 303 || !hasBody {
 				req.Header.Del("Content-Length")
 				req.Header.Del("Content-Type")
 			}

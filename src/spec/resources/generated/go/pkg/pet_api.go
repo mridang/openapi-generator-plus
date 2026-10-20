@@ -227,6 +227,11 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -338,6 +343,11 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -443,6 +453,11 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -626,6 +641,11 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -722,6 +742,11 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -844,6 +869,11 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -949,6 +979,11 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1054,6 +1089,11 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1154,6 +1194,11 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1254,6 +1299,11 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1368,6 +1418,11 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1476,6 +1531,11 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1576,6 +1636,11 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1684,6 +1749,11 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1809,6 +1879,11 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1914,6 +1989,11 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1973,6 +2053,9 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 	 */
 	declaredConsumes := []string{"image/jpeg", "image/png", "application/json"}
 	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 1 {
+		return nil, fmt.Errorf("at most one request content-type may be given to SetPetAvatar, got %d", len(requestContentType))
+	}
 	if len(requestContentType) > 0 {
 		matched := false
 		for _, declared := range declaredConsumes {
@@ -2173,6 +2256,11 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -2274,6 +2362,11 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -2384,6 +2477,11 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -2463,6 +2561,9 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	 */
 	declaredConsumes := []string{"multipart/form-data", "application/octet-stream"}
 	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 1 {
+		return nil, fmt.Errorf("at most one request content-type may be given to UploadPetDocument, got %d", len(requestContentType))
+	}
 	if len(requestContentType) > 0 {
 		matched := false
 		for _, declared := range declaredConsumes {
@@ -2541,6 +2642,11 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}

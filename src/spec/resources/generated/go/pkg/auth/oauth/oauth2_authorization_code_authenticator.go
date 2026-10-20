@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"sync/atomic"
 
 	"petstore/pkg/auth"
 )
@@ -47,7 +48,9 @@ type OAuth2AuthorizationCodeAuthenticator struct {
 	redirectURI      string
 	scopes           []string
 	tokenManager     *OAuth2TokenManager
-	tokenExchanged   bool
+	// tokenExchanged is set by ExchangeCode (typically on a callback goroutine)
+	// and read by requests on others, so it is atomic.
+	tokenExchanged atomic.Bool
 }
 
 // NewOAuth2AuthorizationCodeAuthenticator creates a new authorization code authenticator.
@@ -143,7 +146,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
 	if err != nil {
 		return err
 	}
-	a.tokenExchanged = true
+	a.tokenExchanged.Store(true)
 	return nil
 }
 
@@ -157,7 +160,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
 // AuthHeaders collapses both cases to an empty map so that interface
 // conformance can stay non-error-returning.
 func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeadersOrError() (map[string]string, error) {
-	if !a.tokenExchanged {
+	if !a.tokenExchanged.Load() {
 		return nil, ErrAuthCodeNotExchanged
 	}
 

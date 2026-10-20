@@ -57,6 +57,19 @@ func NewOAuth2TokenManager() *OAuth2TokenManager {
 	return &OAuth2TokenManager{}
 }
 
+// String redacts the stored tokens so credentials never leak into logs or stack
+// traces. It reads no field, so it cannot block on the manager's lock.
+func (m *OAuth2TokenManager) String() string {
+	return "OAuth2TokenManager{accessToken: ***, refreshToken: ***}"
+}
+
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (m *OAuth2TokenManager) GoString() string {
+	return m.String()
+}
+
 // SetApiClient injects the shared API client for making token requests.
 func (m *OAuth2TokenManager) SetApiClient(client auth.ApiClient) {
 	m.mu.Lock()

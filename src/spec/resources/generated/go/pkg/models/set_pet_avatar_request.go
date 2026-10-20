@@ -59,7 +59,7 @@ func (o SetPetAvatarRequest) MarshalJSON() ([]byte, error) {
 func (o *SetPetAvatarRequest) UnmarshalJSON(data []byte) error {
 	type Alias SetPetAvatarRequest
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "data", "mimeType"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

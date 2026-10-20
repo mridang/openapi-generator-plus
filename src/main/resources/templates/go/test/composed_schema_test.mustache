@@ -134,6 +134,31 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 	}
 }
 
+func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
+	t.Parallel()
+	food := models.NewPetFoodFromDryFood(*models.NewDryFood(2.5))
+
+	if _, ok := food.Value().(models.DryFood); !ok {
+		t.Fatalf("expected the wrapped DryFood, got %T", food.Value())
+	}
+	data, err := json.Marshal(food)
+	if err != nil {
+		t.Fatalf("failed to serialize PetFood: %v", err)
+	}
+	if string(data) != `{"foodType":"dry","weightKg":2.5}` {
+		t.Errorf("unexpected wire form %s", string(data))
+	}
+}
+
+func TestPetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
+	t.Parallel()
+	var food models.PetFood
+	err := json.Unmarshal([]byte(`{"FOODTYPE":"dry","weightKg":2.5}`), &food)
+	if err == nil || err.Error() != `unknown discriminator value "" for PetFood` {
+		t.Fatalf("expected the mis-cased discriminator key to be ignored, got %v", err)
+	}
+}
+
 // ── anyOf without discriminator: PetTreatment ──
 
 func TestPetTreatment_DeserializeMedication(t *testing.T) {
@@ -450,5 +475,27 @@ func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testin
 	// Each element must be a base64 STRING, never an int-array.
 	if string(arrayOut) != `["AQI=","AwQ="]` {
 		t.Errorf("expected array wire of base64 strings [\"AQI=\",\"AwQ=\"], got %s", string(arrayOut))
+	}
+}
+
+func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testing.T) {
+	t.Parallel()
+
+	scalar := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0x01, 0x02, 0x03, 0x04})
+	scalarOut, err := json.Marshal(scalar)
+	if err != nil {
+		t.Fatalf("failed to serialize scalar byte variant: %v", err)
+	}
+	if string(scalarOut) != `"AQIDBA=="` {
+		t.Errorf("expected scalar wire base64 \"AQIDBA==\", got %s", string(scalarOut))
+	}
+
+	array := models.NewSetPetAvatarThumbnailRequestFromByteSliceSlice([][]byte{{0x01, 0x02}, {0x03, 0x04}})
+	arrayOut, err := json.Marshal(array)
+	if err != nil {
+		t.Fatalf("failed to serialize array byte variant: %v", err)
+	}
+	if string(arrayOut) != `["AQI=","AwQ="]` {
+		t.Errorf("expected array wire [\"AQI=\",\"AwQ=\"], got %s", string(arrayOut))
 	}
 }

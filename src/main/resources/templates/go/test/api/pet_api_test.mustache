@@ -337,6 +337,22 @@ func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 	}
 }
 
+// The selector is a single optional value; extra ones are rejected rather than
+// silently dropped.
+func TestPetApi_SetPetAvatarRejectsMoreThanOneContentType(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "fake-image-data")
+
+	err := api.SetPetAvatar(int64(1), f, "image/jpeg", "image/png")
+	if err == nil {
+		t.Fatal("expected an error for two request content-types, got nil")
+	}
+	if err.Error() != "at most one request content-type may be given to SetPetAvatar, got 2" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 // TestPetApi_SetPetAvatarStreamsRawBytesWithDeclaredContentType is the canonical
 // binary-request-body regression (finding C1). setPetAvatar declares a request
 // body of type:string format:binary with Content-Type image/jpeg, so the *os.File
@@ -477,12 +493,7 @@ func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	/* The oneOf request body is built the way a caller holding its JSON would
-	 * build it: by unmarshalling, which picks the matching variant. */
-	var thumbnail models.SetPetAvatarThumbnailRequest
-	if err := json.Unmarshal([]byte(`"/9j/4A=="`), &thumbnail); err != nil {
-		t.Fatalf("failed to build the thumbnail: %v", err)
-	}
+	thumbnail := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0xFF, 0xD8, 0xFF, 0xE0})
 	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
 		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
 	}

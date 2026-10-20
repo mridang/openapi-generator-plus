@@ -10,6 +10,18 @@ type {{className}} struct {
 	*{{baseClass}}
 }
 
+// String prints the wrapper's own name with the {{baseClass}}'s redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a {{className}}) String() string {
+	return "{{className}}" + a.{{baseClass}}.String()[len("{{baseClass}}"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a {{className}}) GoString() string {
+	return a.String()
+}
+
 {{#fallible}}
 // New{{className}} returns the {{baseClass}} constructor's error when the
 // credentials are invalid. Match it with errors.Is.

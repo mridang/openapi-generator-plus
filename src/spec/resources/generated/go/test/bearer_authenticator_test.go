@@ -82,10 +82,31 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 			t.Errorf("expected a nil authenticator for %q", bad)
 		}
 	}
-	// The empty-token rejection carries the harmonized sentinel message.
+	// The rejection reads as the canonical sentence the other SDKs use, only
+	// lowercased as staticcheck ST1005 requires.
 	if _, err := auth.NewBearerAuthenticator("https://api.example.com", ""); err == nil ||
-		!strings.Contains(err.Error(), "token must not be empty") {
-		t.Errorf("empty token: expected message containing %q, got %v", "token must not be empty", err)
+		err.Error() != "bearer token must not be empty" {
+		t.Errorf("empty token: expected %q, got %v", "bearer token must not be empty", err)
+	}
+	if _, err := auth.NewBearerAuthenticator("https://api.example.com", "ñoño"); err == nil ||
+		err.Error() != "bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)" {
+		t.Errorf("non-ASCII token: unexpected message %v", err)
+	}
+}
+
+// A per-scheme wrapper prints its own type name, not the base authenticator's,
+// and stays redacted when it is formatted as a value or through %#v.
+func TestBearerAuthenticator_SchemeWrapperPrintsItsOwnName(t *testing.T) {
+	t.Parallel()
+	w, err := auth.NewPetStoreBearerAuthenticator("https://api.example.com", "super-secret-token")
+	if err != nil {
+		t.Fatalf("NewPetStoreBearerAuthenticator failed: %v", err)
+	}
+	want := `PetStoreBearerAuthenticator{host: "https://api.example.com", token: ***}`
+	for _, s := range []string{w.String(), fmt.Sprintf("%v", w), fmt.Sprintf("%+v", *w), fmt.Sprintf("%#v", w)} {
+		if s != want {
+			t.Errorf("expected %q, got %q", want, s)
+		}
 	}
 }
 
@@ -94,7 +115,7 @@ func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
 func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustBearer(t, "https://api.example.com", "super-secret-token")
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
 		if strings.Contains(s, "super-secret-token") {
 			t.Errorf("expected token to be redacted, got %q", s)
 		}

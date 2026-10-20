@@ -168,8 +168,9 @@ func jsonMaxDepth(data []byte) int {
 
 // formatFloat formats a float64 such that whole-number values keep their
 // trailing ".0" (e.g. 1.0 → "1.0" rather than "1"). Other values use the
-// shortest decimal representation. This matches the wire-format produced
-// by Java, Kotlin, C#, Python, Ruby, PHP, Node, Swift, Dart, Rust, Elixir.
+// shortest decimal representation. Whole values match the "1.0" form the
+// Java, Kotlin, C#, Python, Ruby, Swift, Dart, Rust and Elixir SDKs send; large
+// magnitudes (e.g. 1e+20) keep Go's exponent spelling, which differs per SDK.
 func formatFloat(v float64) string {
 	if math.IsInf(v, 0) || math.IsNaN(v) {
 		return strconv.FormatFloat(v, 'g', -1, 64)

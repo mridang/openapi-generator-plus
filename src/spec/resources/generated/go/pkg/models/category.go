@@ -53,7 +53,7 @@ func (o Category) MarshalJSON() ([]byte, error) {
 func (o *Category) UnmarshalJSON(data []byte) error {
 	type Alias Category
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name"), aux); err != nil {
 		return err
 	}
 	*o = Category(*aux)

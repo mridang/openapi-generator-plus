@@ -58,7 +58,7 @@ func (o WetFood) MarshalJSON() ([]byte, error) {
 func (o *WetFood) UnmarshalJSON(data []byte) error {
 	type Alias WetFood
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "foodType", "volumeMl"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

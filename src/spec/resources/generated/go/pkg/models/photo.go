@@ -51,7 +51,7 @@ func (o Photo) MarshalJSON() ([]byte, error) {
 func (o *Photo) UnmarshalJSON(data []byte) error {
 	type Alias Photo
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "caption", "isPrimary", "url"), aux); err != nil {
 		return err
 	}
 	*o = Photo(*aux)

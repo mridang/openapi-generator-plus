@@ -50,7 +50,7 @@ func (o ApiResponse) MarshalJSON() ([]byte, error) {
 func (o *ApiResponse) UnmarshalJSON(data []byte) error {
 	type Alias ApiResponse
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "code", "type", "message"), aux); err != nil {
 		return err
 	}
 	*o = ApiResponse(*aux)

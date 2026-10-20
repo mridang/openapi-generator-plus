@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 	pkgerrors "{{packageName}}/pkg/errors"
 )
 
@@ -835,6 +836,56 @@ func TestDefaultApiClient_Drops303ContentLengthOnCoercedGet(t *testing.T) {
 	}
 }
 
+// A 301 / 302 / 303 demotes a POST to a bodyless GET. net/http re-copies the
+// original request's headers onto each hop, so the follow-up must have the
+// entity headers stripped, or it would send a Content-Type with no body.
+func TestDefaultApiClient_DemotedGetDropsEntityHeaders(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{301, 302, 303} {
+		status := status
+		t.Run(fmt.Sprintf("status_%d", status), func(t *testing.T) {
+			t.Parallel()
+			var sawMethod, sawContentType, sawContentLength string
+			mux := http.NewServeMux()
+			mux.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", "/followup")
+				w.WriteHeader(status)
+			})
+			mux.HandleFunc("/followup", func(w http.ResponseWriter, r *http.Request) {
+				sawMethod = r.Method
+				sawContentType = r.Header.Get("Content-Type")
+				sawContentLength = r.Header.Get("Content-Length")
+				w.WriteHeader(200)
+			})
+			server := httptest.NewServer(mux)
+			defer server.Close()
+
+			transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+			if buildErr != nil {
+				t.Fatal(buildErr)
+			}
+			client := NewDefaultApiClient(transport)
+			_, err := client.SendRequest(
+				"POST", server.URL+"/post",
+				map[string]string{"Content-Type": "application/json"},
+				[]byte(`{"hello":"world"}`),
+			)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if sawMethod != "GET" {
+				t.Errorf("expected GET on the %d follow-up, got %q", status, sawMethod)
+			}
+			if sawContentType != "" {
+				t.Errorf("expected no Content-Type on the %d follow-up, got %q", status, sawContentType)
+			}
+			if sawContentLength != "" {
+				t.Errorf("expected no Content-Length on the %d follow-up, got %q", status, sawContentLength)
+			}
+		})
+	}
+}
+
 // Gap 3.1: an API-key header name harvested from the OpenAPI spec must be
 // stripped from a cross-origin 3xx redirect alongside the static sensitive
 // allowlist (Authorization, Cookie, Proxy-Authorization). When the spec
@@ -1273,5 +1324,32 @@ func TestMimeTypeForFilename_ExtensionMappingAndFallback(t *testing.T) {
 		if mediaType != want {
 			t.Errorf("mimeTypeForFilename(%q) = %q, want %q", filename, mediaType, want)
 		}
+	}
+}
+
+// buildHTTPClient sets the standard idle and handshake timeouts, so idle sockets
+// expire and a stalled TLS handshake cannot hang forever, while the proxy stays
+// opt-in.
+func TestBuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testing.T) {
+	t.Parallel()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, ok := buildHTTPClient(opts).Transport.(*http.Transport)
+	if !ok {
+		t.Fatal("expected an *http.Transport")
+	}
+	if transport.IdleConnTimeout != 90*time.Second {
+		t.Errorf("expected IdleConnTimeout 90s, got %v", transport.IdleConnTimeout)
+	}
+	if transport.TLSHandshakeTimeout != 10*time.Second {
+		t.Errorf("expected TLSHandshakeTimeout 10s, got %v", transport.TLSHandshakeTimeout)
+	}
+	if transport.DialContext == nil {
+		t.Error("expected a dialer with a timeout and keep-alive")
+	}
+	if transport.Proxy != nil {
+		t.Error("expected no implicit environment proxy")
 	}
 }

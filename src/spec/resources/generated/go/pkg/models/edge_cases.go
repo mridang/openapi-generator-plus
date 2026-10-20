@@ -60,7 +60,7 @@ func (o EdgeCases) MarshalJSON() ([]byte, error) {
 func (o *EdgeCases) UnmarshalJSON(data []byte) error {
 	type Alias EdgeCases
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "freeFormAny", "favoriteColor", "permissionsNote", "and", "or", "not", "class", "return", "retryAfter", "expiresAt"), aux); err != nil {
 		return err
 	}
 	*o = EdgeCases(*aux)

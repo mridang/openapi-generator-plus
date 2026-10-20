@@ -6,8 +6,20 @@ type MachineAuthClientCredentialsAuthenticator struct {
 	*OAuth2ClientCredentialsAuthenticator
 }
 
+// String prints the wrapper's own name with the OAuth2ClientCredentialsAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a MachineAuthClientCredentialsAuthenticator) String() string {
+	return "MachineAuthClientCredentialsAuthenticator" + a.OAuth2ClientCredentialsAuthenticator.String()[len("OAuth2ClientCredentialsAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a MachineAuthClientCredentialsAuthenticator) GoString() string {
+	return a.String()
+}
+
 func NewMachineAuthClientCredentialsAuthenticator(host string, clientId string, clientSecret string) *MachineAuthClientCredentialsAuthenticator {
-	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", nil)
+	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", []string{"pets:write", "pets:read"})
 	return &MachineAuthClientCredentialsAuthenticator{
 		OAuth2ClientCredentialsAuthenticator: inner,
 	}

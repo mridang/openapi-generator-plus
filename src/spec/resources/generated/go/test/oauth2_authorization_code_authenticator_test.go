@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -90,6 +91,19 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
 	}
 }
 
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestUserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	auth := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=pets%3Awrite%20pets%3Aread") {
+		t.Errorf("expected URL to carry the declared scopes, got %q", url)
+	}
+}
+
 func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
 	t.Parallel()
 	auth := createAuthCodeAuthenticator()
@@ -98,6 +112,41 @@ func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
 
 	if !strings.Contains(url, "state=csrf-state-123") {
 		t.Errorf("expected URL to contain state=csrf-state-123, got %q", url)
+	}
+}
+
+// ExchangeCode runs on a callback goroutine while requests read the exchanged
+// flag on others. Run under the race detector (make test), this fails when the
+// flag is a plain bool.
+func TestOAuth2AuthCode_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := authObj.ExchangeCode("code"); err != nil {
+			t.Errorf("ExchangeCode failed: %v", err)
+		}
+	}()
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = authObj.AuthHeadersOrError()
+		}()
+	}
+	wg.Wait()
+
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
+		t.Errorf("expected the exchanged token to be used, got %q", got)
 	}
 }
 

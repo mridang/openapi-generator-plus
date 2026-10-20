@@ -67,6 +67,17 @@ func (v *{{classname}}) UnmarshalJSON(data []byte) error {
 	}
 	return fmt.Errorf("unexpected value %v for enum {{classname}}", raw)
 }
+
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v {{classname}}) MarshalJSON() ([]byte, error) {
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == v {
+			return marshalJSON({{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum {{classname}}", {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+}
 {{/isEnum}}
 {{^isEnum}}
 {{^oneOf}}
@@ -130,6 +141,17 @@ func (v *{{classname}}{{enumName}}) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return fmt.Errorf("unexpected value %v for enum {{classname}}{{enumName}}", raw)
+}
+
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v {{classname}}{{enumName}}) MarshalJSON() ([]byte, error) {
+	for _, allowed := range All{{classname}}{{enumName}}Values() {
+		if allowed == v {
+			return marshalJSON({{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum {{classname}}{{enumName}}", {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}}(v))
 }
 
 {{/isEnum}}
@@ -241,7 +263,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
 	*o = {{classname}}(*aux)
@@ -299,7 +321,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage
@@ -352,7 +374,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage
@@ -406,7 +428,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/required}}
 {{/vars}}
 {{/hasOptionalDefault}}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
 	*o = {{classname}}(*aux)
@@ -432,6 +454,14 @@ type {{classname}} struct {
 	value any
 }
 
+{{#oneOf}}
+// New{{classname}}From{{#pascalcase}}{{#goVarName}}{{{.}}}{{/goVarName}}{{/pascalcase}} wraps a {{{.}}} as a {{classname}}, so a request
+// body can be built without decoding JSON text.
+func New{{classname}}From{{#pascalcase}}{{#goVarName}}{{{.}}}{{/goVarName}}{{/pascalcase}}(v {{{.}}}) {{classname}} {
+	return {{classname}}{value: v}
+}
+
+{{/oneOf}}
 // MarshalJSON implements the json.Marshaler interface.
 func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	return marshalJSON(o.value)
@@ -444,7 +474,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	var disc struct {
 		{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} string `json:"{{propertyBaseName}}"`
 	}
-	if err := json.Unmarshal(data, &disc); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "{{propertyBaseName}}"), &disc); err != nil {
 		return err
 	}
 	switch disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} {

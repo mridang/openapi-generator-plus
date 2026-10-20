@@ -56,6 +56,17 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("unexpected value %v for enum PetWithOwnerStatusEnum", raw)
 }
 
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v PetWithOwnerStatusEnum) MarshalJSON() ([]byte, error) {
+	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
+		if allowed == v {
+			return marshalJSON(string(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum PetWithOwnerStatusEnum", string(v))
+}
+
 type PetWithOwner struct {
 	// Example: 10
 	Id *int64 `json:"id,omitempty"`
@@ -123,7 +134,7 @@ func (o PetWithOwner) MarshalJSON() ([]byte, error) {
 func (o *PetWithOwner) UnmarshalJSON(data []byte) error {
 	type Alias PetWithOwner
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name", "category", "photoUrls", "tags", "status", "location", "homepageUrl", "thumbnailRef", "linkTemplate", "ownerEmail", "weightKg", "ownerName"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

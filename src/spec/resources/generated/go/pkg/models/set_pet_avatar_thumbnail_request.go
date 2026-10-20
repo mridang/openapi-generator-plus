@@ -19,6 +19,18 @@ type SetPetAvatarThumbnailRequest struct {
 	value any
 }
 
+// NewSetPetAvatarThumbnailRequestFromByteSliceSlice wraps a [][]byte as a SetPetAvatarThumbnailRequest, so a request
+// body can be built without decoding JSON text.
+func NewSetPetAvatarThumbnailRequestFromByteSliceSlice(v [][]byte) SetPetAvatarThumbnailRequest {
+	return SetPetAvatarThumbnailRequest{value: v}
+}
+
+// NewSetPetAvatarThumbnailRequestFromByteSlice wraps a []byte as a SetPetAvatarThumbnailRequest, so a request
+// body can be built without decoding JSON text.
+func NewSetPetAvatarThumbnailRequestFromByteSlice(v []byte) SetPetAvatarThumbnailRequest {
+	return SetPetAvatarThumbnailRequest{value: v}
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 func (o SetPetAvatarThumbnailRequest) MarshalJSON() ([]byte, error) {
 	return marshalJSON(o.value)

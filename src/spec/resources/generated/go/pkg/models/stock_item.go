@@ -58,7 +58,7 @@ func (o StockItem) MarshalJSON() ([]byte, error) {
 func (o *StockItem) UnmarshalJSON(data []byte) error {
 	type Alias StockItem
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "priority", "availability", "matrix"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

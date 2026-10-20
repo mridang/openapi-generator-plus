@@ -75,14 +75,14 @@ func (a *BasicAuthenticator) Host() string {
 
 // String returns a string representation that redacts the password so
 // credentials never leak into logs or stack traces (matching the other SDKs).
-func (a *BasicAuthenticator) String() string {
+func (a BasicAuthenticator) String() string {
 	return fmt.Sprintf("BasicAuthenticator{host: %q, username: %q, password: ***}", a.host, a.username)
 }
 
 // GoString redacts the same secrets for the %#v verb. fmt ignores String()
 // for %#v and would otherwise reflect over every unexported field, secrets
 // included, into logs and test-failure output.
-func (a *BasicAuthenticator) GoString() string {
+func (a BasicAuthenticator) GoString() string {
 	return a.String()
 }
 

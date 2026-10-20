@@ -65,6 +65,38 @@ func TestMetadata_DeserializeWithAdditionalProperties(t *testing.T) {
 	}
 }
 
+func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if metadata.CreatedAt != nil {
+		t.Errorf("a mis-cased key must not populate createdAt, got %v", metadata.CreatedAt)
+	}
+	if metadata.AdditionalProperties["CreatedAt"] != "2024-01-01T00:00:00.000+00:00" {
+		t.Errorf("expected the mis-cased key as an additional property, got %v", metadata.AdditionalProperties)
+	}
+	out, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if string(out) != `{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}` {
+		t.Errorf("unexpected wire form %s", string(out))
+	}
+}
+
+func TestMetadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-01T00:00:00.000+00:00","CREATEDAT":"2030-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if metadata.CreatedAt == nil || metadata.CreatedAt.String() != "2024-01-01T00:00:00.000+00:00" {
+		t.Errorf("expected the exact key to win, got %v", metadata.CreatedAt)
+	}
+}
+
 // TestMetadata_NoExampleNullDocLine guards against a known cross-SDK defect
 // where a property whose example is the JSON literal `null` leaked into the
 // generated source as a placeholder doc line such as `Example: null` or

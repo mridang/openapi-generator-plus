@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 
 	"petstore/pkg/auth"
 )
@@ -44,7 +45,17 @@ type OAuth2ImplicitAuthenticator struct {
 	clientID         string
 	authorizationURL string
 	scopes           []string
-	accessToken      string
+	// mu guards accessToken: SetAccessToken typically runs on a callback
+	// goroutine while requests read it from others.
+	mu          sync.Mutex
+	accessToken string
+}
+
+// token returns the current access token under the lock.
+func (a *OAuth2ImplicitAuthenticator) token() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.accessToken
 }
 
 // NewOAuth2ImplicitAuthenticator creates a new implicit flow authenticator.
@@ -84,7 +95,9 @@ func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) error {
 			return fmt.Errorf("%w: token must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidAccessToken)
 		}
 	}
+	a.mu.Lock()
 	a.accessToken = token
+	a.mu.Unlock()
 	return nil
 }
 
@@ -119,13 +132,13 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 // reflect and print the unexported accessToken field into application logs. The
 // token reads as *** once set and stays empty before the authorization redirect.
 func (a *OAuth2ImplicitAuthenticator) String() string {
-	token := ""
-	if a.accessToken != "" {
-		token = "***"
+	masked := ""
+	if a.token() != "" {
+		masked = "***"
 	}
 	return fmt.Sprintf(
 		"OAuth2ImplicitAuthenticator{host: %q, clientID: %q, authorizationURL: %q, scopes: %q, accessToken: %s}",
-		a.host, a.clientID, a.authorizationURL, a.scopes, token,
+		a.host, a.clientID, a.authorizationURL, a.scopes, masked,
 	)
 }
 
@@ -141,11 +154,12 @@ func (a *OAuth2ImplicitAuthenticator) GoString() string {
 // prefers this method, so a request sent too early fails with the sentinel
 // instead of going out unauthenticated.
 func (a *OAuth2ImplicitAuthenticator) AuthHeadersOrError() (map[string]string, error) {
-	if a.accessToken == "" {
+	token := a.token()
+	if token == "" {
 		return nil, ErrAccessTokenNotSet
 	}
 	return map[string]string{
-		"Authorization": "Bearer " + a.accessToken,
+		"Authorization": "Bearer " + token,
 	}, nil
 }
 

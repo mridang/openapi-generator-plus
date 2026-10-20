@@ -4,8 +4,10 @@ package {{packageName}}_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -61,6 +63,30 @@ func (c *fakeTokenClient) SendRequestWithOptions(method, url string, headers map
 
 func newFakeTokenClient(responses ...fakeResponse) *fakeTokenClient {
 	return &fakeTokenClient{responses: responses}
+}
+
+// The manager holds the live access and refresh tokens, so no formatting verb
+// may print them.
+func TestOAuth2TokenManager_RedactsStoredTokens(t *testing.T) {
+	t.Parallel()
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"access_token":"secret-access","refresh_token":"secret-refresh","expires_in":3600}`,
+		statusCode: 200,
+	})
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "client_credentials"}); err != nil {
+		t.Fatalf("GetAccessToken failed: %v", err)
+	}
+
+	for _, s := range []string{manager.String(), fmt.Sprintf("%v", manager), fmt.Sprintf("%+v", manager), fmt.Sprintf("%#v", manager)} {
+		if strings.Contains(s, "secret-access") || strings.Contains(s, "secret-refresh") {
+			t.Errorf("expected stored tokens to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
 }
 
 // Gap 3.2: every token endpoint POST must opt out of redirect-following so a

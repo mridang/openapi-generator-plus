@@ -6,6 +6,18 @@ type AdminBasicAuthenticator struct {
 	*BasicAuthenticator
 }
 
+// String prints the wrapper's own name with the BasicAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a AdminBasicAuthenticator) String() string {
+	return "AdminBasicAuthenticator" + a.BasicAuthenticator.String()[len("BasicAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a AdminBasicAuthenticator) GoString() string {
+	return a.String()
+}
+
 // NewAdminBasicAuthenticator returns the BasicAuthenticator constructor's error when the
 // credentials are invalid. Match it with errors.Is.
 func NewAdminBasicAuthenticator(host string, username string, password string) (*AdminBasicAuthenticator, error) {

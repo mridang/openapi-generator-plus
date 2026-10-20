@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"petstore/pkg/auth/oauth"
@@ -60,6 +61,47 @@ func TestOAuth2Implicit_BuildsAuthorizationUrlWithScopes(t *testing.T) {
 
 	if !strings.Contains(url, "scope=read") {
 		t.Errorf("expected URL to contain scope with read, got %q", url)
+	}
+}
+
+// SetAccessToken runs on a callback goroutine while requests read the token on
+// others. Run under the race detector (make test), this fails when the token is
+// an unguarded field.
+func TestOAuth2Implicit_SetAccessTokenIsSafeAgainstConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	auth := createImplicitAuthenticator()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			if err := auth.SetAccessToken("token"); err != nil {
+				t.Errorf("SetAccessToken failed: %v", err)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			_, _ = auth.AuthHeadersOrError()
+			_ = auth.String()
+		}()
+	}
+	wg.Wait()
+
+	if got := auth.AuthHeaders()["Authorization"]; got != "Bearer token" {
+		t.Errorf("expected the stored token to be used, got %q", got)
+	}
+}
+
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestBrowserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	auth := oauth.NewBrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id")
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read&") && !strings.HasSuffix(url, "scope=read") {
+		t.Errorf("expected URL to carry the declared scope, got %q", url)
 	}
 }
 

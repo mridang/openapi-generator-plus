@@ -6,6 +6,18 @@ type PetStoreBasicAuthenticator struct {
 	*BasicAuthenticator
 }
 
+// String prints the wrapper's own name with the BasicAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a PetStoreBasicAuthenticator) String() string {
+	return "PetStoreBasicAuthenticator" + a.BasicAuthenticator.String()[len("BasicAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a PetStoreBasicAuthenticator) GoString() string {
+	return a.String()
+}
+
 // NewPetStoreBasicAuthenticator returns the BasicAuthenticator constructor's error when the
 // credentials are invalid. Match it with errors.Is.
 func NewPetStoreBasicAuthenticator(host string, username string, password string) (*PetStoreBasicAuthenticator, error) {

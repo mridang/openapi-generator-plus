@@ -27,6 +27,14 @@ type BearerAuthenticator struct {
 // TAB (RFC 7230 §3.2.6). Match it with errors.Is.
 var ErrInvalidBearerToken = errors.New("invalid bearer token")
 
+// invalidBearerTokenError carries the message the other SDKs use for a bad
+// token while still matching ErrInvalidBearerToken through errors.Is.
+type invalidBearerTokenError struct{ message string }
+
+func (e *invalidBearerTokenError) Error() string { return e.message }
+
+func (e *invalidBearerTokenError) Unwrap() error { return ErrInvalidBearerToken }
+
 // NewBearerAuthenticator creates an HTTP Bearer token authenticator.
 //
 // Parameters:
@@ -43,11 +51,11 @@ func NewBearerAuthenticator(host, token string) (*BearerAuthenticator, error) {
 	// unauthenticated. Reject it, matching the api-key authenticator's own
 	// empty guard.
 	if strings.TrimSpace(token) == "" {
-		return nil, fmt.Errorf("%w: token must not be empty", ErrInvalidBearerToken)
+		return nil, &invalidBearerTokenError{"bearer token must not be empty"}
 	}
 	for _, c := range token {
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
-			return nil, fmt.Errorf("%w: token must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidBearerToken)
+			return nil, &invalidBearerTokenError{"bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"}
 		}
 	}
 	return &BearerAuthenticator{
@@ -65,14 +73,14 @@ func (a *BearerAuthenticator) Host() string {
 // never leak into logs or stack traces (matching the other SDKs). Without this,
 // fmt.Printf("%+v", auth) would reflect and print the unexported token field
 // into application logs.
-func (a *BearerAuthenticator) String() string {
+func (a BearerAuthenticator) String() string {
 	return fmt.Sprintf("BearerAuthenticator{host: %q, token: ***}", a.host)
 }
 
 // GoString redacts the same secrets for the %#v verb. fmt ignores String()
 // for %#v and would otherwise reflect over every unexported field, secrets
 // included, into logs and test-failure output.
-func (a *BearerAuthenticator) GoString() string {
+func (a BearerAuthenticator) GoString() string {
 	return a.String()
 }
 

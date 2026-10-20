@@ -176,6 +176,11 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -267,6 +272,11 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -358,6 +368,11 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -449,6 +464,11 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -540,6 +560,11 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -631,6 +656,11 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -731,6 +761,11 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -826,6 +861,11 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -917,6 +957,11 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1008,6 +1053,11 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1099,6 +1149,11 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1190,6 +1245,11 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}
@@ -1281,6 +1341,11 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}

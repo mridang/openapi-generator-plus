@@ -373,6 +373,9 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 */
 	declaredConsumes := []string{ {{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}} }
 	requestContentTypeValue := declaredConsumes[0]
+	if len(requestContentType) > 1 {
+		return nil, fmt.Errorf("at most one request content-type may be given to {{operationId}}, got %d", len(requestContentType))
+	}
 	if len(requestContentType) > 0 {
 		matched := false
 		for _, declared := range declaredConsumes {
@@ -464,6 +467,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 				return nil, decErr
 			}
 			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok {
+			/* A string return type with a non-JSON Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim instead of leaving the zero value. */
+			*strPtr = response.Body
 		}
 		dataPtr = &data
 	}

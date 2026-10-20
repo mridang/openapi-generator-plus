@@ -49,7 +49,7 @@ func (o PhotoMetadataLocation) MarshalJSON() ([]byte, error) {
 func (o *PhotoMetadataLocation) UnmarshalJSON(data []byte) error {
 	type Alias PhotoMetadataLocation
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "lat", "lng"), aux); err != nil {
 		return err
 	}
 	*o = PhotoMetadataLocation(*aux)

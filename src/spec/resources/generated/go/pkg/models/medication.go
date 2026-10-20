@@ -57,7 +57,7 @@ func (o Medication) MarshalJSON() ([]byte, error) {
 func (o *Medication) UnmarshalJSON(data []byte) error {
 	type Alias Medication
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "drugName", "dosage", "notes"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

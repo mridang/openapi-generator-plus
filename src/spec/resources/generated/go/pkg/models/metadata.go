@@ -69,7 +69,7 @@ func (o Metadata) MarshalJSON() ([]byte, error) {
 func (o *Metadata) UnmarshalJSON(data []byte) error {
 	type Alias Metadata
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "createdAt"), aux); err != nil {
 		return err
 	}
 	*o = Metadata(*aux)

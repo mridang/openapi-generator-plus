@@ -56,7 +56,7 @@ func (o TreeNode) MarshalJSON() ([]byte, error) {
 func (o *TreeNode) UnmarshalJSON(data []byte) error {
 	type Alias TreeNode
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "value", "child"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

@@ -11,7 +11,6 @@ package petstore
 
 import (
 	"context"
-	"net/http"
 )
 
 // InjectTraceContext injects the current OpenTelemetry trace context into the
@@ -49,43 +48,20 @@ type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]str
 var traceContextPropagator TraceContextPropagatorFunc
 
 // SetTraceContextPropagator sets the function used to inject trace context
-// headers. Pass nil to disable trace context injection. To enable trace
-// context propagation, register the propagator at application startup:
+// headers. Pass nil to disable trace context injection.
+//
+// API operations take no context.Context, so the ctx handed to the propagator is
+// always context.Background(): it never carries the caller's span. The
+// propagator must therefore supply the context itself, for example from a span
+// the application tracks:
 //
 //	import (
-//		"go.opentelemetry.io/otel"
 //		"go.opentelemetry.io/otel/propagation"
 //	)
 //
-//	func init() {
-//		otel.SetTextMapPropagator(propagation.TraceContext{})
-//		petstore.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
-//			otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
-//		})
-//	}
+//	petstore.SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
+//		propagation.TraceContext{}.Inject(activeSpanContext(), propagation.MapCarrier(headers))
+//	})
 func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
 	traceContextPropagator = fn
-}
-
-// headerCarrier adapts a mutable map of request headers to the text-map carrier
-// shape (Get, Set, Keys) that OpenTelemetry propagators expect.
-type headerCarrier map[string]string
-
-// Get returns the value stored for the given header key, or an empty string.
-func (c headerCarrier) Get(key string) string {
-	return c[http.CanonicalHeaderKey(key)]
-}
-
-// Set stores the value for the given header key.
-func (c headerCarrier) Set(key, value string) {
-	c[key] = value
-}
-
-// Keys returns every header key currently stored.
-func (c headerCarrier) Keys() []string {
-	keys := make([]string, 0, len(c))
-	for k := range c {
-		keys = append(keys, k)
-	}
-	return keys
 }

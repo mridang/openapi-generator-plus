@@ -87,6 +87,26 @@ func TestOAuth2Password_SendsPasswordGrantType(t *testing.T) {
 	}
 }
 
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestLegacyAuthWrapper_SendsDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	client := &fakePasswordClient{
+		responses: []fakePasswordResponse{
+			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := oauth.NewLegacyAuthPasswordAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "testuser", "testpass")
+	authObj.SetApiClient(client)
+
+	authObj.AuthHeaders()
+
+	if !strings.Contains(client.LastBody, "scope=read") {
+		t.Errorf("expected body to carry the declared scope, got %q", client.LastBody)
+	}
+}
+
 func TestOAuth2Password_SendsUsernameAndPassword(t *testing.T) {
 	t.Parallel()
 	client := &fakePasswordClient{
@@ -184,7 +204,7 @@ func TestOAuth2Password_GetHostReturnsConfiguredHost(t *testing.T) {
 func TestOAuth2PasswordRedactsSecret(t *testing.T) {
 	t.Parallel()
 	authObj := createPasswordAuthenticator()
-	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj), fmt.Sprintf("%v", *authObj), fmt.Sprintf("%+v", *authObj), fmt.Sprintf("%#v", *authObj)} {
 		if strings.Contains(s, "my-client-secret") {
 			t.Errorf("expected client secret to be redacted, got %q", s)
 		}

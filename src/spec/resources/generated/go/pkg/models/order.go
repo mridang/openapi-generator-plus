@@ -56,6 +56,17 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("unexpected value %v for enum OrderStatusEnum", raw)
 }
 
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v OrderStatusEnum) MarshalJSON() ([]byte, error) {
+	for _, allowed := range AllOrderStatusEnumValues() {
+		if allowed == v {
+			return marshalJSON(string(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum OrderStatusEnum", string(v))
+}
+
 type Order struct {
 	// Example: 10
 	Id *int64 `json:"id,omitempty"`
@@ -109,7 +120,7 @@ func (o *Order) UnmarshalJSON(data []byte) error {
 	 * absent one keeps it, matching the default-application of the other SDKs. */
 	var defaultStatus OrderStatusEnum = "placed"
 	aux.Status = &defaultStatus
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "petId", "quantity", "shipDate", "status", "complete"), aux); err != nil {
 		return err
 	}
 	*o = Order(*aux)

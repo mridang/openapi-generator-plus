@@ -19,6 +19,18 @@ type PetFood struct {
 	value any
 }
 
+// NewPetFoodFromDryFood wraps a DryFood as a PetFood, so a request
+// body can be built without decoding JSON text.
+func NewPetFoodFromDryFood(v DryFood) PetFood {
+	return PetFood{value: v}
+}
+
+// NewPetFoodFromWetFood wraps a WetFood as a PetFood, so a request
+// body can be built without decoding JSON text.
+func NewPetFoodFromWetFood(v WetFood) PetFood {
+	return PetFood{value: v}
+}
+
 // MarshalJSON implements the json.Marshaler interface.
 func (o PetFood) MarshalJSON() ([]byte, error) {
 	return marshalJSON(o.value)
@@ -30,7 +42,7 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 	var disc struct {
 		FoodType string `json:"foodType"`
 	}
-	if err := json.Unmarshal(data, &disc); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "foodType"), &disc); err != nil {
 		return err
 	}
 	switch disc.FoodType {

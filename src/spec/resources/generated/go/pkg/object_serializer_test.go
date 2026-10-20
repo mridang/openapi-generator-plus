@@ -1151,6 +1151,85 @@ func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
 	}
 }
 
+func TestFormatFloat_WholeValuesKeepTheFractionMarker(t *testing.T) {
+	t.Parallel()
+	cases := map[float64]string{
+		1.0:   "1.0",
+		-2.0:  "-2.0",
+		100.0: "100.0",
+		1.5:   "1.5",
+		1e20:  "1e+20",
+	}
+	for in, want := range cases {
+		if got := formatFloat(in); got != want {
+			t.Errorf("formatFloat(%v) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// ── An enum value outside the declared members is rejected on the way out too,
+// not only on the way in. ──
+
+func TestSerialize_UndeclaredEnumValueIsRejected(t *testing.T) {
+	t.Parallel()
+	bogus := models.OrderStatusEnum("bogus")
+	_, err := serialize(models.Order{Status: &bogus})
+	if err == nil || !strings.Contains(err.Error(), "unexpected value bogus for enum OrderStatusEnum") {
+		t.Fatalf("expected the undeclared inline enum value to be rejected, got %v", err)
+	}
+
+	_, err = serialize(models.Swatch("bogus"))
+	if err == nil || !strings.Contains(err.Error(), "unexpected value bogus for enum Swatch") {
+		t.Fatalf("expected the undeclared enum value to be rejected, got %v", err)
+	}
+}
+
+func TestSerialize_DeclaredEnumValueIsWritten(t *testing.T) {
+	t.Parallel()
+	placed := models.OrderStatusEnumPlaced
+	data, err := serialize(models.Order{Status: &placed})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"status":"`+string(placed)+`"`) {
+		t.Errorf("expected the declared status on the wire, got %s", string(data))
+	}
+}
+
+// ── Keys match the declared wire name exactly. encoding/json alone would bind
+// a key that differs only in letter case; every other SDK treats it as unknown. ──
+
+func TestDeserialize_MiscasedKeyDoesNotPopulateDeclaredField(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"Rex","photoUrls":[],"ID":7}`), &pet); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pet.Id != nil {
+		t.Errorf("a mis-cased key must not populate id, got %d", *pet.Id)
+	}
+}
+
+func TestDeserialize_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"Rex","NAME":"Evil","photoUrls":[]}`), &pet); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if pet.Name != "Rex" {
+		t.Errorf("expected the exact key to win, got %q", pet.Name)
+	}
+}
+
+func TestDeserialize_MiscasedRequiredKeyIsMissing(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	err := deserialize([]byte(`{"NAME":"Rex","photoUrls":[]}`), &pet)
+	if err == nil || !strings.Contains(err.Error(), "required field 'name' is missing in Pet") {
+		t.Fatalf("expected the required field to be reported missing, got %v", err)
+	}
+}
+
 // ── default-on-deserialize: an absent field carrying a schema default must be
 // populated with that default during deserialize, matching the other SDKs.
 // Order.status declares `default: placed`; when the payload omits "status" the

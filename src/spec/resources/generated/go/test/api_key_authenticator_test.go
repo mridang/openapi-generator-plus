@@ -124,12 +124,33 @@ func TestApiKeyAuthenticator_HeaderLocationRejectsNonAscii(t *testing.T) {
 	expectInvalidApiKey(t, "kéy", auth.ApiKeyLocationHeader)
 }
 
+// The rejection reads as the canonical sentence the other SDKs use, with the
+// key name quoted.
+func TestApiKeyAuthenticator_RejectionMessages(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		value    string
+		location auth.ApiKeyLocation
+		want     string
+	}{
+		{"", auth.ApiKeyLocationHeader, "API key value for 'X-API-Key' must not be empty"},
+		{"abc\n", auth.ApiKeyLocationQuery, "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"},
+		{"kéy", auth.ApiKeyLocationHeader, "API key value for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)"},
+	}
+	for _, tc := range cases {
+		_, err := auth.NewApiKeyAuthenticator("https://api.example.com", "X-API-Key", tc.value, tc.location)
+		if err == nil || err.Error() != tc.want {
+			t.Errorf("value %q: expected %q, got %v", tc.value, tc.want, err)
+		}
+	}
+}
+
 // authenticator-secret-in-default-string-repr: the API key must not leak
 // through the default string/format representation.
 func TestApiKeyAuthenticator_RedactsSecret(t *testing.T) {
 	t.Parallel()
 	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
-	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a)} {
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
 		if strings.Contains(s, "abc123") {
 			t.Errorf("expected api key to be redacted, got %q", s)
 		}

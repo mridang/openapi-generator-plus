@@ -1206,7 +1206,7 @@ func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 	}
 }
 
-func TestBinaryResponse_TextPlainReturnsString(t *testing.T) {
+func TestBinaryResponse_TextPlainBodyForModelReturnLeavesTheModelEmpty(t *testing.T) {
 	t.Parallel()
 	client := &binaryResponseApiClient{
 		responseBody:        "hello world",
@@ -1214,9 +1214,13 @@ func TestBinaryResponse_TextPlainReturnsString(t *testing.T) {
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
-	_, err := api.GetPetById(int64(1), nil)
-	// Should not panic; deserialization failure is acceptable for non-JSON
-	_ = err
+	got, err := api.GetPetById(int64(1), nil)
+	if err != nil {
+		t.Fatalf("expected no error: a non-JSON body is not handed to the JSON decoder, got %v", err)
+	}
+	if got == nil || got.Id != nil || got.Name != "" {
+		t.Errorf("expected an empty model for a plain-text body, got %+v", got)
+	}
 }
 
 func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {

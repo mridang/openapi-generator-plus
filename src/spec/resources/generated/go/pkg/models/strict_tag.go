@@ -52,7 +52,7 @@ func (o StrictTag) MarshalJSON() ([]byte, error) {
 func (o *StrictTag) UnmarshalJSON(data []byte) error {
 	type Alias StrictTag
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name"), aux); err != nil {
 		return err
 	}
 	var raw map[string]json.RawMessage

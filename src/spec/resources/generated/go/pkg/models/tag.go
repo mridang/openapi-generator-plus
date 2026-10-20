@@ -50,7 +50,7 @@ func (o Tag) MarshalJSON() ([]byte, error) {
 func (o *Tag) UnmarshalJSON(data []byte) error {
 	type Alias Tag
 	aux := &Alias{}
-	if err := json.Unmarshal(data, aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name"), aux); err != nil {
 		return err
 	}
 	*o = Tag(*aux)

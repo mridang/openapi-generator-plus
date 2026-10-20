@@ -236,8 +236,41 @@ func TestApiError_ErrorBodyIsDepthCapped(t *testing.T) {
 	}
 
 	var typed models.Category
-	if deErr := err.GetTypedErrorBody(&typed); deErr == nil {
-		t.Error("expected GetTypedErrorBody to reject an over-deep body, got nil error")
+	deErr := err.GetTypedErrorBody(&typed)
+	var serErr *apierrors.SerializationError
+	if !errors.As(deErr, &serErr) {
+		t.Fatalf("expected a *SerializationError for an over-deep body, got %T: %v", deErr, deErr)
+	}
+	if serErr.Message() != "JSON nesting depth 1001 exceeds limit 1000" {
+		t.Errorf("unexpected message %q", serErr.Message())
+	}
+}
+
+func TestApiError_GetTypedErrorBodyMalformedBodyIsSerializationError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(400, "bad request", `{"id":`, nil, nil, nil)
+
+	var typed models.Category
+	deErr := err.GetTypedErrorBody(&typed)
+	var serErr *apierrors.SerializationError
+	if !errors.As(deErr, &serErr) {
+		t.Fatalf("expected a *SerializationError for a malformed body, got %T: %v", deErr, deErr)
+	}
+	if !strings.HasPrefix(serErr.Message(), "failed to deserialize JSON: ") {
+		t.Errorf("unexpected message %q", serErr.Message())
+	}
+}
+
+func TestApiError_GetTypedErrorBodyStripsByteOrderMark(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewApiError(400, "bad request", "\xEF\xBB\xBF"+`{"id":7}`, nil, nil, nil)
+
+	var typed models.Category
+	if deErr := err.GetTypedErrorBody(&typed); deErr != nil {
+		t.Fatalf("GetTypedErrorBody returned error: %v", deErr)
+	}
+	if typed.Id == nil || *typed.Id != 7 {
+		t.Errorf("expected id 7, got %v", typed.Id)
 	}
 }
 

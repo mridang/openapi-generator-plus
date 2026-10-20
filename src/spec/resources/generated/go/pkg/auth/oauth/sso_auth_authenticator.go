@@ -6,6 +6,18 @@ type SsoAuthAuthenticator struct {
 	*OpenIdConnectAuthenticator
 }
 
+// String prints the wrapper's own name with the OpenIdConnectAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a SsoAuthAuthenticator) String() string {
+	return "SsoAuthAuthenticator" + a.OpenIdConnectAuthenticator.String()[len("OpenIdConnectAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a SsoAuthAuthenticator) GoString() string {
+	return a.String()
+}
+
 func NewSsoAuthAuthenticator(host string, clientId string, clientSecret string, redirectUri string) *SsoAuthAuthenticator {
 	inner := NewOpenIdConnectAuthenticator(host, "https://auth.example.com/.well-known/openid-configuration", clientId, clientSecret, redirectUri, nil)
 	return &SsoAuthAuthenticator{

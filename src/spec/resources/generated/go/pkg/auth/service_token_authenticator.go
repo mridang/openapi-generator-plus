@@ -6,6 +6,18 @@ type ServiceTokenAuthenticator struct {
 	*BearerAuthenticator
 }
 
+// String prints the wrapper's own name with the BearerAuthenticator's redacted fields,
+// instead of the promoted method naming the base type. The value receiver keeps
+// a dereferenced wrapper redacted too.
+func (a ServiceTokenAuthenticator) String() string {
+	return "ServiceTokenAuthenticator" + a.BearerAuthenticator.String()[len("BearerAuthenticator"):]
+}
+
+// GoString redacts the same secrets for the %#v verb.
+func (a ServiceTokenAuthenticator) GoString() string {
+	return a.String()
+}
+
 // NewServiceTokenAuthenticator returns the BearerAuthenticator constructor's error when the
 // credentials are invalid. Match it with errors.Is.
 func NewServiceTokenAuthenticator(host string, token string) (*ServiceTokenAuthenticator, error) {
