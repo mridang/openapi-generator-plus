@@ -62,9 +62,15 @@ final class ValueSerializer
             return $location === 'path' ? rawurlencode($formatted) : $formatted;
         }
 
+        $stringifier = str_ends_with($schemaType, '|date')
+            ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
+                ? $v->format('Y-m-d')
+                : ObjectSerializer::stringify($v)
+            : ObjectSerializer::stringify(...);
+
         if (is_array($value)) {
             if ($location === 'query') {
-                $items = array_map(ObjectSerializer::stringify(...), $value);
+                $items = array_map($stringifier, $value);
 
                 return match ($collectionFormat) {
                     'multi' => $items,
@@ -76,7 +82,7 @@ final class ValueSerializer
             }
 
             if ($location === 'header') {
-                return implode(',', array_map(ObjectSerializer::stringify(...), $value));
+                return implode(',', array_map($stringifier, $value));
             }
         }
 

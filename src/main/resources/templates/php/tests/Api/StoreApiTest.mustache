@@ -34,6 +34,17 @@ function newStoreApiForMock(int $statusCode, string $contentType, string $body):
     return new StoreApi(apiClient: $client, config: $config);
 }
 
+test('data methods declare a native return type', function (string $method, string $expected): void {
+    $returnType = (new \ReflectionMethod(StoreApi::class, $method))->getReturnType();
+    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe($expected);
+})->with([
+    ['getOrderById', Order::class],
+    ['getInventory', \Ds\Map::class],
+    ['deleteOrder', 'void'],
+]);
+
 // -- Integration tests via Chasm --
 
 test('get inventory', function (): void {

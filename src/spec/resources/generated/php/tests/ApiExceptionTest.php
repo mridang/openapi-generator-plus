@@ -199,6 +199,15 @@ test('fromResponse leaves the error body null when the body is not JSON', functi
     expect($ex->getErrorBody())->toBeNull();
 });
 
+test('fromResponse decodes an error body nested exactly at the depth cap and drops one past it', function (): void {
+    $cap = \PetstoreClient\ObjectSerializer::MAX_JSON_DEPTH;
+    $atCap = str_repeat('[', $cap) . str_repeat(']', $cap);
+    $pastCap = str_repeat('[', $cap + 1) . str_repeat(']', $cap + 1);
+
+    expect(ApiException::fromResponse(400, [], $atCap)->getErrorBody())->toBeArray();
+    expect(ApiException::fromResponse(400, [], $pastCap)->getErrorBody())->toBeNull();
+});
+
 test('every error type lives in the Errors namespace under the root', function (string $error): void {
     $namespace = substr($error, 0, (int) strrpos($error, '\\'));
 

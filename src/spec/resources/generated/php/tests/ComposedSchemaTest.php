@@ -6,6 +6,7 @@ use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\DryFood;
 use PetstoreClient\Models\WetFood;
 use PetstoreClient\Models\Medication;
+use PetstoreClient\Models\Metadata;
 use PetstoreClient\Models\Surgery;
 use PetstoreClient\Models\PetFood;
 use PetstoreClient\Models\PetTreatment;
@@ -164,6 +165,19 @@ test('any of shared property collision keeps the last variant, emitted once', fu
     expect($serialized)->not->toContain('from-medication');
     // `notes` appears exactly once — no duplicate key.
     expect(substr_count($serialized, '"notes"'))->toBe(1);
+});
+
+test('any of variants with only numeric additional properties serialize as an object', function (): void {
+    $first = new Metadata();
+    /** @var \Ds\Map<string, mixed> $firstExtra */
+    $firstExtra = new \Ds\Map(['0' => 'x']);
+    $first->additionalProperties = $firstExtra;
+    $second = new Metadata();
+    /** @var \Ds\Map<string, mixed> $secondExtra */
+    $secondExtra = new \Ds\Map(['1' => 'y']);
+    $second->additionalProperties = $secondExtra;
+
+    expect(ObjectSerializer::serialize(new PetTreatment([$first, $second])))->toBe('{"0":"x","1":"y"}');
 });
 
 test('any of single variant still round-trips after retain-all', function (): void {

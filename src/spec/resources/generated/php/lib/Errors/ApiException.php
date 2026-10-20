@@ -98,11 +98,13 @@ class ApiException extends OpenAPIException
         if ($responseBody !== null && trim($responseBody) !== '') {
             try {
                 /* Cap the nesting depth so a deeply-nested error payload is
-                 * refused before it can recurse through the stack. */
+                 * refused before it can recurse through the stack. The depth
+                 * argument is one past the container cap because json_decode
+                 * counts the outermost container as a level. */
                 $errorBody = json_decode(
                     $responseBody,
                     true,
-                    ObjectSerializer::MAX_JSON_DEPTH,
+                    ObjectSerializer::JSON_DECODE_DEPTH,
                     JSON_THROW_ON_ERROR
                 );
             } catch (\JsonException) {

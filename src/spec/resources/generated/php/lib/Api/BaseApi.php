@@ -341,13 +341,7 @@ class BaseApi
                         continue;
                     }
                     $qs .= $key;
-                    if (is_bool($vv)) {
-                        $qs .= '=' . $encodeValue($vv ? 'true' : 'false');
-                    } elseif (is_scalar($vv)) {
-                        $qs .= '=' . $encodeValue((string) $vv);
-                    } else {
-                        $qs .= '=' . $encodeValue((string) json_encode($vv, JSON_UNESCAPED_SLASHES));
-                    }
+                    $qs .= '=' . $encodeValue($this->queryValueText($vv));
                     $qs .= '&';
                 }
             } else {
@@ -362,18 +356,33 @@ class BaseApi
                     continue;
                 }
                 $qs .= $key;
-                if (is_bool($v)) {
-                    $qs .= '=' . $encodeValue($v ? 'true' : 'false');
-                } elseif (is_scalar($v)) {
-                    $qs .= '=' . $encodeValue((string) $v);
-                } else {
-                    $qs .= '=' . $encodeValue((string) json_encode($v, JSON_UNESCAPED_SLASHES));
-                }
+                $qs .= '=' . $encodeValue($this->queryValueText($v));
                 $qs .= '&';
             }
         }
 
         return $qs !== '' ? substr($qs, 0, -1) : '';
+    }
+
+    /**
+     * Render one query or form value as text. Scalars, date-times, durations,
+     * UUIDs and backed enums take the canonical {@see ObjectSerializer::stringify}
+     * form (so a date-time is RFC 3339 and an enum is its bare value, never a
+     * JSON-encoded object or a quoted string); anything else is JSON-encoded.
+     */
+    private function queryValueText(mixed $value): string
+    {
+        if (
+            is_scalar($value)
+            || $value instanceof \DateTimeInterface
+            || $value instanceof \DateInterval
+            || $value instanceof \BackedEnum
+            || $value instanceof \Symfony\Component\Uid\Uuid
+        ) {
+            return ObjectSerializer::stringify($value);
+        }
+
+        return (string) json_encode($value, JSON_UNESCAPED_SLASHES);
     }
 
     /**

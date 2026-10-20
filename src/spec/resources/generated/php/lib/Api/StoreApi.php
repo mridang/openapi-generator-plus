@@ -100,13 +100,10 @@ class StoreApi extends BaseApi
 
     /**
      * Echoes a swatch supplied via path, query and header parameters.
-
      * @param GetBySwatchOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null)
+    public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): \PetstoreClient\Models\Category
     {
         $apiResult = $this->getBySwatchWithHttpInfo($pathSwatch, $options);
         if ($apiResult->data === null) {
@@ -212,11 +209,9 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a model exercising schema defaults on deserialize.
-
-     * @return \PetstoreClient\Models\Defaults
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDefaults()
+    public function getDefaults(): \PetstoreClient\Models\Defaults
     {
         $apiResult = $this->getDefaultsWithHttpInfo();
         if ($apiResult->data === null) {
@@ -277,11 +272,9 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a department (mutual-recursion codegen fixture).
-
-     * @return \PetstoreClient\Models\Department
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getDepartment()
+    public function getDepartment(): \PetstoreClient\Models\Department
     {
         $apiResult = $this->getDepartmentWithHttpInfo();
         if ($apiResult->data === null) {
@@ -346,7 +339,7 @@ class StoreApi extends BaseApi
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getGroupedCategories()
+    public function getGroupedCategories(): \Ds\Vector
     {
         $apiResult = $this->getGroupedCategoriesWithHttpInfo();
         if ($apiResult->data === null) {
@@ -411,7 +404,7 @@ class StoreApi extends BaseApi
      * @return \Ds\Map<string, int>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getInventory()
+    public function getInventory(): \Ds\Map
     {
         $apiResult = $this->getInventoryWithHttpInfo();
         if ($apiResult->data === null) {
@@ -476,7 +469,7 @@ class StoreApi extends BaseApi
      * @return \Ds\Vector<\Ds\Vector<int>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMatrix()
+    public function getMatrix(): \Ds\Vector
     {
         $apiResult = $this->getMatrixWithHttpInfo();
         if ($apiResult->data === null) {
@@ -538,11 +531,9 @@ class StoreApi extends BaseApi
     /**
      * Find purchase order by ID
      * @param int $orderId ID of order to return
-
-     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getOrderById(int $orderId)
+    public function getOrderById(int $orderId): \PetstoreClient\Models\Order
     {
         $apiResult = $this->getOrderByIdWithHttpInfo($orderId);
         if ($apiResult->data === null) {
@@ -622,13 +613,10 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-
      * @param GetStockItemOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\StockItem
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getStockItem(?GetStockItemOptions $options = null)
+    public function getStockItem(?GetStockItemOptions $options = null): \PetstoreClient\Models\StockItem
     {
         $apiResult = $this->getStockItemWithHttpInfo($options);
         if ($apiResult->data === null) {
@@ -702,11 +690,9 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a bare enum (value-type response codegen fixture).
-
-     * @return \PetstoreClient\Models\Swatch
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatch()
+    public function getSwatch(): \PetstoreClient\Models\Swatch
     {
         $apiResult = $this->getSwatchWithHttpInfo();
         if ($apiResult->data === null) {
@@ -771,7 +757,7 @@ class StoreApi extends BaseApi
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getSwatchGroups()
+    public function getSwatchGroups(): \Ds\Vector
     {
         $apiResult = $this->getSwatchGroupsWithHttpInfo();
         if ($apiResult->data === null) {
@@ -836,7 +822,7 @@ class StoreApi extends BaseApi
      * @return \Ds\Vector<\Ds\Map<string, \DateTime>>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTimestampGroups()
+    public function getTimestampGroups(): \Ds\Vector
     {
         $apiResult = $this->getTimestampGroupsWithHttpInfo();
         if ($apiResult->data === null) {
@@ -897,11 +883,9 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
-
-     * @return \PetstoreClient\Models\TreeNode
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getTree()
+    public function getTree(): \PetstoreClient\Models\TreeNode
     {
         $apiResult = $this->getTreeWithHttpInfo();
         if ($apiResult->data === null) {
@@ -962,11 +946,9 @@ class StoreApi extends BaseApi
 
     /**
      * Place an order for a pet
-
-     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
+    public function placeOrder(\PetstoreClient\Models\Order|null $order = null): \PetstoreClient\Models\Order
     {
         $apiResult = $this->placeOrderWithHttpInfo($order);
         if ($apiResult->data === null) {

@@ -1075,6 +1075,26 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Derives the native return type declaration from the PHPDoc return type
+     * by dropping the generic argument list ({@code \Ds\Vector<Pet>} becomes
+     * {@code \Ds\Vector}). Only a class name or a scalar the deserializer is
+     * known to return as that exact type is declared; anything else (for
+     * example {@code object}, which decodes to an array) stays docblock-only.
+     */
+    @Nullable
+    static String phpNativeReturnType(@Nullable String phpDocType) {
+        if (phpDocType == null) {
+            return null;
+        }
+        final int generics = phpDocType.indexOf('<');
+        final String base = generics < 0 ? phpDocType : phpDocType.substring(0, generics);
+        if (base.matches("string|int|float|bool|\\\\[A-Za-z_][A-Za-z0-9_\\\\]*")) {
+            return base;
+        }
+        return null;
+    }
+
+    /**
      * Recursive worker for {@link #phpDocReturnType(String, CodegenProperty)}
      * that produces the un-{@code withDsGenerics}-normalised PHPDoc string for a
      * single property, wrapping array elements and map values in their generic
@@ -1224,6 +1244,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     final String phpDoc = phpDocReturnType(op.returnType, op.returnProperty);
                     if (phpDoc != null) {
                         op.vendorExtensions.put("phpDocReturnType", phpDoc);
+                        final String nativeType = phpNativeReturnType(phpDoc);
+                        if (nativeType != null) {
+                            op.vendorExtensions.put("phpNativeReturnType", nativeType);
+                        }
                     }
                     // H3 request-content-type selector: the api template reads
                     // vendorExtensions.op.hasMultipleConsumes, populated by the shared

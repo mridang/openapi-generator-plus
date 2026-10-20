@@ -216,6 +216,25 @@ test('psr18 follows redirect when not suppressed', function (): void {
     expect($response->statusCode)->toBe(200);
 });
 
+test('psr18 resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => $location]),
+        psr18Response(200, 'ok')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest('GET', 'https://h/v1/pets/1?x=1', [], null);
+
+    expect((string) $stub->requests[1]->getUri())->toBe($expected);
+})->with([
+    'query only' => ['?page=2', 'https://h/v1/pets/1?page=2'],
+    'parent segment' => ['../owners/9', 'https://h/v1/owners/9'],
+    'current segment' => ['./a', 'https://h/v1/pets/a'],
+    'sibling' => ['b', 'https://h/v1/pets/b'],
+    'absolute path' => ['/z', 'https://h/z'],
+]);
+
 test('psr18 https to http downgrade refuses body replay on 307', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(307, '', ['Location' => 'http://insecure.example.com/sink'])
@@ -410,6 +429,33 @@ test('psr18 multipart non ascii field name preserved as utf 8', function (): voi
 
     $sent = (string) $stub->requests[0]->getBody();
     expect($sent)->toContain('name="' . $fieldName . '"');
+});
+
+test('psr18 multipart escapes a quote and a backslash in the field name', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+
+    $client->sendRequest('POST', 'http://example.com/upload', [], ['a"b\c' => 'value']);
+
+    expect((string) $stub->requests[0]->getBody())->toContain('Content-Disposition: form-data; name="a\"b\\\\c"');
+});
+
+test('psr18 multipart scalar parts use the canonical text form', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['yes' => true, 'no' => false, 'count' => 7, 'ratio' => 1.0]
+    );
+
+    $sent = (string) $stub->requests[0]->getBody();
+    expect($sent)->toContain("name=\"yes\"\r\n\r\ntrue\r\n");
+    expect($sent)->toContain("name=\"no\"\r\n\r\nfalse\r\n");
+    expect($sent)->toContain("name=\"count\"\r\n\r\n7\r\n");
+    expect($sent)->toContain("name=\"ratio\"\r\n\r\n1.0\r\n");
 });
 
 /*

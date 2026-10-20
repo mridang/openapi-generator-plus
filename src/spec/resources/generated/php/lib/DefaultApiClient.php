@@ -218,7 +218,7 @@ class DefaultApiClient extends AbstractApiClient
                             fclose($v);
                         }
                     } elseif (is_scalar($v)) {
-                        $parts[] = strval($v);
+                        $parts[] = ObjectSerializer::stringify($v);
                     } else {
                         $parts[] = '';
                     }

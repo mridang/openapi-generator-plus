@@ -56,6 +56,19 @@ function newPetApiForMock(int $statusCode, string $contentType, string $body): P
     return new PetApi(apiClient: $client, config: $config);
 }
 
+test('data methods declare a native return type', function (string $method, string $expected): void {
+    $returnType = new \ReflectionMethod(PetApi::class, $method)->getReturnType();
+    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
+    assert($returnType instanceof \ReflectionNamedType);
+    expect($returnType->getName())->toBe($expected);
+})->with([
+    ['getPetById', Pet::class],
+    ['addPet', Pet::class],
+    ['findPetsByStatus', \Ds\Vector::class],
+    ['downloadPetDocument', 'string'],
+    ['deletePet', 'void'],
+]);
+
 // -- Integration tests via Chasm --
 
 test('add pet', function (): void {

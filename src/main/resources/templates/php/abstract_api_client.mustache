@@ -552,19 +552,17 @@ abstract class AbstractApiClient implements ApiClient
         if ($baseParts === false || !isset($baseParts['scheme'], $baseParts['host'])) {
             return null;
         }
-        $scheme = $baseParts['scheme'];
-        $host = $baseParts['host'];
-        $port = isset($baseParts['port']) ? ':' . $baseParts['port'] : '';
-        if (str_starts_with($location, '//')) {
-            return $scheme . ':' . $location;
+        /* RFC 3986 section 5.2 reference resolution, so a query-only
+         * reference keeps the base path and dot segments are removed. */
+        $baseUri = \Uri\Rfc3986\Uri::parse($base);
+        if ($baseUri === null) {
+            return null;
         }
-        if (str_starts_with($location, '/')) {
-            return $scheme . '://' . $host . $port . $location;
+        try {
+            return $baseUri->resolve($location)->toRawString();
+        } catch (\Uri\InvalidUriException) {
+            return null;
         }
-        $basePath = $baseParts['path'] ?? '/';
-        $basePath = substr($basePath, 0, (int) strrpos($basePath, '/') + 1) ?: '/';
-
-        return $scheme . '://' . $host . $port . $basePath . $location;
     }
 
     /**
@@ -689,6 +687,18 @@ abstract class AbstractApiClient implements ApiClient
                 'multipart field name must not contain CR, LF, or NUL characters'
             );
         }
+    }
+
+    /**
+     * Backslash-escapes the `"` and `\` characters of a multipart field name
+     * so it stays one quoted-string inside `name="..."`.
+     *
+     * @param string $name the (validated) field name
+     * @return string the escaped name
+     */
+    protected static function escapeMultipartFieldName(string $name): string
+    {
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], $name);
     }
 
     /**

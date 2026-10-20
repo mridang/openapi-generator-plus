@@ -42,7 +42,7 @@ class ObjectSerializer
      * depth argument must be one larger than the number of nested containers
      * to accept: 1000 nested arrays need 1001. Passing MAX_JSON_DEPTH itself
      * would reject a payload that is exactly at the cap. */
-    private const int JSON_DECODE_DEPTH = self::MAX_JSON_DEPTH + 1;
+    public const int JSON_DECODE_DEPTH = self::MAX_JSON_DEPTH + 1;
 
     /* H4: emit sub-second precision on the wire. \DateTime::ATOM
      * ("Y-m-d\TH:i:sP") has no fractional-second component, so a date-time
@@ -160,16 +160,21 @@ class ObjectSerializer
                 /** @var array<int, mixed> $instances */
                 $instances = $data->getActualInstances();
                 $merged = [];
+                $keyed = false;
                 foreach ($instances as $instance) {
                     $sanitized = self::sanitizeForSerialization($instance);
                     if ($sanitized instanceof \ArrayObject) {
+                        $keyed = true;
                         $sanitized = $sanitized->getArrayCopy();
                     }
                     if (is_array($sanitized)) {
-                        $merged = array_merge($merged, $sanitized);
+                        /* array_replace keeps integer keys where array_merge
+                         * would renumber them, so numeric additionalProperties
+                         * keys survive the union. */
+                        $merged = array_replace($merged, $sanitized);
                     }
                 }
-                return $merged;
+                return $keyed ? self::asJsonObject($merged) : $merged;
             }
 
             if (method_exists($data, 'getActualInstance')) {
@@ -262,7 +267,17 @@ class ObjectSerializer
             return $value;
         }
 
-        if (is_int($value) || is_float($value)) {
+        if (is_float($value)) {
+            /* A whole-number float keeps its ".0" (1.0, not 1), like the
+             * other SDKs; (string) drops the fraction. Non-finite values and
+             * exponent forms already carry their own marker. */
+            $text = (string) $value;
+            return is_finite($value) && !str_contains($text, '.') && !str_contains($text, 'E')
+                ? $text . '.0'
+                : $text;
+        }
+
+        if (is_int($value)) {
             return (string) $value;
         }
 
@@ -581,10 +596,10 @@ class ObjectSerializer
         }
 
         if ($class === 'DateTime') {
-            if (is_string($data)) {
-                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
-                if (is_string($decoded)) {
-                    $data = $decoded;
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
                 }
             }
             if (is_string($data) && $data !== '') {
@@ -604,10 +619,10 @@ class ObjectSerializer
              * dedicated time-of-day type; \DateTimeImmutable parses the
              * wire string with today's date implied and callers project
              * the time portion via format('H:i:s'). */
-            if (is_string($data)) {
-                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
-                if (is_string($decoded)) {
-                    $data = $decoded;
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
                 }
             }
             if (is_string($data) && $data !== '') {
@@ -628,10 +643,10 @@ class ObjectSerializer
              * wire form here, so we parse the protobuf-JSON shape and build
              * a round-tripping interval. Invalid strings surface as the
              * SerializationException used elsewhere for bad input. */
-            if (is_string($data)) {
-                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
-                if (is_string($decoded)) {
-                    $data = $decoded;
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
                 }
             }
             if (is_string($data) && $data !== '') {
@@ -641,10 +656,10 @@ class ObjectSerializer
         }
 
         if ($class === 'Symfony\Component\Uid\Uuid') {
-            if (is_string($data)) {
-                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
-                if (is_string($decoded)) {
-                    $data = $decoded;
+            if (!$decoded && is_string($data)) {
+                $literal = json_decode($data, true, self::JSON_DECODE_DEPTH);
+                if (is_string($literal)) {
+                    $data = $literal;
                 }
             }
             if (is_string($data) && $data !== '') {
@@ -715,9 +730,11 @@ class ObjectSerializer
             && method_exists($class, 'build')
             && method_exists($class, 'getActualInstance')
         ) {
-            $decoded = is_string($data) ? json_decode($data, true, self::JSON_DECODE_DEPTH) : $data;
+            $payload = !$decoded && is_string($data)
+                ? json_decode($data, true, self::JSON_DECODE_DEPTH)
+                : $data;
             /** @var object $built */
-            $built = $class::build($decoded);
+            $built = $class::build($payload);
             return $built;
         }
 

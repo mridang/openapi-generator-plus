@@ -163,11 +163,12 @@ class Psr18ApiClient extends AbstractApiClient
             /* W-new-2: reject field-NAME CR/LF/NUL up-front to prevent
              * Content-Disposition header injection. */
             self::validateMultipartFieldName((string) $name);
+            $quotedName = self::escapeMultipartFieldName((string) $name);
             $values = is_array($value) ? $value : [$value];
             foreach ($values as $v) {
                 $out .= '--' . $boundary . $crlf;
                 if (is_object($v) && !($v instanceof \SplFileObject)) {
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"' . $crlf;
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf;
                     $out .= 'Content-Type: application/json' . $crlf . $crlf;
                     $out .= ObjectSerializer::serialize($v) . $crlf;
                 } elseif ($v instanceof \SplFileObject) {
@@ -176,7 +177,7 @@ class Psr18ApiClient extends AbstractApiClient
                     self::validateMultipartFilename($filename);
                     $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
                     $content = @file_get_contents($path !== false ? $path : $v->getPathname());
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"; '
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
@@ -191,15 +192,15 @@ class Psr18ApiClient extends AbstractApiClient
                     $filename = (string) $name;
                     self::validateMultipartFilename($filename);
                     $mime = $this->guessMimeType(null, $filename);
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"; '
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"; '
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
                 } elseif (is_scalar($v)) {
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"' . $crlf . $crlf;
-                    $out .= strval($v) . $crlf;
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
+                    $out .= ObjectSerializer::stringify($v) . $crlf;
                 } else {
-                    $out .= 'Content-Disposition: form-data; name="' . $name . '"' . $crlf . $crlf;
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
                     $out .= $crlf;
                 }
             }

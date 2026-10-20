@@ -467,6 +467,24 @@ test('cookie date only emits yyyy mm dd', function (): void {
     expect(ValueSerializer::serializeStyled('c', $dt, 'cookie', '\\DateTime|date', null, 'form', true))->toBe('2024-01-01');
 });
 
+test('query array of dates emits yyyy mm dd per item', function (): void {
+    $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
+    expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'csv'))->toBe('2024-01-15,2024-02-01');
+    expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'multi'))->toBe(['2024-01-15', '2024-02-01']);
+    expect(ValueSerializer::serializeStyled('d', $dates, 'query', 'array|date', null, 'form', true))
+        ->toBe(['2024-01-15', '2024-02-01']);
+});
+
+test('header array of dates emits yyyy mm dd per item', function (): void {
+    $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
+    expect(ValueSerializer::serialize($dates, 'header', 'array|date'))->toBe('2024-01-15,2024-02-01');
+});
+
+test('query array of date times keeps the time per item', function (): void {
+    $dates = [new \DateTime('2024-01-15T10:30:45+00:00')];
+    expect(ValueSerializer::serialize($dates, 'query', 'array', 'csv'))->toBe('2024-01-15T10:30:45.000+00:00');
+});
+
 test('query date time without date marker keeps time', function (): void {
     $dt = new \DateTime('2024-01-01T10:30:45+00:00');
     expect(ValueSerializer::serialize($dt, 'query', '\\DateTime'))->toContain('10:30:45');

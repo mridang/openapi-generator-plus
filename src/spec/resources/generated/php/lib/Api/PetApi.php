@@ -40,11 +40,9 @@ class PetApi extends BaseApi
     /**
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null)
+    public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->addPetWithHttpInfo($pet, $options);
         if ($apiResult->data === null) {
@@ -114,7 +112,7 @@ class PetApi extends BaseApi
      * @return \Ds\Vector<\PetstoreClient\Models\Photo>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
+    public function addPetPhotos(int $petId, AddPetPhotosOptions $options): \Ds\Vector
     {
         $apiResult = $this->addPetPhotosWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
@@ -197,11 +195,9 @@ class PetApi extends BaseApi
 
     /**
      * Record a treatment for a pet
-
-     * @return \PetstoreClient\Models\PetTreatment
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null)
+    public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
     {
         $apiResult = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $options);
         if ($apiResult->data === null) {
@@ -376,11 +372,9 @@ class PetApi extends BaseApi
     /**
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function downloadPetDocument(int $petId, int $documentId)
+    public function downloadPetDocument(int $petId, int $documentId): string
     {
         $apiResult = $this->downloadPetDocumentWithHttpInfo($petId, $documentId);
         if ($apiResult->data === null) {
@@ -483,7 +477,7 @@ class PetApi extends BaseApi
      * @return \Ds\Vector<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function findPetsBornOn(\DateTime $bornOn)
+    public function findPetsBornOn(\DateTime $bornOn): \Ds\Vector
     {
         $apiResult = $this->findPetsBornOnWithHttpInfo($bornOn);
         if ($apiResult->data === null) {
@@ -571,7 +565,7 @@ class PetApi extends BaseApi
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
-    public function findPetsByStatus(?FindPetsByStatusOptions $options = null)
+    public function findPetsByStatus(?FindPetsByStatusOptions $options = null): \Ds\Vector
     {
         $apiResult = $this->findPetsByStatusWithHttpInfo($options);
         if ($apiResult->data === null) {
@@ -668,11 +662,9 @@ class PetApi extends BaseApi
 
     /**
      * Get external pet info
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null)
+    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getExternalPetInfoWithHttpInfo($petId, $server);
         if ($apiResult->data === null) {
@@ -757,11 +749,9 @@ class PetApi extends BaseApi
 
     /**
      * Get multi-server pet info
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null)
+    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getMultiServerPetInfoWithHttpInfo($petId, $server);
         if ($apiResult->data === null) {
@@ -847,11 +837,9 @@ class PetApi extends BaseApi
     /**
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
-
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatar(int $petId)
+    public function getPetAvatar(int $petId): string
     {
         $apiResult = $this->getPetAvatarWithHttpInfo($petId);
         if ($apiResult->data === null) {
@@ -931,11 +919,9 @@ class PetApi extends BaseApi
     /**
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetAvatarThumbnail(int $petId)
+    public function getPetAvatarThumbnail(int $petId): string
     {
         $apiResult = $this->getPetAvatarThumbnailWithHttpInfo($petId);
         if ($apiResult->data === null) {
@@ -1018,12 +1004,10 @@ class PetApi extends BaseApi
      * @param int $petId ID of pet to return
      * @example 1 Small breed ID
      * @example 42 Large breed ID
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
      */
-    public function getPetById(int $petId, ?GetPetByIdServer $server = null)
+    public function getPetById(int $petId, ?GetPetByIdServer $server = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getPetByIdWithHttpInfo($petId, $server);
         if ($apiResult->data === null) {
@@ -1110,13 +1094,10 @@ class PetApi extends BaseApi
 
     /**
      * Look up a pet by name (simple string path param + required query)
-
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetByName(string $name, GetPetByNameOptions $options)
+    public function getPetByName(string $name, GetPetByNameOptions $options): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getPetByNameWithHttpInfo($name, $options);
         if ($apiResult->data === null) {
@@ -1208,11 +1189,9 @@ class PetApi extends BaseApi
     /**
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-
-     * @return \PetstoreClient\Models\PetPassport
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPassport(int $petId)
+    public function getPetPassport(int $petId): \PetstoreClient\Models\PetPassport
     {
         $apiResult = $this->getPetPassportWithHttpInfo($petId);
         if ($apiResult->data === null) {
@@ -1292,11 +1271,9 @@ class PetApi extends BaseApi
     /**
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-
-     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetPhoto(int $petId, int $photoId)
+    public function getPetPhoto(int $petId, int $photoId): string
     {
         $apiResult = $this->getPetPhotoWithHttpInfo($petId, $photoId);
         if ($apiResult->data === null) {
@@ -1394,13 +1371,10 @@ class PetApi extends BaseApi
 
     /**
      * Get a tag for a pet
-
      * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null)
+    public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getPetTagWithHttpInfo($petId, $tagName, $options);
         if ($apiResult->data === null) {
@@ -1544,11 +1518,9 @@ class PetApi extends BaseApi
 
     /**
      * Get staging pet info
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null)
+    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->getStagingPetInfoWithHttpInfo($petId, $server);
         if ($apiResult->data === null) {
@@ -1780,13 +1752,10 @@ class PetApi extends BaseApi
     /**
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
-
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function setPetPreferences(int $petId, SetPetPreferencesOptions $options)
+    public function setPetPreferences(int $petId, SetPetPreferencesOptions $options): \PetstoreClient\Models\ApiResponse
     {
         $apiResult = $this->setPetPreferencesWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
@@ -1882,11 +1851,9 @@ class PetApi extends BaseApi
      * Update an existing pet
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
-
-     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet)
+    public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet): \PetstoreClient\Models\Pet
     {
         $apiResult = $this->updatePetWithHttpInfo($petId, $pet);
         if ($apiResult->data === null) {
@@ -1968,13 +1935,10 @@ class PetApi extends BaseApi
     /**
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
-
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
-
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options)
+    public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options): \PetstoreClient\Models\ApiResponse
     {
         $apiResult = $this->uploadPetCertificateWithHttpInfo($petId, $options);
         if ($apiResult->data === null) {
@@ -2057,14 +2021,11 @@ class PetApi extends BaseApi
     /**
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
-
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
-
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
-     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
-    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null)
+    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null): \PetstoreClient\Models\ApiResponse
     {
         $apiResult = $this->uploadPetDocumentWithHttpInfo($petId, $options, $contentType);
         if ($apiResult->data === null) {

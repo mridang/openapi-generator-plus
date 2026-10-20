@@ -53,9 +53,16 @@ final class ValueSerializer
             return $location === 'path' ? rawurlencode($formatted) : $formatted;
         }
 
+        {{! An array of format: date items carries the same suffix, so each item is date-only too. }}
+        $stringifier = str_ends_with($schemaType, '|date')
+            ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
+                ? $v->format('Y-m-d')
+                : ObjectSerializer::stringify($v)
+            : [ObjectSerializer::class, 'stringify'];
+
         if (is_array($value)) {
             if ($location === 'query') {
-                $items = array_map([ObjectSerializer::class, 'stringify'], $value);
+                $items = array_map($stringifier, $value);
 
                 return match ($collectionFormat) {
                     'multi' => $items,
@@ -67,7 +74,7 @@ final class ValueSerializer
             }
 
             if ($location === 'header') {
-                return implode(',', array_map([ObjectSerializer::class, 'stringify'], $value));
+                return implode(',', array_map($stringifier, $value));
             }
         }
 

@@ -211,6 +211,16 @@ test('stringify float returns string representation', function (): void {
     expect(ObjectSerializer::stringify(3.14))->toBe('3.14');
 });
 
+test('stringify keeps the fraction marker on a whole-number float', function (float $value, string $expected): void {
+    expect(ObjectSerializer::stringify($value))->toBe($expected);
+})->with([
+    [1.0, '1.0'],
+    [-2.0, '-2.0'],
+    [0.0, '0.0'],
+    [1.5, '1.5'],
+    [1.0E+25, '1.0E+25'],
+]);
+
 test('stringify array fallback', function (): void {
     $result = ObjectSerializer::stringify(['a', 'b', 'c']);
     expect($result)->not->toBe('');
@@ -1345,6 +1355,30 @@ test('nesting exactly at the depth cap decodes and one level past it is rejected
         . str_repeat(']', ObjectSerializer::MAX_JSON_DEPTH + 1);
     expect(fn (): mixed => ObjectSerializer::deserialize($pastCap, 'object[]'))
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('a container leaf is not JSON-decoded a second time', function (string $leafType, string $literal): void {
+    // A decoded string element holding a quoted JSON literal is the value, not
+    // JSON text to unwrap: only a raw body is parsed, never a container leaf.
+    $body = json_encode(['"' . $literal . '"'], JSON_THROW_ON_ERROR);
+    expect(fn (): mixed => ObjectSerializer::deserialize($body, $leafType . '[]'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'DateTime' => ['DateTime', '2024-01-15T10:00:00Z'],
+    'DateTimeImmutable' => ['DateTimeImmutable', '2024-01-15T10:00:00Z'],
+    'DateInterval' => ['DateInterval', '3600s'],
+    'Uuid' => ['Symfony\Component\Uid\Uuid', '123e4567-e89b-12d3-a456-426614174000'],
+]);
+
+test('a raw JSON string literal body still unwraps for a date-time', function (): void {
+    expect(ObjectSerializer::deserialize('"2024-01-15T10:00:00Z"', 'DateTime'))->toBeInstanceOf(\DateTime::class);
+});
+
+test('a composed-model container leaf given as JSON text is rejected, not parsed', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize(
+        '["{\"foodType\":\"dry\",\"weightKg\":2.5}"]',
+        \{{modelPackage}}\PetFood::class . '[]'
+    ))->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('deep JSON within the depth cap decodes but past it is rejected', function (): void {

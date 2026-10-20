@@ -740,6 +740,22 @@ test('form urlencoded body encodes space as plus', function (): void {
     expect($client->capturedBody)->toBe('q=a+b+c');
 });
 
+test('form urlencoded body renders date-time, enum and number fields canonically', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], [
+        'at' => new \DateTime('2024-01-15T10:00:00+00:00'),
+        'status' => \PetstoreClient\Models\PetStatusEnum::SOLD,
+        'ratio' => 1.0,
+        'flag' => true,
+        'tags' => ['a', null, 'b'],
+    ], ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe(
+        'at=2024-01-15T10%3A00%3A00.000%2B00%3A00&status=sold&ratio=1.0&flag=true&tags=a&tags=b'
+    );
+});
+
 test('passes binary body as is', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

@@ -560,6 +560,29 @@ test('multipart non ascii field name preserved as utf 8', function (): void {
     expect($capturedBody)->not->toContain('name="cafMn"');
 });
 
+test('multipart scalar parts use the canonical text form', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        ['yes' => true, 'no' => false, 'count' => 7, 'ratio' => 1.0]
+    );
+
+    expect($capturedBody)->toMatch('/name="yes"\r\n(?:[^\r\n]+\r\n)*\r\ntrue\r\n/');
+    expect($capturedBody)->toMatch('/name="no"\r\n(?:[^\r\n]+\r\n)*\r\nfalse\r\n/');
+    expect($capturedBody)->toMatch('/name="count"\r\n(?:[^\r\n]+\r\n)*\r\n7\r\n/');
+    expect($capturedBody)->toMatch('/name="ratio"\r\n(?:[^\r\n]+\r\n)*\r\n1\.0\r\n/');
+});
+
 test('decodes iso 8859 1 error body to utf 8', function (): void {
     $body = "\xE9rreur"; // ISO-8859-1 'érreur'
     $mockResponse = new MockResponse($body, [
@@ -764,6 +787,30 @@ test('no redirect false still follows redirects', function (): void {
 
     expect($response->statusCode)->toBe(200);
 });
+
+test('resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
+    $urls = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url) use (&$urls, $location): MockResponse {
+            $urls[] = $url;
+            return count($urls) === 1
+                ? new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => $location]])
+                : new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $client->sendRequest('GET', 'https://h/v1/pets/1?x=1', [], null);
+
+    expect($urls[1])->toBe($expected);
+})->with([
+    'query only' => ['?page=2', 'https://h/v1/pets/1?page=2'],
+    'parent segment' => ['../owners/9', 'https://h/v1/owners/9'],
+    'current segment' => ['./a', 'https://h/v1/pets/a'],
+    'sibling' => ['b', 'https://h/v1/pets/b'],
+    'absolute path' => ['/z', 'https://h/z'],
+]);
 
 // -- 3.3: HTTPS -> HTTP body replay guard --
 
