@@ -47,6 +47,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private final List<String> scopes;
   @Nullable private ApiClient apiClient;
   @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
+  @Nullable private String discoveredEndpoints;
   private Instant discoveryExpiry = Instant.EPOCH;
 
   /**
@@ -113,18 +114,27 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     }
     String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
     String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
-    delegate =
-        new OAuth2AuthorizationCodeAuthenticator(
-            host,
-            clientId,
-            clientSecret,
-            authorizationEndpoint,
-            tokenEndpoint,
-            redirectUri,
-            scopes);
-    delegate.setApiClient(apiClient);
+    /* A document that names the same endpoints keeps the delegate: it
+     * holds the token from the code exchange, which a refresh of the
+     * discovery cache must not discard. */
+    String endpoints = authorizationEndpoint + "\n" + tokenEndpoint;
+    OAuth2AuthorizationCodeAuthenticator current = delegate;
+    if (current == null || !endpoints.equals(discoveredEndpoints)) {
+      current =
+          new OAuth2AuthorizationCodeAuthenticator(
+              host,
+              clientId,
+              clientSecret,
+              authorizationEndpoint,
+              tokenEndpoint,
+              redirectUri,
+              scopes);
+      delegate = current;
+      discoveredEndpoints = endpoints;
+    }
+    current.setApiClient(apiClient);
     discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
-    return delegate;
+    return current;
   }
 
   /**

@@ -554,6 +554,135 @@ class OAuth2TokenManagerTest {
         assertEquals("https://docs.example.com/errors/invalid_grant", serverError.getUri());
     }
 
+    private static Map<String, String> formFields(String body) {
+        Map<String, String> fields = new HashMap<>();
+        for (String pair : body.split("&", -1)) {
+            int eq = pair.indexOf('=');
+            fields.put(
+                    java.net.URLDecoder.decode(pair.substring(0, eq),
+                            java.nio.charset.StandardCharsets.UTF_8),
+                    java.net.URLDecoder.decode(pair.substring(eq + 1),
+                            java.nio.charset.StandardCharsets.UTF_8));
+        }
+        return fields;
+    }
+
+    @Test
+    void refreshGrantCarriesTheRefreshTokenAndTheClientCredentialsOnly() {
+        // RFC 6749 §6: the refresh grant sends grant_type and the cached
+        // refresh_token, plus the client credentials; nothing else from the
+        // original grant (here the one-time code) is replayed.
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        ApiClient client = (method, url, headers, body) -> {
+            bodies.add(String.valueOf(body));
+            if (bodies.size() == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"old-access\","
+                                + "\"refresh_token\":\"old-refresh\",\"expires_in\":0}",
+                        Map.of());
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"new-access\",\"expires_in\":3600}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "authorization_code");
+        params.put("code", "one-time-code");
+        params.put("client_id", "my-client");
+        params.put("client_secret", "my-secret");
+        manager.getAccessToken("https://auth.example.com/token", params);
+        String token = manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("new-access", token);
+        assertEquals(2, bodies.size());
+        assertEquals(
+                Map.of("grant_type", "refresh_token", "refresh_token", "old-refresh",
+                        "client_id", "my-client", "client_secret", "my-secret"),
+                formFields(bodies.get(1)));
+    }
+
+    @Test
+    void failedRefreshFallsBackToTheOriginalGrant() {
+        // A rejected refresh token (revoked, expired) must not strand the
+        // caller: the manager re-runs the original grant with the original
+        // parameters, in the third request.
+        java.util.List<String> bodies = new java.util.ArrayList<>();
+        ApiClient client = (method, url, headers, body) -> {
+            bodies.add(String.valueOf(body));
+            return switch (bodies.size()) {
+                case 1 -> new ApiHttpResponse(200,
+                        "{\"access_token\":\"old-access\","
+                                + "\"refresh_token\":\"old-refresh\",\"expires_in\":0}",
+                        Map.of());
+                case 2 -> new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+                default -> new ApiHttpResponse(200,
+                        "{\"access_token\":\"fresh-access\",\"expires_in\":3600}", Map.of());
+            };
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "password");
+        params.put("username", "alice");
+        params.put("password", "s3cret");
+        manager.getAccessToken("https://auth.example.com/token", params);
+        String token = manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertEquals("fresh-access", token);
+        assertEquals(3, bodies.size());
+        assertEquals("refresh_token", formFields(bodies.get(1)).get("grant_type"));
+        assertEquals(params, formFields(bodies.get(2)));
+    }
+
+    @Test
+    void cancelledRefreshIsRethrownWithoutFallingBack() {
+        // Cancelling an in-flight refresh is not a refresh failure: the
+        // original grant must not run behind the caller's back.
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if (callCount.incrementAndGet() == 1) {
+                return new ApiHttpResponse(200,
+                        "{\"access_token\":\"old-access\","
+                                + "\"refresh_token\":\"old-refresh\",\"expires_in\":0}",
+                        Map.of());
+            }
+            throw new java.util.concurrent.CancellationException("cancelled");
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "authorization_code");
+        manager.getAccessToken("https://auth.example.com/token", params);
+
+        assertThrowsExactly(java.util.concurrent.CancellationException.class, () ->
+                manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(2, callCount.get());
+    }
+
+    @Test
+    void tokenWithoutExpiresInIsCachedIndefinitely() {
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiHttpResponse(200, "{\"access_token\":\"no-expiry\"}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        assertEquals("no-expiry",
+                manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("no-expiry",
+                manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(1, callCount.get());
+    }
+
     /*
      * Bucket 3.2 — token POSTs must invoke the noRedirect=true overload.
      * We capture the boolean flag on a fake client to assert the contract.

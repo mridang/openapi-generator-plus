@@ -74,6 +74,31 @@ class MetadataTest {
   }
 
   @Test
+  void testEqualsAndHashCodeIncludeAdditionalProperties() {
+    Metadata first = new Metadata();
+    first.setAdditionalProperty("customField", "hello");
+    Metadata same = new Metadata();
+    same.setAdditionalProperty("customField", "hello");
+    Metadata differentValue = new Metadata();
+    differentValue.setAdditionalProperty("customField", "world");
+    Metadata differentKey = new Metadata();
+    differentKey.setAdditionalProperty("otherField", "hello");
+
+    assertThat(first).isEqualTo(same).hasSameHashCodeAs(same);
+    assertThat(first).isNotEqualTo(differentValue).isNotEqualTo(differentKey);
+    assertThat(first).isNotEqualTo(new Metadata());
+  }
+
+  @Test
+  void testToStringDumpsTheAdditionalProperties() {
+    Metadata metadata = new Metadata();
+    metadata.setAdditionalProperty("customField", "hello");
+
+    assertThat(metadata.toString())
+        .isEqualTo("Metadata{createdAt=null, additionalProperties={customField=hello}}");
+  }
+
+  @Test
   void testPomManifestDeclaresNonEmptyDescription() throws IOException {
     Path pom = Path.of("pom.xml");
     assertThat(Files.exists(pom)).as("pom.xml must exist at the project root").isTrue();

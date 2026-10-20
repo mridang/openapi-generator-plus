@@ -137,6 +137,49 @@ class TransportOptionsTest {
     assertFalse(((Object) ex) instanceof OpenAPIException);
   }
 
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.CsvSource(
+      delimiter = '|',
+      value = {
+        "ftp://proxy.example.com:21|Invalid proxy URL (must use http or https scheme):"
+            + " ftp://proxy.example.com:21",
+        "socks5://proxy.example.com:1080|Invalid proxy URL (must use http or https scheme):"
+            + " socks5://proxy.example.com:1080",
+        "proxy.example.com:8080|Invalid proxy URL (must use http or https scheme):"
+            + " proxy.example.com:8080",
+        "http://|Invalid proxy URL: http://",
+        "http://:8080|Invalid proxy URL (missing host): http://:8080",
+        "https:///path|Invalid proxy URL (missing host): https:///path",
+        "not a valid url ^%$|Invalid proxy URL: not a valid url ^%$"
+      })
+  @DisplayName("an unusable proxy URL is rejected with the exact message")
+  void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().proxy(proxy));
+    assertEquals(message, ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an empty proxy URL is rejected as a missing scheme")
+  void emptyProxyUrlIsRejected() {
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().proxy(""));
+    assertEquals("Invalid proxy URL (must use http or https scheme): ", ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("an upper-case http or https proxy scheme is accepted")
+  void upperCaseProxySchemeIsAccepted() {
+    assertEquals(
+        "HTTP://proxy.example.com:8080",
+        TransportOptions.builder().proxy("HTTP://proxy.example.com:8080").build().getProxy());
+    assertEquals(
+        "HTTPS://proxy.example.com:8443",
+        TransportOptions.builder().proxy("HTTPS://proxy.example.com:8443").build().getProxy());
+  }
+
   @Test
   @DisplayName("null proxy URL is accepted")
   void nullProxyUrlIsAccepted() {

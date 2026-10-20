@@ -272,6 +272,44 @@ class DefaultApiClientUnitTest {
             os.write(body);
           }
         });
+    server.createContext(
+        "/content-encoding-deflate",
+        exchange -> {
+          // HTTP "deflate" is the zlib format (RFC 1950), not raw DEFLATE.
+          java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+          try (java.util.zip.DeflaterOutputStream deflater =
+              new java.util.zip.DeflaterOutputStream(compressed)) {
+            deflater.write("{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
+          }
+          byte[] body = compressed.toByteArray();
+          exchange.getResponseHeaders().add("Content-Encoding", "deflate");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/content-encoding-raw-deflate",
+        exchange -> {
+          // Headerless DEFLATE (RFC 1951) is not what "deflate" means in HTTP.
+          java.util.zip.Deflater raw =
+              new java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, true);
+          java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+          try (java.util.zip.DeflaterOutputStream deflater =
+              new java.util.zip.DeflaterOutputStream(compressed, raw)) {
+            deflater.write("{\"ok\":true}".getBytes(StandardCharsets.UTF_8));
+          } finally {
+            raw.end();
+          }
+          byte[] body = compressed.toByteArray();
+          exchange.getResponseHeaders().add("Content-Encoding", "deflate");
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
     // A handler that stalls (/stalled-body) must not hold up the other requests.
     server.setExecutor(
         java.util.concurrent.Executors.newCachedThreadPool(
@@ -1233,6 +1271,87 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void zlibWrappedDeflateBodyIsDecompressed() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response =
+        client.sendRequest("GET", baseUrl + "/content-encoding-deflate", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals("{\"ok\":true}", response.body());
+  }
+
+  @Test
+  void rawDeflateBodyRaisesAnApiExceptionWithTheRealStatus() {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () ->
+                client.sendRequest(
+                    "GET", baseUrl + "/content-encoding-raw-deflate", Map.of(), null));
+    assertEquals(200, ex.getStatusCode());
+    assertTrue(
+        ex.getCause() instanceof IOException,
+        "cause should be the decompression IOException, was: " + ex.getCause());
+  }
+
+  @Test
+  void defaultAcceptEncodingAdvertisesTheCodecsTheClientCanDecode() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(
+        response.body().contains("\"accept-encoding\":\"gzip, deflate, br, zstd\""),
+        response.body());
+  }
+
+  @Test
+  void connectionClosedAfterTheHeadersRaisesNetworkExceptionKeepingTheCause() throws Exception {
+    // The status line and headers arrive, promising 100 bytes; three follow
+    // and the connection closes. That is a transport failure with no usable
+    // response, status 0, never an ApiException carrying the 200.
+    try (java.net.ServerSocket truncating = new java.net.ServerSocket(0)) {
+      Thread thread =
+          new Thread(
+              () -> {
+                try {
+                  while (!truncating.isClosed()) {
+                    try (java.net.Socket connection = truncating.accept()) {
+                      connection.setSoTimeout(300);
+                      try {
+                        connection.getInputStream().readNBytes(1024);
+                      } catch (java.net.SocketTimeoutException drained) {
+                        // The request is read; answer below.
+                      }
+                      OutputStream out = connection.getOutputStream();
+                      out.write(
+                          ("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n"
+                                  + "Content-Length: 100\r\n\r\nabc")
+                              .getBytes(StandardCharsets.US_ASCII));
+                      out.flush();
+                    }
+                  }
+                } catch (IOException closed) {
+                  // The test closed the listening socket.
+                }
+              });
+      thread.setDaemon(true);
+      thread.start();
+      DefaultApiClient client = new DefaultApiClient();
+      com.example.petstore.errors.NetworkException ex =
+          assertThrowsExactly(
+              com.example.petstore.errors.NetworkException.class,
+              () ->
+                  client.sendRequest(
+                      "GET",
+                      "http://127.0.0.1:" + truncating.getLocalPort() + "/x",
+                      Map.of(),
+                      null));
+      assertEquals(0, ex.getStatusCode());
+      assertNotNull(ex.getCause(), "the transport cause must be kept");
+    }
+  }
+
+  @Test
   void absentBrotliLibraryRaisesInsteadOfReturningEncodedBytes() {
     IOException ex =
         assertThrowsExactly(
@@ -1286,18 +1405,17 @@ class DefaultApiClientUnitTest {
   @Test
   void crossOriginRedirectStripsSensitiveHeaders() throws Exception {
     // A second server on a different port is a different origin, so the
-    // manual redirect loop must drop Authorization but keep non-sensitive
-    // headers when following the 307 to it.
-    final java.util.concurrent.atomic.AtomicReference<String> seenAuth =
-        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
-    final java.util.concurrent.atomic.AtomicReference<String> seenTrace =
-        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    // manual redirect loop must drop every credential header but keep
+    // non-sensitive headers when following the 307 to it.
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
     HttpServer target = HttpServer.create(new InetSocketAddress(0), 0);
     target.createContext(
         "/landed",
         exchange -> {
-          seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
-          seenTrace.set(exchange.getRequestHeaders().getFirst("X-Trace"));
+          for (String name : List.of("Authorization", "Cookie", "Proxy-Authorization", "X-Trace")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
           exchange.sendResponseHeaders(200, -1);
           exchange.close();
         });
@@ -1320,14 +1438,61 @@ class DefaultApiClientUnitTest {
       DefaultApiClient client = new DefaultApiClient(transport);
       Map<String, String> headers = new HashMap<>();
       headers.put("Authorization", "Bearer secret");
+      headers.put("Cookie", "session=secret");
+      headers.put("Proxy-Authorization", "Basic c2VjcmV0");
       headers.put("X-Trace", "keep");
       ApiHttpResponse response = client.sendRequest("GET", originUrl, headers, null);
       assertEquals(200, response.statusCode());
-      assertNull(seenAuth.get(), "Authorization must be stripped on cross-origin redirect");
-      assertEquals("keep", seenTrace.get(), "non-sensitive headers must be preserved");
+      assertEquals(
+          Map.of(
+              "Authorization", "<absent>",
+              "Cookie", "<absent>",
+              "Proxy-Authorization", "<absent>",
+              "X-Trace", "keep"),
+          seen,
+          "credentials must be stripped on a cross-origin redirect, other headers kept");
     } finally {
       origin.stop(0);
       target.stop(0);
+    }
+  }
+
+  @Test
+  void sameOriginRedirectKeepsSensitiveHeaders() throws Exception {
+    final Map<String, String> seen = new java.util.concurrent.ConcurrentHashMap<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/start",
+        exchange -> {
+          exchange.getResponseHeaders().add("Location", "/landed");
+          exchange.sendResponseHeaders(307, -1);
+          exchange.close();
+        });
+    server.createContext(
+        "/landed",
+        exchange -> {
+          for (String name : List.of("Authorization", "Cookie")) {
+            String value = exchange.getRequestHeaders().getFirst(name);
+            seen.put(name, value == null ? "<absent>" : value);
+          }
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+
+    try {
+      TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer secret");
+      headers.put("Cookie", "session=secret");
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", "http://localhost:" + server.getAddress().getPort() + "/start", headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals(Map.of("Authorization", "Bearer secret", "Cookie", "session=secret"), seen);
+    } finally {
+      server.stop(0);
     }
   }
 }

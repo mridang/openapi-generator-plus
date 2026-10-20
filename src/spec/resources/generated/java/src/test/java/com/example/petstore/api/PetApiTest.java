@@ -368,7 +368,15 @@ class PetApiTest {
   void testErrorHandlingNotFound() throws Exception {
     PetApi mockApi = newPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
-    assertThatThrownBy(() -> mockApi.getPetById(99999L)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.getPetById(99999L))
+        .isExactlyInstanceOf(com.example.petstore.errors.NotFoundException.class)
+        .satisfies(
+            e -> {
+              com.example.petstore.errors.ApiException api =
+                  (com.example.petstore.errors.ApiException) e;
+              assertThat(api.getStatusCode()).isEqualTo(404);
+              assertThat(api.getResponseBody()).isEqualTo("{\"message\":\"Pet not found\"}");
+            });
   }
 
   @Test
@@ -376,7 +384,12 @@ class PetApiTest {
     PetApi mockApi =
         newPetApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
 
-    assertThatThrownBy(() -> mockApi.getPetById(1L)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.getPetById(1L))
+        .isExactlyInstanceOf(com.example.petstore.errors.InternalServerErrorException.class)
+        .satisfies(
+            e ->
+                assertThat(((com.example.petstore.errors.ApiException) e).getStatusCode())
+                    .isEqualTo(500));
   }
 
   @Test
@@ -399,7 +412,8 @@ class PetApiTest {
     // the parser to fail, and that error must propagate.
     PetApi mockApi = newPetApiForMock(200, "application/json", "{ not-valid-json");
 
-    assertThatThrownBy(() -> mockApi.getPetById(1L)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.getPetById(1L))
+        .isExactlyInstanceOf(com.example.petstore.errors.SerializationException.class);
   }
 
   @Test
@@ -985,5 +999,125 @@ class PetApiTest {
     byte[] result = mockedApi.getPetAvatarThumbnail(1L);
 
     assertThat(result).isEqualTo("test-image".getBytes(StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void getStagingPetInfoResolvesTheSelectedServerVariables() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getStagingPetInfo(
+        1L,
+        new PetApi.GetStagingPetInfoServer.StagingServer(
+            PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+            PetApi.GetStagingPetInfoServer.Version.V3));
+    assertThat(capturing.capturedUrl).isEqualTo("https://sandbox.example.com/api/v3/pet/1/staging");
+
+    petApi.getStagingPetInfo(
+        2L,
+        new PetApi.GetStagingPetInfoServer.StagingServer(
+            PetApi.GetStagingPetInfoServer.Environment.STAGING,
+            PetApi.GetStagingPetInfoServer.Version.V2));
+    assertThat(capturing.capturedUrl).isEqualTo("https://staging.example.com/api/v2/pet/2/staging");
+
+    petApi.getStagingPetInfo(3L);
+    assertThat(capturing.capturedUrl).isEqualTo("http://localhost/pet/3/staging");
+  }
+
+  @Test
+  void getMultiServerPetInfoPicksAmongItsDeclaredServers() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getMultiServerPetInfo(1L, new PetApi.GetMultiServerPetInfoServer.Primary());
+    assertThat(capturing.capturedUrl).isEqualTo("https://primary.example.com/v1/pet/1/multi");
+
+    for (PetApi.GetMultiServerPetInfoServer.Region region :
+        PetApi.GetMultiServerPetInfoServer.Region.values()) {
+      petApi.getMultiServerPetInfo(2L, new PetApi.GetMultiServerPetInfoServer.Regional(region));
+      assertThat(capturing.capturedUrl)
+          .isEqualTo("https://" + region.getValue() + ".example.com/v1/pet/2/multi");
+    }
+  }
+
+  @Test
+  void findPetsBornOnSendsTheDatePathParameterWithoutATimeComponent() throws Exception {
+    String[] capturedUrl = new String[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.findPetsBornOn(LocalDate.of(2024, 1, 1));
+
+    assertThat(capturedUrl[0]).isEqualTo("http://localhost/pet/born-on/2024-01-01");
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(strings = {"abc\r\nInjected: yes", "abc\u0000def"})
+  void deletePetCookieParameterWithAControlCharacterFailsClosed(String value) {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey(value)))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Cookie value for 'api_key' contains characters forbidden by RFC 6265");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  @Test
+  void deletePetSendsAValidCookieParameterInTheCookieHeader() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.deletePet(1L, new DeletePetOptions().apiKey("k-1"));
+
+    assertNotNull(capturing.capturedHeaders);
+    assertThat(capturing.capturedHeaders).containsEntry("Cookie", "api_key=k-1");
+  }
+
+  @Test
+  void setPetAvatarRejectsAnUndeclaredRequestContentType() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(
+            () ->
+                petApi.setPetAvatar(
+                    1L, new ByteArrayInputStream(new byte[] {1}), "application/unknown-type"))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "Unsupported request content-type 'application/unknown-type' for"
+                + " setPetAvatar; declared types are"
+                + " [image/jpeg, image/png, application/json]");
+    assertThat(capturing.capturedUrl).isNull();
+  }
+
+  @Test
+  void uploadPetDocumentRejectsAnUndeclaredRequestContentType() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(
+            () ->
+                petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1})),
+                    "application/unknown-type"))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage(
+            "Unsupported request content-type 'application/unknown-type' for"
+                + " uploadPetDocument; declared types are"
+                + " [multipart/form-data, application/octet-stream]");
+    assertThat(capturing.capturedUrl).isNull();
   }
 }

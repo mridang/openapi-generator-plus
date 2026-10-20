@@ -38,7 +38,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.DisplayName;
@@ -1384,58 +1383,6 @@ class BaseApiTest {
                     DefaultApiClient.guessMimeTypeFromName(""));
             assertEquals("application/octet-stream",
                     DefaultApiClient.guessMimeTypeFromName("no-extension-here"));
-        }
-    }
-
-    // ── Cross-origin redirect tests (Gap 8) ──
-
-    @Nested
-    @DisplayName("CrossOriginRedirectTests")
-    class CrossOriginRedirectTests {
-
-        @Test
-        @DisplayName("same-origin redirect forwards Authorization header")
-        void sameOriginRedirectForwardsAuthorization() throws ApiException {
-            var capturedRedirectHeaders = new HashMap<String, String>();
-            var client = new CapturingApiClient() {
-                @Override
-                public ApiHttpResponse sendRequest(
-                        String method, String url, Map<String, String> headers, @Nullable Object body) {
-                    capturedRedirectHeaders.putAll(headers);
-                    return new ApiHttpResponse(200, "{}", Map.of("Content-Type", "application/json"));
-                }
-            };
-            // Simulate a call with Authorization header on same-origin
-            var headers = new HashMap<String, String>();
-            headers.put("Authorization", "Bearer token123");
-            client.sendRequest("GET", "http://localhost/redirect", headers, null);
-            assertEquals("Bearer token123", capturedRedirectHeaders.get("Authorization"),
-                    "Authorization header should be present on same-origin request");
-        }
-
-        @Test
-        @DisplayName("cross-origin redirect drops Authorization header")
-        void crossOriginRedirectDropsAuthorization() {
-            // Verify that the Java client strips sensitive headers on cross-origin redirects.
-            // The manual redirect loop in DefaultApiClient checks same-origin before forwarding.
-            // Here we verify the logic by checking the isRedirect status codes are handled.
-            // (Full integration test would require a live server; this verifies the guard logic.)
-            var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
-            assertTrue(sensitiveHeaders.contains("authorization"),
-                    "authorization should be in the sensitive headers set");
-            assertTrue(sensitiveHeaders.contains("cookie"),
-                    "cookie should be in the sensitive headers set");
-            assertTrue(sensitiveHeaders.contains("proxy-authorization"),
-                    "proxy-authorization should be in the sensitive headers set");
-        }
-
-        @Test
-        @DisplayName("cross-origin redirect drops Cookie header")
-        void crossOriginRedirectDropsCookie() {
-            // Same as above — verifies the guard set includes 'cookie'
-            var sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
-            assertTrue(sensitiveHeaders.contains("cookie"),
-                    "cookie must be stripped on cross-origin redirects");
         }
     }
 

@@ -38,6 +38,123 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
+  void validCookieKeyPasses() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "abc123", ApiKeyLocation.COOKIE);
+    assertEquals(Map.of("session", "abc123"), auth.getCookieParams());
+    assertEquals(Map.of(), auth.getAuthHeaders());
+    assertEquals(Map.of(), auth.getQueryParams());
+  }
+
+  @Test
+  void keyIsEmittedOnlyAtItsOwnLocation() {
+    ApiKeyAuthenticator header =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
+    ApiKeyAuthenticator query =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.QUERY);
+
+    assertEquals(Map.of("k", "v"), header.getAuthHeaders());
+    assertEquals(Map.of(), header.getQueryParams());
+    assertEquals(Map.of(), header.getCookieParams());
+    assertEquals(Map.of("k", "v"), query.getQueryParams());
+    assertEquals(Map.of(), query.getAuthHeaders());
+    assertEquals(Map.of(), query.getCookieParams());
+  }
+
+  @Test
+  void nonAsciiHeaderKeyIsRejectedWithTheExactMessage() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new ApiKeyAuthenticator(
+                    "https://api.example.com", "X-API-Key", "café", ApiKeyLocation.HEADER));
+    assertEquals(
+        "API key for header 'X-API-Key' must contain only printable ASCII characters"
+            + " (RFC 7230 §3.2.6)",
+        ex.getMessage());
+  }
+
+  @Test
+  void nonAsciiQueryAndCookieKeysAreAccepted() {
+    ApiKeyAuthenticator query =
+        new ApiKeyAuthenticator("https://api.example.com", "api_key", "café", ApiKeyLocation.QUERY);
+    ApiKeyAuthenticator cookie =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "café", ApiKeyLocation.COOKIE);
+
+    assertEquals("café", query.getQueryParams().get("api_key"));
+    assertEquals("café", cookie.getCookieParams().get("session"));
+  }
+
+  @Test
+  void schemeWrappersEmitTheirKeyAtTheSpecNameAndLocation() {
+    String host = "https://api.example.com";
+    ApiKeyHeaderAuthenticator header = new ApiKeyHeaderAuthenticator(host, "k1");
+    InternalApiKeyAuthenticator internal = new InternalApiKeyAuthenticator(host, "k2");
+    ApiKeyQueryAuthenticator query = new ApiKeyQueryAuthenticator(host, "k3");
+    SessionCookieAuthenticator cookie = new SessionCookieAuthenticator(host, "k4");
+
+    assertEquals(Map.of("X-API-Key", "k1"), header.getAuthHeaders());
+    assertEquals(Map.of("X-Internal-Key", "k2"), internal.getAuthHeaders());
+    assertEquals(Map.of("api_key", "k3"), query.getQueryParams());
+    assertEquals(Map.of("SESSION_ID", "k4"), cookie.getCookieParams());
+    assertEquals(Map.of(), header.getQueryParams());
+    assertEquals(Map.of(), internal.getCookieParams());
+    assertEquals(Map.of(), query.getAuthHeaders());
+    assertEquals(Map.of(), cookie.getAuthHeaders());
+    assertEquals(host, cookie.getHost());
+  }
+
+  @Test
+  void schemeWrappersRedactTheKeyAndKeepTheirOwnName() {
+    String host = "https://api.example.com";
+    assertEquals(
+        "ApiKeyHeaderAuthenticator(host="
+            + host
+            + ", keyParamName=X-API-Key, apiKey=***, location=HEADER)",
+        new ApiKeyHeaderAuthenticator(host, "k1").toString());
+    assertEquals(
+        "InternalApiKeyAuthenticator(host="
+            + host
+            + ", keyParamName=X-Internal-Key, apiKey=***, location=HEADER)",
+        new InternalApiKeyAuthenticator(host, "k2").toString());
+    assertEquals(
+        "ApiKeyQueryAuthenticator(host="
+            + host
+            + ", keyParamName=api_key, apiKey=***, location=QUERY)",
+        new ApiKeyQueryAuthenticator(host, "k3").toString());
+    assertEquals(
+        "SessionCookieAuthenticator(host="
+            + host
+            + ", keyParamName=SESSION_ID, apiKey=***, location=COOKIE)",
+        new SessionCookieAuthenticator(host, "k4").toString());
+  }
+
+  @Test
+  void schemeWrappersRejectAnEmptyKeyAtConstruction() {
+    String host = "https://api.example.com";
+    assertEquals(
+        "API key value for 'X-API-Key' must not be empty",
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyHeaderAuthenticator(host, ""))
+            .getMessage());
+    assertEquals(
+        "API key value for 'X-Internal-Key' must not be empty",
+        assertThrows(
+                IllegalArgumentException.class, () -> new InternalApiKeyAuthenticator(host, " "))
+            .getMessage());
+    assertEquals(
+        "API key value for 'api_key' must not be empty",
+        assertThrows(IllegalArgumentException.class, () -> new ApiKeyQueryAuthenticator(host, ""))
+            .getMessage());
+    assertEquals(
+        "API key value for 'SESSION_ID' must not be empty",
+        assertThrows(IllegalArgumentException.class, () -> new SessionCookieAuthenticator(host, ""))
+            .getMessage());
+  }
+
+  @Test
   void emptyKeyHeaderThrowsAtConstruction() {
     IllegalArgumentException ex =
         assertThrows(
@@ -149,5 +266,9 @@ class ApiKeyAuthenticatorTest {
     String repr = auth.toString();
     assertFalse(repr.contains("abc123"));
     assertTrue(repr.contains("***"));
+    assertEquals(
+        "ApiKeyAuthenticator(host=https://api.example.com, keyParamName=X-API-Key,"
+            + " apiKey=***, location=HEADER)",
+        repr);
   }
 }

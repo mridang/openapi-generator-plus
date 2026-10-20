@@ -45,7 +45,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     assertTrue(url.contains("response_type=code"));
     assertTrue(url.contains("client_id=my-client-id"));
     assertTrue(url.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"));
-    assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
+    assertTrue(url.contains("scope=read%20write"), url);
+    assertFalse(url.contains("+"), url);
   }
 
   @Test
@@ -55,6 +56,127 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     String url = auth.buildAuthorizationUrl("csrf-state-123");
 
     assertTrue(url.contains("state=csrf-state-123"));
+  }
+
+  @Test
+  void keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
+    // RFC 3986 unreserved '-._~' stays literal; '*!'()' and a space are
+    // percent-encoded (the space as %20, never '+').
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+
+    String url = auth.buildAuthorizationUrl("s-._~*!'() x");
+
+    assertTrue(url.endsWith("&state=s-._~%2A%21%27%28%29%20x"), url);
+  }
+
+  @Test
+  void keepsTheRfc3986UnreservedSetLiteralInTheTokenBody() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("c-._~*!'() x");
+
+    String body = java.util.Objects.requireNonNull(capturedBody.get());
+    assertTrue(body.contains("code=c-._~%2A%21%27%28%29+x"), body);
+  }
+
+  @Test
+  void sendsTheCodeToTokenUrlAndTheRefreshGrantToRefreshUrl() {
+    List<String> urls = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          if (urls.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth =
+        new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://auth.example.com/oauth/refresh",
+            "https://app.example.com/callback",
+            List.of("read"));
+    auth.setApiClient(client);
+
+    auth.exchangeCode("auth-code-123");
+    auth.getAuthHeaders();
+
+    assertEquals(
+        List.of("https://auth.example.com/token", "https://auth.example.com/oauth/refresh"), urls);
+  }
+
+  @Test
+  void schemeWrapperSendsTheSpecScopesAndUrls() {
+    List<String> urls = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          if (urls.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
+        };
+    UserAuthAuthorizationCodeAuthenticator auth =
+        new UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback");
+    auth.setApiClient(client);
+
+    String authorizeUrl = auth.buildAuthorizationUrl(null);
+    auth.exchangeCode("auth-code-123");
+    auth.getAuthHeaders();
+
+    assertTrue(authorizeUrl.startsWith("https://auth.example.com/authorize?"), authorizeUrl);
+    assertTrue(authorizeUrl.endsWith("&scope=pets%3Awrite%20pets%3Aread"), authorizeUrl);
+    assertEquals(
+        List.of("https://auth.example.com/oauth/token", "https://auth.example.com/oauth/refresh"),
+        urls);
+  }
+
+  @Test
+  void sendsTheRefreshGrantToTokenUrlWhenNoRefreshUrlIsConfigured() {
+    List<String> urls = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          if (urls.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at2\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("auth-code-123");
+    auth.getAuthHeaders();
+
+    assertEquals(List.of("https://auth.example.com/token", "https://auth.example.com/token"), urls);
   }
 
   @Test
@@ -241,6 +363,15 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     String repr = auth.toString();
     assertFalse(repr.contains("my-client-secret"));
     assertTrue(repr.contains("***"));
+    assertEquals(
+        "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com"
+            + ", clientId=my-client-id, clientSecret=***"
+            + ", authorizationUrl=https://auth.example.com/authorize"
+            + ", tokenUrl=https://auth.example.com/token"
+            + ", refreshUrl=https://auth.example.com/token"
+            + ", redirectUri=https://app.example.com/callback"
+            + ", scopes=[read, write])",
+        repr);
   }
 
   @Test

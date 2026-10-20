@@ -72,5 +72,58 @@ class ServerConfigurationTest {
                 () -> config.getUrl(Map.of("env", "dev")));
         // A server variable outside its enum is a caller mistake, not an SDK error.
         assertFalse(((Object) ex) instanceof {{errorPrefix}}Exception);
+        assertEquals(
+                "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]",
+                ex.getMessage());
+    }
+
+    @Test
+    void rejectsADefaultValueOutsideTheVariableEnum() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        null,
+                        Map.of("env", new ServerVariable("dev", null, List.of("prod"))));
+
+        IllegalArgumentException ex =
+                assertThrowsExactly(IllegalArgumentException.class, config::getUrl);
+        assertEquals(
+                "Invalid value 'dev' for server variable 'env'. Allowed values: [prod]",
+                ex.getMessage());
+    }
+
+    @Test
+    void variableWithoutAnEnumAcceptsAnyOverride() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.api.example.com",
+                        null,
+                        Map.of("env", new ServerVariable("prod", null, List.of())));
+
+        assertEquals(
+                "https://anything-goes.api.example.com",
+                config.getUrl(Map.of("env", "anything-goes")));
+    }
+
+    @Test
+    void templateWithoutVariablesIsReturnedUnchanged() {
+        ServerConfiguration config =
+                new ServerConfiguration("https://api.example.com/v1", null, Map.of());
+
+        assertEquals("https://api.example.com/v1", config.getUrl());
+        assertEquals("https://api.example.com/v1", config.getUrl(Map.of("env", "staging")));
+    }
+
+    @Test
+    void substitutesEveryOccurrenceOfARepeatedVariable() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{region}.cdn.example.com/{region}/v1",
+                        null,
+                        Map.of("region", new ServerVariable("eu", null, List.of("eu", "us"))));
+
+        assertEquals("https://eu.cdn.example.com/eu/v1", config.getUrl());
+        assertEquals(
+                "https://us.cdn.example.com/us/v1", config.getUrl(Map.of("region", "us")));
     }
 }

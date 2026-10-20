@@ -11,12 +11,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.example.petstore.ApiClient;
+import com.example.petstore.ApiHttpResponse;
 import com.example.petstore.ApiResult;
 import com.example.petstore.ChasmContainer;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.api.options.GetBySwatchOptions;
+import com.example.petstore.models.Availability;
 import com.example.petstore.models.Category;
+import com.example.petstore.models.Defaults;
+import com.example.petstore.models.Department;
 import com.example.petstore.models.Order;
+import com.example.petstore.models.Priority;
+import com.example.petstore.models.StockItem;
+import com.example.petstore.models.Swatch;
+import com.example.petstore.models.TreeNode;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -135,7 +145,12 @@ class StoreApiTest {
     StoreApi mockApi =
         newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-    assertThatThrownBy(() -> mockApi.getOrderById(99999L)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.getOrderById(99999L))
+        .isExactlyInstanceOf(com.example.petstore.errors.NotFoundException.class)
+        .satisfies(
+            e ->
+                assertThat(((com.example.petstore.errors.ApiException) e).getStatusCode())
+                    .isEqualTo(404));
   }
 
   @Test
@@ -150,7 +165,12 @@ class StoreApiTest {
     order.status = Order.StatusEnum.PLACED;
     order.complete = false;
 
-    assertThatThrownBy(() -> mockApi.placeOrder(order)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.placeOrder(order))
+        .isExactlyInstanceOf(com.example.petstore.errors.InternalServerErrorException.class)
+        .satisfies(
+            e ->
+                assertThat(((com.example.petstore.errors.ApiException) e).getStatusCode())
+                    .isEqualTo(500));
   }
 
   @Test
@@ -158,7 +178,12 @@ class StoreApiTest {
     StoreApi mockApi =
         newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-    assertThatThrownBy(() -> mockApi.deleteOrder(99999L)).isInstanceOf(Exception.class);
+    assertThatThrownBy(() -> mockApi.deleteOrder(99999L))
+        .isExactlyInstanceOf(com.example.petstore.errors.NotFoundException.class)
+        .satisfies(
+            e ->
+                assertThat(((com.example.petstore.errors.ApiException) e).getStatusCode())
+                    .isEqualTo(404));
   }
 
   @Test
@@ -182,5 +207,136 @@ class StoreApiTest {
             result.get(0).get("a"), "leaf 'a' must decode to a typed Category");
     assertThat(category.id).isEqualTo(1L);
     assertThat(category.name).isEqualTo("Dogs");
+  }
+
+  @Test
+  void testGetBySwatchSendsTheEnumWireValueInPathQueryAndHeader() throws Exception {
+    // A named enum ($ref) parameter must ride the wire as its value
+    // ("red"), never as the language's enum constant name ("RED").
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new java.util.HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(
+              200, "{\"id\":1,\"name\":\"x\"}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.getBySwatch(
+        Swatch.RED,
+        new GetBySwatchOptions().querySwatch(Swatch.GREEN).preferredSwatch(Swatch.BLUE));
+
+    assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/red?querySwatch=green");
+    assertThat(capturedHeaders).containsEntry("Preferred-Swatch", "blue");
+  }
+
+  @Test
+  void testGetBySwatchWithoutOptionsSendsOnlyThePathValue() throws Exception {
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new java.util.HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(
+              200, "{\"id\":1,\"name\":\"x\"}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.getBySwatch(Swatch.BLUE);
+
+    assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/blue");
+    assertThat(capturedHeaders).doesNotContainKey("Preferred-Swatch");
+  }
+
+  @Test
+  void testGetTreeDeserializesTheRecursiveModel() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(
+            200, "application/json", "{\"value\":\"root\",\"child\":{\"value\":\"leaf\"}}");
+
+    TreeNode tree = mockApi.getTree();
+
+    assertThat(tree.value).isEqualTo("root");
+    assertThat(java.util.Objects.requireNonNull(tree.child).value).isEqualTo("leaf");
+    assertThat(tree.child.child).isNull();
+  }
+
+  @Test
+  void testGetDepartmentDeserializesTheMutuallyReferencingModels() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(
+            200, "application/json", "{\"name\":\"ops\",\"lead\":{\"name\":\"ann\"}}");
+
+    Department department = mockApi.getDepartment();
+
+    assertThat(department.name).isEqualTo("ops");
+    assertThat(java.util.Objects.requireNonNull(department.lead).name).isEqualTo("ann");
+  }
+
+  @Test
+  void testGetDefaultsAppliesTheSchemaDefaultsToMissingFields() throws Exception {
+    StoreApi mockApi = newStoreApiForMock(200, "application/json", "{\"retries\":5}");
+
+    Defaults defaults = mockApi.getDefaults();
+
+    assertThat(defaults.retries).isEqualTo(5);
+    assertThat(defaults.mode).isEqualTo(Defaults.ModeEnum.MEDIUM);
+    assertThat(defaults.label).isEqualTo("untitled");
+  }
+
+  @Test
+  void testGetStockItemDeserializesEnumsAndNestedArrays() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(
+            200,
+            "application/json",
+            "{\"priority\":2,\"availability\":\"on-hold\",\"matrix\":[[1,2],[3]]}");
+
+    StockItem item = mockApi.getStockItem();
+
+    assertThat(item.priority).isEqualTo(Priority.NUMBER_2);
+    assertThat(item.availability).isEqualTo(Availability.ON_HOLD);
+    assertThat(item.matrix).isEqualTo(List.of(List.of(1, 2), List.of(3)));
+  }
+
+  @Test
+  void testGetMatrixDeserializesNestedIntegerArrays() throws Exception {
+    StoreApi mockApi = newStoreApiForMock(200, "application/json", "[[1,2],[3]]");
+
+    assertThat(mockApi.getMatrix()).isEqualTo(List.of(List.of(1, 2), List.of(3)));
+  }
+
+  @Test
+  void testGetSwatchDecodesTheEnumWireValue() throws Exception {
+    StoreApi mockApi = newStoreApiForMock(200, "application/json", "\"green\"");
+
+    assertThat(mockApi.getSwatch()).isEqualTo(Swatch.GREEN);
+  }
+
+  @Test
+  void testGetSwatchGroupsDecodesEnumLeavesInNestedContainers() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(200, "application/json", "[{\"a\":\"red\"},{\"b\":\"blue\"}]");
+
+    List<Map<String, Swatch>> result = mockApi.getSwatchGroups();
+
+    assertThat(result.get(0).get("a")).isEqualTo(Swatch.RED);
+    assertThat(result.get(1).get("b")).isEqualTo(Swatch.BLUE);
+  }
+
+  @Test
+  void testGetTimestampGroupsDecodesDateTimeLeavesInNestedContainers() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(200, "application/json", "[{\"a\":\"2024-01-02T03:04:05Z\"}]");
+
+    List<Map<String, OffsetDateTime>> result = mockApi.getTimestampGroups();
+
+    assertThat(result.get(0).get("a"))
+        .isEqualTo(OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC));
   }
 }

@@ -91,6 +91,42 @@ class BearerAuthenticatorTest {
             .startsWith("Bearer token must contain only printable ASCII characters"));
   }
 
+  @Test
+  void nonAsciiTokenIsRejectedWithTheExactMessage() {
+    for (String token : new String[] {"töken", "abc\u007fdef", "abc\0def", "abc\rdef"}) {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new BearerAuthenticator("https://api.example.com", token));
+      assertEquals(
+          "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+          ex.getMessage());
+    }
+  }
+
+  @Test
+  void schemeWrappersEmitTheSameBearerHeaderAndKeepTheirOwnName() {
+    PetStoreBearerAuthenticator store =
+        new PetStoreBearerAuthenticator("https://api.example.com", "xyz");
+    ServiceTokenAuthenticator service =
+        new ServiceTokenAuthenticator("https://api.example.com", "Bearer xyz");
+
+    assertEquals("Bearer xyz", store.getAuthHeaders().get("Authorization"));
+    assertEquals("Bearer xyz", service.getAuthHeaders().get("Authorization"));
+    assertEquals("https://api.example.com", store.getHost());
+    assertEquals(
+        "PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", store.toString());
+    assertEquals(
+        "ServiceTokenAuthenticator(host=https://api.example.com, token=***)", service.toString());
+  }
+
+  @Test
+  void schemeWrapperValidatesTheTokenAtConstruction() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ServiceTokenAuthenticator("https://api.example.com", ""));
+  }
+
   /**
    * The default {@code toString()} must mask the stored token: the secret value must be absent and
    * a {@code ***} redaction marker present.
@@ -102,5 +138,6 @@ class BearerAuthenticatorTest {
     String repr = auth.toString();
     assertFalse(repr.contains("token=xyz"));
     assertTrue(repr.contains("***"));
+    assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", repr);
   }
 }

@@ -254,6 +254,95 @@ class OpenIdConnectAuthenticatorTest {
         assertEquals(1, getCalls.get());
     }
 
+    @Test
+    void schemeWrapperDiscoversFromTheSpecUrlAndSendsNoScopeWhenTheSpecHasNone() {
+        AtomicReference<String> capturedUrl = new AtomicReference<>();
+        ApiClient client = (method, url, headers, body) -> {
+            capturedUrl.set(url);
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+        SsoAuthAuthenticator auth = new SsoAuthAuthenticator(
+                "https://api.example.com", "my-client-id", "my-client-secret",
+                "https://app.example.com/callback");
+        auth.setApiClient(client);
+
+        String url = auth.buildAuthorizationUrl(null);
+
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", capturedUrl.get());
+        assertFalse(url.contains("scope="), url);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "Cache-Control|max-age=0|2",
+        "cache-control|public, MAX-AGE=0, must-revalidate|2",
+        "Cache-Control|max-age=3600|1",
+        "Cache-Control|no-store|1",
+        "Cache-Control|max-age=99999999999999999999|1",
+        "X-Other|max-age=0|1"
+    })
+    void discoveryIsCachedForTheCacheControlMaxAge(
+            String header, String value, int expectedFetches) {
+        // The discovery document is cached for the Cache-Control max-age, and
+        // for a day when the response carries no usable max-age.
+        var getCalls = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            getCalls.incrementAndGet();
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of(header, value));
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.buildAuthorizationUrl(null);
+        auth.buildAuthorizationUrl(null);
+
+        assertEquals(expectedFetches, getCalls.get());
+    }
+
+    @Test
+    void rediscoveryKeepsTheTokenFromTheCodeExchange() {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                gets.incrementAndGet();
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE,
+                        Map.of("Cache-Control", "max-age=0"));
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+        Map<String, String> headers = auth.getAuthHeaders();
+
+        assertEquals(2, gets.get());
+        assertEquals("Bearer oidc-tok", headers.get("Authorization"));
+    }
+
+    @Test
+    void rediscoveryPicksUpChangedEndpoints() {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            String host = gets.incrementAndGet() == 1 ? "auth" : "login";
+            return new ApiHttpResponse(200,
+                    "{\"authorization_endpoint\":\"https://" + host + ".example.com/authorize\","
+                            + "\"token_endpoint\":\"https://" + host + ".example.com/token\"}",
+                    Map.of("Cache-Control", "max-age=0"));
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        assertTrue(auth.buildAuthorizationUrl(null)
+                .startsWith("https://auth.example.com/authorize?"));
+        assertTrue(auth.buildAuthorizationUrl(null)
+                .startsWith("https://login.example.com/authorize?"));
+    }
+
     /**
      * The default {@code toString()} must mask the stored client secret: the
      * secret value must be absent and a {@code ***} redaction marker present.
@@ -265,5 +354,12 @@ class OpenIdConnectAuthenticatorTest {
         String repr = auth.toString();
         assertFalse(repr.contains("my-client-secret"));
         assertTrue(repr.contains("***"));
+        assertEquals(
+                "OpenIdConnectAuthenticator(host=https://api.example.com"
+                        + ", openIdConnectUrl=https://auth.example.com/.well-known/openid-configuration"
+                        + ", clientId=my-client-id, clientSecret=***"
+                        + ", redirectUri=https://app.example.com/callback"
+                        + ", scopes=[openid, profile])",
+                repr);
     }
 }

@@ -191,6 +191,68 @@ class ApiExceptionTest {
   }
 
   @Test
+  void fromResponseRefusesADeeplyNestedBodyButKeepsTheRawBody() {
+    // A nesting-depth cap stops a hostile error payload from recursing
+    // through the call stack: the structured error body is dropped, the
+    // exception for the status and the raw body are kept.
+    int depth = ObjectSerializer.MAX_JSON_DEPTH + 1;
+    String nested = "[".repeat(depth) + "]".repeat(depth);
+
+    ApiException ex = ApiException.fromResponse(500, Map.of(), nested);
+
+    assertEquals(com.example.petstore.errors.InternalServerErrorException.class, ex.getClass());
+    assertEquals(nested, ex.getResponseBody());
+    assertNull(ex.getErrorBody());
+  }
+
+  @Test
+  void fromResponseDecodesAScalarJsonBody() {
+    assertEquals("denied", ApiException.fromResponse(403, Map.of(), "\"denied\"").getErrorBody());
+    assertEquals(42, ApiException.fromResponse(403, Map.of(), "42").getErrorBody());
+  }
+
+  @Test
+  void getTypedErrorBodyRaisesSerializationExceptionForABodyOfTheWrongShape() {
+    ApiException ex = ApiException.fromResponse(400, Map.of(), "<html>bad request</html>");
+
+    assertThrows(SerializationException.class, () -> ex.getTypedErrorBody(Map.class));
+  }
+
+  @Test
+  void anEmptyBodyAndEmptyHeadersAreOmittedFromTheStringForm() {
+    ApiException ex = new ApiException(500, "boom", Map.of(), "");
+
+    assertEquals("boom\nHTTP status code: 500", ex.toString());
+  }
+
+  @Test
+  void anEmptyMessageFallsBackToTheGenericLine() {
+    ApiException ex = new ApiException(0, "", null, null);
+
+    assertEquals("Error message: the server returns an error", ex.toString());
+  }
+
+  @Test
+  void oauth2ServerExceptionMessageHasThreeForms() {
+    com.example.petstore.errors.OAuth2ServerException raw =
+        new com.example.petstore.errors.OAuth2ServerException(
+            502, null, null, null, "<html>bad gateway</html>");
+    com.example.petstore.errors.OAuth2ServerException code =
+        new com.example.petstore.errors.OAuth2ServerException(
+            400, "invalid_grant", null, null, "{}");
+    com.example.petstore.errors.OAuth2ServerException described =
+        new com.example.petstore.errors.OAuth2ServerException(
+            400, "invalid_grant", "refresh token expired", null, "{}");
+
+    assertEquals(
+        "Token request failed with status 502: <html>bad gateway</html>", raw.getMessage());
+    assertEquals("Token request failed with status 400: invalid_grant", code.getMessage());
+    assertEquals(
+        "Token request failed with status 400: invalid_grant -- refresh token expired",
+        described.getMessage());
+  }
+
+  @Test
   void fromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
     ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
 

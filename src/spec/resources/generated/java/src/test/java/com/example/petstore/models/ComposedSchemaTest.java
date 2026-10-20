@@ -61,7 +61,7 @@ class ComposedSchemaTest {
       // rejected (FAIL_ON_INVALID_SUBTYPE), matching the other 11 SDKs.
       String json = "{\"foodType\":\"raw\",\"calories\":300}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
-          .isInstanceOf(Exception.class);
+          .isExactlyInstanceOf(SerializationException.class);
     }
 
     @Test
@@ -84,7 +84,7 @@ class ComposedSchemaTest {
       // fails. Aligns Java with Python / Swift / PHP / Ruby / Dart / Rust.
       String json = "{\"weightKg\":2.5}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
-          .isInstanceOf(Exception.class);
+          .isExactlyInstanceOf(SerializationException.class);
     }
 
     @Test
@@ -94,7 +94,7 @@ class ComposedSchemaTest {
       // be rejected rather than silently routed.
       String json = "{\"foodType\":\"\",\"weightKg\":2.5}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
-          .isInstanceOf(Exception.class);
+          .isExactlyInstanceOf(SerializationException.class);
     }
 
     @Test
@@ -105,6 +105,7 @@ class ComposedSchemaTest {
       // Jackson reports the unresolved type id in the root cause message.
       String json = "{\"foodType\":\"raw\",\"calories\":300}";
       assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+          .isExactlyInstanceOf(SerializationException.class)
           .hasRootCauseInstanceOf(Exception.class)
           .satisfies(
               thrown -> {
@@ -316,7 +317,7 @@ class ComposedSchemaTest {
       // than silently store the raw tree as the actualInstance.
       String json = "{\"unexpected\":\"shape\"}";
       assertThatThrownBy(() -> serializer.deserialize(json, ONE_OF_NO_DISCRIMINATOR_TYPE))
-          .isInstanceOf(Exception.class);
+          .isExactlyInstanceOf(SerializationException.class);
     }
   }
 

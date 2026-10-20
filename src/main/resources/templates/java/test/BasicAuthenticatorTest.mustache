@@ -22,6 +22,40 @@ class BasicAuthenticatorTest {
     }
 
     @Test
+    void nonAsciiCredentialsAreEncodedAsUtf8() {
+        BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com",
+                "ünïcødé", "pässwörd");
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+                auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrappersEmitTheSameBasicHeaderAndKeepTheirOwnName() {
+        AdminBasicAuthenticator admin =
+                new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        PetStoreBasicAuthenticator store =
+                new PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+
+        assertEquals("Basic YWxpY2U6czNjcmV0", admin.getAuthHeaders().get("Authorization"));
+        assertEquals("Basic YWxpY2U6czNjcmV0", store.getAuthHeaders().get("Authorization"));
+        assertEquals("https://api.example.com", admin.getHost());
+        assertEquals(
+                "AdminBasicAuthenticator(host=https://api.example.com,"
+                        + " username=alice, password=***)",
+                admin.toString());
+        assertEquals(
+                "PetStoreBasicAuthenticator(host=https://api.example.com,"
+                        + " username=alice, password=***)",
+                store.toString());
+    }
+
+    @Test
+    void schemeWrapperValidatesTheCredentialsAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
     void rejectsUsernameWithCrlfAtConstruction() {
         assertThrows(IllegalArgumentException.class, () ->
                 new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
@@ -60,5 +94,8 @@ class BasicAuthenticatorTest {
         String repr = auth.toString();
         assertFalse(repr.contains("s3cret"));
         assertTrue(repr.contains("***"));
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
     }
 }

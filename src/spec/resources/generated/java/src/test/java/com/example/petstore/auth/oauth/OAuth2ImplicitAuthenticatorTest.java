@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class OAuth2ImplicitAuthenticatorTest {
 
@@ -52,7 +54,8 @@ class OAuth2ImplicitAuthenticatorTest {
 
     String url = auth.buildAuthorizationUrl(null);
 
-    assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"));
+    assertTrue(url.contains("scope=read%20write"), url);
+    assertFalse(url.contains("+"), url);
   }
 
   @Test
@@ -62,6 +65,48 @@ class OAuth2ImplicitAuthenticatorTest {
     String url = auth.buildAuthorizationUrl("my-state");
 
     assertTrue(url.contains("state=my-state"));
+  }
+
+  @Test
+  void keepsTheRfc3986UnreservedSetLiteralInTheAuthorizationUrl() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+
+    String url = auth.buildAuthorizationUrl("s-._~*!'() x");
+
+    assertTrue(url.endsWith("&state=s-._~%2A%21%27%28%29%20x"), url);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"abc\r\nInjected: yes", "abc\u0000def", "abc\u007Fdef", "tökén"})
+  void setAccessTokenRejectsAControlOrNonAsciiCharacter(String token) {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+
+    IllegalArgumentException ex =
+        assertThrowsExactly(IllegalArgumentException.class, () -> auth.setAccessToken(token));
+
+    assertEquals(
+        "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+        ex.getMessage());
+    assertThrowsExactly(IllegalStateException.class, auth::getAuthHeaders);
+  }
+
+  @Test
+  void schemeWrapperBuildsTheSpecAuthorizationUrl() {
+    BrowserAuthImplicitAuthenticator auth =
+        new BrowserAuthImplicitAuthenticator("https://api.example.com", "my-client-id");
+
+    assertEquals(
+        "https://auth.example.com/authorize?response_type=token"
+            + "&client_id=my-client-id&scope=read",
+        auth.buildAuthorizationUrl(null));
+  }
+
+  @Test
+  void setAccessTokenAcceptsTabAndPrintableAscii() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+    auth.setAccessToken("a b\tc~");
+
+    assertEquals("Bearer a b\tc~", auth.getAuthHeaders().get("Authorization"));
   }
 
   @Test
@@ -104,6 +149,12 @@ class OAuth2ImplicitAuthenticatorTest {
     String repr = auth.toString();
     assertFalse(repr.contains("implicit-tok"));
     assertTrue(repr.contains("***"));
+    assertEquals(
+        "OAuth2ImplicitAuthenticator(host=https://api.example.com"
+            + ", clientId=my-client-id"
+            + ", authorizationUrl=https://auth.example.com/authorize"
+            + ", scopes=[read, write], accessToken=***)",
+        repr);
   }
 
   @Test
