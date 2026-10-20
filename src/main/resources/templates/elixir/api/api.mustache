@@ -140,9 +140,9 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/vendorExtensions.pluralExamples}}
   {{/bodyParam}}
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - {{#vendorExtensions.op.hasOptionsParam}}Optional parameters (query, header, form, cookie){{#hasAuthMethods}}, plus an optional per-operation authenticator in `auth`{{/hasAuthMethods}}.{{/vendorExtensions.op.hasOptionsParam}}{{^vendorExtensions.op.hasOptionsParam}}Optional per-operation authenticator in `auth`.{{/vendorExtensions.op.hasOptionsParam}}
   {{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}
-    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}} Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.{{#servers}}{{#-first}} Supports `:server` (per-call server override).{{/-first}}{{/servers}}{{#consumes.1}} Supports `:content_type` (select the request content-type among the declared types {{#consumes}}`{{mediaType}}`{{^-last}}, {{/-last}}{{/consumes}}; defaults to `{{vendorExtensions.op.effectiveConsumes}}`).{{/consumes.1}}{{#hasAuthMethods}} Per-operation auth is supplied via the Options struct's `auth` field, not here.{{/hasAuthMethods}}
 
   ## Returns
 

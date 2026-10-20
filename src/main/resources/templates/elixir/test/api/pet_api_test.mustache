@@ -185,6 +185,47 @@ defmodule {{moduleName}}.Api.PetApiTest do
     end
   end
 
+  # The docs mention the per-operation authenticator only where the operation's
+  # Options struct has an `auth` field.
+  defp function_docs(name) do
+    {:docs_v1, _anno, _lang, _format, _moduledoc, _metadata, docs} =
+      Code.fetch_docs({{moduleName}}.Api.PetApi)
+
+    for {key, _anno, _signature, %{"en" => text}, _meta} <- docs,
+        match?({:function, ^name, _arity}, key),
+        do: text
+  end
+
+  test "docs name the auth field only on operations whose options carry it" do
+    options_auth = "* `options` - Optional per-operation authenticator in `auth`."
+
+    options_both =
+      "* `options` - Optional parameters (query, header, form, cookie), plus an optional per-operation authenticator in `auth`."
+
+    options_plain = "* `options` - Optional parameters (query, header, form, cookie)."
+
+    opts_auth =
+      "* `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here."
+
+    [add_pet] = function_docs(:add_pet)
+    assert add_pet =~ options_auth
+    assert add_pet =~ opts_auth
+
+    [delete_pet] = function_docs(:delete_pet)
+    assert delete_pet =~ options_both
+    assert delete_pet =~ opts_auth
+
+    [by_name] = function_docs(:get_pet_by_name)
+    assert by_name =~ options_plain
+    assert by_name =~ "* `opts` - Keyword list.\n"
+    refute by_name =~ "`auth`"
+
+    [no_options] = function_docs(:get_pet_avatar)
+    assert no_options =~ "* `opts` - Keyword list.\n"
+    refute no_options =~ "`auth`"
+    refute no_options =~ "`options`"
+  end
+
   # An operation reads only the opts keys it supports; any other key is an
   # error instead of being silently dropped (a `:server` on an operation without
   # servers would otherwise go to the default server, a misspelt `:content_type`

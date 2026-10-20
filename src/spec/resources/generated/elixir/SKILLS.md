@@ -129,7 +129,7 @@ authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.n
 
 ## Servers
 
-If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`. Pass the desired server's URL to the client:
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list. Pass the desired server's URL to the client:
 
 ```elixir
 url = PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()

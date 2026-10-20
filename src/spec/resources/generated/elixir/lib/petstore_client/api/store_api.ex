@@ -50,7 +50,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -144,7 +144,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -314,7 +314,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -402,7 +402,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -490,7 +490,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -578,7 +578,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -666,7 +666,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -755,7 +755,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -864,7 +864,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -979,7 +979,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1067,7 +1067,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1155,7 +1155,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1243,7 +1243,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1332,7 +1332,7 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 

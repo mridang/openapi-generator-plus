@@ -196,7 +196,7 @@ defmodule PetstoreClient.ObjectSerializer do
 
     case parse_json(stripped) do
       {:ok, data} ->
-        convert_to_type(data, target_type)
+        convert_guarded(data, target_type)
 
       {:error, reason} ->
         raise PetstoreClient.Errors.SerializationError,
@@ -204,7 +204,27 @@ defmodule PetstoreClient.ObjectSerializer do
     end
   end
 
-  def deserialize(data, target_type), do: convert_to_type(data, target_type)
+  def deserialize(data, target_type), do: convert_guarded(data, target_type)
+
+  # convert_to_type/2 raises a SerializationError for every wire-shape failure
+  # it checks for. A payload it does not check for (an object where a date-time
+  # string is expected, say) fails inside a stdlib call instead; that is the
+  # same kind of failure, so it surfaces as a SerializationError carrying the
+  # original exception as its cause rather than escaping as a raw error.
+  defp convert_guarded(data, target_type) do
+    convert_to_type(data, target_type)
+  rescue
+    error in [PetstoreClient.Errors.SerializationError] ->
+      reraise error, __STACKTRACE__
+
+    error ->
+      reraise PetstoreClient.Errors.SerializationError,
+              [
+                message: "Failed to convert to #{target_type}: #{Exception.message(error)}",
+                cause: error
+              ],
+              __STACKTRACE__
+  end
 
   @doc """
   Convert a scalar value to its canonical string representation.

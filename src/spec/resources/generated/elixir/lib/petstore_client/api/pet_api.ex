@@ -193,7 +193,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet` - Pet - Create a new pet in the store
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional per-operation authenticator in `auth`.
 
     * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
@@ -310,7 +310,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -446,7 +446,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `pet_treatment` - PetTreatment
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional per-operation authenticator in `auth`.
 
     * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
@@ -590,7 +590,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer() - Pet id to delete
 
-    * `options` - Optional parameters (query, header, form, cookie).
+    * `options` - Optional parameters (query, header, form, cookie), plus an optional per-operation authenticator in `auth`.
 
     * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
 
@@ -743,7 +743,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `document_id` - integer()
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -872,7 +872,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `born_on` - Date.t() - Date of birth to match
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -983,7 +983,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1167,7 +1167,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override).
 
   ## Returns
 
@@ -1296,7 +1296,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override).
 
   ## Returns
 
@@ -1427,7 +1427,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1537,7 +1537,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1657,7 +1657,7 @@ defmodule PetstoreClient.Api.PetApi do
 
       42
 
-    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override).
 
   ## Returns
 
@@ -1791,7 +1791,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -1947,7 +1947,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -2058,7 +2058,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `photo_id` - integer()
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -2190,7 +2190,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -2437,7 +2437,7 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
-    * `opts` - Keyword list. Supports `:server` (per-call server override). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:server` (per-call server override).
 
   ## Returns
 
@@ -2569,7 +2569,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `body` - binary()
 
-    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `image/jpeg`, `image/png`, `application/json`; defaults to `image/jpeg`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `image/jpeg`, `image/png`, `application/json`; defaults to `image/jpeg`).
 
   ## Returns
 
@@ -2691,7 +2691,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `set_pet_avatar_thumbnail_request` - SetPetAvatarThumbnailRequest
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -2827,7 +2827,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -2972,7 +2972,7 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer() - ID of pet to update
     * `pet` - Pet - Pet object that needs to be updated
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -3089,7 +3089,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list.
 
   ## Returns
 
@@ -3222,7 +3222,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
-    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `multipart/form-data`, `application/octet-stream`; defaults to `multipart/form-data`). Per-operation auth is supplied via the Options struct's `auth` field, not here.
+    * `opts` - Keyword list. Supports `:content_type` (select the request content-type among the declared types `multipart/form-data`, `application/octet-stream`; defaults to `multipart/form-data`).
 
   ## Returns
 

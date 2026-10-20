@@ -65,5 +65,17 @@ defmodule {{moduleName}}.ServerConfigurationTest do
       end
     end
   end
+
+  describe "Servers.all/0" do
+    test "lists every server in declaration order, as SKILLS.md documents" do
+      assert {{moduleName}}.Servers.all() == [
+               {{moduleName}}.Servers.server_0(),
+               {{moduleName}}.Servers.server_1()
+             ]
+
+      assert File.read!("SKILLS.md") =~
+               "returning a `ServerConfiguration`, plus a `{{moduleName}}.Servers.all/0` list."
+    end
+  end
 end
 {{/generateTests}}

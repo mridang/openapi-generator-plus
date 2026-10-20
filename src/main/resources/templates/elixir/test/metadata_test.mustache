@@ -60,6 +60,16 @@ defmodule {{moduleName}}.Models.MetadataTest do
         refute String.contains?(source, "@example null"), "#{path} contains '@example null'"
       end
     end
+
+    # @deprecated is a function attribute and would land on the struct's own
+    # function, which nobody calls; the schema is marked in the module docs.
+    test "a deprecated schema is marked in its module docs, not on a function" do
+      {:docs_v1, _anno, _lang, _format, _moduledoc, metadata, _docs} =
+        Code.fetch_docs({{moduleName}}.Models.Tag)
+
+      assert metadata[:deprecated] == "This schema is deprecated."
+      assert {{moduleName}}.Models.Tag.__info__(:deprecated) == []
+    end
   end
 
   # manifest-description-missing: the Hex package manifest must carry a

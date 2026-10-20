@@ -64,4 +64,16 @@ defmodule PetstoreClient.ServerConfigurationTest do
       end
     end
   end
+
+  describe "Servers.all/0" do
+    test "lists every server in declaration order, as SKILLS.md documents" do
+      assert PetstoreClient.Servers.all() == [
+               PetstoreClient.Servers.server_0(),
+               PetstoreClient.Servers.server_1()
+             ]
+
+      assert File.read!("SKILLS.md") =~
+               "returning a `ServerConfiguration`, plus a `PetstoreClient.Servers.all/0` list."
+    end
+  end
 end

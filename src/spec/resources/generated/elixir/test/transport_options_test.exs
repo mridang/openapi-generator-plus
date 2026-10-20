@@ -85,6 +85,26 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "a SOCKS proxy scheme is rejected at construction" do
+    for scheme <- ["socks", "socks4", "socks5"] do
+      url = "#{scheme}://proxy.example.com:1080"
+
+      error =
+        assert_raise ArgumentError, fn ->
+          PetstoreClient.TransportOptions.new(proxy: url)
+        end
+
+      assert error.message == "Invalid proxy URL (must use http or https scheme): #{url}"
+    end
+  end
+
+  test "the README names the proxy option of new/1 as the SOCKS setter" do
+    readme = File.read!("README.md")
+
+    assert readme =~ "The `proxy:` option of `TransportOptions.new/1` accepts only"
+    refute readme =~ "TransportOptions.proxy()"
+  end
+
   test "null proxy URL is accepted" do
     opts = PetstoreClient.TransportOptions.new(proxy: nil)
     assert opts.proxy == nil

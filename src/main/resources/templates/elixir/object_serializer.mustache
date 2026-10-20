@@ -184,12 +184,32 @@ defmodule {{moduleName}}.ObjectSerializer do
       end
 
     case parse_json(stripped) do
-      {:ok, data} -> convert_to_type(data, target_type)
+      {:ok, data} -> convert_guarded(data, target_type)
       {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to parse JSON: #{inspect(reason)}"
     end
   end
 
-  def deserialize(data, target_type), do: convert_to_type(data, target_type)
+  def deserialize(data, target_type), do: convert_guarded(data, target_type)
+
+  # convert_to_type/2 raises a SerializationError for every wire-shape failure
+  # it checks for. A payload it does not check for (an object where a date-time
+  # string is expected, say) fails inside a stdlib call instead; that is the
+  # same kind of failure, so it surfaces as a SerializationError carrying the
+  # original exception as its cause rather than escaping as a raw error.
+  defp convert_guarded(data, target_type) do
+    convert_to_type(data, target_type)
+  rescue
+    error in [{{moduleName}}.Errors.SerializationError] ->
+      reraise error, __STACKTRACE__
+
+    error ->
+      reraise {{moduleName}}.Errors.SerializationError,
+              [
+                message: "Failed to convert to #{target_type}: #{Exception.message(error)}",
+                cause: error
+              ],
+              __STACKTRACE__
+  end
 
   @doc """
   Convert a scalar value to its canonical string representation.

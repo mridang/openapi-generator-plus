@@ -300,6 +300,9 @@ end
 {{^anyOf}}
 {{#hasVars}}
 defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
   {{#description}}
   @moduledoc """
   {{{.}}}
@@ -338,9 +341,6 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/externalDocumentation}}
   """
   {{/description}}
-  {{#isDeprecated}}
-  @deprecated "This schema is deprecated."
-  {{/isDeprecated}}
 
   @type t :: %__MODULE__{
   {{#vars}}
@@ -458,6 +458,9 @@ end
 {{/hasVars}}
 {{^hasVars}}
 defmodule {{moduleName}}.Models.{{classname}} do
+  {{#isDeprecated}}
+  @moduledoc deprecated: "This schema is deprecated."
+  {{/isDeprecated}}
   {{#description}}
   @moduledoc """
   {{{.}}}
@@ -496,9 +499,6 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/externalDocumentation}}
   """
   {{/description}}
-  {{#isDeprecated}}
-  @deprecated "This schema is deprecated."
-  {{/isDeprecated}}
 
   @type t :: %__MODULE__{}
 

@@ -194,6 +194,31 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
+    # A payload the converter does not check for fails inside a stdlib call (a
+    # JSON object cannot be turned into a date-time string); it still surfaces
+    # as a SerializationError that carries the original exception as its cause.
+    test "an object where a date-time string is expected raises SerializationError with the cause" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(~s({"shipDate":{"a":1}}), "Order")
+        end
+
+      assert %Protocol.UndefinedError{protocol: String.Chars} = err.cause
+
+      assert err.message ==
+               "Failed to convert to Order: " <> Exception.message(err.cause)
+    end
+
+    test "a bare object where a date-time string is expected raises SerializationError" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(~s({"a":1}), "DateTime")
+        end
+
+      assert %Protocol.UndefinedError{protocol: String.Chars} = err.cause
+      assert err.message == "Failed to convert to DateTime: " <> Exception.message(err.cause)
+    end
+
     test "a string where an object model is expected raises, naming the model" do
       err =
         assert_raise {{moduleName}}.Errors.SerializationError, fn ->
