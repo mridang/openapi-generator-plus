@@ -20,7 +20,7 @@ public class ForbiddenException : ClientException
         : this(message, null, null, null) { }
 
     public ForbiddenException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(403, message, innerException) { }
 
     public ForbiddenException(
         string message,

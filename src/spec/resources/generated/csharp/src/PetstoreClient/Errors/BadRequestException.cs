@@ -20,7 +20,7 @@ public class BadRequestException : ClientException
         : this(message, null, null, null) { }
 
     public BadRequestException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(400, message, innerException) { }
 
     public BadRequestException(
         string message,

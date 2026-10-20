@@ -225,4 +225,29 @@ public class ApiExceptionTest
         Assert.False(error.IsNested);
         Assert.True(typeof(OpenAPIException).IsAssignableFrom(error));
     }
+
+    [Fact]
+    public void NamedErrorWithInnerExceptionKeepsItsStatus()
+    {
+        // The (message, inner) constructor must pin the leaf's status like
+        // every other constructor, instead of leaving StatusCode at 0.
+        var inner = new InvalidOperationException("cause");
+        var cases = new List<(ApiException Error, int Status)>
+        {
+            (new BadRequestException("boom", inner), 400),
+            (new UnauthorizedException("boom", inner), 401),
+            (new ForbiddenException("boom", inner), 403),
+            (new NotFoundException("boom", inner), 404),
+            (new ConflictException("boom", inner), 409),
+            (new UnprocessableEntityException("boom", inner), 422),
+            (new InternalServerErrorException("boom", inner), 500),
+        };
+
+        foreach ((ApiException error, int status) in cases)
+        {
+            Assert.Equal(status, error.StatusCode);
+            Assert.Equal("boom", error.Message);
+            Assert.Same(inner, error.InnerException);
+        }
+    }
 }

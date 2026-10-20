@@ -21,6 +21,9 @@ public class ServerException : ApiException
     public ServerException(string message, Exception innerException)
         : base(message, innerException) { }
 
+    public ServerException(int statusCode, string message, Exception innerException)
+        : base(statusCode, message, innerException) { }
+
     public ServerException(
         int statusCode,
         string message,

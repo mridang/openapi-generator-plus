@@ -63,6 +63,24 @@ public class ComposedSchemaTest
         Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
     }
 
+    [Theory]
+    [InlineData("1", "Number")]
+    [InlineData("true", "True")]
+    [InlineData("{\"a\":1}", "Object")]
+    [InlineData("[\"dry\"]", "Array")]
+    public void OneOfNonStringDiscriminatorThrowsSerializationException(string value, string kind)
+    {
+        // A discriminator that is not a JSON string must surface as the
+        // SDK-owned SerializationException, never as a raw
+        // InvalidOperationException leaked from reading it as a string.
+        var json = "{\"foodType\":" + value + ",\"weightKg\":2.5}";
+        var ex = Assert.Throws<SerializationException>(
+            () => _serializer.Deserialize<PetFood>(json));
+        Assert.NotNull(ex.InnerException);
+        Assert.IsType<System.Text.Json.JsonException>(ex.InnerException);
+        Assert.Contains("must be a string, got " + kind, ex.InnerException!.Message);
+    }
+
     [Fact]
     public void OneOfUnknownDiscriminatorErrorNamesValue()
     {

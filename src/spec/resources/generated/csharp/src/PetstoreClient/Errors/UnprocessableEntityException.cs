@@ -20,7 +20,7 @@ public class UnprocessableEntityException : ClientException
         : this(message, null, null, null) { }
 
     public UnprocessableEntityException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(422, message, innerException) { }
 
     public UnprocessableEntityException(
         string message,

@@ -753,6 +753,31 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestJsonNullBodyForBodyReturningOpThrowsApiException()
+    {
+        // A bare JSON null payload is an absent body, exactly like an empty
+        // one: it must surface the canonical ApiException, never a null
+        // returned from a non-nullable Task<Pet>.
+        var mockApi = NewPetApiForMock(200, "application/json", "null");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.GetPetByIdAsync(1L));
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Contains("Expected a response body for GetPetById but received none", ex.Message);
+    }
+
+    [Fact]
+    public async Task TestJsonNullBodyForCollectionReturningOpThrowsApiException()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "null");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available" }));
+        Assert.Equal(200, ex.StatusCode);
+        Assert.Contains("Expected a response body for FindPetsByStatus but received none", ex.Message);
+    }
+
+    [Fact]
     public async Task TestMalformedSuccessBodyFailsLoud()
     {
         // A 2xx response carrying a body that is NOT valid JSON for the

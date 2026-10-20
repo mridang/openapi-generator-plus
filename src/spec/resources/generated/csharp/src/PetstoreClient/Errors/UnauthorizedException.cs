@@ -20,7 +20,7 @@ public class UnauthorizedException : ClientException
         : this(message, null, null, null) { }
 
     public UnauthorizedException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(401, message, innerException) { }
 
     public UnauthorizedException(
         string message,

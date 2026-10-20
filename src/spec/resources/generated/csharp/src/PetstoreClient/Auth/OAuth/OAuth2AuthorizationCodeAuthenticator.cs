@@ -85,7 +85,7 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
         {
             ["response_type"] = "code",
             ["client_id"] = _clientId,
-            ["redirect_uri"] = _redirectUri.ToString(),
+            ["redirect_uri"] = _redirectUri.OriginalString,
         };
         if (_scopes.Length > 0)
         {
@@ -133,7 +133,7 @@ public class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator, IHttpAwar
             ["code"] = code,
             ["client_id"] = _clientId,
             ["client_secret"] = _clientSecret,
-            ["redirect_uri"] = _redirectUri.ToString(),
+            ["redirect_uri"] = _redirectUri.OriginalString,
         };
         _ = await _tokenManager.GetAccessTokenAsync(_tokenUrl, parameters).ConfigureAwait(false);
         _tokenExchanged = true;

@@ -624,6 +624,38 @@ public class DefaultApiClientUnitTest
         Assert.NotEqual("Doc", Encoding.Unicode.GetString(utf16BeBytes));
     }
 
+    [Fact]
+    public async Task DecodesBareUtf16BodyWithLittleEndianBomAsLittleEndian()
+    {
+        // A BOM wins over the big-endian default for a bare "utf-16" label,
+        // and the mark itself is not part of the text.
+        byte[] utf16LeBytes = { 0xFF, 0xFE, 0x44, 0x00, 0x6F, 0x00, 0x63, 0x00 };
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            utf16LeBytes,
+            "text/plain; charset=utf-16");
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/utf16-le-bom"),
+            new Dictionary<string, string>(), null);
+        Assert.Equal("Doc", response.Body);
+    }
+
+    [Fact]
+    public async Task DecodesBareUtf16BodyWithBigEndianBomWithoutTheMark()
+    {
+        byte[] utf16BeBytes = { 0xFE, 0xFF, 0x00, 0x44, 0x00, 0x6F, 0x00, 0x63 };
+        var handler = new RawByteHandler(
+            HttpStatusCode.OK,
+            utf16BeBytes,
+            "text/plain; charset=utf-16");
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/utf16-be-bom"),
+            new Dictionary<string, string>(), null);
+        Assert.Equal("Doc", response.Body);
+    }
+
     // ---- 3.1: SensitiveHeaderNames default contents ----
 
     [Fact]
@@ -735,6 +767,131 @@ public class DefaultApiClientUnitTest
         Assert.False(second.Headers.Contains(apiKeyHeader));
     }
     {{/hasApiKeyHeaderNames}}
+
+    // ---- 307/308 replays every kind of request body ----
+
+    [Fact]
+    public async Task Redirect307ReplaysMultipartBodyWithItsBoundary()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/upload"),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "note", "hello-upload" } });
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Contains("hello-upload", Encoding.UTF8.GetString(handler.Bodies[1]));
+        Assert.Equal(handler.Bodies[0], handler.Bodies[1]);
+        Assert.StartsWith("multipart/form-data; boundary=", handler.ContentTypes[1]);
+        Assert.Equal(handler.ContentTypes[0], handler.ContentTypes[1]);
+    }
+
+    [Fact]
+    public async Task Redirect308ReplaysStreamBodyWithItsContentType()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.PermanentRedirect,
+            location: new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        byte[] payload = [1, 2, 3, 4];
+
+        await client.SendRequestAsync(
+            "PUT",
+            new Uri("http://origin.example.com/upload"),
+            new Dictionary<string, string> { { "Content-Type", "application/octet-stream" } },
+            new MemoryStream(payload));
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(payload, handler.Bodies[1]);
+        Assert.Equal("application/octet-stream", handler.ContentTypes[1]);
+    }
+
+    [Fact]
+    public async Task Redirect307ReplaysByteArrayBodyWithItsContentType()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        byte[] payload = [9, 8, 7];
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/upload"),
+            new Dictionary<string, string> { { "Content-Type", "image/png" } },
+            payload);
+
+        Assert.Equal(payload, handler.Bodies[1]);
+        Assert.Equal("image/png", handler.ContentTypes[1]);
+    }
+
+    [Fact]
+    public async Task Redirect307ReplaysTextBodyWithBareContentType()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://origin.example.com/form"),
+            new Dictionary<string, string> { { "Content-Type", "application/x-www-form-urlencoded" } },
+            "a=1&b=2");
+
+        Assert.Equal("a=1&b=2", Encoding.UTF8.GetString(handler.Bodies[1]));
+        Assert.Equal("application/x-www-form-urlencoded", handler.ContentTypes[1]);
+    }
+
+    // ---- request Content-Type carries the declared value, no charset ----
+
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/x-www-form-urlencoded")]
+    [InlineData("text/plain")]
+    public async Task TextBodySendsTheDeclaredContentTypeWithoutCharset(string declared)
+    {
+        string? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req.Content?.Headers.ContentType?.ToString();
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string> { { "Content-Type", declared } },
+            "payload");
+
+        Assert.Equal(declared, sent);
+    }
+
+    [Fact]
+    public async Task TextBodyWithoutDeclaredContentTypeDefaultsToBareJson()
+    {
+        string? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req.Content?.Headers.ContentType?.ToString();
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            "{\"k\":1}");
+
+        Assert.Equal("application/json", sent);
+    }
 
     // ---- 3.2: noRedirect=true skips the redirect loop ----
 
@@ -1175,6 +1332,9 @@ public class DefaultApiClientUnitTest
         Assert.Contains("\"recordedAt\":", wireText);
         Assert.DoesNotContain("is_enabled", wireText);
         Assert.DoesNotContain("recorded_at", wireText);
+        // The JSON part carries the bare declared type, no charset suffix.
+        Assert.Contains("Content-Type: application/json", wireText);
+        Assert.DoesNotContain("charset", wireText);
         // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
         Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
         // Null-omission from the configured options: the unset "caption" and
@@ -1196,6 +1356,8 @@ public class DefaultApiClientUnitTest
         private readonly HttpStatusCode _firstStatus;
         private readonly Uri _location;
         public List<HttpRequestMessage> Requests { get; } = [];
+        public List<byte[]> Bodies { get; } = [];
+        public List<string?> ContentTypes { get; } = [];
 
         public RedirectingHandler(HttpStatusCode firstStatus, Uri location)
         {
@@ -1203,7 +1365,7 @@ public class DefaultApiClientUnitTest
             _location = location;
         }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
@@ -1215,6 +1377,10 @@ public class DefaultApiClientUnitTest
                 snapshot.Headers.TryAddWithoutValidation(h.Key, h.Value);
             }
             Requests.Add(snapshot);
+            Bodies.Add(request.Content == null
+                ? []
+                : await request.Content.ReadAsByteArrayAsync(cancellationToken));
+            ContentTypes.Add(request.Content?.Headers.ContentType?.ToString());
 
             if (Requests.Count == 1)
             {
@@ -1223,12 +1389,12 @@ public class DefaultApiClientUnitTest
                     Content = new StringContent(""),
                 };
                 redirect.Headers.Location = _location;
-                return Task.FromResult(redirect);
+                return redirect;
             }
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(""),
-            });
+            };
         }
     }
 

@@ -346,16 +346,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 byte[] bytes => new ByteArrayContent(bytes),
                 Stream stream => new StreamContent(stream),
                 Dictionary<string, object> formParts => BuildMultipartContent(formParts, _serializer),
-                string text => new StringContent(
-                    text,
-                    Encoding.UTF8,
-                    contentType ?? "application/json"
-                ),
-                _ => new StringContent(
-                    body.ToString() ?? "",
-                    Encoding.UTF8,
-                    contentType ?? "application/json"
-                ),
+                string text => CreateStringContent(text, contentType ?? "application/json"),
+                _ => CreateStringContent(body.ToString() ?? "", contentType ?? "application/json"),
             };
 
             if (
@@ -393,6 +385,27 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             ByteArrayContent emptyContent = new([]);
             emptyContent.Headers.ContentType = null;
             request.Content = emptyContent;
+        }
+
+        /* A 307/308 redirect replays the body, but a multipart (Dictionary) or
+         * Stream body is built lazily and read to the end by the first send, so
+         * it cannot be rebuilt for the follow-up hop. When redirects will be
+         * followed, buffer such a body once into bytes and keep its
+         * Content-Type (multipart carries its boundary there), then send that
+         * buffered copy on every hop so each hop carries identical bytes. */
+        byte[]? replayBytes = null;
+        System.Net.Http.Headers.MediaTypeHeaderValue? replayType = null;
+        if (
+            request.Content != null
+            && (body is Dictionary<string, object> || body is Stream)
+            && _transportOptions.FollowRedirects
+            && !noRedirect
+        )
+        {
+            replayBytes = await request.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+            replayType = request.Content.Headers.ContentType;
+            request.Content.Dispose();
+            request.Content = CreateReplayContent(replayBytes, replayType);
         }
 
         HttpResponseMessage response;
@@ -520,27 +533,24 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     }
                     if (nextBody is byte[] bytes2)
                     {
-                        next.Content = new ByteArrayContent(bytes2);
+                        next.Content = CreateReplayContent(
+                            bytes2,
+                            contentType == null
+                                ? null
+                                : System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType));
                     }
-                    else if (nextBody is string text2)
+                    else if (replayBytes != null && (nextBody is Dictionary<string, object> || nextBody is Stream))
                     {
-                        next.Content = new StringContent(text2, Encoding.UTF8, contentType ?? "application/json");
+                        /* Multipart and Stream bodies were buffered before the
+                           first send, so every hop replays the same bytes with
+                           the original Content-Type (and multipart boundary). */
+                        next.Content = CreateReplayContent(replayBytes, replayType);
                     }
-                    else if (nextBody is Stream)
+                    else if (nextBody != null)
                     {
-                        /* A consumed request Stream is generally non-replayable:
-                           the original SendAsync has already read it to EOF, so
-                           it cannot be re-sent on the follow-up hop. Silently
-                           rebuilding it would dispatch the redirected request
-                           with an empty body and lose the upload. Surface a
-                           typed SDK error instead — mirroring the downgrade
-                           body-replay guard above — so the loss is observable
-                           rather than silent. */
-                        response.Dispose();
-                        next.Dispose();
-                        throw new ApiException(
-                            statusCode,
-                            $"Cannot replay a streaming request body across a body-preserving redirect to: {nextUrl}");
+                        next.Content = CreateStringContent(
+                            nextBody as string ?? nextBody.ToString() ?? "",
+                            contentType ?? "application/json");
                     }
                     response.Dispose();
                     currentUrl = nextUrl;
@@ -647,9 +657,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
         }
         string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();
-        string responseBody = IsTextContentType(response.Content.Headers.ContentType?.MediaType)
-            ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
-            : Convert.ToBase64String(responseBytes);
+        string responseBody;
+        if (IsTextContentType(response.Content.Headers.ContentType?.MediaType))
+        {
+            Encoding bodyEncoding = GetEncodingFromContentType(
+                contentTypeHeader, responseBytes, out int preambleLength);
+            responseBody = bodyEncoding.GetString(
+                responseBytes, preambleLength, responseBytes.Length - preambleLength);
+        }
+        else
+        {
+            responseBody = Convert.ToBase64String(responseBytes);
+        }
 
         /* Gap BE+BF: response header keys are normalised to lowercase so callers
            can look them up consistently regardless of the casing the server used
@@ -814,7 +833,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                        and the wire property names (from [JsonPropertyName]) and
                        date-time format consistent across the SDK. */
                     string json = serializer.Serialize(value);
-                    StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
+                    StringContent jsonContent = CreateStringContent(json, "application/json");
                     _ = jsonContent.Headers.Remove("Content-Disposition");
                     _ = jsonContent.Headers.TryAddWithoutValidation(
                         "Content-Disposition",
@@ -838,6 +857,31 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         StringContent content = new(value);
         content.Headers.ContentType = null;
+        return content;
+    }
+
+    /// <summary>
+    /// Builds a UTF-8 text body carrying exactly the declared media type.
+    /// .NET's <see cref="StringContent"/> otherwise appends
+    /// <c>; charset=utf-8</c> to the Content-Type, which the other 11 SDKs
+    /// never send, so the header is replaced with the bare declared value.
+    /// </summary>
+    private static StringContent CreateStringContent(string text, string mediaType)
+    {
+        StringContent content = new(text, Encoding.UTF8);
+        content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(mediaType);
+        return content;
+    }
+
+    /// <summary>
+    /// Builds a replayable byte body for a redirect hop, with the original
+    /// Content-Type when there was one.
+    /// </summary>
+    private static ByteArrayContent CreateReplayContent(
+        byte[] bytes, System.Net.Http.Headers.MediaTypeHeaderValue? mediaType)
+    {
+        ByteArrayContent content = new(bytes);
+        content.Headers.ContentType = mediaType;
         return content;
     }
 
@@ -1083,9 +1127,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// named charset is not recognised by the runtime.
     /// </summary>
     /// <param name="contentType">The full Content-Type header value, or null.</param>
+    /// <param name="body">The raw body, sniffed for a byte order mark when the charset is a bare utf-16.</param>
+    /// <param name="preambleLength">The number of leading body bytes that are a byte order mark to skip.</param>
     /// <returns>The resolved encoding, never null.</returns>
-    private static Encoding GetEncodingFromContentType(string? contentType)
+    private static Encoding GetEncodingFromContentType(
+        string? contentType, byte[] body, out int preambleLength)
     {
+        preambleLength = 0;
         if (string.IsNullOrEmpty(contentType))
         {
             return Encoding.UTF8;
@@ -1102,10 +1150,22 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                    returns a little-endian UnicodeEncoding, which would disagree
                    with the other SDKs, so resolve bare utf-16 to UTF-16BE here.
                    Explicit "utf-16le" / "utf-16be" labels fall through to
-                   Encoding.GetEncoding so their declared byte order is honored. */
+                   Encoding.GetEncoding so their declared byte order is honored.
+                   A leading byte order mark wins over that default: FF FE selects
+                   little-endian and FE FF big-endian, and the mark itself is not
+                   part of the text, so it is skipped. */
                 if (string.Equals(charset, "utf-16", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(charset, "utf16", StringComparison.OrdinalIgnoreCase))
                 {
+                    if (body.Length >= 2 && body[0] == 0xFF && body[1] == 0xFE)
+                    {
+                        preambleLength = 2;
+                        return new UnicodeEncoding(bigEndian: false, byteOrderMark: false);
+                    }
+                    if (body.Length >= 2 && body[0] == 0xFE && body[1] == 0xFF)
+                    {
+                        preambleLength = 2;
+                    }
                     return new UnicodeEncoding(bigEndian: true, byteOrderMark: false);
                 }
                 return Encoding.GetEncoding(charset);

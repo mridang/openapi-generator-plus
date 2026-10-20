@@ -20,7 +20,7 @@ public class ConflictException : ClientException
         : this(message, null, null, null) { }
 
     public ConflictException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(409, message, innerException) { }
 
     public ConflictException(
         string message,

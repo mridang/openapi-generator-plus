@@ -14,7 +14,7 @@ public class InternalServerErrorException : ServerException
         : this(message, null, null, null) { }
 
     public InternalServerErrorException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(500, message, innerException) { }
 
     public InternalServerErrorException(
         string message,

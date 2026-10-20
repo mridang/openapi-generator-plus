@@ -21,6 +21,9 @@ public class ClientException : ApiException
     public ClientException(string message, Exception innerException)
         : base(message, innerException) { }
 
+    public ClientException(int statusCode, string message, Exception innerException)
+        : base(statusCode, message, innerException) { }
+
     public ClientException(
         int statusCode,
         string message,

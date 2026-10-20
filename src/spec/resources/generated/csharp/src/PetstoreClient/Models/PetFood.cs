@@ -29,6 +29,12 @@ public abstract class PetFood
             string raw = doc.RootElement.GetRawText();
             if (doc.RootElement.TryGetProperty("foodType", out JsonElement disc))
             {
+                if (disc.ValueKind != JsonValueKind.String && disc.ValueKind != JsonValueKind.Null)
+                {
+                    throw new JsonException(
+                        $"Discriminator property 'foodType' of PetFood must be a string, got {disc.ValueKind}"
+                    );
+                }
                 string? discValue = disc.GetString();
                 return discValue switch
                 {

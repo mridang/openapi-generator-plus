@@ -261,8 +261,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -325,8 +328,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -424,8 +430,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -603,8 +612,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -694,8 +706,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -768,8 +783,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -887,8 +905,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -978,8 +999,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1066,8 +1090,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1140,8 +1167,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1218,8 +1248,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1308,8 +1341,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1419,8 +1455,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1494,8 +1533,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1591,8 +1633,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1754,8 +1799,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -1998,8 +2046,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -2102,8 +2153,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -2180,8 +2234,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,
@@ -2275,8 +2332,11 @@ public class PetApi : BaseApi
          * presence of a body is gated on the raw payload rather than on
          * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
          * is the zero member — never null — so a `Data`-based null check
-         * would silently return the zero value for a 204/empty body. */
-        if (string.IsNullOrEmpty(result.RawBody))
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
         {
             throw new ApiException(
                 result.StatusCode,

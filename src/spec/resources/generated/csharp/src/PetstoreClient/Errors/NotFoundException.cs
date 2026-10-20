@@ -20,7 +20,7 @@ public class NotFoundException : ClientException
         : this(message, null, null, null) { }
 
     public NotFoundException(string message, Exception innerException)
-        : base(message, innerException) { }
+        : base(404, message, innerException) { }
 
     public NotFoundException(
         string message,

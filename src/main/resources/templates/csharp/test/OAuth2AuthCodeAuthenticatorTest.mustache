@@ -193,6 +193,57 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         Assert.Equal(1, url.Split('?').Length - 1);
     }
 
+    private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticatorWithRedirect(Uri redirect)
+    {
+        return new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/authorize"),
+            new Uri("https://auth.example.com/token"),
+            null,
+            redirect,
+            Scopes);
+    }
+
+    /// <summary>
+    /// The redirect_uri must reach the authorize URL exactly as configured:
+    /// no trailing slash added to a host-only value, no default port dropped
+    /// and no host lower-casing (System.Uri.ToString() does all three).
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080&")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb&")]
+    public void AuthorizationUrlSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+
+        string url = auth.BuildAuthorizationUrl().ToString();
+
+        Assert.Contains(expected, url);
+    }
+
+    /// <summary>
+    /// The code-exchange body must carry the same verbatim redirect_uri as
+    /// the authorize URL, since the provider compares the two byte for byte.
+    /// </summary>
+    [Theory]
+    [InlineData("http://localhost:8080", "redirect_uri=http%3A%2F%2Flocalhost%3A8080")]
+    [InlineData("https://App.Example.com:443/cb", "redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcb")]
+    public async Task CodeExchangeSendsRedirectUriVerbatim(string redirect, string expected)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = CreateAuthenticatorWithRedirect(new Uri(redirect));
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+
+        Assert.NotNull(client.LastBody);
+        Assert.Contains(expected, client.LastBody!);
+        Assert.DoesNotContain(expected + "%2F", client.LastBody!);
+    }
+
     /// <summary>
     /// ToString() must redact the client secret: the raw value must be absent
     /// and the masked placeholder present.
