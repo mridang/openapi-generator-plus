@@ -33,6 +33,24 @@ describe("ServerConfiguration", () => {
     expect(config.getUrl()).toBe("https://prod.api.example.com/v2");
   });
 
+  it("substitutes every occurrence of a variable", () => {
+    const config = new ServerConfiguration(
+      "https://{env}.api.example.com/{env}",
+      null,
+      { env: new ServerVariable("prod", null, []) },
+    );
+    expect(config.getUrl()).toBe("https://prod.api.example.com/prod");
+  });
+
+  it("substitutes a value containing replacement patterns literally", () => {
+    const config = new ServerConfiguration(
+      "https://{env}.api.example.com",
+      null,
+      { env: new ServerVariable("a$&b", null, []) },
+    );
+    expect(config.getUrl()).toBe("https://a$&b.api.example.com");
+  });
+
   it("substitutes variables with supplied overrides", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com",

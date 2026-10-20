@@ -38,6 +38,20 @@ describe("Composed Schema", () => {
     expect(instance).toBeInstanceOf(WetFood);
   });
 
+  test("oneOf: a discriminated variant missing its required field is rejected", () => {
+    const data = { foodType: "dry" };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
+      /^Failed to deserialize object: weightKg is required$/,
+    );
+  });
+
+  test("oneOf: a discriminated variant with a wrong-typed field is rejected", () => {
+    const data = { foodType: "dry", weightKg: "heavy" };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
+      /^Failed to deserialize object: weightKg must be a number, got string$/,
+    );
+  });
+
   test("oneOf: unknown discriminator throws SerializationError (4.7)", () => {
     // 4.7 — A discriminator value that is not listed in the schema mapping
     // used to silently fall through to the base envelope. We now surface

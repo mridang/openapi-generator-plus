@@ -55,6 +55,9 @@ export enum GetMultiServerPetInfoServerRegion {
   AP = "ap",
 }
 
+/**
+ * Primary
+ */
 export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
   constructor() {
     super();
@@ -63,6 +66,9 @@ export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoSer
     return "https://primary.example.com/v1";
   }
 }
+/**
+ * Regional
+ */
 export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
   readonly region: GetMultiServerPetInfoServerRegion;
   constructor(region: GetMultiServerPetInfoServerRegion) {
@@ -71,7 +77,7 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
   }
   getUrl(): string {
     let url = "https://{region}.example.com/v1";
-    url = url.replace("{" + "region" + "}", this.region);
+    url = url.replaceAll("{" + "region" + "}", () => this.region);
     return url;
   }
 }
@@ -79,6 +85,9 @@ export abstract class GetPetByIdServer {
   abstract getUrl(): string;
 }
 
+/**
+ * CDN-backed read endpoint for pet details
+ */
 export class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer {
   constructor() {
     super();
@@ -101,6 +110,9 @@ export enum GetStagingPetInfoServerVersion {
   V3 = "v3",
 }
 
+/**
+ * Staging server
+ */
 export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
   readonly environment: GetStagingPetInfoServerEnvironment;
   readonly version: GetStagingPetInfoServerVersion;
@@ -114,8 +126,8 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
   }
   getUrl(): string {
     let url = "https://{environment}.example.com/api/{version}";
-    url = url.replace("{" + "environment" + "}", this.environment);
-    url = url.replace("{" + "version" + "}", this.version);
+    url = url.replaceAll("{" + "environment" + "}", () => this.environment);
+    url = url.replaceAll("{" + "version" + "}", () => this.version);
     return url;
   }
 }

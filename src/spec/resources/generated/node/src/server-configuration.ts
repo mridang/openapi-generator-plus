@@ -108,7 +108,7 @@ export class ServerConfiguration {
         );
       }
 
-      url = url.replaceAll(`{${varName}}`, value);
+      url = url.replaceAll(`{${varName}}`, () => value);
     }
     return url;
   }

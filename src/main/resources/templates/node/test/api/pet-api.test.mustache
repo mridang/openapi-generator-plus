@@ -1,7 +1,9 @@
 {{>api_info}}
 
+import * as fs from 'node:fs';
 import * as http from 'node:http';
-import { GetExternalPetInfoServer, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
+import * as path from 'node:path';
+import { GetExternalPetInfoServer, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
 import type { AddPetOptions, UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
@@ -951,5 +953,24 @@ describe('PetApi request content-type selector', () => {
     } finally {
       close();
     }
+  });
+});
+
+describe('PetApi operation servers', () => {
+  test('a server variable value containing replacement patterns is substituted literally', () => {
+    const server = new GetStagingPetInfoServerStagingServer(
+      'a$&b' as unknown as GetStagingPetInfoServerEnvironment,
+      GetStagingPetInfoServerVersion.V2,
+    );
+
+    expect(server.getUrl()).toBe('https://a$&b.example.com/api/v2');
+  });
+
+  test('a server variant documents itself with the operation server description', () => {
+    const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
+
+    expect(source).toMatch(
+      /\* CDN-backed read endpoint for pet details\s+\*\/\s+export class GetPetByIdServerCDNBackedReadEndpointForPetDetails /,
+    );
   });
 });

@@ -482,6 +482,39 @@ describe("ObjectSerializer", () => {
       expect(parsed.weightKg).toBe(1.5);
       expect(typeof parsed.weightKg).toBe("number");
     });
+
+    test("keeps a numeric-looking string in a free-form field beneath a model a string", () => {
+      // The name-based Decimal fallback is for plain request-body literals.
+      // A free-form value nested inside a model instance is data, so a string
+      // whose key happens to match a Decimal field elsewhere (Pet.weightKg)
+      // must keep its JSON string type.
+      const edge = new EdgeCases();
+      edge.freeFormAny = { weightKg: "12", note: "x" };
+      expect(ObjectSerializer.serialize(edge)).toBe(
+        '{"freeFormAny":{"weightKg":"12","note":"x"}}',
+      );
+    });
+
+    test("keeps a numeric-looking string in a free-form map inside a nested model a string", () => {
+      const passport = new PetPassport();
+      passport.pet = new Pet({ name: "Fido", photoUrls: new Set<string>() });
+      const edge = new EdgeCases();
+      edge.freeFormAny = [{ weightKg: "7" }];
+      expect(ObjectSerializer.serialize({ passport, edge })).toContain(
+        '"freeFormAny":[{"weightKg":"7"}]',
+      );
+    });
+
+    test("still emits the Decimal unquoted for a plain literal nested in a plain literal body", () => {
+      const body = {
+        pet: {
+          name: "Fido",
+          photoUrls: ["u"],
+          weightKg: "1.5" as unknown as Pet["weightKg"],
+        },
+      };
+      expect(ObjectSerializer.serialize(body)).toContain('"weightKg":1.5');
+    });
   });
 
   describe("deserialize", () => {
@@ -680,6 +713,80 @@ describe("ObjectSerializer", () => {
       expect(() =>
         StrictTag.fromJsonStrict({ id: 1, name: "x", unexpected: true }),
       ).toThrow(/Unknown property 'unexpected'/);
+    });
+  });
+
+  describe("NestedModelValidation", () => {
+    test("rejects a nested model that is missing its required field", () => {
+      const json = { value: "root", child: {} };
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
+        /^Failed to deserialize object: value is required$/,
+      );
+    });
+
+    test("rejects a nested model field of the wrong primitive type", () => {
+      const json = { value: "root", child: { value: 5 } };
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
+        /^Failed to deserialize object: value must be a string, got number$/,
+      );
+    });
+
+    test("rejects an invalid model several levels down", () => {
+      const json = {
+        value: "root",
+        child: { value: "a", child: { value: "b", child: {} } },
+      };
+      expect(() => ObjectSerializer.deserialize(json, TreeNode)).toThrow(
+        /^Failed to deserialize object: value is required$/,
+      );
+    });
+
+    test("still decodes a valid nested tree into model instances", () => {
+      const json = {
+        value: "root",
+        child: { value: "a", child: { value: "b" } },
+      };
+      const root = ObjectSerializer.deserialize(json, TreeNode)!;
+      expect(root.child).toBeInstanceOf(TreeNode);
+      expect(root.child!.child).toBeInstanceOf(TreeNode);
+      expect(root.child!.child!.value).toBe("b");
+    });
+
+    test("rejects a wrong-typed field on a nested single model", () => {
+      const json = { name: "x", photoUrls: [], category: { id: "42" } };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        /^Failed to deserialize object: id must be a number, got string$/,
+      );
+    });
+
+    test("rejects a wrong-typed field on a model inside an array", () => {
+      const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, { id: "7" }] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        /^Failed to deserialize object: id must be a number, got string$/,
+      );
+    });
+
+    test("applies required-field checks to a nested Pet", () => {
+      const json = { pet: {} };
+      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
+        /^Failed to deserialize object: name is required$/,
+      );
+    });
+
+    test("applies the unknown-enum check to a nested Pet", () => {
+      const json = { pet: { name: "x", photoUrls: [], status: "banana" } };
+      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
+        /Unknown enum value for status: "banana"/,
+      );
+    });
+
+    test("collapses a nested uniqueItems array into a Set and keeps Decimal as a string", () => {
+      const json = {
+        pet: { name: "x", photoUrls: ["a", "a", "b"], weightKg: 12.5 },
+      };
+      const passport = ObjectSerializer.deserialize(json, PetPassport)!;
+      expect(passport.pet!.photoUrls).toEqual(new Set(["a", "b"]));
+      expect(passport.pet!.weightKg).toBe("12.5");
     });
   });
 

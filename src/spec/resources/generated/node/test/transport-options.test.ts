@@ -8,6 +8,18 @@
 import { OpenAPIError } from "../src/errors/index.js";
 import { TransportOptions } from "../src/transport-options.js";
 
+const directOptions = {
+  verifySsl: true,
+  caCertPath: null,
+  proxy: null,
+  timeout: 10000,
+  followRedirects: true,
+  maxRedirects: null,
+  userAgent: null,
+  defaultHeaders: {},
+  injectRequestId: false,
+};
+
 describe("TransportOptions", () => {
   test("verifySsl defaults to true", () => {
     const opts = TransportOptions.builder().build();
@@ -100,6 +112,37 @@ describe("TransportOptions", () => {
     expect(() => {
       TransportOptions.builder().proxy("ftp://proxy.example.com");
     }).toThrow(TypeError);
+  });
+
+  test("constructing directly with a non-http proxy scheme throws TypeError", () => {
+    const construct = () =>
+      new TransportOptions({
+        ...directOptions,
+        proxy: "ftp://proxy.example.com",
+      });
+    expect(construct).toThrow(TypeError);
+    expect(construct).toThrow(
+      "Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com",
+    );
+  });
+
+  test("constructing directly with an unparseable proxy URL throws TypeError", () => {
+    const construct = () =>
+      new TransportOptions({ ...directOptions, proxy: "not-a-valid-url" });
+    expect(construct).toThrow(TypeError);
+    expect(construct).toThrow(
+      "Invalid proxy URL (unparseable): not-a-valid-url",
+    );
+  });
+
+  test("constructing directly with a valid or absent proxy succeeds", () => {
+    expect(
+      new TransportOptions({ ...directOptions, proxy: "http://proxy:8080" })
+        .proxy,
+    ).toBe("http://proxy:8080");
+    expect(
+      new TransportOptions({ ...directOptions, proxy: null }).proxy,
+    ).toBeNull();
   });
 
   test("null proxy URL is accepted", () => {

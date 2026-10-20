@@ -38,6 +38,11 @@ export enum {{serverTypeName}}{{pascalName}} {
 {{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
 {{#variants}}
+{{#hasDescription}}
+/**
+ * {{{description}}}
+ */
+{{/hasDescription}}
 export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#serverVariables}}
   readonly {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}};
@@ -53,7 +58,7 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#-first}}
     let url = '{{url}}';
 {{/-first}}
-    url = url.replace('{' + '{{name}}' + '}', this.{{camelName}});
+    url = url.replaceAll('{' + '{{name}}' + '}', () => this.{{camelName}});
 {{/serverVariables}}
 {{^serverVariables}}
     return '{{url}}';

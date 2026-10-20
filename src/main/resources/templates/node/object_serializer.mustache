@@ -192,6 +192,75 @@ function decimalFieldNames(): ReadonlySet<string> {
 }
 
 /**
+ * Nested-model validation. class-transformer builds every nested `@Type`
+ * model with a no-argument `new X()`, so the nested model's constructor runs
+ * with `data === undefined`: its required-field check is skipped and its
+ * type, enum, Set and Decimal handling runs on an empty object before the
+ * fields are assigned. Only the root model is re-run through its constructor
+ * by {@link ObjectSerializer.deserialize}, so a nested model with a missing
+ * required field or a wrong-typed field would otherwise decode silently.
+ *
+ * {@link revalidateNestedFields} walks a freshly built model graph (model
+ * fields, arrays, Sets and plain maps) and re-runs each nested generated
+ * model through its own constructor with the populated instance as `data`,
+ * which fires the same checks the root gets and stores the coerced result
+ * back. oneOf/anyOf wrappers are left alone: they are resolved by their own
+ * variant routing.
+ */
+let modelClassRegistry: ReadonlySet<unknown> | undefined;
+
+function isNestedModelClass(ctor: unknown): ctor is new (data: unknown) => object {
+  if (typeof ctor !== 'function') {
+    return false;
+  }
+  if (modelClassRegistry === undefined) {
+    const classes = new Set<unknown>();
+    for (const exported of Object.values(models as Record<string, unknown>)) {
+      if (typeof exported === 'function') {
+        classes.add(exported);
+      }
+    }
+    modelClassRegistry = classes;
+  }
+  if (!modelClassRegistry.has(ctor)) {
+    return false;
+  }
+  const marker = ctor as unknown as Record<string, unknown>;
+  return marker['ONE_OF_SCHEMAS'] === undefined && marker['ANY_OF_SCHEMAS'] === undefined;
+}
+
+function revalidateNestedValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      value[i] = revalidateNestedValue(value[i]);
+    }
+    return value;
+  }
+  if (value instanceof Set) {
+    return new Set([...value].map((element) => revalidateNestedValue(element)));
+  }
+  if (value === null || typeof value !== 'object') {
+    return value;
+  }
+  const ctor = (value as { constructor?: unknown }).constructor;
+  if (isNestedModelClass(ctor)) {
+    const rebuilt = new ctor(value);
+    revalidateNestedFields(rebuilt as Record<string, unknown>);
+    return rebuilt;
+  }
+  if (ctor === Object) {
+    revalidateNestedFields(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+function revalidateNestedFields(holder: Record<string, unknown>): void {
+  for (const key of Object.keys(holder)) {
+    holder[key] = revalidateNestedValue(holder[key]);
+  }
+}
+
+/**
  * Maximum allowed JSON nesting depth. Node's JSON.parse has no built-in
  * cap and recurses through V8's call stack, so a malicious 100k-deep
  * `{"a":{"a":...}}` payload would stack-overflow / DoS. All twelve SDKs
@@ -296,9 +365,27 @@ export class ObjectSerializer {
     ) {
       obj = (obj as Record<string, unknown>).actualInstance;
     }
+    /**
+     * Objects that sit beneath a generated model instance. A plain object
+     * there is model DATA (a free-form map, additionalProperties, an
+     * `object` field), not a request-body literal shaped like a model, so the
+     * name-based Decimal fallback below must not reinterpret its strings.
+     */
+    const underModel = new WeakSet<object>();
     try {
       return JSON.stringify(obj, function (_key, value) {
-        if (value instanceof Set) return [...value];
+        if (value !== null && typeof value === 'object') {
+          const holder = this as unknown as object;
+          const holderCtor = (holder as { constructor?: { __decimalFields?: unknown } }).constructor;
+          if (underModel.has(holder) || holderCtor?.__decimalFields instanceof Set) {
+            underModel.add(value as object);
+          }
+        }
+        if (value instanceof Set) {
+          const elements = [...value];
+          if (underModel.has(value)) underModel.add(elements);
+          return elements;
+        }
         /**
          * Reject a non-finite number (NaN, ±Infinity) on encode. RFC 8259 §6
          * has no such token, so JSON.stringify would silently emit `null` in
@@ -344,14 +431,17 @@ export class ObjectSerializer {
          * registry ({@link decimalFieldNames}) keyed by property name. Either
          * way only a string value whose field is registered is considered, and
          * {@link rawDecimal} emits it unquoted only when it is valid JSON
-         * numeric text, so genuine string fields are untouched.
+         * numeric text, so genuine string fields are untouched. The fallback
+         * applies only to plain objects that are not nested inside a model
+         * instance, so a free-form value never changes JSON type.
          */
         if (typeof value === 'string') {
           const ctor = (this as { constructor?: unknown }).constructor as
             | { __decimalFields?: ReadonlySet<string> }
             | undefined;
           const ownDecimals = ctor && ctor.__decimalFields instanceof Set ? ctor.__decimalFields : undefined;
-          if (ownDecimals ? ownDecimals.has(_key) : decimalFieldNames().has(_key)) {
+          const plainFallback = !underModel.has(this as unknown as object) && decimalFieldNames().has(_key);
+          if (ownDecimals ? ownDecimals.has(_key) : plainFallback) {
             return rawDecimal(value);
           }
         }
@@ -393,7 +483,15 @@ export class ObjectSerializer {
             const targetCls = (models as Record<string, unknown>)[targetName] as ClassConstructor<unknown> | undefined;
             if (targetCls) {
               const instance = plainToInstance(targetCls, json, { excludeExtraneousValues: true });
-              return new (cls as unknown as new (i: unknown) => T)(instance);
+              /**
+               * plainToInstance bypasses the variant's constructor, so its
+               * required-field and primitive-type checks never ran. Build the
+               * selected variant through its own constructor (as the
+               * non-discriminated path below does) before wrapping it.
+               */
+              const variant = new (targetCls as unknown as new (i: unknown) => Record<string, unknown>)(instance);
+              revalidateNestedFields(variant);
+              return new (cls as unknown as new (i: unknown) => T)(variant);
             }
             /**
              * 4.7 — The mapping names a class that doesn't exist in the
@@ -527,6 +625,7 @@ export class ObjectSerializer {
        */
       if (instance && typeof instance === 'object' && typeof cls === 'function') {
         const built = new (cls as unknown as new (i: unknown) => T)(instance);
+        revalidateNestedFields(built as Record<string, unknown>);
         /**
          * H11: a model declaring `additionalProperties` carries free-form wire
          * keys on an index signature. plainToInstance(excludeExtraneousValues)

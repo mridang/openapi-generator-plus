@@ -1096,6 +1096,108 @@ describe("redirect to non-HTTP(S) scheme is refused", () => {
 });
 
 /*
+ * An intermediate 3xx body is never read, so the client must cancel it or
+ * undici keeps the connection busy until the body is garbage collected.
+ */
+describe("redirect responses release their body", () => {
+  const originalFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  function redirectWithTrackedBody(
+    location: string,
+    label: string,
+    cancelled: string[],
+  ): Response {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("moved"));
+      },
+      cancel() {
+        cancelled.push(label);
+      },
+    });
+    return new Response(body, { status: 302, headers: { Location: location } });
+  }
+
+  it("cancels the body of each redirect it follows", async () => {
+    const cancelled: string[] = [];
+    let call = 0;
+    global.fetch = (async (): Promise<Response> => {
+      call++;
+      if (call === 1)
+        return redirectWithTrackedBody(
+          "http://api.example/b",
+          "first",
+          cancelled,
+        );
+      if (call === 2)
+        return redirectWithTrackedBody(
+          "http://api.example/c",
+          "second",
+          cancelled,
+        );
+      return new Response("done", { status: 200 });
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const response = await client.sendRequest(
+      "GET",
+      "http://api.example/a",
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(cancelled).toEqual(["first", "second"]);
+  });
+
+  it("cancels the body of a redirect it refuses to follow", async () => {
+    const cancelled: string[] = [];
+    global.fetch = (async (): Promise<Response> =>
+      redirectWithTrackedBody(
+        "file:///etc/passwd",
+        "refused",
+        cancelled,
+      )) as typeof fetch;
+
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client
+      .sendRequest("GET", "http://api.example/a", {}, null)
+      .catch((e: unknown) => e);
+
+    expect(cancelled).toEqual(["refused"]);
+  });
+
+  it("cancels every body, the last one included, when the redirect budget is exhausted", async () => {
+    const cancelled: string[] = [];
+    let call = 0;
+    global.fetch = (async (): Promise<Response> => {
+      call++;
+      return redirectWithTrackedBody(
+        `http://api.example/hop${call}`,
+        `hop${call}`,
+        cancelled,
+      );
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).maxRedirects(2).build(),
+    );
+    await client
+      .sendRequest("GET", "http://api.example/a", {}, null)
+      .catch((e: unknown) => e);
+
+    expect(cancelled).toEqual(["hop1", "hop2", "hop3"]);
+  });
+});
+
+/*
  * T-D1: exhausting the redirect budget must throw "too many redirects",
  * not silently return the last 3xx response as if it were normal.
  */

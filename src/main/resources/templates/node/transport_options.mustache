@@ -1,6 +1,32 @@
 {{>api_info}}
 
 /**
+ * Reject a proxy URL that cannot be parsed, does not use http or https, or
+ * has no host. Shared by the builder and the constructor so the invariant
+ * holds however an instance is created.
+ *
+ * @param proxy proxy URL, or null for none
+ * @throws TypeError if the URL cannot be parsed or is not an http(s) URL with a host
+ */
+function assertValidProxy(proxy: string | null): void {
+  if (proxy == null) {
+    return;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(proxy);
+  } catch (e) {
+    throw new TypeError(`Invalid proxy URL (unparseable): ${proxy}`, { cause: e });
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxy}`);
+  }
+  if (!parsed.hostname) {
+    throw new TypeError(`Invalid proxy URL (missing host): ${proxy}`);
+  }
+}
+
+/**
  * Immutable HTTP transport configuration for `DefaultApiClient`.
  *
  * Controls low-level HTTP behavior such as TLS verification, proxy routing,
@@ -64,6 +90,14 @@ export class TransportOptions {
   /** Whether to auto-inject an X-Request-ID header with a unique UUID on every request. */
   public readonly injectRequestId: boolean;
 
+  /**
+   * Create transport options directly. Prefer {@link TransportOptions.builder}; the
+   * constructor applies the same proxy validation, so an invalid proxy URL is
+   * rejected up front however the instance is created.
+   *
+   * @param options every transport setting
+   * @throws TypeError if the proxy URL cannot be parsed or is not an http(s) URL with a host
+   */
   constructor(options: {
     verifySsl: boolean;
     caCertPath: string | null;
@@ -75,6 +109,7 @@ export class TransportOptions {
     defaultHeaders: Record<string, string>;
     injectRequestId: boolean;
   }) {
+    assertValidProxy(options.proxy);
     this.verifySsl = options.verifySsl;
     this.caCertPath = options.caCertPath;
     this.proxy = options.proxy;
@@ -148,20 +183,7 @@ export class TransportOptionsBuilder {
    * @throws TypeError if the URL cannot be parsed or is not an http(s) URL with a host
    */
   proxy(proxy: string | null): this {
-    if (proxy != null) {
-      let parsed: URL;
-      try {
-        parsed = new URL(proxy);
-      } catch (e) {
-        throw new TypeError(`Invalid proxy URL (unparseable): ${proxy}`, { cause: e });
-      }
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxy}`);
-      }
-      if (!parsed.hostname) {
-        throw new TypeError(`Invalid proxy URL (missing host): ${proxy}`);
-      }
-    }
+    assertValidProxy(proxy);
     this._proxy = proxy;
     return this;
   }

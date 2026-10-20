@@ -327,6 +327,11 @@ export abstract class AbstractApiClient implements ApiClient {
         ) {
           const location = response.headers.get("location");
           if (location == null || location.length === 0) break;
+          /* The 3xx body is never read. Cancel it before anything below can
+           * throw or replace `response`, so undici returns the connection to
+           * the pool instead of holding it until the body is garbage
+           * collected. */
+          await AbstractApiClient.discardBody(response);
           const nextUrl = new URL(location, currentUrl).toString();
           const nextParsed = new URL(nextUrl);
           /* T-D3: a Location pointing at a non-HTTP(S) scheme
@@ -440,6 +445,7 @@ export abstract class AbstractApiClient implements ApiClient {
           hops >= maxRedirects &&
           AbstractApiClient.isRedirectStatus(response.status)
         ) {
+          await AbstractApiClient.discardBody(response);
           throw new ApiError(
             response.status,
             `Too many redirects (exceeded maxRedirects=${maxRedirects})`,
@@ -864,6 +870,18 @@ export abstract class AbstractApiClient implements ApiClient {
       mediaType.endsWith("+json") ||
       mediaType.endsWith("+xml")
     );
+  }
+
+  /**
+   * Cancel an unread response body so its connection is released. Best
+   * effort: a body that is already consumed or errored needs no release.
+   */
+  private static async discardBody(response: Response): Promise<void> {
+    try {
+      await response.body?.cancel();
+    } catch {
+      /* nothing left to release */
+    }
   }
 
   /**
