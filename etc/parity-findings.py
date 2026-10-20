@@ -5,6 +5,8 @@
   parity-findings.py render                   regenerate the markdown from the JSON
   parity-findings.py set <F001,F002,...> <status> [note]   record a status change
   parity-findings.py show <F001,F002,...>     print full details of the given findings
+  parity-findings.py apply <results.json> <batch>   record per-language outcomes from a fix batch
+  parity-findings.py discovered <results.json> <batch>   list the new issues a batch reported
 
 Statuses: open, fixed, false-positive, forced, duplicate, deferred.
 """
@@ -84,6 +86,79 @@ def do_show(ids):
             print("  - %s%s %s" % (ev.get("file"), (":%s" % ev["line"]) if ev.get("line") else "", (ev.get("quote") or "")[:300].replace("\n", " ")))
 
 
+# Outcomes that count as "this language is done" for a finding.
+DONE = {"fixed", "duplicate", "false-positive", "forced"}
+
+
+def do_apply(path, batch):
+    """Merge per-language outcomes into the ledger and derive each finding's status.
+
+    A finding is fixed only when every SDK it names has a done outcome; otherwise it is
+    partial. Findings nobody touched stay open.
+    """
+    res = json.load(open(path, encoding="utf-8"))
+    data = load()
+    byid = {f["id"]: f for f in data["findings"]}
+    for r in res:
+        f = byid.get(r["id"])
+        if not f:
+            continue
+        f.setdefault("outcomes", {})[r["language"]] = {
+            "outcome": r["outcome"], "note": r.get("note", ""), "batch": batch,
+            "test": r.get("test", ""), "files": r.get("files", []),
+        }
+        f["batch"] = batch
+    # New issues an agent noticed but did not fix become ledger entries so they are not lost.
+    seen = {(f.get("lens"), f.get("description")) for f in data["findings"]}
+    nxt = max(int(f["id"][1:]) for f in data["findings"]) + 1
+    for r in res:
+        if r["outcome"] != "discovered":
+            continue
+        key = ("batch%d-discovered" % batch, r["note"])
+        if key in seen:
+            continue
+        seen.add(key)
+        title = r["note"].split(". ")[0].rstrip(".")
+        f = {"id": "F%03d" % nxt, "severity": "medium", "title": title[:200], "lens": key[0],
+             "category": "discovered", "languages": [r["language"]], "description": r["note"],
+             "evidence": [], "unit_testable": None, "status": "open", "note": "reported by the %s fix agent, unverified" % r["language"],
+             "batch": None}
+        nxt += 1
+        data["findings"].append(f)
+        byid[f["id"]] = f
+    for f in byid.values():
+        oc = f.get("outcomes")
+        if not oc:
+            continue
+        langs = sorted(set(f.get("languages", [])))
+        done = {l for l, o in oc.items() if o["outcome"] in DONE}
+        outs = {o["outcome"] for o in oc.values()}
+        if outs <= {"false-positive"}:
+            f["status"] = "false-positive"
+        elif outs <= {"forced"}:
+            f["status"] = "forced"
+        elif langs and set(langs) <= done:
+            f["status"] = "fixed"
+        elif done & {l for l, o in oc.items() if o["outcome"] in ("fixed", "duplicate")}:
+            f["status"] = "partial"
+            f["note"] = "done in %s; still open for %s" % (", ".join(sorted(done)), ", ".join(sorted(set(langs) - done)) or "-")
+        elif outs & {"needs-spec"}:
+            f["status"] = "needs-spec"
+        elif outs & {"too-big"}:
+            f["status"] = "deferred"
+        else:
+            f["status"] = "open"
+    save(data)
+    print("applied", len(res))
+
+
+def do_discovered(path, batch):
+    res = json.load(open(path, encoding="utf-8"))
+    for r in res:
+        if r["outcome"] == "discovered":
+            print("[%s] %s" % (r["language"], r["note"]))
+
+
 def render():
     fs = load()["findings"]
     by_status = collections.Counter(f["status"] for f in fs)
@@ -125,6 +200,11 @@ if __name__ == "__main__":
         do_import(sys.argv[2])
     elif cmd == "set":
         do_set(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+    elif cmd == "apply":
+        do_apply(sys.argv[2], int(sys.argv[3]))
+    elif cmd == "discovered":
+        do_discovered(sys.argv[2], int(sys.argv[3]))
+        sys.exit(0)
     elif cmd == "show":
         do_show(sys.argv[2])
         sys.exit(0)

@@ -39,8 +39,20 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F001",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Not a false positive. Ktor's encodeURLQueryComponent keeps the URL_PROTOCOL_PART set literal (& = + # / ? [ ] and others), and the existing tests only covered spaces. Fixed once at the root in base_api.mustache by switching both encoders to encodeURLParameter (unreserved characters only).",
+     "batch": 1,
+     "test": "BaseApiTest.kt: 'percent-encodes reserved characters in query keys and values' asserts category=a%26b%3Dc%2Bd%20%23e%2Ff%3F&filter%5Bname%5D=x",
+     "files": [
+      "src/main/resources/templates/kotlin/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin query-string and form-body encoder leaves & = + # ? / : ; , [ ] @ ! $ ' ( ) * unescaped (parameter injection and data corruption)",
@@ -96,8 +108,20 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F002",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Same encoder root cause as F001. Fixed by the same encodeURLParameter change, which also covers the deepObject bracket keys.",
+     "batch": 1,
+     "test": "BaseApiTest.kt: percent-encodes reserved characters in query keys and values",
+     "files": [
+      "src/main/resources/templates/kotlin/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin form-urlencoded body (and query) values leave & = + # / ? : @ $ , ; ! ' ( ) * unencoded: field injection and value corruption",
@@ -141,8 +165,20 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F003",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Same encoder root cause as F001. The form-body half (encode(), spaceToPlus=true) is now strict and has its own test.",
+     "batch": 1,
+     "test": "BaseApiTest.kt: 'form-urlencoded body percent-encodes reserved characters in keys and values' asserts note=a%26b%3Dc%2Bd+%23e%2Ff%3F&k%3Dv=C%2B%2B",
+     "files": [
+      "src/main/resources/templates/kotlin/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "go: optional integer/number/boolean query, header and cookie params are serialized as pointer addresses (\"0xc000…\")",
@@ -178,8 +214,20 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F004",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "stringify default branch now dereferences non-nil pointers by reflection (nil pointer gives empty string), so optional *int64/*float64/*bool query/header/cookie params send their value, not the address.",
+     "batch": 1,
+     "test": "go/test/object_serializer_test.mustache TestStringify_OptionalScalarPointers and TestStringify_NilScalarPointers; go/test/value_serializer_test.mustache TestSerializeStyled_OptionalScalarPointersSendTheirValue",
+     "files": [
+      "src/main/resources/templates/go/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby: Faraday decodes and re-encodes the built query, which collapses exploded arrays to the last value, defeats allowReserved, turns '+' into a space, and sorts params",
@@ -220,8 +268,21 @@
    "unit_testable": true,
    "lens": "L01-value-serializer",
    "id": "F005",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "QueryParamsEncoder is now a passthrough: decode wraps the raw query under one key and encode emits it unchanged, so repeated keys, order, allowReserved characters and an encoded plus all reach the wire. Params passed separately still get Faraday encoding with + turned into %20.",
+     "batch": 1,
+     "test": "test/default_api_client_unit_test.mustache: 'sends a repeated query key once per value', 'keeps the order of the query parameters', 'keeps allowReserved characters literal', 'keeps an encoded plus and an encoded space distinct', 'installs the passthrough query encoder on the connection it builds'",
+     "files": [
+      "src/main/resources/templates/ruby/default_api_client.mustache",
+      "src/main/resources/templates/ruby/infrastructure_rbs.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Container-typed primitive responses (getInventory map<string,int32>, getMatrix array<array<int32>>) bypass the strict primitive checks in 6 SDKs",
@@ -335,8 +396,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F007",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for node, swift",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Root cause: object_serializer.mustache now disables ACCEPT_FLOAT_AS_INT and sets coercion Fail for Float->Integer and Integer/Float/Boolean->Textual. 1.9, 1.0 and 1e2 into a Long field and 5/1.5/true into a String field now throw. The nodes/swift parts of F007 are out of scope.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializationErrorWrappingTests: fractionalNumberForLongFieldThrows, integralFloatForLongFieldThrows, exponentLiteralForLongFieldThrows, integerForStringFieldThrows, floatForStringFieldThrows, booleanForStringFieldThrows, matchingScalarTypesStillDecode",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache",
+      "src/main/resources/templates/java/test/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python format:byte MODEL fields (pydantic Base64Bytes) reject/corrupt raw bytes on construction and decode malformed base64 leniently",
@@ -525,8 +599,21 @@
    "suspected_forced_reason": "None. Build the HttpContent once into a buffered byte[] (multipart via ReadAsByteArrayAsync, Stream via CopyTo) and re-create it with its Content-Type on each hop.",
    "lens": "L04-transport",
    "id": "F011",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "Multipart (Dictionary) and Stream bodies are buffered to bytes before the first send when redirects are followed, and every 307/308 hop replays them with the original Content-Type (multipart boundary kept). byte[] replay now reapplies the declared Content-Type. The Stream-throws branch is removed.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.mustache: Redirect307ReplaysMultipartBodyWithItsBoundary, Redirect308ReplaysStreamBodyWithItsContentType, Redirect307ReplaysByteArrayBodyWithItsContentType",
+     "files": [
+      "src/main/resources/templates/csharp/default_api_client.mustache",
+      "src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift (Apple) routes only same-scheme traffic through the proxy; https targets bypass an http:// proxy",
@@ -656,8 +743,22 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F015",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "BasicAuthenticator (username and password), OAuth2ImplicitAuthenticator.setAccessToken and AbstractApiClient (URL, header name, header value) now throw message-only ArgumentError. toString and invalidValue no longer carry the credential. The header-name leak was not named in the finding but was changed alongside the others.",
+     "batch": 1,
+     "test": "basic_authenticator_test.mustache: 'a rejected password never appears in the ArgumentError' and 'a rejected username never appears in the ArgumentError'; oauth2_implicit_authenticator_test.mustache: 'a rejected access token never appears in the ArgumentError'; default_api_client_unit_test.mustache: 'the header-value ArgumentError never carries the secret value' and 'the URL ArgumentErrors never carry the URL or its query token'",
+     "files": [
+      "src/main/resources/templates/dart/auth/basic_authenticator.mustache",
+      "src/main/resources/templates/dart/auth/oauth/oauth2_implicit_authenticator.mustache",
+      "src/main/resources/templates/dart/abstract_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "OIDC rediscovery after Cache-Control max-age discards the exchanged delegate — every call after expiry throws 'Must call exchangeCode()'",
@@ -1014,8 +1115,21 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F022",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "TransportOptionsBuilder::build now checks the CA file itself. It needs at least one PEM CERTIFICATE block with valid base64 wrapping a DER SEQUENCE of exactly the stated length. A text file or a corrupt block now returns InvalidCaCertificate. The remaining gap is a block that is DER-shaped but not an X.509 certificate, since webpki alone can reject that inside ClientBuilder::build, where '.expect' still panics. Closing it needs build_http_client to return a Result.",
+     "batch": 1,
+     "test": "transport_options_test: test_transport_options_ca_cert_file_without_certificate_is_rejected, test_transport_options_ca_cert_block_with_invalid_base64_is_rejected, test_transport_options_ca_cert_block_with_invalid_der_is_rejected, test_transport_options_ca_cert_block_without_end_line_is_rejected",
+     "files": [
+      "src/main/resources/templates/rust/transport_options.mustache",
+      "src/main/resources/templates/rust/test/transport_options_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift on Apple platforms rejects a PEM caCertPath because SecCertificateCreateWithData only accepts DER",
@@ -1080,8 +1194,18 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F024",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "needs-spec",
+     "note": "Real defect: model.mustache:411 emits Enum<nameLowercase,...> and the serializer decodes and encodes against those names, not the wire values. A fix needs the codegen to supply an escaped raw wire value per enumVar (the template's value is a quoted Elixir literal), plus a name-to-value descriptor parsed in convert_to_type and sanitize_field_value. That is too big for this batch, and the model emission cannot be locked without a spec change: the petstore spec needs an inline property enum whose values are not lowercase single words, for example Order.shipmentStatus (type: string, enum: [In-Stock, OUT_OF_STOCK, on-hold]), round-tripped through the elixir model and serializer tests.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java maps OAS readOnly/writeOnly to the INVERTED Jackson access mode; the other 11 ignore both keywords",
@@ -1126,8 +1250,18 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F025",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "needs-spec",
+     "note": "The petstore has no readOnly/writeOnly property, so no test can lock the fix. The Jackson access modes in java/models/model.mustache:692-697 are inverted relative to client semantics (readOnly should be Access.WRITE_ONLY, writeOnly should be Access.READ_ONLY). The canonical cross-SDK behaviour (omit readOnly on encode, ignore writeOnly on decode, in all 12) is still undecided. Spec needed: Account{id:int64 readOnly, username:string, password:string writeOnly} plus a createAccount operation, as in the F055 YAML.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java/kotlin default optional arrays and maps to empty containers, so they send `\"tags\":[]` and `\"location\":[]`, and an absent key decodes to [] instead of null",
@@ -1162,8 +1296,21 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F026",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for kotlin",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "models/model.mustache no longer emits the `= new ArrayList<>()/HashMap/LinkedHashSet` initializer on an optional (non-required) container field; required containers keep it. A new Pet no longer serializes tags/location, and an absent array decodes to null. The kotlin part is outside this scope.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.SerializeTests: unsetOptionalArraysAreNotSent, optionalContainersStartNull; DeserializeTests: absentOptionalArrayDecodesToNull, explicitEmptyOptionalArrayDecodesToEmptyList",
+     "files": [
+      "src/main/resources/templates/java/models/model.mustache",
+      "src/main/resources/templates/java/test/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python `pattern` constraint is emitted with `/.../` delimiters, so any property with a pattern rejects every value",
@@ -1188,8 +1335,18 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F027",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "needs-spec",
+     "note": "Confirmed real. The model template emits pattern=r'{{{pattern}}}' (model.mustache:373, plus the re.match validator at :490), and CodegenProperty.pattern carries the /.../ delimiters. The petstore spec has no pattern property, so no generated test can lock a fix. Spec needed: add to Pet in src/spec/resources/specs/petstore/openapi.yaml a property 'microchipId: {type: string, pattern: \"^[a-z]{2}[0-9]{4}$\"}' and test that Pet accepts 'ab1234' and rejects 'ABC'. Fix: strip the delimiters and un-escape in BetterPythonCodegen.postProcessModelProperty (or a template helper), and do the same for the re.match validator.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "go, swift and dart oneOf union wrappers have no public constructor; callers can only build a oneOf request body by decoding JSON text",
@@ -1300,8 +1457,20 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F029",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for kotlin",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F026 (java part: optional container initializers leak onto the wire).",
+     "batch": 1,
+     "test": "ObjectSerializerTest.SerializeTests.unsetOptionalArraysAreNotSent",
+     "files": [
+      "src/main/resources/templates/java/models/model.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin: required container properties default to an empty collection, so a payload missing a required array (Pet.photoUrls) is accepted and the constructor does not require it",
@@ -1337,8 +1506,20 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F030",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Real. model.mustache now omits the default for a required var that isContainer, so kotlinx rejects a payload missing photoUrls. Required scalar defaults are kept. Pet.kt and PetWithOwner.kt no longer have '= mutableSetOf()'. I also updated an ObjectSerializerTest Pet() call that relied on the old default.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.kt: 'missing required array property throws instead of defaulting to empty'; ComposedSchemaTest.kt: 'missing required photoUrls array is rejected, not defaulted to empty'",
+     "files": [
+      "src/main/resources/templates/kotlin/models/model.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node: nested model properties skip required-field and primitive-type validation, so only the top-level model is validated",
@@ -1374,8 +1555,20 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F031",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "ObjectSerializer.deserialize now calls revalidateNestedFields on the built root. It walks model fields, arrays, Sets and plain maps and re-runs each nested generated model through its own constructor with the populated instance, then stores the coerced result back. oneOf/anyOf wrappers are skipped. TreeNode {child:{}} and {child:{value:5}} now throw SerializationError, at any depth.",
+     "batch": 1,
+     "test": "test/object-serializer.test.ts 'NestedModelValidation' > 'rejects a nested model that is missing its required field', 'rejects a nested model field of the wrong primitive type', 'rejects an invalid model several levels down' and 'still decodes a valid nested tree into model instances'",
+     "files": [
+      "src/main/resources/templates/node/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node: the discriminated oneOf path never runs the selected variant's constructor, so a variant missing a required field or carrying a wrong-typed field is accepted",
@@ -1411,8 +1604,20 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F032",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "The discriminated oneOf branch now builds the selected variant through its own constructor and runs the nested walk before wrapping it in the composite. {foodType:'dry'} and {foodType:'dry',weightKg:'heavy'} now throw 'weightKg is required' and 'weightKg must be a number, got string'.",
+     "batch": 1,
+     "test": "test/composed-schema.test.ts 'Composed Schema' > 'oneOf: a discriminated variant missing its required field is rejected' and 'oneOf: a discriminated variant with a wrong-typed field is rejected'",
+     "files": [
+      "src/main/resources/templates/node/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "getPetPhoto (content negotiation, Case 9) returns 7 different things when the server picks application/json",
@@ -1544,8 +1749,30 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F034",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Go side only. serializeBody now treats a typed-nil pointer, map or slice body as no body, so PlaceOrder(nil) sends no entity and no Content-Type instead of a JSON null. The rust side is untouched.",
+     "batch": 1,
+     "test": "go/test/base_api_test.mustache TestNullBody_PlaceOrderWithoutOrderSendsNoBodyAndNoContentType and TestNullBody_PlaceOrderWithOrderStillSendsJSONBody",
+     "files": [
+      "src/main/resources/templates/go/base_api.mustache"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "The optional body branch in api.mustache tested 'nullable', which is always false inside the bodyParam section. The optional-body branch never rendered, so None was serialized as JSON null. It now tests 'required' and sends no body and no Content-Type when the body is None.",
+     "batch": 1,
+     "test": "store_api_test: test_store_api_place_order_omitted_body_sends_no_body_and_no_content_type (plus test_store_api_place_order_supplied_body_sends_json_with_content_type)",
+     "files": [
+      "src/main/resources/templates/rust/api/api.mustache",
+      "src/main/resources/templates/rust/test/api/store_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "setPetAvatar application/json variant (Case 10) cannot be expressed, and selecting it puts 6+ different bodies on the wire",
@@ -1814,8 +2041,21 @@
    "unit_testable": true,
    "lens": "L13a-tests-transport",
    "id": "F038",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in php; still open for swift",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "ObjectSerializer::serialize now uses JSON_UNESCAPED_SLASHES, JSON_UNESCAPED_UNICODE and JSON_UNESCAPED_LINE_TERMINATORS (object_serializer.mustache, serialize()). The swift half is not mine.",
+     "batch": 1,
+     "test": "tests/ObjectSerializerTest.php: 'non ascii text is written literally not as unicode escapes', 'slash is not escaped in a serialized string', 'slash and non ascii text in a model body are written literally', 'line separator characters are written literally'. The two existing non-ASCII tests now also assert the literal text.",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache",
+      "src/main/resources/templates/php/tests/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "API 404/500 tests accept any error in 6 SDKs instead of the exact status error type",
@@ -2229,8 +2469,18 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F046",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "needs-spec",
+     "note": "Confirmed real. BetterPythonCodegen.postProcessModelProperty:846 maps format: password to SecretStr, which model_dump_json writes as '**********'. petstore has no password-format schema property. Spec needed: add 'password: {type: string, format: password}' to a request-body schema (for example PetWithOwner) and test that serialize() emits the real value. Fix: drop the 'password' case (keep StrictStr). The ipv4/ipv6/email strictness is a separate decision.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Enum string literal quoting differs by language: apostrophes are silently stripped in 4 SDKs and '$' / '#{' are interpolated in 3",
@@ -2516,8 +2766,20 @@
    "unit_testable": true,
    "lens": "L18a-wire-request",
    "id": "F051",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Same encoder root cause as F001, query and form. Fixed by the same change.",
+     "batch": 1,
+     "test": "BaseApiTest.kt: both reserved-character encoding tests",
+     "files": [
+      "src/main/resources/templates/kotlin/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node skips ALL validation for nested models and model-array elements (required, type, enum, Set/Decimal coercion)",
@@ -2557,8 +2819,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F052",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "too-big",
+     "note": "The nested-validation walk (see F031) now fixes the nested cases: {category:{id:'42'}}, tags:[{id:'7'}], PetPassport.pet:{} required check, unknown nested enum, nested Set coercion, and Decimal coerced to a string. Still accepted, verified with a probe: a raw primitive or array in a model-typed field (category:'oops', [1,2], tags:'abc', TreeNode child:'oops') and photoUrls:[1,2] element types. Closing those needs a per-field model-type registry emitted by models/model.mustache for @Type fields and primitive-array item types (an estimated 30-50 template lines plus every model golden), because class-transformer @Type metadata is not exposed through its public API. Do not close F052 on this commit alone.",
+     "batch": 1,
+     "test": "test/object-serializer.test.ts 'NestedModelValidation' > 'rejects a wrong-typed field on a nested single model', 'rejects a wrong-typed field on a model inside an array', 'applies required-field checks to a nested Pet', 'applies the unknown-enum check to a nested Pet', 'collapses a nested uniqueItems array into a Set and keeps Decimal as a string'",
+     "files": [
+      "src/main/resources/templates/node/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "php container leaves re-json_decode already-decoded values: enum maps fail, and int/string leaves are coerced (\"abc\"->0, 7.5->7, \"true\"->\"1\")",
@@ -2598,8 +2872,21 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F053",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "deserializeInternal has a new $decoded flag that container recursion sets to true. An already-decoded leaf is no longer passed through json_decode again, which fixed enum leaves (Ds\\Vector<Ds\\Map<Swatch>>) and string and byte leaves.",
+     "batch": 1,
+     "test": "tests/ObjectSerializerTest.php: 'enum leaves inside nested containers deserialize from valid values', 'an unknown enum value inside a container is rejected', 'string leaves keep their text and are not parsed as json again', 'base64 string leaves in a container decode to bytes'",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache",
+      "src/main/resources/templates/php/tests/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Content-encoded query parameters (`content:` instead of `schema:`) use 12 different JSON encoders, most of them not the SDK serializer; header/path/cookie `content` is ignored. Not exercised",
@@ -2729,8 +3016,18 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F055",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "needs-spec",
+     "note": "Same as F025: needs the Account schema (readOnly id, writeOnly password) and POST /store/account in the petstore spec, plus a cross-SDK decision on canonical behaviour.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Schema validation keywords (pattern/minLength/maxLength/minimum/maximum/multipleOf/minItems/maxItems) are enforced only by python; petstore declares none",
@@ -3032,8 +3329,21 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F060",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "Confirmed: BinaryVault.labels was emitted as json['labels'] = labels, so jsonEncode wrote int arrays. Cause: the map block sat under isPrimitiveType's negation and a byte map is primitive. Moved the isMap handling ahead of the primitive check, for required and optional vars. It reads items.isByteArray etc. by dotted path, because a items section resolved name to the item's name. This also fixes maps of date-time, uuid and duration.",
+     "batch": 1,
+     "test": "object_serializer_test.mustache: 'serialize writes format:byte map values as base64 strings' and 'format:byte map values round-trip through the wire form'",
+     "files": [
+      "src/main/resources/templates/dart/models/model.mustache",
+      "src/spec/resources/generated/dart/lib/src/models/binary_vault.dart"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust OpenIdConnectAuthenticator fails concurrent requests and loses its delegate (exchanged tokens) when a call is cancelled",
@@ -3714,8 +4024,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F074",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in go; still open for rust",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Go side only. The operation template now returns nil Data when a JSON-typed response body is exactly null (new isJSONNull helper handles whitespace and BOM). The convenience method then raises the uniform 'expected a response body for <op> but received none' ApiError instead of fabricating a default model or failing the required-field check. deserialize() itself still returns no error for null; the existing TestDeserialize_LiteralNullBodyIsNoError is kept.",
+     "batch": 1,
+     "test": "go/test/base_api_test.mustache TestNullResponseBody_ConvenienceReturnsEmptyBodyError (GetOrderById and GetPetById) and TestNullResponseBody_WithHTTPInfoReportsNilData; go/test/object_serializer_test.mustache TestIsJSONNull",
+     "files": [
+      "src/main/resources/templates/go/api/api.mustache",
+      "src/main/resources/templates/go/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Bare type:number precision: python and node decode through IEEE doubles (AGENTS claims they preserve full precision); java emits exponent notation; node accepts any string",
@@ -3888,8 +4211,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F078",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in php; still open for swift",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "php half only. A new JSON_DECODE_DEPTH constant (MAX_JSON_DEPTH + 1) is passed to every json_decode, so 1000 nested arrays are accepted and 1001 rejected. The swift half is the Foundation 512-level limit, outside this scope. The raw primitive path now also uses JSON_THROW_ON_ERROR. Container paths still use plain json_decode and reject over-deep input with 'Invalid array' or 'Invalid container'.",
+     "batch": 1,
+     "test": "tests/ObjectSerializerTest.php: 'nesting exactly at the depth cap decodes and one level past it is rejected'",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache",
+      "src/main/resources/templates/php/tests/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Undeclared key spellings populate declared fields: go matches keys case-insensitively, python accepts the snake_case attribute name",
@@ -3915,8 +4251,18 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F079",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in python; still open for go",
+   "outcomes": {
+    "python": {
+     "outcome": "duplicate",
+     "note": "The python part is the same root cause as F211 (populate_by_name on wire decode), fixed there. The go part belongs to another agent.",
+     "batch": 1,
+     "test": "test_object_serializer.py TestWireDecodeIgnoresAttributeNames (see F211)",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "date-time decode resolves non-RFC3339 input against the host clock/timezone (csharp, ruby, node, dart, php) — host-dependent instants",
@@ -4095,8 +4441,23 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F082",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "New models/json_marshal.mustache (published as pkg/models/json_marshal.go, registered in BetterGoCodegen) provides marshalJSON, an Encoder with SetEscapeHTML(false) that trims the trailing newline. Every model MarshalJSON (alias, additionalProperties, unevaluatedProperties, oneOf, anyOf merge) and Set.MarshalJSON now use it, so <, > and & go on the wire literally.",
+     "batch": 1,
+     "test": "go/test/object_serializer_test.mustache TestSerialize_ModelFieldsAreNotHTMLEscaped, TestSerialize_NestedModelStringsAreNotHTMLEscaped, TestSerialize_AdditionalPropertiesAreNotHTMLEscaped, TestSerialize_AnyOfMergedVariantsAreNotHTMLEscaped, TestSerialize_SetItemsAreNotHTMLEscaped",
+     "files": [
+      "src/main/resources/templates/go/models/json_marshal.mustache",
+      "src/main/resources/templates/go/models/model.mustache",
+      "src/main/resources/templates/go/models/set.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/go/BetterGoCodegen.java"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python model bodies emit NaN/Infinity (and Decimal overflow) as null instead of rejecting",
@@ -4126,8 +4487,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F083",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "LaxFloat now carries Field(allow_inf_nan=False), so NaN and Infinity are rejected on construction, assignment and decode (1e999 becomes inf). JsonNumber now serializes through _decimal_to_json_number, which raises for a Decimal beyond the double range instead of writing null.",
+     "batch": 1,
+     "test": "test_object_serializer.py TestNanInfinityRejection: test_model_double_field_rejects_a_non_finite_value, test_model_double_field_rejects_a_non_finite_value_on_assignment, test_deserialize_double_field_overflowing_to_infinity_raises, test_serialize_decimal_number_beyond_double_range_raises",
+     "files": [
+      "src/main/resources/templates/python/_types.mustache",
+      "src/main/resources/templates/python/test/test_object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Binary body sent with a selected application/json Content-Type (setPetAvatar) gives {}, raw bytes or a base64 string depending on language",
@@ -4478,8 +4852,30 @@
    "suspected_forced_reason": "None. Gate on redirectsRemaining == 0 / hops >= max like the others.",
    "lens": "L04-transport",
    "id": "F088",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby part only. The redirect-exhaustion raise is now gated on hops >= max_redirects, so a 3xx with no or empty Location is returned as the terminal response with its body.",
+     "batch": 1,
+     "test": "test/default_api_client_unit_test.mustache: 'returns a 3xx without a Location header as the terminal response' and '... with an empty Location header ...'",
+     "files": [
+      "src/main/resources/templates/ruby/default_api_client.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java part: the post-loop 'Too many redirects' check is now gated on redirectsRemaining <= 0. A 3xx with no Location is returned as-is with its body. The ruby part is outside this scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest: redirectWithoutLocationReturnsTheRedirectResponse, redirectLoopExhaustsTheBudgetAndThrows",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "A malformed Location header produces a different error type in nearly every SDK",
@@ -4709,8 +5105,20 @@
    "suspected_forced_reason": "None. Gate on a non-empty body (go: req.GetBody != nil && ContentLength > 0; ruby/swift/elixir: treat an empty body as no body) and on status 307/308 (ruby).",
    "lens": "L04-transport",
    "id": "F093",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in go; still open for elixir, ruby, swift",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Go side only. CheckRedirect's 307/308 https-to-http guard now also requires a real body (req.Body non-nil and not http.NoBody), so a bodyless GET and a nil-body POST follow the redirect while a body-carrying POST is still refused. ruby, swift and elixir are not touched.",
+     "batch": 1,
+     "test": "go/test/default_api_client_test.mustache TestDefaultApiClient_RedirectDowngradeIgnoresRequestsWithoutBody (GET and POST, 307 and 308); the existing TestDefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus still locks the refusal with a body",
+     "files": [
+      "src/main/resources/templates/go/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Timeout scope differs: go/node/swift apply one deadline to the whole redirect chain; the others reset it per hop",
@@ -4788,8 +5196,20 @@
    "suspected_forced_reason": "None. Use len(via) > maxRedirects.",
    "lens": "L04-transport",
    "id": "F095",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "CheckRedirect compared len(via) >= maxRedirects, which followed only N-1 redirects. Now len(via) > maxRedirects, so exactly N hops are followed and N+1 is refused.",
+     "batch": 1,
+     "test": "go/test/default_api_client_test.mustache TestDefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects (max 1 and 5, hops equal to max succeed, max+1 fails)",
+     "files": [
+      "src/main/resources/templates/go/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java (4x) and python (16x) cap zstd output when the frame has no content size; java then mislabels every zstd failure as 'library is unavailable'",
@@ -4829,8 +5249,32 @@
    "suspected_forced_reason": "None. java: use ZstdInputStream (as kotlin does) and unwrap InvocationTargetException. python: use ZstdDecompressor().stream_reader / decompressobj().",
    "lens": "L04-transport",
    "id": "F096",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Java part: zstd is now decoded through ZstdInputStream via the shared decodeViaInputStream, with no data.length*4 cap. InvocationTargetException is unwrapped, so a corrupt stream is no longer reported as 'library is unavailable'. The python part is outside this scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest: zstdFrameWithoutContentSizeDecodesBeyondFourToOne, corruptZstdBodyIsNotReportedAsAnUnavailableLibrary",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    },
+    "python": {
+     "outcome": "fixed",
+     "note": "Python part only. zstd now stream-decodes with decompressobj() instead of max_output_size=len(data)*16, and raises 'Truncated zstd frame' when eof is false. pyproject zstandard floor raised to 0.23.0 (3.13 wheels and the eof attribute). The java part belongs to another agent.",
+     "batch": 1,
+     "test": "test_default_api_client_unit.py TestZstdDecompression: test_frame_without_content_size_beyond_sixteen_to_one_decodes, test_frame_with_content_size_decodes, test_truncated_frame_raises",
+     "files": [
+      "src/main/resources/templates/python/default_api_client.mustache",
+      "src/main/resources/templates/python/pyproject_toml.mustache",
+      "src/main/resources/templates/python/test/test_default_api_client_unit.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java/kotlin return a still-encoded br/zstd body when the optional codec library is absent, contradicting the 'unsupported Content-Encoding raises' contract",
@@ -4870,8 +5314,30 @@
    "suspected_forced_reason": "None. Throw IOException('Received a br-encoded response but the br library is unavailable') like php/ruby/elixir.",
    "lens": "L04-transport",
    "id": "F097",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin part only. decodeViaInputStream is now internal, takes the encoding name, and throws IOException 'Received a br-encoded response but the br library is unavailable' (same for zstd) instead of returning the raw bytes. The doc comment was updated.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.kt: 'br and zstd without their codec library raise instead of returning the encoded body'",
+     "files": [
+      "src/main/resources/templates/kotlin/default_api_client.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "decompressBrotli/decompressZstd no longer `return data` on ClassNotFoundException; they throw IOException('Received a <enc>-encoded response but the <enc> library is unavailable'). The kotlin part is outside this scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest: absentBrotliLibraryRaisesInsteadOfReturningEncodedBytes, absentZstdLibraryRaisesInsteadOfReturningEncodedBytes",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift returns an EMPTY body when the bytes are not valid in the declared charset and not valid UTF-8",
@@ -4901,8 +5367,21 @@
    "suspected_forced_reason": "None. Fall back to String(decoding: data, as: UTF8.self), which substitutes U+FFFD.",
    "lens": "L04-transport",
    "id": "F098",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "responseBody now falls back to String(decoding:as:UTF8.self) so invalid bytes become U+FFFD instead of an empty body.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTests.testInvalidUtf8BodyDecodesLeniently and testBytesInvalidInDeclaredCharsetFallBackLeniently",
+     "files": [
+      "src/main/resources/templates/swift/default_api_client.mustache",
+      "src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "An ApiError for a response that arrived but could not be decoded has null headers in 6 SDKs and the real headers in 6, contradicting the documented null-headers signal",
@@ -5120,8 +5599,20 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F101",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in dart; still open for go, node",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "Dart part. getTypedErrorBody now routes through deserialize(). It returns null for an absent, empty or 'null' body. It throws SerializationException for malformed JSON, a JSON array body, or a field type mismatch. It previously swallowed every failure.",
+     "batch": 1,
+     "test": "api_error_test.mustache: 'getTypedErrorBody returns null for an empty response body', '... for a bare JSON null body', '... throws SerializationException for malformed JSON', '... for a JSON array body', '... for a type mismatch'",
+     "files": [
+      "src/main/resources/templates/dart/errors/api_exception.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby ApiError#message prints an empty headers hash and an empty body, which the other 11 omit",
@@ -5160,8 +5651,20 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F102",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "ApiError#message now omits the headers and body sections when nil or empty, and the old code printed 'Response headers: {}' and an empty body line.",
+     "batch": 1,
+     "test": "test/api_error_test.mustache: 'omits the headers and body sections when they are empty' and 'omits the headers and body sections when they are nil'",
+     "files": [
+      "src/main/resources/templates/ruby/errors/api_error.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust error-body parsing and typed_error_body bypass ObjectSerializer: serde's ~128 depth limit instead of the shared 1000 cap, and no BOM strip",
@@ -5199,8 +5702,21 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F103",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "parse_error_body and deserialize_error_body in errors/api_error.mustache now call crate::object_serializer::deserialize. Error bodies get the 1000-deep cap and BOM stripping, and a failure reads 'failed to deserialize JSON: ...' like the success path.",
+     "batch": 1,
+     "test": "api_error_test: test_api_error_body_nested_beyond_serde_default_limit_still_parses, test_api_error_body_nested_beyond_shared_cap_is_rejected, test_api_error_body_with_leading_bom_parses",
+     "files": [
+      "src/main/resources/templates/rust/errors/api_error.mustache",
+      "src/main/resources/templates/rust/test/api_error_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust is the only SDK with no public parsed error body (error_body is pub(crate))",
@@ -5234,8 +5750,21 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F104",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "Added pub fn error_body(&self) -> Option<JsonValue> on ApiError and ApiErrorFields. The field stays pub(crate), so serde_json is not exposed.",
+     "batch": 1,
+     "test": "api_error_test: test_api_error_exposes_parsed_error_body, test_api_error_error_body_is_none_without_json",
+     "files": [
+      "src/main/resources/templates/rust/errors/api_error.mustache",
+      "src/main/resources/templates/rust/test/api_error_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift ApiError.fromResponse drops a scalar JSON error body (JSONSerialization without .fragmentsAllowed)",
@@ -5264,8 +5793,21 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F105",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "ApiError.fromResponse parses with .fragmentsAllowed, so a scalar body populates errorBody. A bare null stays nil rather than NSNull.",
+     "batch": 1,
+     "test": "ApiErrorTests.testFromResponseParsesScalarJsonBody",
+     "files": [
+      "src/main/resources/templates/swift/errors/api_error.mustache",
+      "src/main/resources/templates/swift/test/ApiErrorTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ApiKey/Basic/Bearer unit-test coverage differs by language, and no SDK tests non-ASCII (UTF-8) Basic credentials",
@@ -5387,8 +5929,27 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F108",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Added GoString() returning the redacted String() to all 8 authenticators (api key, basic, bearer, oauth2 implicit, auth code, password, client credentials, openid connect); the per-scheme wrappers get it through the embedded pointer. %#v now redacts. Not fixed: %v on a dereferenced value still leaks because String has a pointer receiver.",
+     "batch": 1,
+     "test": "The %#v verb was added to the redaction format list in go/test/{api_key,basic,bearer}_authenticator_test, oauth2_{implicit,auth_code,password,client_credentials}_authenticator_test, openid_connect_authenticator_test and client_test (Bearer and ApiKey RedactsToken/RedactsKey)",
+     "files": [
+      "src/main/resources/templates/go/auth/api_key_authenticator.mustache",
+      "src/main/resources/templates/go/auth/basic_authenticator.mustache",
+      "src/main/resources/templates/go/auth/bearer_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/oauth2_implicit_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/oauth2_password_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/oauth2_client_credentials_authenticator.mustache",
+      "src/main/resources/templates/go/auth/oauth/openid_connect_authenticator.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java checks API-key and Bearer input in a different order, so a newline-only or control-only value gets a different error message than in the other 11",
@@ -5421,8 +5982,23 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F109",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "ApiKeyAuthenticator and BearerAuthenticator now run isBlank() before the character scan, so '\\n', '\\r\\n' and VT report 'must not be empty'. NUL alone still reports the control-character message.",
+     "batch": 1,
+     "test": "ApiKeyAuthenticatorTest: newlineOnlyKeyReportsEmptyNotControlCharacters, nulOnlyKeyReportsControlCharacters; BearerAuthenticatorTest: newlineOnlyTokenReportsEmptyNotPrintableAscii, controlCharacterInTokenReportsPrintableAscii",
+     "files": [
+      "src/main/resources/templates/java/auth/api_key_authenticator.mustache",
+      "src/main/resources/templates/java/auth/bearer_authenticator.mustache",
+      "src/main/resources/templates/java/test/ApiKeyAuthenticatorTest.mustache",
+      "src/main/resources/templates/java/test/BearerAuthenticatorTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "php authenticator constructors do not mark secret parameters #[\\SensitiveParameter], so secrets appear in exception stack traces (the docblock claims they do not)",
@@ -5460,8 +6036,28 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F110",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "#[\\SensitiveParameter] is on Bearer $token, Basic $password, ApiKey $apiKey, the four OAuth authenticators' $clientSecret, and OAuth2 password's $password. The generated scheme wrappers with their own constructor are flagged through a new SENSITIVE_PARAMS set in BetterPHPCodegen. A trace-based test (BearerAuthenticatorTest) checks that the secret is absent from getTraceAsString() with zend.exception_ignore_args=0.",
+     "batch": 1,
+     "test": "tests/BearerAuthenticatorTest.php: 'rejected token is not recorded in the exception stack trace' and 'secret constructor parameters are marked sensitive'. The same reflection test is in BasicAuthenticatorTest, ApiKeyAuthenticatorTest, OAuth2ClientCredentialsAuthenticatorTest, OAuth2PasswordAuthenticatorTest, OAuth2AuthCodeAuthenticatorTest and OpenIdConnectAuthenticatorTest.",
+     "files": [
+      "src/main/resources/templates/php/auth/bearer_authenticator.mustache",
+      "src/main/resources/templates/php/auth/basic_authenticator.mustache",
+      "src/main/resources/templates/php/auth/api_key_authenticator.mustache",
+      "src/main/resources/templates/php/auth/scheme_authenticator.mustache",
+      "src/main/resources/templates/php/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/php/auth/oauth/oauth2_client_credentials_authenticator.mustache",
+      "src/main/resources/templates/php/auth/oauth/oauth2_password_authenticator.mustache",
+      "src/main/resources/templates/php/auth/oauth/openid_connect_authenticator.mustache",
+      "src/main/java/io/github/mridang/codegen/generators/php/BetterPHPCodegen.java"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift authenticators leak secrets through dump()/Mirror because they redact description but have no customMirror",
@@ -5489,8 +6085,28 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F111",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "BaseAuthenticator now conforms to CustomReflectable with an empty mirror. One change covers ApiKey, Basic, Bearer, all four OAuth2 authenticators and OpenIdConnect, so dump() and Mirror show no secrets.",
+     "batch": 1,
+     "test": "dumpDoesNotLeakSecret in each of the 8 authenticator test files, next to redactsSecret",
+     "files": [
+      "src/main/resources/templates/swift/auth/base_authenticator.mustache",
+      "src/main/resources/templates/swift/test/BearerAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/BasicAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/ApiKeyAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/OAuth2ClientCredentialsAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/OAuth2AuthCodeAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/OAuth2PasswordAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/OAuth2ImplicitAuthenticatorTests.mustache",
+      "src/main/resources/templates/swift/test/OpenIdConnectAuthenticatorTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Implicit flow: empty access token accepted (sends 'Authorization: Bearer ') in 7 SDKs, rejected as unset in 5",
@@ -5612,8 +6228,20 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F114",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in go; still open for kotlin",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Go side only (kotlin untouched). parseOAuth2ServerError now parses into map[string]any and type-checks error (non-empty string), error_description and error_uri independently, so a non-string description or uri no longer discards a valid code. A numeric or empty error, or a non-object body, still falls back to the raw body.",
+     "batch": 1,
+     "test": "go/test/oauth2_token_manager_test.mustache TestOAuth2TokenManager_TokenEndpointErrorFieldTypesAreCheckedIndependently (numeric/object description, array/boolean uri, numeric/empty error, array body)",
+     "files": [
+      "src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Token-response and OIDC-discovery error messages are not harmonized (rust lowercase, kotlin/php/swift/elixir/go variants; python/ruby accept non-string endpoints)",
@@ -5746,8 +6374,23 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F116",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in rust; still open for csharp, dart, go, java, kotlin, ruby, swift",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "Rust side only. expires_in and Cache-Control max-age are clamped to 31,536,000 s (one year) before the Instant arithmetic, which used to panic for huge values.",
+     "batch": 1,
+     "test": "oauth2_token_manager_test: test_expires_in_huge_number_is_clamped_not_a_panic and test_expires_in_huge_string_is_clamped_not_a_panic; openid_connect_authenticator_test: test_discovery_huge_max_age_is_clamped_not_a_panic",
+     "files": [
+      "src/main/resources/templates/rust/auth/oauth/oauth2_token_manager.mustache",
+      "src/main/resources/templates/rust/auth/oauth/openid_connect_authenticator.mustache",
+      "src/main/resources/templates/rust/test/oauth2_token_manager_test.mustache",
+      "src/main/resources/templates/rust/test/openid_connect_authenticator_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "csharp normalizes redirect_uri through System.Uri.ToString() (trailing slash, default port, host case, unescaping) — bytes differ from the configured value",
@@ -5776,8 +6419,21 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F117",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "Both redirect_uri sites (authorize URL and code-exchange body) now use Uri.OriginalString instead of ToString(), so no trailing slash, default-port drop or host lowercasing.",
+     "batch": 1,
+     "test": "OAuth2AuthCodeAuthenticatorTest.mustache: AuthorizationUrlSendsRedirectUriVerbatim and CodeExchangeSendsRedirectUriVerbatim (host-only URI, and :443 with mixed-case host)",
+     "files": [
+      "src/main/resources/templates/csharp/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/csharp/test/OAuth2AuthCodeAuthenticatorTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "elixir auth-code/OIDC: exchange_code returns a new struct the Client never sees, so API calls keep raising 'Must call exchange_code'",
@@ -5811,8 +6467,22 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F118",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "The token_exchanged flag now lives in the shared OAuth2TokenManager agent (mark_exchanged/1 and exchanged?/1), so any copy of the auth-code authenticator is ready after exchange_code. OIDC set_api_client also stores the ApiClient in the shared discovery_cache agent, and resolve_delegate adopts it when a copy has api_client nil. Dialyzer needed a no_return spec on the new raise helper.",
+     "batch": 1,
+     "test": "test/oauth2_auth_code_authenticator_test.mustache: 'exchange_code readies the authenticator without using its return value'; test/openid_connect_authenticator_test.mustache: \"exchange_code on the caller's copy readies the client's copy\"",
+     "files": [
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_token_manager.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/openid_connect_authenticator.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "exchangeCode() is silently ignored when a token is cached or a refresh token exists (goes through the caching getAccessToken)",
@@ -5886,8 +6556,21 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F120",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "OAuth2AuthorizationCodeAuthenticator.getAuthHeaders now puts '' when getRefreshToken() is null. The OP's 400 surfaces as a typed OAuth2ServerException instead of a NullPointerException from URLEncoder.",
+     "batch": 1,
+     "test": "OAuth2AuthCodeAuthenticatorTest.expiredTokenWithoutRefreshTokenSurfacesTheServerError",
+     "files": [
+      "src/main/resources/templates/java/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/java/test/OAuth2AuthCodeAuthenticatorTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "A zero or negative timeout means something different in each SDK; only rust validates it",
@@ -6111,8 +6794,21 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F125",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "Added export 'src/trace_context_util.dart' to the barrel. The trace test now imports the public library, so it will not compile without the export.",
+     "batch": 1,
+     "test": "trace_context_util_test.mustache: all tests; they use TraceContextUtil via package:petstore_client/petstore_client.dart",
+     "files": [
+      "src/main/resources/templates/dart/barrel.mustache",
+      "src/main/resources/templates/dart/test/trace_context_util_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java, kotlin and swift trust only the first certificate in a caCertPath bundle",
@@ -6152,8 +6848,30 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F126",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java, kotlin; still open for swift",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin part only. loadCaCertTrustManager (now internal) uses generateCertificates and adds every cert to the trust store as ca-N. An empty file still raises through the existing IllegalArgumentException path.",
+     "batch": 1,
+     "test": "DefaultApiClientTest.kt: 'trusts every certificate in a multi-certificate CA bundle' (server.pem then ca.pem; expects 2 accepted issuers)",
+     "files": [
+      "src/main/resources/templates/kotlin/http_client_factory_jvm.mustache"
+     ]
+    },
+    "java": {
+     "outcome": "fixed",
+     "note": "Java part: new buildPinnedTrustStore uses generateCertificates and adds every certificate (ca-0, ca-1, ...). An empty file still fails fast as IllegalArgumentException. The kotlin and swift parts are outside this scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.caCertBundleTrustsEveryCertificateInTheFile",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift (Apple): an http:// proxy only covers http destinations, so HTTPS API calls bypass it",
@@ -6288,8 +7006,20 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F130",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for node",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F007 (java part: 1.5 truncation and 42-into-String). The node part is outside this scope.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializationErrorWrappingTests.fractionalNumberForLongFieldThrows / integerForStringFieldThrows",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Untracked: a default on a $ref-enum property is honoured only by dart/elixir; petstore leaves it out on purpose",
@@ -6438,8 +7168,20 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F134",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F030 (the model.mustache required+defaultValue line).",
+     "batch": 1,
+     "test": "ObjectSerializerTest.kt: missing required array property throws instead of defaulting to empty",
+     "files": [
+      "src/main/resources/templates/kotlin/models/model.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node's global Decimal-field registry turns string values in free-form objects into JSON numbers when their key matches any model's decimal field name",
@@ -6463,8 +7205,20 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F135",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "The serialize replacer now tracks objects that sit beneath a generated model instance and skips the name-based Decimal fallback for them. Free-form strings under a model keep their JSON string type, and plain-literal request bodies still emit Decimals unquoted. Residual: a free-form value inside a plain-literal body is indistinguishable from a model-shaped literal, so it can still be affected.",
+     "batch": 1,
+     "test": "test/object-serializer.test.ts 'serialize' > 'keeps a numeric-looking string in a free-form field beneath a model a string', 'keeps a numeric-looking string in a free-form map inside a nested model a string' and 'still emits the Decimal unquoted for a plain literal nested in a plain literal body'",
+     "files": [
+      "src/main/resources/templates/node/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "php `format: byte` model fields hold the base64 TEXT, not bytes, and accept malformed base64 on decode, contradicting AGENTS",
@@ -6494,8 +7248,18 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F136",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "too-big",
+     "note": "php byte fields holding the base64 text plus a getXAsBytes/setXFromBytes accessor pair is the documented design (AGENTS.md:306 'a php accessor pair'). Changing the property type is a breaking redesign. Rejecting malformed base64 on decode needs byte-field metadata on every model (a generated static list read by assertPrimitiveTypes) plus a model template change. Design: emit 'public static function byteProperties(): array' on models and make assertPrimitiveTypes base64-validate those wire names. The AGENTS 'native bytes in memory in all 12' claim is false for php model fields and needs a doc edit, which I cannot make here.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python alone enforces minLength/maxLength/pattern/minimum/maximum/multipleOf/minItems/maxItems on models; the other 11 accept any value",
@@ -6743,8 +7507,21 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F141",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "The discriminator converter now throws JsonException ('must be a string, got <kind>') for a number, boolean, object or array discriminator before calling GetString. ObjectSerializer wraps it as SerializationException. JSON null keeps the existing unknown-value path.",
+     "batch": 1,
+     "test": "ComposedSchemaTest.mustache: OneOfNonStringDiscriminatorThrowsSerializationException (rows: number, true, object, array)",
+     "files": [
+      "src/main/resources/templates/csharp/models/model.mustache",
+      "src/main/resources/templates/csharp/test/ComposedSchemaTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "go matches JSON object keys case-insensitively: it accepts mis-cased keys the other 11 ignore, and double-captures them as additionalProperties",
@@ -6823,8 +7600,20 @@
    "unit_testable": true,
    "lens": "L10-models-composed",
    "id": "F143",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in ruby; still open for elixir",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "deserialize_model now raises SerializationError 'Expected a JSON object for <Model>, got <Class>' instead of returning nil, for both top-level and nested wrong-shape values. The elixir half is not mine.",
+     "batch": 1,
+     "test": "test/object_serializer_test.mustache: four 'raises SerializationError for a string/array body ... object model' and 'scalar/array where a nested model is expected' cases",
+     "files": [
+      "src/main/resources/templates/ruby/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "A bare JSON `null` 200 body on a body-returning operation behaves four different ways: silent null (csharp), raw TypeError (dart), silent nil/zero success (go collections/maps), SerializationError (rust/go structs), versus the empty-body ApiException elsewhere",
@@ -6873,8 +7662,30 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F144",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp, dart; still open for go, rust",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp part only. The convenience method now also throws the canonical 'Expected a response body for <op> but received none' ApiException when the decoded Data is null, checked through an object cast so value-type returns still compile. This covers a bare JSON null 200 body. The dart, go and rust parts belong to other agents.",
+     "batch": 1,
+     "test": "Api/PetApiTest.mustache: TestJsonNullBodyForBodyReturningOpThrowsApiException, TestJsonNullBodyForCollectionReturningOpThrowsApiException",
+     "files": [
+      "src/main/resources/templates/csharp/api/api.mustache",
+      "src/main/resources/templates/csharp/test/Api/PetApiTest.mustache"
+     ]
+    },
+    "dart": {
+     "outcome": "fixed",
+     "note": "Dart part. In BaseApi.invokeApiForResult, a bare JSON null body (JSON or empty content type, not a byte return) leaves data null. The convenience method then raises the canonical 'Expected a response body for <op> but received none' ApiException instead of a TypeError from 'null as Pet'. One root fix covers model, list and map returns.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'bare JSON null body throws ApiException from a model operation' (getPetById) and '... from a list operation' (findPetsByStatus)",
+     "files": [
+      "src/main/resources/templates/dart/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "All 12: a server-variable enum type is emitted once per VARIANT, so two variants of the same operation that share a variable name (or a description) generate duplicate types",
@@ -7073,8 +7884,29 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F148",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby part only. Per-operation server variant initializers now raise ArgumentError, with the global-config wording, when an enum variable is outside the declared enum module constants. The elixir half is not mine.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'per-operation server variables' (rejects a value outside the enum, rejects it on a later variable, resolves from enum values)",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "fixed",
+     "note": "Each generated variant url/1 now validates every enum-backed variable against its declared values and raises ArgumentError with the global ServerConfiguration wording ('Invalid value ... for server variable ... Allowed values: [...]'). This is the elixir part only. A nil or unset variable is rejected too.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'per-operation server variant resolves a value inside the variable enum' and 'per-operation server variant rejects a value outside the variable enum'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "A non-JSON success Content-Type on a model-returning operation gives 5 different outcomes",
@@ -7356,8 +8188,21 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F153",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "BaseApi.isTextResponseContentType now returns true for an absent/empty Content-Type, mirroring DefaultApiClient.isTextContentType. A byte[]/InputStream return type reads the text body instead of base64-decoding it.",
+     "batch": 1,
+     "test": "BaseApiTest.BinaryResponseTests.binaryReturnTypeWithoutContentTypeReadsTextBody",
+     "files": [
+      "src/main/resources/templates/java/base_api.mustache",
+      "src/main/resources/templates/java/test/BaseApiTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin void operations throw when the success response carries a non-object body",
@@ -7391,8 +8236,20 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F154",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Real. invokeApiForResult now skips body decoding when T is Unit, so a text/plain or non-object JSON success body no longer throws ClassCastException or SerializationException. The raw body stays available on ApiResult.",
+     "batch": 1,
+     "test": "BaseApiTest.kt: 'void operation ignores a text/plain success body' and 'void operation ignores a non-object JSON success body'",
+     "files": [
+      "src/main/resources/templates/kotlin/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust and go return an empty string for a String-returning operation that gets a text/plain body",
@@ -7433,8 +8290,27 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F155",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in rust; still open for go",
+   "outcomes": {
+    "go": {
+     "outcome": "needs-spec",
+     "note": "Go side only, not attempted. The fix is a string branch in api.mustache for a text/* response on a String return, but petstore has no public operation returning a string, so no generated test can reach the code. Needs a public GET with a 200 response of content: text/plain, schema: {type: string} (for example GET /store/motd operationId getMotd), which gives ApiResult[string]. The test then serves 'hello world' with Content-Type text/plain and asserts the convenience method returns it verbatim.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "The non-JSON, non-binary branch of invoke_api_for_result now returns text media types (text/*, xml, javascript) verbatim and base64-decodes only what the transport encoded. This mirrors default_api_client's is_text_content_type. The test is in-crate because no petstore operation returns a String. The Go half is not mine, and the petstore still needs a public text/plain operation to cover this end to end.",
+     "batch": 1,
+     "test": "base_api.mustache in-crate tests: test_string_result_text_plain_is_returned_verbatim, test_string_result_text_plain_that_looks_like_base64_is_not_decoded, test_string_result_xml_is_returned_verbatim, test_string_result_base64_transport_body_is_decoded",
+     "files": [
+      "src/main/resources/templates/rust/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Malformed 2xx body test asserts only 'some error' in java, go and rust while 9 peers assert SerializationError exactly",
@@ -7638,8 +8514,21 @@
    "unit_testable": true,
    "lens": "L13a-tests-transport",
    "id": "F159",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "The int, float, bool and string primitive paths are now strict, for container leaves and raw bodies alike. A wrong JSON type raises SerializationException \"Expected a JSON value of type 'int' but got string\". int keeps the JSON_BIGINT_AS_STRING overflow check, and a bare null returns null. A raw non-JSON primitive body now throws (JSON_THROW_ON_ERROR) instead of becoming ''/0.",
+     "batch": 1,
+     "test": "tests/ObjectSerializerTest.php: 'a wrong typed leaf in a container is rejected not coerced' (11 dataset rows covering Ds\\Map<int>, Ds\\Map<bool>, Ds\\Map<string>, Ds\\Map<float> and a nested vector), 'a wrong typed top level primitive body is rejected not coerced' (8 rows), 'a top level primitive body that is not json is rejected', 'well typed top level primitive bodies decode'. Existing tests: 'deserialize roundtrips int 64 max exactly' and 'deserialize throws on int overflow'.",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache",
+      "src/main/resources/templates/php/tests/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust has no brotli decode test, and no SDK asserts the Accept-Encoding it advertises by default",
@@ -9665,8 +10554,20 @@
    "unit_testable": true,
    "lens": "L18a-wire-request",
    "id": "F198",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in php; still open for csharp, go, swift",
+   "outcomes": {
+    "php": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F038 (php json_encode flags). The swift, go and csharp parts are outside this scope.",
+     "batch": 1,
+     "test": "Same tests as F038.",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Query-value encoding differs in 2 languages: java escapes ~ but not *; node keeps ! * ' ( ) ~ literal",
@@ -9755,8 +10656,20 @@
    "unit_testable": true,
    "lens": "L18a-wire-request",
    "id": "F200",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "Confirmed. A repeated scalar array element (String, num or bool) is now added as its own MultipartFile.fromString part, because request.fields keeps one value per name. Scalar non-array fields still use request.fields. The multipart builder was extracted into _buildMultipartRequest.",
+     "batch": 1,
+     "test": "default_api_client_unit_test.mustache: 'multipart array field sends one part per element' and 'multipart scalar field is still sent as a single part'",
+     "files": [
+      "src/main/resources/templates/dart/abstract_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby: Faraday decodes and re-encodes the query string, which undoes allowReserved, sorts parameters and drops repeated keys",
@@ -9802,8 +10715,20 @@
    "unit_testable": true,
    "lens": "L18a-wire-request",
    "id": "F201",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "duplicate",
+     "note": "Same root cause and fix as F005; the encoder's old comment claiming only spaces change is replaced.",
+     "batch": 1,
+     "test": "test/default_api_client_unit_test.mustache: 'keeps allowReserved characters literal'",
+     "files": [
+      "src/main/resources/templates/ruby/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "AGENTS claims node and python preserve full decimal precision for `type: number`, but both decode weightKg through a binary float; both also accept a quoted string",
@@ -9935,8 +10860,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F204",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for node, swift",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F007 (7.5 into Integer quantity, 1.0 and 1e2 rejected). The node and swift parts are outside this scope.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializationErrorWrappingTests.fractionalNumberForIntFieldThrows",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Integer range not enforced on decode in 7 SDKs: int32 3000000000 accepted by swift/python/node/dart/php/ruby/elixir; int64 overflow accepted by python/ruby/elixir",
@@ -10091,8 +11028,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F208",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F007 (number/boolean into String field, via the Textual CoercionConfig).",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializationErrorWrappingTests.integerForStringFieldThrows / booleanForStringFieldThrows",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java/kotlin surface an ABSENT optional array/map as an empty collection; the other 10 surface null/None/nil",
@@ -10133,8 +11082,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F209",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for kotlin",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F026 (java part: absent optional array/map surfaces as empty).",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializeTests.absentOptionalArrayDecodesToNull",
+     "files": [
+      "src/main/resources/templates/java/models/model.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin accepts a Pet with the REQUIRED photoUrls missing (decodes to an empty set); the other 11 reject",
@@ -10174,8 +11135,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F210",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F030. BetterKotlinCodegen.toDefaultValue is unchanged because optional containers still need their default.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.kt: missing required array property throws instead of defaulting to empty",
+     "files": [
+      "src/main/resources/templates/kotlin/models/model.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python accepts the snake_case attribute name as a wire key (populate_by_name=True on decode)",
@@ -10205,8 +11178,22 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F211",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Wire decoding now validates with by_alias=True, by_name=False in ObjectSerializer._deserialize (model, List and Dict adapters), so snake_case attribute names no longer populate fields. Constructors keep populate_by_name. pyproject pydantic floor raised to 2.11.",
+     "batch": 1,
+     "test": "test_object_serializer.py TestWireDecodeIgnoresAttributeNames: test_attribute_name_does_not_satisfy_a_required_property, test_attribute_name_is_ignored_as_an_unknown_key, test_declared_property_name_wins_over_the_attribute_name, test_list_elements_ignore_the_attribute_name, test_dict_values_ignore_the_attribute_name, test_direct_validation_still_accepts_the_attribute_name",
+     "files": [
+      "src/main/resources/templates/python/object_serializer.mustache",
+      "src/main/resources/templates/python/pyproject_toml.mustache",
+      "src/main/resources/templates/python/test/test_object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby/elixir silently turn a non-object nested model into nil (and elixir passes wrong-kind Set/map fields through raw)",
@@ -10247,8 +11234,20 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F212",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in ruby; still open for elixir",
+   "outcomes": {
+    "ruby": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F143 (the ruby deserialize_model nil return); fixed there. The elixir MapSet/map passthrough part is not mine.",
+     "batch": 1,
+     "test": "test/object_serializer_test.mustache: 'raises SerializationError for a scalar where a nested model is expected'",
+     "files": [
+      "src/main/resources/templates/ruby/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Integer formats: int32 overflow and fractional numbers are accepted by 6 SDKs and rejected by 6; java silently truncates 1.5 to 1; node keeps 1.5 and rounds int64 above 2^53. No boundary test",
@@ -10300,8 +11299,20 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F213",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for csharp, dart, elixir, go, kotlin, node, php, python, ruby, rust, swift",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Java part is the same fractional-into-integer root cause as F007. Java already rejected int32 overflow, so no extra change. The probe-op fixture and the node/python/etc. boundary tests are outside this scope.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DeserializationErrorWrappingTests.fractionalNumberForIntFieldThrows",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Non-string scalar multipart parts (boolean, date-time, date, $ref enum, uuid) are encoded differently in every SDK. Petstore's multipart scalars are all plain strings",
@@ -10459,8 +11470,20 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F216",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in ruby; still open for csharp, dart, elixir, go, java, kotlin, node, php, python, rust, swift",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby half only: form values now go through ObjectSerializer.stringify (date-time, duration). The nested-object/deepObject half and the other languages need the spec change setPetPreferences: remindAt (string, date-time), snooze (string, duration), location ($ref PhotoMetadataLocation) with encoding.location style deepObject explode true. That is a spec change, so those assertions are not added here.",
+     "batch": 1,
+     "test": "test/base_api_test.mustache: 'form-urlencoded body stringifies a date-time in the canonical wire form' and 'stringifies a duration, a boolean and a number'",
+     "files": [
+      "src/main/resources/templates/ruby/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "format: uuid: swift sends UPPERCASE UUIDs, 8 SDKs lowercase, ruby/elixir/node send the caller's string verbatim; petstore has no uuid field",
@@ -10539,8 +11562,18 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F218",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "needs-spec",
+     "note": "Confirmed. api.mustache has no cookieParams required guard (guards are at lines 168-195 and 465-492; the cookie blocks at 316 and 613 only encode). A guard needs a required cookie parameter, and the petstore has none. Add to deletePet: '- {name: session, in: cookie, required: true, schema: {type: string}}', then add the guard in php/api/api.mustache and assert the empty-string message in all 12.",
+     "batch": 1,
+     "test": "none (needs the spec change above)",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "R7-1 php claims are wrong: no cookie guard, and kotlin does not use baseName (golden emits '_file')",
@@ -10586,8 +11619,18 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F219",
-   "status": "open",
-   "note": ""
+   "status": "needs-spec",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "needs-spec",
+     "note": "The php half is the same as F218 (no cookie guard, needs a required cookie param in the spec). The kotlin '_file' vs 'file' message divergence is a kotlin template issue outside my scope. Also AGENTS.md:291 wrongly says php cookie params are guarded.",
+     "batch": 1,
+     "test": "none",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Swift sends an empty required date path param (bornOn: String), contradicting 'required string must not be empty in any of the 12'",
@@ -10622,8 +11665,21 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F220",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "api.mustache now emits the same empty-value guard for required isDate params as for isString. The petstore only exercises the path param; the query, header, form and cookie guards were extended the same way but are not covered by a test.",
+     "batch": 1,
+     "test": "PetApiTests.testRequiredDatePathParamEmptyThrows",
+     "files": [
+      "src/main/resources/templates/swift/api/api.mustache",
+      "src/main/resources/templates/swift/test/api/PetApiTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "The forced-divergence note says python and node preserve full decimal precision; both lose it on decode",
@@ -10752,8 +11808,20 @@
    "unit_testable": true,
    "lens": "L20-doc-truth",
    "id": "F223",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for kotlin",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F097 (java part). The kotlin KDoc fix is outside this scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.absentBrotliLibraryRaisesInsteadOfReturningEncodedBytes",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "AGENTS says node and python keep full precision for format:number; python loses it both ways, node on decode",
@@ -10984,8 +12052,29 @@
    "unit_testable": true,
    "lens": "L21-api-surface",
    "id": "F226",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in node, php; still open for python, ruby",
+   "outcomes": {
+    "php": {
+     "outcome": "duplicate",
+     "note": "The php part is the same fix as F304 (constructor-level proxy validation). I kept the constructor public rather than private, because the builder in a separate class must call it and php has no friend visibility. python, ruby and node are not mine.",
+     "batch": 1,
+     "test": "Same tests as F304.",
+     "files": [
+      "src/main/resources/templates/php/transport_options.mustache"
+     ]
+    },
+    "node": {
+     "outcome": "duplicate",
+     "note": "Same root cause and same node fix as F304 (public TransportOptions constructor skipped proxy validation), so the node part is fixed by that change.",
+     "batch": 1,
+     "test": "test/transport-options.test.ts 'constructing directly with a non-http proxy scheme throws TypeError'",
+     "files": [
+      "src/main/resources/templates/node/transport_options.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java, node and rust let callers build a model that is missing required properties; the other 8 non-go SDKs reject it",
@@ -11291,8 +12380,20 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F232",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp; still open for dart",
+   "outcomes": {
+    "csharp": {
+     "outcome": "duplicate",
+     "note": "Same csharp defect as F011 (multipart dropped on 307/308 replay), fixed by the same buffering change. The dart half is for the dart agent.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.mustache: Redirect307ReplaysMultipartBodyWithItsBoundary",
+     "files": [
+      "src/main/resources/templates/csharp/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "dart's request timeout does not abort the in-flight request and does not cover the response body read",
@@ -11370,8 +12471,21 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F234",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "sendWithRetry now replays after 'header parser received no bytes' only for idempotent methods (GET, HEAD, OPTIONS, PUT, DELETE, TRACE). The comment no longer claims the request never reached the server. A POST is sent exactly once.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest: postIsNotReplayedWhenTheConnectionDropsWithoutAResponse, getIsReplayedOnceWhenTheConnectionDropsWithoutAResponse",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache",
+      "src/main/resources/templates/java/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node never consumes or cancels intermediate 3xx bodies in the redirect loop (undici connection leak); python skips release_conn on redirect-refusal paths",
@@ -11413,8 +12527,30 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F235",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "The redirect loop now cancels the unread 3xx body (new AbstractApiClient.discardBody) once a valid Location is seen. That happens before the scheme refusal, the downgrade refusal and the next fetch, and the final 3xx is also cancelled before the too-many-redirects throw. This is the node part only; python's release_conn gap is not touched.",
+     "batch": 1,
+     "test": "test/default-api-client-unit.test.ts 'redirect responses release their body' > 'cancels the body of each redirect it follows', 'cancels the body of a redirect it refuses to follow' and 'cancels every body, the last one included, when the redirect budget is exhausted'",
+     "files": [
+      "src/main/resources/templates/node/abstract_api_client.mustache"
+     ]
+    },
+    "python": {
+     "outcome": "fixed",
+     "note": "Python part only. Added DefaultApiClient._release_response (read, then release_conn in finally). It is now called before each of the three raises in _follow_redirects (non-HTTP scheme, HTTPS to HTTP replay refusal, too many redirects), and it replaces the inline read/release on the followed-hop path. The node part (undici body consumption) is another agent's.",
+     "batch": 1,
+     "test": "test_default_api_client_unit.py: TestRedirectToNonHttpScheme.test_refused_scheme_releases_the_redirect_connection, TestBodyReplayOnTlsDowngrade.test_refused_downgrade_releases_the_redirect_connection, TestRedirectExhaustion.test_exhausting_redirect_budget_releases_every_redirect_connection",
+     "files": [
+      "src/main/resources/templates/python/default_api_client.mustache",
+      "src/main/resources/templates/python/test/test_default_api_client_unit.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python redirect loop mutates the shared PoolManager.proxy_headers, so concurrent requests race and can lose proxy credentials permanently",
@@ -11455,8 +12591,21 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F236",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Removed Guard 3 and the snapshot/restore of the shared pool_manager.proxy_headers from _follow_redirects. Proxy-Authorization authenticates the client to its proxy, never to the redirect target. The per-request Proxy-Authorization header is still stripped cross-origin by Guard 2 (_SENSITIVE_HEADERS). The old test asserting the mutation was rewritten to assert proxy_headers is untouched during and after the hop.",
+     "batch": 1,
+     "test": "test_default_api_client.py test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager",
+     "files": [
+      "src/main/resources/templates/python/default_api_client.mustache",
+      "src/main/resources/templates/python/test/test_default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift's production session uses URLSessionConfiguration.default: a process-wide cookie jar and response cache that no other SDK has",
@@ -11672,8 +12821,27 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F242",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "duplicate",
+     "note": "Same duplicate-JSON-key root cause as F389 (swift part), not fixed: too-big.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "object_serializer::deserialize retries only when serde reports 'duplicate field'. The retry decodes through serde_json::Value, where the last key wins, then into T. Rust now matches the other SDKs on duplicate keys. Trailing content is still rejected.",
+     "batch": 1,
+     "test": "object_serializer.mustache in-crate tests: test_deserialize_duplicate_key_keeps_the_last_value, test_deserialize_duplicate_key_still_rejects_trailing_content",
+     "files": [
+      "src/main/resources/templates/rust/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "JSON string escaping differs: php escapes '/' and all non-ASCII, swift escapes '/', csharp escapes U+2028/DEL",
@@ -11711,8 +12879,20 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F243",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in php; still open for csharp, go, swift",
+   "outcomes": {
+    "php": {
+     "outcome": "duplicate",
+     "note": "The php slash and unicode escaping is the F038 root cause. Fixed once there.",
+     "batch": 1,
+     "test": "Same tests as F038.",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Request-body key order: swift is random per process, elixir alphabetical (hash order above 32 keys); others use schema declaration order",
@@ -11872,8 +13052,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F247",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Added .disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE) to the mapper. A decoded +05:30 offset is kept and re-encoded as 10:00:00.000+05:30.",
+     "batch": 1,
+     "test": "ObjectSerializerTest.DateTimeOffsetPreservationTests.decodedDateTimeKeepsOffset",
+     "files": [
+      "src/main/resources/templates/java/object_serializer.mustache",
+      "src/main/resources/templates/java/test/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "php serializes a model whose only keys are numeric strings as a JSON array",
@@ -11899,8 +13092,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F248",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "When a model with additionalProperties would serialize as a list (only numeric keys), the field map is now wrapped in an \\ArrayObject so json_encode writes an object. Ds containers are deliberately not wrapped.",
+     "batch": 1,
+     "test": "tests/ObjectSerializerTest.php: 'a model whose only fields are numeric additional properties serializes as an object' and 'a model with numeric and named fields keeps both as an object'",
+     "files": [
+      "src/main/resources/templates/php/object_serializer.mustache",
+      "src/main/resources/templates/php/tests/ObjectSerializerTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust (unforced) and go reject protobuf-valid durations above ~292 years",
@@ -11932,8 +13138,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F249",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in rust; still open for go",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "proto_duration::parse no longer folds seconds into one i64 nanosecond count. It bounds seconds at the protobuf maximum of 315,576,000,000 and adds Duration::seconds and Duration::nanoseconds. The old overflow test was updated to the new bound.",
+     "batch": 1,
+     "test": "object_serializer_test: test_proto_duration_accepts_the_full_protobuf_range and test_proto_duration_rejects_overflow",
+     "files": [
+      "src/main/resources/templates/rust/proto_duration.mustache",
+      "src/main/resources/templates/rust/test/object_serializer_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "swift ROUNDS the sub-millisecond part of a date-time on encode (can roll into the next second/day); every other SDK truncates",
@@ -11958,8 +13177,21 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F250",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "New ObjectSerializer.formatDateTime floors to milliseconds, with a 1 microsecond slack for Date double error so a parsed .123 stays .123. The encoder uses it via a custom date strategy, and so does stringify.",
+     "batch": 1,
+     "test": "ObjectSerializerTests.testDateTimeTruncatesSubMillisecond (3 cases: 0.9996, 0.1239, 1704067199.9999)",
+     "files": [
+      "src/main/resources/templates/swift/object_serializer.mustache",
+      "src/main/resources/templates/swift/test/ObjectSerializerTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Empty User-Agent handling differs: rust/swift/dart omit the header, the other 9 send 'User-Agent: ', and node overwrites a caller's explicit empty User-Agent",
@@ -11998,8 +13230,28 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F251",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in swift; still open for dart, node, rust",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "Swift part only. Removed the !ua.isEmpty guard in default_api_client.mustache, so an empty User-Agent is sent like the other SDKs. The rust, dart and node parts are out of scope.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTests.testEmptyUserAgentIsSentAsEmptyHeader",
+     "files": [
+      "src/main/resources/templates/swift/default_api_client.mustache",
+      "src/main/resources/templates/swift/test/DefaultApiClientUnitTests.mustache"
+     ]
+    },
+    "rust": {
+     "outcome": "skipped",
+     "note": "The finding gives no direction, and the 9-vs-3 split has no ruling in AGENTS.md or PARITY_TODO.md. Rust omits the empty User-Agent on purpose (default_api_client.mustache around line 152, with user_agent_opt(None) as the explicit way to omit it). Needs a cross-SDK decision on whether an empty string omits the header or sends 'User-Agent: ' before swift, dart and rust move together.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Extra or missing multipart per-part headers: php adds text/plain + Content-Transfer-Encoding: 8bit, kotlin adds Content-Length, php Psr18 does not escape the field name",
@@ -12165,8 +13417,20 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F255",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "duplicate",
+     "note": "Same ruby defect as F344; the nil array element is now skipped.",
+     "batch": 1,
+     "test": "test/base_api_test.mustache: 'form-urlencoded body skips nil elements inside an array property'",
+     "files": [
+      "src/main/resources/templates/ruby/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust appends auth query params as duplicates instead of overriding an operation param of the same name",
@@ -12192,8 +13456,21 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F256",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "invoke_api now drops any operation query param of the same name before pushing the authenticator's, so the name is sent once.",
+     "batch": 1,
+     "test": "base_api_test: test_base_api_auth_query_param_replaces_same_named_operation_param",
+     "files": [
+      "src/main/resources/templates/rust/base_api.mustache",
+      "src/main/resources/templates/rust/test/base_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "A bare 'utf-16' body with a little-endian BOM decodes to garbage in csharp, swift and elixir",
@@ -12226,8 +13503,21 @@
    "suspected_forced_reason": "None. Sniff FE FF / FF FE first, as go/dart/python do.",
    "lens": "L04-transport",
    "id": "F257",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp; still open for elixir, swift",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp part only. A bare utf-16 label now sniffs a leading BOM: FF FE decodes little-endian, FE FF big-endian, and the 2-byte mark is skipped. Without a BOM it still defaults to big-endian. The swift and elixir parts belong to other agents.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.mustache: DecodesBareUtf16BodyWithLittleEndianBomAsLittleEndian, DecodesBareUtf16BodyWithBigEndianBomWithoutTheMark",
+     "files": [
+      "src/main/resources/templates/csharp/default_api_client.mustache",
+      "src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Declared-charset coverage differs: windows-1252 / shift_jis / iso-8859-x bodies decode correctly in some SDKs and as mojibake in others",
@@ -12386,7 +13676,17 @@
    "lens": "L04-transport",
    "id": "F261",
    "status": "open",
-   "note": ""
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "skipped",
+     "note": "The stripping is deliberate: default_api_client.mustache around line 443 comments that the headers describe the decoded body, as when reqwest decompressed it. csharp and swift strip because of their runtimes. Which side moves is a cross-SDK ruling, and no template change was made.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "csharp alone enables online certificate-revocation checking",
@@ -12438,8 +13738,20 @@
    "suspected_forced_reason": "None. Serialize the Map to bytes once before the first send.",
    "lens": "L04-transport",
    "id": "F263",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "dart": {
+     "outcome": "fixed",
+     "note": "Confirmed. The redirect loop now rebuilds a Map body with _buildMultipartRequest on 307/308, finalizes it to bytes and sets the new boundary's Content-Type. A stale Content-Type without a boundary is overridden.",
+     "batch": 1,
+     "test": "default_api_client_unit_test.mustache: 'a Map multipart body is replayed intact across a 307 redirect'",
+     "files": [
+      "src/main/resources/templates/dart/abstract_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "kotlin treats every 300-399 status as a redirect; the other 11 follow only 301/302/303/307/308",
@@ -12464,8 +13776,20 @@
    "suspected_forced_reason": "None.",
    "lens": "L04-transport",
    "id": "F264",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Real. Added isRedirectStatus (301/302/303/307/308) and used it in both the follow loop and the exhaustion check. A 300 or 305 with a Location is now returned as-is.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.kt: '300 and 305 with a Location are returned as-is, never followed' and 'only 301, 302, 303, 307 and 308 are redirect statuses'",
+     "files": [
+      "src/main/resources/templates/kotlin/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Named status errors do not always pin their status: the csharp (message, inner) constructor gives StatusCode 0, and dart, swift and rust accept any status",
@@ -12515,8 +13839,29 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F265",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in csharp; still open for dart, rust, swift",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "csharp part only. Added (int statusCode, string message, Exception inner) constructors to ClientException and ServerException, and each leaf (400, 401, 403, 404, 409, 422, 500) chains its (message, inner) constructor to them, so StatusCode is pinned. The dart, swift and rust parts belong to other agents.",
+     "batch": 1,
+     "test": "ApiExceptionTest.mustache: NamedErrorWithInnerExceptionKeepsItsStatus (all 7 leaves)",
+     "files": [
+      "src/main/resources/templates/csharp/errors/ClientException.mustache",
+      "src/main/resources/templates/csharp/errors/ServerException.mustache",
+      "src/main/resources/templates/csharp/errors/BadRequestException.mustache",
+      "src/main/resources/templates/csharp/errors/UnauthorizedException.mustache",
+      "src/main/resources/templates/csharp/errors/ForbiddenException.mustache",
+      "src/main/resources/templates/csharp/errors/NotFoundException.mustache",
+      "src/main/resources/templates/csharp/errors/ConflictException.mustache",
+      "src/main/resources/templates/csharp/errors/UnprocessableEntityException.mustache",
+      "src/main/resources/templates/csharp/errors/InternalServerErrorException.mustache",
+      "src/main/resources/templates/csharp/test/ApiExceptionTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "OAuth2TokenError messages and cause retention were never harmonised across the 12",
@@ -12738,8 +14083,29 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F269",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "fixed",
+     "note": "Kotlin part only. A new jsonStringOrNull helper requires a JSON string for error, error_description and error_uri. A numeric error no longer becomes code '400'. A non-string description or uri is dropped independently and the valid code is kept. The go part was not touched.",
+     "batch": 1,
+     "test": "OAuth2TokenManagerTest.kt: token_endpoint_error_with_non_string_error_code_is_not_coerced and token_endpoint_error_with_non_string_description_keeps_the_code",
+     "files": [
+      "src/main/resources/templates/kotlin/auth/oauth/oauth2_token_manager.mustache"
+     ]
+    },
+    "go": {
+     "outcome": "fixed",
+     "note": "Same root cause as F114 and fixed by the same change on the go side. The empty-description difference (go renders no ' -- ' for '') is left as is: go's getters return string, which AGENTS.md notes as forced, and the code cannot tell absent from empty without a field change. Kotlin half untouched.",
+     "batch": 1,
+     "test": "go/test/oauth2_token_manager_test.mustache TestOAuth2TokenManager_TokenEndpointErrorFieldTypesAreCheckedIndependently",
+     "files": [
+      "src/main/resources/templates/go/auth/oauth/oauth2_token_manager.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python, ruby and elixir render an empty detail message as empty instead of the default text",
@@ -12780,8 +14146,39 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F270",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby part only. The detail message now falls back to the default text for nil or empty, via detail_message.",
+     "batch": 1,
+     "test": "test/api_error_test.mustache: 'substitutes the default text for an empty detail message'",
+     "files": [
+      "src/main/resources/templates/ruby/errors/api_error.mustache"
+     ]
+    },
+    "python": {
+     "outcome": "fixed",
+     "note": "ApiException.__str__ now uses 'self.message or default', so an empty message renders the default text like None does. Ruby and elixir are other agents' files.",
+     "batch": 1,
+     "test": "test_api_error.py TestApiErrorShape: test_none_message_renders_the_default_text, test_empty_message_renders_the_default_text, test_empty_message_keeps_the_status_line_after_the_default_text",
+     "files": [
+      "src/main/resources/templates/python/errors.mustache",
+      "src/main/resources/templates/python/test/test_api_error.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "fixed",
+     "note": "ApiError.message/1 now treats \"\" like nil and substitutes 'Error message: the server returns an error'. This is the elixir part only; the python and ruby parts are not mine.",
+     "batch": 1,
+     "test": "test/api_error_test.mustache: 'an empty message renders the default text, like a missing one'",
+     "files": [
+      "src/main/resources/templates/elixir/errors/api_error.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby has no accessor for the bare detail message: #message returns the full multi-line rendering",
@@ -12810,8 +14207,21 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F271",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Added a public ApiError#detail_message (with RBS decl) returning the bare detail; message and to_s still render the full text.",
+     "batch": 1,
+     "test": "test/api_error_test.mustache: 'detail_message returns the bare detail without the rendered context' and 'detail_message falls back to the default text for a nil or empty detail'",
+     "files": [
+      "src/main/resources/templates/ruby/errors/api_error.mustache",
+      "src/main/resources/templates/ruby/infrastructure_rbs.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust's per-status error wrappers render a different, context-free string from ApiError and from the other SDKs",
@@ -12880,8 +14290,21 @@
    "unit_testable": true,
    "lens": "L05-errors",
    "id": "F273",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "fixed",
+     "note": "Added extension OAuth2TokenError: LocalizedError returning the associated message for both cases.",
+     "batch": 1,
+     "test": "ApiErrorTests.testOAuth2TokenErrorLocalizedDescriptionIsTheMessage (no OAuth2TokenError test file exists; ApiErrorTests already hosts this type's conformance test)",
+     "files": [
+      "src/main/resources/templates/swift/errors/oauth2_token_error.mustache",
+      "src/main/resources/templates/swift/test/ApiErrorTests.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "'Whitespace-only' detection uses each language's native trim, so the 12 SDKs accept and reject different API-key values",
@@ -13124,8 +14547,27 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F279",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "Replaced @derive {Inspect, except: ...} with a defimpl Inspect that masks the secret fields as \"***\" (nil stays nil) in all 8 authenticators: bearer, api_key, basic, implicit, auth_code, client_credentials, password and OIDC. The finding's claim that this closes the inspect(structs: false) hole is wrong, because that option bypasses the Inspect protocol entirely, so that hole remains.",
+     "batch": 1,
+     "test": "The existing redaction tests in test/bearer_authenticator_test, api_key_authenticator_test, basic_authenticator_test, oauth2_auth_code_authenticator_test, oauth2_client_credentials_authenticator_test, oauth2_password_authenticator_test, oauth2_implicit_authenticator_test and openid_connect_authenticator_test (.mustache) now also assert the masked field, e.g. token: \"***\"",
+     "files": [
+      "src/main/resources/templates/elixir/auth/bearer_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/api_key_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/basic_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_implicit_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_auth_code_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_client_credentials_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/oauth2_password_authenticator.mustache",
+      "src/main/resources/templates/elixir/auth/oauth/openid_connect_authenticator.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "go and rust auth error texts differ from the canonical strings in ways ST1005 does not require (contradicts the R8-7 'harmonised' claim)",
@@ -13227,8 +14669,24 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F282",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "All five authenticator dataclasses (ApiKey, Basic, Bearer, OAuth2 client-credentials, OAuth2 password) are now @dataclass(frozen=True, eq=False), so they compare and hash by identity. The secret is no longer compared or hashed by value.",
+     "batch": 1,
+     "test": "test_api_key_authenticator.py, test_basic_authenticator.py, test_bearer_authenticator.py, test_oauth2_client_credentials_authenticator.py and test_oauth2_password_authenticator.py, each: test_equal_credentials_are_not_equal_by_value",
+     "files": [
+      "src/main/resources/templates/python/auth/api_key_authenticator.mustache",
+      "src/main/resources/templates/python/auth/basic_authenticator.mustache",
+      "src/main/resources/templates/python/auth/bearer_authenticator.mustache",
+      "src/main/resources/templates/python/auth/oauth/oauth2_client_credentials_authenticator.mustache",
+      "src/main/resources/templates/python/auth/oauth/oauth2_password_authenticator.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby per-scheme wrappers take keyword arguments while their base authenticators (and every other SDK's wrappers) take positional ones",
@@ -13283,8 +14741,20 @@
    "unit_testable": true,
    "lens": "L06-simple-auth",
    "id": "F284",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "duplicate",
+     "note": "Same defect as F256, fixed by the same change.",
+     "batch": 1,
+     "test": "base_api_test: test_base_api_auth_query_param_replaces_same_named_operation_param",
+     "files": [
+      "src/main/resources/templates/rust/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "AGENTS R8-9 contradicted: OAuth authenticator redacted-repr field sets are still not unified",
@@ -14007,8 +15477,21 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F302",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in php; still open for kotlin",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "php half only. The proxy scheme is lowercased before the http/https check, so HTTP://proxy:3128 is accepted. The kotlin half is not mine.",
+     "batch": 1,
+     "test": "tests/TransportOptionsTest.php: 'proxy scheme is matched case insensitively'",
+     "files": [
+      "src/main/resources/templates/php/transport_options.mustache",
+      "src/main/resources/templates/php/transport_options_builder.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "node per-operation variants replace only the first {var}; node and ruby also expand $&/\\0 patterns in server-variable values",
@@ -14048,8 +15531,21 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F303",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in node; still open for ruby",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "Per-operation server variants now use replaceAll with a function replacer, which replaces every occurrence and keeps $& literal. The global ServerConfiguration.getUrl got the same function replacer. This is the node part only; ruby's gsub is not touched.",
+     "batch": 1,
+     "test": "test/Api/pet-api.test.ts 'PetApi operation servers' > 'a server variable value containing replacement patterns is substituted literally'; test/server-configuration.test.ts 'substitutes a value containing replacement patterns literally' and 'substitutes every occurrence of a variable' (the second is a guard that already passed)",
+     "files": [
+      "src/main/resources/templates/node/api/apis.mustache",
+      "src/main/resources/templates/node/server_configuration.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "php, python, node and ruby let callers skip proxy validation through a public TransportOptions constructor",
@@ -14088,8 +15584,30 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F304",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in node, php; still open for python, ruby",
+   "outcomes": {
+    "php": {
+     "outcome": "fixed",
+     "note": "php half only. The proxy check moved into a shared TransportOptions::assertValidProxy() that the public constructor calls, and the builder's proxy() delegates to it. So new TransportOptions(proxy: 'ftp://x') now throws \\InvalidArgumentException. python, node and ruby are not mine.",
+     "batch": 1,
+     "test": "tests/TransportOptionsTest.php: 'constructor rejects a proxy with a non http scheme', 'constructor rejects a malformed proxy url', 'constructor accepts a valid proxy and none', 'builder rejects a proxy with a non http scheme'",
+     "files": [
+      "src/main/resources/templates/php/transport_options.mustache",
+      "src/main/resources/templates/php/transport_options_builder.mustache"
+     ]
+    },
+    "node": {
+     "outcome": "fixed",
+     "note": "The TransportOptions constructor now runs the same proxy validation as the builder (shared assertValidProxy, which the builder also uses). new TransportOptions({proxy:'ftp://x'}) throws TypeError. This is the node part only; php, python and ruby are not touched.",
+     "batch": 1,
+     "test": "test/transport-options.test.ts 'constructing directly with a non-http proxy scheme throws TypeError' and 'constructing directly with an unparseable proxy URL throws TypeError'",
+     "files": [
+      "src/main/resources/templates/node/transport_options.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python and dart share mutable, process-wide Servers constants; go AllServers is a mutable slice",
@@ -14160,8 +15678,29 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F306",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in elixir, ruby; still open for go",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Ruby part only. nil for an enum variable is not in the enum, so it now raises ArgumentError instead of producing https://.example.com. The elixir half is not mine and go is forced.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'per-operation server variables' / 'rejects nil for an enum variable'",
+     "files": [
+      "src/main/resources/templates/ruby/api/api.mustache"
+     ]
+    },
+    "elixir": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F148 (elixir per-operation server variant accepts any value). Fixed once in the variant url/1 in api.mustache. The ruby and go parts are not mine; go is a forced zero-value divergence.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'per-operation server variant rejects a variable left unset'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "AGENTS' reason that swift's date-time decoding 'cannot be made strict' is false: swift maps `format: date` to String, not Foundation.Date",
@@ -14424,8 +15963,18 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F314",
-   "status": "open",
-   "note": ""
+   "status": "forced",
+   "note": "",
+   "outcomes": {
+    "kotlin": {
+     "outcome": "forced",
+     "note": "This is a doc-truth finding about AGENTS.md:351-353, which is out of scope for this batch. Kotlin's stripJsonNulls (object_serializer.mustache ~305, documented as model-only) removes nulls at every depth, so retaining them inside free-form values needs per-field schema metadata, as AGENTS.md says. No code change. The AGENTS.md wording should be corrected by someone who owns that file: kotlin, ruby and node drop nested nulls; java, python, go and rust keep them.",
+     "batch": 1,
+     "test": "none",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "python raises a runtime DeprecationWarning whenever a deprecated field is set, including when the SDK decodes a server response",
@@ -14445,8 +15994,21 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F315",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "python": {
+     "outcome": "fixed",
+     "note": "Replaced the per-field @field_validator that called warnings.warn during validation with Field(deprecated=\"field '<name>' on <Class> is deprecated\") on the four Field(...) forms in model.mustache. Pydantic now warns only on attribute access. Decoding, serializing and assigning are silent, so -W error no longer breaks on a normal response.",
+     "batch": 1,
+     "test": "test_object_serializer.py TestDeprecatedFieldWarnsOnAccessOnly: test_decoding_a_response_with_the_deprecated_field_does_not_warn, test_serializing_the_deprecated_field_does_not_warn, test_reading_the_deprecated_field_warns",
+     "files": [
+      "src/main/resources/templates/python/models/model.mustache",
+      "src/main/resources/templates/python/test/test_object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby (Types::Any) and elixir models do no type or enum validation on construction, and go enums never validate on encode, so wrong-typed values reach the wire",
@@ -14500,8 +16062,20 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F317",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Moved the Time/DateTime arm ahead of the Date arm in sanitize_for_serialization, because DateTime is a Date subclass and was sent as Date#to_s without .000.",
+     "batch": 1,
+     "test": "test/object_serializer_test.mustache: 'serializes a DateTime in the canonical date-time form' (also Time and Date cases)",
+     "files": [
+      "src/main/resources/templates/ruby/object_serializer.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust's derived `Default` on discriminated variants leaves the discriminator empty (`foodType: \"\"`), unlike `new()`",
@@ -14526,8 +16100,21 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F318",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "rust": {
+     "outcome": "fixed",
+     "note": "BetterRustCodegen.postProcessModels ran before AbstractBetterCodegen.postProcessAllModels set isDiscriminator on the oneOf children. hasDefaultedOptionalVars was therefore false and the Default derive stayed. I added a postProcessAllModels override that recomputes the flag. DryFood and WetFood now get a hand-written Default with the mapping value.",
+     "batch": 1,
+     "test": "composed_schema_test: test_pet_food_subtype_default_carries_its_mapping_value",
+     "files": [
+      "src/main/java/io/github/mridang/codegen/generators/rust/BetterRustCodegen.java",
+      "src/main/resources/templates/rust/test/composed_schema_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "uniqueItems arrays (Pet.photoUrls) go on the wire in insertion order in 6 SDKs and in hash or sorted order in the others",
@@ -14768,8 +16355,32 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F323",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java, rust; still open for csharp",
+   "outcomes": {
+    "java": {
+     "outcome": "fixed",
+     "note": "Java part: each required Options field check in api.mustache now also tests the Options object for null (java.util.Objects.isNull, to avoid a SpotBugs redundant-null-check), so addPetPhotos(1L, null) throws IllegalArgumentException naming the first required field. The `auth` line no longer dereferences a null options first. The rust and csharp parts are outside this scope.",
+     "batch": 1,
+     "test": "PetApiTest.nullRequiredOptionsNamesTheFirstRequiredField",
+     "files": [
+      "src/main/resources/templates/java/api/api.mustache",
+      "src/main/resources/templates/java/test/api/PetApiTest.mustache"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "The required-multipart guard named 'options'. BetterRustCodegen now sets vendorExtensions.op.firstRequiredFormParam, and api.mustache uses it. Rust now reports 'files' for add_pet_photos and 'file' for upload_pet_certificate and upload_pet_document. The java and csharp halves are not mine.",
+     "batch": 1,
+     "test": "pet_api_test: test_pet_api_required_multipart_body_missing_names_first_required_part",
+     "files": [
+      "src/main/java/io/github/mridang/codegen/generators/rust/BetterRustCodegen.java",
+      "src/main/resources/templates/rust/api/api.mustache",
+      "src/main/resources/templates/rust/test/api/pet_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "An optional request body (placeOrder) can be omitted in kotlin/python/ruby/node/php/elixir but must be passed explicitly as null in java (no overload), csharp (default explicitly suppressed) and swift (no `= nil`)",
@@ -14918,8 +16529,21 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F327",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in elixir; still open for go",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "Elixir part only. Every *_with_http_info now begins with Keyword.validate!(opts, [:server and/or :content_type as declared]), which replaces the old '_ = opts' discard. An unknown or misspelt key raises ArgumentError ('unknown keys [...] ..., the allowed keys are: [...]'). The existing test that asserted opts[:auth] is ignored now asserts it is rejected. go's variadic content-type is not mine.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'an operation without servers rejects the :server opt', 'an operation rejects a misspelt :content_type opt', 'per-op auth comes only from options.auth; opts[:auth] is rejected'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache",
+      "src/main/resources/templates/elixir/test/api/pet_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "elixir: the bang variant of a deprecated operation (find_pets_by_status!/get_pet_by_id!) has no @deprecated and no @spec, contradicting the every-public-variant rule",
@@ -14950,8 +16574,20 @@
    "unit_testable": true,
    "lens": "L11-api-shape",
    "id": "F328",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "The bang variant now carries @deprecated on deprecated operations and an @spec (return type matches the data function), in api.mustache.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'a deprecated operation marks every public variant and types the bang one' (checks __info__(:deprecated) and Code.Typespec.fetch_specs for find_pets_by_status and get_pet_by_id in all three variants)",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "java/csharp/kotlin document an optional per-call authenticator on Options classes that have no auth field; elixir says this on every op; python/ruby/php never document it even when it exists",
@@ -15538,8 +17174,21 @@
    "unit_testable": false,
    "lens": "L12-api-bodies",
    "id": "F343",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "csharp": {
+     "outcome": "fixed",
+     "note": "AGENTS.md and PARITY_TODO.md have no ruling on csharp request charset, so it is not forced. A new CreateStringContent helper sets the bare declared Content-Type, defaulting to application/json, on string/object bodies, the multipart JSON part and the redirect replay.",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.mustache: TextBodySendsTheDeclaredContentTypeWithoutCharset (json, form, text rows), TextBodyWithoutDeclaredContentTypeDefaultsToBareJson, Redirect307ReplaysTextBodyWithBareContentType, and the charset assertion added to MultipartModelPartUsesConfiguredSerializerWireKeysAndDateTimeFormat",
+     "files": [
+      "src/main/resources/templates/csharp/default_api_client.mustache",
+      "src/main/resources/templates/csharp/test/DefaultApiClientUnitTest.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "ruby form-urlencoded body stringifies values with to_s instead of ObjectSerializer",
@@ -15569,8 +17218,20 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F344",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "ruby": {
+     "outcome": "fixed",
+     "note": "Form-urlencoded body now builds [key, ObjectSerializer.stringify(item)] pairs with nil array elements skipped, then URI.encode_www_form(pairs).",
+     "batch": 1,
+     "test": "test/base_api_test.mustache: 'form-urlencoded body stringifies a date-time in the canonical wire form' and 'stringifies a duration, a boolean and a number'",
+     "files": [
+      "src/main/resources/templates/ruby/base_api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust body/response tests discard the operation result and assert nothing",
@@ -16259,8 +17920,30 @@
    "unit_testable": true,
    "lens": "L13b-tests-api-auth-models",
    "id": "F361",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "go": {
+     "outcome": "fixed",
+     "note": "Removed ' when calling <Class>.<op>' from the operation cookie RFC 6265 message (required and optional branches). It now reads 'invalid cookie: cookie value for 'api_key' contains characters forbidden by RFC 6265', matching the auth-cookie path in base_api and the other SDKs except the lowercase forced by ST1005. Rust side untouched.",
+     "batch": 1,
+     "test": "go/test/api/pet_api_test.mustache TestPetApi_CookieParamWithCRLFFailsClosed (now asserts errors.Is ErrInvalidCookie and the exact message)",
+     "files": [
+      "src/main/resources/templates/go/api/api.mustache"
+     ]
+    },
+    "rust": {
+     "outcome": "fixed",
+     "note": "Removed the ' when calling Class.op' suffix from both operation-cookie RFC 6265 messages in api.mustache. The message now reads \"Cookie value for 'api_key' contains characters forbidden by RFC 6265\", like the 10 SDKs without the suffix. The test asserts the full text.",
+     "batch": 1,
+     "test": "pet_api_test: test_pet_api_delete_pet_rejects_invalid_cookie_value",
+     "files": [
+      "src/main/resources/templates/rust/api/api.mustache",
+      "src/main/resources/templates/rust/test/api/pet_api_test.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Codegen classes build generated source text in Java (StringBuilder/concatenation) instead of templates, with unescaped spec strings",
@@ -16517,8 +18200,20 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F368",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "node": {
+     "outcome": "fixed",
+     "note": "apis.mustache now emits the operation-server variant description as a doc comment, gated on hasDescription like the other 11 SDKs. The golden shows 'CDN-backed read endpoint for pet details' on GetPetByIdServerCDNBackedReadEndpointForPetDetails. The test reads the generated pet-api.ts source because a doc comment has no runtime effect.",
+     "batch": 1,
+     "test": "test/Api/pet-api.test.ts 'PetApi operation servers' > 'a server variant documents itself with the operation server description'",
+     "files": [
+      "src/main/resources/templates/node/api/apis.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "requiredLabelWithDefault is used only on pathParams, which are always required, so its 'default to X' branch is unreachable (java, kotlin, python only)",
@@ -17418,8 +19113,20 @@
    "unit_testable": true,
    "lens": "L18a-wire-request",
    "id": "F388",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "",
+   "outcomes": {
+    "elixir": {
+     "outcome": "fixed",
+     "note": "api.mustache now keeps the '!= []' guard only for exploded params, where an empty list yields no pairs. Non-exploded delimited arrays send an empty value (colors= / sizes=) like the other SDKs.",
+     "batch": 1,
+     "test": "test/api/pet_api_test.mustache: 'get_pet_tag sends an empty non-exploded array query param as an empty value'",
+     "files": [
+      "src/main/resources/templates/elixir/api/api.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Duplicate JSON keys: swift keeps the FIRST value, rust rejects, the rest keep the LAST",
@@ -17445,8 +19152,18 @@
    "unit_testable": true,
    "lens": "L18b-wire-response",
    "id": "F389",
-   "status": "open",
-   "note": ""
+   "status": "deferred",
+   "note": "",
+   "outcomes": {
+    "swift": {
+     "outcome": "too-big",
+     "note": "Swift's JSONDecoder keeps the first duplicate key while the others keep the last. Fixing it needs a pre-pass (re-serialize through JSONSerialization, or a custom decoder), which changes number precision and cost and is more than 60 lines. There is no spec change needed, but the design needs a decision first.",
+     "batch": 1,
+     "test": "",
+     "files": []
+    }
+   },
+   "batch": 1
   },
   {
    "title": "Overflowing double literal (1e400) decodes to Infinity in 7 SDKs but is rejected in go/rust/swift/csharp, contradicting the stated no-non-finite decode contract",
@@ -18459,8 +20176,20 @@
    "unit_testable": true,
    "lens": "L22-lifecycle",
    "id": "F410",
-   "status": "open",
-   "note": ""
+   "status": "partial",
+   "note": "done in java; still open for kotlin",
+   "outcomes": {
+    "java": {
+     "outcome": "duplicate",
+     "note": "Same root cause as F097 (java part).",
+     "batch": 1,
+     "test": "DefaultApiClientUnitTest.absentZstdLibraryRaisesInsteadOfReturningEncodedBytes",
+     "files": [
+      "src/main/resources/templates/java/default_api_client.mustache"
+     ]
+    }
+   },
+   "batch": 1
   },
   {
    "title": "rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs",
@@ -18493,6 +20222,662 @@
    "id": "F411",
    "status": "open",
    "note": ""
+  },
+  {
+   "id": "F412",
+   "severity": "medium",
+   "title": "The authorize URL still builds its base from _authorizationUrl.ToString() (same Uri normalization class as F117), so a configured authorization endpoint with a default port or upper-case host is rewri",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The authorize URL still builds its base from _authorizationUrl.ToString() (same Uri normalization class as F117), so a configured authorization endpoint with a default port or upper-case host is rewritten.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F413",
+   "severity": "medium",
+   "title": "The redirect-replay buffering holds a whole Stream or multipart upload in memory when redirects are followed (the default), which can be costly for very large file uploads",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The redirect-replay buffering holds a whole Stream or multipart upload in memory when redirects are followed (the default), which can be costly for very large file uploads.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F414",
+   "severity": "medium",
+   "title": "A non-string discriminator of JSON null still reaches the unknown-discriminator message with an empty value rather than a 'must be a string' error; this is consistent but differs from the other non-st",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "A non-string discriminator of JSON null still reaches the unknown-discriminator message with an empty value rather than a 'must be a string' error; this is consistent but differs from the other non-string kinds.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F415",
+   "severity": "medium",
+   "title": "BaseApiTest query tests such as 'appends query params to URL' and 'expands array query params' have no assertion on the produced URL (they say 'No exception means success')",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "BaseApiTest query tests such as 'appends query params to URL' and 'expands array query params' have no assertion on the produced URL (they say 'No exception means success').",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F416",
+   "severity": "medium",
+   "title": "The kotlin OAuth2 token request body, Basic auth header and authorize URL encoders may share the Ktor reserved-character leniency that F001 found in BaseApi",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The kotlin OAuth2 token request body, Basic auth header and authorize URL encoders may share the Ktor reserved-character leniency that F001 found in BaseApi. I did not check them.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F417",
+   "severity": "medium",
+   "title": "Per-operation server variable enum messages list allowed values in Module#constants order, which came out as sandbox then staging, not the declared order, so the wording differs from ServerConfigurati",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Per-operation server variable enum messages list allowed values in Module#constants order, which came out as sandbox then staging, not the declared order, so the wording differs from ServerConfiguration's ordered list.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F418",
+   "severity": "medium",
+   "title": "Steep logs a FATAL 'Unexpected self_type: untyped' for the `def client.send_request` singleton method in the generated base_api_test.rb (the 'skips deserialization for non-JSON content type' test)",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Steep logs a FATAL 'Unexpected self_type: untyped' for the `def client.send_request` singleton method in the generated base_api_test.rb (the 'skips deserialization for non-JSON content type' test). It does not fail the check, but that file is not fully type-checked.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F419",
+   "severity": "medium",
+   "title": "Two server variants that share a variable name each reopen the same enum module and would re-assign its constants, which warns",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Two server variants that share a variable name each reopen the same enum module and would re-assign its constants, which warns.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F420",
+   "severity": "medium",
+   "title": "OAuth2TokenManager and the oauth token types have no String/GoString redaction, so %#v of a manager prints stored access and refresh tokens; the authenticator wrappers are now redacted but the manager",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "OAuth2TokenManager and the oauth token types have no String/GoString redaction, so %#v of a manager prints stored access and refresh tokens; the authenticator wrappers are now redacted but the manager itself was not checked.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F421",
+   "severity": "medium",
+   "title": "Go authenticator String() has a pointer receiver, so %v and %+v of a dereferenced authenticator value still reflect over secret fields",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Go authenticator String() has a pointer receiver, so %v and %+v of a dereferenced authenticator value still reflect over secret fields.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F422",
+   "severity": "medium",
+   "title": "base_api_test TestBinaryResponse_TextPlainReturnsString asserts nothing (discards err), so go's text/plain handling has no real test",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "base_api_test TestBinaryResponse_TextPlainReturnsString asserts nothing (discards err), so go's text/plain handling has no real test.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F423",
+   "severity": "medium",
+   "title": "Regenerating the go golden drifts go.mod and go.sum (x/tools, genproto, honnef.co/go/tools bumps) on every run; I reverted that drift",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Regenerating the go golden drifts go.mod and go.sum (x/tools, genproto, honnef.co/go/tools bumps) on every run; I reverted that drift.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F424",
+   "severity": "medium",
+   "title": "TransportOptions proxy URL validation in dart/transport_options.mustache puts the full proxy URL, which can embed user:password credentials, into its ArgumentError message ('Invalid proxy URL: $val'),",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "TransportOptions proxy URL validation in dart/transport_options.mustache puts the full proxy URL, which can embed user:password credentials, into its ArgumentError message ('Invalid proxy URL: $val'), a credential leak of the same class as F015.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F425",
+   "severity": "medium",
+   "title": "AGENTS.md line 306 and PARITY_TODO R8-1 claim dart already base64-encodes format:byte map values",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "AGENTS.md line 306 and PARITY_TODO R8-1 claim dart already base64-encodes format:byte map values. That was false until this commit. The doc text is correct now, but php still keeps base64 text in memory (Ds\\Map<string,string> plus getLabelsAsBytes/setLabelsFromBytes), so 'native bytes in memory, in all 12' is not literally true for php.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F426",
+   "severity": "medium",
+   "title": "The old dart model template's non-primitive map branch used {{name}} inside an items section, which resolves to the item's name",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "The old dart model template's non-primitive map branch used {{name}} inside an items section, which resolves to the item's name. It was unreachable only because maps are primitive-typed, so it would have emitted a phantom key if it ever rendered. Now fixed in model.mustache by dotted lookups.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F427",
+   "severity": "medium",
+   "title": "default_api_client_io.mustache wraps the CA certificate load failure with $e, which can echo local file paths",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "default_api_client_io.mustache wraps the CA certificate load failure with $e, which can echo local file paths. This is low severity and not a secret.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F428",
+   "severity": "medium",
+   "title": "The test-fails-without-fix property was not verified by reverting each fix; the tests were written against the verified Jackson/JDK behaviour in the findings",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "The test-fails-without-fix property was not verified by reverting each fix; the tests were written against the verified Jackson/JDK behaviour in the findings.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F429",
+   "severity": "medium",
+   "title": "java/models/model.mustache still emits an initializer for REQUIRED containers (Set<String> photoUrls = new LinkedHashSet<>()), so a bare `new Pet()` holds an empty required set instead of null; this i",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "java/models/model.mustache still emits an initializer for REQUIRED containers (Set<String> photoUrls = new LinkedHashSet<>()), so a bare `new Pet()` holds an empty required set instead of null; this is unlike the other SDKs but I left it unchanged.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F430",
+   "severity": "medium",
+   "title": "In api.mustache the path-parameter checks still precede the Options null guard, so a null petId with a null Options reports 'petId', which is the right order but is not covered by a test",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "In api.mustache the path-parameter checks still precede the Options null guard, so a null petId with a null Options reports 'petId', which is the right order but is not covered by a test.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F431",
+   "severity": "medium",
+   "title": "The java `Duration`/protobuf and `JsonNullable` paths were not re-audited against the new Textual/Integer coercion config; the existing ObjectSerializerTest cases passed, but nullable String fields se",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "The java `Duration`/protobuf and `JsonNullable` paths were not re-audited against the new Textual/Integer coercion config; the existing ObjectSerializerTest cases passed, but nullable String fields set from a numeric JSON value were not tested.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F432",
+   "severity": "medium",
+   "title": "scheme_authenticator.mustache generates final subclasses of {{baseClass}}; if any of those subclasses stores secrets in its own properties it now inherits the empty customMirror only if baseClass is B",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "scheme_authenticator.mustache generates final subclasses of {{baseClass}}; if any of those subclasses stores secrets in its own properties it now inherits the empty customMirror only if baseClass is BaseAuthenticator. Worth confirming nothing else bypasses it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F433",
+   "severity": "medium",
+   "title": "The F220 empty-guard for required isDate query, header, form and cookie params is untested because the petstore spec has no required date param in those locations",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The F220 empty-guard for required isDate query, header, form and cookie params is untested because the petstore spec has no required date param in those locations.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F434",
+   "severity": "medium",
+   "title": "api_error.mustache still passes ObjectSerializer::MAX_JSON_DEPTH (1000) to json_decode for the error body, so the off-by-one in F078 remains there: an error body nested exactly 1000 deep is silently d",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "api_error.mustache still passes ObjectSerializer::MAX_JSON_DEPTH (1000) to json_decode for the error body, so the off-by-one in F078 remains there: an error body nested exactly 1000 deep is silently dropped.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F435",
+   "severity": "medium",
+   "title": "composed-schema merge in sanitizeForSerialization uses array_merge, which renumbers integer keys, so an anyOf variant with only numeric additionalProperties keys is still emitted as a JSON array",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "composed-schema merge in sanitizeForSerialization uses array_merge, which renumbers integer keys, so an anyOf variant with only numeric additionalProperties keys is still emitted as a JSON array.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F436",
+   "severity": "medium",
+   "title": "DateTime, DateTimeImmutable, DateInterval and Uuid deserialize branches still call json_decode on already-decoded container leaves",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "DateTime, DateTimeImmutable, DateInterval and Uuid deserialize branches still call json_decode on already-decoded container leaves. They only work because a date-like string is not valid JSON.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F437",
+   "severity": "medium",
+   "title": "The composed (oneOf/anyOf) build() branch in deserializeInternal does not honor the new $decoded flag and still json_decodes string input",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "The composed (oneOf/anyOf) build() branch in deserializeInternal does not honor the new $decoded flag and still json_decodes string input.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F438",
+   "severity": "medium",
+   "title": "'devbox run -- mvn' fails inside this worktree because lefthook refuses core.hooksPath",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "'devbox run -- mvn' fails inside this worktree because lefthook refuses core.hooksPath. 'eval devbox shellenv' followed by mvn works.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F439",
+   "severity": "medium",
+   "title": "The petstore has no public operation returning a String, so F155's text/plain path can only be tested in-crate",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The petstore has no public operation returning a String, so F155's text/plain path can only be tested in-crate. A public text/plain 200 response operation (e.g. GET /pets/{id}/note returning type string) would let all 12 SDKs test it end to end.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F440",
+   "severity": "medium",
+   "title": "BetterRustCodegen.postProcessModels sets hasDefaultedOptionalVars before AbstractBetterCodegen.postProcessAllModels marks discriminators",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "BetterRustCodegen.postProcessModels sets hasDefaultedOptionalVars before AbstractBetterCodegen.postProcessAllModels marks discriminators. Other languages that compute a flag from isDiscriminator in postProcessModels may have the same ordering bug.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F441",
+   "severity": "medium",
+   "title": "In the F022 case a DER-shaped block that is not an X.509 certificate still reaches ClientBuilder::build, where '.expect(\"failed to build HTTP client\")' in build_http_client panics inside DefaultApiCli",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "In the F022 case a DER-shaped block that is not an X.509 certificate still reaches ClientBuilder::build, where '.expect(\"failed to build HTTP client\")' in build_http_client panics inside DefaultApiClient::new.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F442",
+   "severity": "medium",
+   "title": "rustc hit SIGBUS compiling in the Docker bind mount of the golden dir under arm64",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "rustc hit SIGBUS compiling in the Docker bind mount of the golden dir under arm64. Setting CARGO_TARGET_DIR to a path inside the container fixed it, which makes the arm64 rust:1.96 full image usable for local cargo fmt, clippy and test of the golden.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F443",
+   "severity": "medium",
+   "title": "The generated cookie and multipart guards in pet_api.rs contain format! calls too long for rustfmt to lay out",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The generated cookie and multipart guards in pet_api.rs contain format! calls too long for rustfmt to lay out. The result is oddly indented but stable, and cargo fmt --check passes.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F444",
+   "severity": "medium",
+   "title": "Node nested-model rebuilds do not apply additionalProperties re-attachment or the unevaluatedProperties:false strict-key check below the root, because plainToInstance with excludeExtraneousValues drop",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node nested-model rebuilds do not apply additionalProperties re-attachment or the unevaluatedProperties:false strict-key check below the root, because plainToInstance with excludeExtraneousValues drops those keys before the walk.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F445",
+   "severity": "medium",
+   "title": "Node per-operation server variants substitute variables one after another, so a value that itself contains {othervar} is substituted again by the later iteration",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node per-operation server variants substitute variables one after another, so a value that itself contains {othervar} is substituted again by the later iteration. The global ServerConfiguration.getUrl has the same flaw.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F446",
+   "severity": "medium",
+   "title": "Node's operation-server variant description is interpolated raw into a block comment, so a description containing '*/' would break the generated file",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Node's operation-server variant description is interpolated raw into a block comment, so a description containing '*/' would break the generated file.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F447",
+   "severity": "medium",
+   "title": "Models with additionalProperties: true (the _capture_additional_properties before-validator in model.mustache) treat a wire key spelled as a snake_case attribute name as a known field",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Models with additionalProperties: true (the _capture_additional_properties before-validator in model.mustache) treat a wire key spelled as a snake_case attribute name as a known field. With the new by_name=False decode it is now silently dropped instead of being captured into additional_properties like the other SDKs do.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F448",
+   "severity": "medium",
+   "title": "model.mustache emits the format: pattern re.match validator as re.match(r\"{{{pattern}}}\", value), including the /.../ delimiters",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "model.mustache emits the format: pattern re.match validator as re.match(r\"{{{pattern}}}\", value), including the /.../ delimiters. This is a second site of the F027 defect and is invalid for any pattern-constrained property.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F449",
+   "severity": "medium",
+   "title": "Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Python accepts format: ipv4/ipv6/email values through validating types (IPv4Address, IPv6Address, EmailStr) that the other 11 SDKs do not enforce. This is the non-password half of F046 and is still an undecided parity choice.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F450",
+   "severity": "medium",
+   "title": "BetterPythonCodegen still maps format: password to SecretStr, so a model request body sends '**********' (F046 is not fixed here)",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "BetterPythonCodegen still maps format: password to SecretStr, so a model request body sends '**********' (F046 is not fixed here).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F451",
+   "severity": "medium",
+   "title": "OIDC fetch_discovery builds a new delegate with a new token manager each time the discovery cache expires (default 86400s), so tokens and the exchanged flag are lost after expiry and auth_headers rais",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "OIDC fetch_discovery builds a new delegate with a new token manager each time the discovery cache expires (default 86400s), so tokens and the exchanged flag are lost after expiry and auth_headers raises 'Must call exchange_code' again.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F452",
+   "severity": "medium",
+   "title": "The inspect(auth, structs: false) bypass of the Inspect protocol still prints raw credentials in all elixir authenticators; it cannot be closed without removing the secret from the struct",
+   "lens": "batch1-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "The inspect(auth, structs: false) bypass of the Inspect protocol still prints raw credentials in all elixir authenticators; it cannot be closed without removing the secret from the struct.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
   }
  ]
 }
