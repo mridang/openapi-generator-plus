@@ -21,7 +21,7 @@ final class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationCo
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $redirectUri
     ) {
         parent::__construct(

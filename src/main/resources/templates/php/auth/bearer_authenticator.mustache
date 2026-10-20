@@ -9,7 +9,7 @@ class BearerAuthenticator extends BaseAuthenticator
     private readonly string $host;
     private readonly string $token;
 
-    public function __construct(string $host, string $token)
+    public function __construct(string $host, #[\SensitiveParameter] string $token)
     {
         /* Reject an empty / whitespace-only token up-front. Without this an
          * empty token would emit the literal `Authorization: Bearer ` header

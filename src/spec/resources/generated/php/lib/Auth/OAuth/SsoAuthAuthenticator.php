@@ -21,7 +21,7 @@ final class SsoAuthAuthenticator extends OpenIdConnectAuthenticator
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $redirectUri
     ) {
         parent::__construct(

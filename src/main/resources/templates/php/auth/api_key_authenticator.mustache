@@ -12,8 +12,12 @@ class ApiKeyAuthenticator extends BaseAuthenticator
     private readonly string $apiKey;
     private readonly ApiKeyLocation $location;
 
-    public function __construct(string $host, string $keyParamName, string $apiKey, ApiKeyLocation $location)
-    {
+    public function __construct(
+        string $host,
+        string $keyParamName,
+        #[\SensitiveParameter] string $apiKey,
+        ApiKeyLocation $location
+    ) {
         /* Validation applies to ALL locations: empty/whitespace API keys
          * and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
          * printable-ASCII rule still applies to HEADER values. */

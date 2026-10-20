@@ -13,7 +13,7 @@ final class {{className}} extends {{baseClass}}
 {{#hasCustomConstructor}}
     public function __construct(
         {{#constructorParams}}
-        {{type}} ${{name}}{{^-last}},{{/-last}}
+        {{#sensitive}}#[\SensitiveParameter] {{/sensitive}}{{type}} ${{name}}{{^-last}},{{/-last}}
         {{/constructorParams}}
     ) {
         parent::__construct(

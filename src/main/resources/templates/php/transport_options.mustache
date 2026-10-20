@@ -55,6 +55,38 @@ final class TransportOptions
         public readonly array $defaultHeaders = [],
         public readonly bool $injectRequestId = false,
     ) {
+        self::assertValidProxy($proxy);
+    }
+
+    /**
+     * Validate a proxy URL: it must be a well-formed URL with a host and an
+     * http or https scheme (matched case-insensitively, per RFC 3986). Runs for
+     * every instance, whether it comes from the builder or from the constructor.
+     *
+     * @internal used by {@see TransportOptionsBuilder::proxy()}
+     * @param string|null $proxy proxy URL, or null for no proxy
+     * @throws \InvalidArgumentException if the URL is invalid
+     */
+    public static function assertValidProxy(?string $proxy): void
+    {
+        if ($proxy === null) {
+            return;
+        }
+        if (filter_var($proxy, FILTER_VALIDATE_URL) === false) {
+            throw new \InvalidArgumentException("Invalid proxy URL: $proxy");
+        }
+        $parsed = parse_url($proxy);
+        $scheme = strtolower($parsed['scheme'] ?? '');
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            throw new \InvalidArgumentException(
+                "Invalid proxy URL (must use http or https scheme): $proxy"
+            );
+        }
+        if (empty($parsed['host'])) {
+            throw new \InvalidArgumentException(
+                "Invalid proxy URL (missing host): $proxy"
+            );
+        }
     }
 
     /**

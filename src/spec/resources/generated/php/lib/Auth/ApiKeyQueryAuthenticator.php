@@ -20,7 +20,7 @@ final class ApiKeyQueryAuthenticator extends ApiKeyAuthenticator
 {
     public function __construct(
         string $host,
-        string $apiKey
+        #[\SensitiveParameter] string $apiKey
     ) {
         parent::__construct(
             $host,

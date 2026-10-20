@@ -63,7 +63,7 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements 
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $tokenUrl,
         array $scopes,
         ClientAuthMethod $clientAuthMethod = ClientAuthMethod::Body

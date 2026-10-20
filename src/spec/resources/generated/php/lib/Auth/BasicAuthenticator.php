@@ -22,7 +22,7 @@ class BasicAuthenticator extends BaseAuthenticator
     private readonly string $username;
     private readonly string $password;
 
-    public function __construct(string $host, string $username, string $password)
+    public function __construct(string $host, string $username, #[\SensitiveParameter] string $password)
     {
         /* RFC 7617 §2 — user-id MUST NOT contain ':' (it is the field
          * separator) and neither user-id nor password may carry CR/LF/NUL

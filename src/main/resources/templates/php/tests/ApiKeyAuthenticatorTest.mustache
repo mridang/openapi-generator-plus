@@ -84,3 +84,13 @@ test('api key is masked in var_dump and print_r output', function (): void {
     // keyParamName is non-secret and should still be visible for debugging.
     expect($printR)->toContain('X-API-Key');
 });
+
+test('secret constructor parameters are marked sensitive', function (): void {
+    $sensitive = [];
+    foreach ((new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct'))->getParameters() as $param) {
+        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+            $sensitive[] = $param->getName();
+        }
+    }
+    expect($sensitive)->toBe(['apiKey']);
+});

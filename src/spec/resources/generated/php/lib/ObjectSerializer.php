@@ -50,6 +50,12 @@ class ObjectSerializer
      */
     public const int MAX_JSON_DEPTH = 1000;
 
+    /* json_decode counts the outermost array or object as one level, so its
+     * depth argument must be one larger than the number of nested containers
+     * to accept: 1000 nested arrays need 1001. Passing MAX_JSON_DEPTH itself
+     * would reject a payload that is exactly at the cap. */
+    private const int JSON_DECODE_DEPTH = self::MAX_JSON_DEPTH + 1;
+
     /* H4: emit sub-second precision on the wire. \DateTime::ATOM
      * ("Y-m-d\TH:i:sP") has no fractional-second component, so a date-time
      * carrying milliseconds (2020-01-02T03:04:05.123Z) serialized to whole
@@ -121,7 +127,7 @@ class ObjectSerializer
      *
      * @param mixed $data the data to sanitize
      *
-     * @return scalar|array<string, mixed>|null sanitized form of $data
+     * @return scalar|array<array-key, mixed>|\ArrayObject<array-key, mixed>|null sanitized form of $data
      */
     private static function sanitizeForSerialization(mixed $data): mixed
     {
@@ -167,6 +173,9 @@ class ObjectSerializer
                 $merged = [];
                 foreach ($instances as $instance) {
                     $sanitized = self::sanitizeForSerialization($instance);
+                    if ($sanitized instanceof \ArrayObject) {
+                        $sanitized = $sanitized->getArrayCopy();
+                    }
                     if (is_array($sanitized)) {
                         $merged = array_merge($merged, $sanitized);
                     }
@@ -202,11 +211,31 @@ class ObjectSerializer
                 foreach ($data->additionalProperties->toArray() as $extraKey => $extraValue) {
                     $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
                 }
+                return self::asJsonObject($normalized);
             }
             return $normalized;
         }
 
         throw new \InvalidArgumentException('Cannot serialize value of type ' . get_debug_type($data));
+    }
+
+    /**
+     * Keep a model's field map a JSON object on the wire.
+     *
+     * PHP turns numeric-string array keys into ints, so a model whose only
+     * keys are numeric additionalProperties ("0", "1") becomes a list that
+     * json_encode writes as a JSON array. An ArrayObject always encodes as an
+     * object, so a non-empty list-shaped map is wrapped. Named fields and the
+     * empty map are returned unchanged (the empty map is forced to an object
+     * by serialize()). Only called for a model with additionalProperties,
+     * never for a Ds container, which is legitimately a list.
+     *
+     * @param array<array-key, mixed> $fields the field map of one model
+     * @return array<array-key, mixed>|\ArrayObject<array-key, mixed>
+     */
+    private static function asJsonObject(array $fields): array|\ArrayObject
+    {
+        return $fields !== [] && array_is_list($fields) ? new \ArrayObject($fields) : $fields;
     }
 
     /**
@@ -275,7 +304,13 @@ class ObjectSerializer
              * json_encode([]) yields `[]` — which protobuf-JSON servers
              * reject. Force object encoding for the empty-array case so the
              * wire form matches the `{}` the other SDKs send. */
-            $flags = $sanitized === [] ? JSON_FORCE_OBJECT : 0;
+            /* Slashes, non-ASCII text and U+2028/U+2029 go out literally, like
+             * the other SDKs (and this class's own query-value encoding),
+             * instead of as \/ and \uXXXX escapes. */
+            $flags = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_LINE_TERMINATORS;
+            if ($sanitized === []) {
+                $flags |= JSON_FORCE_OBJECT;
+            }
             $json = json_encode($sanitized, $flags);
             if ($json === false) {
                 throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
@@ -348,11 +383,18 @@ class ObjectSerializer
      * @param mixed                     $data        object or primitive to be deserialized
      * @param string                    $class       class name is passed as a string
      * @param array<string, string>|null $httpHeaders HTTP headers
+     * @param bool                      $decoded     true when $data is already a decoded JSON value (a
+     *                                               container element) rather than raw JSON text, so a
+     *                                               string must not be JSON-decoded a second time
      *
      * @return mixed a single deserialized instance, an array, or a primitive
      */
-    private static function deserializeInternal(mixed $data, string $class, ?array $httpHeaders = null): mixed
-    {
+    private static function deserializeInternal(
+        mixed $data,
+        string $class,
+        ?array $httpHeaders = null,
+        bool $decoded = false
+    ): mixed {
         if (null === $data) {
             return null;
         }
@@ -394,7 +436,7 @@ class ObjectSerializer
         if (preg_match('/^Ds\\\\(Vector|Set|Map)<(.+)>$/', $class, $containerMatch)) {
             $container = $containerMatch[1];
             $inner = self::qualifySchemaName(trim($containerMatch[2]));
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
             if (!is_array($data)) {
                 throw new \InvalidArgumentException("Invalid container '$class'");
             }
@@ -403,7 +445,7 @@ class ObjectSerializer
                 $mapItems = [];
                 /** @var array<array-key, mixed> $data */
                 foreach ($data as $key => $value) {
-                    $mapItems[(string) $key] = self::deserializeInternal($value, $inner);
+                    $mapItems[(string) $key] = self::deserializeInternal($value, $inner, null, true);
                 }
                 return new \Ds\Map($mapItems);
             }
@@ -411,13 +453,13 @@ class ObjectSerializer
             $listItems = [];
             /** @var array<array-key, mixed> $data */
             foreach ($data as $value) {
-                $listItems[] = self::deserializeInternal($value, $inner);
+                $listItems[] = self::deserializeInternal($value, $inner, null, true);
             }
             return $container === 'Set' ? new \Ds\Set($listItems) : new \Ds\Vector($listItems);
         }
 
         if (str_ends_with($class, '[]')) {
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
 
             if (!is_array($data)) {
                 throw new \InvalidArgumentException("Invalid array '$class'");
@@ -426,13 +468,13 @@ class ObjectSerializer
             $subClass = substr($class, 0, -2);
             $values = [];
             foreach ($data as $value) {
-                $values[] = self::deserializeInternal($value, $subClass);
+                $values[] = self::deserializeInternal($value, $subClass, null, true);
             }
             return $values;
         }
 
         if (preg_match('/^(array<|map\[)/', $class)) {
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
             $data = (array) $data;
             $inner = substr($class, 4, -1);
             /** @var array<mixed> $deserialized */
@@ -447,7 +489,7 @@ class ObjectSerializer
                 $subClass = self::qualifySchemaName(trim($subClassArray[1]));
                 /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
-                    $deserialized[$key] = self::deserializeInternal($value, $subClass);
+                    $deserialized[$key] = self::deserializeInternal($value, $subClass, null, true);
                 }
             }
             return $deserialized;
@@ -462,7 +504,7 @@ class ObjectSerializer
          * the un-decoded base64 string (or the quoted literal) would diverge
          * from the byte-decoding SDKs (python/go/java/rust). */
         if ($class === 'byte') {
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
             if ($data === null || $data === '') {
                 return null;
             }
@@ -488,19 +530,34 @@ class ObjectSerializer
             'bool', 'boolean', 'mixed', 'void',
         ];
         if (in_array($class, $primitives, true)) {
-            /* For int-typed fields use JSON_BIGINT_AS_STRING so json_decode
-             * preserves large integer precision as a string (default PHP
-             * json_decode silently coerces ints above PHP_INT_MAX to float,
-             * losing the low bits). Then validate the parsed string fits
-             * within PHP_INT_MIN..PHP_INT_MAX before casting — the str→int
-             * →str round-trip equality is a bcmath-free overflow check.
-             * Other primitive types preserve the original (non-BIGINT) path
-             * so floats and bools deserialise as before. */
-            if ($class === 'int' || $class === 'integer') {
-                if (is_string($data)) {
-                    $data = json_decode($data, true, self::MAX_JSON_DEPTH, JSON_BIGINT_AS_STRING);
+            /* A raw body is parsed as JSON text; a container element is already
+             * a decoded value and is never parsed again (a string element such
+             * as "true" or "5" is a string, not a bool or an int). Either way
+             * the value must then already have the declared JSON type: a wrong
+             * type is rejected rather than coerced ("abc" to 0, 1.9 to 1,
+             * true to 1, "5" to 5). For int-typed raw bodies
+             * JSON_BIGINT_AS_STRING preserves a value above PHP_INT_MAX as a
+             * digit string, so the str to int to str round-trip equality below
+             * is a bcmath-free overflow check. */
+            $bigIntText = false;
+            if (!$decoded && is_string($data)) {
+                $bigIntText = ($class === 'int' || $class === 'integer')
+                    && preg_match('/^\s*-?\d+\s*$/', $data) === 1;
+                $data = json_decode(
+                    $data,
+                    true,
+                    self::JSON_DECODE_DEPTH,
+                    JSON_THROW_ON_ERROR | JSON_BIGINT_AS_STRING
+                );
+                if ($data === null) {
+                    return null;
                 }
-                if (is_string($data) && preg_match('/^-?\d+$/', $data)) {
+            }
+            if ($class === 'mixed' || $class === 'void') {
+                return $data;
+            }
+            if ($class === 'int' || $class === 'integer') {
+                if ($bigIntText && is_string($data)) {
                     $casted = (int) $data;
                     if ((string) $casted !== $data) {
                         throw new \OverflowException(
@@ -510,27 +567,33 @@ class ObjectSerializer
                     }
                     return $casted;
                 }
-                /* Narrow mixed to a scalar/null so intval doesn't trip
-                 * PHPStan's argument.type rule. Non-scalar input falls
-                 * back to 0, matching PHP's settype('int') semantics. */
-                if (is_scalar($data) || is_null($data)) {
-                    return intval($data);
+                if (is_int($data)) {
+                    return $data;
                 }
-                return 0;
+            } elseif ($class === 'float' || $class === 'number') {
+                if (is_int($data) || is_float($data)) {
+                    return (float) $data;
+                }
+            } elseif ($class === 'bool' || $class === 'boolean') {
+                if (is_bool($data)) {
+                    return $data;
+                }
+            } elseif (is_string($data)) {
+                return $data;
             }
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
-            settype($data, $class);
-            return $data;
+            throw new \InvalidArgumentException(
+                sprintf("Expected a JSON value of type '%s' but got %s", $class, get_debug_type($data))
+            );
         }
 
         if ($class === 'object') {
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
             return (array) $data;
         }
 
         if ($class === 'DateTime') {
             if (is_string($data)) {
-                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
+                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -553,7 +616,7 @@ class ObjectSerializer
              * wire string with today's date implied and callers project
              * the time portion via format('H:i:s'). */
             if (is_string($data)) {
-                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
+                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -577,7 +640,7 @@ class ObjectSerializer
              * a round-tripping interval. Invalid strings surface as the
              * SerializationException used elsewhere for bad input. */
             if (is_string($data)) {
-                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
+                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -590,7 +653,7 @@ class ObjectSerializer
 
         if ($class === \Symfony\Component\Uid\Uuid::class) {
             if (is_string($data)) {
-                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH);
+                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH);
                 if (is_string($decoded)) {
                     $data = $decoded;
                 }
@@ -640,7 +703,7 @@ class ObjectSerializer
         }
 
         if (enum_exists($class)) {
-            $data = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $data = $decoded ? $data : self::decodeJson($data);
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class);
             return $result;
@@ -663,7 +726,7 @@ class ObjectSerializer
             && method_exists($class, 'build')
             && method_exists($class, 'getActualInstance')
         ) {
-            $decoded = is_string($data) ? json_decode($data, true, self::MAX_JSON_DEPTH) : $data;
+            $decoded = is_string($data) ? json_decode($data, true, self::JSON_DECODE_DEPTH) : $data;
             /** @var object $built */
             $built = $class::build($decoded);
             return $built;
@@ -671,7 +734,7 @@ class ObjectSerializer
 
         if (is_string($data)) {
             try {
-                $decoded = json_decode($data, true, self::MAX_JSON_DEPTH, JSON_THROW_ON_ERROR);
+                $decoded = json_decode($data, true, self::JSON_DECODE_DEPTH, JSON_THROW_ON_ERROR);
                 /* A bare JSON `null` body decodes to a null return, matching the
                  * absent/null body the other 10 SDKs return null for, rather
                  * than throwing "Expected a JSON object, got null". */
@@ -721,6 +784,16 @@ class ObjectSerializer
         } catch (\Throwable $e) {
             throw new SerializationException($e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * Decode a raw JSON text body. Anything that is not a string (an already
+     * decoded value) is returned unchanged, and unparseable text decodes to
+     * null, which the callers reject with their own typed error.
+     */
+    private static function decodeJson(mixed $data): mixed
+    {
+        return is_string($data) ? json_decode($data, true, self::JSON_DECODE_DEPTH) : $data;
     }
 
     /**

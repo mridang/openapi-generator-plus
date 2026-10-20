@@ -78,3 +78,30 @@ test('token is masked in var_dump and print_r output', function (): void {
     expect($printR)->not->toContain('token=xyz');
     expect($printR)->toContain('***');
 });
+
+test('secret constructor parameters are marked sensitive', function (): void {
+    $sensitive = [];
+    foreach (new \ReflectionMethod(BearerAuthenticator::class, '__construct')->getParameters() as $param) {
+        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+            $sensitive[] = $param->getName();
+        }
+    }
+    expect($sensitive)->toBe(['token']);
+});
+
+test('rejected token is not recorded in the exception stack trace', function (): void {
+    // Exception backtraces record call arguments when zend.exception_ignore_args
+    // is Off (the built-in default); a sensitive parameter is replaced by a
+    // placeholder so the secret never reaches getTraceAsString().
+    $previous = ini_set('zend.exception_ignore_args', '0');
+    try {
+        new BearerAuthenticator('https://api.example.com', "tk\x01SECRETVALUE");
+        $trace = '';
+    } catch (\InvalidArgumentException $e) {
+        $trace = $e->getTraceAsString();
+    } finally {
+        ini_set('zend.exception_ignore_args', $previous === false ? '1' : $previous);
+    }
+    expect($trace)->not->toBe('');
+    expect($trace)->not->toContain('SECRET');
+});

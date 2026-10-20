@@ -48,6 +48,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final String API_DIR_NAME = "Api";
     private static final String MODEL_DIR_NAME = "Models";
 
+    /** Scheme constructor parameters that carry a secret and must stay out of stack traces. */
+    private static final Set<String> SENSITIVE_PARAMS = Set.of("apiKey", "token", "password", "clientSecret");
+
     protected String invokerPackage = "OpenAPI\\Client";
 
     /**
@@ -765,6 +768,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final Map<String, String> param = new HashMap<>();
             param.put("name", name);
             param.put("type", "string");
+            if (SENSITIVE_PARAMS.contains(name)) {
+                param.put("sensitive", "true");
+            }
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);

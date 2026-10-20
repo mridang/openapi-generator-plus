@@ -69,3 +69,13 @@ test('print_r() redacts the secret and shows ***', function (): void {
     expect($printR)->not->toContain('s3cret');
     expect($printR)->toContain('***');
 });
+
+test('secret constructor parameters are marked sensitive', function (): void {
+    $sensitive = [];
+    foreach (new \ReflectionMethod(BasicAuthenticator::class, '__construct')->getParameters() as $param) {
+        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+            $sensitive[] = $param->getName();
+        }
+    }
+    expect($sensitive)->toBe(['password']);
+});

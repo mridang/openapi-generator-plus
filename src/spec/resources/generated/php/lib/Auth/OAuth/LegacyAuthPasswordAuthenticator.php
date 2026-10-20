@@ -21,9 +21,9 @@ final class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthenticator
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $username,
-        string $password
+        #[\SensitiveParameter] string $password
     ) {
         parent::__construct(
             $host,

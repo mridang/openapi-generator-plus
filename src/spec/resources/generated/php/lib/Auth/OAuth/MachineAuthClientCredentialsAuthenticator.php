@@ -21,7 +21,7 @@ final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCreden
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret
+        #[\SensitiveParameter] string $clientSecret
     ) {
         parent::__construct(
             $host,

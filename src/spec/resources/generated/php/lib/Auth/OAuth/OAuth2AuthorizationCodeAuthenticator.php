@@ -80,7 +80,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $authorizationUrl,
         string $tokenUrl,
         string $redirectUri,

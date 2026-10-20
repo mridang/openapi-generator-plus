@@ -77,23 +77,7 @@ final class TransportOptionsBuilder
      */
     public function proxy(?string $proxy): self
     {
-        if ($proxy !== null) {
-            if (filter_var($proxy, FILTER_VALIDATE_URL) === false) {
-                throw new \InvalidArgumentException("Invalid proxy URL: $proxy");
-            }
-            $parsed = parse_url($proxy);
-            $scheme = $parsed['scheme'] ?? '';
-            if ($scheme !== 'http' && $scheme !== 'https') {
-                throw new \InvalidArgumentException(
-                    "Invalid proxy URL (must use http or https scheme): $proxy"
-                );
-            }
-            if (empty($parsed['host'])) {
-                throw new \InvalidArgumentException(
-                    "Invalid proxy URL (missing host): $proxy"
-                );
-            }
-        }
+        TransportOptions::assertValidProxy($proxy);
         $this->proxy = $proxy;
         return $this;
     }

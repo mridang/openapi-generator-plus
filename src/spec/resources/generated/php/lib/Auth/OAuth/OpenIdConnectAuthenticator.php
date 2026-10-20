@@ -80,7 +80,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         string $host,
         string $openIdConnectUrl,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $redirectUri,
         array $scopes
     ) {

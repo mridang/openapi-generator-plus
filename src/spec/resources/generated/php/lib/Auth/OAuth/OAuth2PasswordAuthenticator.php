@@ -75,10 +75,10 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator implements HttpAware
     public function __construct(
         string $host,
         string $clientId,
-        string $clientSecret,
+        #[\SensitiveParameter] string $clientSecret,
         string $tokenUrl,
         string $username,
-        string $password,
+        #[\SensitiveParameter] string $password,
         array $scopes,
         ?string $refreshUrl = null,
         ClientAuthMethod $clientAuthMethod = ClientAuthMethod::Body

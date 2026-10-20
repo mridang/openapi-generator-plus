@@ -196,3 +196,28 @@ test('setting proxy is supported on all platforms', function (): void {
         ->build();
     expect($opts->proxy)->toBe('http://proxy.example.com:8080');
 });
+
+test('proxy scheme is matched case insensitively', function (): void {
+    $opts = TransportOptions::builder()->proxy('HTTP://proxy:3128')->build();
+    expect($opts->proxy)->toBe('HTTP://proxy:3128');
+});
+
+test('builder rejects a proxy with a non http scheme', function (): void {
+    expect(fn () => TransportOptions::builder()->proxy('ftp://proxy:21'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): ftp://proxy:21');
+});
+
+test('constructor rejects a proxy with a non http scheme', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
+});
+
+test('constructor rejects a malformed proxy url', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'not-a-url'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL: not-a-url');
+});
+
+test('constructor accepts a valid proxy and none', function (): void {
+    expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
+    expect((new TransportOptions())->proxy)->toBeNull();
+});

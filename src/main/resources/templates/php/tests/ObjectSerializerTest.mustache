@@ -16,6 +16,7 @@ use {{invokerPackage}}\Models\PetPassport;
 use {{invokerPackage}}\Models\PhotoMetadataLocation;
 use {{invokerPackage}}\Models\Priority;
 use {{invokerPackage}}\Models\StockItem;
+use {{invokerPackage}}\Models\Swatch;
 use {{invokerPackage}}\Models\TreeNode;
 
 // -- toPathValue --
@@ -284,6 +285,7 @@ test('round trip datetime yields equivalent instant', function (): void {
 
 test('accented character serializes and decodes correctly', function (): void {
     $result = ObjectSerializer::serialize('café');
+    expect($result)->toContain('café');
     /** @var string $decoded */
     $decoded = json_decode($result, true);
     expect($decoded)->toBe('café');
@@ -291,9 +293,28 @@ test('accented character serializes and decodes correctly', function (): void {
 
 test('cjk characters serialize and decode correctly', function (): void {
     $result = ObjectSerializer::serialize('日本');
+    expect($result)->toContain('日本');
     /** @var string $decoded */
     $decoded = json_decode($result, true);
     expect($decoded)->toBe('日本');
+});
+
+test('non ascii text is written literally not as unicode escapes', function (): void {
+    expect(ObjectSerializer::serialize('café'))->toBe('"café"');
+    expect(ObjectSerializer::serialize('日本'))->toBe('"日本"');
+});
+
+test('line separator characters are written literally', function (): void {
+    expect(ObjectSerializer::serialize("a\u{2028}b\u{2029}c"))->toBe("\"a\u{2028}b\u{2029}c\"");
+});
+
+test('slash is not escaped in a serialized string', function (): void {
+    expect(ObjectSerializer::serialize('a/b'))->toBe('"a/b"');
+});
+
+test('slash and non ascii text in a model body are written literally', function (): void {
+    $category = new Category(1, 'https://x/y café');
+    expect(ObjectSerializer::serialize($category))->toBe('{"id":1,"name":"https://x/y café"}');
 });
 
 test('tab character escaped properly in json', function (): void {
@@ -646,6 +667,78 @@ test('deep deserialize map of primitive values still works', function (): void {
     /** @var array<string, int> $result */
     $result = ObjectSerializer::deserialize('{"a":1,"b":2}', 'array<string,int>');
     expect($result)->toBe(['a' => 1, 'b' => 2]);
+});
+
+test('enum leaves inside nested containers deserialize from valid values', function (): void {
+    /** @var \Ds\Vector<\Ds\Map<string, Swatch>> $result */
+    $result = ObjectSerializer::deserialize('[{"a":"red"},{"b":"blue","c":"green"}]', 'Ds\Vector<Ds\Map<Swatch>>');
+    expect($result)->toBeInstanceOf(\Ds\Vector::class);
+    expect($result->get(0)->get('a'))->toBe(Swatch::RED);
+    expect($result->get(1)->get('b'))->toBe(Swatch::BLUE);
+    expect($result->get(1)->get('c'))->toBe(Swatch::GREEN);
+});
+
+test('an unknown enum value inside a container is rejected', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('string leaves keep their text and are not parsed as json again', function (): void {
+    expect(ObjectSerializer::deserialize('["true","null","5","1.5"]', 'string[]'))
+        ->toBe(['true', 'null', '5', '1.5']);
+});
+
+test('base64 string leaves in a container decode to bytes', function (): void {
+    expect(ObjectSerializer::deserialize('["aGVsbG8="]', 'byte[]'))->toBe(['hello']);
+});
+
+test('a wrong typed leaf in a container is rejected not coerced', function (string $json, string $class, string $leaf, string $actual): void {
+    $expected = "Expected a JSON value of type '" . $leaf . "' but got " . $actual;
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class, $expected);
+})->with([
+    'string for int' => ['{"a":"abc"}', 'Ds\Map<int>', 'int', 'string'],
+    'quoted number for int' => ['{"a":"5"}', 'Ds\Map<int>', 'int', 'string'],
+    'float for int' => ['{"a":1.9}', 'Ds\Map<int>', 'int', 'float'],
+    'bool for int' => ['{"a":true}', 'Ds\Map<int>', 'int', 'bool'],
+    'array for int' => ['{"a":[1]}', 'Ds\Map<int>', 'int', 'array'],
+    'string for bool' => ['{"a":"true"}', 'Ds\Map<bool>', 'bool', 'string'],
+    'int for bool' => ['{"a":1}', 'Ds\Map<bool>', 'bool', 'int'],
+    'int for string' => ['{"a":1}', 'Ds\Map<string>', 'string', 'int'],
+    'bool for string' => ['{"a":true}', 'Ds\Map<string>', 'string', 'bool'],
+    'string for float' => ['{"a":"1.5"}', 'Ds\Map<float>', 'float', 'string'],
+    'string in nested int vector' => ['[["x"]]', 'Ds\Vector<Ds\Vector<int>>', 'int', 'string'],
+]);
+
+test('a wrong typed top level primitive body is rejected not coerced', function (string $json, string $class, string $actual): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, $class))
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            "Expected a JSON value of type '" . $class . "' but got " . $actual
+        );
+})->with([
+    'string for int' => ['"abc"', 'int', 'string'],
+    'quoted number for int' => ['"5"', 'int', 'string'],
+    'float for int' => ['1.9', 'int', 'float'],
+    'bool for int' => ['true', 'int', 'bool'],
+    'object for int' => ['{"a":1}', 'int', 'array'],
+    'number for bool' => ['1', 'bool', 'int'],
+    'number for string' => ['5', 'string', 'int'],
+    'string for float' => ['"1.5"', 'float', 'string'],
+]);
+
+test('a top level primitive body that is not json is rejected', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('abc', 'int'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('well typed top level primitive bodies decode', function (): void {
+    expect(ObjectSerializer::deserialize('7', 'int'))->toBe(7);
+    expect(ObjectSerializer::deserialize('7', 'float'))->toBe(7.0);
+    expect(ObjectSerializer::deserialize('1.5', 'float'))->toBe(1.5);
+    expect(ObjectSerializer::deserialize('true', 'bool'))->toBeTrue();
+    expect(ObjectSerializer::deserialize('"text"', 'string'))->toBe('text');
+    expect(ObjectSerializer::deserialize('null', 'int'))->toBeNull();
 });
 
 // -- 4.8 format:time + format:duration --
@@ -1168,6 +1261,22 @@ test('additional property re-serializes at the top level not nested', function (
     expect($data)->not->toHaveKey('additional_properties');
 });
 
+test('a model whose only fields are numeric additional properties serializes as an object', function (): void {
+    $meta = new Metadata();
+    /** @var \Ds\Map<string, mixed> $extra */
+    $extra = new \Ds\Map(['0' => 'x', '1' => 'y']);
+    $meta->additionalProperties = $extra;
+    expect(ObjectSerializer::serialize($meta))->toBe('{"0":"x","1":"y"}');
+});
+
+test('a model with numeric and named fields keeps both as an object', function (): void {
+    $meta = new Metadata(new \DateTime('2024-01-01T00:00:00+00:00'));
+    /** @var \Ds\Map<string, mixed> $extra */
+    $extra = new \Ds\Map(['0' => 'x']);
+    $meta->additionalProperties = $extra;
+    expect(ObjectSerializer::serialize($meta))->toBe('{"createdAt":"2024-01-01T00:00:00.000+00:00","0":"x"}');
+});
+
 // -- Canonical #7: a nested container deep-round-trips to typed leaves --
 //
 // StockItem.matrix is `array<array<int>>` -> `\Ds\Vector<\Ds\Vector<int>>`.
@@ -1225,6 +1334,16 @@ test('invalid base64 for a format:byte value throws', function (): void {
     // The scalar `byte` deserialize path base64-decodes the JSON string literal;
     // invalid base64 must throw rather than return the raw undecoded string.
     expect(fn (): mixed => ObjectSerializer::deserialize('"!!!not-base64!!!"', 'byte'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('nesting exactly at the depth cap decodes and one level past it is rejected', function (): void {
+    $atCap = str_repeat('[', ObjectSerializer::MAX_JSON_DEPTH) . str_repeat(']', ObjectSerializer::MAX_JSON_DEPTH);
+    expect(ObjectSerializer::deserialize($atCap, 'object[]'))->toBeArray();
+
+    $pastCap = str_repeat('[', ObjectSerializer::MAX_JSON_DEPTH + 1)
+        . str_repeat(']', ObjectSerializer::MAX_JSON_DEPTH + 1);
+    expect(fn (): mixed => ObjectSerializer::deserialize($pastCap, 'object[]'))
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
