@@ -1,19 +1,19 @@
 .PHONY: build test clean format lint docs
 
 build:
-	./gradlew build
+	gradle build
 
 test:
-	./gradlew test koverXmlReport
+	gradle test koverXmlReport
 
 clean:
-	./gradlew clean
+	gradle clean
 
 format:
-	./gradlew ktlintFormat
+	gradle ktlintFormat
 
 lint:
-	./gradlew ktlintCheck detekt
+	gradle ktlintCheck detekt
 
 docs:
-	./gradlew dokkaGenerate
+	gradle dokkaGenerate

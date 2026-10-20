@@ -414,6 +414,33 @@ class DefaultApiClientTest {
             }
             assertEquals("https://h.example.com/v1/pets/1?page=2", secondHopUrl)
         }
+
+        @Test
+        @DisplayName("resolves an empty Location to the base URL (RFC 3986)")
+        fun resolvesEmptyLocationToBaseUrl() {
+            var secondHopUrl: String? = null
+            var hopCount = 0
+            val engine =
+                MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", ""),
+                        )
+                    } else {
+                        secondHopUrl = req.url.toString()
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "https://h.example.com/v1/pets/1?x=1", emptyMap(), null)
+            }
+            assertEquals("https://h.example.com/v1/pets/1?x=1", secondHopUrl)
+        }
     }
 
     @Nested

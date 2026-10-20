@@ -93,10 +93,12 @@ open class OpenIdConnectAuthenticator(
 
         val discovery = try {
             json.parseToJsonElement(response.body).jsonObject
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             /* kotlinx.serialization.SerializationException extends
-             * IllegalArgumentException, as does .jsonObject on a non-object. */
-            throw SerializationException("OIDC discovery document is not a JSON object: ${e.message}", e)
+             * IllegalArgumentException, as does .jsonObject on a non-object.
+             * Neither the message nor the cause is kept: the parser quotes a
+             * "JSON input" excerpt of the body. */
+            throw SerializationException("OIDC discovery document is not a JSON object")
         }
         val authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint")
         val tokenEndpoint = requireEndpoint(discovery, "token_endpoint")

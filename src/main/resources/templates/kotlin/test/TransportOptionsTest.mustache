@@ -157,6 +157,25 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("a proxy URL with no host is rejected")
+        fun proxyUrlWithoutHostIsRejected() {
+            for (proxy in listOf("http://@:3128", "http://user:pw@:3128", "http://:3128", "http://[]:3128", "http://")) {
+                val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy(proxy)
+                }
+                assertEquals("Invalid proxy URL (missing host): $proxy", ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("a proxy URL with user-info, an IPv6 literal or a path is accepted")
+        fun proxyUrlWithHostIsAccepted() {
+            for (proxy in listOf("http://user:pw@proxy:3128", "http://user@proxy", "http://[::1]:3128", "http://proxy:3128/path?q=1")) {
+                assertEquals(proxy, TransportOptions.builder().proxy(proxy).build().proxy)
+            }
+        }
+
+        @Test
         @DisplayName("null proxy URL is accepted")
         fun nullProxyUrlIsAccepted() {
             val opts = TransportOptions.builder().proxy(null).build()

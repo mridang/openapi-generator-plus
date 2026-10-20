@@ -620,12 +620,16 @@ internal fun sameOrigin(originalUri: java.net.URI, redirectUri: java.net.URI): B
 /**
  * Resolve a Location header against the URL that produced it. java.net.URI
  * implements the RFC 2396 rules, which resolve a query-only reference such as
- * `?page=2` against the base DIRECTORY (dropping the last path segment); RFC
- * 3986 keeps the base path and replaces only the query. Every other reference
- * form resolves identically under both RFCs, so only the query-only form is
- * handled here.
+ * `?page=2`, or an empty one, against the base DIRECTORY (dropping the last
+ * path segment); RFC 3986 keeps the base path (and, for an empty reference,
+ * the base query). A fragment-only reference is already resolved the RFC 3986
+ * way by java.net.URI, and every other reference form resolves identically
+ * under both RFCs, so only the query-only and empty forms are handled here.
  */
 internal fun resolveRedirectLocation(base: java.net.URI, location: String): java.net.URI {
+    if (location.isEmpty()) {
+        return java.net.URI(base.toString().substringBefore('#'))
+    }
     if (location.startsWith("?")) {
         val baseWithoutQuery = base.toString().substringBefore('#').substringBefore('?')
         return java.net.URI(baseWithoutQuery + location)

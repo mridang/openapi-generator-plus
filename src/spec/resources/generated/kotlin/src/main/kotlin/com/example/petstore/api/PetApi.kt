@@ -140,7 +140,6 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
     suspend fun addPet(
         pet: Pet,
         options: AddPetOptions? = null,
@@ -154,6 +153,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [addPet] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun addPetWithHttpInfo(
         pet: Pet,
         options: AddPetOptions? = null,
@@ -182,12 +182,11 @@ class PetApi : BaseApi {
      * Add photos to the pet's gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return List<Photo>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun addPetPhotos(
         petId: Long,
         options: AddPetPhotosOptions,
@@ -201,6 +200,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [addPetPhotos] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun addPetPhotosWithHttpInfo(
         petId: Long,
         options: AddPetPhotosOptions,
@@ -247,7 +247,6 @@ class PetApi : BaseApi {
      * @return PetTreatment
      * @throws ApiException if fails to make API call
      */
-
     suspend fun addPetTreatment(
         petId: Long,
         petTreatment: PetTreatment,
@@ -262,6 +261,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [addPetTreatment] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun addPetTreatmentWithHttpInfo(
         petId: Long,
         petTreatment: PetTreatment,
@@ -302,7 +302,6 @@ class PetApi : BaseApi {
 
      * @throws ApiException if fails to make API call
      */
-
     suspend fun deletePet(
         petId: Long,
         options: DeletePetOptions? = null,
@@ -310,6 +309,7 @@ class PetApi : BaseApi {
         deletePetWithHttpInfo(petId, options)
     }
 
+    /** Same as [deletePet] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun deletePetWithHttpInfo(
         petId: Long,
         options: DeletePetOptions? = null,
@@ -368,7 +368,6 @@ class PetApi : BaseApi {
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-
     suspend fun downloadPetDocument(
         petId: Long,
         documentId: Long,
@@ -382,6 +381,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [downloadPetDocument] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun downloadPetDocumentWithHttpInfo(
         petId: Long,
         documentId: Long,
@@ -423,7 +423,6 @@ class PetApi : BaseApi {
      * @return List<Pet>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun findPetsBornOn(bornOn: LocalDate): List<Pet> =
         findPetsBornOnWithHttpInfo(bornOn).let { result ->
             result.data ?: throw ApiException(
@@ -434,6 +433,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [findPetsBornOn] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun findPetsBornOnWithHttpInfo(bornOn: LocalDate): ApiResult<List<Pet>> {
         requireNotNull(bornOn) {
             "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn"
@@ -461,7 +461,7 @@ class PetApi : BaseApi {
 
     /**
      * Finds Pets by status
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return List<Pet>
      * @throws ApiException if fails to make API call
@@ -469,7 +469,6 @@ class PetApi : BaseApi {
      * Find out more about filtering
      * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
      */
-
     @Deprecated("This operation is deprecated.")
     suspend fun findPetsByStatus(options: FindPetsByStatusOptions? = null): List<Pet> =
         findPetsByStatusWithHttpInfo(options).let { result ->
@@ -481,6 +480,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [findPetsByStatus] but returns the full [ApiResult] (status code, headers and body). */
     @Deprecated("This operation is deprecated.")
     suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions? = null): ApiResult<List<Pet>> {
         var path = "/pet/findByStatus"
@@ -519,18 +519,20 @@ class PetApi : BaseApi {
         )
     }
 
+    /** Same as [getExternalPetInfo] but sends the request to the default server. */
+    suspend fun getExternalPetInfo(petId: Long): Pet = getExternalPetInfo(petId, null)
+
+    /** Same as [getExternalPetInfoWithHttpInfo] but sends the request to the default server. */
+    suspend fun getExternalPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId, null)
+
     /**
      * Get external pet info
      * @param petId  (required)
+     * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
-    suspend fun getExternalPetInfo(petId: Long): Pet = getExternalPetInfo(petId, null)
-
-    suspend fun getExternalPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getExternalPetInfoWithHttpInfo(petId, null)
-
     suspend fun getExternalPetInfo(
         petId: Long,
         server: GetExternalPetInfoServer? = null,
@@ -544,6 +546,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getExternalPetInfo] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getExternalPetInfoWithHttpInfo(
         petId: Long,
         server: GetExternalPetInfoServer? = null,
@@ -578,18 +581,20 @@ class PetApi : BaseApi {
         )
     }
 
+    /** Same as [getMultiServerPetInfo] but sends the request to the default server. */
+    suspend fun getMultiServerPetInfo(petId: Long): Pet = getMultiServerPetInfo(petId, null)
+
+    /** Same as [getMultiServerPetInfoWithHttpInfo] but sends the request to the default server. */
+    suspend fun getMultiServerPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getMultiServerPetInfoWithHttpInfo(petId, null)
+
     /**
      * Get multi-server pet info
      * @param petId  (required)
+     * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
-    suspend fun getMultiServerPetInfo(petId: Long): Pet = getMultiServerPetInfo(petId, null)
-
-    suspend fun getMultiServerPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getMultiServerPetInfoWithHttpInfo(petId, null)
-
     suspend fun getMultiServerPetInfo(
         petId: Long,
         server: GetMultiServerPetInfoServer? = null,
@@ -603,6 +608,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getMultiServerPetInfo] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getMultiServerPetInfoWithHttpInfo(
         petId: Long,
         server: GetMultiServerPetInfoServer? = null,
@@ -645,7 +651,6 @@ class PetApi : BaseApi {
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetAvatar(petId: Long): ByteArray =
         getPetAvatarWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
@@ -656,6 +661,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetAvatarWithHttpInfo(petId: Long): ApiResult<ByteArray> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetAvatar"
@@ -689,7 +695,6 @@ class PetApi : BaseApi {
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetAvatarThumbnail(petId: Long): ByteArray =
         getPetAvatarThumbnailWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
@@ -700,6 +705,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetAvatarThumbnailWithHttpInfo(petId: Long): ApiResult<ByteArray> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetAvatarThumbnail"
@@ -725,24 +731,26 @@ class PetApi : BaseApi {
         )
     }
 
+    /** Same as [getPetById] but sends the request to the default server. */
+    @Deprecated("This operation is deprecated.")
+    suspend fun getPetById(petId: Long): Pet = getPetById(petId, null)
+
+    /** Same as [getPetByIdWithHttpInfo] but sends the request to the default server. */
+    @Deprecated("This operation is deprecated.")
+    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId, null)
+
     /**
      * Find pet by ID
      * Returns a single pet
      * @param petId ID of pet to return (required)
      * Example — Small breed ID: `1`
      * Example — Large breed ID: `42`
+     * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
      * @throws ApiException if fails to make API call
      * @deprecated This operation is deprecated.
      */
-
-    @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(petId: Long): Pet = getPetById(petId, null)
-
-    @Deprecated("This operation is deprecated.")
-    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId, null)
-
     @Deprecated("This operation is deprecated.")
     suspend fun getPetById(
         petId: Long,
@@ -757,6 +765,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetById] but returns the full [ApiResult] (status code, headers and body). */
     @Deprecated("This operation is deprecated.")
     suspend fun getPetByIdWithHttpInfo(
         petId: Long,
@@ -795,12 +804,11 @@ class PetApi : BaseApi {
     /**
      * Look up a pet by name (simple string path param + required query)
      * @param name  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetByName(
         name: String,
         options: GetPetByNameOptions,
@@ -814,6 +822,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetByName] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetByNameWithHttpInfo(
         name: String,
         options: GetPetByNameOptions,
@@ -866,7 +875,6 @@ class PetApi : BaseApi {
      * @return PetPassport
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetPassport(petId: Long): PetPassport =
         getPetPassportWithHttpInfo(petId).let { result ->
             result.data ?: throw ApiException(
@@ -877,6 +885,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetPassport] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetPassportWithHttpInfo(petId: Long): ApiResult<PetPassport> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetPassport"
@@ -911,7 +920,6 @@ class PetApi : BaseApi {
      * @return ByteArray
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetPhoto(
         petId: Long,
         photoId: Long,
@@ -925,6 +933,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetPhoto] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetPhotoWithHttpInfo(
         petId: Long,
         photoId: Long,
@@ -963,12 +972,11 @@ class PetApi : BaseApi {
      * Get a tag for a pet
      * @param petId  (required)
      * @param tagName  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getPetTag(
         petId: Long,
         tagName: String,
@@ -983,6 +991,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getPetTag] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getPetTagWithHttpInfo(
         petId: Long,
         tagName: String,
@@ -1048,18 +1057,20 @@ class PetApi : BaseApi {
         )
     }
 
+    /** Same as [getStagingPetInfo] but sends the request to the default server. */
+    suspend fun getStagingPetInfo(petId: Long): Pet = getStagingPetInfo(petId, null)
+
+    /** Same as [getStagingPetInfoWithHttpInfo] but sends the request to the default server. */
+    suspend fun getStagingPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId, null)
+
     /**
      * Get staging pet info
      * @param petId  (required)
+     * @param server the server to send the request to; when null the default server is used
 
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
-    suspend fun getStagingPetInfo(petId: Long): Pet = getStagingPetInfo(petId, null)
-
-    suspend fun getStagingPetInfoWithHttpInfo(petId: Long): ApiResult<Pet> = getStagingPetInfoWithHttpInfo(petId, null)
-
     suspend fun getStagingPetInfo(
         petId: Long,
         server: GetStagingPetInfoServer? = null,
@@ -1073,6 +1084,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [getStagingPetInfo] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getStagingPetInfoWithHttpInfo(
         petId: Long,
         server: GetStagingPetInfoServer? = null,
@@ -1117,7 +1129,6 @@ class PetApi : BaseApi {
 
      * @throws ApiException if fails to make API call
      */
-
     suspend fun setPetAvatar(
         petId: Long,
         body: ByteArray,
@@ -1126,6 +1137,7 @@ class PetApi : BaseApi {
         setPetAvatarWithHttpInfo(petId, body, requestContentType)
     }
 
+    /** Same as [setPetAvatar] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun setPetAvatarWithHttpInfo(
         petId: Long,
         body: ByteArray,
@@ -1179,7 +1191,6 @@ class PetApi : BaseApi {
 
      * @throws ApiException if fails to make API call
      */
-
     suspend fun setPetAvatarThumbnail(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
@@ -1187,6 +1198,7 @@ class PetApi : BaseApi {
         setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest)
     }
 
+    /** Same as [setPetAvatarThumbnail] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun setPetAvatarThumbnailWithHttpInfo(
         petId: Long,
         setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
@@ -1222,12 +1234,11 @@ class PetApi : BaseApi {
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
-
     suspend fun setPetPreferences(
         petId: Long,
         options: SetPetPreferencesOptions,
@@ -1241,6 +1252,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [setPetPreferences] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun setPetPreferencesWithHttpInfo(
         petId: Long,
         options: SetPetPreferencesOptions,
@@ -1294,7 +1306,6 @@ class PetApi : BaseApi {
      * @return Pet
      * @throws ApiException if fails to make API call
      */
-
     suspend fun updatePet(
         petId: Long,
         pet: Pet,
@@ -1308,6 +1319,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [updatePet] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun updatePetWithHttpInfo(
         petId: Long,
         pet: Pet,
@@ -1343,12 +1355,11 @@ class PetApi : BaseApi {
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
-
     suspend fun uploadPetCertificate(
         petId: Long,
         options: UploadPetCertificateOptions,
@@ -1362,6 +1373,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [uploadPetCertificate] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun uploadPetCertificateWithHttpInfo(
         petId: Long,
         options: UploadPetCertificateOptions,
@@ -1399,14 +1411,13 @@ class PetApi : BaseApi {
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param petId  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @param requestContentType one of the declared request content-types; when null the first declared type is used (defaults to the first declared content-type)
 
      * @return ApiResponse
      * @throws ApiException if fails to make API call
      */
-
     suspend fun uploadPetDocument(
         petId: Long,
         options: UploadPetDocumentOptions,
@@ -1421,6 +1432,7 @@ class PetApi : BaseApi {
             )
         }
 
+    /** Same as [uploadPetDocument] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun uploadPetDocumentWithHttpInfo(
         petId: Long,
         options: UploadPetDocumentOptions,

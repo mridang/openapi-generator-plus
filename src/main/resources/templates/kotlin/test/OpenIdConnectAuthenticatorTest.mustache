@@ -200,6 +200,23 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun malformedDiscoveryDocumentDoesNotEchoTheBody() {
+        // The parser's own message quotes an excerpt of its input, so neither
+        // the message nor the cause may be kept.
+        val client = FakeApiClient()
+        client.enqueue("access_token=gho_SECRET123")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+        assertEquals("OIDC discovery document is not a JSON object", ex.message)
+        assertNull(ex.cause)
+    }
+
+    @Test
     fun throwsWhenDiscoveryMissingAuthorizationEndpoint() {
         val client = FakeApiClient()
         client.enqueue("""{"token_endpoint":"https://auth.example.com/token"}""")

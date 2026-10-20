@@ -44,11 +44,11 @@ class StoreApi : BaseApi {
 
      * @throws ApiException if fails to make API call
      */
-
     suspend fun deleteOrder(orderId: Long) {
         deleteOrderWithHttpInfo(orderId)
     }
 
+    /** Same as [deleteOrder] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun deleteOrderWithHttpInfo(orderId: Long): ApiResult<Unit> {
         requireNotNull(orderId) {
             "Missing the required parameter 'orderId' when calling StoreApi.deleteOrder"
@@ -77,12 +77,11 @@ class StoreApi : BaseApi {
     /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param pathSwatch  (required)
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return Category
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getBySwatch(
         pathSwatch: Swatch,
         options: GetBySwatchOptions? = null,
@@ -96,6 +95,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getBySwatch] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getBySwatchWithHttpInfo(
         pathSwatch: Swatch,
         options: GetBySwatchOptions? = null,
@@ -149,7 +149,6 @@ class StoreApi : BaseApi {
      * @return Defaults
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getDefaults(): Defaults =
         getDefaultsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -160,6 +159,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getDefaults] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getDefaultsWithHttpInfo(): ApiResult<Defaults> {
         var path = "/store/defaults"
         val queryParams = mutableMapOf<String, Any?>()
@@ -183,7 +183,6 @@ class StoreApi : BaseApi {
      * @return Department
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getDepartment(): Department =
         getDepartmentWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -194,6 +193,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getDepartment] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getDepartmentWithHttpInfo(): ApiResult<Department> {
         var path = "/store/department"
         val queryParams = mutableMapOf<String, Any?>()
@@ -217,7 +217,6 @@ class StoreApi : BaseApi {
      * @return List<Map<String, Category>>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getGroupedCategories(): List<Map<String, Category>> =
         getGroupedCategoriesWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -228,6 +227,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getGroupedCategories] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getGroupedCategoriesWithHttpInfo(): ApiResult<List<Map<String, Category>>> {
         var path = "/store/grouped-categories"
         val queryParams = mutableMapOf<String, Any?>()
@@ -251,7 +251,6 @@ class StoreApi : BaseApi {
      * @return Map<String, Int>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getInventory(): Map<String, Int> =
         getInventoryWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -262,6 +261,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getInventory] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getInventoryWithHttpInfo(): ApiResult<Map<String, Int>> {
         var path = "/store/inventory"
         val queryParams = mutableMapOf<String, Any?>()
@@ -285,7 +285,6 @@ class StoreApi : BaseApi {
      * @return List<List<Int>>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getMatrix(): List<List<Int>> =
         getMatrixWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -296,6 +295,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getMatrix] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getMatrixWithHttpInfo(): ApiResult<List<List<Int>>> {
         var path = "/store/matrix"
         val queryParams = mutableMapOf<String, Any?>()
@@ -320,7 +320,6 @@ class StoreApi : BaseApi {
      * @return Order
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getOrderById(orderId: Long): Order =
         getOrderByIdWithHttpInfo(orderId).let { result ->
             result.data ?: throw ApiException(
@@ -331,6 +330,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getOrderById] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
         requireNotNull(orderId) {
             "Missing the required parameter 'orderId' when calling StoreApi.getOrderById"
@@ -358,12 +358,11 @@ class StoreApi : BaseApi {
 
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
-     * @param options options for query, header, form, cookie parameters, and per-operation auth
+     * @param options options for query, header, form, cookie parameters
 
      * @return StockItem
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getStockItem(options: GetStockItemOptions? = null): StockItem =
         getStockItemWithHttpInfo(options).let { result ->
             result.data ?: throw ApiException(
@@ -374,6 +373,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getStockItem] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getStockItemWithHttpInfo(options: GetStockItemOptions? = null): ApiResult<StockItem> {
         var path = "/store/stock-item"
         val queryParams = mutableMapOf<String, Any?>()
@@ -404,7 +404,6 @@ class StoreApi : BaseApi {
      * @return Swatch
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getSwatch(): Swatch =
         getSwatchWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -415,6 +414,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getSwatch] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getSwatchWithHttpInfo(): ApiResult<Swatch> {
         var path = "/store/swatch"
         val queryParams = mutableMapOf<String, Any?>()
@@ -438,7 +438,6 @@ class StoreApi : BaseApi {
      * @return List<Map<String, Swatch>>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getSwatchGroups(): List<Map<String, Swatch>> =
         getSwatchGroupsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -449,6 +448,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getSwatchGroups] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getSwatchGroupsWithHttpInfo(): ApiResult<List<Map<String, Swatch>>> {
         var path = "/store/swatch-groups"
         val queryParams = mutableMapOf<String, Any?>()
@@ -472,7 +472,6 @@ class StoreApi : BaseApi {
      * @return List<Map<String, OffsetDateTime>>
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getTimestampGroups(): List<Map<String, OffsetDateTime>> =
         getTimestampGroupsWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -483,6 +482,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getTimestampGroups] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getTimestampGroupsWithHttpInfo(): ApiResult<List<Map<String, OffsetDateTime>>> {
         var path = "/store/timestamp-groups"
         val queryParams = mutableMapOf<String, Any?>()
@@ -506,7 +506,6 @@ class StoreApi : BaseApi {
      * @return TreeNode
      * @throws ApiException if fails to make API call
      */
-
     suspend fun getTree(): TreeNode =
         getTreeWithHttpInfo().let { result ->
             result.data ?: throw ApiException(
@@ -517,6 +516,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [getTree] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun getTreeWithHttpInfo(): ApiResult<TreeNode> {
         var path = "/store/tree"
         val queryParams = mutableMapOf<String, Any?>()
@@ -541,7 +541,6 @@ class StoreApi : BaseApi {
      * @return Order
      * @throws ApiException if fails to make API call
      */
-
     suspend fun placeOrder(order: Order? = null): Order =
         placeOrderWithHttpInfo(order).let { result ->
             result.data ?: throw ApiException(
@@ -552,6 +551,7 @@ class StoreApi : BaseApi {
             )
         }
 
+    /** Same as [placeOrder] but returns the full [ApiResult] (status code, headers and body). */
     suspend fun placeOrderWithHttpInfo(order: Order? = null): ApiResult<Order> {
         var path = "/store/order"
         val queryParams = mutableMapOf<String, Any?>()

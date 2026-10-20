@@ -250,7 +250,7 @@ val model = ApiResponse(/* properties */)
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `java.io.File`. Binary response bodies are returned as `ByteArray`.
+File upload parameters are typed as `ByteArray` (`List<ByteArray>` for multi-file uploads). Binary response bodies are returned as `ByteArray`.
 
 ## Comment Style
 

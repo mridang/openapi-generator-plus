@@ -130,13 +130,16 @@ class TransportOptions private constructor(
                             "Invalid proxy URL (must use http or https scheme): $proxy",
                         )
                     }
-                    val hostPart = proxy.substring(schemeEnd + 3)
+                    /* The host is what follows the optional user-info and precedes the
+                     * port: `http://@:3128` has the user-info `` and no host at all. */
+                    val authority = proxy.substring(schemeEnd + 3).split("/", "?", "#").first()
+                    val hostAndPort = authority.substringAfterLast('@')
                     val host =
-                        hostPart
-                            .split("/")
-                            .first()
-                            .split(":")
-                            .first()
+                        if (hostAndPort.startsWith("[")) {
+                            hostAndPort.substringBefore(']').removePrefix("[")
+                        } else {
+                            hostAndPort.substringBefore(':')
+                        }
                     if (host.isEmpty()) {
                         throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
                     }

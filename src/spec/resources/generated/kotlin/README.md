@@ -5,19 +5,19 @@ Auto-generated Kotlin SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 ## Requirements
 
 - **Kotlin** 2.2 (Kotlin Multiplatform — `jvm` target)
-- **JVM** 17 or newer (Gradle toolchain pins to 17)
-- **Gradle** 8.x (8.10+) or Gradle 9.x
+- **JVM** 17 or newer (the build uses whichever JDK is on the `PATH`; static analysis targets 17)
+- **Gradle** 8.x (8.10+) or Gradle 9.x, installed on the `PATH` (the SDK ships no Gradle wrapper)
 
 ## Build
 
 ```bash
-./gradlew build
+gradle build
 ```
 
 ## Test
 
 ```bash
-./gradlew test
+gradle test
 ```
 
 ## Lint, format & static analysis
@@ -31,18 +31,19 @@ The SDK ships with three configured tools:
 Run them together:
 
 ```bash
-./gradlew ktlintCheck detekt
+gradle ktlintCheck detekt
 ```
 
 To auto-fix formatting issues:
 
 ```bash
-./gradlew ktlintFormat
+gradle ktlintFormat
 ```
 
 ## Package
 
 - Group: `com.example.petstore`
+- Artifact: `petstore-client`
 - Version: `1.0.0`
 
 ## Caveats
@@ -98,7 +99,7 @@ round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptions.builder().proxy(...)` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying
