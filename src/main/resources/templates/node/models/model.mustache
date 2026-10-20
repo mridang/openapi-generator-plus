@@ -815,6 +815,48 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isDateTime}}
 {{/isArray}}
 {{/vars}}
+{{! Container element types. The array-or-Set check above only covers an
+    array of primitives; a model array had no check at all, and neither kind
+    looked at its elements, so a string where an array belongs or a number in
+    an array of models decoded silently. Check the wire type of each element
+    of a plain-string or model array. Elements with a declared format (uuid,
+    time, date, decimal, byte) are left to their own handling, and nested
+    containers are skipped. }}
+{{#vars}}
+{{^isEnum}}
+{{#isArray}}
+{{^isPrimitiveType}}
+    if (this.{{name}} != null && !Array.isArray(this.{{name}}) && !((this.{{name}} as unknown) instanceof Set)) {
+      throw new TypeError(`{{name}} must be an array, got ${typeof this.{{name}}}`);
+    }
+{{/isPrimitiveType}}
+{{^items.isEnum}}
+{{^items.isEnumRef}}
+{{#items.isModel}}
+    if (this.{{name}} != null) {
+      for (const __e of this.{{name}} as Iterable<unknown>) {
+        if (__e != null && (typeof __e !== 'object' || Array.isArray(__e))) {
+          throw new TypeError(`{{name}} elements must be objects, got ${Array.isArray(__e) ? 'array' : typeof __e}`);
+        }
+      }
+    }
+{{/items.isModel}}
+{{^items.dataFormat}}
+{{#items.isString}}
+    if (this.{{name}} != null) {
+      for (const __e of this.{{name}} as Iterable<unknown>) {
+        if (__e != null && typeof __e !== 'string') {
+          throw new TypeError(`{{name}} elements must be strings, got ${typeof __e}`);
+        }
+      }
+    }
+{{/items.isString}}
+{{/items.dataFormat}}
+{{/items.isEnumRef}}
+{{/items.isEnum}}
+{{/isArray}}
+{{/isEnum}}
+{{/vars}}
 {{#hasEnums}}
 {{#vars}}
 {{#isEnum}}

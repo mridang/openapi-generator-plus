@@ -330,7 +330,15 @@ export abstract class BaseApi {
        *   - URLSearchParams.append encodes a space as `+` (not %20), the
        *     canonical application/x-www-form-urlencoded form;
        *   - the unreserved set is `A-Za-z0-9-._~`: URLSearchParams keeps `*`
-       *     literal and escapes `~`, so both are flipped after serializing. */
+       *     literal and escapes `~`, so both are flipped after serializing;
+       *   - a lone surrogate throws URIError, as the query encoder does,
+       *     instead of URLSearchParams silently replacing it with U+FFFD. */
+      const wellFormed = (text: string): string => {
+        if (!text.isWellFormed()) {
+          throw new URIError('URI malformed');
+        }
+        return text;
+      };
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
         if (value == null) {
@@ -341,10 +349,10 @@ export abstract class BaseApi {
             if (item == null) {
               continue;
             }
-            params.append(key, ObjectSerializer.stringify(item));
+            params.append(wellFormed(key), wellFormed(ObjectSerializer.stringify(item)));
           }
         } else {
-          params.append(key, ObjectSerializer.stringify(value));
+          params.append(wellFormed(key), wellFormed(ObjectSerializer.stringify(value)));
         }
       }
       /* The serialized text only contains a percent sign as an escape, so

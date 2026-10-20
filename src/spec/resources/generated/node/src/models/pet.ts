@@ -180,6 +180,31 @@ export class Pet {
         `weightKg must be a Decimal string or number, got ${typeof this.weightKg}`,
       );
     }
+    if (this.photoUrls != null) {
+      for (const __e of this.photoUrls as Iterable<unknown>) {
+        if (__e != null && typeof __e !== "string") {
+          throw new TypeError(
+            `photoUrls elements must be strings, got ${typeof __e}`,
+          );
+        }
+      }
+    }
+    if (
+      this.tags != null &&
+      !Array.isArray(this.tags) &&
+      !((this.tags as unknown) instanceof Set)
+    ) {
+      throw new TypeError(`tags must be an array, got ${typeof this.tags}`);
+    }
+    if (this.tags != null) {
+      for (const __e of this.tags as Iterable<unknown>) {
+        if (__e != null && (typeof __e !== "object" || Array.isArray(__e))) {
+          throw new TypeError(
+            `tags elements must be objects, got ${Array.isArray(__e) ? "array" : typeof __e}`,
+          );
+        }
+      }
+    }
     if (this.status != null) {
       const statusValues = Object.values(PetStatusEnum).filter(
         (v) =>

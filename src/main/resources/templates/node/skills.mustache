@@ -13,7 +13,7 @@ If using locally, add it as a file dependency in your `package.json`.
 ## Quick Start
 
 ```typescript
-import { {{clientClassName}} } from './src/{{clientClassFile}}{{importFileExtension}}';
+import { {{clientClassName}} } from '{{npmName}}';
 
 const client = {{clientClassName}}.withToken('https://api.example.com', 'your-token');
 ```
@@ -22,21 +22,22 @@ const client = {{clientClassName}}.withToken('https://api.example.com', 'your-to
 
 All authentication is handled via `Authenticator` implementations passed to the client constructor.
 
+{{#hasBearerAuth}}
 ### Bearer Token
 
 ```typescript
-import { BearerAuthenticator } from './src/auth/bearer-authenticator{{importFileExtension}}';
-import { {{clientClassName}} } from './src/{{clientClassFile}}{{importFileExtension}}';
+import { BearerAuthenticator, {{clientClassName}} } from '{{npmName}}';
 
 const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
 const client = new {{clientClassName}}(authenticator);
 ```
 
+{{/hasBearerAuth}}
 {{#hasBasicAuth}}
 ### Basic Auth
 
 ```typescript
-import { BasicAuthenticator } from './src/auth/basic-authenticator{{importFileExtension}}';
+import { BasicAuthenticator } from '{{npmName}}';
 
 const authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
 const client = new {{clientClassName}}(authenticator);
@@ -47,8 +48,7 @@ const client = new {{clientClassName}}(authenticator);
 ### API Key
 
 ```typescript
-import { ApiKeyAuthenticator } from './src/auth/api-key-authenticator{{importFileExtension}}';
-import { ApiKeyLocation } from './src/auth/api-key-location{{importFileExtension}}';
+import { ApiKeyAuthenticator, ApiKeyLocation } from '{{npmName}}';
 
 const authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation.HEADER);
 const client = new {{clientClassName}}(authenticator);
@@ -59,7 +59,7 @@ const client = new {{clientClassName}}(authenticator);
 ### OAuth2 Client Credentials
 
 ```typescript
-import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator{{importFileExtension}}';
+import { OAuth2ClientCredentialsAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read']);
@@ -71,7 +71,7 @@ const client = new {{clientClassName}}(authenticator);
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthorizationCodeAuthenticator } from './src/auth/oauth/oauth2-authorization-code-authenticator{{importFileExtension}}';
+import { OAuth2AuthorizationCodeAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret',
@@ -85,7 +85,7 @@ const client = new {{clientClassName}}(authenticator);
 ### OAuth2 Password
 
 ```typescript
-import { OAuth2PasswordAuthenticator } from './src/auth/oauth/oauth2-password-authenticator{{importFileExtension}}';
+import { OAuth2PasswordAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2PasswordAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret',
@@ -100,7 +100,7 @@ const client = new {{clientClassName}}(authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```typescript
-import { OAuth2ImplicitAuthenticator } from './src/auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';
+import { OAuth2ImplicitAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   'https://api.example.com',
@@ -117,7 +117,7 @@ const client = new {{clientClassName}}(authenticator);
 ### OpenID Connect
 
 ```typescript
-import { OpenIdConnectAuthenticator } from './src/auth/oauth/openid-connect-authenticator{{importFileExtension}}';
+import { OpenIdConnectAuthenticator } from '{{npmName}}';
 
 const authenticator = new OpenIdConnectAuthenticator(
   'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
@@ -151,8 +151,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```typescript
-import { ClientAuthMethod } from './src/auth/oauth/client-auth-method{{importFileExtension}}';
-import { OAuth2ClientCredentialsAuthenticator } from './src/auth/oauth/oauth2-client-credentials-authenticator{{importFileExtension}}';
+import { ClientAuthMethod, OAuth2ClientCredentialsAuthenticator } from '{{npmName}}';
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
@@ -166,7 +165,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
 ```typescript
-import { Servers } from './src/servers{{importFileExtension}}';
+import { {{clientClassName}}, Servers } from '{{npmName}}';
 
 const client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), 'your-token');
 ```
@@ -178,7 +177,7 @@ const client = {{clientClassName}}.withToken(Servers.SERVER_0.getUrl(), 'your-to
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```typescript
-import type { Authenticator } from './src/auth/authenticator{{importFileExtension}}';
+import { {{clientClassName}}, type Authenticator } from '{{npmName}}';
 
 const fake: Authenticator = {
   getHost(): string { return 'https://api.example.com'; },
@@ -213,12 +212,10 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```typescript
-import { NotFoundError } from './src/errors/not-found-error{{importFileExtension}}';
-import { ClientError } from './src/errors/client-error{{importFileExtension}}';
-import { ServerError } from './src/errors/server-error{{importFileExtension}}';
+import { ApiError, ClientError, NotFoundError, ServerError{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}, {{{dataType}}}{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} } from '{{npmName}}';
 
 try {
-  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* ... */);
+  const result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{nickname}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
 } catch (error) {
   if (error instanceof NotFoundError) {
     console.log(`Not found: ${error.message}`);
@@ -226,6 +223,8 @@ try {
     console.log(`Client error ${error.statusCode}: ${error.message}`);
   } else if (error instanceof ServerError) {
     console.log(`Server error: ${error.message}`);
+  } else if (error instanceof ApiError) {
+    console.log(`API error: ${error.message}`);
   }
 }
 ```
@@ -235,7 +234,7 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { TransportOptions } from './src/transport-options{{importFileExtension}}';
+import { {{clientClassName}}, TransportOptions } from '{{npmName}}';
 
 const transport = TransportOptions.builder()
   .proxy('http://proxy:3128')
@@ -256,7 +255,7 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory.
 
 ```typescript
-{{#models}}{{#model}}{{#-first}}import { {{classname}} } from './src/models/{{classFilename}}{{importFileExtension}}';
+{{#models}}{{#model}}{{#-first}}import { {{classname}} } from '{{npmName}}';
 
 const model = new {{classname}}();{{/-first}}{{/model}}{{/models}}
 ```

@@ -796,6 +796,59 @@ describe("ObjectSerializer", () => {
       },
     );
 
+    test.each([
+      ["a string", "abc", "string"],
+      ["a number", 5, "number"],
+      ["an object", { id: 1 }, "object"],
+    ])(
+      "rejects %s where an array of models is expected",
+      (_label, value, received) => {
+        const json = { name: "x", photoUrls: [], tags: value };
+        expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+          new RegExp(
+            `^Failed to deserialize object: tags must be an array, got ${received}$`,
+          ),
+        );
+      },
+    );
+
+    test.each([
+      ["a number", 5, "number"],
+      ["a string", "abc", "string"],
+      ["an array", [1], "array"],
+    ])(
+      "rejects %s as an element of an array of models",
+      (_label, element, received) => {
+        const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, element] };
+        expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+          new RegExp(
+            `^Failed to deserialize object: tags elements must be objects, got ${received}$`,
+          ),
+        );
+      },
+    );
+
+    test("rejects a non-string element of a string set", () => {
+      const json = { name: "x", photoUrls: ["a", 1] };
+      expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
+        /^Failed to deserialize object: photoUrls elements must be strings, got number$/,
+      );
+    });
+
+    test("rejects a non-string element of a string set on a nested model", () => {
+      const json = { pet: { name: "x", photoUrls: [true] } };
+      expect(() => ObjectSerializer.deserialize(json, PetPassport)).toThrow(
+        /^Failed to deserialize object: photoUrls elements must be strings, got boolean$/,
+      );
+    });
+
+    test("accepts empty arrays of models and strings", () => {
+      const json = { name: "x", photoUrls: [], tags: [] };
+      const pet = ObjectSerializer.deserialize(json, Pet)!;
+      expect(pet.photoUrls).toEqual(new Set());
+      expect(pet.tags).toEqual([]);
+    });
+
     test("collapses a nested uniqueItems array into a Set and keeps Decimal as a string", () => {
       const json = {
         pet: { name: "x", photoUrls: ["a", "a", "b"], weightKg: 12.5 },

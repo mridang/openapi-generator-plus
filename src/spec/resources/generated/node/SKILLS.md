@@ -13,7 +13,7 @@ If using locally, add it as a file dependency in your `package.json`.
 ## Quick Start
 
 ```typescript
-import { Client } from "./src/client.js";
+import { Client } from "petstore-client";
 
 const client = Client.withToken("https://api.example.com", "your-token");
 ```
@@ -25,8 +25,7 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```typescript
-import { BearerAuthenticator } from "./src/auth/bearer-authenticator.js";
-import { Client } from "./src/client.js";
+import { BearerAuthenticator, Client } from "petstore-client";
 
 const authenticator = new BearerAuthenticator(
   "https://api.example.com",
@@ -38,7 +37,7 @@ const client = new Client(authenticator);
 ### Basic Auth
 
 ```typescript
-import { BasicAuthenticator } from "./src/auth/basic-authenticator.js";
+import { BasicAuthenticator } from "petstore-client";
 
 const authenticator = new BasicAuthenticator(
   "https://api.example.com",
@@ -51,8 +50,7 @@ const client = new Client(authenticator);
 ### API Key
 
 ```typescript
-import { ApiKeyAuthenticator } from "./src/auth/api-key-authenticator.js";
-import { ApiKeyLocation } from "./src/auth/api-key-location.js";
+import { ApiKeyAuthenticator, ApiKeyLocation } from "petstore-client";
 
 const authenticator = new ApiKeyAuthenticator(
   "https://api.example.com",
@@ -66,7 +64,7 @@ const client = new Client(authenticator);
 ### OAuth2 Client Credentials
 
 ```typescript
-import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator.js";
+import { OAuth2ClientCredentialsAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "https://api.example.com",
@@ -81,7 +79,7 @@ const client = new Client(authenticator);
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthorizationCodeAuthenticator } from "./src/auth/oauth/oauth2-authorization-code-authenticator.js";
+import { OAuth2AuthorizationCodeAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2AuthorizationCodeAuthenticator(
   "https://api.example.com",
@@ -98,7 +96,7 @@ const client = new Client(authenticator);
 ### OAuth2 Password
 
 ```typescript
-import { OAuth2PasswordAuthenticator } from "./src/auth/oauth/oauth2-password-authenticator.js";
+import { OAuth2PasswordAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2PasswordAuthenticator(
   "https://api.example.com",
@@ -117,7 +115,7 @@ const client = new Client(authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```typescript
-import { OAuth2ImplicitAuthenticator } from "./src/auth/oauth/oauth2-implicit-authenticator.js";
+import { OAuth2ImplicitAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2ImplicitAuthenticator(
   "https://api.example.com",
@@ -132,7 +130,7 @@ const client = new Client(authenticator);
 ### OpenID Connect
 
 ```typescript
-import { OpenIdConnectAuthenticator } from "./src/auth/oauth/openid-connect-authenticator.js";
+import { OpenIdConnectAuthenticator } from "petstore-client";
 
 const authenticator = new OpenIdConnectAuthenticator(
   "https://api.example.com",
@@ -169,8 +167,10 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```typescript
-import { ClientAuthMethod } from "./src/auth/oauth/client-auth-method.js";
-import { OAuth2ClientCredentialsAuthenticator } from "./src/auth/oauth/oauth2-client-credentials-authenticator.js";
+import {
+  ClientAuthMethod,
+  OAuth2ClientCredentialsAuthenticator,
+} from "petstore-client";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
   "https://api.example.com",
@@ -187,7 +187,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
 ```typescript
-import { Servers } from "./src/servers.js";
+import { Client, Servers } from "petstore-client";
 
 const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 ```
@@ -197,7 +197,7 @@ const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
 ```typescript
-import type { Authenticator } from "./src/auth/authenticator.js";
+import { Client, type Authenticator } from "petstore-client";
 
 const fake: Authenticator = {
   getHost(): string {
@@ -238,12 +238,16 @@ All API errors derive from `ApiError`. The error hierarchy is:
     - `NetworkTimeoutError` (the request timed out, status 0)
 
 ```typescript
-import { NotFoundError } from "./src/errors/not-found-error.js";
-import { ClientError } from "./src/errors/client-error.js";
-import { ServerError } from "./src/errors/server-error.js";
+import {
+  ApiError,
+  ClientError,
+  NotFoundError,
+  ServerError,
+  Pet,
+} from "petstore-client";
 
 try {
-  const result = await client.pet.addPet(/* ... */);
+  const result = await client.pet.addPet(new Pet());
 } catch (error) {
   if (error instanceof NotFoundError) {
     console.log(`Not found: ${error.message}`);
@@ -251,6 +255,8 @@ try {
     console.log(`Client error ${error.statusCode}: ${error.message}`);
   } else if (error instanceof ServerError) {
     console.log(`Server error: ${error.message}`);
+  } else if (error instanceof ApiError) {
+    console.log(`API error: ${error.message}`);
   }
 }
 ```
@@ -260,7 +266,7 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { TransportOptions } from "./src/transport-options.js";
+import { Client, TransportOptions } from "petstore-client";
 
 const transport = TransportOptions.builder()
   .proxy("http://proxy:3128")
@@ -281,7 +287,7 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory.
 
 ```typescript
-import { ApiResponse } from "./src/models/api-response.js";
+import { ApiResponse } from "petstore-client";
 
 const model = new ApiResponse();
 ```

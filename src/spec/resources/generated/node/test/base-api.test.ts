@@ -705,6 +705,49 @@ describe("BaseApi body serialization", () => {
     expect(client.capturedBody).toBe("nickname=a~b%2Ac%21d%27e%28f%29g");
   });
 
+  test.each([
+    ["a value", { name: "a\uD800b" }],
+    ["a key", { "k\uDC00": "v" }],
+    ["an array item", { names: ["ok", "a\uD800"] }],
+  ])(
+    "form-urlencoded body rejects a lone surrogate in %s with URIError",
+    async (_label, body) => {
+      const client = new CapturingApiClient();
+      const config = new Configuration({ baseUrl: "http://localhost" });
+      const testApi = new TestableApi(client, config);
+      await expect(
+        testApi.call(
+          "POST",
+          "/test/echo",
+          {},
+          {},
+          body,
+          ["application/json"],
+          "application/x-www-form-urlencoded",
+          null,
+        ),
+      ).rejects.toThrow(new URIError("URI malformed"));
+      expect(client.capturedBody).toBeNull();
+    },
+  );
+
+  test("form-urlencoded body keeps a well-formed surrogate pair", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      "POST",
+      "/test/echo",
+      {},
+      {},
+      { name: "😀" },
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      null,
+    );
+    expect(client.capturedBody).toBe("name=%F0%9F%98%80");
+  });
+
   test("passes binary body as-is", async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: "http://localhost" });

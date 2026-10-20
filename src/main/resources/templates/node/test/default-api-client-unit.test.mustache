@@ -1,6 +1,8 @@
 {{>api_info}}
 
+import * as fs from 'node:fs';
 import * as http from 'node:http';
+import * as path from 'node:path';
 import * as zlib from 'node:zlib';
 import { DefaultApiClient, SENSITIVE_HEADER_NAMES } from '../src/default-api-client{{importFileExtension}}';
 import { ApiError } from '../src/errors/api-error{{importFileExtension}}';
@@ -631,7 +633,7 @@ describe('SENSITIVE_HEADER_NAMES allowlist', () => {
 
   /*
    * node-hardcoded-redirect-strip-list: the stripped set must be derived
-   * from the spec's apiKey-in-header security schemes ({{#apiKeyHeaderNames}}{{name}}, {{/apiKeyHeaderNames}})
+   * from the spec's apiKey-in-header security schemes ({{#apiKeyHeaderNames}}{{name}}{{^-last}}, {{/-last}}{{/apiKeyHeaderNames}})
    * rather than a hardcoded SaaS-provider list. Every apiKey-in-header
    * scheme this spec declares must be present; query/cookie apiKeys are NOT
    * header credentials and must be absent.
@@ -640,6 +642,13 @@ describe('SENSITIVE_HEADER_NAMES allowlist', () => {
 {{#apiKeyHeaderNames}}
     expect(SENSITIVE_HEADER_NAMES.has('{{nameLower}}')).toBe(true);
 {{/apiKeyHeaderNames}}
+  });
+
+  it('lists the spec-declared apiKey-in-header names in its comment with no dangling separator', () => {
+    const own = fs.readFileSync(path.join(process.cwd(), 'test', 'default-api-client-unit.test.ts'), 'utf8');
+    const listed = new RegExp('security schemes \\(([^)]*)\\)').exec(own);
+
+    expect(listed?.[1]).toBe([{{#apiKeyHeaderNames}}'{{name}}'{{^-last}}, {{/-last}}{{/apiKeyHeaderNames}}].join(', '));
   });
 
   it('does NOT include hardcoded SaaS-provider key names absent from the spec', () => {
