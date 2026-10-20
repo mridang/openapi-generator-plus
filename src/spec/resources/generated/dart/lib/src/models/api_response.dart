@@ -9,18 +9,18 @@
 class ApiResponse {
   final int? code;
 
-  final String? type_;
+  final String? type;
 
   final String? message;
 
-  const ApiResponse({this.code, this.type_, this.message});
+  const ApiResponse({this.code, this.type, this.message});
 
   /// Creates a [ApiResponse] from a JSON map.
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
     return ApiResponse(
       code: json['code'] as int?,
 
-      type_: json['type'] as String?,
+      type: json['type'] as String?,
 
       message: json['message'] as String?,
     );
@@ -32,8 +32,8 @@ class ApiResponse {
     if (code != null) {
       json['code'] = code;
     }
-    if (type_ != null) {
-      json['type'] = type_;
+    if (type != null) {
+      json['type'] = type;
     }
     if (message != null) {
       json['message'] = message;
@@ -50,7 +50,7 @@ class ApiResponse {
     if (identical(this, other)) return true;
     return other is ApiResponse &&
         code == other.code &&
-        type_ == other.type_ &&
+        type == other.type &&
         message == other.message;
   }
 
@@ -60,5 +60,5 @@ class ApiResponse {
   /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
   /// so equal instances hash equally.
   @override
-  int get hashCode => Object.hashAll([code, type_, message]);
+  int get hashCode => Object.hashAll([code, type, message]);
 }

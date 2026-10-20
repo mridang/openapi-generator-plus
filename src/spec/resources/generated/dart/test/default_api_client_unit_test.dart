@@ -1245,6 +1245,60 @@ void main() {
     );
 
     test(
+      'a redirect body that stalls throws NetworkTimeoutException',
+      () async {
+        final sockets = <Socket>[];
+        final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((conn) {
+          sockets.add(conn);
+          conn.listen((_) {
+            conn.write(
+              'HTTP/1.1 302 Found\r\n'
+              'Location: http://127.0.0.1:${server.port}/next\r\n'
+              'Content-Length: 100\r\n'
+              '\r\n'
+              'abc',
+            );
+          });
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().timeout(300).build(),
+          );
+          final clock = Stopwatch()..start();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/stalled-redirect',
+              {},
+              null,
+            ),
+            throwsA(
+              isA<NetworkTimeoutException>()
+                  .having((e) => e.statusCode, 'statusCode', 0)
+                  .having(
+                    (e) => e.underlyingError,
+                    'underlyingError',
+                    isA<TimeoutException>().having(
+                      (t) => t.message,
+                      'message',
+                      'Request timed out after 300 ms',
+                    ),
+                  ),
+            ),
+          );
+          expect(clock.elapsedMilliseconds, lessThan(5000));
+        } finally {
+          for (final conn in sockets) {
+            conn.destroy();
+          }
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'a server that never answers throws NetworkTimeoutException',
       () async {
         final sockets = <Socket>[];

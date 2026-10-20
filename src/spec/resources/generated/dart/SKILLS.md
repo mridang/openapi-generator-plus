@@ -205,16 +205,18 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```dart
-try {
-  final result = await client.pet.addPet(/* parameters */);
-} on NotFoundException catch (e) {
-  print('Not found: $e');
-} on ClientException catch (e) {
-  print('Client error ${e.statusCode}: $e');
-} on ServerException catch (e) {
-  print('Server error: $e');
-} on ApiException catch (e) {
-  print('API error: $e');
+Future<void> addPetOrReport(Client client, Pet pet, AddPetOptions? options) async {
+  try {
+    await client.pet.addPet(pet, options);
+  } on NotFoundException catch (e) {
+    print('Not found: $e');
+  } on ClientException catch (e) {
+    print('Client error ${e.statusCode}: $e');
+  } on ServerException catch (e) {
+    print('Server error: $e');
+  } on ApiException catch (e) {
+    print('API error: $e');
+  }
 }
 ```
 

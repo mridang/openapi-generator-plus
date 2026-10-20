@@ -296,6 +296,7 @@ void main() {
           final typed = e.getTypedErrorBody<ApiResponse>(ApiResponse.fromJson);
           expect(typed, isNotNull);
           expect(typed!.code, equals(400));
+          expect(typed.type, equals('validation'));
           expect(typed.message, equals('bad input'));
         }
       } finally {

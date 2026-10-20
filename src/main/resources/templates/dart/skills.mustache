@@ -224,17 +224,19 @@ All API errors derive from `ApiException`. The error hierarchy is:
     - `NetworkTimeoutException` (the request timed out, status 0)
 
 ```dart
-try {
-  final result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}(/* parameters */);
-} on NotFoundException catch (e) {
-  print('Not found: $e');
-} on ClientException catch (e) {
-  print('Client error ${e.statusCode}: $e');
-} on ServerException catch (e) {
-  print('Server error: $e');
-} on ApiException catch (e) {
-  print('API error: $e');
-}
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}Future<void> {{operationId}}OrReport({{clientClassName}} client{{#vendorExtensions.op.signatureArgs}}, {{{dataType}}}{{#isOptions}}{{^vendorExtensions.op.optionsParamRequired}}?{{/vendorExtensions.op.optionsParamRequired}}{{/isOptions}}{{^isOptions}}{{#nullable}}?{{/nullable}}{{/isOptions}} {{paramName}}{{/vendorExtensions.op.signatureArgs}}) async {
+  try {
+    await client.{{clientPropertyName}}.{{operationId}}({{#vendorExtensions.op.signatureArgs}}{{paramName}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.signatureArgs}});
+  } on NotFoundException catch (e) {
+    print('Not found: $e');
+  } on ClientException catch (e) {
+    print('Client error ${e.statusCode}: $e');
+  } on ServerException catch (e) {
+    print('Server error: $e');
+  } on ApiException catch (e) {
+    print('API error: $e');
+  }
+}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 ```
 
 ## Configuration

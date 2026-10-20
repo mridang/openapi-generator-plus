@@ -166,6 +166,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return name + "_";
     }
 
+    /**
+     * Keeps {@code type} and {@code function} as plain variable names. The
+     * reserved-word list is matched case-insensitively and carries {@code type}
+     * and {@code Function}, but neither is a Dart reserved word for a variable:
+     * {@code type} is a contextual word only after {@code extension}, and
+     * {@code Function} is case-sensitive, so a property named {@code type}
+     * stays {@code type} instead of becoming {@code type_}.
+     */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return !"type".equals(name)
+                && !"function".equals(name)
+                && super.shouldEscapeReservedVarName(name);
+    }
+
     /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {

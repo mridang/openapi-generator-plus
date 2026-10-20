@@ -250,8 +250,10 @@ abstract class AbstractApiClient implements ApiClient {
         var currentHeaders = Map<String, String>.from(merged);
         while (hops < maxRedirects &&
             _isRedirectStatus(streamedResponse.statusCode)) {
-          /* Drain any unread body to release the connection. */
-          await streamedResponse.stream.drain<void>();
+          /* Drain any unread body to release the connection, within what is
+           * left of the end-to-end timeout so a stalled redirect body cannot
+           * hang the call. */
+          await _drainWithin(streamedResponse.stream, clock);
           final location = streamedResponse.headers['location'];
           if (location == null || location.isEmpty) break;
           final nextUri = currentUri.resolve(location);
@@ -366,7 +368,7 @@ abstract class AbstractApiClient implements ApiClient {
          * returning the last 3xx as if it were the result. */
         if (hops >= maxRedirects &&
             _isRedirectStatus(streamedResponse.statusCode)) {
-          await streamedResponse.stream.drain<void>();
+          await _drainWithin(streamedResponse.stream, clock);
           throw ApiException(
             statusCode: streamedResponse.statusCode,
             message: 'Exceeded maximum number of redirects ($maxRedirects)',
@@ -514,13 +516,23 @@ abstract class AbstractApiClient implements ApiClient {
   /// timeout. `Future.timeout` over `toBytes()` would leave the subscription
   /// open, so the body is collected through a subscription that is cancelled
   /// (closing the connection) when the deadline passes.
-  Future<Uint8List> _readWithin(http.ByteStream stream, Stopwatch clock) {
+  Future<Uint8List> _readWithin(
+    http.ByteStream stream,
+    Stopwatch clock, {
+    bool discard = false,
+  }) {
     final limit = _transportOptions.timeout;
-    if (limit == null) return stream.toBytes();
+    if (limit == null) {
+      return discard
+          ? stream.drain<void>().then((_) => Uint8List(0))
+          : stream.toBytes();
+    }
     final done = Completer<Uint8List>();
     final builder = BytesBuilder(copy: false);
     final subscription = stream.listen(
-      builder.add,
+      (List<int> chunk) {
+        if (!discard) builder.add(chunk);
+      },
       onError: (Object error, StackTrace stack) {
         if (!done.isCompleted) done.completeError(error, stack);
       },
@@ -539,6 +551,12 @@ abstract class AbstractApiClient implements ApiClient {
     });
     return done.future.whenComplete(timer.cancel);
   }
+
+  /// Reads and discards the rest of [stream] within what is left of the
+  /// end-to-end timeout, without buffering it. Used for the body of a 3xx
+  /// response that is not followed to a result.
+  Future<void> _drainWithin(http.ByteStream stream, Stopwatch clock) =>
+      _readWithin(stream, clock, discard: true);
 
   /// Builds a [http.MultipartRequest] for [method] and [uri] from the form
   /// [fields], carrying [headers] and with automatic redirects disabled.
