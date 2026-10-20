@@ -84,7 +84,7 @@ def _reject_non_string_date_time(value: Any) -> Any:
     """Reject a JSON number or boolean offered for a ``date-time`` field.
 
     Lax ``AwareDatetime`` reads an ``int``/``float`` as epoch seconds (or
-    milliseconds), and ``bool`` is an ``int``, so ``{"shipDate": 1700000000}``
+    milliseconds), and ``bool`` is an ``int``, so ``{"timestamp": 1700000000}``
     would decode to a real instant. The date-time wire form is an RFC 3339
     string, and the other SDKs refuse any other JSON type, so only ``str`` and
     ``datetime`` objects reach the downstream validator.

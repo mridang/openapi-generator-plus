@@ -128,6 +128,15 @@ final class SharedRuntimeContainer {
                   .withEnv("TC_HOST", "host.docker.internal")
                   .withEnv("DOCKER_HOST", "unix:///var/run/docker.sock")
                   .withEnv("HOST_APP_PATH", outputDir.toAbsolutePath().toString())
+                  /* The generated tests start their own helper containers through
+                   * this socket. Each language's testcontainers library would
+                   * otherwise first pull its own pinned Ryuk reaper image from
+                   * Docker Hub, and a missing image fails the whole language
+                   * (swift: "No such image: testcontainers/ryuk:0.8.1"). The
+                   * runtime container is removed with its labels at the end of
+                   * the build, so the reaper adds a flaky dependency and no
+                   * safety here. kotlin and elixir already disabled it. */
+                  .withEnv("TESTCONTAINERS_RYUK_DISABLED", "true")
                   .withLabel("com.mridang.openapi.testcontainer", "true")
                   /* Which checkout started this container. The build's
                    * cleanup removes only containers carrying its own path,

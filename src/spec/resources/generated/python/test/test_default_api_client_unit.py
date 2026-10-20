@@ -530,12 +530,12 @@ class TestMultipartContentType:
         # SDKs, not Python's `True`/`False`.
         client = DefaultApiClient()
         body = client._build_multipart_body(
-            {"isPrimary": True, "isDraft": False, "pageCount": 3}, "b"
+            {"enabled": True, "hidden": False, "total": 3}, "b"
         )
         assert body == (
-            b'--b\r\nContent-Disposition: form-data; name="isPrimary"\r\n\r\ntrue\r\n'
-            b'--b\r\nContent-Disposition: form-data; name="isDraft"\r\n\r\nfalse\r\n'
-            b'--b\r\nContent-Disposition: form-data; name="pageCount"\r\n\r\n3\r\n'
+            b'--b\r\nContent-Disposition: form-data; name="enabled"\r\n\r\ntrue\r\n'
+            b'--b\r\nContent-Disposition: form-data; name="hidden"\r\n\r\nfalse\r\n'
+            b'--b\r\nContent-Disposition: form-data; name="total"\r\n\r\n3\r\n'
             b"--b--\r\n"
         )
 
@@ -980,12 +980,12 @@ class TestRedirectLocationResolution:
     """A relative ``Location`` resolves per RFC 3986 against the request URL:
     a query-only reference keeps the base path, and dot segments are removed."""
 
-    BASE = "https://h.example.com/v1/pets/1?x=1"
+    BASE = "https://h.example.com/v1/items/1?x=1"
 
     def test_query_only_reference_keeps_the_base_path(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "?page=2")
-            == "https://h.example.com/v1/pets/1?page=2"
+            == "https://h.example.com/v1/items/1?page=2"
         )
 
     def test_parent_segment_is_removed(self) -> None:
@@ -997,7 +997,7 @@ class TestRedirectLocationResolution:
     def test_current_segment_is_removed(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "./a")
-            == "https://h.example.com/v1/pets/a"
+            == "https://h.example.com/v1/items/a"
         )
 
     def test_absolute_path_keeps_query_and_fragment(self) -> None:
@@ -1034,7 +1034,7 @@ class TestRedirectLocationResolution:
             TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
         )
         client.send_request("GET", self.BASE, {})
-        assert pool.urls == [self.BASE, "https://h.example.com/v1/pets/1?page=2"]
+        assert pool.urls == [self.BASE, "https://h.example.com/v1/items/1?page=2"]
 
 
 class TestConnectionPoolSizing:

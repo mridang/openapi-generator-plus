@@ -224,14 +224,14 @@ test('psr18 resolves a relative Location per RFC 3986', function (string $locati
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     $client = newPsr18Client($stub, $transport);
 
-    $client->sendRequest('GET', 'https://h/v1/pets/1?x=1', [], null);
+    $client->sendRequest('GET', 'https://h/v1/items/1?x=1', [], null);
 
     expect((string) $stub->requests[1]->getUri())->toBe($expected);
 })->with([
-    'query only' => ['?page=2', 'https://h/v1/pets/1?page=2'],
+    'query only' => ['?page=2', 'https://h/v1/items/1?page=2'],
     'parent segment' => ['../owners/9', 'https://h/v1/owners/9'],
-    'current segment' => ['./a', 'https://h/v1/pets/a'],
-    'sibling' => ['b', 'https://h/v1/pets/b'],
+    'current segment' => ['./a', 'https://h/v1/items/a'],
+    'sibling' => ['b', 'https://h/v1/items/b'],
     'absolute path' => ['/z', 'https://h/z'],
 ]);
 
