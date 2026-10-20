@@ -7,7 +7,14 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    model_serializer,
+    model_validator,
+)
 from typing import Any, Callable, Dict, Optional, Set
 
 
@@ -21,7 +28,7 @@ class Metadata(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _capture_additional_properties(cls, values: Any) -> Any:
+    def _capture_additional_properties(cls, values: Any, info: ValidationInfo) -> Any:
         """Collect JSON keys not declared as fields into additional_properties.
 
         Pydantic v2 doesn't auto-merge unknown keys into a typed dict
@@ -34,6 +41,12 @@ class Metadata(BaseModel):
         """
         if not isinstance(values, dict):
             return values
+        # A wire decode (ObjectSerializer passes this context) addresses the
+        # declared property NAME only, so a key spelled like a snake_case
+        # attribute name is an unknown key and lands in the extras, as in the
+        # other SDKs. Constructors and direct validation also accept the
+        # attribute name.
+        wire_decode = bool(info.context and info.context.get("wire_decode"))
         known: Set[str] = set()
         # `aliases` holds only the WIRE aliases that differ from the Python
         # field name (e.g. 'createdAt' for the field 'created_at'). Their
@@ -41,7 +54,8 @@ class Metadata(BaseModel):
         # a flat WIRE payload rather than field-name kwargs / re-validation.
         aliases: Set[str] = set()
         for fname, finfo in cls.model_fields.items():
-            known.add(fname)
+            if finfo.alias is None or not wire_decode:
+                known.add(fname)
             if finfo.alias is not None:
                 known.add(finfo.alias)
                 if finfo.alias != fname:

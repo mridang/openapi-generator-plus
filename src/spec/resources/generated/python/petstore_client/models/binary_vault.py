@@ -43,6 +43,6 @@ class BinaryVault(BaseModel):
     )
 
 
-from pydantic import Base64Bytes
+from petstore_client._types import Base64Bytes
 
 BinaryVault.model_rebuild(raise_errors=False)

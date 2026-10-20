@@ -1021,6 +1021,87 @@ class TestByteFormatBase64RoundTrip:
             ObjectSerializer().deserialize('"!!!!"', bytes)
 
 
+class TestByteModelFieldHoldsRawBytes:
+    """A `format: byte` MODEL field holds RAW bytes in memory and is base64 only
+    on the wire, as in the other SDKs: constructing or assigning bytes never
+    decodes them, and a malformed base64 wire string is rejected."""
+
+    RAW = bytes([0x00, 0xFF, 0x10, 0x42])
+
+    def _vault(self):
+        from {{packageName}}.models.binary_vault import BinaryVault
+
+        return BinaryVault
+
+    def test_constructing_with_raw_bytes_keeps_them(self) -> None:
+        assert self._vault()(seal=self.RAW).seal == self.RAW
+
+    def test_constructing_with_bytes_that_look_like_base64_keeps_them(self) -> None:
+        assert self._vault()(seal=b'test').seal == b'test'
+
+    def test_assigning_raw_bytes_keeps_them(self) -> None:
+        vault = self._vault()()
+        vault.seal = b'hello world'
+        assert vault.seal == b'hello world'
+
+    def test_reassigning_the_decoded_value_is_stable(self) -> None:
+        vault = ObjectSerializer().deserialize('{"seal":"dGVzdA=="}', 'BinaryVault')
+        vault.seal = vault.seal
+        assert vault.seal == b'test'
+
+    def test_serializing_base64_encodes_the_raw_bytes(self) -> None:
+        assert ObjectSerializer().serialize(self._vault()(seal=self.RAW)) == '{"seal":"AP8QQg=="}'
+
+    def test_scalar_array_and_map_round_trip_through_base64(self) -> None:
+        vault = self._vault()(seal=self.RAW, shards=[b'a', self.RAW], labels={'k': b'test'})
+        wire = ObjectSerializer().serialize(vault)
+        assert wire == '{"seal":"AP8QQg==","shards":["YQ==","AP8QQg=="],"labels":{"k":"dGVzdA=="}}'
+        restored = ObjectSerializer().deserialize(wire, 'BinaryVault')
+        assert restored.seal == self.RAW
+        assert restored.shards == [b'a', self.RAW]
+        assert restored.labels == {'k': b'test'}
+
+    def test_pet_passport_thumbnail_and_scans_round_trip(self) -> None:
+        wire = '{"thumbnail":"dGVzdA==","scans":["AQID"]}'
+        passport = ObjectSerializer().deserialize(wire, 'PetPassport')
+        assert passport.thumbnail == b'test'
+        assert passport.scans == [b'\x01\x02\x03']
+        assert ObjectSerializer().serialize(passport) == wire
+
+    @pytest.mark.parametrize('malformed', ['!!!!', 'dG!VzdA==', 'dGVz dA=='])
+    def test_malformed_base64_is_rejected_for_a_scalar(self, malformed: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"seal":"%s"}' % malformed, 'BinaryVault')
+
+    def test_malformed_base64_is_rejected_inside_an_array_and_a_map(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"shards":["AQID","!!!!"]}', 'BinaryVault')
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"labels":{"k":"dG!VzdA=="}}', 'BinaryVault')
+
+
+class TestDateTimeModelFieldRejectsNonStrings:
+    """A JSON number or boolean is not a `date-time`: lax datetime parsing would
+    read it as an epoch, a different instant than other SDKs, which reject it."""
+
+    @pytest.mark.parametrize('value', ['1700000000', '1700000000000', '1.5', 'true', 'false'])
+    def test_non_string_wire_value_is_rejected(self, value: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"shipDate":%s}' % value, 'Order')
+
+    def test_non_string_constructor_value_is_rejected(self) -> None:
+        from {{packageName}}.models.order import Order
+
+        with pytest.raises(ValidationError):
+            Order.model_validate({'ship_date': 1700000000})
+
+    def test_string_wire_value_is_still_accepted(self) -> None:
+        order = ObjectSerializer().deserialize('{"shipDate":"2023-11-14T22:13:20Z"}', 'Order')
+        assert order.ship_date == datetime.datetime(
+            2023, 11, 14, 22, 13, 20, tzinfo=datetime.timezone.utc
+        )
+
+
 class TestSetPetAvatarThumbnailByteOneOfRoundTrip:
     """setPetAvatarThumbnail byte oneOf round-trips through base64.
 
@@ -1160,6 +1241,55 @@ class TestNestedContainerDeepRoundTrip:
         assert restored.matrix == [[7, 8], [9]]
 
 
+class TestResponseLeavesAreStrict:
+    """The leaves of a container response (getInventory is `map<string,int32>`,
+    getMatrix `array<array<int32>>`) are as strict as the same leaves on a model
+    field: a quoted number, a fractional number or a boolean is a wire-type bug,
+    not a value to coerce."""
+
+    @pytest.mark.parametrize('leaf', ['"5"', '7.0', 'true'])
+    def test_map_of_integers_rejects_a_non_integer_leaf(self, leaf: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":%s}' % leaf, 'Dict[str, StrictInt]')
+
+    @pytest.mark.parametrize('leaf', ['"5"', '7.0', 'true'])
+    def test_array_of_integers_rejects_a_non_integer_leaf(self, leaf: str) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('[1,%s]' % leaf, 'List[StrictInt]')
+
+    def test_nested_array_of_integers_rejects_a_quoted_leaf(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('[[1,2],["3"]]', 'List[List[StrictInt]]')
+
+    def test_integers_are_still_accepted(self) -> None:
+        assert ObjectSerializer().deserialize('{"a":5,"b":0}', 'Dict[str, StrictInt]') == {'a': 5, 'b': 0}
+        assert ObjectSerializer().deserialize('[[1,2],[3]]', 'List[List[StrictInt]]') == [[1, 2], [3]]
+
+    def test_map_of_strings_rejects_a_number(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":5}', 'Dict[str, StrictStr]')
+
+    def test_array_of_booleans_rejects_a_number(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('[true,1]', 'List[StrictBool]')
+
+    def test_array_of_doubles_rejects_a_quoted_number_but_widens_an_integral_one(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('[1.5,"2.5"]', 'List[LaxFloat]')
+        assert ObjectSerializer().deserialize('[1.5,2]', 'List[LaxFloat]') == [1.5, 2.0]
+
+    @pytest.mark.parametrize('klass', ['StrictInt', 'StrictBool', 'StrictStr'])
+    def test_scalar_response_rejects_a_value_of_another_type(self, klass: str) -> None:
+        wrong = {'StrictInt': '"5"', 'StrictBool': '"false"', 'StrictStr': '5'}[klass]
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(wrong, klass)
+
+    def test_scalar_response_accepts_a_value_of_its_own_type(self) -> None:
+        assert ObjectSerializer().deserialize('5', 'StrictInt') == 5
+        assert ObjectSerializer().deserialize('false', 'StrictBool') is False
+        assert ObjectSerializer().deserialize('"x"', 'StrictStr') == 'x'
+
+
 class TestReferencedEnumFieldRejection:
     """Scenario 10 — a model field typed as a REFERENCED enum (`$ref`) must
     reject an unknown wire value on deserialize. StockItem.availability is a
@@ -1252,6 +1382,37 @@ class TestWireDecodeIgnoresAttributeNames:
     def test_direct_validation_still_accepts_the_attribute_name(self) -> None:
         from {{packageName}}.models.order import Order
         assert Order.model_validate({'pet_id': 5}).pet_id == 5
+
+    def test_attribute_name_is_captured_as_an_additional_property(self) -> None:
+        from {{packageName}}.models.metadata import Metadata
+        result = ObjectSerializer().deserialize(
+            '{"created_at":"2024-01-01T00:00:00Z","region":"eu"}', 'Metadata'
+        )
+        assert isinstance(result, Metadata)
+        assert result.created_at is None
+        assert result.additional_properties == {
+            'created_at': '2024-01-01T00:00:00Z',
+            'region': 'eu',
+        }
+
+    def test_declared_property_name_still_populates_the_field(self) -> None:
+        result = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', 'Metadata'
+        )
+        assert result.created_at == datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+        assert result.additional_properties == {'region': 'eu'}
+
+    def test_attribute_name_is_captured_for_list_elements(self) -> None:
+        result = ObjectSerializer().deserialize('[{"created_at":"x"}]', 'List[Metadata]')
+        assert result[0].created_at is None
+        assert result[0].additional_properties == {'created_at': 'x'}
+
+    def test_direct_validation_still_accepts_the_attribute_name_for_an_extras_model(self) -> None:
+        from {{packageName}}.models.metadata import Metadata
+        instant = datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc)
+        built = Metadata.model_validate({'created_at': instant})
+        assert built.created_at == instant
+        assert built.additional_properties == {}
 
 
 class TestDeprecatedFieldWarnsOnAccessOnly:

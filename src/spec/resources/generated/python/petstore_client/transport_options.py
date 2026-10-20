@@ -8,6 +8,25 @@
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Dict, Mapping, Optional
+from urllib.parse import urlparse
+
+
+def _assert_valid_proxy(proxy: Optional[str]) -> None:
+    """Reject a proxy URL that is not an ``http``/``https`` URL with a host.
+
+    Shared by the constructor and the builder so a ``TransportOptions`` built
+    directly cannot carry a proxy the builder would have refused.
+
+    Raises:
+        ValueError: If the proxy URL has another scheme or no host.
+    """
+    if proxy is None:
+        return
+    parsed = urlparse(proxy)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Invalid proxy URL (must use http or https scheme): {proxy}")
+    if not parsed.hostname:
+        raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
 
 
 @dataclass(frozen=True)
@@ -103,7 +122,8 @@ class TransportOptions:
     """
 
     def __post_init__(self) -> None:
-        """Ensure default_headers is always an immutable MappingProxyType."""
+        """Validate the proxy and make default_headers an immutable MappingProxyType."""
+        _assert_valid_proxy(self.proxy)
         if not isinstance(self.default_headers, MappingProxyType):
             object.__setattr__(
                 self, "default_headers", MappingProxyType(dict(self.default_headers))
@@ -187,16 +207,7 @@ class TransportOptionsBuilder:
         Raises:
             ValueError: If the proxy URL is not a valid URL with a scheme.
         """
-        if proxy is not None:
-            from urllib.parse import urlparse
-
-            parsed = urlparse(proxy)
-            if parsed.scheme not in ("http", "https"):
-                raise ValueError(
-                    f"Invalid proxy URL (must use http or https scheme): {proxy}"
-                )
-            if not parsed.hostname:
-                raise ValueError(f"Invalid proxy URL (missing host): {proxy}")
+        _assert_valid_proxy(proxy)
         self._proxy = proxy
         return self
 

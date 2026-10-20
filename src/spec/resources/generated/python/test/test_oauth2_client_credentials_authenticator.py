@@ -183,6 +183,17 @@ class TestOAuth2ClientCredentialsAuthenticator:
         assert "***" in rendered
 
 
+class TestOAuth2ClientCredentialsRequiredConfiguration:
+    def test_omitting_the_token_url_raises(self) -> None:
+        with pytest.raises(TypeError) as exc_info:
+            cast(Any, OAuth2ClientCredentialsAuthenticator)(
+                "https://api.example.com", "my_client_id", "my_client_secret"
+            )
+        assert str(exc_info.value).endswith(
+            "missing 1 required positional argument: 'token_url'"
+        )
+
+
 class TestOAuth2ClientCredentialsImmutability:
     def test_credentials_cannot_be_reassigned(self) -> None:
         auth = _create_authenticator()

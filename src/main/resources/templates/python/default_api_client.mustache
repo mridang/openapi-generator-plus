@@ -8,7 +8,7 @@ import re
 import ssl
 import uuid
 import zlib
-from urllib.parse import quote as _url_quote, unquote as _url_unquote, urlsplit, urlunsplit
+from urllib.parse import quote as _url_quote, unquote as _url_unquote, urljoin, urlsplit
 
 import urllib3
 import urllib3.exceptions
@@ -234,7 +234,11 @@ class DefaultApiClient:
         if pool_manager is not None:
             self._pool_manager = pool_manager
         else:
-            kwargs: Dict[str, Any] = {}
+            # urllib3's default `maxsize=1` keeps a single connection per host,
+            # but the async facade runs requests concurrently through
+            # `asyncio.to_thread`, so every request past the first would open a
+            # connection and discard it on return.
+            kwargs: Dict[str, Any] = {'maxsize': 10}
 
             # --- TLS / SSL ---
             if not transport_options.verify_ssl:
@@ -642,9 +646,13 @@ class DefaultApiClient:
                     if key.lower() in self._SENSITIVE_HEADERS:
                         del next_headers[key]
 
-            # Drop body-bearing headers when the follow-up carries
-            # no body (303 coercion, or 301/302 method demotion).
-            drop_body_headers = next_body is None and current_body is not None
+            # Drop body-bearing headers when the follow-up carries no body
+            # (303 coercion, or 301/302 method demotion). A demoted body-less
+            # POST still carries the `Content-Length: 0` workaround, which a GET
+            # must not send. A body-less 307/308 replay keeps its own headers.
+            drop_body_headers = next_body is None and (
+                current_body is not None or next_method != current_method
+            )
             if drop_body_headers:
                 for key in list(next_headers.keys()):
                     if key.lower() in self._BODY_HEADERS:
@@ -705,45 +713,17 @@ class DefaultApiClient:
 
     @staticmethod
     def _resolve_url(base_url: str, location: str) -> str:
-        """Resolve a ``Location`` header against the request URL.
+        """Resolve a ``Location`` header against the request URL (RFC 3986).
 
-        Accepts absolute URLs (returned verbatim modulo scheme casing)
-        and relative URLs (resolved against ``base_url``). Uses
-        :mod:`urllib.parse` rather than ``urljoin`` so we surface the
-        raw scheme of an absolute Location for the scheme-allowlist
-        guard rather than silently inheriting the base URL's scheme.
+        An absolute URL is returned verbatim so the scheme-allowlist guard sees
+        its raw scheme rather than one inherited from ``base_url``. Anything
+        else goes through :func:`urllib.parse.urljoin`, which resolves
+        query-only references (``?page=2`` keeps the base path), protocol- and
+        path-relative references, and removes ``.``/``..`` segments.
         """
-        parsed_location = urlsplit(location)
-        if parsed_location.scheme:
+        if urlsplit(location).scheme:
             return location
-        parsed_base = urlsplit(base_url)
-        if location.startswith('//'):
-            # Protocol-relative: inherit the base scheme.
-            return urlunsplit((
-                parsed_base.scheme,
-                parsed_location.netloc,
-                parsed_location.path,
-                parsed_location.query,
-                parsed_location.fragment,
-            ))
-        if location.startswith('/'):
-            return urlunsplit((
-                parsed_base.scheme,
-                parsed_base.netloc,
-                parsed_location.path,
-                parsed_location.query,
-                parsed_location.fragment,
-            ))
-        # Relative path: resolve against the base path's parent.
-        base_path = parsed_base.path or '/'
-        parent = base_path.rsplit('/', 1)[0] + '/'
-        return urlunsplit((
-            parsed_base.scheme,
-            parsed_base.netloc,
-            parent + parsed_location.path,
-            parsed_location.query,
-            parsed_location.fragment,
-        ))
+        return urljoin(base_url, location)
 
     @staticmethod
     def _is_https_to_http_downgrade(original_url: str, redirect_url: str) -> bool:
@@ -955,7 +935,10 @@ class DefaultApiClient:
             return header.encode('utf-8') + json_str.encode('utf-8') + b'\r\n'
         else:
             disposition = cls._build_disposition(name, None)
-            part = f'--{boundary}\r\nContent-Disposition: {disposition}\r\n\r\n{value}\r\n'
+            # Imported lazily for the same cycle as the model branch above.
+            from {{packageName}}.object_serializer import ObjectSerializer
+            text = ObjectSerializer.stringify(value)
+            part = f'--{boundary}\r\nContent-Disposition: {disposition}\r\n\r\n{text}\r\n'
             return part.encode('utf-8')
 
     @staticmethod

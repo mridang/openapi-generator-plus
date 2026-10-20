@@ -65,10 +65,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         imports.put("EmailStr", "from pydantic import EmailStr");
         imports.put("SecretStr", "from pydantic import SecretStr");
         imports.put("AwareDatetime", "from pydantic import AwareDatetime");
-        // format: byte (and OAS 3.1 contentEncoding: base64) → Base64Bytes so
-        // pydantic decodes the wire base64 string into real bytes on validate
-        // and re-encodes them to base64 on model_dump_json. A plain `bytes`
-        // field skips this transcoding entirely and breaks the round-trip.
+        // format: byte (and OAS 3.1 contentEncoding: base64) → Base64Bytes. The
+        // key stays here so the primitive checks recognise it; the real import
+        // is the package-qualified `<pkg>._types` alias set in
+        // getPropertyTypeImportMap, because pydantic's own Base64Bytes rejects
+        // raw bytes on construction and decodes malformed base64 leniently.
         imports.put("Base64Bytes", "from pydantic import Base64Bytes");
         imports.put("StrictInt", "from pydantic import StrictInt");
         imports.put("StrictStr", "from pydantic import StrictStr");
@@ -813,9 +814,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // `format: byte` (and the OAS 3.1 `contentEncoding: base64` form, which
         // ContentEncodingRule normalizes onto `format: byte`) carries base64 on
         // the wire. The typeMapping resolves both `byte` and `binary` to plain
-        // `bytes`, but plain `bytes` skips pydantic's base64 transcoding: it
-        // stores the literal base64 ASCII on validate and raises on dump for
-        // real binary. Promote the base64 variant to pydantic's `Base64Bytes`
+        // `bytes`, but plain `bytes` skips base64 transcoding: it stores the
+        // literal base64 ASCII on validate and raises on dump for real binary.
+        // Promote the base64 variant to the `<pkg>._types` `Base64Bytes` alias
         // so it decodes/encodes correctly on the JSON round-trip. Raw
         // `format: binary` keeps plain `bytes` (raw body, never JSON base64).
         promoteBase64Bytes(property);
@@ -999,6 +1000,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         map.put(
                 "OffsetDateTime",
                 "from " + packageName + "._types import OffsetDateTime");
+        // Base64Bytes (format: byte) is the `<pkg>._types` alias that keeps raw
+        // bytes in memory and base64 only on the wire; it replaces pydantic's.
+        map.put("Base64Bytes", "from " + packageName + "._types import Base64Bytes");
         return map;
     }
 

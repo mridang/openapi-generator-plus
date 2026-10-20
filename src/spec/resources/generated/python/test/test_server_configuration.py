@@ -2,6 +2,7 @@ import pytest
 
 from petstore_client.errors import OpenAPIException
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
+from petstore_client.servers import ALL
 
 
 class TestServerConfiguration:
@@ -69,3 +70,38 @@ class TestServerConfiguration:
         config = ServerConfiguration(url_template="https://api.example.com")
 
         assert config.get_url() == "https://api.example.com"
+
+    def test_variables_cannot_be_changed_through_the_dict_they_were_built_from(
+        self,
+    ) -> None:
+        declared = {"env": ServerVariable(default_value="prod")}
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com", variables=declared
+        )
+
+        declared["extra"] = ServerVariable(default_value="x")
+
+        assert list(config.variables) == ["env"]
+
+    def test_variables_are_read_only(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        with pytest.raises(TypeError):
+            config.variables["env"] = ServerVariable(default_value="evil")  # type: ignore[index]
+
+
+class TestGeneratedServers:
+    def test_all_is_an_immutable_tuple(self) -> None:
+        assert isinstance(ALL, tuple)
+
+    def test_generated_server_variables_are_read_only_and_their_enums_immutable(
+        self,
+    ) -> None:
+        for server in ALL:
+            with pytest.raises(TypeError):
+                server.variables["injected"] = ServerVariable(default_value="x")  # type: ignore[index]
+            for variable in server.variables.values():
+                assert isinstance(variable.enum_values, tuple)

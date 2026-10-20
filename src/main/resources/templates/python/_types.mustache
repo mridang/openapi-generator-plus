@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import base64
 import math
 from decimal import Decimal
 from typing import Annotated, Any
@@ -11,6 +12,7 @@ from pydantic import (
     Field,
     HttpUrl,
     PlainSerializer,
+    PlainValidator,
     Strict,
     TypeAdapter,
 )
@@ -74,6 +76,44 @@ def _validate_url_preserving(value: Any) -> Any:
     return value
 
 
+def _reject_non_string_date_time(value: Any) -> Any:
+    """Reject a JSON number or boolean offered for a ``date-time`` field.
+
+    Lax ``AwareDatetime`` reads an ``int``/``float`` as epoch seconds (or
+    milliseconds), and ``bool`` is an ``int``, so ``{"shipDate": 1700000000}``
+    would decode to a real instant. The date-time wire form is an RFC 3339
+    string, and the other SDKs refuse any other JSON type, so only ``str`` and
+    ``datetime`` objects reach the downstream validator.
+    """
+    if isinstance(value, (bool, int, float)):
+        raise ValueError(
+            f'a date-time must be an RFC 3339 string, not {type(value).__name__}'
+        )
+    return value
+
+
+def _decode_base64(value: Any) -> bytes:
+    """Validate a ``format: byte`` field.
+
+    A ``str`` is the wire form: strict base64 (alphabet and padding are
+    checked, so ``'!!!!'`` or an embedded space is rejected rather than
+    silently dropped). ``bytes`` are the in-memory form and pass through
+    untouched: pydantic's own ``Base64Bytes`` would try to base64-DECODE them
+    again on construction and assignment.
+    """
+    if isinstance(value, str):
+        return base64.b64decode(value, validate=True)
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value)
+    raise ValueError(
+        f'expected bytes or a base64 string, got {type(value).__name__}'
+    )
+
+
+def _encode_base64(value: bytes) -> str:
+    return base64.b64encode(value).decode('ascii')
+
+
 # `format: float` / `format: double` fields. StrictFloat semantics (reject
 # str/bool, no lax string coercion) are preserved via `Strict()`; the
 # BeforeValidator only widens the legitimate integral-JSON case to float.
@@ -125,9 +165,23 @@ JsonNumber = Annotated[
 # alias closes the one remaining leak on the model_dump_json body path.
 OffsetDateTime = Annotated[
     AwareDatetime,
+    BeforeValidator(_reject_non_string_date_time),
     PlainSerializer(
         lambda value: value.isoformat(timespec='milliseconds'),
         return_type=str,
         when_used='json',
     ),
+]
+
+
+# `format: byte` (and OAS 3.1 `contentEncoding: base64`) fields. The model holds
+# RAW bytes in memory and base64 only exists on the wire, as in the other SDKs:
+# a str is strictly base64-decoded on validation, bytes pass through, and the
+# JSON-only PlainSerializer base64-encodes on encode. Bare pydantic
+# `Base64Bytes` decodes whatever it is given, so constructing or assigning raw
+# bytes failed or silently corrupted them, and it decodes leniently.
+Base64Bytes = Annotated[
+    bytes,
+    PlainValidator(_decode_base64),
+    PlainSerializer(_encode_base64, return_type=str, when_used='json'),
 ]

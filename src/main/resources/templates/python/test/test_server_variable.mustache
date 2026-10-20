@@ -10,10 +10,10 @@ class TestServerVariable:
         assert var.default_value == 'v1'
         assert var.description == 'API version'
 
-    def test_omitted_enum_values_becomes_empty_list_meaning_any_value_allowed(self) -> None:
+    def test_omitted_enum_values_becomes_empty_tuple_meaning_any_value_allowed(self) -> None:
         var = ServerVariable(default_value='prod')
 
-        assert var.enum_values == []
+        assert var.enum_values == ()
         assert var.description is None
 
     def test_enum_values_are_exposed_for_validation(self) -> None:
@@ -25,7 +25,7 @@ class TestServerVariable:
             enum_values=['prod', 'staging'],
         )
 
-        assert var.enum_values == ['prod', 'staging']
+        assert var.enum_values == ('prod', 'staging')
         assert 'prod' in var.enum_values
         assert 'staging' in var.enum_values
 
@@ -35,3 +35,17 @@ class TestServerVariable:
         var = ServerVariable(default_value='prod', enum_values=['prod', 'staging'])
 
         assert 'dev' not in var.enum_values
+
+    def test_enum_values_cannot_be_changed_through_the_list_they_were_built_from(self) -> None:
+        allowed = ['prod', 'staging']
+        var = ServerVariable(default_value='prod', enum_values=allowed)
+
+        allowed.append('dev')
+
+        assert var.enum_values == ('prod', 'staging')
+
+    def test_enum_values_are_an_immutable_tuple(self) -> None:
+        var = ServerVariable(default_value='prod', enum_values=['prod', 'staging'])
+
+        assert isinstance(var.enum_values, tuple)
+        assert not hasattr(var.enum_values, 'append')

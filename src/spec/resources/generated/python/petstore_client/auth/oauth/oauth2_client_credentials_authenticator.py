@@ -44,7 +44,7 @@ class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
     # repr=False so the client secret is never leaked through the dataclass's
     # auto-generated repr/str (e.g. logging, f-strings, %r).
     client_secret: str = field(repr=False)
-    token_url: str = ""
+    token_url: str
     scopes: Sequence[str] = ()
     client_auth_method: ClientAuthMethod = ClientAuthMethod.BODY
     # init=False, compare=False: the token cache is internal runtime state, not

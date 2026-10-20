@@ -48,10 +48,10 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
     # repr=False so the client secret is never leaked through the dataclass's
     # auto-generated repr/str (e.g. logging, f-strings, %r).
     client_secret: str = field(repr=False)
-    token_url: str = ""
-    username: str = ""
+    token_url: str
+    username: str
     # repr=False so the resource owner password is never leaked through repr/str.
-    password: str = field(default="", repr=False)
+    password: str = field(repr=False)
     scopes: Sequence[str] = ()
     refresh_url: Optional[str] = None
     client_auth_method: ClientAuthMethod = ClientAuthMethod.BODY

@@ -15,7 +15,7 @@ For servers with variables, pass overrides::
     url = SERVER_1.get_url({'environment': 'staging'})
 """
 
-from typing import List
+from typing import Tuple
 
 from {{packageName}}.server_configuration import ServerConfiguration{{#hasAnyServerVariables}}, ServerVariable{{/hasAnyServerVariables}}
 
@@ -28,7 +28,7 @@ SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
 {{#serverVariables}}        '{{varName}}': ServerVariable(
             default_value='{{{varDefault}}}',
             {{#varDescription}}description='{{{varDescription}}}',{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
-            {{#hasEnumValues}}enum_values=[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}],{{/hasEnumValues}}{{^hasEnumValues}}enum_values=[],{{/hasEnumValues}}
+            {{#hasEnumValues}}enum_values=({{#varEnumValues}}'{{{.}}}',{{^-last}} {{/-last}}{{/varEnumValues}}),{{/hasEnumValues}}{{^hasEnumValues}}enum_values=(),{{/hasEnumValues}}
         ),
 {{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
 )
@@ -39,7 +39,7 @@ SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
 
 {{/serverConfigs}}
 
-ALL: List[ServerConfiguration] = [
+ALL: Tuple[ServerConfiguration, ...] = (
 {{#serverConfigs}}    SERVER_{{serverIndex}},
-{{/serverConfigs}}]
-"""All server configurations in declaration order."""
+{{/serverConfigs}})
+"""All server configurations in declaration order, as an immutable tuple."""

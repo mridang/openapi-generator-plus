@@ -16,7 +16,7 @@ from enum import Enum
 from typing import Any, ClassVar, Optional, Type, TypeVar, Union, cast, overload
 
 from dateutil.parser import parse
-from pydantic import BaseModel, SecretStr, TypeAdapter
+from pydantic import BaseModel, SecretStr, StrictBool, StrictInt, StrictStr, TypeAdapter
 
 # The protobuf-JSON duration helpers live in a tiny dependency-free module so
 # both this serializer and the generated pydantic models (via the
@@ -26,6 +26,7 @@ from petstore_client._duration import (
     _format_timedelta_protobuf,
     _parse_timedelta_protobuf,
 )
+from petstore_client._types import LaxFloat
 
 # The errors package imports ObjectSerializer lazily (inside a method), so this
 # top-level import does not create a cycle.
@@ -62,6 +63,25 @@ def _dict_adapter(inner: Any) -> TypeAdapter[Any]:
         _DICT_ADAPTER_CACHE[inner] = cached
     return cached
 
+
+# Validation context for decoding a WIRE payload. Models also accept the
+# snake_case attribute name in constructors, but a wire payload addresses the
+# declared property name only, so a model that keeps unknown keys in
+# `additional_properties` must treat an attribute-name key as an unknown one.
+_WIRE_DECODE_CONTEXT: dict[str, Any] = {"wire_decode": True}
+
+# The strict primitive aliases of a container or scalar response leaf. Plain
+# `int`/`bool`/`float` adapters are LAX (`"5"` -> 5, `true` -> 1), whereas the
+# same leaves on a model field reject them, so response leaves use these.
+_STRICT_LEAF_TYPES: dict[str, Any] = {
+    "StrictInt": StrictInt,
+    "StrictBool": StrictBool,
+    "StrictStr": StrictStr,
+    "LaxFloat": LaxFloat,
+}
+_STRICT_LEAF_ADAPTERS: dict[str, TypeAdapter[Any]] = {
+    name: TypeAdapter(leaf) for name, leaf in _STRICT_LEAF_TYPES.items()
+}
 
 # Maximum allowed JSON nesting depth. Python's json.loads recurses through
 # the interpreter stack, so a malicious 100k-deep `{"a":{"a":...}}` payload
@@ -386,6 +406,8 @@ class ObjectSerializer:
         # of ``_deserialize`` applies the consistent tz-awareness rule.
         if name in ("datetime", "AwareDatetime"):
             return None
+        if name in _STRICT_LEAF_TYPES:
+            return _STRICT_LEAF_TYPES[name]
         if name in self._NATIVE_TYPES_MAPPING:
             return self._NATIVE_TYPES_MAPPING[name]
         resolved = getattr(petstore_client.models, name, None)
@@ -413,7 +435,10 @@ class ObjectSerializer:
                 # types the adapter can't express (e.g. nested 'List[X]').
                 if inner is not None:
                     return _list_adapter(inner).validate_python(
-                        data, by_alias=True, by_name=False
+                        data,
+                        by_alias=True,
+                        by_name=False,
+                        context=_WIRE_DECODE_CONTEXT,
                     )
                 # A ``str``/``bytes`` scalar is iterable, so an un-guarded
                 # comprehension would silently walk it character-by-character —
@@ -436,10 +461,15 @@ class ObjectSerializer:
                 inner = self._resolve_klass_name(sub_kls)
                 if inner is not None:
                     return _dict_adapter(inner).validate_python(
-                        data, by_alias=True, by_name=False
+                        data,
+                        by_alias=True,
+                        by_name=False,
+                        context=_WIRE_DECODE_CONTEXT,
                     )
                 return {k: self._deserialize(v, sub_kls) for k, v in data.items()}
 
+            if klass in _STRICT_LEAF_TYPES:
+                return _STRICT_LEAF_ADAPTERS[klass].validate_python(data)
             if klass in self._NATIVE_TYPES_MAPPING:
                 klass = self._NATIVE_TYPES_MAPPING[klass]
             else:
@@ -451,8 +481,10 @@ class ObjectSerializer:
             # The wire carries only the declared property names. Models also
             # accept the snake_case attribute name (populate_by_name, for
             # constructors), so a decode must opt out of that to keep a payload
-            # key such as ``snake_case_name`` from populating ``snakeCaseName``.
-            return klass.model_validate(data, by_alias=True, by_name=False)
+            # key such as ``photo_urls`` from populating ``photoUrls``.
+            return klass.model_validate(
+                data, by_alias=True, by_name=False, context=_WIRE_DECODE_CONTEXT
+            )
         elif klass is bytes:
             if isinstance(data, bytes):
                 return data

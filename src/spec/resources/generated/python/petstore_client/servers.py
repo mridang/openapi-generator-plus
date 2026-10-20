@@ -20,7 +20,7 @@ For servers with variables, pass overrides::
     url = SERVER_1.get_url({'environment': 'staging'})
 """
 
-from typing import List
+from typing import Tuple
 
 from petstore_client.server_configuration import ServerConfiguration, ServerVariable
 
@@ -41,12 +41,19 @@ SERVER_1: ServerConfiguration = ServerConfiguration(
         "environment": ServerVariable(
             default_value="api",
             description="API environment",
-            enum_values=["api", "staging", "sandbox"],
+            enum_values=(
+                "api",
+                "staging",
+                "sandbox",
+            ),
         ),
         "version": ServerVariable(
             default_value="v3",
             description="API version",
-            enum_values=["v2", "v3"],
+            enum_values=(
+                "v2",
+                "v3",
+            ),
         ),
     },
 )
@@ -55,8 +62,8 @@ SERVER_1: ServerConfiguration = ServerConfiguration(
 Main API server with variables
 """
 
-ALL: List[ServerConfiguration] = [
+ALL: Tuple[ServerConfiguration, ...] = (
     SERVER_0,
     SERVER_1,
-]
-"""All server configurations in declaration order."""
+)
+"""All server configurations in declaration order, as an immutable tuple."""

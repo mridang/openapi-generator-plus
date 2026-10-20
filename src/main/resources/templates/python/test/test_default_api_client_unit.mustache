@@ -515,6 +515,20 @@ class TestMultipartContentType:
         assert b'filename="file"' in body
         assert b"Content-Type: application/octet-stream" in body
 
+    def test_multipart_scalar_parts_use_the_wire_text_form(self) -> None:
+        # A boolean companion field is the text `true`/`false`, as in the other
+        # SDKs, not Python's `True`/`False`.
+        client = DefaultApiClient()
+        body = client._build_multipart_body(
+            {"isPrimary": True, "isDraft": False, "pageCount": 3}, "b"
+        )
+        assert body == (
+            b'--b\r\nContent-Disposition: form-data; name="isPrimary"\r\n\r\ntrue\r\n'
+            b'--b\r\nContent-Disposition: form-data; name="isDraft"\r\n\r\nfalse\r\n'
+            b'--b\r\nContent-Disposition: form-data; name="pageCount"\r\n\r\n3\r\n'
+            b'--b--\r\n'
+        )
+
     def test_multipart_model_part_serialized_through_object_serializer(self) -> None:
         # cross-cutting parity: a multipart/form-data body whose field is a
         # MODEL part must be serialized through the SDK's configured
@@ -899,6 +913,98 @@ class TestContentLengthStrippedOnRedirect:
         assert pool.calls[1][0] == "GET"
         followup_headers = pool.calls[1][2]
         assert not any(k.lower() == "content-length" for k in followup_headers)
+
+
+    def _redirect_once(self, status: int, method: str) -> list[Any]:
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(status, {"location": "https://example.com/done"})
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request(method, "https://example.com/start", {"Content-Type": "application/json"})
+        return pool.calls
+
+    def test_302_bodyless_post_to_get_drops_the_zero_content_length(self) -> None:
+        calls = self._redirect_once(302, "POST")
+        assert calls[0][2]["Content-Length"] == "0"
+        assert calls[1][0] == "GET"
+        assert not any(k.lower() == "content-length" for k in calls[1][2]), \
+            f"a demoted GET must not send Content-Length; got {calls[1][2]!r}"
+
+    def test_307_bodyless_post_keeps_the_zero_content_length(self) -> None:
+        calls = self._redirect_once(307, "POST")
+        assert calls[1][0] == "POST"
+        assert calls[1][2]["Content-Length"] == "0"
+
+
+class TestRedirectLocationResolution:
+    """A relative ``Location`` resolves per RFC 3986 against the request URL:
+    a query-only reference keeps the base path, and dot segments are removed."""
+
+    BASE = "https://h.example.com/v1/pets/1?x=1"
+
+    def test_query_only_reference_keeps_the_base_path(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "?page=2") == \
+            "https://h.example.com/v1/pets/1?page=2"
+
+    def test_parent_segment_is_removed(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "../owners/9") == \
+            "https://h.example.com/v1/owners/9"
+
+    def test_current_segment_is_removed(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "./a") == \
+            "https://h.example.com/v1/pets/a"
+
+    def test_absolute_path_keeps_query_and_fragment(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "/x/y?z=1#f") == \
+            "https://h.example.com/x/y?z=1#f"
+
+    def test_protocol_relative_reference_inherits_the_scheme(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "//other.example.com/p") == \
+            "https://other.example.com/p"
+
+    def test_absolute_url_is_returned_verbatim(self) -> None:
+        assert DefaultApiClient._resolve_url(self.BASE, "FILE:///etc/passwd") == \
+            "FILE:///etc/passwd"
+
+    def test_followed_query_only_redirect_requests_the_resolved_url(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.urls: list[str] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.urls.append(url)
+                if len(self.urls) == 1:
+                    return _FakeResp(302, {"location": "?page=2"})
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("GET", self.BASE, {})
+        assert pool.urls == [self.BASE, "https://h.example.com/v1/pets/1?page=2"]
+
+
+class TestConnectionPoolSizing:
+    """The async facade runs requests concurrently, so the pool must keep more
+    than urllib3's default of one connection per host."""
+
+    def test_direct_pool_keeps_ten_connections_per_host(self) -> None:
+        client = DefaultApiClient()
+        assert client._pool_manager.connection_pool_kw["maxsize"] == 10
+
+    def test_proxy_pool_keeps_ten_connections_per_host(self) -> None:
+        options = TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
+        client = DefaultApiClient(options)
+        assert client._pool_manager.connection_pool_kw["maxsize"] == 10
 
 
 class TestRedirectExhaustion:

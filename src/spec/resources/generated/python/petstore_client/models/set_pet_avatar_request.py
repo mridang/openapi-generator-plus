@@ -31,6 +31,6 @@ class SetPetAvatarRequest(BaseModel):
     )
 
 
-from pydantic import Base64Bytes
+from petstore_client._types import Base64Bytes
 
 SetPetAvatarRequest.model_rebuild(raise_errors=False)
