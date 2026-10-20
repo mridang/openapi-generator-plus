@@ -77,7 +77,7 @@ type Pet struct {
 	PhotoUrls Set[string] `json:"photoUrls"`
 	Tags      *[]Tag      `json:"tags,omitempty"`
 	/* Status pet status in the store */
-
+	//
 	// Deprecated: This property is deprecated.
 	Status   *PetStatusEnum `json:"status,omitempty"`
 	Location *[]any         `json:"location,omitempty"`

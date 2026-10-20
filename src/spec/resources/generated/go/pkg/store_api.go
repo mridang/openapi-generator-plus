@@ -31,7 +31,6 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 
 // DeleteOrder Delete purchase order by ID
 // param orderId: ID of the order to delete
-
 func (a *StoreApi) DeleteOrder(orderId int64) error {
 	result, err := a.DeleteOrderWithHTTPInfo(orderId)
 	if err != nil {
@@ -84,7 +83,6 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 }
 
 // GetBySwatch Echoes a swatch supplied via path, query and header parameters.
-
 func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*Category, error) {
 	result, err := a.GetBySwatchWithHTTPInfo(pathSwatch, options)
 	if err != nil {
@@ -194,7 +192,6 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(pathSwatch Swatch, options *opts.GetB
 }
 
 // GetDefaults Returns a model exercising schema defaults on deserialize.
-
 func (a *StoreApi) GetDefaults() (*Defaults, error) {
 	result, err := a.GetDefaultsWithHTTPInfo()
 	if err != nil {
@@ -290,7 +287,6 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo() (*ApiResult[Defaults], error) {
 }
 
 // GetDepartment Returns a department (mutual-recursion codegen fixture).
-
 func (a *StoreApi) GetDepartment() (*Department, error) {
 	result, err := a.GetDepartmentWithHTTPInfo()
 	if err != nil {
@@ -386,7 +382,6 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo() (*ApiResult[Department], error) {
 }
 
 // GetGroupedCategories Returns categories grouped into an array of string-keyed maps.
-
 func (a *StoreApi) GetGroupedCategories() (*[]map[string]Category, error) {
 	result, err := a.GetGroupedCategoriesWithHTTPInfo()
 	if err != nil {
@@ -482,7 +477,6 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo() (*ApiResult[[]map[string]C
 }
 
 // GetInventory Returns pet inventories by status
-
 func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 	result, err := a.GetInventoryWithHTTPInfo()
 	if err != nil {
@@ -578,7 +572,6 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 }
 
 // GetMatrix Returns a matrix as an array of integer arrays.
-
 func (a *StoreApi) GetMatrix() (*[][]int32, error) {
 	result, err := a.GetMatrixWithHTTPInfo()
 	if err != nil {
@@ -675,7 +668,6 @@ func (a *StoreApi) GetMatrixWithHTTPInfo() (*ApiResult[[][]int32], error) {
 
 // GetOrderById Find purchase order by ID
 // param orderId: ID of order to return
-
 func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 	result, err := a.GetOrderByIdWithHTTPInfo(orderId)
 	if err != nil {
@@ -780,7 +772,6 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 
 // GetStockItem Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
 // param asOf: Only consider stock as of this instant
-
 func (a *StoreApi) GetStockItem(options *opts.GetStockItemOptions) (*StockItem, error) {
 	result, err := a.GetStockItemWithHTTPInfo(options)
 	if err != nil {
@@ -879,7 +870,6 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(options *opts.GetStockItemOptions) (
 }
 
 // GetSwatch Returns a bare enum (value-type response codegen fixture).
-
 func (a *StoreApi) GetSwatch() (*Swatch, error) {
 	result, err := a.GetSwatchWithHTTPInfo()
 	if err != nil {
@@ -975,7 +965,6 @@ func (a *StoreApi) GetSwatchWithHTTPInfo() (*ApiResult[Swatch], error) {
 }
 
 // GetSwatchGroups Returns swatches grouped as an array of string-keyed enum maps.
-
 func (a *StoreApi) GetSwatchGroups() (*[]map[string]Swatch, error) {
 	result, err := a.GetSwatchGroupsWithHTTPInfo()
 	if err != nil {
@@ -1071,7 +1060,6 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo() (*ApiResult[[]map[string]Swatch
 }
 
 // GetTimestampGroups Returns timestamps grouped as an array of string-keyed maps.
-
 func (a *StoreApi) GetTimestampGroups() (*[]map[string]DateTime, error) {
 	result, err := a.GetTimestampGroupsWithHTTPInfo()
 	if err != nil {
@@ -1167,7 +1155,6 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo() (*ApiResult[[]map[string]Dat
 }
 
 // GetTree Returns a self-referential tree (recursive-type codegen fixture)
-
 func (a *StoreApi) GetTree() (*TreeNode, error) {
 	result, err := a.GetTreeWithHTTPInfo()
 	if err != nil {
@@ -1263,7 +1250,6 @@ func (a *StoreApi) GetTreeWithHTTPInfo() (*ApiResult[TreeNode], error) {
 }
 
 // PlaceOrder Place an order for a pet
-
 func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 	result, err := a.PlaceOrderWithHTTPInfo(order)
 	if err != nil {

@@ -117,7 +117,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state strin
 
 // ErrAuthCodeEmpty is returned by ExchangeCode when the supplied authorization
 // code is empty or whitespace-only. Callers can compare with errors.Is.
-var ErrAuthCodeEmpty = errors.New("oauth2 authorization code: code must not be empty")
+var ErrAuthCodeEmpty = errors.New("authorization code must not be empty")
 
 // ExchangeCode exchanges an authorization code for an access token.
 func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {

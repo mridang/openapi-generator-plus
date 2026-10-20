@@ -159,6 +159,8 @@ func TestOAuth2Implicit_SetAccessTokenRejectsInvalidToken(t *testing.T) {
 	for _, bad := range []string{"tok\r\nInjected: yes", "ñoño", "tok\x00"} {
 		if err := auth.SetAccessToken(bad); !errors.Is(err, oauth.ErrInvalidAccessToken) {
 			t.Errorf("expected ErrInvalidAccessToken for %q, got %v", bad, err)
+		} else if want := "access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"; err.Error() != want {
+			t.Errorf("expected message %q for %q, got %q", want, bad, err.Error())
 		}
 	}
 	if _, err := auth.AuthHeadersOrError(); !errors.Is(err, oauth.ErrAccessTokenNotSet) {

@@ -6,7 +6,7 @@ Auto-generated Go SDK client for the {{appName}} API.
 
 - Go 1.26+
 - [`gofumpt`](https://github.com/mvdan/gofumpt) — stricter formatter (superset of `gofmt`)
-- [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (bundles `staticcheck`, `revive`, `gocritic`, `gosec`, etc.)
+- [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (the generated `.golangci.yml` runs its default linters: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`)
 
 ### Tooling
 
@@ -18,7 +18,7 @@ gofumpt -w .
 # Static analysis
 go vet ./...
 
-# Lint (runs staticcheck, revive, gocritic, gosec, bodyclose, errcheck, ...)
+# Lint (runs errcheck, govet, ineffassign, staticcheck and unused)
 golangci-lint run
 ```
 
@@ -87,7 +87,7 @@ round trip, plug in a JSON Schema validator library for your language.
 
 ### SOCKS proxies
 
-`TransportOptions.proxy()` accepts only `http://` and `https://` URLs.
+`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.
 Passing a `socks://`, `socks4://`, or `socks5://` scheme is rejected
 at construction time with a clear error. SOCKS support would
 require enabling extra dependencies / feature flags on the underlying

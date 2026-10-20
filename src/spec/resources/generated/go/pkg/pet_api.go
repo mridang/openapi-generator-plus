@@ -143,7 +143,6 @@ func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authent
 
 // AddPet Add a new pet to the store
 // param pet: Create a new pet in the store
-
 func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
 	result, err := a.AddPetWithHTTPInfo(pet, options)
 	if err != nil {
@@ -246,7 +245,6 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 
 // AddPetPhotos Add photos to the pet's gallery
 // Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-
 func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*[]Photo, error) {
 	result, err := a.AddPetPhotosWithHTTPInfo(petId, options)
 	if err != nil {
@@ -361,7 +359,6 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 }
 
 // AddPetTreatment Record a treatment for a pet
-
 func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*PetTreatment, error) {
 	result, err := a.AddPetTreatmentWithHTTPInfo(petId, petTreatment, options)
 	if err != nil {
@@ -473,7 +470,6 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 // DeletePet Deletes a pet
 // param petId: Pet id to delete
 // param apiKey: Session cookie used for authentication
-
 func (a *PetApi) DeletePet(petId int64, options *opts.DeletePetOptions) error {
 	result, err := a.DeletePetWithHTTPInfo(petId, options)
 	if err != nil {
@@ -547,7 +543,6 @@ func (a *PetApi) DeletePetWithHTTPInfo(petId int64, options *opts.DeletePetOptio
 
 // DownloadPetDocument Download a vet document
 // Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-
 func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (*[]byte, error) {
 	result, err := a.DownloadPetDocumentWithHTTPInfo(petId, documentId)
 	if err != nil {
@@ -660,7 +655,6 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 
 // FindPetsBornOn List pets born on a given date
 // param bornOn: Date of birth to match
-
 func (a *PetApi) FindPetsBornOn(bornOn string) (*[]Pet, error) {
 	result, err := a.FindPetsBornOnWithHTTPInfo(bornOn)
 	if err != nil {
@@ -760,17 +754,15 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 }
 
 // FindPetsByStatus Finds Pets by status
-// Deprecated: This operation is deprecated.
 // See https://example.com/docs/filtering Find out more about filtering
 // param status: Status values that need to be considered for filter
 // param filter: Filter criteria as key-value pairs
 // param bornAfter: Only return pets born on or after this date
 // param reportDate: Reference date for the report
-
 // Example for `status` — Available only: available
-
 // Example for `status` — Sold pets: sold
-
+//
+// Deprecated: This operation is deprecated.
 func (a *PetApi) FindPetsByStatus(options *opts.FindPetsByStatusOptions) (*[]Pet, error) {
 	result, err := a.FindPetsByStatusWithHTTPInfo(options)
 	if err != nil {
@@ -887,7 +879,6 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *opts.FindPetsByStatusOpti
 }
 
 // GetExternalPetInfo Get external pet info
-
 func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer) (*Pet, error) {
 	result, err := a.GetExternalPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
@@ -997,7 +988,6 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 }
 
 // GetMultiServerPetInfo Get multi-server pet info
-
 func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfoServer) (*Pet, error) {
 	result, err := a.GetMultiServerPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
@@ -1108,7 +1098,6 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 
 // GetPetAvatar Get the pet's profile photo
 // Returns the raw image bytes of the pet's current avatar.
-
 func (a *PetApi) GetPetAvatar(petId int64) (*[]byte, error) {
 	result, err := a.GetPetAvatarWithHTTPInfo(petId)
 	if err != nil {
@@ -1213,7 +1202,6 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[[]byte], erro
 
 // GetPetAvatarThumbnail Get the pet's avatar thumbnail as base64
 // Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-
 func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 	result, err := a.GetPetAvatarThumbnailWithHTTPInfo(petId)
 	if err != nil {
@@ -1318,13 +1306,11 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]by
 
 // GetPetById Find pet by ID
 // Returns a single pet
-// Deprecated: This operation is deprecated.
 // param petId: ID of pet to return
-
 // Example for `petId` — Small breed ID: 1
-
 // Example for `petId` — Large breed ID: 42
-
+//
+// Deprecated: This operation is deprecated.
 func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) {
 	result, err := a.GetPetByIdWithHTTPInfo(petId, server)
 	if err != nil {
@@ -1436,7 +1422,6 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 }
 
 // GetPetByName Look up a pet by name (simple string path param + required query)
-
 func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*Pet, error) {
 	result, err := a.GetPetByNameWithHTTPInfo(name, options)
 	if err != nil {
@@ -1550,7 +1535,6 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(name string, options *opts.GetPetByNam
 
 // GetPetPassport Get the pet's passport
 // Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-
 func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 	result, err := a.GetPetPassportWithHTTPInfo(petId)
 	if err != nil {
@@ -1655,7 +1639,6 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport
 
 // GetPetPhoto Get a photo or its metadata
 // Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-
 func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (*[]byte, error) {
 	result, err := a.GetPetPhotoWithHTTPInfo(petId, photoId)
 	if err != nil {
@@ -1768,7 +1751,6 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 
 // GetPetTag Get a tag for a pet
 // param revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
-
 func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
 	result, err := a.GetPetTagWithHTTPInfo(petId, tagName, options)
 	if err != nil {
@@ -1897,7 +1879,6 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *opt
 }
 
 // GetStagingPetInfo Get staging pet info
-
 func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) (*Pet, error) {
 	result, err := a.GetStagingPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
@@ -2008,7 +1989,6 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 
 // SetPetAvatar Set the pet's profile photo
 // Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-
 func (a *PetApi) SetPetAvatar(petId int64, body *os.File, requestContentType ...string) error {
 	result, err := a.SetPetAvatarWithHTTPInfo(petId, body, requestContentType...)
 	if err != nil {
@@ -2097,7 +2077,6 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 
 // SetPetAvatarThumbnail Set the pet's avatar thumbnail as base64
 // Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-
 func (a *PetApi) SetPetAvatarThumbnail(petId int64, setPetAvatarThumbnailRequest SetPetAvatarThumbnailRequest) error {
 	result, err := a.SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest)
 	if err != nil {
@@ -2151,7 +2130,6 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 
 // SetPetPreferences Update a pet's notification preferences
 // Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
-
 func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResponse, error) {
 	result, err := a.SetPetPreferencesWithHTTPInfo(petId, options)
 	if err != nil {
@@ -2276,7 +2254,6 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(petId int64, options *opts.SetPet
 // UpdatePet Update an existing pet
 // param petId: ID of pet to update
 // param pet: Pet object that needs to be updated
-
 func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 	result, err := a.UpdatePetWithHTTPInfo(petId, pet)
 	if err != nil {
@@ -2381,7 +2358,6 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 
 // UploadPetCertificate Upload the pet's adoption certificate
 // Attaches a single adoption certificate document. No metadata fields are required alongside the file.
-
 func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResponse, error) {
 	result, err := a.UploadPetCertificateWithHTTPInfo(petId, options)
 	if err != nil {
@@ -2496,7 +2472,6 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 
 // UploadPetDocument Attach a vet document or health record
 // Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
-
 func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResponse, error) {
 	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options, requestContentType...)
 	if err != nil {

@@ -163,6 +163,9 @@ func TestOAuth2AuthCode_ExchangeCodeRejectsEmptyCode(t *testing.T) {
 		if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
 			t.Errorf("expected ErrAuthCodeEmpty for code %q, got %v", bad, err)
 		}
+		if want := "authorization code must not be empty"; err.Error() != want {
+			t.Errorf("expected message %q for code %q, got %q", want, bad, err.Error())
+		}
 	}
 }
 

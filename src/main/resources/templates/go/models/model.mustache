@@ -89,10 +89,11 @@ func (v {{classname}}) MarshalJSON() ([]byte, error) {
 // {{classname}} is a model class generated from the OpenAPI schema.
 {{/description}}
 {{#isDeprecated}}
+//
 // Deprecated: This schema is deprecated.
 {{/isDeprecated}}
 {{#externalDocumentation}}
-// See {{url}} {{description}}
+// See {{url}} {{{description}}}
 {{/externalDocumentation}}
 {{#vars}}
 {{#isEnum}}
@@ -165,10 +166,10 @@ type {{classname}} struct {
 	// Example: {{{.}}}
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-	// {{summary}} — {{value}}
+	// {{{summary}}} — {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
-
+	//
 	// Deprecated: {{#deprecationMessage}}{{{deprecationMessage}}}{{/deprecationMessage}}{{^deprecationMessage}}This property is deprecated.{{/deprecationMessage}}
 {{/deprecated}}
 {{#required}}
@@ -448,6 +449,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 // {{classname}} is a union type (oneOf).
 {{/description}}
 {{#isDeprecated}}
+//
 // Deprecated: This schema is deprecated.
 {{/isDeprecated}}
 type {{classname}} struct {
@@ -522,6 +524,7 @@ func (o *{{classname}}) Value() any {
 // {{classname}} is a union type (anyOf).
 {{/description}}
 {{#isDeprecated}}
+//
 // Deprecated: This schema is deprecated.
 {{/isDeprecated}}
 //

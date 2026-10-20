@@ -24,6 +24,14 @@ import (
 // errors.Is.
 var ErrInvalidAccessToken = errors.New("invalid access token")
 
+// invalidAccessTokenError carries the message the other SDKs use for a bad
+// access token while still matching ErrInvalidAccessToken through errors.Is.
+type invalidAccessTokenError struct{ message string }
+
+func (e *invalidAccessTokenError) Error() string { return e.message }
+
+func (e *invalidAccessTokenError) Unwrap() error { return ErrInvalidAccessToken }
+
 // ErrAccessTokenNotSet is returned by AuthHeadersOrError when it is called
 // before SetAccessToken. Match it with errors.Is.
 var ErrAccessTokenNotSet = errors.New("oauth2 implicit: must set the access token before making API requests")
@@ -92,7 +100,7 @@ func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) error {
 	for i := 0; i < len(token); i++ {
 		c := token[i]
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
-			return fmt.Errorf("%w: token must contain only printable ASCII characters (RFC 7230 §3.2.6)", ErrInvalidAccessToken)
+			return &invalidAccessTokenError{"access token must contain only printable ASCII characters (RFC 7230 §3.2.6)"}
 		}
 	}
 	a.mu.Lock()

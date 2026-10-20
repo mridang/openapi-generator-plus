@@ -371,6 +371,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/api/pet_api_test.mustache", "test", "pet_api_test.go"));
             supportingFiles.add(
+                    new SupportingFile("test/model_test.mustache", "test", "model_test.go"));
+            supportingFiles.add(
+                    new SupportingFile("test/readme_test.mustache", "test", "readme_test.go"));
+            supportingFiles.add(
+                    new SupportingFile("test/skills_test.mustache", "test", "skills_test.go"));
+            supportingFiles.add(
                     new SupportingFile(
                             "test/api/store_api_test.mustache", "test", "store_api_test.go"));
             supportingFiles.add(

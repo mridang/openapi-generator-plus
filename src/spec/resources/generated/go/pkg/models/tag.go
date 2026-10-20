@@ -14,6 +14,7 @@ import (
 )
 
 // Tag Tags are deprecated, use categories instead
+//
 // Deprecated: This schema is deprecated.
 type Tag struct {
 	Id   *int64  `json:"id,omitempty"`

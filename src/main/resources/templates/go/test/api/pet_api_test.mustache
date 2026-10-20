@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -1237,5 +1240,96 @@ func TestPetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected a deserialization error to propagate for a malformed 2xx body, got nil")
+	}
+}
+
+// ── Scenario 12: operation docs attach to the method and deprecations are recognised ──
+//
+// Go only treats a comment as a doc comment when it sits directly above the
+// declaration, and tooling (gopls, staticcheck SA1019) only flags a deprecation
+// when a paragraph STARTS with "Deprecated: ". These tests parse the generated
+// sources the way go/doc does.
+
+// declDoc returns the doc comment text of the method called name in the Go
+// source file at path, or "" when the declaration carries no doc comment.
+func declDoc(t *testing.T, path string, name string) string {
+	t.Helper()
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", path, err)
+	}
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Recv == nil || fn.Name.Name != name {
+			continue
+		}
+		if fn.Doc == nil {
+			return ""
+		}
+		return fn.Doc.Text()
+	}
+	t.Fatalf("method %s is not declared in %s", name, path)
+	return ""
+}
+
+// hasDeprecatedParagraph reports whether any paragraph of a doc comment starts
+// with "Deprecated: ", the form go/doc and staticcheck look for.
+func hasDeprecatedParagraph(doc string) bool {
+	for _, paragraph := range strings.Split(doc, "\n\n") {
+		if strings.HasPrefix(paragraph, "Deprecated: ") {
+			return true
+		}
+	}
+	return false
+}
+
+func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"AddPet", "GetPetById", "FindPetsByStatus"} {
+		doc := declDoc(t, "../pkg/pet_api.go", name)
+		if !strings.HasPrefix(doc, name+" ") {
+			t.Errorf("expected %s to carry a doc comment starting with its name, got %q", name, doc)
+		}
+	}
+}
+
+func TestPetApi_DeprecatedOperationsCarryADeprecatedParagraph(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"GetPetById", "GetPetByIdWithHTTPInfo", "FindPetsByStatus", "FindPetsByStatusWithHTTPInfo"} {
+		doc := declDoc(t, "../pkg/pet_api.go", name)
+		if !hasDeprecatedParagraph(doc) {
+			t.Errorf("expected %s to have a Deprecated: paragraph in its doc comment, got %q", name, doc)
+		}
+	}
+	if doc := declDoc(t, "../pkg/pet_api.go", "AddPet"); hasDeprecatedParagraph(doc) {
+		t.Errorf("expected AddPet not to be marked deprecated, got %q", doc)
+	}
+}
+
+func TestPetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph(t *testing.T) {
+	t.Parallel()
+	path := "../pkg/options/find_pets_by_status_options.go"
+	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("failed to parse %s: %v", path, err)
+	}
+	found := false
+	ast.Inspect(file, func(node ast.Node) bool {
+		field, ok := node.(*ast.Field)
+		if !ok || len(field.Names) == 0 || field.Names[0].Name != "Status" {
+			return true
+		}
+		found = true
+		doc := field.Doc.Text()
+		if !strings.Contains(doc, "Status values that need to be considered for filter") {
+			t.Errorf("expected the Status description to stay in the field doc, got %q", doc)
+		}
+		if !hasDeprecatedParagraph(doc) {
+			t.Errorf("expected the Status field doc to have a Deprecated: paragraph, got %q", doc)
+		}
+		return false
+	})
+	if !found {
+		t.Fatalf("field Status not found in %s", path)
 	}
 }

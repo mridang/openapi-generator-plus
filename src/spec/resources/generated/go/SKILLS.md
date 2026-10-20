@@ -196,12 +196,15 @@ if err != nil {
     var notFound *petstore.NotFoundError
     var clientErr *petstore.ClientError
     var serverErr *petstore.ServerError
+    var apiErr *petstore.ApiError
     if errors.As(err, &notFound) {
         fmt.Printf("Not found: %s\n", notFound.Error())
     } else if errors.As(err, &clientErr) {
         fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
     } else if errors.As(err, &serverErr) {
         fmt.Printf("Server error: %s\n", serverErr.Error())
+    } else if errors.As(err, &apiErr) {
+        fmt.Printf("API error %d: %s\n", apiErr.StatusCode(), apiErr.Error())
     }
 }
 ```
@@ -239,7 +242,7 @@ m := models.ApiResponse{}
 
 ## Binary / File Uploads
 
-File upload parameters are typed as `io.Reader`. Binary response bodies are returned as `[]byte`.
+File upload parameters are typed as `*os.File`. Binary response bodies are returned as `[]byte`.
 
 ## Comment Style
 
