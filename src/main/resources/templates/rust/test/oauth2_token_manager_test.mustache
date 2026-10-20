@@ -565,6 +565,56 @@ async fn test_expires_in_negative_skips_caching() {
     assert_eq!("neg2", second);
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn test_expires_in_huge_number_is_clamped_not_a_panic() {
+    // A server-supplied lifetime beyond what Instant arithmetic can add must
+    // be clamped, not overflow; the token is then cached for the clamped span.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"huge","expires_in":1e20}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second call should serve from cache");
+
+    assert_eq!("huge", first);
+    assert_eq!("huge", second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_expires_in_huge_string_is_clamped_not_a_panic() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"huge-str","expires_in":"99999999999999999999"}"#, 200);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let first = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("first call should succeed");
+    let second = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect("second call should serve from cache");
+
+    assert_eq!("huge-str", first);
+    assert_eq!("huge-str", second);
+}
+
 /// Gap 3.2: OAuth2 token POSTs must pass `no_redirect=true` so a 307/308
 /// from the IdP cannot replay the credentialed body (client_secret /
 /// refresh_token / authorization code) to an attacker-chosen URL.

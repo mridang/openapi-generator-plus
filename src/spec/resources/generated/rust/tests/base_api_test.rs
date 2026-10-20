@@ -1215,6 +1215,57 @@ async fn test_base_api_allow_empty_value_includes_param_in_query_string() {
     );
 }
 
+struct StatusQueryAuthenticator;
+
+impl petstore::auth::Authenticator for StatusQueryAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async { HashMap::new() })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        let mut params = HashMap::new();
+        params.insert("status".to_string(), "secret".to_string());
+        params
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_auth_query_param_replaces_same_named_operation_param() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(StatusQueryAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let opts =
+        petstore::api::options::FindPetsByStatusOptions::new().status("available".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert_eq!(
+        url.matches("status=").count(),
+        1,
+        "expected the authenticator query param to replace the same-named operation param, got: {}",
+        url
+    );
+    assert!(
+        url.contains("status=secret"),
+        "expected the authenticator value to win, got: {}",
+        url
+    );
+    assert!(
+        !url.contains("status=available"),
+        "expected the operation value to be replaced, got: {}",
+        url
+    );
+}
+
 // -- Server variable overrides --
 
 #[test]

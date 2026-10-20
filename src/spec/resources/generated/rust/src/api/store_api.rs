@@ -1237,7 +1237,15 @@ impl StoreApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&order)?.into_bytes());
+        // Optional (not-`required`) request body. The parameter is
+        // `Option<Order>`; when the caller passes `None` we send NO
+        // body at all (and invoke_api drops the Content-Type) rather than
+        // serializing a literal JSON `null`, which a strict server may reject or
+        // treat differently from an absent body.
+        let mut request_body: Option<Vec<u8>> = None;
+        if let Some(body) = &order {
+            request_body = Some(object_serializer::serialize(body)?.into_bytes());
+        }
         let multipart: Option<HashMap<String, MultipartValue>> = None;
 
         let params = InvokeApiParams {

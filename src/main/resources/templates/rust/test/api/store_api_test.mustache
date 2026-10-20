@@ -2,9 +2,10 @@
 
 mod testcontainers_helper;
 
+use std::collections::HashMap;
 use std::io::Read;
 use std::net::TcpListener;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use {{packageName}}::*;
@@ -52,6 +53,79 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     StoreApi::new(Arc::new(client), config, None)
+}
+
+/// Records the headers and body of the request it is asked to send.
+struct RecordingApiClient {
+    headers: Mutex<HashMap<String, String>>,
+    body: Mutex<Option<Vec<u8>>>,
+}
+
+impl RecordingApiClient {
+    fn new() -> Self {
+        RecordingApiClient {
+            headers: Mutex::new(HashMap::new()),
+            body: Mutex::new(None),
+        }
+    }
+}
+
+impl {{packageName}}::api_client::ApiClient for RecordingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        *self.headers.lock().unwrap() = headers.clone();
+        *self.body.lock().unwrap() = match body {
+            Some({{packageName}}::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
+            _ => None,
+        };
+        Box::pin(async {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(200, "{}".to_string(), {
+                let mut h = HashMap::new();
+                h.insert("Content-Type".to_string(), "application/json".to_string());
+                h
+            }))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_type() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let _ = api.place_order_with_http_info(None).await;
+    let headers = client.headers.lock().unwrap();
+    assert!(headers.contains_key("Accept"), "expected the request to be dispatched");
+    assert!(
+        client.body.lock().unwrap().is_none(),
+        "an omitted optional body must not be sent as a JSON null"
+    );
+    assert!(
+        !headers.contains_key("Content-Type"),
+        "an omitted optional body must not carry a Content-Type"
+    );
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_supplied_body_sends_json_with_content_type() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let _ = api.place_order_with_http_info(Some(Order::new())).await;
+    let body = client.body.lock().unwrap();
+    assert!(
+        body.as_ref().is_some_and(|b| b.starts_with(b"{")),
+        "a supplied body must be sent as a JSON object"
+    );
+    assert_eq!(
+        client.headers.lock().unwrap().get("Content-Type").map(|s| s.as_str()),
+        Some("application/json")
+    );
 }
 
 #[tokio::test]

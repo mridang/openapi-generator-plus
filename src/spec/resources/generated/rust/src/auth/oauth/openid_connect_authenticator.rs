@@ -40,10 +40,14 @@ pub struct OpenIdConnectAuthenticator {
 
 const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
 
+/// Ceiling applied to a server-supplied `max-age`, in seconds (one year), so an
+/// absurd lifetime cannot overflow the expiry arithmetic.
+const MAX_DISCOVERY_MAX_AGE_SECONDS: u64 = 31_536_000;
+
 /// Parse `Cache-Control: max-age=<seconds>` from response headers.
 ///
 /// Returns 86400 (RFC 8414 default) if the header is absent or does not
-/// contain a `max-age` directive.
+/// contain a `max-age` directive. A larger value is clamped to one year.
 fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
     for (key, value) in headers {
         if key.eq_ignore_ascii_case("cache-control") {
@@ -51,7 +55,7 @@ fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
                 let rest = &value[idx + "max-age=".len()..];
                 let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
                 if let Ok(seconds) = digits.parse::<u64>() {
-                    return seconds;
+                    return seconds.min(MAX_DISCOVERY_MAX_AGE_SECONDS);
                 }
             }
             return DEFAULT_DISCOVERY_MAX_AGE_SECONDS;

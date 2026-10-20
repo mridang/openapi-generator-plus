@@ -21,6 +21,10 @@ use crate::utils::form_url_encode;
 /// before the token actually expires, avoiding a race against the server clock.
 const EXPIRY_SAFETY_MARGIN: Duration = Duration::from_secs(60);
 
+/// Ceiling applied to a server-supplied `expires_in`, in seconds (one year), so
+/// an absurd lifetime cannot overflow the expiry arithmetic.
+const MAX_EXPIRES_IN_SECONDS: u64 = 31_536_000;
+
 pub struct OAuth2TokenManager {
     /* api_client lives outside the tokio mutex so injection from the
      * synchronous Authenticator::set_api_client hook does not need to be
@@ -254,7 +258,8 @@ impl OAuth2TokenManager {
                  * parse digit strings; on anything unparseable or non-positive,
                  * mark the token as immediately stale so the next call refetches
                  * (preferable to caching a token of unknown lifetime forever). */
-                let expires_in = parse_expires_in(Some(expires_in_value));
+                let expires_in =
+                    parse_expires_in(Some(expires_in_value)).min(MAX_EXPIRES_IN_SECONDS);
                 if expires_in > 0 {
                     let buffer_secs = expires_in.min(30);
                     inner.token_expiry =

@@ -173,6 +173,9 @@ impl BaseApi {
         };
         if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
+                /* The authenticator's value replaces an operation query
+                 * parameter of the same name, so the name is sent once. */
+                query_params.retain(|(name, _, _)| *name != k);
                 query_params.push((k, v, false));
             }
         }
@@ -361,16 +364,19 @@ impl BaseApi {
         } else if is_json && !response.body().is_empty() {
             crate::object_serializer::deserialize(response.body().as_bytes())?
         } else if !is_json && !response.body().is_empty() {
-            /* Non-JSON, non-binary response -- transport layer base64-encoded
-             * the bytes; decode them back and surface as a string. */
-            use base64::Engine as _;
-            let bytes = base64::engine::general_purpose::STANDARD
-                .decode(response.body().as_bytes())
-                .unwrap_or_default();
-            serde_json::from_value(serde_json::Value::String(
-                String::from_utf8_lossy(&bytes).into_owned(),
-            ))
-            .ok()
+            /* Non-JSON, non-binary response. The transport keeps text media
+             * types as decoded text and base64-encodes everything else, so only
+             * the latter is decoded back; text is surfaced verbatim. */
+            let text = if resp_content_type.as_deref().is_some_and(is_text_media_type) {
+                response.body().to_string()
+            } else {
+                use base64::Engine as _;
+                let bytes = base64::engine::general_purpose::STANDARD
+                    .decode(response.body().as_bytes())
+                    .unwrap_or_default();
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            serde_json::from_value(serde_json::Value::String(text)).ok()
         } else {
             None
         };
@@ -397,6 +403,18 @@ impl BaseApi {
             response.headers().clone(),
         ))
     }
+}
+
+/// Reports whether the transport hands a response with this media type back as
+/// decoded text (rather than base64), mirroring the text/binary split in
+/// `DefaultApiClient`. JSON media types are routed separately by the caller.
+fn is_text_media_type(media_type: &str) -> bool {
+    let media_type = media_type.to_ascii_lowercase();
+    media_type.is_empty()
+        || media_type.starts_with("text/")
+        || media_type == "application/xml"
+        || media_type == "application/javascript"
+        || media_type.ends_with("+xml")
 }
 
 fn build_query_string(query_params: &[(String, String, bool)]) -> String {
@@ -539,7 +557,108 @@ fn is_valid_cookie_value(value: &str) -> bool {
 // drive the public API surface remain in `tests/base_api_test.rs`.
 #[cfg(test)]
 mod tests {
-    use super::serialize_body;
+    use super::{serialize_body, BaseApi, InvokeApiParams};
+    use crate::api_client::{ApiClient, RequestBody};
+    use crate::api_http_response::ApiHttpResponse;
+    use crate::ConfigurationBuilder;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    /// Answers every request with a fixed body and Content-Type.
+    struct FixedResponseClient {
+        body: String,
+        content_type: String,
+    }
+
+    impl ApiClient for FixedResponseClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let mut headers = HashMap::new();
+            headers.insert("Content-Type".to_string(), self.content_type.clone());
+            let response = ApiHttpResponse::new(200, self.body.clone(), headers);
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /// Runs a String-returning operation against a response with the given
+    /// body and Content-Type and returns the decoded value.
+    async fn string_result(body: &str, content_type: &str) -> Option<String> {
+        let client = FixedResponseClient {
+            body: body.to_string(),
+            content_type: content_type.to_string(),
+        };
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let api = BaseApi::new(Arc::new(client), config, None);
+        let params = InvokeApiParams {
+            method: "GET",
+            path: "/text",
+            query_params: Vec::new(),
+            header_params: HashMap::new(),
+            body: None,
+            multipart: None,
+            accepts: vec!["text/plain"],
+            content_type: "application/json",
+            return_type: "String",
+            auth: None,
+        };
+        let result = api
+            .invoke_api_for_result::<String>(params)
+            .await
+            .expect("a 200 response must succeed");
+        result.data().cloned()
+    }
+
+    #[tokio::test]
+    async fn test_string_result_text_plain_is_returned_verbatim() {
+        assert_eq!(
+            string_result("hello world", "text/plain").await.as_deref(),
+            Some("hello world")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_string_result_text_plain_that_looks_like_base64_is_not_decoded() {
+        assert_eq!(
+            string_result("abcd", "text/plain; charset=utf-8")
+                .await
+                .as_deref(),
+            Some("abcd")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_string_result_xml_is_returned_verbatim() {
+        assert_eq!(
+            string_result("<pet id=\"1\"/>", "application/xml")
+                .await
+                .as_deref(),
+            Some("<pet id=\"1\"/>")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_string_result_base64_transport_body_is_decoded() {
+        assert_eq!(
+            string_result("aGVsbG8=", "application/pdf")
+                .await
+                .as_deref(),
+            Some("hello")
+        );
+    }
 
     /// Encodes a list of form pairs the way the operation template does: a JSON
     /// array of `[key, value]` tuples preserving declaration order.

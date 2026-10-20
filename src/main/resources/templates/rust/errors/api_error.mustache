@@ -14,31 +14,33 @@ use crate::errors::serialization_error::SerializationError;
 use crate::errors::server_error::ServerError;
 use crate::errors::unauthorized_error::UnauthorizedError;
 use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::json_value::JsonValue;
 
 /// Parses a raw response body into a JSON AST for the crate-internal
 /// `error_body` cache. Returns `None` when the body is absent or not valid
-/// JSON. Kept private so the `serde_json` dependency never reaches the public
-/// `ApiError` surface.
+/// JSON. Goes through the shared object serializer so the nesting-depth cap
+/// and BOM handling match the success path. Kept private so the `serde_json`
+/// dependency never reaches the public `ApiError` surface.
 fn parse_error_body(body: Option<&str>) -> Option<serde_json::Value> {
     match body {
-        Some(b) if !b.is_empty() => serde_json::from_str(b).ok(),
+        Some(b) if !b.is_empty() => {
+            crate::object_serializer::deserialize::<serde_json::Value>(b.as_bytes())
+                .ok()
+                .flatten()
+        }
         _ => None,
     }
 }
 
-/// Deserializes a raw response body into `T`, surfacing the SDK's
-/// `SerializationError` (never `serde_json::Error`) on failure. Returns
-/// `Ok(None)` when there is no body to parse.
+/// Deserializes a raw response body into `T` through the shared object
+/// serializer, surfacing the SDK's `SerializationError` (never
+/// `serde_json::Error`) on failure. Returns `Ok(None)` when there is no body to
+/// parse.
 fn deserialize_error_body<T: serde::de::DeserializeOwned>(
     body: Option<&str>,
 ) -> Result<Option<T>, SerializationError> {
     match body {
-        Some(b) if !b.is_empty() => serde_json::from_str(b).map(Some).map_err(|e| {
-            SerializationError::new(
-                format!("failed to deserialize error response body: {}", e),
-                Some(Box::new(e)),
-            )
-        }),
+        Some(b) if !b.is_empty() => crate::object_serializer::deserialize(b.as_bytes()),
         _ => Ok(None),
     }
 }
@@ -75,8 +77,9 @@ pub struct ApiError {
 
     /// The deserialized error body, if available (parsed from the response body
     /// when it is JSON). Crate-internal: exposing the `serde_json::Value` AST
-    /// would leak `serde_json` into the public API. Callers should use
-    /// [`ApiError::typed_error_body`] for a typed view of the body instead.
+    /// would leak `serde_json` into the public API. Callers read it through
+    /// [`ApiError::error_body`], which wraps it in the SDK-owned [`JsonValue`],
+    /// or through [`ApiError::typed_error_body`] for a typed view.
     pub(crate) error_body: Option<serde_json::Value>,
 
     /// The underlying transport-level error that caused this ApiError, if any.
@@ -223,6 +226,12 @@ impl ApiError {
         self.response_headers.as_ref()
     }
 
+    /// The parsed JSON error body, or `None` when the response carried no body
+    /// or the body was not valid JSON.
+    pub fn error_body(&self) -> Option<JsonValue> {
+        self.error_body.clone().map(JsonValue::from)
+    }
+
     /// Deserializes the raw response body into the given type `T`.
     ///
     /// Useful when the API returns a structured error body that you want to
@@ -291,7 +300,7 @@ pub struct ApiErrorFields {
     /// Response headers, if the transport produced them.
     response_headers: Option<HashMap<String, String>>,
     /// Parsed JSON view of the response body, if it was valid JSON.
-    /// Crate-internal: see [`ApiError::error_body`]. Use
+    /// Crate-internal: read it through [`ApiErrorFields::error_body`], or use
     /// [`ApiErrorFields::typed_error_body`] for a typed view.
     pub(crate) error_body: Option<serde_json::Value>,
 }
@@ -315,6 +324,12 @@ impl ApiErrorFields {
     /// Returns the response headers, if the transport produced them.
     pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
         self.response_headers.as_ref()
+    }
+
+    /// Returns the parsed JSON error body, or `None` when the response carried no
+    /// body or the body was not valid JSON.
+    pub fn error_body(&self) -> Option<JsonValue> {
+        self.error_body.clone().map(JsonValue::from)
     }
 
     /// Convenience: deserialize the response body into `T`.

@@ -305,6 +305,13 @@ impl TransportOptionsBuilder {
                 let pem = std::fs::read(path).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!("failed to read {:?}: {}", path, e))
                 })?;
+                /* reqwest's rustls build only stores the PEM bytes and never
+                 * rejects them, so check the file here: a file with no
+                 * certificate would be silently ignored and a corrupt one would
+                 * panic when the client is built. */
+                validate_ca_pem(&pem).map_err(|reason| {
+                    ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, reason))
+                })?;
                 reqwest::Certificate::from_pem(&pem).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!("failed to parse {:?}: {}", path, e))
                 })?;
@@ -329,6 +336,60 @@ impl TransportOptionsBuilder {
             inject_request_id: self.inject_request_id,
         }
     }
+}
+
+const PEM_CERTIFICATE_BEGIN: &str = "-----BEGIN CERTIFICATE-----";
+const PEM_CERTIFICATE_END: &str = "-----END CERTIFICATE-----";
+
+/// Checks that `pem` holds at least one CERTIFICATE block whose body is valid
+/// base64 wrapping a DER SEQUENCE of exactly the stated length. Returns the
+/// reason the file is unusable.
+fn validate_ca_pem(pem: &[u8]) -> Result<(), String> {
+    use base64::Engine as _;
+    let text = std::str::from_utf8(pem).map_err(|_| "the file is not PEM text".to_string())?;
+    let mut rest = text;
+    let mut blocks = 0usize;
+    while let Some(start) = rest.find(PEM_CERTIFICATE_BEGIN) {
+        let after = &rest[start + PEM_CERTIFICATE_BEGIN.len()..];
+        let end = after
+            .find(PEM_CERTIFICATE_END)
+            .ok_or_else(|| "a CERTIFICATE block has no END line".to_string())?;
+        let body: String = after[..end].chars().filter(|c| !c.is_whitespace()).collect();
+        let der = base64::engine::general_purpose::STANDARD
+            .decode(body.as_bytes())
+            .map_err(|e| format!("a CERTIFICATE block is not valid base64: {}", e))?;
+        if !is_der_sequence(&der) {
+            return Err("a CERTIFICATE block does not hold a DER certificate".to_string());
+        }
+        blocks += 1;
+        rest = &after[end + PEM_CERTIFICATE_END.len()..];
+    }
+    if blocks == 0 {
+        return Err("the file holds no PEM CERTIFICATE block".to_string());
+    }
+    Ok(())
+}
+
+/// Reports whether `der` is a single DER SEQUENCE whose stated length covers
+/// exactly the remaining bytes, which every X.509 certificate is.
+fn is_der_sequence(der: &[u8]) -> bool {
+    if der.first() != Some(&0x30) {
+        return false;
+    }
+    let Some(&first_length_byte) = der.get(1) else {
+        return false;
+    };
+    if first_length_byte < 0x80 {
+        return der.len() == 2 + usize::from(first_length_byte);
+    }
+    let length_bytes = usize::from(first_length_byte & 0x7f);
+    if length_bytes == 0 || length_bytes > 4 || der.len() < 2 + length_bytes {
+        return false;
+    }
+    let stated = der[2..2 + length_bytes]
+        .iter()
+        .fold(0usize, |acc, &b| (acc << 8) | usize::from(b));
+    der.len() - (2 + length_bytes) == stated
 }
 
 impl Default for TransportOptions {

@@ -326,13 +326,42 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
      * serde_json::from_slice (deserialize + end for a trailing-content check). */
     let mut deserializer = serde_json::Deserializer::from_slice(stripped);
     deserializer.disable_recursion_limit();
-    let value = <T as serde::de::Deserialize>::deserialize(&mut deserializer).map_err(|e| {
-        SerializationError::new(format!("failed to deserialize JSON: {e}"), Some(Box::new(e)))
-    })?;
+    let value = match <T as serde::de::Deserialize>::deserialize(&mut deserializer) {
+        Ok(value) => value,
+        /* serde's derived struct visitor rejects a repeated key, while the
+         * other eleven SDKs keep the last occurrence. Decode again through the
+         * generic value tree, where the last occurrence wins. */
+        Err(e) if e.to_string().starts_with("duplicate field") => {
+            return deserialize_last_duplicate_wins(stripped);
+        }
+        Err(e) => {
+            return Err(SerializationError::new(
+                format!("failed to deserialize JSON: {e}"),
+                Some(Box::new(e)),
+            ));
+        }
+    };
     deserializer.end().map_err(|e| {
         SerializationError::new(format!("failed to deserialize JSON: {e}"), Some(Box::new(e)))
     })?;
     Ok(Some(value))
+}
+
+/// Decodes `data` through `serde_json::Value`, whose object map keeps the last
+/// of any repeated key, then into `T`. The nesting depth has already been
+/// checked by the caller.
+fn deserialize_last_duplicate_wins<T: DeserializeOwned>(
+    data: &[u8],
+) -> Result<Option<T>, SerializationError> {
+    let to_error = |e: serde_json::Error| {
+        SerializationError::new(format!("failed to deserialize JSON: {e}"), Some(Box::new(e)))
+    };
+    let mut deserializer = serde_json::Deserializer::from_slice(data);
+    deserializer.disable_recursion_limit();
+    let tree = <serde_json::Value as serde::de::Deserialize>::deserialize(&mut deserializer)
+        .map_err(to_error)?;
+    deserializer.end().map_err(to_error)?;
+    serde_json::from_value(tree).map(Some).map_err(to_error)
 }
 
 /// Converts a single scalar value to its string representation.
@@ -1106,6 +1135,25 @@ mod tests {
             json.contains("\"foodType\":\"wet\""),
             "expected auto-injected discriminator, got: {json}"
         );
+    }
+
+    // A repeated key resolves to its last value, as in the other SDKs, rather
+    // than failing with serde's "duplicate field" error.
+    #[test]
+    fn test_deserialize_duplicate_key_keeps_the_last_value() {
+        let payload = br#"{"id":1,"name":"first","id":2}"#;
+        let category: Option<Category> =
+            object_serializer::deserialize(payload).expect("deserialize must succeed");
+        let category = category.expect("expected Some(Category)");
+        assert_eq!(category.id, Some(2));
+        assert_eq!(category.name.as_deref(), Some("first"));
+    }
+
+    #[test]
+    fn test_deserialize_duplicate_key_still_rejects_trailing_content() {
+        let payload = br#"{"id":1,"id":2} trailing"#;
+        let result: Result<Option<Category>, _> = object_serializer::deserialize(payload);
+        assert!(result.is_err(), "trailing content must still be rejected");
     }
 
     // A discriminator-tagged payload deserialized against the parent PetFood

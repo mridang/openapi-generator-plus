@@ -363,7 +363,7 @@ impl PetApi {
             Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
                     "Missing the required parameter '{}' when calling PetApi.add_pet_photos",
-                    "options"
+                    "files"
                 )),
             )
         })?;
@@ -607,10 +607,14 @@ impl PetApi {
                             || (0x5D..=0x7E).contains(&o)
                     });
                     if !cookie_value_valid {
-                        return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                            "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling PetApi.delete_pet",
+                        return Err(Box::new(
+                            crate::errors::configuration_error::ConfigurationError::InvalidArgument(
+                                format!(
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265",
                             "api_key"
-                        ))));
+                        ),
+                            ),
+                        ));
                     }
                     cookie_parts.push(format!("api_key={}", v));
                 }
@@ -2748,7 +2752,7 @@ impl PetApi {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.upload_pet_certificate", "options")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling PetApi.upload_pet_certificate", "file")))
         })?;
         multipart.insert("file".to_string(), MultipartValue::Bytes(opts.file.clone()));
         let request_body: Option<Vec<u8>> = None;
@@ -2904,7 +2908,7 @@ impl PetApi {
             Box::new(
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
                     "Missing the required parameter '{}' when calling PetApi.upload_pet_document",
-                    "options"
+                    "file"
                 )),
             )
         })?;

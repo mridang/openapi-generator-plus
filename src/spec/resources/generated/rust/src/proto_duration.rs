@@ -19,7 +19,8 @@ use serde::{de, Deserialize, Deserializer, Serializer};
 
 use crate::errors::serialization_error::SerializationError;
 
-const NANOS_PER_SECOND: i64 = 1_000_000_000;
+/// Largest whole-second magnitude google.protobuf.Duration permits.
+const MAX_SECONDS: i64 = 315_576_000_000;
 
 /// Format a `chrono::Duration` as a protobuf-JSON duration string.
 ///
@@ -60,7 +61,8 @@ pub fn format(d: &Duration) -> String {
 /// Accepts the google.protobuf.Duration grammar `-?\d+(\.\d{1,9})?s`. Any
 /// other shape (an ISO-8601 `PT1H`, a bare number, or a fractional part
 /// wider than nine digits) is rejected with a [`SerializationError`], as is
-/// a value outside the range chrono can represent in nanoseconds (~292 years).
+/// a value outside the google.protobuf.Duration range of +-315,576,000,000
+/// seconds.
 pub fn parse(s: &str) -> Result<Duration, SerializationError> {
     parse_message(s).map_err(|message| SerializationError::new(message, None))
 }
@@ -97,19 +99,17 @@ fn parse_message(s: &str) -> Result<Duration, String> {
             .parse()
             .map_err(|_| format!("protobuf-JSON duration: bad fraction in {s:?}"))?
     };
-    // Use checked arithmetic: `secs` is parsed from an arbitrary-length
-    // digit run and may be a valid i64 on its own yet overflow once
-    // multiplied by NANOS_PER_SECOND (e.g. `9223372037s`). An unchecked
-    // multiply would panic in debug builds and silently wrap in release;
-    // instead surface an out-of-range error consistent with the other
-    // rejection paths above. The negation is likewise checked so that
-    // i64::MIN does not panic on `-total`.
-    let total = secs
-        .checked_mul(NANOS_PER_SECOND)
-        .and_then(|s| s.checked_add(nanos))
-        .and_then(|t| if neg { t.checked_neg() } else { Some(t) })
-        .ok_or_else(|| format!("protobuf-JSON duration: out of range in {s:?}"))?;
-    Ok(Duration::nanoseconds(total))
+    // google.protobuf.Duration spans +-315,576,000,000 seconds. chrono's
+    // Duration reaches far beyond that, so the whole seconds and the
+    // sub-second part are added separately rather than folded into a single
+    // nanosecond count (which overflows an i64 past ~292 years). Bounding the
+    // seconds first keeps both constructors and the addition within chrono's
+    // range, so none of them can panic.
+    if secs > MAX_SECONDS {
+        return Err(format!("protobuf-JSON duration: out of range in {s:?}"));
+    }
+    let magnitude = Duration::seconds(secs) + Duration::nanoseconds(nanos);
+    Ok(if neg { -magnitude } else { magnitude })
 }
 
 /// `#[serde(with = "crate::proto_duration")]` entry point.

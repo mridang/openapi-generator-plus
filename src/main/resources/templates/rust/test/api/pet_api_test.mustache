@@ -169,6 +169,50 @@ async fn test_pet_api_delete_pet() {
 }
 
 #[tokio::test]
+async fn test_pet_api_required_multipart_body_missing_names_first_required_part() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let photos = api
+        .add_pet_photos(1, None)
+        .await
+        .expect_err("a missing multipart body must be rejected");
+    assert_eq!(
+        photos.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'files' when calling PetApi.add_pet_photos".to_string()
+        ))
+    );
+    let certificate = api
+        .upload_pet_certificate(1, None)
+        .await
+        .expect_err("a missing multipart body must be rejected");
+    assert_eq!(
+        certificate.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
+                .to_string()
+        ))
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_delete_pet_rejects_invalid_cookie_value() {
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = DeletePetOptions::new().api_key("a;b".to_string());
+    let err = api
+        .delete_pet(1, Some(&opts))
+        .await
+        .expect_err("a cookie value holding a semicolon must be rejected");
+    assert_eq!(
+        err.downcast_ref::<ConfigurationError>(),
+        Some(&ConfigurationError::InvalidArgument(
+            "Cookie value for 'api_key' contains characters forbidden by RFC 6265".to_string()
+        ))
+    );
+}
+
+#[tokio::test]
 async fn test_pet_api_delete_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let opts = DeletePetOptions::new().auth(Arc::new(basic_auth()));

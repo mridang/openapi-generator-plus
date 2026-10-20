@@ -681,6 +681,38 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Returns {@code true} when {@code model} carries a schema default on an
+     * optional field or a discriminator field, either of which the derived
+     * {@code Default} would leave empty.
+     */
+    private static boolean hasDefaultedOptionalVars(org.openapitools.codegen.CodegenModel model) {
+        return (model.optionalVars != null
+                        && model.optionalVars.stream()
+                                .anyMatch(p -> p.defaultValue != null || p.isDiscriminator))
+                || (model.requiredVars != null
+                        && model.requiredVars.stream().anyMatch(p -> p.isDiscriminator));
+    }
+
+    /**
+     * Recomputes {@code hasDefaultedOptionalVars} once the discriminator
+     * defaults have been injected. {@link #postProcessModels} runs per model,
+     * before the base class's {@code postProcessAllModels} marks the
+     * discriminator property of each oneOf child, so the first pass cannot see
+     * it and would leave the derived {@code Default} (an empty discriminator).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                modelMap.put(
+                        "hasDefaultedOptionalVars", hasDefaultedOptionalVars(modelMap.getModel()));
+            }
+        }
+        return result;
+    }
+
+    /**
      * Flags every model whose generated {@code Default} impl must be
      * hand-written rather than {@code #[derive(Default)]}d, so the model
      * template can drop the derive and emit a {@code Default} that mirrors
@@ -713,17 +745,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         final org.openapitools.codegen.model.ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
-            final boolean hasDefaultedOptionalVars =
-                    (model.optionalVars != null
-                                    && model.optionalVars.stream()
-                                            .anyMatch(
-                                                    p ->
-                                                            p.defaultValue != null
-                                                                    || p.isDiscriminator))
-                            || (model.requiredVars != null
-                                    && model.requiredVars.stream()
-                                            .anyMatch(p -> p.isDiscriminator));
-            modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars);
+            modelMap.put("hasDefaultedOptionalVars", hasDefaultedOptionalVars(model));
         }
         /* `use super::*;` only earns its place when the file names another
          * generated model unqualified. The import list also carries collection
@@ -785,6 +807,17 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                     ? (Map<String, Object>) existing
                                     : new HashMap<>();
                     opDecorators.put("requiredMultipartBody", requiredMultipartBody);
+                    // The missing-body error names the first required form part, the
+                    // canonical wording every other SDK uses, not the Options struct.
+                    opDecorators.put(
+                            "firstRequiredFormParam",
+                            op.formParams == null
+                                    ? ""
+                                    : op.formParams.stream()
+                                            .filter(p -> p.required)
+                                            .map(p -> p.baseName)
+                                            .findFirst()
+                                            .orElse(""));
                     op.vendorExtensions.put("op", opDecorators);
                 }
             }

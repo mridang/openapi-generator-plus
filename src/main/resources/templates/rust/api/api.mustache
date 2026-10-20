@@ -568,7 +568,7 @@ impl {{classname}} {
             });
             if !cookie_value_valid {
                 return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                    "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                    "Cookie value for '{}' contains characters forbidden by RFC 6265",
                     "{{baseName}}"
                 ))));
             }
@@ -605,7 +605,7 @@ impl {{classname}} {
                     });
                     if !cookie_value_valid {
                         return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
-                            "Cookie value for '{}' contains characters forbidden by RFC 6265 when calling {{classname}}.{{operationId}}",
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265",
                             "{{baseName}}"
                         ))));
                     }
@@ -639,7 +639,7 @@ impl {{classname}} {
         // up front (matching the required path/query/header param validation)
         // instead of silently sending an empty body.
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
-            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "options")))
+            Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{vendorExtensions.op.firstRequiredFormParam}}")))
         })?;
 {{/vendorExtensions.op.requiredMultipartBody}}
 {{^vendorExtensions.op.requiredMultipartBody}}
@@ -761,7 +761,7 @@ impl {{classname}} {
 {{^hasFormParams}}
 {{#bodyParam}}
 {{#isBinary}}
-{{#nullable}}
+{{^required}}
         // Optional binary (`type: string, format: binary`) request body. The
         // parameter is `Option<Vec<u8>>` (raw bytes); when present we stream the
         // bytes UNCHANGED — no JSON / base64 / byte-array re-encoding — so the
@@ -771,8 +771,8 @@ impl {{classname}} {
         // application/octet-stream bodies through verbatim.)
         let request_body = {{paramName}};
         let multipart: Option<HashMap<String, MultipartValue>> = None;
-{{/nullable}}
-{{^nullable}}
+{{/required}}
+{{#required}}
         // Binary (`type: string, format: binary`) request body. The parameter is
         // `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
         // it would emit a byte array like `[255,216,...]` and base64 would
@@ -782,26 +782,25 @@ impl {{classname}} {
         // passes image/* and application/octet-stream bodies through verbatim.
         let request_body = Some({{paramName}});
         let multipart: Option<HashMap<String, MultipartValue>> = None;
-{{/nullable}}
+{{/required}}
 {{/isBinary}}
 {{^isBinary}}
-{{#nullable}}
+{{^required}}
         // Optional (not-`required`) request body. The parameter is
         // `Option<{{{dataType}}}>`; when the caller passes `None` we send NO
         // body at all (and invoke_api drops the Content-Type) rather than
         // serializing a literal JSON `null`, which a strict server may reject or
         // treat differently from an absent body.
-        let request_body = {{paramName}}
-            .as_ref()
-            .map(|b| object_serializer::serialize(b))
-            .transpose()?
-            .map(String::into_bytes);
+        let mut request_body: Option<Vec<u8>> = None;
+        if let Some(body) = &{{paramName}} {
+            request_body = Some(object_serializer::serialize(body)?.into_bytes());
+        }
         let multipart: Option<HashMap<String, MultipartValue>> = None;
-{{/nullable}}
-{{^nullable}}
+{{/required}}
+{{#required}}
         let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
         let multipart: Option<HashMap<String, MultipartValue>> = None;
-{{/nullable}}
+{{/required}}
 {{/isBinary}}
 {{/bodyParam}}
 {{^bodyParam}}

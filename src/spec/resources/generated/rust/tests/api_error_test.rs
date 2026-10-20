@@ -107,6 +107,96 @@ fn test_api_error_typed_error_body_ignores_extraneous_fields() {
     assert_eq!(cat.name.as_deref(), Some("Cat"));
 }
 
+fn nested_array(depth: usize) -> String {
+    format!("{}{}", "[".repeat(depth), "]".repeat(depth))
+}
+
+#[test]
+fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
+    // serde_json stops at ~128 levels; the shared cap is 1000, as on the
+    // success path.
+    let err = ApiError::new(400, "bad".to_string(), Some(nested_array(500)), None);
+
+    assert!(
+        err.error_body().is_some(),
+        "a 500-deep error body must still parse"
+    );
+    let typed: Option<serde_json::Value> = err
+        .typed_error_body()
+        .expect("a 500-deep error body must deserialize");
+    assert!(typed.is_some());
+}
+
+#[test]
+fn test_api_error_body_nested_beyond_shared_cap_is_rejected() {
+    let err = ApiError::new(400, "bad".to_string(), Some(nested_array(1001)), None);
+
+    assert!(
+        err.error_body().is_none(),
+        "a 1001-deep error body must not parse"
+    );
+    let failure = err
+        .typed_error_body::<serde_json::Value>()
+        .expect_err("a 1001-deep error body must be rejected");
+    assert_eq!(
+        failure.message(),
+        "JSON nesting depth 1001 exceeds limit 1000"
+    );
+}
+
+#[test]
+fn test_api_error_body_with_leading_bom_parses() {
+    let err = ApiError::new(
+        400,
+        "bad".to_string(),
+        Some("\u{feff}{\"id\":42,\"name\":\"Dogs\"}".to_string()),
+        None,
+    );
+
+    assert!(
+        err.error_body().is_some(),
+        "a BOM-prefixed error body must parse"
+    );
+    let typed: Option<Category> = err
+        .typed_error_body()
+        .expect("a BOM-prefixed body must deserialize");
+    assert_eq!(typed.expect("expected Some(Category)").id, Some(42));
+}
+
+#[test]
+fn test_api_error_exposes_parsed_error_body() {
+    let err = ApiError::new(
+        404,
+        "not found".to_string(),
+        Some(r#"{"id":7,"name":"missing"}"#.to_string()),
+        None,
+    );
+
+    let body = err.error_body().expect("a JSON body must be exposed");
+    assert!(body.is_object());
+    let fields = petstore::ApiErrorKind::from(err);
+    let from_fields = fields
+        .fields()
+        .expect("a 404 carries fields")
+        .error_body()
+        .expect("a JSON body must be exposed on the fields too");
+    assert_eq!(from_fields, body);
+}
+
+#[test]
+fn test_api_error_error_body_is_none_without_json() {
+    let no_body = ApiError::new(500, "boom".to_string(), None, None);
+    assert!(no_body.error_body().is_none());
+
+    let not_json = ApiError::new(
+        500,
+        "boom".to_string(),
+        Some("<html>oops</html>".to_string()),
+        None,
+    );
+    assert!(not_json.error_body().is_none());
+}
+
 // immutability regression: ApiError's state is only reachable through the
 // constructor + accessors. The fields are private, so a caller can neither
 // forge an ApiError by struct literal nor mutate `status_code` after the fact.

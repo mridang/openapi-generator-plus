@@ -33,6 +33,29 @@ fn test_pet_food_deserialize_wet_food() {
 }
 
 #[test]
+fn test_pet_food_subtype_default_carries_its_mapping_value() {
+    /* Struct-update syntax over `Default::default()` must keep the discriminator
+     * `new()` promises, so the payload still routes through the parent oneOf. */
+    let dry = DryFood {
+        weight_kg: 1.0,
+        ..Default::default()
+    };
+    assert_eq!(dry.food_type, "dry");
+    assert_eq!(dry, DryFood::new(1.0));
+    let wet = WetFood {
+        volume_ml: 400,
+        ..Default::default()
+    };
+    assert_eq!(wet.food_type, "wet");
+    assert_eq!(wet, WetFood::new(400));
+    let data = serde_json::to_string(&dry).expect("failed to serialize DryFood");
+    assert!(
+        data.contains(r#""foodType":"dry""#),
+        "expected the discriminator on the wire, got: {data}"
+    );
+}
+
+#[test]
 fn test_pet_food_deserialize_unknown_discriminator() {
     let json_data = r#"{"foodType":"raw","calories":300}"#;
 

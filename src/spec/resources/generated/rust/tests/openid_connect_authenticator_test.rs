@@ -54,6 +54,16 @@ impl FakeApiClient {
         )));
     }
 
+    fn enqueue_cached(&self, body: &str, cache_control: &str) {
+        let mut headers = HashMap::new();
+        headers.insert("Cache-Control".to_string(), cache_control.to_string());
+        self.responses.lock().unwrap().push(Ok(ApiHttpResponse::new(
+            200,
+            body.to_string(),
+            headers,
+        )));
+    }
+
     fn enqueue_error(&self, error: BoxError) {
         self.responses.lock().unwrap().push(Err(error));
     }
@@ -400,6 +410,29 @@ async fn test_fetches_discovery_document_only_once() {
         .expect("should succeed");
 
     // The cached discovery document must be reused on the second call.
+    assert_eq!(1, client.get_count());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_discovery_huge_max_age_is_clamped_not_a_panic() {
+    // A max-age beyond what Instant arithmetic can add must be clamped, not
+    // overflow; the discovery document is then cached for the clamped span.
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        "max-age=18446744073709551615",
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+
     assert_eq!(1, client.get_count());
 }
 

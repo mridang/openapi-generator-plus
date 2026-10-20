@@ -107,14 +107,33 @@ fn test_proto_duration_rejects_malformed() {
 fn test_proto_duration_rejects_overflow() {
     use petstore::proto_duration;
 
-    // secs * 1e9 overflows an i64 past ~9.2e9 seconds.
-    for s in ["9223372037s", "-9223372037s", "99999999999999999999s"] {
+    // google.protobuf.Duration is bounded at +-315,576,000,000 seconds.
+    for s in ["315576000001s", "-315576000001s", "99999999999999999999s"] {
         assert!(
             proto_duration::parse(s).is_err(),
             "expected {:?} to be rejected",
             s
         );
     }
+}
+
+#[test]
+fn test_proto_duration_accepts_the_full_protobuf_range() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+
+    // Past ~292 years the total nanosecond count no longer fits an i64, but the
+    // protobuf range reaches ~10,000 years.
+    let max = proto_duration::parse("315576000000s").expect("the protobuf maximum must parse");
+    assert_eq!(max, Duration::seconds(315_576_000_000));
+    let min = proto_duration::parse("-315576000000s").expect("the protobuf minimum must parse");
+    assert_eq!(min, -Duration::seconds(315_576_000_000));
+    let past_i64_nanos = proto_duration::parse("9223372037.5s").expect("must parse past 292 years");
+    assert_eq!(
+        past_i64_nanos,
+        Duration::seconds(9_223_372_037) + Duration::milliseconds(500)
+    );
+    assert_eq!(proto_duration::format(&max), "315576000000s");
 }
 
 #[test]
