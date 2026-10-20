@@ -212,4 +212,94 @@ class OAuth2PasswordAuthenticatorTest {
         assertFalse(rendered.contains("testpass"))
         assertTrue(rendered.contains("***"))
     }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        assertEquals(
+            "OAuth2PasswordAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "clientSecret=***, tokenUrl=https://auth.example.com/token, refreshUrl=null, " +
+                "username=testuser, password=***, scopes=[read, write], clientAuthMethod=BODY)",
+            createAuthenticator().toString(),
+        )
+    }
+
+    @Test
+    fun basicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
+        // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+
+        val auth =
+            OAuth2PasswordAuthenticator(
+                host = "https://api.example.com",
+                clientId = "id-._~*!'()",
+                clientSecret = "sec-._~*!'()",
+                tokenUrl = "https://auth.example.com/token",
+                refreshUrl = null,
+                username = "testuser",
+                password = "testpass",
+                scopes = listOf("read"),
+                clientAuthMethod = ClientAuthMethod.BASIC,
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        val authHeader = client.lastHeaders["Authorization"]!!
+        val decoded =
+            String(
+                java.util.Base64
+                    .getDecoder()
+                    .decode(authHeader.substring("Basic ".length)),
+                Charsets.UTF_8,
+            )
+        assertEquals("id-._~%2A%21%27%28%29:sec-._~%2A%21%27%28%29", decoded)
+    }
+
+    @Test
+    fun sendsScopesWithSpacesAsPlusInTheTokenBody() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        assertTrue(client.lastBody!!.contains("scope=read+write"), client.lastBody)
+    }
+
+    @Test
+    fun refreshGrantCarriesOnlyTheGrantTypeAndTheRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("grant_type=refresh_token&refresh_token=ref1", client.lastBody)
+    }
+
+    @Test
+    fun generatedSchemeWrapperRoutesTheFirstGrantToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth = LegacyAuthPasswordAuthenticator("https://api.example.com", "cid", "sec", "alice", "pw")
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
+        assertTrue(client.lastBody!!.contains("scope=read"), client.lastBody)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
+    }
 }

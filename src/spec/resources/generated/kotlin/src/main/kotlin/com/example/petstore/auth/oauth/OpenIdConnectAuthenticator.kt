@@ -120,6 +120,9 @@ open class OpenIdConnectAuthenticator(
                 scopes = scopes,
             )
         resolved.setApiClient(client)
+        /* Rediscovery rebuilds the delegate; carry the exchanged session over so
+         * a caller who already exchanged a code is not asked to do it again. */
+        cached?.let { resolved.adoptSession(it) }
         this.delegate = resolved
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved

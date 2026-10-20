@@ -93,4 +93,17 @@ class BearerAuthenticatorTest {
         assertFalse(repr.contains("token=xyz"))
         assertTrue(repr.contains("***"))
     }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        val auth = BearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("BearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
+
+    @Test
+    fun generatedSchemeWrapperEmitsABearerHeaderAndMasksTheToken() = runBlocking {
+        val auth = PetStoreBearerAuthenticator("https://api.example.com", "xyz")
+        assertEquals("Bearer xyz", auth.getAuthHeaders()["Authorization"])
+        assertEquals("PetStoreBearerAuthenticator(host=https://api.example.com, token=***)", auth.toString())
+    }
 }

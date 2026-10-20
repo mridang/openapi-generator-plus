@@ -92,11 +92,8 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
         runBlocking { auth.getAuthHeaders() }
 
-        assertTrue(
-            client.lastBody!!.contains("scope=read+write") ||
-                client.lastBody!!.contains("scope=read%20write") ||
-                client.lastBody!!.contains("scope=read write"),
-        )
+        assertTrue(client.lastBody!!.contains("scope=read+write"), client.lastBody)
+        assertFalse(client.lastBody!!.contains("scope=read%20write"), client.lastBody)
     }
 
     @Test
@@ -211,5 +208,61 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
         assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        assertEquals(
+            "OAuth2ClientCredentialsAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "clientSecret=***, tokenUrl=https://auth.example.com/token, scopes=[read, write], " +
+                "clientAuthMethod=BODY)",
+            createAuthenticator().toString(),
+        )
+    }
+
+    @Test
+    fun basicAuthKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        // RFC 6749 section 2.3.1 plus the shared unreserved set: '-._~' stay
+        // literal and '*' '!' ''' '(' ')' are percent-encoded in both parts.
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"at","expires_in":3600}""")
+
+        val auth =
+            OAuth2ClientCredentialsAuthenticator(
+                host = "https://api.example.com",
+                clientId = "id-._~*!'()",
+                clientSecret = "sec-._~*!'()",
+                tokenUrl = "https://auth.example.com/token",
+                scopes = listOf("read"),
+                clientAuthMethod = ClientAuthMethod.BASIC,
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+
+        val authHeader = client.lastHeaders["Authorization"]!!
+        val decoded =
+            String(
+                java.util.Base64
+                    .getDecoder()
+                    .decode(authHeader.substring("Basic ".length)),
+                Charsets.UTF_8,
+            )
+        assertEquals("id-._~%2A%21%27%28%29:sec-._~%2A%21%27%28%29", decoded)
+    }
+
+    @Test
+    fun generatedSchemeWrapperSendsItsSpecScopesToItsTokenUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"wrapped","expires_in":3600}""")
+
+        val auth = MachineAuthClientCredentialsAuthenticator("https://api.example.com", "cid", "sec")
+        auth.setApiClient(client)
+
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer wrapped", headers["Authorization"])
+        assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
+        assertTrue(client.lastBody!!.contains("scope=pets%3Awrite+pets%3Aread"), client.lastBody)
     }
 }

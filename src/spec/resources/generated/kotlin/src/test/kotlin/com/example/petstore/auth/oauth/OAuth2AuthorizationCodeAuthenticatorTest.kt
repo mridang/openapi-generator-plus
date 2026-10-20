@@ -62,7 +62,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         assertTrue(url.contains("response_type=code"))
         assertTrue(url.contains("client_id=my-client-id"))
         assertTrue(url.contains("redirect_uri="))
-        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"))
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("scope=read+write"), url)
         assertTrue(url.startsWith("https://auth.example.com/authorize?"))
     }
 
@@ -213,5 +214,87 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
         assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        assertEquals(
+            "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "clientSecret=***, authorizationUrl=https://auth.example.com/authorize, " +
+                "tokenUrl=https://auth.example.com/token, refreshUrl=https://auth.example.com/token, " +
+                "redirectUri=https://app.example.com/callback, scopes=[read, write])",
+            createAuthenticator().toString(),
+        )
+    }
+
+    @Test
+    fun authorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        val auth =
+            OAuth2AuthorizationCodeAuthenticator(
+                host = "https://api.example.com",
+                clientId = "id-._~*!'()",
+                clientSecret = "my-client-secret",
+                authorizationUrl = "https://auth.example.com/authorize",
+                tokenUrl = "https://auth.example.com/token",
+                redirectUri = "https://app.example.com/callback",
+                scopes = listOf("read"),
+            )
+
+        val url = auth.buildAuthorizationUrl("st~*!'() x")
+
+        assertTrue(url.contains("client_id=id-._~%2A%21%27%28%29&"), url)
+        assertTrue(url.contains("state=st~%2A%21%27%28%29%20x"), url)
+        assertTrue(url.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&"), url)
+    }
+
+    @Test
+    fun routesTheCodeExchangeToTheTokenUrlAndTheRefreshToTheRefreshUrl() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth =
+            OAuth2AuthorizationCodeAuthenticator(
+                host = "https://api.example.com",
+                clientId = "my-client-id",
+                clientSecret = "my-client-secret",
+                authorizationUrl = "https://auth.example.com/authorize",
+                tokenUrl = "https://auth.example.com/token",
+                redirectUri = "https://app.example.com/callback",
+                scopes = listOf("read"),
+                refreshUrl = "https://auth.example.com/refresh",
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/refresh", client.lastUrl)
+    }
+
+    @Test
+    fun generatedSchemeWrapperUsesItsSpecUrlsAndScopes() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth =
+            UserAuthAuthorizationCodeAuthenticator(
+                "https://api.example.com",
+                "cid",
+                "sec",
+                "https://app.example.com/callback",
+            )
+        auth.setApiClient(client)
+
+        val url = auth.buildAuthorizationUrl()
+        assertTrue(url.startsWith("https://auth.example.com/authorize?response_type=code"), url)
+        assertTrue(url.contains("scope=pets%3Awrite%20pets%3Aread"), url)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertEquals("https://auth.example.com/oauth/token", client.lastUrl)
+        runBlocking { auth.getAuthHeaders() }
+        assertEquals("https://auth.example.com/oauth/refresh", client.lastUrl)
     }
 }

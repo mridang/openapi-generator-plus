@@ -554,6 +554,32 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("int32 accepts its bounds and rejects overflow and fractions")
+        fun int32BoundsOverflowAndFractions() {
+            val max = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":2147483647}")
+            assertEquals(Int.MAX_VALUE, max!!.quantity)
+            val min = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":-2147483648}")
+            assertEquals(Int.MIN_VALUE, min!!.quantity)
+            for (wire in listOf("3000000000", "2147483648", "-2147483649", "1.5", "1.0", "1e2")) {
+                assertThrows(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":$wire}")
+                }, wire)
+            }
+        }
+
+        @Test
+        @DisplayName("int64 keeps every digit above 2^53 and rejects fractions")
+        fun int64KeepsPrecisionAndRejectsFractions() {
+            val big = serializer.deserialize<com.example.petstore.models.Order>("{\"id\":9007199254740993}")
+            assertEquals(9007199254740993L, big!!.id)
+            for (wire in listOf("1.5", "9223372036854775808")) {
+                assertThrows(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.Order>("{\"id\":$wire}")
+                }, wire)
+            }
+        }
+
+        @Test
         @DisplayName("control: round-trip serialize then deserialize preserves numeric and boolean values")
         fun numericBooleanRoundTrip() {
             val original =

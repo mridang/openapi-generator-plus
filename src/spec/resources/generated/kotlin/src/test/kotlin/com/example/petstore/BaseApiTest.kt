@@ -1091,56 +1091,6 @@ class BaseApiTest {
         }
     }
 
-    // ── Cross-origin redirect tests (Gap 8) ──
-
-    @Nested
-    @DisplayName("CrossOriginRedirectTests")
-    inner class CrossOriginRedirectTests {
-        @Test
-        @DisplayName("same-origin request forwards Authorization header")
-        fun sameOriginRequestForwardsAuthorization() {
-            val capturedHeaders = mutableMapOf<String, String>()
-            val client =
-                object : CapturingApiClient() {
-                    override suspend fun sendRequest(
-                        method: String,
-                        url: String,
-                        headers: Map<String, String>,
-                        body: Any?,
-                        noRedirect: Boolean,
-                    ): ApiHttpResponse {
-                        capturedHeaders.putAll(headers)
-                        return ApiHttpResponse(200, "{}", mapOf("Content-Type" to "application/json"))
-                    }
-                }
-            val headers = mutableMapOf("Authorization" to "Bearer token123")
-            runBlocking { client.sendRequest("GET", "http://localhost/api/test", headers, null) }
-            assertEquals(
-                "Bearer token123",
-                capturedHeaders["Authorization"],
-                "Authorization header should be present on same-origin request",
-            )
-        }
-
-        @Test
-        @DisplayName("sensitive header set includes authorization")
-        fun sensitiveHeaderSetIncludesAuthorization() {
-            // Verifies the guard set used in DefaultApiClient redirect logic
-            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
-            assertTrue(sensitiveHeaders.contains("authorization"))
-        }
-
-        @Test
-        @DisplayName("sensitive header set includes cookie")
-        fun sensitiveHeaderSetIncludesCookie() {
-            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
-            assertTrue(
-                sensitiveHeaders.contains("cookie"),
-                "cookie must be stripped on cross-origin redirects",
-            )
-        }
-    }
-
     // ── Null body Content-Type tests (Gap 11) ──
 
     @Nested

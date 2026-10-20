@@ -90,4 +90,74 @@ class ServerConfigurationTest {
             server.getUrl(mapOf("tenant" to "anything"))
         )
     }
+
+    @Test
+    @DisplayName("the enum rejection message names the value, the variable and the allowed values")
+    fun getUrlRejectionMessageIsExact() {
+        val server = ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            mapOf("env" to ServerVariable("api", null, listOf("api", "staging")))
+        )
+        val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+            server.getUrl(mapOf("env" to "dev"))
+        }
+        assertEquals("Invalid value 'dev' for server variable 'env'. Allowed values: [api, staging]", ex.message)
+    }
+
+    @Test
+    @DisplayName("a default outside the enum is rejected when no override is given")
+    fun getUrlRejectsADefaultOutsideTheEnum() {
+        val server = ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            mapOf("env" to ServerVariable("prod", null, listOf("api", "staging")))
+        )
+        val ex = assertThrowsExactly(IllegalArgumentException::class.java) { server.getUrl() }
+        assertEquals("Invalid value 'prod' for server variable 'env'. Allowed values: [api, staging]", ex.message)
+    }
+
+    @Test
+    @DisplayName("a partial override keeps the other variables at their defaults")
+    fun getUrlPartialOverrideKeepsOtherDefaults() {
+        val server = ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            mapOf(
+                "env" to ServerVariable("api", null, listOf("api", "staging")),
+                "version" to ServerVariable("v3", null, listOf("v2", "v3"))
+            )
+        )
+        assertEquals("https://staging.example.com/api/v3", server.getUrl(mapOf("env" to "staging")))
+    }
+
+    @Test
+    @DisplayName("a variable that appears twice in the template is replaced everywhere")
+    fun getUrlReplacesEveryOccurrenceOfAVariable() {
+        val server = ServerConfiguration(
+            "https://{region}.example.com/{region}",
+            null,
+            mapOf("region" to ServerVariable("eu", null, emptyList()))
+        )
+        assertEquals("https://us.example.com/us", server.getUrl(mapOf("region" to "us")))
+    }
+
+    @Test
+    @DisplayName("the raw template, the description and the variables are exposed")
+    fun exposesTemplateDescriptionAndVariables() {
+        val variable = ServerVariable("api", "the environment", listOf("api"))
+        val server = ServerConfiguration("https://{env}.example.com", "Production", mapOf("env" to variable))
+        assertEquals("https://{env}.example.com", server.urlTemplate)
+        assertEquals("Production", server.description)
+        assertEquals(mapOf("env" to variable), server.variables)
+    }
+
+    @Test
+    @DisplayName("the variables map is a copy: later changes to the source map do not leak in")
+    fun variablesAreCopiedAtConstruction() {
+        val source = mutableMapOf("env" to ServerVariable("api", null, emptyList()))
+        val server = ServerConfiguration("https://{env}.example.com", null, source)
+        source["env"] = ServerVariable("changed", null, emptyList())
+        assertEquals("https://api.example.com", server.getUrl())
+    }
 }

@@ -156,6 +156,19 @@ class OAuth2TokenManager {
     }
 
     /**
+     * Copy the cached access token, its expiry and the refresh token from
+     * [other]. Used when the owning authenticator is rebuilt (for example after
+     * OIDC rediscovery) so an exchanged session survives the rebuild.
+     *
+     * @param other the token manager whose session state is adopted
+     */
+    internal fun copyStateFrom(other: OAuth2TokenManager) {
+        this.accessToken = other.accessToken
+        this.tokenExpiryMs = other.tokenExpiryMs
+        this.refreshToken = other.refreshToken
+    }
+
+    /**
      * Get the refresh token, if one was returned by the token endpoint.
      *
      * @return the refresh token, or null if not available

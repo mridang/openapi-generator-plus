@@ -30,8 +30,9 @@ class OpenIdConnectAuthenticatorTest {
         fun enqueue(
             body: String,
             statusCode: Int = 200,
+            headers: Map<String, String> = emptyMap(),
         ) {
-            responses.add(ApiHttpResponse(statusCode, body, emptyMap()))
+            responses.add(ApiHttpResponse(statusCode, body, headers))
         }
 
         override suspend fun sendRequest(
@@ -301,5 +302,111 @@ class OpenIdConnectAuthenticatorTest {
         val rendered = auth.toString()
         assertFalse(rendered.contains("my-client-secret"))
         assertTrue(rendered.contains("***"))
+    }
+
+    private fun discovery(authorizeUrl: String) =
+        """{"authorization_endpoint":"$authorizeUrl","token_endpoint":"https://auth.example.com/token"}"""
+
+    @Test
+    fun discoveryIsFetchedAgainOnceItsMaxAgeHasElapsed() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("cache-control" to "public, max-age=0"))
+        client.enqueue(discovery("https://auth.example.com/authorize-v2"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val first = runBlocking { auth.buildAuthorizationUrl() }
+        val second = runBlocking { auth.buildAuthorizationUrl() }
+
+        assertTrue(first.startsWith("https://auth.example.com/authorize-v1?"), first)
+        assertTrue(second.startsWith("https://auth.example.com/authorize-v2?"), second)
+        assertEquals(2, client.getCount)
+    }
+
+    @Test
+    fun discoveryIsCachedWhileItsMaxAgeHasNotElapsed() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=3600"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking {
+            auth.buildAuthorizationUrl()
+            auth.buildAuthorizationUrl()
+        }
+
+        assertEquals(1, client.getCount)
+    }
+
+    @Test
+    fun unparseableMaxAgeFallsBackToTheOneDayDefault() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=soon"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking {
+            auth.buildAuthorizationUrl()
+            auth.buildAuthorizationUrl()
+        }
+
+        assertEquals(1, client.getCount)
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        assertEquals(
+            "OpenIdConnectAuthenticator(host=https://api.example.com, " +
+                "openIdConnectUrl=https://auth.example.com/.well-known/openid-configuration, " +
+                "clientId=my-client-id, clientSecret=***, redirectUri=https://app.example.com/callback, " +
+                "scopes=[openid, profile])",
+            createAuthenticator().toString(),
+        )
+    }
+
+    @Test
+    fun generatedSchemeWrapperDiscoversFromItsSpecUrlWithoutScopes() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+
+        val auth =
+            SsoAuthAuthenticator(
+                "https://api.example.com",
+                "cid",
+                "sec",
+                "https://app.example.com/callback",
+            )
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl() }
+
+        assertEquals("https://auth.example.com/.well-known/openid-configuration", client.lastUrl)
+        assertEquals(
+            "https://auth.example.com/authorize?response_type=code&client_id=cid" +
+                "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+            url,
+        )
+    }
+
+    @Test
+    fun exchangedSessionSurvivesRediscovery() {
+        // The discovery document expires immediately, so the next call fetches it
+        // again and rebuilds the delegate; the exchanged token must carry over.
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=0"))
+        client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=0"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("code") }
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer t1", headers["Authorization"])
+        assertEquals(2, client.getCount)
     }
 }

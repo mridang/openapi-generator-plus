@@ -209,6 +209,30 @@ class TransportOptionsTest {
             val opts = TransportOptions.builder().proxy(null).build()
             assertNull(opts.proxy)
         }
+
+        @Test
+        @DisplayName("a proxy URL with a scheme other than http or https is rejected with its message")
+        fun nonHttpProxySchemeIsRejected() {
+            for (proxy in listOf("ftp://proxy:21", "socks5://proxy:1080")) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        TransportOptions.builder().proxy(proxy)
+                    }
+                assertEquals("Invalid proxy URL (must use http or https scheme): $proxy", ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("an empty or scheme-less proxy URL is rejected with its message")
+        fun schemelessProxyUrlIsRejected() {
+            for (proxy in listOf("", "proxy:3128", "not a valid url ^%$")) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        TransportOptions.builder().proxy(proxy)
+                    }
+                assertEquals("Invalid proxy URL (missing scheme): $proxy", ex.message)
+            }
+        }
     }
 
     @Nested

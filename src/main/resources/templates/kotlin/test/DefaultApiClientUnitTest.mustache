@@ -750,14 +750,56 @@ class DefaultApiClientUnitTest {
                 apiClient.sendRequest(
                     "GET",
                     "http://first.example.com/start",
-                    mapOf("Authorization" to "Bearer secret", "X-Trace" to "keep"),
+                    mapOf(
+                        "Authorization" to "Bearer secret",
+                        "Cookie" to "session=abc",
+                        "Proxy-Authorization" to "Basic c2VjcmV0",
+                        "X-Trace" to "keep",
+                    ),
                     null,
                 )
             }
             assertNull(hopHeaders?.get("Authorization"),
                 "Authorization must be stripped on cross-origin redirect")
+            assertNull(hopHeaders?.get("Cookie"),
+                "Cookie must be stripped on cross-origin redirect")
+            assertNull(hopHeaders?.get("Proxy-Authorization"),
+                "Proxy-Authorization must be stripped on cross-origin redirect")
             assertEquals("keep", hopHeaders?.get("X-Trace"),
                 "non-sensitive headers must be preserved across the redirect")
+        }
+
+        @Test
+        @DisplayName("same-origin redirect keeps the sensitive headers")
+        fun sameOriginRedirectKeepsSensitiveHeaders() {
+            var hopHeaders: io.ktor.http.Headers? = null
+            var hopCount = 0
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://first.example.com/dest"),
+                    )
+                } else {
+                    hopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "http://first.example.com/start",
+                    mapOf("Authorization" to "Bearer secret", "Cookie" to "session=abc"),
+                    null,
+                )
+            }
+            assertEquals(2, hopCount)
+            assertEquals("Bearer secret", hopHeaders?.get("Authorization"))
+            assertEquals("session=abc", hopHeaders?.get("Cookie"))
         }
 
         @Test
@@ -1073,6 +1115,88 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(200, response!!.statusCode)
             assertEquals("", response!!.body)
+        }
+    }
+
+    @Nested
+    @DisplayName("Content-Encoding decoding and Accept-Encoding")
+    inner class ContentEncodingDecoding {
+
+        private fun encodedResponse(content: ByteArray, encoding: String): ApiHttpResponse {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = content,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Encoding", encoding),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            return runBlocking { apiClient.sendRequest("GET", "http://localhost/encoded", emptyMap(), null) }
+        }
+
+        private fun zlib(text: String, nowrap: Boolean): ByteArray {
+            val out = java.io.ByteArrayOutputStream()
+            java.util.zip.DeflaterOutputStream(out, java.util.zip.Deflater(java.util.zip.Deflater.DEFAULT_COMPRESSION, nowrap))
+                .use { it.write(text.toByteArray(Charsets.UTF_8)) }
+            return out.toByteArray()
+        }
+
+        @Test
+        @DisplayName("a zlib-wrapped deflate response is decoded")
+        fun decompressesDeflateResponse() {
+            val response = encodedResponse(zlib("{\"ok\":true}", nowrap = false), "deflate")
+            assertEquals(200, response.statusCode)
+            assertEquals("{\"ok\":true}", response.body)
+        }
+
+        @Test
+        @DisplayName("raw headerless DEFLATE surfaces ApiException carrying the real status")
+        fun rawDeflateIsRefused() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = zlib("{\"ok\":true}", nowrap = true),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf("Content-Encoding", "deflate"),
+                )
+            }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val ex = assertThrowsExactly(ApiException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "http://localhost/raw-deflate", emptyMap(), null) }
+            }
+            assertEquals(200, ex.statusCode)
+            assertInstanceOf(java.io.IOException::class.java, ex.cause)
+        }
+
+        @Test
+        @DisplayName("a gzip response is decoded")
+        fun decompressesGzipResponse() {
+            val out = java.io.ByteArrayOutputStream()
+            java.util.zip.GZIPOutputStream(out).use { it.write("{\"ok\":true}".toByteArray(Charsets.UTF_8)) }
+            assertEquals("{\"ok\":true}", encodedResponse(out.toByteArray(), "gzip").body)
+        }
+
+        @Test
+        @DisplayName("without a caller value the client advertises gzip and deflate first")
+        fun advertisesTheSupportedEncodingsByDefault() {
+            var acceptEncoding: String? = null
+            val client = mockClient(requestCapture = { req -> acceptEncoding = req.headers["Accept-Encoding"] })
+            runBlocking {
+                DefaultApiClient(client).sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(supportedEncodings(), acceptEncoding)
+            assertTrue(acceptEncoding!!.startsWith("gzip, deflate"), acceptEncoding)
+        }
+
+        @Test
+        @DisplayName("a caller Accept-Encoding replaces the default")
+        fun callerAcceptEncodingWins() {
+            var acceptEncoding: String? = null
+            val client = mockClient(requestCapture = { req -> acceptEncoding = req.headers["Accept-Encoding"] })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "GET", "http://localhost/test", mapOf("Accept-Encoding" to "identity"), null)
+            }
+            assertEquals("identity", acceptEncoding)
         }
     }
 

@@ -103,6 +103,17 @@ open class OAuth2AuthorizationCodeAuthenticator(
         tokenExchanged = true
     }
 
+    /**
+     * Adopt the exchanged session (tokens and the exchanged flag) of a previous
+     * instance, so rebuilding the authenticator does not force a new code exchange.
+     *
+     * @param previous the authenticator whose session is carried over
+     */
+    internal fun adoptSession(previous: OAuth2AuthorizationCodeAuthenticator) {
+        tokenManager.copyStateFrom(previous.tokenManager)
+        tokenExchanged = previous.tokenExchanged
+    }
+
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {

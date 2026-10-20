@@ -93,6 +93,24 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("the SDK serializer reports an unknown, missing or empty discriminator as SerializationException")
+        fun testBadDiscriminatorsSurfaceAsSdkSerializationException() {
+            val serializer = com.example.petstore.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":"raw","calories":300}""",
+                """{"weightKg":2.5}""",
+                """{"foodType":"","weightKg":2.5}""",
+            )) {
+                val ex =
+                    assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                        serializer.deserialize<PetFood>(payload)
+                    }
+                assertTrue(ex.message!!.startsWith("Failed to decode response body: "), ex.message)
+                assertNotNull(ex.cause, "the library failure is kept as the cause: $payload")
+            }
+        }
+
+        @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val encodingJson =

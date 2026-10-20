@@ -200,4 +200,55 @@ class ApiKeyAuthenticatorTest {
         assertFalse(repr.contains("abc123"))
         assertTrue(repr.contains("***"))
     }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        val auth =
+            ApiKeyAuthenticator(
+                "https://api.example.com",
+                "X-API-Key",
+                "abc123",
+                ApiKeyLocation.COOKIE,
+            )
+        assertEquals(
+            "ApiKeyAuthenticator(host=https://api.example.com, keyParamName=X-API-Key, apiKey=***, location=COOKIE)",
+            auth.toString(),
+        )
+    }
+
+    @Test
+    fun generatedSchemeWrappersEmitTheirKeyAtTheirSpecLocation() =
+        runBlocking {
+            val header = ApiKeyHeaderAuthenticator("https://api.example.com", "k1")
+            assertEquals(mapOf("X-API-Key" to "k1"), header.getAuthHeaders())
+            assertTrue(header.getQueryParams().isEmpty())
+            assertTrue(header.getCookieParams().isEmpty())
+
+            val internal = InternalApiKeyAuthenticator("https://api.example.com", "k2")
+            assertEquals(mapOf("X-Internal-Key" to "k2"), internal.getAuthHeaders())
+
+            val query = ApiKeyQueryAuthenticator("https://api.example.com", "k3")
+            assertEquals(mapOf("api_key" to "k3"), query.getQueryParams())
+            assertTrue(query.getAuthHeaders().isEmpty())
+            assertTrue(query.getCookieParams().isEmpty())
+
+            val cookie = SessionCookieAuthenticator("https://api.example.com", "k4")
+            assertEquals(mapOf("SESSION_ID" to "k4"), cookie.getCookieParams())
+            assertTrue(cookie.getAuthHeaders().isEmpty())
+            assertTrue(cookie.getQueryParams().isEmpty())
+        }
+
+    @Test
+    fun generatedSchemeWrappersValidateEagerlyAndMaskTheKey() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyQueryAuthenticator("https://api.example.com", "")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            SessionCookieAuthenticator("https://api.example.com", "a\r\nb")
+        }
+        assertEquals(
+            "SessionCookieAuthenticator(host=https://api.example.com, keyParamName=SESSION_ID, apiKey=***, location=COOKIE)",
+            SessionCookieAuthenticator("https://api.example.com", "k4").toString(),
+        )
+    }
 }

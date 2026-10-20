@@ -687,7 +687,7 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("404 response throws ApiException")
+        @DisplayName("404 response throws NotFoundException")
         fun testErrorHandlingNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -705,14 +705,14 @@ class PetApiTest {
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.NotFoundException::class.java) {
                     runBlocking { api.getPetById(99999L) }
                 }
             assertEquals(404, exception.statusCode)
         }
 
         @Test
-        @DisplayName("500 response throws ApiException")
+        @DisplayName("500 response throws InternalServerErrorException")
         fun testErrorHandlingServerError() {
             val engine =
                 MockEngine { _ ->
@@ -730,7 +730,7 @@ class PetApiTest {
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.InternalServerErrorException::class.java) {
                     runBlocking { api.getPetById(1L) }
                 }
             assertEquals(500, exception.statusCode)
@@ -1155,6 +1155,78 @@ class PetApiTest {
                 "renewalDate form field must be date-only, got: $capturedBody",
             )
             assertFalse(capturedBody!!.contains("renewalDate=2024-01-01T"), "renewalDate must carry no time")
+        }
+
+        private fun apiRecordingUrls(urls: MutableList<String>): PetApi {
+            val engine =
+                MockEngine { request ->
+                    urls.add(request.url.toString())
+                    respond(
+                        content =
+                            if (request.url.encodedPath.contains("born-on")) {
+                                """[{"name":"rex","photoUrls":[]}]"""
+                            } else {
+                                """{"name":"rex","photoUrls":[]}"""
+                            },
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            return PetApi(DefaultApiClient(HttpClient(engine)), config)
+        }
+
+        @Test
+        @DisplayName("a format:date path parameter reaches the wire as YYYY-MM-DD with no time")
+        fun testFormatDatePathParamIsDateOnly() {
+            val urls = mutableListOf<String>()
+            val api = apiRecordingUrls(urls)
+
+            runBlocking { api.findPetsBornOn(LocalDate.of(2024, 1, 1)) }
+
+            assertEquals(listOf("http://localhost/pet/born-on/2024-01-01"), urls)
+        }
+
+        @Test
+        @DisplayName("the generated staging server variant resolves its variables into the request URL")
+        fun testStagingServerVariantUrl() {
+            val urls = mutableListOf<String>()
+            val api = apiRecordingUrls(urls)
+            val server =
+                PetApi.GetStagingPetInfoServer.StagingServer(
+                    PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+                    PetApi.GetStagingPetInfoServer.Version.V3,
+                )
+            assertEquals("https://sandbox.example.com/api/v3", server.getUrl())
+
+            runBlocking { api.getStagingPetInfo(7L, server) }
+
+            assertEquals(1, urls.size)
+            assertTrue(urls[0].startsWith("https://sandbox.example.com/api/v3/"), urls[0])
+        }
+
+        @Test
+        @DisplayName("each server of a multi-server operation resolves to its own URL")
+        fun testMultiServerVariantUrls() {
+            assertEquals("https://primary.example.com/v1", PetApi.GetMultiServerPetInfoServer.Primary.getUrl())
+            for (region in PetApi.GetMultiServerPetInfoServer.Region.entries) {
+                assertEquals(
+                    "https://${region.value}.example.com/v1",
+                    PetApi.GetMultiServerPetInfoServer.Regional(region).getUrl(),
+                )
+            }
+
+            val urls = mutableListOf<String>()
+            val api = apiRecordingUrls(urls)
+            val eu = PetApi.GetMultiServerPetInfoServer.Regional(PetApi.GetMultiServerPetInfoServer.Region.EU)
+            runBlocking { api.getMultiServerPetInfo(7L, eu) }
+
+            assertEquals(1, urls.size)
+            assertTrue(urls[0].startsWith("https://eu.example.com/v1/"), urls[0])
         }
 
         @Test

@@ -8,6 +8,7 @@
 package com.example.petstore.api
 
 import com.example.petstore.*
+import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
@@ -132,7 +133,7 @@ class StoreApiTest {
     @DisplayName("Mock tests")
     inner class MockTests {
         @Test
-        @DisplayName("getOrderById 404 throws ApiException")
+        @DisplayName("getOrderById 404 throws NotFoundException")
         fun testGetOrderNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -150,14 +151,14 @@ class StoreApiTest {
             val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.NotFoundException::class.java) {
                     runBlocking { api.getOrderById(99999L) }
                 }
             assertEquals(404, exception.statusCode)
         }
 
         @Test
-        @DisplayName("placeOrder 500 throws ApiException")
+        @DisplayName("placeOrder 500 throws InternalServerErrorException")
         fun testPlaceOrderServerError() {
             val engine =
                 MockEngine { _ ->
@@ -184,14 +185,14 @@ class StoreApiTest {
                 )
 
             val exception =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.InternalServerErrorException::class.java) {
                     runBlocking { api.placeOrder(order) }
                 }
             assertEquals(500, exception.statusCode)
         }
 
         @Test
-        @DisplayName("deleteOrder 404 throws ApiException")
+        @DisplayName("deleteOrder 404 throws NotFoundException")
         fun testDeleteOrderNotFound() {
             val engine =
                 MockEngine { _ ->
@@ -209,10 +210,76 @@ class StoreApiTest {
             val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
-                assertThrows(ApiException::class.java) {
+                assertThrowsExactly(com.example.petstore.errors.NotFoundException::class.java) {
                     runBlocking { api.deleteOrder(99999L) }
                 }
             assertEquals(404, exception.statusCode)
+        }
+
+        @Test
+        @DisplayName("getBySwatch sends the enum wire value in the path, the query and the header")
+        fun testGetBySwatchSendsEnumWireValues() {
+            var capturedPath: String? = null
+            var capturedQuery: String? = null
+            var capturedHeader: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedPath = request.url.encodedPath
+                    capturedQuery = request.url.encodedQuery
+                    capturedHeader = request.headers["Preferred-Swatch"]
+                    respond(
+                        content = """{"id":1,"name":"red"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val result =
+                runBlocking {
+                    api.getBySwatch(
+                        Swatch.RED,
+                        GetBySwatchOptions(querySwatch = Swatch.GREEN, preferredSwatch = Swatch.BLUE),
+                    )
+                }
+
+            assertEquals("/store/by-swatch/red", capturedPath)
+            assertEquals("querySwatch=green", capturedQuery)
+            assertEquals("blue", capturedHeader)
+            assertEquals(1L, result.id)
+        }
+
+        @Test
+        @DisplayName("getBySwatch omits the optional query and header when no options are given")
+        fun testGetBySwatchOmitsAbsentOptions() {
+            var capturedQuery: String? = null
+            var capturedHeader: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    capturedHeader = request.headers["Preferred-Swatch"]
+                    respond(
+                        content = """{"id":1,"name":"red"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking { api.getBySwatch(Swatch.BLUE) }
+
+            assertEquals("", capturedQuery)
+            assertNull(capturedHeader)
         }
 
         @Test

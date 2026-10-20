@@ -45,7 +45,8 @@ class OAuth2ImplicitAuthenticatorTest {
 
         val url = auth.buildAuthorizationUrl()
 
-        assertTrue(url.contains("scope=read+write") || url.contains("scope=read%20write"))
+        assertTrue(url.contains("scope=read%20write"), url)
+        assertFalse(url.contains("scope=read+write"), url)
     }
 
     @Test
@@ -92,5 +93,65 @@ class OAuth2ImplicitAuthenticatorTest {
         val rendered = auth.toString()
         assertFalse(rendered.contains("implicit-tok"))
         assertTrue(rendered.contains("***"))
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        val auth = createAuthenticator()
+        assertEquals(
+            "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=null)",
+            auth.toString(),
+        )
+        auth.setAccessToken("implicit-tok")
+        assertEquals(
+            "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, " +
+                "authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=***)",
+            auth.toString(),
+        )
+    }
+
+    @Test
+    fun setAccessTokenRejectsControlAndNonAsciiCharacters() {
+        // The token comes from a redirect fragment: CR/LF, other control
+        // characters and non-ASCII are refused so they cannot reach the
+        // Authorization header, and nothing is stored.
+        for (bad in listOf("tok\r\nX-Injected: 1", "tok\nx", "tok\u0000x", "tok\u007Fx", "tök")) {
+            val auth = createAuthenticator()
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) { auth.setAccessToken(bad) }
+            assertEquals(
+                "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+                ex.message,
+            )
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { auth.getAuthHeaders() }
+            }
+        }
+    }
+
+    @Test
+    fun authorizationUrlKeepsUnreservedCharactersLiteralAndEncodesTheRest() {
+        val auth =
+            OAuth2ImplicitAuthenticator(
+                host = "https://api.example.com",
+                clientId = "id-._~*!'()",
+                authorizationUrl = "https://auth.example.com/authorize",
+                scopes = listOf("read"),
+            )
+
+        val url = auth.buildAuthorizationUrl("st~*!'() x")
+
+        assertTrue(url.contains("client_id=id-._~%2A%21%27%28%29&"), url)
+        assertTrue(url.contains("state=st~%2A%21%27%28%29%20x"), url)
+    }
+
+    @Test
+    fun generatedSchemeWrapperUsesItsSpecUrlAndScopes() {
+        val auth = BrowserAuthImplicitAuthenticator("https://api.example.com", "cid")
+
+        assertEquals(
+            "https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read",
+            auth.buildAuthorizationUrl(),
+        )
     }
 }

@@ -51,4 +51,27 @@ class BasicAuthenticatorTest {
         assertFalse(rendered.contains("s3cret"))
         assertTrue(rendered.contains("***"))
     }
+
+    @Test
+    fun nonAsciiCredentialsAreEncodedAsUtf8() = runBlocking {
+        val auth = BasicAuthenticator("https://api.example.com", "ünïcødé", "pässwörd")
+        val headers = auth.getAuthHeaders()
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==", headers["Authorization"])
+    }
+
+    @Test
+    fun redactedReprShowsExactlyTheNonSecretFields() {
+        val auth = BasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals("BasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+    }
+
+    @Test
+    fun generatedSchemeWrapperEmitsABasicHeaderAndMasksThePassword() = runBlocking {
+        val auth = AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret")
+        assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders()["Authorization"])
+        assertEquals("AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)", auth.toString())
+        assertThrows(IllegalArgumentException::class.java) {
+            AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret")
+        }
+    }
 }

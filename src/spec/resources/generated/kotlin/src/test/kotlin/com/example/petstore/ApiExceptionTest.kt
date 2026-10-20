@@ -227,4 +227,39 @@ class ApiExceptionTest {
             assertTrue(OpenAPIException::class.java.isAssignableFrom(error), error.name)
         }
     }
+
+    @Test
+    fun renderingOmitsTheStatusHeadersAndBodyThatAreAbsentOrEmpty() {
+        assertEquals(
+            "boom\nHTTP status code: 500",
+            ApiException(500, "boom", emptyMap(), "").toString(),
+        )
+        assertEquals(
+            "boom",
+            ApiException(0, "boom", null, null).toString(),
+        )
+        assertEquals(
+            "Error message: the server returns an error\nHTTP status code: 502",
+            ApiException(502, "", null, null).toString(),
+        )
+    }
+
+    @Test
+    fun fromResponseRefusesADeeplyNestedErrorBodyButKeepsTheRawBody() {
+        val nested = "[".repeat(5000) + "]".repeat(5000)
+
+        val ex = ApiException.fromResponse(400, emptyMap(), nested)
+
+        assertEquals(BadRequestException::class.java, ex.javaClass)
+        assertEquals(nested, ex.responseBody)
+        assertNull(ex.errorBody)
+    }
+
+    @Test
+    fun fromResponseKeepsAScalarJsonBodyAsAPrimitive() {
+        val ex = ApiException.fromResponse(400, emptyMap(), "\"quota exceeded\"")
+
+        assertEquals(kotlinx.serialization.json.JsonPrimitive("quota exceeded"), ex.errorBody)
+        assertEquals("\"quota exceeded\"", ex.responseBody)
+    }
 }
