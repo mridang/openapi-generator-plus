@@ -39,6 +39,7 @@ type fakeResponse struct {
 	body       string
 	statusCode int
 	err        error
+	headers    map[string]string
 }
 
 func (c *fakeTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
@@ -878,5 +879,185 @@ func TestOAuth2TokenManager_InvalidateTriggersSingleRefetchUnderConcurrency(t *t
 		if token != "tok2" {
 			t.Errorf("all callers must observe the refreshed token 'tok2'; got %q", token)
 		}
+	}
+}
+
+// recordedTokenRequest is one request a recordingTokenClient received.
+type recordedTokenRequest struct {
+	method  string
+	url     string
+	headers map[string]string
+	body    string
+}
+
+// recordingTokenClient answers token requests from a script and keeps every
+// request it receives, so a test can assert the URL, headers and form body of
+// each hop. A request past the end of the script is reported as an error
+// instead of a panic.
+type recordingTokenClient struct {
+	mu        sync.Mutex
+	responses []fakeResponse
+	requests  []recordedTokenRequest
+}
+
+func (c *recordingTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *recordingTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, _ *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	recorded := recordedTokenRequest{method: method, url: url, headers: headers}
+	if b, ok := body.([]byte); ok {
+		recorded.body = string(b)
+	}
+	c.requests = append(c.requests, recorded)
+	idx := len(c.requests) - 1
+	if idx >= len(c.responses) {
+		return nil, fmt.Errorf("unexpected request %d to %s", idx+1, url)
+	}
+	resp := c.responses[idx]
+	if resp.err != nil {
+		return nil, resp.err
+	}
+	responseHeaders := resp.headers
+	if responseHeaders == nil {
+		responseHeaders = map[string]string{}
+	}
+	return &auth.ApiHttpResponse{StatusCode: resp.statusCode, Body: resp.body, Headers: responseHeaders}, nil
+}
+
+// requestCount reports how many requests the client has received.
+func (c *recordingTokenClient) requestCount() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.requests)
+}
+
+// The refresh grant carries the cached refresh token and the client credentials
+// from the original grant, and nothing else of it: the sorted form body pins the
+// exact parameter set.
+func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"old_access","refresh_token":"old_refresh","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"new_access","expires_in":3600}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{
+		"grant_type":    "authorization_code",
+		"code":          "abc",
+		"client_id":     "cid",
+		"client_secret": "sec",
+	}
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on the original grant: %v", err)
+	}
+	token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the refresh: %v", err)
+	}
+	if token != "new_access" {
+		t.Errorf("expected the refreshed token, got %q", token)
+	}
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	want := "client_id=cid&client_secret=sec&grant_type=refresh_token&refresh_token=old_refresh"
+	if got := client.requests[1].body; got != want {
+		t.Errorf("expected refresh body %q, got %q", want, got)
+	}
+}
+
+// A rejected refresh token is not fatal: the manager falls back to the original
+// grant, whose body is sent unchanged, and returns that token.
+func TestOAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"first","refresh_token":"revoked","expires_in":1}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+		{body: `{"access_token":"third","expires_in":3600}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{
+		"grant_type":    "client_credentials",
+		"client_id":     "cid",
+		"client_secret": "sec",
+	}
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on the original grant: %v", err)
+	}
+	token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("expected the fall-back to hide the rejected refresh, got %v", err)
+	}
+	if token != "third" {
+		t.Errorf("expected the token from the original grant, got %q", token)
+	}
+	if client.requestCount() != 3 {
+		t.Fatalf("expected 3 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[1].body; !strings.Contains(got, "grant_type=refresh_token") {
+		t.Errorf("expected the second request to be the refresh grant, got %q", got)
+	}
+	want := "client_id=cid&client_secret=sec&grant_type=client_credentials"
+	if got := client.requests[2].body; got != want {
+		t.Errorf("expected the original grant body %q, got %q", want, got)
+	}
+}
+
+// A token response without expires_in never expires: the second call is served
+// from the cache and sends no second request.
+func TestOAuth2TokenManager_NoExpiresInCachesTheTokenIndefinitely(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"forever"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	for i := 0; i < 2; i++ {
+		token, err := manager.GetAccessToken("https://auth.example.com/token", params)
+		if err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i+1, err)
+		}
+		if token != "forever" {
+			t.Errorf("call %d: expected the cached token, got %q", i+1, token)
+		}
+	}
+	if client.requestCount() != 1 {
+		t.Errorf("expected exactly 1 token request, got %d", client.requestCount())
+	}
+}
+
+// A refresh response that omits expires_in keeps the expiry the manager already
+// had instead of inventing one (AGENTS.md, token expiry rule): the token stays
+// expired, so the next call refreshes again.
+func TestOAuth2TokenManager_RefreshWithoutExpiresInKeepsTheExistingExpiry(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"a2"}`, statusCode: 200},
+		{body: `{"access_token":"a3"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "authorization_code"}
+	for i := 0; i < 3; i++ {
+		if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i+1, err)
+		}
+	}
+	if client.requestCount() != 3 {
+		t.Fatalf("expected the kept expiry to force a refresh on every call, got %d requests", client.requestCount())
+	}
+	if got := client.requests[2].body; !strings.Contains(got, "refresh_token=r1") {
+		t.Errorf("expected the third request to refresh with the cached token, got %q", got)
 	}
 }

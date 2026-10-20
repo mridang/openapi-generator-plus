@@ -12,6 +12,7 @@ package petstore_test
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -497,5 +498,73 @@ func TestSerializationError_SatisfiesOpenAPIErrorAndKeepsCause(t *testing.T) {
 	var apiErr *apierrors.ApiError
 	if errors.As(err, &apiErr) {
 		t.Error("a *SerializationError must not match *ApiError")
+	}
+}
+
+// Error() renders the message first and then each part that is present on its
+// own line; an absent part leaves no empty line behind, and an empty message
+// falls back to the generic sentence.
+func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		err  *apierrors.ApiError
+		want string
+	}{
+		{
+			"every part",
+			apierrors.NewApiError(502, "bad gateway", "upstream down", map[string]string{"retry-after": "5"}, nil, nil),
+			"bad gateway\nHTTP status code: 502\nResponse headers: map[retry-after:5]\nResponse body: upstream down",
+		},
+		{
+			"empty headers and body are omitted",
+			apierrors.NewApiError(404, "missing", "", map[string]string{}, nil, nil),
+			"missing\nHTTP status code: 404",
+		},
+		{
+			"status zero is omitted",
+			apierrors.NewApiError(0, "connection reset", "", nil, nil, nil),
+			"connection reset",
+		},
+		{
+			"empty message falls back",
+			apierrors.NewApiError(500, "", "", nil, nil, nil),
+			"Error message: the server returns an error\nHTTP status code: 500",
+		},
+	}
+	for _, tc := range cases {
+		if got := tc.err.Error(); got != tc.want {
+			t.Errorf("%s: expected %q, got %q", tc.name, tc.want, got)
+		}
+	}
+}
+
+// FromResponse keeps whatever JSON the server sent as the error body, scalars
+// and a leading byte order mark included, and never fails on a body it cannot
+// parse: the raw body is still retained.
+func TestFromResponse_ParsesScalarAndBomPrefixedBodies(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		body string
+		want any
+	}{
+		{"string scalar", `"plain text"`, "plain text"},
+		{"number scalar", `42`, float64(42)},
+		{"byte order mark before an object", "\xEF\xBB\xBF{\"k\":\"v\"}", map[string]any{"k": "v"}},
+		{"not json", `<html>oops</html>`, nil},
+	}
+	for _, tc := range cases {
+		var apiErr *apierrors.ApiError
+		err := apierrors.FromResponse(500, nil, tc.body)
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("%s: expected *ApiError, got %T", tc.name, err)
+		}
+		if !reflect.DeepEqual(apiErr.ErrorBody(), tc.want) {
+			t.Errorf("%s: expected error body %#v, got %#v", tc.name, tc.want, apiErr.ErrorBody())
+		}
+		if apiErr.ResponseBody() != tc.body {
+			t.Errorf("%s: expected the raw body to be kept, got %q", tc.name, apiErr.ResponseBody())
+		}
 	}
 }

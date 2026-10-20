@@ -192,3 +192,41 @@ func TestOAuth2Implicit_GetHostReturnsConfiguredHost(t *testing.T) {
 		t.Errorf("expected host 'https://api.example.com', got %q", auth.Host())
 	}
 }
+
+// The authorize URL is a URL, not a form body: a space between scopes is %20,
+// never a plus, which a strict server reads as a literal plus.
+func TestOAuth2Implicit_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+	t.Parallel()
+	url := createImplicitAuthenticator().BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read%20write") {
+		t.Errorf("expected URL to contain scope=read%%20write, got %q", url)
+	}
+	if strings.Contains(url, "+") {
+		t.Errorf("expected no plus sign in the authorize URL, got %q", url)
+	}
+}
+
+// Exactly `-._~` stays literal in the authorize URL's client_id, scope and
+// state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
+func TestOAuth2Implicit_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2ImplicitAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"https://auth.example.com/authorize",
+		[]string{"s~*!'()"},
+	)
+
+	url := authObj.BuildAuthorizationURL("st~*!'()")
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"scope=s~%2A%21%27%28%29",
+		"state=st~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(url, want) {
+			t.Errorf("expected URL to contain %q, got %q", want, url)
+		}
+	}
+}

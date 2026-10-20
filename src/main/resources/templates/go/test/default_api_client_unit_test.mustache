@@ -14,6 +14,19 @@ import (
 	"testing"
 	"time"
 	pkgerrors "{{packageName}}/pkg/errors"
+	"bytes"
+	"compress/flate"
+	"compress/zlib"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
+	"os"
+	"path/filepath"
 )
 
 func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
@@ -1351,5 +1364,372 @@ func TestBuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testi
 	}
 	if transport.Proxy != nil {
 		t.Error("expected no implicit environment proxy")
+	}
+}
+
+// ── Redirect credential handling ──
+
+// A redirect to another origin drops every credential header the caller sent,
+// whichever one it is, while an ordinary header and the request itself still go
+// through. The origins are two local servers, so this is a real net/http
+// redirect through the client. net/http never strips Proxy-Authorization on a
+// redirect, so that row can only pass through the client's own filter.
+func TestDefaultApiClient_CrossOriginRedirectDropsEveryCredentialHeader(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"Authorization", "Cookie", "Proxy-Authorization"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			var received http.Header
+			target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				received = r.Header.Clone()
+				w.WriteHeader(200)
+			}))
+			defer target.Close()
+
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Location", target.URL+"/followed")
+				w.WriteHeader(302)
+			}))
+			defer origin.Close()
+
+			transport, buildErr := NewTransportOptionsBuilder().
+				FollowRedirects(true).
+				Build()
+			if buildErr != nil {
+				t.Fatal(buildErr)
+			}
+			client := NewDefaultApiClient(transport)
+			_, err := client.SendRequest("GET", origin.URL+"/start",
+				map[string]string{name: "secret-value", "X-Plain": "kept"}, nil)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := received.Get(name); got != "" {
+				t.Errorf("expected %s to be dropped across origins, got %q", name, got)
+			}
+			if got := received.Get("X-Plain"); got != "kept" {
+				t.Errorf("expected X-Plain to survive the redirect, got %q", got)
+			}
+		})
+	}
+}
+
+// A redirect that stays on the same origin keeps the credentials: dropping them
+// would turn a valid redirect into an unauthenticated request.
+func TestDefaultApiClient_SameOriginRedirectKeepsCredentialHeaders(t *testing.T) {
+	t.Parallel()
+	var received http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/start" {
+			w.Header().Set("Location", "/followed")
+			w.WriteHeader(302)
+			return
+		}
+		received = r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	sent := map[string]string{
+		"Authorization":       "Bearer kept-token",
+		"Cookie":              "session=kept",
+		"Proxy-Authorization": "Basic a2VwdA==",
+	}
+	if _, err := client.SendRequest("GET", server.URL+"/start", sent, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for name, want := range sent {
+		if got := received.Get(name); got != want {
+			t.Errorf("expected %s %q to be kept on a same-origin redirect, got %q", name, want, got)
+		}
+	}
+}
+
+// An explicit default port and an omitted one name the same origin, so a
+// redirect from https://host to https://host:443 must not be treated as
+// cross-origin and strip the credentials; a different scheme, host or
+// non-default port still is.
+func TestSameOrigin_TreatsAnExplicitDefaultPortAsTheSameOrigin(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		a, b string
+		want bool
+	}{
+		{"https implicit versus explicit 443", "https://h.example.com/a", "https://h.example.com:443/b", true},
+		{"http implicit versus explicit 80", "http://h.example.com/a", "http://h.example.com:80/b", true},
+		{"host case is ignored", "https://H.Example.com/a", "https://h.example.com/b", true},
+		{"scheme differs", "http://h.example.com/a", "https://h.example.com/a", false},
+		{"explicit 443 versus explicit 80", "https://h.example.com:443/a", "http://h.example.com:80/a", false},
+		{"non-default port differs", "https://h.example.com/a", "https://h.example.com:8443/a", false},
+		{"host differs", "https://h.example.com/a", "https://other.example.com/a", false},
+	}
+	for _, tc := range cases {
+		a, errA := url.Parse(tc.a)
+		b, errB := url.Parse(tc.b)
+		if errA != nil || errB != nil {
+			t.Fatalf("%s: bad fixture URL: %v %v", tc.name, errA, errB)
+		}
+		if got := sameOrigin(a, b); got != tc.want {
+			t.Errorf("%s: sameOrigin(%s, %s) = %v, want %v", tc.name, tc.a, tc.b, got, tc.want)
+		}
+	}
+	if sameOrigin(nil, nil) {
+		t.Error("expected a missing URL never to count as the same origin")
+	}
+}
+
+// ── Content-Encoding: deflate ──
+
+func zlibCompress(t *testing.T, payload string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := zlib.NewWriter(&buf)
+	if _, err := writer.Write([]byte(payload)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// HTTP "deflate" is the zlib format (RFC 1950), not a bare DEFLATE stream.
+func TestDefaultApiClient_DecodesZlibWrappedDeflateResponse(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Content-Encoding", "deflate")
+		w.WriteHeader(200)
+		_, _ = w.Write(zlibCompress(t, `{"ok":true}`))
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != `{"ok":true}` {
+		t.Errorf("expected the inflated body, got %q", resp.Body)
+	}
+	if resp.Headers["content-encoding"] != "deflate" {
+		t.Errorf("expected the response to be deflate encoded on the wire, got %q", resp.Headers["content-encoding"])
+	}
+}
+
+// A headerless DEFLATE stream is not what the server promised when it said
+// "deflate", so it is a corrupt body: an *ApiError with the real status.
+func TestDefaultApiClient_RawDeflateBodyIsApiErrorWithStatus(t *testing.T) {
+	t.Parallel()
+	var raw bytes.Buffer
+	writer, err := flate.NewWriter(&raw, flate.DefaultCompression)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write([]byte(`{"ok":true}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "deflate")
+		w.WriteHeader(200)
+		_, _ = w.Write(raw.Bytes())
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	_, err = client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError for a raw DEFLATE body, got %T: %v", err, err)
+	}
+	if apiErr.StatusCode() != 200 {
+		t.Errorf("expected the real StatusCode 200, got %d", apiErr.StatusCode())
+	}
+}
+
+// The Accept-Encoding the client sends on its own, with no caller header, is the
+// set of codecs decompressBody can decode.
+func TestDefaultApiClient_AdvertisesTheSupportedEncodingsByDefault(t *testing.T) {
+	t.Parallel()
+	var accept string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		accept = r.Header.Get("Accept-Encoding")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "gzip, deflate, br, zstd"; accept != want {
+		t.Errorf("expected Accept-Encoding %q, got %q", want, accept)
+	}
+}
+
+// ── TLS verification ──
+
+// writeCertPEM stores a DER certificate as a PEM file and returns its path.
+func writeCertPEM(t *testing.T, der []byte) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	data := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// unrelatedCaDER returns a self-signed CA certificate that has nothing to do
+// with any server in these tests.
+func unrelatedCaDER(t *testing.T) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "unrelated test authority"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return der
+}
+
+// Verification is on by default: a server whose certificate no trusted
+// authority signed is refused as a *NetworkError with status 0, not answered.
+func TestDefaultApiClient_VerifySslTrueRejectsUntrustedCertificate(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if resp != nil {
+		t.Fatalf("expected no response from an untrusted server, got status %d", resp.StatusCode)
+	}
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if netErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0, got %d", netErr.StatusCode())
+	}
+	var verifyErr *tls.CertificateVerificationError
+	if !errors.As(err, &verifyErr) {
+		t.Errorf("expected the certificate verification failure to be the cause, got %v", err)
+	}
+}
+
+// Turning verification off is the only thing that lets the same server through.
+func TestDefaultApiClient_VerifySslFalseAcceptsUntrustedCertificate(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(false).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
+// The certificate file is the trust anchor: the server's own certificate as the
+// CA verifies, an unrelated authority does not.
+func TestDefaultApiClient_CaCertPathDecidesWhichServersAreTrusted(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	send := func(caPath string) error {
+		transport, buildErr := NewTransportOptionsBuilder().CACertPath(caPath).Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		_, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+		return err
+	}
+
+	if err := send(writeCertPEM(t, server.Certificate().Raw)); err != nil {
+		t.Fatalf("expected the server's own certificate as CA to verify, got %v", err)
+	}
+	err := send(writeCertPEM(t, unrelatedCaDER(t)))
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError for an unrelated CA, got %T: %v", err, err)
+	}
+}
+
+// ── Body read after the headers ──
+
+// A connection that dies after the headers, mid-body, is a transport failure:
+// *NetworkError with status 0 and the read error kept as the cause, and not a
+// timeout, an *ApiError(200) or a body handed back truncated.
+func TestDefaultApiClient_BodyTruncatedAfterHeadersReturnsNetworkError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "1024")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("partial"))
+		w.(http.Flusher).Flush()
+		panic(http.ErrAbortHandler)
+	}))
+	defer server.Close()
+
+	client := NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/truncated", map[string]string{}, nil)
+	if resp != nil {
+		t.Fatalf("expected no response for a truncated body, got status %d", resp.StatusCode)
+	}
+	var netErr *pkgerrors.NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
+	}
+	if netErr.StatusCode() != 0 {
+		t.Errorf("expected StatusCode 0, got %d", netErr.StatusCode())
+	}
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if errors.As(err, &timeoutErr) {
+		t.Errorf("a truncated body is not a timeout, got %v", err)
+	}
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Errorf("expected the read error to be kept as the cause, got %v", err)
 	}
 }

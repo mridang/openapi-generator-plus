@@ -78,3 +78,60 @@ func TestBasicRedactsSecret(t *testing.T) {
 		}
 	}
 }
+
+// Credentials are encoded as UTF-8 before the base64 step (RFC 7617 §2.1), so a
+// non-ASCII pair yields the same header in every SDK.
+func TestBasicAuthenticator_NonAsciiCredentialsAreEncodedAsUtf8(t *testing.T) {
+	t.Parallel()
+	a := mustBasic(t, "https://api.example.com", "ünïcødé", "pässwörd")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// The printed form shows the non-secret fields, host and username, and masks
+// only the password.
+func TestBasicAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	a := mustBasic(t, "https://api.example.com", "alice", "s3cret")
+	want := `BasicAuthenticator{host: "https://api.example.com", username: "alice", password: ***}`
+	if got := a.String(); got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// Each per-scheme wrapper is a Basic authenticator under its own name: it emits
+// the same Authorization header, refuses the same malformed credentials, and
+// prints its own name with the password masked.
+func TestBasicWrappers_EmitTheBasicHeaderUnderTheirOwnName(t *testing.T) {
+	t.Parallel()
+	const host = "https://api.example.com"
+	type wrapper interface {
+		AuthHeaders() map[string]string
+	}
+	cases := []struct {
+		name  string
+		build func(username, password string) (wrapper, error)
+	}{
+		{"PetStoreBasicAuthenticator", func(u, p string) (wrapper, error) { return auth.NewPetStoreBasicAuthenticator(host, u, p) }},
+		{"AdminBasicAuthenticator", func(u, p string) (wrapper, error) { return auth.NewAdminBasicAuthenticator(host, u, p) }},
+	}
+	for _, tc := range cases {
+		a, err := tc.build("alice", "s3cret")
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tc.name, err)
+			continue
+		}
+		if got, want := a.AuthHeaders()["Authorization"], "Basic YWxpY2U6czNjcmV0"; got != want {
+			t.Errorf("%s: Authorization header = %q, want %q", tc.name, got, want)
+		}
+		want := tc.name + `{host: "https://api.example.com", username: "alice", password: ***}`
+		if got := fmt.Sprint(a); got != want {
+			t.Errorf("%s: expected %q, got %q", tc.name, want, got)
+		}
+		if _, err := tc.build("ali:ce", "s3cret"); !errors.Is(err, auth.ErrBasicAuthUsernameColon) {
+			t.Errorf("%s: expected ErrBasicAuthUsernameColon, got %v", tc.name, err)
+		}
+	}
+}

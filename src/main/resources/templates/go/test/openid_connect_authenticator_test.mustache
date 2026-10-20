@@ -363,3 +363,115 @@ func TestOpenIdConnect_FetchesDiscoveryDocumentOnlyOnce(t *testing.T) {
 		t.Errorf("expected discovery to be fetched once, got %d GET requests", got)
 	}
 }
+
+// oidcDiscoveryResponse answers a discovery request with the given
+// Cache-Control value (none when empty).
+func oidcDiscoveryResponse(cacheControl string) fakeResponse {
+	response := fakeResponse{
+		body:       `{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`,
+		statusCode: 200,
+	}
+	if cacheControl != "" {
+		response.headers = map[string]string{"cache-control": cacheControl}
+	}
+	return response
+}
+
+// Cache-Control: max-age bounds how long the discovery document is reused, and
+// without the header the document is kept for the RFC 8414 default of a day.
+func TestOpenIdConnect_DiscoveryIsReusedForTheCacheControlMaxAge(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name         string
+		cacheControl string
+		wantRequests int
+	}{
+		{"max-age keeps it", "public, max-age=3600", 1},
+		{"no header keeps it for the default", "", 1},
+		{"max-age zero refetches", "max-age=0", 2},
+		{"directive is matched case-insensitively", "Max-Age=0", 2},
+	}
+	for _, tc := range cases {
+		client := &recordingTokenClient{responses: []fakeResponse{
+			oidcDiscoveryResponse(tc.cacheControl),
+			oidcDiscoveryResponse(tc.cacheControl),
+		}}
+		authObj := createOpenIdConnectAuthenticator()
+		authObj.SetApiClient(client)
+
+		for i := 0; i < 2; i++ {
+			if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+				t.Fatalf("%s: unexpected error: %v", tc.name, err)
+			}
+		}
+		if got := client.requestCount(); got != tc.wantRequests {
+			t.Errorf("%s: expected %d discovery requests, got %d", tc.name, tc.wantRequests, got)
+		}
+	}
+}
+
+// Rediscovery refreshes the endpoints only: a token already obtained keeps being
+// used after the cached document expires, instead of the authenticator
+// forgetting the exchange and sending requests without credentials.
+func TestOpenIdConnect_ExchangedTokenSurvivesRediscovery(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		oidcDiscoveryResponse("max-age=0"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil {
+		t.Fatalf("expected the exchanged token to survive rediscovery, got %v", err)
+	}
+	if headers["Authorization"] != "Bearer tok1" {
+		t.Errorf("expected Authorization 'Bearer tok1', got %q", headers["Authorization"])
+	}
+	if client.requestCount() != 3 {
+		t.Fatalf("expected discovery, token and rediscovery requests, got %d", client.requestCount())
+	}
+	if got := client.requests[2]; got.method != "GET" || got.url != "https://auth.example.com/.well-known/openid-configuration" {
+		t.Errorf("expected the third request to rediscover, got %s %s", got.method, got.url)
+	}
+}
+
+// The per-scheme wrapper discovers from the OpenID Connect URL its security
+// scheme declares.
+func TestSsoAuthWrapper_DiscoversFromTheDeclaredUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{oidcDiscoveryResponse("")}}
+	authObj := oauth.NewSsoAuthAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	authObj.SetApiClient(client)
+
+	if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := client.requests[0]; got.method != "GET" || got.url != "https://auth.example.com/.well-known/openid-configuration" {
+		t.Errorf("expected discovery at the declared URL, got %s %s", got.method, got.url)
+	}
+}
+
+// The printed form shows the non-secret fields and masks only the secret.
+func TestOpenIdConnect_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createOpenIdConnectAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration"`,
+		`clientID: "my-client-id"`,
+		`clientSecret: ***`,
+		`redirectURI: "https://app.example.com/callback"`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
+	}
+}

@@ -4,6 +4,9 @@ package {{packageName}}_test
 import (
 	"errors"
 	"testing"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"{{packageName}}/pkg"
 	apierrors "{{packageName}}/pkg/errors"
@@ -467,5 +470,74 @@ func TestTransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
 
 	if opts.Proxy() == nil {
 		t.Error("expected non-nil proxy")
+	}
+}
+
+// A CA file that exists and is readable but holds no PEM certificate is a caller
+// mistake just like a missing one: Build reports it, naming the file, instead of
+// the first request failing or silently falling back to the system trust store.
+func TestTransportOptions_GarbagePemCaCertFileIsRejected(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	if err := os.WriteFile(path, []byte("this is not a certificate"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		CACertPath(path).
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	want := fmt.Sprintf("invalid CA certificate: no PEM certificate found in %q", path)
+	if err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+	var root apierrors.OpenAPIError
+	if errors.As(err, &root) {
+		t.Errorf("a garbage CA file must not be a OpenAPIError, got %T", err)
+	}
+	if opts != nil {
+		t.Error("expected nil TransportOptions")
+	}
+}
+
+// Every rejected proxy value names itself and says why: a scheme other than
+// http or https, and a URL with no host.
+func TestTransportOptions_ProxyRejectionMessages(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		proxy string
+		want  string
+	}{
+		{"not-a-valid-url", `invalid proxy URL "not-a-valid-url": must use http or https scheme`},
+		{"ftp://proxy.example.com:21", `invalid proxy URL "ftp://proxy.example.com:21": must use http or https scheme`},
+		{"socks5://proxy.example.com:1080", `invalid proxy URL "socks5://proxy.example.com:1080": must use http or https scheme`},
+		{"http://", `invalid proxy URL "http://": missing host`},
+		{"https:///only-a-path", `invalid proxy URL "https:///only-a-path": missing host`},
+	}
+	for _, tc := range cases {
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(tc.proxy).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+			t.Errorf("%q: expected ErrInvalidProxyURL, got %v", tc.proxy, err)
+			continue
+		}
+		if err.Error() != tc.want {
+			t.Errorf("%q: expected message %q, got %q", tc.proxy, tc.want, err.Error())
+		}
+	}
+}
+
+// A URL scheme is case-insensitive, so an upper-case proxy scheme is accepted.
+func TestTransportOptions_UpperCaseProxySchemeIsAccepted(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("HTTP://proxy.example.com:3128").
+		Build()
+	if err != nil {
+		t.Fatalf("expected an upper-case scheme to be accepted, got %v", err)
+	}
+	if opts.Proxy() == nil || opts.Proxy().Host != "proxy.example.com:3128" {
+		t.Errorf("expected the proxy host to be kept, got %v", opts.Proxy())
 	}
 }

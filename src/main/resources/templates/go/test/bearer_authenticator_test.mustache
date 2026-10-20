@@ -116,3 +116,34 @@ func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
 		}
 	}
 }
+
+// The printed form shows the non-secret host and masks only the token.
+func TestBearerAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "super-secret-token")
+	want := `BearerAuthenticator{host: "https://api.example.com", token: ***}`
+	if got := a.String(); got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// The service-token wrapper is a Bearer authenticator under its own name: it
+// emits the same header, refuses an empty token, and prints its own name with
+// the token masked.
+func TestBearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewServiceTokenAuthenticator("https://api.example.com", "xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], "Bearer xyz"; got != want {
+		t.Errorf("Authorization header = %q, want %q", got, want)
+	}
+	want := `ServiceTokenAuthenticator{host: "https://api.example.com", token: ***}`
+	if got := fmt.Sprint(a); got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+	if _, err := auth.NewServiceTokenAuthenticator("https://api.example.com", ""); !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken for an empty token, got %v", err)
+	}
+}

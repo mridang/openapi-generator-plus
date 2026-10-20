@@ -199,12 +199,20 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return nil, errors_pkg.NewSerializationError("oidc discovery document is missing 'token_endpoint'", nil)
 	}
 
-	a.delegate = NewOAuth2AuthorizationCodeAuthenticator(
+	fresh := NewOAuth2AuthorizationCodeAuthenticator(
 		a.host, a.clientID, a.clientSecret,
 		discovery.AuthorizationEndpoint,
 		discovery.TokenEndpoint,
 		a.redirectURI, a.scopes, "",
 	)
+	if a.delegate != nil {
+		/* Rediscovery refreshes the endpoints only. The tokens already
+		 * obtained, and the fact that the code was exchanged, belong to the
+		 * user's session and must survive it. */
+		fresh.tokenManager = a.delegate.tokenManager
+		fresh.tokenExchanged.Store(a.delegate.tokenExchanged.Load())
+	}
+	a.delegate = fresh
 	a.delegate.tokenManager.SetApiClient(client)
 	a.discoveryExpiry = time.Now().Add(time.Duration(parseDiscoveryMaxAge(resp.Headers)) * time.Second)
 

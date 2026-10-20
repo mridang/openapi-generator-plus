@@ -333,3 +333,165 @@ func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStrin
 		t.Errorf("result must contain exactly one '?', got %d: %q", count, url)
 	}
 }
+
+// The authorize URL is a URL, not a form body: a space between scopes is %20,
+// never a plus, which a strict server reads as a literal plus.
+func TestOAuth2AuthCode_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+	t.Parallel()
+	url := createAuthCodeAuthenticator().BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read%20write") {
+		t.Errorf("expected URL to contain scope=read%%20write, got %q", url)
+	}
+	if strings.Contains(url, "+") {
+		t.Errorf("expected no plus sign in the authorize URL, got %q", url)
+	}
+}
+
+// Exactly `-._~` stays literal in the authorize URL's client_id, scope and
+// state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
+func TestOAuth2AuthCode_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"s~*!'()"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("st~*!'()")
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"scope=s~%2A%21%27%28%29",
+		"state=st~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(url, want) {
+			t.Errorf("expected URL to contain %q, got %q", want, url)
+		}
+	}
+}
+
+// The code exchange is a form body, so the same punctuation rule applies there.
+func TestOAuth2AuthCode_ExchangeBodyPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"s~-._*!'()",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		nil,
+		"",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("code~*!'()"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"client_secret=s~-._%2A%21%27%28%29",
+		"code=code~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(client.LastBody, want) {
+			t.Errorf("expected body to contain %q, got %q", want, client.LastBody)
+		}
+	}
+}
+
+// The code exchange goes to tokenUrl and the later refresh to refreshUrl.
+func TestOAuth2AuthCode_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"https://auth.example.com/refresh",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[0].url; got != "https://auth.example.com/token" {
+		t.Errorf("expected the code exchange at tokenUrl, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh grant at refreshUrl, got %q", got)
+	}
+}
+
+// The per-scheme wrapper declares its own authorize, token and refresh URLs.
+func TestUserAuthWrapper_RoutesToTheDeclaredUrls(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	authObj.SetApiClient(client)
+
+	if got := authObj.BuildAuthorizationURL(""); !strings.HasPrefix(got, "https://auth.example.com/authorize?") {
+		t.Errorf("expected the declared authorize URL, got %q", got)
+	}
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if got := client.requests[0].url; got != "https://auth.example.com/oauth/token" {
+		t.Errorf("expected the code exchange at the declared token URL, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/oauth/refresh" {
+		t.Errorf("expected the refresh grant at the declared refresh URL, got %q", got)
+	}
+}
+
+// The printed form shows the non-secret fields and masks only the secret.
+func TestOAuth2AuthCode_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createAuthCodeAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`clientID: "my-client-id"`,
+		`clientSecret: ***`,
+		`authorizationURL: "https://auth.example.com/authorize"`,
+		`tokenURL: "https://auth.example.com/token"`,
+		`redirectURI: "https://app.example.com/callback"`,
+		`scopes: ["read" "write"]`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
+	}
+}

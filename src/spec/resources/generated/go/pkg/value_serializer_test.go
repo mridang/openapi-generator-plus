@@ -1030,3 +1030,26 @@ func TestMaybeAllowReserved_WrapsOnlyWhenAllowReserved(t *testing.T) {
 		t.Errorf("expected nil to stay nil, got %v", got)
 	}
 }
+
+// Every sub-delimiter and the unreserved tilde stay literal in a path segment,
+// each one a separate entry in the encoder's restore list; a character dropped
+// from that list would silently start to be percent-encoded.
+func TestPathEncodingParity_SubDelimitersAndTildeStayLiteral(t *testing.T) {
+	t.Parallel()
+	for _, c := range []string{";", "=", ",", ":", "@", "!", "$", "&", "'", "(", ")", "*", "+", "~"} {
+		value := "a" + c + "b"
+		if got := serializeValue(value, "path", "string", ""); got != value {
+			t.Errorf("expected %q to stay literal in a path segment, got %v", c, got)
+		}
+	}
+}
+
+// An already percent-encoded value is encoded again, not trusted: the percent
+// sign itself is escaped, so the receiver decodes back the exact input.
+func TestPathEncodingParity_PercentSignIsEncoded(t *testing.T) {
+	t.Parallel()
+	result := serializeValue("a%20b", "path", "string", "")
+	if result != "a%2520b" {
+		t.Errorf("expected 'a%%2520b', got %v", result)
+	}
+}

@@ -11,6 +11,7 @@ package petstore_test
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -18,6 +19,7 @@ import (
 
 	"petstore/pkg/auth"
 	"petstore/pkg/auth/oauth"
+	apierrors "petstore/pkg/errors"
 )
 
 // fakeClientCredsClient implements auth.ApiClient for client credentials tests.
@@ -323,5 +325,137 @@ func TestOAuth2ClientCredentials_BasicAuthUrlEncodesClientIdAndSecret(t *testing
 	expected := "id%2Bwith%2Fspecial:secret%26with%3Dstuff"
 	if decoded != expected {
 		t.Errorf("expected decoded basic auth %q, got %q", expected, decoded)
+	}
+}
+
+// RFC 6749 §2.3.1 form-urlencoding, in the token body and in the Basic header:
+// exactly the RFC 3986 unreserved punctuation `-._~` stays literal, and `*`, `!`,
+// `'`, `(` and `)` are percent-encoded.
+func TestOAuth2ClientCredentials_PercentEncodesReservedPunctuationInBodyAndBasicHeader(t *testing.T) {
+	t.Parallel()
+	const (
+		id            = "id~-._*!'()"
+		secret        = "s~-._*!'()"
+		encodedID     = "id~-._%2A%21%27%28%29"
+		encodedSecret = "s~-._%2A%21%27%28%29"
+	)
+	body := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"access_token":"at","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	inBody := oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com", id, secret, "https://auth.example.com/token", nil)
+	inBody.SetApiClient(body)
+	inBody.AuthHeaders()
+	if want := "client_id=" + encodedID; !strings.Contains(body.LastBody, want) {
+		t.Errorf("expected body to contain %q, got %q", want, body.LastBody)
+	}
+	if want := "client_secret=" + encodedSecret; !strings.Contains(body.LastBody, want) {
+		t.Errorf("expected body to contain %q, got %q", want, body.LastBody)
+	}
+
+	basic := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"access_token":"at","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	inHeader := oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com", id, secret, "https://auth.example.com/token", nil,
+	).WithClientAuthMethod(oauth.ClientAuthMethodBasic)
+	inHeader.SetApiClient(basic)
+	inHeader.AuthHeaders()
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(basic.LastHeaders["Authorization"], "Basic "))
+	if err != nil {
+		t.Fatalf("failed to base64-decode the Authorization header: %v", err)
+	}
+	if want := encodedID + ":" + encodedSecret; string(decoded) != want {
+		t.Errorf("expected decoded basic credentials %q, got %q", want, decoded)
+	}
+}
+
+// The token body is x-www-form-urlencoded, so the space between scopes is a
+// plus, not %20.
+func TestOAuth2ClientCredentials_TokenBodyEncodesScopeSpacesAsPlus(t *testing.T) {
+	t.Parallel()
+	client := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := createClientCredentialsAuthenticator()
+	authObj.SetApiClient(client)
+
+	authObj.AuthHeaders()
+
+	if !strings.Contains(client.LastBody, "scope=read+write") {
+		t.Errorf("expected body to contain scope=read+write, got %q", client.LastBody)
+	}
+	if strings.Contains(client.LastBody, "%20") {
+		t.Errorf("expected no %%20 in a form-urlencoded body, got %q", client.LastBody)
+	}
+}
+
+// The per-scheme wrapper posts to the token URL its security scheme declares.
+func TestMachineAuthWrapper_PostsToTheDeclaredTokenUrl(t *testing.T) {
+	t.Parallel()
+	client := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := oauth.NewMachineAuthClientCredentialsAuthenticator("https://api.example.com", "my-client-id", "my-client-secret")
+	authObj.SetApiClient(client)
+
+	authObj.AuthHeaders()
+
+	if client.LastURL != "https://auth.example.com/oauth/token" {
+		t.Errorf("expected the declared token URL, got %q", client.LastURL)
+	}
+}
+
+// A token endpoint that answers 401 is an *OAuth2ServerError carrying the
+// status and the RFC 6749 error code, not a transport or API error.
+func TestOAuth2ClientCredentials_TokenEndpointFailureIsOAuth2ServerError(t *testing.T) {
+	t.Parallel()
+	client := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"error":"invalid_client","error_description":"unknown client"}`, statusCode: 401},
+		},
+	}
+	authObj := createClientCredentialsAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.AuthHeadersOrError()
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if serverErr.StatusCode() != 401 {
+		t.Errorf("expected status 401, got %d", serverErr.StatusCode())
+	}
+	if serverErr.Code() != "invalid_client" {
+		t.Errorf("expected code invalid_client, got %q", serverErr.Code())
+	}
+	var apiErr *apierrors.ApiError
+	if errors.As(err, &apiErr) {
+		t.Errorf("a token endpoint failure must not be an *ApiError, got %T", err)
+	}
+}
+
+// The printed form shows the non-secret fields and masks only the secret.
+func TestOAuth2ClientCredentials_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createClientCredentialsAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`clientID: "my-client-id"`,
+		`clientSecret: ***`,
+		`tokenURL: "https://auth.example.com/token"`,
+		`scopes: ["read" "write"]`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
 	}
 }

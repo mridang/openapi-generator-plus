@@ -465,52 +465,42 @@ func TestMultipart_FieldNameWithCRLFRejectedOnStringValue(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
-	t.Parallel()
+// assertDecompresses fetches the mock server's body compressed with the given
+// encoding. The client asks for that encoding itself, so net/http leaves the
+// body alone: the Content-Encoding header proves the server really compressed
+// it, and the readable body proves the client's own decoder inflated it.
+func assertDecompresses(t *testing.T, encoding string) {
+	t.Helper()
 	client := NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
-		map[string]string{"Accept-Encoding": "gzip"}, nil)
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/compressed/"+encoding,
+		map[string]string{"Accept-Encoding": encoding}, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
-	if !strings.Contains(resp.Body, "userId") {
-		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
+	if got := resp.Headers["content-encoding"]; got != encoding {
+		t.Errorf("expected the server to compress the body with %s, got Content-Encoding %q", encoding, got)
 	}
+	if !strings.Contains(resp.Body, "compressed fixture body") {
+		t.Errorf("expected the decoded fixture body, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
+	t.Parallel()
+	assertDecompresses(t, "gzip")
 }
 
 func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
 	t.Parallel()
-	client := NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
-		map[string]string{"Accept-Encoding": "br"}, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-	if !strings.Contains(resp.Body, "userId") {
-		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
-	}
+	assertDecompresses(t, "br")
 }
 
 func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 	t.Parallel()
-	client := NewDefaultApiClient(nil)
-	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
-		map[string]string{"Accept-Encoding": "zstd"}, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if resp.StatusCode != 200 {
-		t.Errorf("expected status 200, got %d", resp.StatusCode)
-	}
-	if !strings.Contains(resp.Body, "userId") {
-		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
-	}
+	assertDecompresses(t, "zstd")
 }
 
 // ── #29 Proxy with basic-auth credentials ──

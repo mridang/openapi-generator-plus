@@ -1236,86 +1236,6 @@ func TestBinaryResponse_EmptyBodyYieldsNoError(t *testing.T) {
 	_ = err
 }
 
-// ── CrossOriginRedirectTests ──
-
-func TestCrossOriginRedirect_SameOriginForwardsAuthorization(t *testing.T) {
-	t.Parallel()
-	sensitiveHeaders := map[string]bool{
-		"authorization":       true,
-		"cookie":              true,
-		"proxy-authorization": true,
-	}
-	isSameOrigin := true
-	originalHeaders := map[string]string{
-		"Authorization": "Bearer token123",
-		"Accept":        "application/json",
-	}
-	forwarded := make(map[string]string)
-	for k, v := range originalHeaders {
-		if !isSameOrigin && sensitiveHeaders[strings.ToLower(k)] {
-			continue
-		}
-		forwarded[k] = v
-	}
-	if forwarded["Authorization"] != "Bearer token123" {
-		t.Error("expected Authorization header to be forwarded on same-origin redirect")
-	}
-}
-
-func TestCrossOriginRedirect_CrossOriginDropsAuthorization(t *testing.T) {
-	t.Parallel()
-	sensitiveHeaders := map[string]bool{
-		"authorization":       true,
-		"cookie":              true,
-		"proxy-authorization": true,
-	}
-	isSameOrigin := false
-	originalHeaders := map[string]string{
-		"Authorization": "Bearer token123",
-		"Accept":        "application/json",
-	}
-	forwarded := make(map[string]string)
-	for k, v := range originalHeaders {
-		if !isSameOrigin && sensitiveHeaders[strings.ToLower(k)] {
-			continue
-		}
-		forwarded[k] = v
-	}
-	if _, ok := forwarded["Authorization"]; ok {
-		t.Error("expected Authorization header to be stripped on cross-origin redirect")
-	}
-	if _, ok := forwarded["Accept"]; !ok {
-		t.Error("expected Accept header to be forwarded on cross-origin redirect")
-	}
-}
-
-func TestCrossOriginRedirect_CrossOriginDropsCookie(t *testing.T) {
-	t.Parallel()
-	sensitiveHeaders := map[string]bool{
-		"authorization":       true,
-		"cookie":              true,
-		"proxy-authorization": true,
-	}
-	isSameOrigin := false
-	originalHeaders := map[string]string{
-		"Cookie": "session=abc123",
-		"Accept": "application/json",
-	}
-	forwarded := make(map[string]string)
-	for k, v := range originalHeaders {
-		if !isSameOrigin && sensitiveHeaders[strings.ToLower(k)] {
-			continue
-		}
-		forwarded[k] = v
-	}
-	if _, ok := forwarded["Cookie"]; ok {
-		t.Error("expected Cookie header to be stripped on cross-origin redirect")
-	}
-	if _, ok := forwarded["Accept"]; !ok {
-		t.Error("expected Accept header to be forwarded on cross-origin redirect")
-	}
-}
-
 // ── NullBodyContentTypeTests ──
 
 func TestNullBody_PostDoesNotSendContentType(t *testing.T) {
@@ -1595,5 +1515,98 @@ func TestProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *testing.T) {
 	}
 	if pw, _ := p.User.Password(); pw != "pass" {
 		t.Errorf("expected proxy password 'pass', got %q", pw)
+	}
+}
+
+// A format:date PATH parameter is serialized as YYYY-MM-DD with no time
+// component and no second round of percent-encoding.
+func TestBaseApi_FormatDatePathParamIsDateOnly(t *testing.T) {
+	t.Parallel()
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, _ = api.FindPetsBornOn("2024-01-01")
+	if client.capturedURL != "http://localhost/pet/born-on/2024-01-01" {
+		t.Errorf("expected the date-only path /pet/born-on/2024-01-01, got %q", client.capturedURL)
+	}
+}
+
+// A format:date HEADER parameter reaches the wire verbatim as YYYY-MM-DD.
+func TestBaseApi_FormatDateHeaderParamIsPlainDate(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	reportDate := "2024-01-02"
+	_, _ = api.FindPetsByStatus(&options.FindPetsByStatusOptions{ReportDate: &reportDate})
+	if got := client.capturedHeaders["Report-Date"]; got != "2024-01-02" {
+		t.Errorf("expected Report-Date 2024-01-02, got %q", got)
+	}
+}
+
+// An operation that declares its own servers sends the request to the server
+// variant the caller picked, with the variant's variables substituted; without
+// a variant it uses the configured base URL.
+func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		call func(api *petstore.PetApi) error
+		want string
+	}{
+		{
+			"fixed variant",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetExternalPetInfo(1, petstore.GetExternalPetInfoServerServer0{})
+				return err
+			},
+			"https://external-api.example.com/v1/",
+		},
+		{
+			"templated variant",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetStagingPetInfo(1, petstore.GetStagingPetInfoServerStagingServer{
+					Environment: petstore.GetStagingPetInfoServerEnvironmentSANDBOX,
+					Version:     petstore.GetStagingPetInfoServerVersionV3,
+				})
+				return err
+			},
+			"https://sandbox.example.com/api/v3/",
+		},
+		{
+			"first of several variants",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetMultiServerPetInfo(1, petstore.GetMultiServerPetInfoServerPrimary{})
+				return err
+			},
+			"https://primary.example.com/v1/",
+		},
+		{
+			"second of several variants",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetMultiServerPetInfo(1, petstore.GetMultiServerPetInfoServerRegional{
+					Region: petstore.GetMultiServerPetInfoServerRegionEU,
+				})
+				return err
+			},
+			"https://eu.example.com/v1/",
+		},
+		{
+			"no variant uses the configured base URL",
+			func(api *petstore.PetApi) error {
+				_, err := api.GetStagingPetInfo(1, nil)
+				return err
+			},
+			"http://localhost/",
+		},
+	}
+	for _, tc := range cases {
+		client := &queryCapturingApiClient{}
+		config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+		api := petstore.NewPetApi(client, config, nil)
+		_ = tc.call(api)
+		if !strings.HasPrefix(client.capturedURL, tc.want) {
+			t.Errorf("%s: expected the request URL to start with %q, got %q", tc.name, tc.want, client.capturedURL)
+		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"reflect"
 
 	"{{packageName}}/pkg/auth"
 )
@@ -149,5 +150,88 @@ func TestApiKeyAuthenticator_RedactsSecret(t *testing.T) {
 		if !strings.Contains(s, "***") {
 			t.Errorf("expected redaction marker '***', got %q", s)
 		}
+	}
+}
+
+// keyEmitter is what every API-key authenticator, plain or per-scheme wrapper,
+// offers the request builder.
+type keyEmitter interface {
+	AuthHeaders() map[string]string
+	QueryParams() map[string]string
+	CookieParams() map[string]string
+}
+
+// Each per-scheme wrapper fixes the key name and the location its security
+// scheme declares: the key is emitted there and nowhere else, an empty key is
+// refused up front, and the printed form names the wrapper and masks the key.
+func TestApiKeyWrappers_EmitTheKeyWhereTheirSchemeDeclaresIt(t *testing.T) {
+	t.Parallel()
+	const host = "https://api.example.com"
+	none := map[string]string{}
+	cases := []struct {
+		name   string
+		build  func(key string) (keyEmitter, error)
+		header map[string]string
+		query  map[string]string
+		cookie map[string]string
+		repr   string
+	}{
+		{
+			"ApiKeyHeaderAuthenticator",
+			func(key string) (keyEmitter, error) { return auth.NewApiKeyHeaderAuthenticator(host, key) },
+			map[string]string{"X-API-Key": "abc123"}, none, none,
+			`ApiKeyHeaderAuthenticator{host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: ***, location: Header}`,
+		},
+		{
+			"InternalApiKeyAuthenticator",
+			func(key string) (keyEmitter, error) { return auth.NewInternalApiKeyAuthenticator(host, key) },
+			map[string]string{"X-Internal-Key": "abc123"}, none, none,
+			`InternalApiKeyAuthenticator{host: "https://api.example.com", keyParamName: "X-Internal-Key", apiKey: ***, location: Header}`,
+		},
+		{
+			"ApiKeyQueryAuthenticator",
+			func(key string) (keyEmitter, error) { return auth.NewApiKeyQueryAuthenticator(host, key) },
+			none, map[string]string{"api_key": "abc123"}, none,
+			`ApiKeyQueryAuthenticator{host: "https://api.example.com", keyParamName: "api_key", apiKey: ***, location: Query}`,
+		},
+		{
+			"SessionCookieAuthenticator",
+			func(key string) (keyEmitter, error) { return auth.NewSessionCookieAuthenticator(host, key) },
+			none, none, map[string]string{"SESSION_ID": "abc123"},
+			`SessionCookieAuthenticator{host: "https://api.example.com", keyParamName: "SESSION_ID", apiKey: ***, location: Cookie}`,
+		},
+	}
+	for _, tc := range cases {
+		a, err := tc.build("abc123")
+		if err != nil {
+			t.Errorf("%s: unexpected error: %v", tc.name, err)
+			continue
+		}
+		if got := a.AuthHeaders(); !reflect.DeepEqual(got, tc.header) {
+			t.Errorf("%s: expected header params %v, got %v", tc.name, tc.header, got)
+		}
+		if got := a.QueryParams(); !reflect.DeepEqual(got, tc.query) {
+			t.Errorf("%s: expected query params %v, got %v", tc.name, tc.query, got)
+		}
+		if got := a.CookieParams(); !reflect.DeepEqual(got, tc.cookie) {
+			t.Errorf("%s: expected cookie params %v, got %v", tc.name, tc.cookie, got)
+		}
+		if got := fmt.Sprint(a); got != tc.repr {
+			t.Errorf("%s: expected %q, got %q", tc.name, tc.repr, got)
+		}
+		if _, err := tc.build(""); !errors.Is(err, auth.ErrInvalidApiKey) {
+			t.Errorf("%s: expected ErrInvalidApiKey for an empty key, got %v", tc.name, err)
+		}
+	}
+}
+
+// The printed form shows the non-secret fields, host, key name and location, and
+// masks only the key.
+func TestApiKeyAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	a := mustApiKey(t, "https://api.example.com", "X-API-Key", "abc123", auth.ApiKeyLocationHeader)
+	want := `ApiKeyAuthenticator{host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: ***, location: Header}`
+	if got := a.String(); got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }

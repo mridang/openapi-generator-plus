@@ -335,8 +335,26 @@ func TestPetApi_SetPetAvatarRejectsUnknownContentType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an undeclared request content-type, got nil")
 	}
-	if !strings.Contains(err.Error(), "unsupported request content-type") {
-		t.Errorf("expected an unsupported-content-type error, got: %v", err)
+	want := `unsupported request content-type "application/unknown-type" for SetPetAvatar; declared types are [image/jpeg image/png application/json]`
+	if err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
+	}
+}
+
+// The other multi-consumes operation rejects an undeclared selector the same
+// way, naming the types it does declare.
+func TestPetApi_UploadPetDocumentRejectsUnknownContentType(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "fake-document-data")
+
+	_, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{File: f}, "application/unknown-type")
+	if err == nil {
+		t.Fatal("expected an error for an undeclared request content-type, got nil")
+	}
+	want := `unsupported request content-type "application/unknown-type" for UploadPetDocument; declared types are [multipart/form-data application/octet-stream]`
+	if err.Error() != want {
+		t.Errorf("expected %q, got %q", want, err.Error())
 	}
 }
 
@@ -946,6 +964,13 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-existent pet")
 	}
+	var notFound *pkgerrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T: %v", err, err)
+	}
+	if notFound.StatusCode() != 404 {
+		t.Errorf("expected status 404, got %d", notFound.StatusCode())
+	}
 }
 
 // convenience-empty-body-handling: a 2xx response with an empty body for a
@@ -1057,6 +1082,13 @@ func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error for server error response")
+	}
+	var serverErr *pkgerrors.InternalServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *InternalServerError, got %T: %v", err, err)
+	}
+	if serverErr.StatusCode() != 500 {
+		t.Errorf("expected status 500, got %d", serverErr.StatusCode())
 	}
 }
 
@@ -1241,6 +1273,14 @@ func TestPetApi_Malformed2xxBodyFailsLoud(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a deserialization error to propagate for a malformed 2xx body, got nil")
 	}
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	var apiErr *pkgerrors.ApiError
+	if errors.As(err, &apiErr) {
+		t.Errorf("a malformed 2xx body must not surface as an *ApiError, got %v", err)
+	}
 }
 
 // ── Scenario 12: operation docs attach to the method and deprecations are recognised ──
@@ -1331,5 +1371,40 @@ func TestPetApi_DeprecatedOptionsFieldCarriesADeprecatedParagraph(t *testing.T) 
 	})
 	if !found {
 		t.Fatalf("field Status not found in %s", path)
+	}
+}
+
+// A oneOf request body goes on the wire as the variant that was decoded, with
+// its own fields and no wrapper around them.
+func TestPetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t *testing.T) {
+	t.Parallel()
+	var body string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		body = string(raw)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`))
+	}))
+	defer server.Close()
+
+	var treatment models.PetTreatment
+	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`), &treatment); err != nil {
+		t.Fatalf("failed to build the request body: %v", err)
+	}
+	api := newPetApiForMock(t, server)
+	result, err := api.AddPetTreatment(int64(7), treatment, nil)
+	if err != nil {
+		t.Fatalf("AddPetTreatment failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected a decoded treatment")
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(body), &sent); err != nil {
+		t.Fatalf("expected a JSON request body, got %q: %v", body, err)
+	}
+	if sent["drugName"] != "Amoxicillin" || sent["dosage"] != "250mg" {
+		t.Errorf("expected the variant's fields at the top level, got %v", sent)
 	}
 }

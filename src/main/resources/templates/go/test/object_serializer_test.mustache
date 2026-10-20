@@ -1677,3 +1677,69 @@ func TestDeserialize_DeepJSONDepthCap(t *testing.T) {
 		t.Errorf("expected *SerializationError for an over-deep payload, got %T: %v", err, err)
 	}
 }
+
+// A oneOf payload that names no usable variant is a decode failure like any
+// other: through the SDK's deserializer it is a *SerializationError that
+// satisfies the OpenAPIError root, never a bare error or a silently empty union.
+func TestDeserialize_UnroutableDiscriminatorIsSerializationError(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		wire string
+		want string
+	}{
+		{"unknown discriminator", `{"foodType":"raw","calories":300}`, "unknown discriminator"},
+		{"missing discriminator", `{"weightKg":2.5}`, "discriminator"},
+		{"empty discriminator", `{"foodType":"","weightKg":2.5}`, "discriminator"},
+	}
+	for _, tc := range cases {
+		var food models.PetFood
+		err := deserialize([]byte(tc.wire), &food)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s: expected *SerializationError, got %T: %v", tc.name, err, err)
+			continue
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(err, &root) {
+			t.Errorf("%s: expected the error to satisfy OpenAPIError", tc.name)
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: expected the message to mention %q, got %v", tc.name, tc.want, err)
+		}
+	}
+}
+
+// Integer formats are enforced when decoding: a value outside int32 or a
+// fraction in an integer field is refused as a *SerializationError rather than
+// truncated, and an int64 beyond 2^53 survives exactly.
+func TestDeserialize_IntegerFormatBoundaries(t *testing.T) {
+	t.Parallel()
+	rejected := map[string]string{
+		"int32 above the maximum":   `{"quantity":2147483648}`,
+		"int32 below the minimum":   `{"quantity":-2147483649}`,
+		"fraction in an int32":      `{"quantity":1.5}`,
+		"fraction in an int64":      `{"id":1.5}`,
+		"int64 above its maximum":   `{"id":9223372036854775808}`,
+		"integer given as a string": `{"quantity":"7"}`,
+	}
+	for name, wire := range rejected {
+		var order models.Order
+		err := deserialize([]byte(wire), &order)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s: expected *SerializationError, got %T: %v", name, err, err)
+		}
+	}
+
+	var order models.Order
+	if err := deserialize([]byte(`{"quantity":2147483647,"id":9007199254740993}`), &order); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if order.Quantity == nil || *order.Quantity != math.MaxInt32 {
+		t.Errorf("expected quantity %d, got %v", math.MaxInt32, order.Quantity)
+	}
+	if order.Id == nil || *order.Id != 9007199254740993 {
+		t.Errorf("expected id 9007199254740993 to survive exactly, got %v", order.Id)
+	}
+}
