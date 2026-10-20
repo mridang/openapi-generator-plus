@@ -80,7 +80,11 @@ class DefaultApiClient extends AbstractApiClient
                     sprintf('failed to read CA certificate from "%s"', $caCertPath)
                 );
             }
-            if (openssl_x509_read($pem) === false) {
+            /* The @ keeps openssl's E_WARNING for an unparseable PEM from
+             * escaping: a framework error handler would turn it into an
+             * \ErrorException and the caller would never see the documented
+             * \InvalidArgumentException below. */
+            if (@openssl_x509_read($pem) === false) {
                 throw new \InvalidArgumentException(
                     sprintf(
                         'failed to parse CA certificate from "%s": no PEM blocks found or unparseable',

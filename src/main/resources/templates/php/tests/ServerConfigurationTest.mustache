@@ -89,3 +89,45 @@ test('exposes constructor fields', function (): void {
     expect($server->description)->toBe('Primary server');
     expect($server->variables)->toBe($variables);
 });
+
+test('rejected override message names the value, the variable and the allowed values', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging']),
+        ],
+    );
+
+    expect(fn () => $server->getUrl(['env' => 'invalid']))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: api, staging"
+        );
+});
+
+test('default value outside the enum is rejected', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'dev', enumValues: ['api', 'staging']),
+        ],
+    );
+
+    expect(fn () => $server->getUrl())
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Invalid value 'dev' for server variable 'env'. Allowed values: api, staging"
+        );
+});
+
+test('a variable repeated in the template is replaced everywhere', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{region}.example.com/{region}/v1',
+        variables: [
+            'region' => new ServerVariable(defaultValue: 'us', enumValues: ['us', 'eu']),
+        ],
+    );
+
+    expect($server->getUrl())->toBe('https://us.example.com/us/v1');
+    expect($server->getUrl(['region' => 'eu']))->toBe('https://eu.example.com/eu/v1');
+});

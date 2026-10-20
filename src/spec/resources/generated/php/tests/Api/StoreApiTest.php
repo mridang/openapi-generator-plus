@@ -179,3 +179,69 @@ test('delete order not found', function (): void {
 
     expect(fn () => $api->deleteOrder(99999))->toThrow(NotFoundException::class);
 });
+
+/**
+ * Builds a StoreApi backed by a fake client that records the request URL and
+ * headers and answers with a canned category.
+ *
+ * @return array{0: StoreApi, 1: \stdClass}
+ */
+function newCapturingStoreApi(): array
+{
+    $captured = new \stdClass();
+    $captured->url = '';
+    /** @var array<string, string> $hdrs */
+    $hdrs = [];
+    $captured->headers = $hdrs;
+
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured->url = $url;
+            $this->captured->headers = $headers;
+            return new \PetstoreClient\ApiHttpResponse(
+                200,
+                '{"id":1,"name":"sample"}',
+                ['Content-Type' => 'application/json']
+            );
+        }
+    };
+
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:9999')
+        ->build();
+
+    return [new StoreApi(apiClient: $client, config: $config), $captured];
+}
+
+test('named enum path, query and header params travel as their wire values', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    $api->getBySwatch(
+        \PetstoreClient\Models\Swatch::RED,
+        new \PetstoreClient\Api\Options\GetBySwatchOptions(
+            querySwatch: \PetstoreClient\Models\Swatch::GREEN,
+            preferredSwatch: \PetstoreClient\Models\Swatch::BLUE,
+        )
+    );
+
+    expect($captured->url)->toBe('http://localhost:9999/store/by-swatch/red?querySwatch=green');
+    expect($captured->headers['Preferred-Swatch'] ?? null)->toBe('blue');
+});
+
+test('named enum query and header params are omitted when absent', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    $api->getBySwatch(\PetstoreClient\Models\Swatch::BLUE);
+
+    expect($captured->url)->toBe('http://localhost:9999/store/by-swatch/blue');
+    expect($captured->headers)->not->toHaveKey('Preferred-Swatch');
+});

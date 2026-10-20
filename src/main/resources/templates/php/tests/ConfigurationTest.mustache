@@ -258,3 +258,16 @@ test('SKILLS types file upload parameters as the SplFileObject the options requi
     expect($skills)->toContain('File upload parameters are typed as `\SplFileObject`.');
     expect($skills)->not->toContain('SplFileInfo');
 });
+
+test('phpunit.xml runs the hand written spec directory as well as tests', function (): void {
+    $root = dirname(__DIR__);
+    if (!is_file($root . '/phpunit.xml') || !is_dir($root . '/spec')) {
+        test()->markTestSkipped('No phpunit.xml or no spec directory in this project');
+    }
+    $xml = simplexml_load_file($root . '/phpunit.xml');
+    assert($xml instanceof \SimpleXMLElement);
+    $directories = array_map('strval', $xml->xpath('//testsuite/directory') ?: []);
+
+    expect($directories)->toContain('tests');
+    expect($directories)->toContain('spec');
+});

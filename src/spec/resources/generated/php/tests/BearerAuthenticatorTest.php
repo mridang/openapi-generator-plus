@@ -105,3 +105,31 @@ test('rejected token is not recorded in the exception stack trace', function ():
     expect($trace)->not->toBe('');
     expect($trace)->not->toContain('SECRET');
 });
+
+test('debug output keeps the host and masks only the token', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[token] => ***');
+});
+
+test('every generated bearer wrapper sends the bearer header and masks the token', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BearerAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-token');
+        expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer wrapper-token']);
+        expect(print_r($auth, true))->not->toContain('wrapper-token');
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});

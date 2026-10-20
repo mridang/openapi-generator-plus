@@ -1074,53 +1074,6 @@ test('empty body yields null', function (): void {
     expect($result)->toBeNull();
 });
 
-// -- CrossOriginRedirectTests --
-
-test('same origin redirect forwards authorization', function (): void {
-    $authHeader = 'Bearer token123';
-    $forwardedHeaders = [];
-
-    // Same-origin: sensitive headers are forwarded
-    $forwardedHeaders['Authorization'] = $authHeader;
-
-    expect($forwardedHeaders)->toHaveKey('Authorization');
-    expect($forwardedHeaders['Authorization'])->toBe($authHeader);
-});
-
-test('cross origin redirect drops authorization', function (): void {
-    $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
-    $originalHeaders = ['Authorization' => 'Bearer token123', 'Accept' => 'application/json'];
-    $forwardedHeaders = [];
-
-    // Cross-origin: skip sensitive headers
-    foreach ($originalHeaders as $key => $value) {
-        if (in_array(strtolower($key), $sensitiveHeaders, true)) {
-            continue;
-        }
-        $forwardedHeaders[$key] = $value;
-    }
-
-    expect($forwardedHeaders)->not->toHaveKey('Authorization');
-    expect($forwardedHeaders)->toHaveKey('Accept');
-});
-
-test('cross origin redirect drops cookie', function (): void {
-    $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
-    $originalHeaders = ['Cookie' => 'session=abc123', 'Accept' => 'application/json'];
-    $forwardedHeaders = [];
-
-    // Cross-origin: skip sensitive headers
-    foreach ($originalHeaders as $key => $value) {
-        if (in_array(strtolower($key), $sensitiveHeaders, true)) {
-            continue;
-        }
-        $forwardedHeaders[$key] = $value;
-    }
-
-    expect($forwardedHeaders)->not->toHaveKey('Cookie');
-    expect($forwardedHeaders)->toHaveKey('Accept');
-});
-
 // -- NullBodyContentTypeTests --
 
 test('null body post does not send content type', function (): void {

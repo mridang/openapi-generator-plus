@@ -337,3 +337,70 @@ test('secret constructor parameters are marked sensitive', function (): void {
     }
     expect($sensitive)->toBe(['clientSecret']);
 });
+
+test('oidc refetches discovery once its Cache-Control max-age has elapsed', function (): void {
+    $client = new MockTokenApiClient();
+    $discovery = (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]);
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'public, max-age=0']));
+    $client->enqueueResponse(new ApiHttpResponse(200, $discovery, ['Cache-Control' => 'public, max-age=0']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('oidc keeps discovery cached while its Cache-Control max-age holds', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'authorization_endpoint' => 'https://auth.example.com/authorize',
+        'token_endpoint' => 'https://auth.example.com/token',
+    ]), ['Cache-Control' => 'public, max-age=3600']));
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->buildAuthorizationUrl();
+    $authenticator->buildAuthorizationUrl();
+
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('oidc debug output keeps the non secret fields and masks the secret', function (): void {
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid']
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[openIdConnectUrl] => https://auth.example.com/.well-known/openid-configuration');
+    expect($printR)->toContain('[clientId] => my-client-id');
+    expect($printR)->toContain('[clientSecret] => ***');
+    expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
+});

@@ -5,12 +5,14 @@
          colors="true"
          failOnRisky="true"
          cacheResult="false">
-    <!-- Every test file the generator emits runs: the suite is the whole
-         tests/ directory (unit, integration, and API tests alike), so a new
-         test file can never be silently left out of the run. -->
+    <!-- Every test file runs: the suite is the whole tests/ directory (unit,
+         integration, and API tests alike) plus spec/, where hand-written
+         specs are placed, so a new test file can never be silently left out
+         of the run. -->
     <testsuites>
         <testsuite name="All Tests">
             <directory suffix="Test.php">tests</directory>
+            <directory suffix="Test.php">spec</directory>
         </testsuite>
     </testsuites>
     <!-- Coverage source declaration uses phpunit 10/11's `<source>` schema

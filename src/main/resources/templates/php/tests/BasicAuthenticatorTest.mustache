@@ -68,3 +68,39 @@ test('secret constructor parameters are marked sensitive', function (): void {
     }
     expect($sensitive)->toBe(['password']);
 });
+
+test('non ascii credentials are encoded as utf 8 bytes', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'ünïcødé', 'pässwörd');
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==');
+});
+
+test('debug output keeps the host and username and masks only the password', function (): void {
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[username] => alice');
+    expect($printR)->toContain('[password] => ***');
+});
+
+test('every generated basic wrapper sends the basic header and masks the password', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, BasicAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-user', 'wrapper-pass');
+        expect($auth->getAuthHeaders())
+            ->toBe(['Authorization' => 'Basic ' . base64_encode('wrapper-user:wrapper-pass')]);
+        expect(print_r($auth, true))->not->toContain('wrapper-pass');
+        expect(fn () => $reflection->newInstance('https://api.example.com', 'bad:user', 'wrapper-pass'))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});

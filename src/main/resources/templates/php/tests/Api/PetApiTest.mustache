@@ -1143,3 +1143,72 @@ test('openid connect authenticator masks client secret in debug output', functio
     expect($dump)->not->toContain('super-secret-client-secret');
     expect($dump)->toContain('***');
 });
+
+test('date only path param serialises as a date only path segment', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->findPetsBornOn(new \DateTime('2024-01-01T10:30:45+00:00'));
+    } catch (\Throwable) {
+        /* The capturing client returns a canned non-list body; the URL is
+         * captured during sendRequest, before any deserialization. */
+    }
+
+    expect($captured->url)->toEndWith('/pet/born-on/2024-01-01');
+});
+
+test('staging server variants resolve every enum combination into the request url', function (string $environment, string $version): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $server = new \{{invokerPackage}}\Api\GetStagingPetInfoServerStagingServer(
+        \{{invokerPackage}}\Api\GetStagingPetInfoServerEnvironment::from($environment),
+        \{{invokerPackage}}\Api\GetStagingPetInfoServerVersion::from($version),
+    );
+
+    try {
+        $api->getStagingPetInfo(7, $server);
+    } catch (\Throwable) {
+        /* The URL is captured during sendRequest, before deserialization. */
+    }
+
+    expect($captured->url)->toBe("https://$environment.example.com/api/$version/pet/7/staging");
+})->with([
+    'staging v2' => ['staging', 'v2'],
+    'staging v3' => ['staging', 'v3'],
+    'sandbox v2' => ['sandbox', 'v2'],
+    'sandbox v3' => ['sandbox', 'v3'],
+]);
+
+test('a staging server variable outside its enum cannot be constructed', function (): void {
+    expect(fn () => \{{invokerPackage}}\Api\GetStagingPetInfoServerEnvironment::from('production'))
+        ->toThrow(\ValueError::class);
+});
+
+test('a multi server operation uses the chosen server and the configured base url otherwise', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getMultiServerPetInfo(7, new \{{invokerPackage}}\Api\GetMultiServerPetInfoServerPrimary());
+    } catch (\Throwable) {
+        /* The URL is captured during sendRequest, before deserialization. */
+    }
+    expect($captured->url)->toStartWith('https://primary.example.com/v1/');
+
+    try {
+        $api->getMultiServerPetInfo(
+            7,
+            new \{{invokerPackage}}\Api\GetMultiServerPetInfoServerRegional(
+                \{{invokerPackage}}\Api\GetMultiServerPetInfoServerRegion::EU
+            )
+        );
+    } catch (\Throwable) {
+        /* The URL is captured during sendRequest, before deserialization. */
+    }
+    expect($captured->url)->toStartWith('https://eu.example.com/v1/');
+
+    try {
+        $api->getMultiServerPetInfo(7);
+    } catch (\Throwable) {
+        /* The URL is captured during sendRequest, before deserialization. */
+    }
+    expect($captured->url)->toStartWith('http://localhost:9999/');
+});

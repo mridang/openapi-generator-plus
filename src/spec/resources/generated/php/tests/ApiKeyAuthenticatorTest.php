@@ -105,3 +105,50 @@ test('secret constructor parameters are marked sensitive', function (): void {
     }
     expect($sensitive)->toBe(['apiKey']);
 });
+
+test('valid cookie key is emitted through cookie params only', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'abc123', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['session' => 'abc123']);
+    expect($auth->getAuthHeaders())->toBe([]);
+    expect($auth->getQueryParams())->toBe([]);
+});
+
+test('debug output keeps the non secret fields and masks only the key', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[keyParamName] => X-API-Key');
+    expect($printR)->toContain('[apiKey] => ***');
+    expect($printR)->toContain('[location] => HEADER');
+});
+
+test('every generated api key wrapper emits its key at exactly one location and masks it', function (): void {
+    $wrappers = 0;
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-key-1');
+        $emitted = array_filter([
+            'header' => $auth->getAuthHeaders(),
+            'query' => $auth->getQueryParams(),
+            'cookie' => $auth->getCookieParams(),
+        ]);
+        expect($emitted)->toHaveCount(1, "$class must emit its key at exactly one location");
+        $pair = array_shift($emitted);
+        assert(is_array($pair));
+        expect(array_values($pair))->toBe(['wrapper-key-1']);
+        expect(array_keys($pair)[0])->not->toBe('');
+        expect(print_r($auth, true))->not->toContain('wrapper-key-1');
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});

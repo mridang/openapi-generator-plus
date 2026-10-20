@@ -83,3 +83,50 @@ test('print_r() redacts the secret and shows ***', function (): void {
     expect($printR)->not->toContain('my-access-token');
     expect($printR)->toContain('***');
 });
+
+test('set access token rejects a token outside printable ascii', function (string $token): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect(fn () => $authenticator->setAccessToken($token))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
+        );
+    expect(fn () => $authenticator->getAuthHeaders())->toThrow(\LogicException::class);
+})->with([
+    'carriage return and line feed' => ["tok\r\nInjected: yes"],
+    'line feed' => ["tok\nen"],
+    'nul' => ["tok\0en"],
+    'delete' => ["tok\x7Fen"],
+    'non ascii' => ['tökén'],
+]);
+
+test('authorization url keeps only the unreserved characters literal', function (): void {
+    /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
+     * parentheses are percent-encoded in the authorize URL. */
+    $authenticator = new OAuth2ImplicitAuthenticator(
+        'https://api.example.com',
+        "id-._~*!'()",
+        'https://auth.example.com/authorize',
+        ['a*b', 'c~d']
+    );
+
+    expect($authenticator->buildAuthorizationUrl("s-._~*!'()"))->toBe(
+        'https://auth.example.com/authorize?response_type=token'
+        . '&client_id=id-._~%2A%21%27%28%29'
+        . '&scope=a%2Ab%20c~d'
+        . '&state=s-._~%2A%21%27%28%29'
+    );
+});
+
+test('debug output keeps the non secret fields and masks the access token', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+    $authenticator->setAccessToken('my-access-token');
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[clientId] => my-client-id');
+    expect($printR)->toContain('[authorizationUrl] => https://auth.example.com/authorize');
+    expect($printR)->toContain('[accessToken] => ***');
+});

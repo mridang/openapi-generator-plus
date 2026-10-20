@@ -291,3 +291,105 @@ test('secret constructor parameters are marked sensitive', function (): void {
     }
     expect($sensitive)->toBe(['clientSecret']);
 });
+
+test('auth code sends the code grant to the token url and the refresh grant to the refresh url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        [],
+        $refreshUrl
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests)->toHaveCount(2);
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($client->capturedRequests[1]['url'])->toBe($expectedRefreshTarget);
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=refresh_token');
+})->with([
+    'distinct refresh url' => ['https://auth.example.com/refresh', 'https://auth.example.com/refresh'],
+    'no refresh url' => [null, 'https://auth.example.com/token'],
+]);
+
+test('authorization url keeps only the unreserved characters literal', function (): void {
+    /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
+     * parentheses are percent-encoded in the authorize URL. */
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        "id-._~*!'()",
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        "https://app.example.com/cb?x=~*!'()",
+        ['a*b', 'c~d']
+    );
+
+    expect($authenticator->buildAuthorizationUrl("s-._~*!'()"))->toBe(
+        'https://auth.example.com/authorize?response_type=code'
+        . '&client_id=id-._~%2A%21%27%28%29'
+        . '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb%3Fx%3D~%2A%21%27%28%29'
+        . '&scope=a%2Ab%20c~d'
+        . '&state=s-._~%2A%21%27%28%29'
+    );
+});
+
+test('code exchange body keeps only the unreserved characters literal', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        "id-._~*!'()",
+        "sec-._~*!'()",
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode("code-._~*!'()");
+
+    $body = $client->capturedRequests[0]['body'] ?? '';
+    expect($body)->toContain('code=code-._~%2A%21%27%28%29');
+    expect($body)->toContain('client_id=id-._~%2A%21%27%28%29');
+    expect($body)->toContain('client_secret=sec-._~%2A%21%27%28%29');
+});
+
+test('debug output keeps the non secret fields and masks the secret', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read'],
+        'https://auth.example.com/refresh'
+    );
+
+    $printR = print_r($authenticator, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[clientId] => my-client-id');
+    expect($printR)->toContain('[clientSecret] => ***');
+    expect($printR)->toContain('[authorizationUrl] => https://auth.example.com/authorize');
+    expect($printR)->toContain('[tokenUrl] => https://auth.example.com/token');
+    expect($printR)->toContain('[refreshUrl] => https://auth.example.com/refresh');
+    expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
+});

@@ -1414,3 +1414,18 @@ test('deep JSON within the depth cap decodes but past it is rejected', function 
 // so a deprecated *property* can only carry the `@deprecated` PHPDoc tag —
 // which PHPStan honours. This matches the Ruby/Elixir language-bound half of
 // the finding. No runtime attribute assertion is possible here.
+
+test('deserialize PetFood rejects a malformed discriminator with SerializationException', function (string $json): void {
+    /* The public entry point owns the error contract: the native
+     * \InvalidArgumentException raised by the composed model's build() must
+     * reach the caller wrapped as the SDK's SerializationException. */
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\{{invokerPackage}}\Errors\SerializationException::class);
+            expect($e->getPrevious())->toBeInstanceOf(\InvalidArgumentException::class);
+        });
+})->with([
+    'unknown value' => ['{"foodType":"raw","calories":300}'],
+    'empty value' => ['{"foodType":"","weightKg":2.5}'],
+    'non string value' => ['{"foodType":42,"weightKg":1.0}'],
+]);

@@ -1217,3 +1217,207 @@ test('unsupported content-encoding surfaces ApiException, not the encoded body',
             expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkException::class);
         });
 });
+
+test('a redirect keeps credentials only when the target is the same origin', function (string $start, string $location, bool $kept): void {
+    /* Origin equality is scheme + host + effective port, so an explicit
+     * default port or a differently cased host is still the same origin and
+     * must not lose its credentials, while a different port, host or scheme
+     * must. */
+    $capturedHeaders = [];
+    $hops = 0;
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedHeaders, &$hops, $location): MockResponse {
+            $hops++;
+            if ($hops === 1) {
+                return new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => $location]]);
+            }
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $capturedHeaders[strtolower($name)] = $value;
+            }
+            return new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $client->sendRequest('GET', $start, [
+        'Authorization' => 'Bearer secret',
+        'Cookie' => 'session=xyz',
+        'Proxy-Authorization' => 'Basic cHJveHk6c2VjcmV0',
+        'X-Trace' => 'keep',
+    ], null);
+
+    expect($hops)->toBe(2);
+    expect($capturedHeaders['x-trace'] ?? null)->toBe('keep');
+    if ($kept) {
+        expect($capturedHeaders['authorization'] ?? null)->toBe('Bearer secret');
+        expect($capturedHeaders['cookie'] ?? null)->toBe('session=xyz');
+        expect($capturedHeaders['proxy-authorization'] ?? null)->toBe('Basic cHJveHk6c2VjcmV0');
+    } else {
+        expect($capturedHeaders)->not->toHaveKey('authorization');
+        expect($capturedHeaders)->not->toHaveKey('cookie');
+        expect($capturedHeaders)->not->toHaveKey('proxy-authorization');
+    }
+})->with([
+    'same origin absolute url' => ['https://api.example.com/start', 'https://api.example.com/final', true],
+    'same origin relative path' => ['https://api.example.com/start', '/final', true],
+    'explicit default https port' => ['https://api.example.com/start', 'https://api.example.com:443/final', true],
+    'explicit default http port' => ['http://api.example.com/start', 'http://api.example.com:80/final', true],
+    'implicit default port after explicit' => ['https://api.example.com:443/start', 'https://api.example.com/final', true],
+    'host case differs' => ['https://api.example.com/start', 'https://API.EXAMPLE.COM/final', true],
+    'different port' => ['https://api.example.com/start', 'https://api.example.com:8443/final', false],
+    'different host' => ['https://api.example.com/start', 'https://other.example.com/final', false],
+    'scheme upgrade changes the port' => ['http://api.example.com/start', 'https://api.example.com/final', false],
+]);
+
+test('decompresses a zlib wrapped deflate response body', function (): void {
+    $payload = '{"ok":true}';
+    $deflated = gzcompress($payload);
+    expect($deflated)->not->toBeFalse();
+
+    $mockResponse = new MockResponse((string) $deflated, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'deflate',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe($payload);
+});
+
+test('raw headerless deflate surfaces ApiException with the real status', function (): void {
+    $raw = gzdeflate('{"ok":true}');
+    expect($raw)->not->toBeFalse();
+
+    $mockResponse = new MockResponse((string) $raw, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'deflate',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/echo', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(200);
+            expect($e->getMessage())->toContain('Failed to decompress deflate response body');
+        });
+});
+
+test('advertises the supported encodings by default and lets the caller override them', function (): void {
+    $capturedHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+            $capturedHeaders = [];
+            foreach ($options['normalized_headers'] ?? [] as $values) {
+                [$name, $value] = explode(': ', $values[0], 2);
+                $capturedHeaders[$name] = $value;
+            }
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $client = new StubbedDefaultApiClient($mockClient);
+
+    $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+    $expected = ['gzip', 'deflate'];
+    if (function_exists('brotli_uncompress')) {
+        $expected[] = 'br';
+    }
+    if (function_exists('zstd_uncompress')) {
+        $expected[] = 'zstd';
+    }
+    expect($capturedHeaders['Accept-Encoding'] ?? null)->toBe(implode(', ', $expected));
+
+    $client->sendRequest('GET', 'http://example.com/test', ['Accept-Encoding' => 'identity'], null);
+
+    expect($capturedHeaders['Accept-Encoding'] ?? null)->toBe('identity');
+});
+
+test('garbage-PEM caCertPath throws invalid argument exception naming the path at construction', function (string $contents): void {
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $contents);
+    /* A framework error handler turns any unsuppressed warning into an
+     * \ErrorException, which would replace the documented exception. */
+    $previousLevel = error_reporting(E_ALL);
+    set_error_handler(static function (int $level, string $message, string $file, int $line): bool {
+        if ((error_reporting() & $level) === 0) {
+            return false;
+        }
+        throw new \ErrorException($message, 0, $level, $file, $line);
+    });
+
+    try {
+        $transport = TransportOptions::builder()->caCertPath($path)->build();
+
+        expect(fn (): mixed => new DefaultApiClient($transport))
+            ->toThrow(function (\Exception $e) use ($path): void {
+                expect($e::class)->toBe(\InvalidArgumentException::class);
+                expect($e->getMessage())->toContain('failed to parse CA certificate');
+                expect($e->getMessage())->toContain($path);
+            });
+    } finally {
+        restore_error_handler();
+        error_reporting($previousLevel);
+        unlink($path);
+    }
+})->with([
+    'plain text' => ['this is not a certificate'],
+    'pem armor around garbage' => ["-----BEGIN CERTIFICATE-----\nbm90IGEgY2VydGlmaWNhdGU=\n-----END CERTIFICATE-----\n"],
+    'empty file' => [''],
+]);
+
+test('a connection reset after the headers raises NetworkException with status 0', function (): void {
+    $body = (static function (): \Generator {
+        yield 'partial';
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+    })();
+    $mockResponse = new MockResponse($body, [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'application/json'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/truncated', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\{{invokerPackage}}\Errors\NetworkException $e) {
+        expect($e::class)->toBe(\{{invokerPackage}}\Errors\NetworkException::class);
+        expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+        expect($e->getStatusCode())->toBe(0);
+        expect($e->getPrevious())->toBeInstanceOf(\Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface::class);
+        expect($e->getMessage())->toContain('Connection reset by peer');
+    }
+});
+
+test('decompresses a valid stream whose content is falsy', function (string $payload, string $encoding): void {
+    /* Only a false return from the decoder is a corrupt stream: a well
+     * formed stream holding an empty string or "0" is a good body. */
+    $compressed = $encoding === 'gzip' ? gzencode($payload) : gzcompress($payload);
+    $mockResponse = new MockResponse((string) $compressed, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => $encoding,
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->body)->toBe($payload);
+})->with([
+    'empty gzip' => ['', 'gzip'],
+    'zero gzip' => ['0', 'gzip'],
+    'empty deflate' => ['', 'deflate'],
+    'zero deflate' => ['0', 'deflate'],
+]);

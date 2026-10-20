@@ -221,3 +221,12 @@ test('constructor accepts a valid proxy and none', function (): void {
     expect((new TransportOptions(proxy: 'https://proxy:3128'))->proxy)->toBe('https://proxy:3128');
     expect((new TransportOptions())->proxy)->toBeNull();
 });
+
+test('constructor rejects a proxy that has no usable scheme or host', function (string $proxy): void {
+    expect(fn () => new TransportOptions(proxy: $proxy))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL');
+})->with([
+    'scheme only' => ['http://'],
+    'empty string' => [''],
+    'host and port without a scheme' => ['proxy.example.com:3128'],
+]);

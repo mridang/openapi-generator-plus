@@ -231,3 +231,20 @@ test('every error type lives in the Errors namespace under the root', function (
     \PetstoreClient\Errors\OAuth2ServerException::class,
     \PetstoreClient\Errors\OAuth2TokenException::class,
 ]);
+
+test('fromResponse keeps a scalar json body as the error body', function (string $body, string|int $expected): void {
+    $ex = ApiException::fromResponse(500, [], $body);
+
+    expect($ex->getResponseBody())->toBe($body);
+    expect($ex->getErrorBody())->toBe($expected);
+})->with([
+    'json string' => ['"upstream timeout"', 'upstream timeout'],
+    'json number' => ['42', 42],
+]);
+
+test('getTypedErrorBody raises SerializationException when the body is not the requested type', function (): void {
+    $ex = ApiException::fromResponse(502, [], '<html>bad gateway</html>');
+
+    expect(fn () => $ex->getTypedErrorBody(Category::class))
+        ->toThrow(SerializationException::class);
+});

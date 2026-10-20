@@ -405,3 +405,74 @@ test('token post refuses 3xx redirect', function (int $status): void {
         expect($e->statusCode)->toBe($status);
     });
 })->with([301, 302, 303, 307, 308]);
+
+test('token response without expires_in is cached indefinitely', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'no-expiry']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('no-expiry');
+    expect($second)->toBe('no-expiry');
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('non string refresh token is ignored', function (mixed $refreshToken): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        200,
+        (string) json_encode(['access_token' => 'at', 'expires_in' => 3600, 'refresh_token' => $refreshToken]),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($manager->getRefreshToken())->toBeNull();
+})->with([
+    'integer' => [12345],
+    'boolean' => [true],
+    'array' => [['x']],
+    'null' => [null],
+]);
+
+test('token error response message follows the status, code and description', function (int $status, string $body, string $expected): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse($status, $body, ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->getMessage())->toBe($expected);
+    }
+})->with([
+    'code and description' => [
+        400,
+        '{"error":"invalid_grant","error_description":"refresh token expired"}',
+        'Token request failed with status 400: invalid_grant -- refresh token expired',
+    ],
+    'code only' => [
+        401,
+        '{"error":"invalid_client"}',
+        'Token request failed with status 401: invalid_client',
+    ],
+    'raw body when no error code' => [
+        502,
+        '<html>bad gateway</html>',
+        'Token request failed with status 502: <html>bad gateway</html>',
+    ],
+]);
