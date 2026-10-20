@@ -8,6 +8,7 @@
 import * as util from "node:util";
 import { OpenIdConnectAuthenticator } from "../src/auth/oauth/openid-connect-authenticator.js";
 import { InternalServerError, NotFoundError } from "../src/errors/index.js";
+import { NetworkError } from "../src/errors/network-error.js";
 import { SerializationError } from "../src/errors/serialization-error.js";
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -250,6 +251,92 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(mockClient.callCount).toBe(1);
   });
 
+  test("a transport failure during discovery reaches the caller unchanged", async () => {
+    const failure = new NetworkError("connection refused");
+    const failing: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        throw failure;
+      },
+    };
+    authenticator.setApiClient(failing);
+
+    await expect(authenticator.buildAuthorizationUrl()).rejects.toBe(failure);
+  });
+
+  describe("discovery cache lifetime", () => {
+    const discovery = (
+      authorizationEndpoint: string,
+      cacheControl?: string,
+    ): ApiHttpResponse => ({
+      statusCode: 200,
+      body: JSON.stringify({
+        authorization_endpoint: authorizationEndpoint,
+        token_endpoint: "https://auth.example.com/token",
+      }),
+      headers:
+        cacheControl === undefined
+          ? { "content-type": "application/json" }
+          : {
+              "content-type": "application/json",
+              "Cache-Control": cacheControl,
+            },
+    });
+
+    async function urlsAfter(
+      seconds: number,
+      cacheControl?: string,
+    ): Promise<[string, string]> {
+      mockClient.responses = [
+        discovery("https://auth.example.com/authorize-1", cacheControl),
+        discovery("https://auth.example.com/authorize-2", cacheControl),
+      ];
+      const originalNow = Date.now;
+      try {
+        const first = await authenticator.buildAuthorizationUrl();
+        Date.now = () => originalNow() + seconds * 1000;
+        const second = await authenticator.buildAuthorizationUrl();
+        return [first, second];
+      } finally {
+        Date.now = originalNow;
+      }
+    }
+
+    test("the document is cached until its Cache-Control max-age elapses", async () => {
+      const [first, second] = await urlsAfter(59, "public, max-age=60");
+
+      expect(first).toContain("https://auth.example.com/authorize-1?");
+      expect(second).toContain("https://auth.example.com/authorize-1?");
+      expect(mockClient.callCount).toBe(1);
+    });
+
+    test("the document is fetched again once max-age has elapsed", async () => {
+      const [first, second] = await urlsAfter(61, "public, max-age=60");
+
+      expect(first).toContain("https://auth.example.com/authorize-1?");
+      expect(second).toContain("https://auth.example.com/authorize-2?");
+      expect(mockClient.callCount).toBe(2);
+    });
+
+    test("max-age=0 is fetched again on the next use", async () => {
+      const [, second] = await urlsAfter(1, "max-age=0");
+
+      expect(second).toContain("https://auth.example.com/authorize-2?");
+      expect(mockClient.callCount).toBe(2);
+    });
+
+    test.each([
+      [86399, 1],
+      [86401, 2],
+    ])(
+      "without Cache-Control the document is cached for a day (%i seconds later: %i fetches)",
+      async (seconds, fetches) => {
+        await urlsAfter(seconds);
+
+        expect(mockClient.callCount).toBe(fetches);
+      },
+    );
+  });
+
   // oauth-oidc-missing-endpoint-guard: a discovery document missing the
   // authorization/token endpoint should fail loudly rather than build a
   // delegate with an undefined endpoint URL.
@@ -295,5 +382,16 @@ describe("OpenIdConnectAuthenticator", () => {
     await expect(authenticator.buildAuthorizationUrl()).rejects.toBeInstanceOf(
       SerializationError,
     );
+  });
+
+  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+    expect(util.inspect(authenticator)).toBe(
+      "OpenIdConnectAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***)",
+    );
+    expect(JSON.parse(JSON.stringify(authenticator))).toEqual({
+      host: "https://api.example.com",
+      clientId: "my-client-id",
+      clientSecret: "***",
+    });
   });
 });

@@ -19,6 +19,17 @@ describe("BasicAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Basic YWxpY2U6czNjcmV0");
   });
 
+  it("non-ASCII credentials are sent as UTF-8", () => {
+    const auth = new BasicAuthenticator(
+      "https://api.example.com",
+      "ünïcødé",
+      "pässwörd",
+    );
+    expect(auth.getAuthHeaders()).toEqual({
+      Authorization: "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+    });
+  });
+
   it("a scheme-specific subclass prints its own class name", () => {
     class PetStoreBasicAuthenticator extends BasicAuthenticator {}
     const auth = new PetStoreBasicAuthenticator(
@@ -67,6 +78,22 @@ describe("BasicAuthenticator", () => {
     expect(util.inspect(auth)).not.toContain("s3cret");
     expect(JSON.stringify(auth)).not.toContain("s3cret");
     expect(util.inspect(auth)).toContain("***");
+  });
+
+  it("the redacted representation shows exactly the host and username", () => {
+    const auth = new BasicAuthenticator(
+      "https://api.example.com",
+      "alice",
+      "s3cret",
+    );
+    expect(util.inspect(auth)).toBe(
+      "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+    );
+    expect(JSON.parse(JSON.stringify(auth))).toEqual({
+      host: "https://api.example.com",
+      username: "alice",
+      password: "***",
+    });
   });
 
   it("redacts the secret in inspect and JSON output", () => {

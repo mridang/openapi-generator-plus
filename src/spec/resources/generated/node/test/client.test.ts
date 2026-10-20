@@ -12,6 +12,21 @@ import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
 import { BasicAuthenticator } from "../src/auth/basic-authenticator.js";
 import { BearerAuthenticator } from "../src/auth/bearer-authenticator.js";
+import { AdminBasicAuthenticator } from "../src/auth/admin-basic-authenticator.js";
+import { ApiKeyHeaderAuthenticator } from "../src/auth/api-key-header-authenticator.js";
+import { ApiKeyQueryAuthenticator } from "../src/auth/api-key-query-authenticator.js";
+import { BrowserAuthImplicitAuthenticator } from "../src/auth/oauth/browser-auth-implicit-authenticator.js";
+import { InternalApiKeyAuthenticator } from "../src/auth/internal-api-key-authenticator.js";
+import { LegacyAuthPasswordAuthenticator } from "../src/auth/oauth/legacy-auth-password-authenticator.js";
+import { MachineAuthClientCredentialsAuthenticator } from "../src/auth/oauth/machine-auth-client-credentials-authenticator.js";
+import { PetStoreBasicAuthenticator } from "../src/auth/pet-store-basic-authenticator.js";
+import { PetStoreBearerAuthenticator } from "../src/auth/pet-store-bearer-authenticator.js";
+import { ServiceTokenAuthenticator } from "../src/auth/service-token-authenticator.js";
+import { SessionCookieAuthenticator } from "../src/auth/session-cookie-authenticator.js";
+import { SsoAuthAuthenticator } from "../src/auth/oauth/sso-auth-authenticator.js";
+import { UserAuthAuthorizationCodeAuthenticator } from "../src/auth/oauth/user-auth-authorization-code-authenticator.js";
+import type { ApiClient } from "../src/api-client.js";
+import type { ApiHttpResponse } from "../src/api-http-response.js";
 import * as entryPoint from "../src/index.js";
 import { Client } from "../src/client.js";
 import { TransportOptions } from "../src/transport-options.js";
@@ -105,6 +120,239 @@ describe("Client", () => {
 
     expect(client.pet).toBeDefined();
     expect(client.store).toBeDefined();
+  });
+});
+
+describe("scheme authenticators the spec declares", () => {
+  const host = "https://api.example.com";
+
+  test.each([
+    [
+      "ApiKeyHeaderAuthenticator",
+      new ApiKeyHeaderAuthenticator(host, "k-1"),
+      "header",
+      { "X-API-Key": "k-1" },
+    ],
+    [
+      "InternalApiKeyAuthenticator",
+      new InternalApiKeyAuthenticator(host, "k-1"),
+      "header",
+      { "X-Internal-Key": "k-1" },
+    ],
+    [
+      "ApiKeyQueryAuthenticator",
+      new ApiKeyQueryAuthenticator(host, "k-1"),
+      "query",
+      { api_key: "k-1" },
+    ],
+    [
+      "SessionCookieAuthenticator",
+      new SessionCookieAuthenticator(host, "k-1"),
+      "cookie",
+      { SESSION_ID: "k-1" },
+    ],
+  ])(
+    "%s emits its key in the declared location only",
+    (_name, auth, location, expected) => {
+      expect(auth.getAuthHeaders()).toEqual(
+        location === "header" ? expected : {},
+      );
+      expect(auth.getQueryParams()).toEqual(
+        location === "query" ? expected : {},
+      );
+      expect(auth.getCookieParams()).toEqual(
+        location === "cookie" ? expected : {},
+      );
+      expect(util.inspect(auth)).toMatch(
+        new RegExp(`^${_name}\\(host=https://api\\.example\\.com, `),
+      );
+      expect(util.inspect(auth)).not.toContain("k-1");
+    },
+  );
+
+  test.each([
+    ["ApiKeyHeaderAuthenticator", ApiKeyHeaderAuthenticator],
+    ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
+    ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
+    ["SessionCookieAuthenticator", SessionCookieAuthenticator],
+  ])("%s rejects an empty key at construction", (_name, Wrapper) => {
+    expect(() => new Wrapper(host, "")).toThrow(TypeError);
+  });
+
+  test("the Bearer and Basic wrappers emit their Authorization headers", () => {
+    expect(
+      new PetStoreBearerAuthenticator(host, "tok").getAuthHeaders(),
+    ).toEqual({ Authorization: "Bearer tok" });
+    expect(new ServiceTokenAuthenticator(host, "tok").getAuthHeaders()).toEqual(
+      { Authorization: "Bearer tok" },
+    );
+    expect(
+      new PetStoreBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual({
+      Authorization: "Basic YWxpY2U6czNjcmV0",
+    });
+    expect(
+      new AdminBasicAuthenticator(host, "alice", "s3cret").getAuthHeaders(),
+    ).toEqual({
+      Authorization: "Basic YWxpY2U6czNjcmV0",
+    });
+    expect(util.inspect(new ServiceTokenAuthenticator(host, "tok"))).toBe(
+      "ServiceTokenAuthenticator(host=https://api.example.com, token=***)",
+    );
+    expect(
+      util.inspect(new AdminBasicAuthenticator(host, "alice", "s3cret")),
+    ).toBe(
+      "AdminBasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+    );
+  });
+
+  describe("OAuth2 wrappers", () => {
+    const calls: Array<{
+      method: string;
+      url: string;
+      params: URLSearchParams;
+    }> = [];
+    const client: ApiClient = {
+      async sendRequest(
+        method: string,
+        url: string,
+        _headers: Record<string, string>,
+        body: string | Buffer | null,
+      ): Promise<ApiHttpResponse> {
+        calls.push({
+          method,
+          url,
+          params: new URLSearchParams(body === null ? "" : String(body)),
+        });
+        return {
+          statusCode: 200,
+          body: JSON.stringify({
+            access_token: "at",
+            refresh_token: "rt",
+            expires_in: 1,
+          }),
+          headers: { "content-type": "application/json" },
+        };
+      },
+    };
+
+    beforeEach(() => {
+      calls.length = 0;
+    });
+
+    async function pastExpiry<T>(run: () => Promise<T>): Promise<T> {
+      const originalNow = Date.now;
+      Date.now = () => originalNow() + 120_000;
+      try {
+        return await run();
+      } finally {
+        Date.now = originalNow;
+      }
+    }
+
+    test("the client-credentials wrapper posts to the declared token URL with the declared scopes", async () => {
+      const auth = new MachineAuthClientCredentialsAuthenticator(
+        host,
+        "cid",
+        "csecret",
+      );
+      auth.setApiClient(client);
+
+      await auth.getAuthHeadersAsync();
+
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.url).toBe("https://auth.example.com/oauth/token");
+      expect(calls[0]!.params.get("grant_type")).toBe("client_credentials");
+      expect(calls[0]!.params.get("scope")).toBe("pets:write pets:read");
+    });
+
+    test("the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
+      const auth = new LegacyAuthPasswordAuthenticator(
+        host,
+        "cid",
+        "csecret",
+        "alice",
+        "s3cret",
+      );
+      auth.setApiClient(client);
+
+      await auth.getAuthHeadersAsync();
+      await pastExpiry(() => auth.getAuthHeadersAsync());
+
+      expect(calls.map((call) => call.url)).toEqual([
+        "https://auth.example.com/oauth/token",
+        "https://auth.example.com/oauth/refresh",
+      ]);
+      expect(calls[0]!.params.get("grant_type")).toBe("password");
+      expect(calls[0]!.params.get("scope")).toBe("read");
+      expect(calls[1]!.params.get("grant_type")).toBe("refresh_token");
+    });
+
+    test("the authorization-code wrapper builds the declared authorize URL and uses the declared token and refresh URLs", async () => {
+      const auth = new UserAuthAuthorizationCodeAuthenticator(
+        host,
+        "cid",
+        "csecret",
+        "https://app.example.com/cb",
+      );
+      auth.setApiClient(client);
+
+      expect(auth.buildAuthorizationUrl()).toBe(
+        "https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb&scope=pets%3Awrite%20pets%3Aread",
+      );
+      await auth.exchangeCode("the-code");
+      await pastExpiry(() => auth.getAuthHeadersAsync());
+
+      expect(calls.map((call) => call.url)).toEqual([
+        "https://auth.example.com/oauth/token",
+        "https://auth.example.com/oauth/refresh",
+      ]);
+    });
+
+    test("the implicit wrapper builds the declared authorize URL", () => {
+      const auth = new BrowserAuthImplicitAuthenticator(host, "cid");
+
+      expect(auth.buildAuthorizationUrl()).toBe(
+        "https://auth.example.com/authorize?response_type=token&client_id=cid&scope=read",
+      );
+    });
+
+    test("the OpenID Connect wrapper discovers from the declared URL", async () => {
+      const discovery: ApiClient = {
+        async sendRequest(
+          method: string,
+          url: string,
+        ): Promise<ApiHttpResponse> {
+          calls.push({ method, url, params: new URLSearchParams() });
+          return {
+            statusCode: 200,
+            body: JSON.stringify({
+              authorization_endpoint: "https://sso.example.com/authorize",
+              token_endpoint: "https://sso.example.com/token",
+            }),
+            headers: { "content-type": "application/json" },
+          };
+        },
+      };
+      const auth = new SsoAuthAuthenticator(
+        host,
+        "cid",
+        "csecret",
+        "https://app.example.com/cb",
+      );
+      auth.setApiClient(discovery);
+
+      const url = await auth.buildAuthorizationUrl();
+
+      expect(calls).toEqual([
+        {
+          method: "GET",
+          url: "https://auth.example.com/.well-known/openid-configuration",
+          params: new URLSearchParams(),
+        },
+      ]);
+      expect(url.startsWith("https://sso.example.com/authorize?")).toBe(true);
+    });
   });
 });
 

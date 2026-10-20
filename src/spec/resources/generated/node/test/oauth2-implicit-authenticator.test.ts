@@ -49,6 +49,35 @@ describe("OAuth2ImplicitAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer implicit-tok");
   });
 
+  test("the authorize URL keeps the tilde literal and percent-encodes * ! ' ( )", () => {
+    const auth = new OAuth2ImplicitAuthenticator(
+      "https://api.example.com",
+      "a~b*c!d'e(f)",
+      "https://auth.example.com/authorize",
+      [],
+    );
+
+    expect(auth.buildAuthorizationUrl()).toContain(
+      "client_id=a~b%2Ac%21d%27e%28f%29",
+    );
+  });
+
+  test.each([
+    ["CR/LF", "abc\r\nInjected: yes"],
+    ["LF", "abc\ndef"],
+    ["NUL", "abc\0def"],
+    ["DEL", "abc\x7fdef"],
+    ["non-ASCII", "tök"],
+  ])("setAccessToken rejects a token containing %s", (_label, token) => {
+    expect(() => authenticator.setAccessToken(token)).toThrow(TypeError);
+    expect(() => authenticator.setAccessToken(token)).toThrow(
+      "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+    expect(() => authenticator.getAuthHeaders()).toThrow(
+      "Must set the access token before making API requests",
+    );
+  });
+
   test("throws when access token not set", () => {
     let caught: unknown;
     try {
@@ -72,5 +101,18 @@ describe("OAuth2ImplicitAuthenticator", () => {
     expect(JSON.stringify(authenticator)).not.toContain("implicit-tok");
     expect(util.inspect(authenticator)).toContain("***");
     expect(JSON.stringify(authenticator)).toContain("***");
+  });
+
+  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+    expect(util.inspect(authenticator)).toBe(
+      "OAuth2ImplicitAuthenticator(host=https://api.example.com, clientId=my-client-id, authorizationUrl=https://auth.example.com/authorize, scopes=[read, write], accessToken=null)",
+    );
+    expect(JSON.parse(JSON.stringify(authenticator))).toEqual({
+      host: "https://api.example.com",
+      clientId: "my-client-id",
+      authorizationUrl: "https://auth.example.com/authorize",
+      scopes: ["read", "write"],
+      accessToken: null,
+    });
   });
 });

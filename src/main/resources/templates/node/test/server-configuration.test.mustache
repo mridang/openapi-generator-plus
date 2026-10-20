@@ -83,5 +83,54 @@ describe('ServerConfiguration', () => {
     }
     expect((caught as Error).constructor).toBe(TypeError);
     expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
+    expect((caught as Error).message).toBe(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging"
+    );
+  });
+
+  it('rejects a default value that is not one of the enum values', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('dev', null, ['prod', 'staging']) }
+    );
+    expect(() => config.getUrl()).toThrow(TypeError);
+    expect(() => config.getUrl()).toThrow(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging"
+    );
+  });
+
+  it('accepts any override for a variable without an enum', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, []) }
+    );
+    expect(config.getUrl({ env: 'anything-goes' })).toBe('https://anything-goes.api.example.com');
+  });
+
+  it('keeps the defaults of the variables that are not overridden', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com/v{version}',
+      null,
+      {
+        env: new ServerVariable('prod', null, []),
+        version: new ServerVariable('2', null, [])
+      }
+    );
+    expect(config.getUrl({ version: '3' })).toBe('https://prod.api.example.com/v3');
+  });
+
+  it('leaves a placeholder without a declared variable untouched', () => {
+    const config = new ServerConfiguration('https://api.example.com/{unknown}', null, {});
+    expect(config.getUrl({ unknown: 'x' })).toBe('https://api.example.com/{unknown}');
+  });
+
+  it('exposes the raw template, description and variables', () => {
+    const variables = { env: new ServerVariable('prod', null, []) };
+    const config = new ServerConfiguration('https://{env}.api.example.com', 'the main server', variables);
+    expect(config.urlTemplate).toBe('https://{env}.api.example.com');
+    expect(config.description).toBe('the main server');
+    expect(config.variables).toEqual(variables);
   });
 });

@@ -8,6 +8,7 @@
 import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2ServerError } from "../src/errors/oauth2-server-error.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
+import { NetworkError } from "../src/errors/network-error.js";
 import { OpenAPIError } from "../src/errors/open-api-error.js";
 import type { ApiClient, SendRequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -458,6 +459,204 @@ describe("OAuth2TokenManager", () => {
       expect(err.description).toBe("refresh token expired");
       expect(err.uri).toBe("https://docs.example.com/errors/invalid_grant");
     });
+  });
+
+  /*
+   * Scripted token endpoint: answers each request with the next canned
+   * response and records the decoded form body of every request.
+   */
+  function scripted(responses: Array<{ status: number; body: unknown }>): {
+    client: ApiClient;
+    bodies: URLSearchParams[];
+    urls: string[];
+  } {
+    const bodies: URLSearchParams[] = [];
+    const urls: string[] = [];
+    const client: ApiClient = {
+      async sendRequest(
+        _method,
+        url,
+        _headers,
+        body,
+      ): Promise<ApiHttpResponse> {
+        bodies.push(new URLSearchParams(String(body)));
+        urls.push(url);
+        const next = responses[bodies.length - 1]!;
+        return {
+          statusCode: next.status,
+          body: JSON.stringify(next.body),
+          headers: { "content-type": "application/json" },
+        };
+      },
+    };
+    return { client, bodies, urls };
+  }
+
+  const originalParams = {
+    grant_type: "authorization_code",
+    code: "auth-code",
+    client_id: "cid",
+    client_secret: "csecret",
+  };
+
+  test("the refresh grant sends the cached refresh token and carries over the client credentials", async () => {
+    const { client, bodies } = scripted([
+      {
+        status: 200,
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+      },
+      { status: 200, body: { access_token: "new", expires_in: 3600 } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+    const token = await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+
+    expect(token).toBe("new");
+    expect(Object.fromEntries(bodies[1]!)).toEqual({
+      grant_type: "refresh_token",
+      refresh_token: "ref-1",
+      client_id: "cid",
+      client_secret: "csecret",
+    });
+    expect(bodies).toHaveLength(2);
+  });
+
+  test("a rejected refresh falls back to the original grant", async () => {
+    const { client, bodies } = scripted([
+      {
+        status: 200,
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+      { status: 200, body: { access_token: "fresh", expires_in: 3600 } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+    const token = await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+
+    expect(token).toBe("fresh");
+    expect(bodies).toHaveLength(3);
+    expect(bodies[1]!.get("grant_type")).toBe("refresh_token");
+    expect(Object.fromEntries(bodies[2]!)).toEqual(originalParams);
+  });
+
+  test("a token response without expires_in is cached indefinitely", async () => {
+    mockClient.responseBody = JSON.stringify({ access_token: "forever" });
+    const originalNow = Date.now;
+
+    try {
+      await tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      });
+      Date.now = () => originalNow() + 10 * 365 * 24 * 3600 * 1000;
+      const token = await tokenManager.getAccessToken(
+        "https://auth.example.com/token",
+        {
+          grant_type: "client_credentials",
+        },
+      );
+
+      expect(token).toBe("forever");
+      expect(mockClient.callCount).toBe(1);
+    } finally {
+      Date.now = originalNow;
+    }
+  });
+
+  test("a refresh response without expires_in keeps the existing expiry", async () => {
+    const { client, bodies } = scripted([
+      {
+        status: 200,
+        body: {
+          access_token: "first",
+          refresh_token: "ref-1",
+          expires_in: 3600,
+        },
+      },
+      { status: 200, body: { access_token: "second" } },
+      { status: 200, body: { access_token: "third" } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    const originalNow = Date.now;
+
+    try {
+      await manager.getAccessToken(
+        "https://auth.example.com/token",
+        originalParams,
+      );
+      Date.now = () => originalNow() + 2 * 3600 * 1000;
+      expect(
+        await manager.getAccessToken(
+          "https://auth.example.com/token",
+          originalParams,
+        ),
+      ).toBe("second");
+      expect(
+        await manager.getAccessToken(
+          "https://auth.example.com/token",
+          originalParams,
+        ),
+      ).toBe("third");
+    } finally {
+      Date.now = originalNow;
+    }
+    expect(bodies.map((b) => b.get("grant_type"))).toEqual([
+      "authorization_code",
+      "refresh_token",
+      "refresh_token",
+    ]);
+  });
+
+  test("a non-string refresh_token is ignored", async () => {
+    mockClient.responseBody = JSON.stringify({
+      access_token: "num-ref",
+      refresh_token: 12345,
+      expires_in: 3600,
+    });
+
+    const token = await tokenManager.getAccessToken(
+      "https://auth.example.com/token",
+      {
+        grant_type: "authorization_code",
+      },
+    );
+
+    expect(token).toBe("num-ref");
+    expect(tokenManager.getRefreshToken()).toBeNull();
+  });
+
+  test("a transport failure reaches the caller unchanged", async () => {
+    const failure = new NetworkError("connection refused");
+    const failing: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        throw failure;
+      },
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(failing);
+
+    await expect(
+      manager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toBe(failure);
   });
 
   test("expires_in short-lived token does not storm", async () => {

@@ -33,6 +33,14 @@ describe("BearerAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer xyz");
   });
 
+  it.each(["BEARER xyz", "BeArEr xyz"])(
+    "mixed-case prefix %p is stripped",
+    (token) => {
+      const auth = new BearerAuthenticator("https://api.example.com", token);
+      expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer xyz" });
+    },
+  );
+
   it("rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)", () => {
     expect(
       () =>
@@ -44,6 +52,11 @@ describe("BearerAuthenticator", () => {
     expect(
       () => new BearerAuthenticator("https://api.example.com", "ñoño"),
     ).toThrow(TypeError);
+    expect(
+      () => new BearerAuthenticator("https://api.example.com", "ñoño"),
+    ).toThrow(
+      "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
   });
 
   it("rejects an empty or whitespace token", () => {
@@ -69,6 +82,20 @@ describe("BearerAuthenticator", () => {
     expect(util.inspect(auth)).toBe(
       "PetStoreBearerAuthenticator(host=https://api.example.com, token=***)",
     );
+  });
+
+  it("the redacted representation shows exactly the host", () => {
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      "super-secret-token",
+    );
+    expect(util.inspect(auth)).toBe(
+      "BearerAuthenticator(host=https://api.example.com, token=***)",
+    );
+    expect(JSON.parse(JSON.stringify(auth))).toEqual({
+      host: "https://api.example.com",
+      token: "***",
+    });
   });
 
   it("redacts the secret from default string/inspect/JSON", () => {

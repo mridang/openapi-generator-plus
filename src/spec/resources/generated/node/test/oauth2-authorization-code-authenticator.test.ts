@@ -198,6 +198,56 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(fresh.getHost()).toBe("https://api.example.com");
   });
 
+  test("the authorize URL keeps the tilde literal and percent-encodes * ! ' ( )", () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "a~b*c!d'e(f)",
+      "my-client-secret",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://myapp.example.com/callback",
+      [],
+    );
+
+    expect(auth.buildAuthorizationUrl()).toContain(
+      "client_id=a~b%2Ac%21d%27e%28f%29",
+    );
+  });
+
+  test("sends the code exchange to the token URL and the refresh grant to the refresh URL", async () => {
+    const refreshing = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "my-client-id",
+      "my-client-secret",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://myapp.example.com/callback",
+      ["read"],
+      "https://auth.example.com/oauth/refresh",
+    );
+    mockClient.responseBody = JSON.stringify({
+      access_token: "tok1",
+      refresh_token: "ref1",
+      expires_in: 1,
+    });
+    refreshing.setApiClient(mockClient);
+    const sendSpy = jest.spyOn(mockClient, "sendRequest");
+
+    await refreshing.exchangeCode("my-auth-code");
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await refreshing.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(sendSpy.mock.calls.map((call) => call[1])).toEqual([
+      "https://auth.example.com/token",
+      "https://auth.example.com/oauth/refresh",
+    ]);
+  });
+
   test("authorize URL with existing query string uses ampersand separator", () => {
     const auth = new OAuth2AuthorizationCodeAuthenticator(
       "https://api.example.com",
@@ -214,5 +264,16 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(url).toContain("audience=api");
     expect(url).toContain("response_type=code");
     expect((url.match(/\?/g) ?? []).length).toBe(1);
+  });
+
+  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+    expect(util.inspect(authenticator)).toBe(
+      "OAuth2AuthorizationCodeAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***)",
+    );
+    expect(JSON.parse(JSON.stringify(authenticator))).toEqual({
+      host: "https://api.example.com",
+      clientId: "my-client-id",
+      clientSecret: "***",
+    });
   });
 });

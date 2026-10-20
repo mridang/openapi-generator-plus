@@ -10,6 +10,10 @@ import * as http from "node:http";
 import * as path from "node:path";
 import {
   GetExternalPetInfoServer,
+  GetExternalPetInfoServerServer0,
+  GetMultiServerPetInfoServerPrimary,
+  GetMultiServerPetInfoServerRegion,
+  GetMultiServerPetInfoServerRegional,
   GetStagingPetInfoServerEnvironment,
   GetStagingPetInfoServerStagingServer,
   GetStagingPetInfoServerVersion,
@@ -21,6 +25,8 @@ import type {
   UploadPetDocumentOptions,
   SetPetPreferencesOptions,
 } from "../../src/api/options/index.js";
+import type { ApiClient } from "../../src/api-client.js";
+import type { ApiHttpResponse } from "../../src/api-http-response.js";
 import { BearerAuthenticator } from "../../src/auth/bearer-authenticator.js";
 import { Configuration } from "../../src/configuration.js";
 import {
@@ -1093,4 +1099,149 @@ describe("PetApi operation servers", () => {
       /\* CDN-backed read endpoint for pet details\s+\*\/\s+export class GetPetByIdServerCDNBackedReadEndpointForPetDetails /,
     );
   });
+});
+
+describe("PetApi against a recording client", () => {
+  const recorded: Array<{ method: string; url: string }> = [];
+  const recordingClient: ApiClient = {
+    async sendRequest(method: string, url: string): Promise<ApiHttpResponse> {
+      recorded.push({ method, url });
+      return {
+        statusCode: 200,
+        body: url.includes("/pet/born-on/")
+          ? "[]"
+          : '{"id":7,"name":"recorded","photoUrls":[]}',
+        headers: { "content-type": "application/json" },
+      };
+    },
+  };
+  const recordingApi = new PetApi(
+    recordingClient,
+    Configuration.builder().baseUrl("https://client-base.example.com").build(),
+  );
+
+  beforeEach(() => {
+    recorded.length = 0;
+  });
+
+  test("the generated operation-server variants resolve the URLs the spec declares", () => {
+    expect(new GetExternalPetInfoServerServer0().getUrl()).toBe(
+      "https://external-api.example.com/v1",
+    );
+    expect(new GetMultiServerPetInfoServerPrimary().getUrl()).toBe(
+      "https://primary.example.com/v1",
+    );
+    expect(
+      new GetMultiServerPetInfoServerRegional(
+        GetMultiServerPetInfoServerRegion.EU,
+      ).getUrl(),
+    ).toBe("https://eu.example.com/v1");
+    expect(
+      new GetStagingPetInfoServerStagingServer(
+        GetStagingPetInfoServerEnvironment.SANDBOX,
+        GetStagingPetInfoServerVersion.V3,
+      ).getUrl(),
+    ).toBe("https://sandbox.example.com/api/v3");
+  });
+
+  test("getExternalPetInfo sends the request to the generated variant", async () => {
+    await recordingApi.getExternalPetInfo(
+      1,
+      new GetExternalPetInfoServerServer0(),
+    );
+
+    expect(recorded).toHaveLength(1);
+    expect(
+      recorded[0]!.url.startsWith("https://external-api.example.com/v1/"),
+    ).toBe(true);
+  });
+
+  test("getStagingPetInfo sends the request to the variant with its variables substituted", async () => {
+    await recordingApi.getStagingPetInfo(
+      1,
+      new GetStagingPetInfoServerStagingServer(
+        GetStagingPetInfoServerEnvironment.SANDBOX,
+        GetStagingPetInfoServerVersion.V3,
+      ),
+    );
+
+    expect(recorded).toHaveLength(1);
+    expect(
+      recorded[0]!.url.startsWith("https://sandbox.example.com/api/v3/"),
+    ).toBe(true);
+  });
+
+  test.each([
+    [
+      new GetMultiServerPetInfoServerPrimary(),
+      "https://primary.example.com/v1/",
+    ],
+    [
+      new GetMultiServerPetInfoServerRegional(
+        GetMultiServerPetInfoServerRegion.AP,
+      ),
+      "https://ap.example.com/v1/",
+    ],
+  ])(
+    "getMultiServerPetInfo sends the request to the chosen one of several servers",
+    async (server, prefix) => {
+      await recordingApi.getMultiServerPetInfo(1, server);
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+    },
+  );
+
+  test("without a variant the client base URL is used", async () => {
+    await recordingApi.getExternalPetInfo(1);
+
+    expect(
+      recorded[0]!.url.startsWith("https://client-base.example.com/"),
+    ).toBe(true);
+  });
+
+  test("findPetsBornOn serializes the format:date path parameter as YYYY-MM-DD", async () => {
+    await recordingApi.findPetsBornOn(
+      new Date(Date.UTC(2024, 0, 1, 13, 45, 30)),
+    );
+
+    expect(new URL(recorded[0]!.url).pathname).toBe("/pet/born-on/2024-01-01");
+  });
+
+  test.each([
+    [
+      "setPetAvatar",
+      (contentType: string) =>
+        recordingApi.setPetAvatar(
+          1,
+          Buffer.from([1]),
+          contentType as "image/png",
+        ),
+      "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [image/jpeg, image/png, application/json]",
+    ],
+    [
+      "uploadPetDocument",
+      (contentType: string) =>
+        recordingApi.uploadPetDocument(
+          1,
+          {
+            file: Buffer.from([1]),
+            documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+          },
+          contentType as "multipart/form-data",
+        ),
+      "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are [multipart/form-data, application/octet-stream]",
+    ],
+  ])(
+    "%s rejects an undeclared request content type before sending",
+    async (_name, call, message) => {
+      const error = await call("application/unknown-type").catch(
+        (e: unknown) => e,
+      );
+
+      expect((error as Error).constructor).toBe(TypeError);
+      expect((error as Error).message).toBe(message);
+      expect(recorded).toHaveLength(0);
+    },
+  );
 });

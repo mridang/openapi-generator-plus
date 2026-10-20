@@ -186,4 +186,107 @@ describe("OAuth2PasswordAuthenticator", () => {
     ).toString("utf-8");
     expect(decoded).toBe("id%2Bwith%2Fspecial:secret%26with%3Dstuff");
   });
+
+  test("basic auth keeps the unreserved tilde literal and percent-encodes * ! ' ( )", async () => {
+    // RFC 6749 §2.3.1 form-encoding keeps exactly "-._~" literal and
+    // percent-encodes the sub-delimiters "* ! ' ( )".
+    const basicAuth = new OAuth2PasswordAuthenticator(
+      "https://api.example.com",
+      "a~b*c",
+      "d!e'f(g)",
+      "https://auth.example.com/token",
+      "testuser",
+      "testpass",
+      ["read"],
+      null,
+      ClientAuthMethod.Basic,
+    );
+    const basicClient = new MockApiClient();
+    basicClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: 3600,
+    });
+    basicAuth.setApiClient(basicClient);
+
+    await basicAuth.getAuthHeadersAsync();
+
+    const authHeader = basicClient.lastHeaders["Authorization"];
+    const decoded = Buffer.from(
+      authHeader.substring("Basic ".length),
+      "base64",
+    ).toString("utf-8");
+    expect(decoded).toBe("a~b%2Ac:d%21e%27f%28g%29");
+  });
+
+  test("the request body keeps the tilde literal and percent-encodes * ! ' ( )", async () => {
+    const bodyAuth = new OAuth2PasswordAuthenticator(
+      "https://api.example.com",
+      "a~b*c",
+      "d!e'f(g)",
+      "https://auth.example.com/token",
+      "testuser",
+      "testpass",
+      [],
+    );
+    const bodyClient = new MockApiClient();
+    bodyClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: 3600,
+    });
+    bodyAuth.setApiClient(bodyClient);
+
+    await bodyAuth.getAuthHeadersAsync();
+
+    const body = bodyClient.lastBody as string;
+    expect(body).toContain("client_id=a~b%2Ac");
+    expect(body).toContain("client_secret=d%21e%27f%28g%29");
+  });
+
+  test("sends the first grant to the token URL and the refresh grant to the refresh URL", async () => {
+    const refreshing = new OAuth2PasswordAuthenticator(
+      "https://api.example.com",
+      "my-client-id",
+      "my-client-secret",
+      "https://auth.example.com/token",
+      "testuser",
+      "testpass",
+      ["read"],
+      "https://auth.example.com/oauth/refresh",
+    );
+    const refreshClient = new MockApiClient();
+    refreshClient.responseBody = JSON.stringify({
+      access_token: "tok1",
+      refresh_token: "ref1",
+      expires_in: 1,
+    });
+    refreshing.setApiClient(refreshClient);
+    const sendSpy = jest.spyOn(refreshClient, "sendRequest");
+
+    await refreshing.getAuthHeadersAsync();
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await refreshing.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(sendSpy.mock.calls.map((call) => call[1])).toEqual([
+      "https://auth.example.com/token",
+      "https://auth.example.com/oauth/refresh",
+    ]);
+  });
+
+  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+    expect(util.inspect(authenticator)).toBe(
+      "OAuth2PasswordAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***, tokenUrl=https://auth.example.com/token, refreshUrl=https://auth.example.com/token, username=testuser, password=***, scopes=[read, write], clientAuthMethod=body)",
+    );
+    expect(JSON.parse(JSON.stringify(authenticator))).toEqual({
+      host: "https://api.example.com",
+      clientId: "my-client-id",
+      username: "testuser",
+      clientSecret: "***",
+      password: "***",
+    });
+  });
 });

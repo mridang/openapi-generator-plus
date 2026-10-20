@@ -123,6 +123,22 @@ describe('TransportOptions', () => {
     expect(construct).toThrow('Invalid proxy URL (unparseable): not-a-valid-url');
   });
 
+  test.each([
+    ['an empty string', '', 'Invalid proxy URL (unparseable): '],
+    ['a scheme without a host', 'http://', 'Invalid proxy URL (unparseable): http://'],
+    ['a socks scheme', 'socks5://proxy.example.com:1080', 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'],
+    ['an ftp scheme', 'ftp://proxy.example.com:21', 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21']
+  ])('the builder rejects %s with TypeError and the exact message', (_label, proxy, message) => {
+    expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
+    expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
+  });
+
+  test('an upper-case proxy scheme is accepted', () => {
+    expect(TransportOptions.builder().proxy('HTTP://proxy.example.com:8080').build().proxy).toBe(
+      'HTTP://proxy.example.com:8080'
+    );
+  });
+
   test('constructing directly with a valid or absent proxy succeeds', () => {
     expect(new TransportOptions({ ...directOptions, proxy: 'http://proxy:8080' }).proxy).toBe('http://proxy:8080');
     expect(new TransportOptions({ ...directOptions, proxy: null }).proxy).toBeNull();

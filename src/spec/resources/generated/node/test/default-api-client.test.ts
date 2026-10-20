@@ -652,50 +652,56 @@ describe("DefaultApiClient", () => {
   });
 
   describe("HTTP compression", () => {
+    /*
+     * The fixture's compressed endpoints really send the requested
+     * Content-Encoding, so a JSON body that parses back to the fixture
+     * document proves the client ran the decode path for that codec.
+     */
+    const compressedUrl = (encoding: string): string =>
+      `${process.env["CHASM_HTTP_URL"]!}/test/compressed/${encoding}`;
+    const fixtureBody = { userId: 1, id: 1, title: "compressed fixture body" };
+
     test("decompresses gzip response", async () => {
       const client = new DefaultApiClient();
       const response = await client.sendRequest(
         "GET",
-        "https://jsonplaceholder.typicode.com/posts/1",
+        compressedUrl("gzip"),
         { "Accept-Encoding": "gzip" },
         null,
       );
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("userId");
+      expect(JSON.parse(response.body)).toEqual(fixtureBody);
     });
 
     test("decompresses brotli response", async () => {
       const client = new DefaultApiClient();
       const response = await client.sendRequest(
         "GET",
-        "https://jsonplaceholder.typicode.com/posts/1",
+        compressedUrl("br"),
         { "Accept-Encoding": "br" },
         null,
       );
 
       expect(response.statusCode).toBe(200);
-      expect(response.body).toContain("userId");
+      expect(JSON.parse(response.body)).toEqual(fixtureBody);
     });
 
     const zstdAvailable = typeof zlib.zstdDecompress === "function";
-    // 30s timeout because jsonplaceholder.typicode.com is an external host
-    // that occasionally times out in CI shared-runner network conditions.
     (zstdAvailable ? test : test.skip)(
       "decompresses zstd response",
       async () => {
         const client = new DefaultApiClient();
         const response = await client.sendRequest(
           "GET",
-          "https://jsonplaceholder.typicode.com/posts/1",
+          compressedUrl("zstd"),
           { "Accept-Encoding": "zstd" },
           null,
         );
 
         expect(response.statusCode).toBe(200);
-        expect(response.body).toContain("userId");
+        expect(JSON.parse(response.body)).toEqual(fixtureBody);
       },
-      30_000,
     );
   });
 

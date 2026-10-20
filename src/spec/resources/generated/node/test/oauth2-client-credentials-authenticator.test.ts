@@ -8,6 +8,7 @@
 import * as util from "node:util";
 import { OAuth2ClientCredentialsAuthenticator } from "../src/auth/oauth/oauth2-client-credentials-authenticator.js";
 import { ClientAuthMethod } from "../src/auth/oauth/client-auth-method.js";
+import { OAuth2ServerError } from "../src/errors/oauth2-server-error.js";
 import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 
@@ -132,7 +133,13 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     mockClient.responseStatus = 401;
     mockClient.responseBody = JSON.stringify({ error: "invalid_client" });
 
-    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow();
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toBeInstanceOf(
+      OAuth2ServerError,
+    );
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toMatchObject({
+      statusCode: 401,
+      code: "invalid_client",
+    });
   });
 
   test("caches token across calls", async () => {
@@ -182,5 +189,66 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
       "base64",
     ).toString("utf-8");
     expect(decoded).toBe("id%2Bwith%2Fspecial:secret%26with%3Dstuff");
+  });
+
+  test("basic auth keeps the unreserved tilde literal and percent-encodes * ! ' ( )", async () => {
+    // RFC 6749 §2.3.1 form-encoding keeps exactly "-._~" literal and
+    // percent-encodes the sub-delimiters "* ! ' ( )".
+    const basicAuth = new OAuth2ClientCredentialsAuthenticator(
+      "https://api.example.com",
+      "a~b*c",
+      "d!e'f(g)",
+      "https://auth.example.com/token",
+      ["read"],
+      ClientAuthMethod.Basic,
+    );
+    const basicClient = new MockApiClient();
+    basicClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: 3600,
+    });
+    basicAuth.setApiClient(basicClient);
+
+    await basicAuth.getAuthHeadersAsync();
+
+    const authHeader = basicClient.lastHeaders["Authorization"];
+    const decoded = Buffer.from(
+      authHeader.substring("Basic ".length),
+      "base64",
+    ).toString("utf-8");
+    expect(decoded).toBe("a~b%2Ac:d%21e%27f%28g%29");
+  });
+
+  test("the request body keeps the tilde literal and percent-encodes * ! ' ( )", async () => {
+    const bodyAuth = new OAuth2ClientCredentialsAuthenticator(
+      "https://api.example.com",
+      "a~b*c",
+      "d!e'f(g)",
+      "https://auth.example.com/token",
+      ["read"],
+    );
+    const bodyClient = new MockApiClient();
+    bodyClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: 3600,
+    });
+    bodyAuth.setApiClient(bodyClient);
+
+    await bodyAuth.getAuthHeadersAsync();
+
+    const body = bodyClient.lastBody as string;
+    expect(body).toContain("client_id=a~b%2Ac");
+    expect(body).toContain("client_secret=d%21e%27f%28g%29");
+  });
+
+  test("the redacted representation shows exactly the agreed non-secret fields", () => {
+    expect(util.inspect(authenticator)).toBe(
+      "OAuth2ClientCredentialsAuthenticator(host=https://api.example.com, clientId=my-client-id, clientSecret=***, tokenUrl=https://auth.example.com/token, scopes=[read, write], clientAuthMethod=body)",
+    );
+    expect(JSON.parse(JSON.stringify(authenticator))).toEqual({
+      host: "https://api.example.com",
+      clientId: "my-client-id",
+      clientSecret: "***",
+    });
   });
 });

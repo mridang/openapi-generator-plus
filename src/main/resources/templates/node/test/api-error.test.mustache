@@ -168,6 +168,23 @@ describe('ApiError', () => {
     });
   });
 
+  describe('OAuth2ServerError message', () => {
+    test.each([
+      ['a raw body when there is no error code', null, null, 'upstream down', 'Token request failed with status 502: upstream down'],
+      ['the error code', 'invalid_client', null, '{}', 'Token request failed with status 400: invalid_client'],
+      [
+        'the error code and description',
+        'invalid_grant',
+        'refresh token expired',
+        '{}',
+        'Token request failed with status 400: invalid_grant -- refresh token expired'
+      ]
+    ])('renders %s', (_label, code, description, rawBody, expected) => {
+      const status = code === null ? 502 : 400;
+      expect(new OAuth2ServerError(status, code, description, null, rawBody).message).toBe(expected);
+    });
+  });
+
   describe('fromResponse', () => {
     test.each([
       [400, BadRequestError],
@@ -207,6 +224,17 @@ describe('ApiError', () => {
       expect(err.errorBody).toBeNull();
     });
 
+    test.each([
+      ['a JSON string', '"plain text"', 'plain text'],
+      ['a JSON number', '42', 42],
+      ['a JSON boolean', 'true', true]
+    ])('keeps %s as the error body', (_label, body, expected) => {
+      const err = ApiError.fromResponse(400, {}, body);
+      expect(err.constructor).toBe(BadRequestError);
+      expect(err.responseBody).toBe(body);
+      expect(err.errorBody).toBe(expected);
+    });
+
     test('refuses a deeply nested error body', () => {
       /* The error body is attacker-controlled, so parsing is depth-capped:
        * an over-deep payload leaves errorBody null instead of overflowing
@@ -230,6 +258,16 @@ describe('ApiError', () => {
     test('omits an absent status, headers and body', () => {
       const err = new ApiError(0, 'connection reset');
       expect(err.toString()).toBe('connection reset');
+    });
+
+    test('omits empty headers and an empty body', () => {
+      const err = new ApiError(502, 'bad gateway', {}, '', null);
+      expect(err.toString()).toBe('bad gateway\nHTTP status code: 502');
+    });
+
+    test('substitutes a placeholder for an empty message', () => {
+      const err = new ApiError(500, '');
+      expect(err.toString()).toBe('Error message: the server returns an error\nHTTP status code: 500');
     });
   });
 });

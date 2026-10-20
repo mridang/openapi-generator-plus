@@ -1154,67 +1154,6 @@ describe("BinaryResponseTests", () => {
   });
 });
 
-describe("CrossOriginRedirectTests", () => {
-  test("same-origin redirect forwards Authorization header", () => {
-    const sensitiveHeaders = new Set([
-      "authorization",
-      "cookie",
-      "proxy-authorization",
-    ]);
-    const isSameOrigin = true;
-    const originalHeaders: Record<string, string> = {
-      Authorization: "Bearer token123",
-      Accept: "application/json",
-    };
-    const forwarded: Record<string, string> = {};
-    for (const [key, value] of Object.entries(originalHeaders)) {
-      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
-      forwarded[key] = value;
-    }
-    expect(forwarded["Authorization"]).toBe("Bearer token123");
-  });
-
-  test("cross-origin redirect drops Authorization header", () => {
-    const sensitiveHeaders = new Set([
-      "authorization",
-      "cookie",
-      "proxy-authorization",
-    ]);
-    const isSameOrigin = false;
-    const originalHeaders: Record<string, string> = {
-      Authorization: "Bearer token123",
-      Accept: "application/json",
-    };
-    const forwarded: Record<string, string> = {};
-    for (const [key, value] of Object.entries(originalHeaders)) {
-      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
-      forwarded[key] = value;
-    }
-    expect(forwarded["Authorization"]).toBeUndefined();
-    expect(forwarded["Accept"]).toBe("application/json");
-  });
-
-  test("cross-origin redirect drops Cookie header", () => {
-    const sensitiveHeaders = new Set([
-      "authorization",
-      "cookie",
-      "proxy-authorization",
-    ]);
-    const isSameOrigin = false;
-    const originalHeaders: Record<string, string> = {
-      Cookie: "session=abc123",
-      Accept: "application/json",
-    };
-    const forwarded: Record<string, string> = {};
-    for (const [key, value] of Object.entries(originalHeaders)) {
-      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
-      forwarded[key] = value;
-    }
-    expect(forwarded["Cookie"]).toBeUndefined();
-    expect(forwarded["Accept"]).toBe("application/json");
-  });
-});
-
 describe("ConvenienceEmptyBodyTests", () => {
   test("body-returning convenience method throws ApiError on an empty 204 body", async () => {
     // convenience-empty-body-handling: a declared-non-void operation that

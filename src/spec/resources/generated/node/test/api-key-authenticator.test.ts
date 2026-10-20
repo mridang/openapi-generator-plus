@@ -30,6 +30,18 @@ describe("ApiKeyAuthenticator", () => {
     expect(auth.getQueryParams()).toEqual({ api_key: "abc123" });
   });
 
+  it("valid COOKIE key produces the cookie param and nothing else", () => {
+    const auth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "SESSION_ID",
+      "abc123",
+      ApiKeyLocation.COOKIE,
+    );
+    expect(auth.getCookieParams()).toEqual({ SESSION_ID: "abc123" });
+    expect(auth.getAuthHeaders()).toEqual({});
+    expect(auth.getQueryParams()).toEqual({});
+  });
+
   it("a scheme-specific subclass prints its own class name", () => {
     class PetStoreApiKeyAuthenticator extends ApiKeyAuthenticator {}
     const auth = new PetStoreApiKeyAuthenticator(
@@ -86,7 +98,18 @@ describe("ApiKeyAuthenticator", () => {
           ApiKeyLocation.HEADER,
         ),
     ).toThrow(TypeError);
-    // Non-header locations accept arbitrary chars.
+    expect(
+      () =>
+        new ApiKeyAuthenticator(
+          "https://api.example.com",
+          "X-Api-Key",
+          "kéy",
+          ApiKeyLocation.HEADER,
+        ),
+    ).toThrow(
+      "API key for header 'X-Api-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+    );
+    // Non-header locations accept non-ASCII (but see the control-character test below).
     const queryAuth = new ApiKeyAuthenticator(
       "https://api.example.com",
       "api_key",
@@ -94,6 +117,81 @@ describe("ApiKeyAuthenticator", () => {
       ApiKeyLocation.QUERY,
     );
     expect(queryAuth.getQueryParams()).toEqual({ api_key: "kéy" });
+    const cookieAuth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "SESSION_ID",
+      "kéy",
+      ApiKeyLocation.COOKIE,
+    );
+    expect(cookieAuth.getCookieParams()).toEqual({ SESSION_ID: "kéy" });
+  });
+
+  it.each([
+    [ApiKeyLocation.HEADER, "X-Api-Key"],
+    [ApiKeyLocation.QUERY, "api_key"],
+    [ApiKeyLocation.COOKIE, "SESSION_ID"],
+  ])("%s location rejects CR, LF and NUL", (location, name) => {
+    for (const value of ["abc\rdef", "abc\ndef", "abc\0def"]) {
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            name,
+            value,
+            location,
+          ),
+      ).toThrow(TypeError);
+      expect(
+        () =>
+          new ApiKeyAuthenticator(
+            "https://api.example.com",
+            name,
+            value,
+            location,
+          ),
+      ).toThrow(
+        `API key value for '${name}' contains forbidden control characters (CR/LF/NUL)`,
+      );
+    }
+  });
+
+  it.each([
+    [ApiKeyLocation.HEADER, "X-Api-Key"],
+    [ApiKeyLocation.QUERY, "api_key"],
+    [ApiKeyLocation.COOKIE, "SESSION_ID"],
+  ])(
+    "%s location rejects an empty or whitespace key with the exact message",
+    (location, name) => {
+      for (const value of ["", "   "]) {
+        expect(
+          () =>
+            new ApiKeyAuthenticator(
+              "https://api.example.com",
+              name,
+              value,
+              location,
+            ),
+        ).toThrow(`API key value for '${name}' must not be empty`);
+      }
+    },
+  );
+
+  it("the redacted representation shows the host, key name and location", () => {
+    const auth = new ApiKeyAuthenticator(
+      "https://api.example.com",
+      "X-Api-Key",
+      "key-secret-xyz",
+      ApiKeyLocation.HEADER,
+    );
+    expect(util.inspect(auth)).toBe(
+      "ApiKeyAuthenticator(host=https://api.example.com, keyParamName=X-Api-Key, apiKey=***, location=header)",
+    );
+    expect(JSON.parse(JSON.stringify(auth))).toEqual({
+      host: "https://api.example.com",
+      keyParamName: "X-Api-Key",
+      apiKey: "***",
+      location: "header",
+    });
   });
 
   it("redacts the secret from default string/inspect/JSON", () => {

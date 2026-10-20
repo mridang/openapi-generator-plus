@@ -7,6 +7,7 @@
 
 import * as fs from "node:fs";
 import * as http from "node:http";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as zlib from "node:zlib";
 import {
@@ -238,6 +239,32 @@ describe("DefaultApiClient unit", () => {
     expect(body["user-agent"]).toBeTruthy();
   });
 
+  it("advertises the codecs it can decode in Accept-Encoding by default", async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      {},
+      null,
+    );
+    const body = JSON.parse(response.body);
+    expect(body["accept-encoding"].split(/,\s*/)).toEqual(
+      expect.arrayContaining(["gzip", "deflate"]),
+    );
+  });
+
+  it("keeps a caller-supplied Accept-Encoding", async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      { "Accept-Encoding": "identity" },
+      null,
+    );
+    const body = JSON.parse(response.body);
+    expect(body["accept-encoding"]).toBe("identity");
+  });
+
   it("injects X-Request-ID when enabled", async () => {
     const transport = TransportOptions.builder().injectRequestId(true).build();
     const client = new DefaultApiClient(transport);
@@ -354,6 +381,24 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     }
     expect((caught as Error).constructor).toBe(TypeError);
     expect(caught).not.toBeInstanceOf(OpenAPIError);
+    expect((caught as Error).message).toBe(
+      'failed to read CA certificate from "/nonexistent/ca.pem"',
+    );
+  });
+
+  it("throws TypeError at construction for a caCertPath that is not a PEM certificate", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
+    const garbage = path.join(dir, "garbage.pem");
+    fs.writeFileSync(garbage, "this is not a certificate");
+    try {
+      const transport = TransportOptions.builder().caCertPath(garbage).build();
+      expect(() => new DefaultApiClient(transport)).toThrow(TypeError);
+      expect(() => new DefaultApiClient(transport)).toThrow(
+        `failed to parse CA certificate from "${garbage}": no PEM blocks found or unparseable`,
+      );
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -876,6 +921,7 @@ describe("cross-origin redirect strips API-key headers", () => {
         "X-API-Key": "k-12345",
         "X-Internal-Key": "k-12345",
         Cookie: "session=xyz",
+        "Proxy-Authorization": "Basic abc",
         Accept: "application/json",
       },
       null,
@@ -883,6 +929,7 @@ describe("cross-origin redirect strips API-key headers", () => {
     // The classic credential carriers are always stripped on a cross-origin hop.
     expect(lastReceivedHeaders["authorization"]).toBeUndefined();
     expect(lastReceivedHeaders["cookie"]).toBeUndefined();
+    expect(lastReceivedHeaders["proxy-authorization"]).toBeUndefined();
     // The spec's apiKey-in-header scheme names are also stripped; they are
     // derived from the spec at codegen time, so a spec without such schemes
     // renders this block empty and asserts nothing here.
@@ -890,6 +937,74 @@ describe("cross-origin redirect strips API-key headers", () => {
     expect(lastReceivedHeaders["x-internal-key"]).toBeUndefined();
     // Non-sensitive headers should still be forwarded.
     expect(lastReceivedHeaders["accept"]).toBe("application/json");
+  });
+
+  it("keeps Authorization and Cookie on a same-origin redirect", async () => {
+    let landed: Record<string, string | string[] | undefined> = {};
+    const same = http.createServer((req, res) => {
+      if (req.url === "/start") {
+        res.writeHead(302, { Location: "/landing" });
+        res.end();
+        return;
+      }
+      landed = req.headers;
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true}');
+    });
+    await new Promise<void>((resolve) => same.listen(0, "127.0.0.1", resolve));
+    try {
+      const sameUrl = `http://127.0.0.1:${(same.address() as { port: number }).port}`;
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+      await client.sendRequest(
+        "GET",
+        `${sameUrl}/start`,
+        {
+          Authorization: "Bearer secret",
+          Cookie: "session=xyz",
+          Accept: "application/json",
+        },
+        null,
+      );
+      expect(landed["authorization"]).toBe("Bearer secret");
+      expect(landed["cookie"]).toBe("session=xyz");
+      expect(landed["accept"]).toBe("application/json");
+    } finally {
+      await new Promise<void>((resolve) => same.close(() => resolve()));
+    }
+  });
+});
+
+/*
+ * The origin comparison behind the strip: scheme, host and effective port,
+ * so an explicit default port is the same origin as an implicit one and
+ * credentials are not wrongly dropped.
+ */
+describe("redirect origin comparison", () => {
+  const sameOrigin = (a: string, b: string): boolean =>
+    (
+      DefaultApiClient as unknown as {
+        sameOrigin(a: string, b: string): boolean;
+      }
+    ).sameOrigin(a, b);
+
+  it.each([
+    ["https://api.example.com/a", "https://api.example.com:443/b"],
+    ["https://api.example.com:443/a", "https://api.example.com/b"],
+    ["http://api.example.com/a", "http://api.example.com:80/b"],
+    ["https://API.example.com/a", "https://api.example.com/b"],
+  ])("%s and %s are the same origin", (a, b) => {
+    expect(sameOrigin(a, b)).toBe(true);
+  });
+
+  it.each([
+    ["https://api.example.com/a", "https://api.example.com:8443/b"],
+    ["https://api.example.com/a", "http://api.example.com/b"],
+    ["http://api.example.com/a", "https://api.example.com:80/b"],
+    ["https://api.example.com/a", "https://other.example.com/b"],
+  ])("%s and %s are different origins", (a, b) => {
+    expect(sameOrigin(a, b)).toBe(false);
   });
 });
 
@@ -1279,13 +1394,13 @@ describe("use-after-close", () => {
  * body read (connection reset / truncated body) must be wrapped in the
  * uniform ApiError type, not leak the raw fetch error.
  */
-describe("body-read error is wrapped in ApiError", () => {
+describe("body-read error is wrapped in NetworkError", () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it("wraps an arrayBuffer() rejection in ApiError", async () => {
+  it("wraps an arrayBuffer() rejection in NetworkError with the cause kept", async () => {
     global.fetch = (async (): Promise<Response> => {
       // A Response whose body read rejects, simulating a mid-stream reset.
       const resp = new Response("", { status: 200 });
@@ -1296,9 +1411,62 @@ describe("body-read error is wrapped in ApiError", () => {
     }) as typeof fetch;
 
     const client = new DefaultApiClient();
-    await expect(
-      client.sendRequest("GET", "http://api.example/x", {}, null),
-    ).rejects.toBeInstanceOf(ApiError);
+    const error = await client
+      .sendRequest("GET", "http://api.example/x", {}, null)
+      .catch((e: unknown) => e);
+    expect((error as Error).constructor).toBe(NetworkError);
+    expect((error as NetworkError).statusCode).toBe(0);
+    expect(((error as NetworkError).cause as Error).message).toBe("terminated");
+  });
+
+  describe("against a server that breaks the body after sending the headers", () => {
+    let broken: http.Server;
+    let brokenUrl: string;
+
+    beforeAll(async () => {
+      broken = http.createServer((req, res) => {
+        res.writeHead(200, {
+          "Content-Type": "text/plain",
+          "Content-Length": "100",
+        });
+        res.write("partial");
+        if (req.url === "/truncated") {
+          setTimeout(() => res.destroy(), 20);
+        }
+      });
+      await new Promise<void>((resolve) =>
+        broken.listen(0, "127.0.0.1", resolve),
+      );
+      brokenUrl = `http://127.0.0.1:${(broken.address() as { port: number }).port}`;
+    });
+
+    afterAll(async () => {
+      broken.closeAllConnections();
+      await new Promise<void>((resolve) => broken.close(() => resolve()));
+    });
+
+    it("a body truncated after the headers throws NetworkError with status 0", async () => {
+      const client = new DefaultApiClient();
+      const error = await client
+        .sendRequest("GET", `${brokenUrl}/truncated`, {}, null)
+        .catch((e: unknown) => e);
+      await client.close();
+      expect((error as Error).constructor).toBe(NetworkError);
+      expect((error as NetworkError).statusCode).toBe(0);
+      expect((error as NetworkError).cause).toBeDefined();
+    });
+
+    it("a body that stalls after the headers throws NetworkTimeoutError with status 0", async () => {
+      const client = new DefaultApiClient(
+        TransportOptions.builder().timeout(300).build(),
+      );
+      const error = await client
+        .sendRequest("GET", `${brokenUrl}/stalled`, {}, null)
+        .catch((e: unknown) => e);
+      await client.close();
+      expect((error as Error).constructor).toBe(NetworkTimeoutError);
+      expect((error as NetworkTimeoutError).statusCode).toBe(0);
+    });
   });
 });
 

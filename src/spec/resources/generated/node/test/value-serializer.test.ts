@@ -40,6 +40,34 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize(42, "path", "integer")).toBe("42");
     });
 
+    test.each([
+      [";", ";"],
+      ["=", "="],
+      [",", ","],
+      [":", ":"],
+      ["@", "@"],
+      ["!", "!"],
+      ["$", "$"],
+      ["&", "&"],
+      ["'", "'"],
+      ["(", "("],
+      [")", ")"],
+      ["*", "*"],
+      ["+", "+"],
+      ["~", "~"],
+      ["%", "%25"],
+      ["%20", "%2520"],
+      ["?", "%3F"],
+      ["#", "%23"],
+      ["[", "%5B"],
+      [" ", "%20"],
+    ])("path segment %p is encoded as %p", (raw, encoded) => {
+      expect(ValueSerializer.encodePathSegment(raw)).toBe(encoded);
+      expect(ValueSerializer.serialize(`a${raw}b`, "path", "string")).toBe(
+        `a${encoded}b`,
+      );
+    });
+
     test('boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "path", "boolean")).toBe("true");
     });
@@ -116,6 +144,29 @@ describe("ValueSerializer", () => {
       expect(
         ValueSerializer.serialize(["a", "b", "c"], "query", "array", "multi"),
       ).toEqual(["a", "b", "c"]);
+    });
+
+    test.each([
+      ["csv", "1,,3"],
+      ["ssv", "1  3"],
+      ["tsv", "1\t\t3"],
+      ["pipes", "1||3"],
+    ])("a null element keeps its empty slot for %s", (format, expected) => {
+      expect(
+        ValueSerializer.serialize([1, null, 3], "query", "array", format),
+      ).toBe(expected);
+    });
+
+    test("a null element keeps its empty slot for multi", () => {
+      expect(
+        ValueSerializer.serialize([1, null, 3], "query", "array", "multi"),
+      ).toEqual(["1", "", "3"]);
+    });
+
+    test("an undefined element keeps its empty slot in a header array", () => {
+      expect(
+        ValueSerializer.serialize(["a", undefined, "c"], "header", "array"),
+      ).toBe("a,,c");
     });
 
     test("empty array returns empty string for csv", () => {
