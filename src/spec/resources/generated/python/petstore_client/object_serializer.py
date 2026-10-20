@@ -412,7 +412,9 @@ class ObjectSerializer:
                 # Falls back to the element-wise recursion only for inner
                 # types the adapter can't express (e.g. nested 'List[X]').
                 if inner is not None:
-                    return _list_adapter(inner).validate_python(data)
+                    return _list_adapter(inner).validate_python(
+                        data, by_alias=True, by_name=False
+                    )
                 # A ``str``/``bytes`` scalar is iterable, so an un-guarded
                 # comprehension would silently walk it character-by-character —
                 # e.g. inside a oneOf of [bytes, List[bytes]] the base64 STRING
@@ -433,7 +435,9 @@ class ObjectSerializer:
                 sub_kls = m.group(2)
                 inner = self._resolve_klass_name(sub_kls)
                 if inner is not None:
-                    return _dict_adapter(inner).validate_python(data)
+                    return _dict_adapter(inner).validate_python(
+                        data, by_alias=True, by_name=False
+                    )
                 return {k: self._deserialize(v, sub_kls) for k, v in data.items()}
 
             if klass in self._NATIVE_TYPES_MAPPING:
@@ -444,7 +448,11 @@ class ObjectSerializer:
         if isinstance(klass, type) and issubclass(klass, BaseModel):
             if hasattr(klass, "any_of_schemas") or hasattr(klass, "one_of_schemas"):
                 return self._deserialize_composed(data, klass)
-            return klass.model_validate(data)
+            # The wire carries only the declared property names. Models also
+            # accept the snake_case attribute name (populate_by_name, for
+            # constructors), so a decode must opt out of that to keep a payload
+            # key such as ``photo_urls`` from populating ``photoUrls``.
+            return klass.model_validate(data, by_alias=True, by_name=False)
         elif klass is bytes:
             if isinstance(data, bytes):
                 return data

@@ -6,7 +6,7 @@ from typing import Dict
 from .base_authenticator import BaseAuthenticator
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class BearerAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Bearer token authentication."""
 

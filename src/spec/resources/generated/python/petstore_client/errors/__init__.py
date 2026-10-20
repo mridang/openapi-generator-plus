@@ -173,11 +173,7 @@ class ApiException(OpenAPIException):
 
     def __str__(self) -> str:
         """Build a human-readable error message from the stored attributes."""
-        msg = (
-            "Error message: the server returns an error"
-            if self.message is None
-            else self.message
-        )
+        msg = self.message or "Error message: the server returns an error"
 
         if self.status_code:
             msg += f"\nHTTP status code: {self.status_code}"

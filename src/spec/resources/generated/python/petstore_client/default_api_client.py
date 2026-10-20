@@ -425,10 +425,10 @@ class DefaultApiClient:
         #      only compares scheme+host+port for same-origin, and treats
         #      a scheme change as origin change today, but we want the
         #      guard explicit and matching the other 11 SDKs' behaviour.
-        #   3. Proxy-Authorization clear on proxy_headers path -- the
-        #      ProxyManager keeps Proxy-Authorization in its own header
-        #      bag (pool_manager.proxy_headers) which urllib3.Retry's
-        #      remove_headers_on_redirect cannot reach.
+        #   3. The ProxyManager's own proxy_headers bag is left alone: it
+        #      holds the credentials for the proxy itself and is shared by
+        #      every concurrent request, so a per-redirect mutation would
+        #      strip them from unrelated requests.
         # We disable urllib3's redirect handling entirely and run the
         # loop manually, mirroring the canonical Rust / Java / Kotlin
         # implementations.
@@ -586,9 +586,11 @@ class DefaultApiClient:
            cross-origin hop, where origin is scheme + host + effective
            port. An HTTPS -> HTTP downgrade is by definition cross-origin
            because the scheme differs.
-        3. ``proxy_headers`` Proxy-Authorization is also cleared on the
-           pool manager so credentials configured at the transport layer
-           are not silently re-sent across the downgrade.
+        3. The pool manager's ``proxy_headers`` are never touched. They
+           authenticate this client to its proxy, not to the redirect
+           target, and the pool manager is shared by every request on the
+           client, so mutating them mid-redirect would strip the proxy
+           credentials from concurrent requests.
 
         The 303 -> GET coercion and 301/302 demotion of non-idempotent
         methods are handled here for completeness, but those are about
@@ -605,136 +607,102 @@ class DefaultApiClient:
         current_method = initial_method
         current_body = initial_body
         current_headers: Dict[str, str] = dict(initial_headers)
-        # Snapshot the pool manager's proxy_headers so we can restore
-        # them after the loop -- we only mutate them for the duration
-        # of the redirect chain so subsequent unrelated requests are
-        # unaffected.
-        original_proxy_headers: Optional[Dict[str, str]] = None
-        proxy_headers_attr = getattr(self._pool_manager, "proxy_headers", None)
-        if isinstance(proxy_headers_attr, dict):
-            original_proxy_headers = dict(proxy_headers_attr)
+        while response.status in self._REDIRECT_STATUSES and redirects_remaining > 0:
+            location = response.headers.get("location") if response.headers else None
+            if not location:
+                break
 
-        try:
-            while (
-                response.status in self._REDIRECT_STATUSES and redirects_remaining > 0
-            ):
-                location = (
-                    response.headers.get("location") if response.headers else None
-                )
-                if not location:
-                    break
+            next_url = self._resolve_url(current_url, location)
 
-                next_url = self._resolve_url(current_url, location)
-
-                # Guard 1: scheme allowlist.
-                parsed_next = urlsplit(next_url)
-                scheme = (parsed_next.scheme or "").lower()
-                if scheme not in ("http", "https"):
-                    raise ApiException(
-                        status_code=response.status,
-                        message=f"Refusing to follow redirect to non-HTTP(S) URL: {next_url}",
-                        response_headers=dict(response.headers),
-                    )
-
-                same_origin = self._same_origin(current_url, next_url)
-
-                # Guard 1c (3.3): HTTPS -> HTTP downgrade with a request
-                # body must not silently replay the body over plaintext.
-                # The Authorization strip below handles credential leakage,
-                # but body content can itself be sensitive (form fields,
-                # JSON payloads), so refuse outright when a body would be
-                # carried across the downgrade. 303 still coerces to GET
-                # and drops the body below, so the guard only triggers on
-                # 307 / 308 (body preserved) and on 301 / 302 of a body-
-                # bearing non-idempotent method that the matrix expects
-                # to replay.
-                if (
-                    current_body is not None
-                    and self._is_https_to_http_downgrade(current_url, next_url)
-                    and response.status in (307, 308)
-                ):
-                    raise ApiException(
-                        status_code=response.status,
-                        message=(
-                            f"Refusing to replay request body across HTTPS -> HTTP "
-                            f"downgrade redirect ({response.status}) to {next_url}"
-                        ),
-                        response_headers=dict(response.headers),
-                    )
-
-                # Pick follow-up method/body per RFC 7231 section 6.4 / RFC 7538.
-                status_code = response.status
-                if status_code in (307, 308):
-                    next_method = current_method
-                    next_body = current_body
-                elif status_code == 303:
-                    next_method = "GET"
-                    next_body = None
-                elif current_method.upper() in ("GET", "HEAD"):
-                    next_method = current_method
-                    next_body = current_body
-                else:
-                    next_method = "GET"
-                    next_body = None
-
-                next_headers: Dict[str, str] = dict(current_headers)
-                if not same_origin:
-                    # Guard 2: strip Authorization / Cookie /
-                    # Proxy-Authorization on cross-origin hops, including
-                    # the HTTPS -> HTTP downgrade case.
-                    for key in list(next_headers.keys()):
-                        if key.lower() in self._SENSITIVE_HEADERS:
-                            del next_headers[key]
-                    # Guard 3: clear Proxy-Authorization that lives on
-                    # the pool manager's proxy_headers bag too. This is
-                    # the path urllib3.Retry's remove_headers_on_redirect
-                    # cannot reach.
-                    if isinstance(proxy_headers_attr, dict):
-                        for key in list(proxy_headers_attr.keys()):
-                            if key.lower() == "proxy-authorization":
-                                del proxy_headers_attr[key]
-
-                # Drop body-bearing headers when the follow-up carries
-                # no body (303 coercion, or 301/302 method demotion).
-                drop_body_headers = next_body is None and current_body is not None
-                if drop_body_headers:
-                    for key in list(next_headers.keys()):
-                        if key.lower() in self._BODY_HEADERS:
-                            del next_headers[key]
-
-                # Read and release the prior response before issuing the
-                # follow-up so urllib3 returns the connection to the pool.
-                try:
-                    response.read()
-                finally:
-                    response.release_conn()
-
-                response = self._pool_manager.request(
-                    next_method,
-                    next_url,
-                    headers=next_headers,
-                    body=next_body,
-                    preload_content=False,
-                    decode_content=False,
-                    **request_kwargs,
+            # Guard 1: scheme allowlist.
+            parsed_next = urlsplit(next_url)
+            scheme = (parsed_next.scheme or "").lower()
+            if scheme not in ("http", "https"):
+                self._release_response(response)
+                raise ApiException(
+                    status_code=response.status,
+                    message=f"Refusing to follow redirect to non-HTTP(S) URL: {next_url}",
+                    response_headers=dict(response.headers),
                 )
 
-                current_url = next_url
-                current_method = next_method
-                current_body = next_body
-                current_headers = next_headers
-                redirects_remaining -= 1
-        finally:
-            # Restore the original proxy_headers snapshot so subsequent
-            # requests issued through the same client see the original
-            # configuration. Without this, a cross-origin redirect would
-            # permanently strip Proxy-Authorization for the lifetime of
-            # the pool manager.
-            if original_proxy_headers is not None and isinstance(
-                proxy_headers_attr, dict
+            same_origin = self._same_origin(current_url, next_url)
+
+            # Guard 1c (3.3): HTTPS -> HTTP downgrade with a request
+            # body must not silently replay the body over plaintext.
+            # The Authorization strip below handles credential leakage,
+            # but body content can itself be sensitive (form fields,
+            # JSON payloads), so refuse outright when a body would be
+            # carried across the downgrade. 303 still coerces to GET
+            # and drops the body below, so the guard only triggers on
+            # 307 / 308 (body preserved) and on 301 / 302 of a body-
+            # bearing non-idempotent method that the matrix expects
+            # to replay.
+            if (
+                current_body is not None
+                and self._is_https_to_http_downgrade(current_url, next_url)
+                and response.status in (307, 308)
             ):
-                proxy_headers_attr.clear()
-                proxy_headers_attr.update(original_proxy_headers)
+                self._release_response(response)
+                raise ApiException(
+                    status_code=response.status,
+                    message=(
+                        f"Refusing to replay request body across HTTPS -> HTTP "
+                        f"downgrade redirect ({response.status}) to {next_url}"
+                    ),
+                    response_headers=dict(response.headers),
+                )
+
+            # Pick follow-up method/body per RFC 7231 section 6.4 / RFC 7538.
+            status_code = response.status
+            if status_code in (307, 308):
+                next_method = current_method
+                next_body = current_body
+            elif status_code == 303:
+                next_method = "GET"
+                next_body = None
+            elif current_method.upper() in ("GET", "HEAD"):
+                next_method = current_method
+                next_body = current_body
+            else:
+                next_method = "GET"
+                next_body = None
+
+            next_headers: Dict[str, str] = dict(current_headers)
+            if not same_origin:
+                # Guard 2: strip Authorization / Cookie /
+                # Proxy-Authorization on cross-origin hops, including
+                # the HTTPS -> HTTP downgrade case.
+                for key in list(next_headers.keys()):
+                    if key.lower() in self._SENSITIVE_HEADERS:
+                        del next_headers[key]
+
+            # Drop body-bearing headers when the follow-up carries
+            # no body (303 coercion, or 301/302 method demotion).
+            drop_body_headers = next_body is None and current_body is not None
+            if drop_body_headers:
+                for key in list(next_headers.keys()):
+                    if key.lower() in self._BODY_HEADERS:
+                        del next_headers[key]
+
+            # Read and release the prior response before issuing the
+            # follow-up so urllib3 returns the connection to the pool.
+            self._release_response(response)
+
+            response = self._pool_manager.request(
+                next_method,
+                next_url,
+                headers=next_headers,
+                body=next_body,
+                preload_content=False,
+                decode_content=False,
+                **request_kwargs,
+            )
+
+            current_url = next_url
+            current_method = next_method
+            current_body = next_body
+            current_headers = next_headers
+            redirects_remaining -= 1
 
         # Redirect-budget exhaustion must surface as a typed SDK error rather
         # than silently handing back the final 3xx as if it were a normal
@@ -746,6 +714,7 @@ class DefaultApiClient:
             and response.headers
             and response.headers.get("location")
         ):
+            self._release_response(response)
             raise ApiException(
                 status_code=response.status,
                 message=f"Too many redirects (exceeded max_redirects={max_redirects})",
@@ -753,6 +722,20 @@ class DefaultApiClient:
             )
 
         return response
+
+    @staticmethod
+    def _release_response(response: Any) -> None:
+        """Drain a redirect response and hand its connection back to the pool.
+
+        The follow-up requests are made with ``preload_content=False``, so a
+        3xx response keeps its connection checked out until the body is read
+        and the connection released. This runs for every hop that is followed
+        and for every redirect that is refused, so no refusal leaks one.
+        """
+        try:
+            response.read()
+        finally:
+            response.release_conn()
 
     @staticmethod
     def _resolve_url(base_url: str, location: str) -> str:
@@ -1040,9 +1023,13 @@ class DefaultApiClient:
             br_result: bytes = _brotli.decompress(data)
             return br_result
         if encoding == "zstd" and _zstandard is not None:
-            zstd_result: bytes = _zstandard.ZstdDecompressor().decompress(
-                data, max_output_size=len(data) * 16
-            )
+            # Stream-decode rather than one-shot decompress: a streaming
+            # encoder omits the frame content size, so there is no output size
+            # to allocate and any cap would reject a legitimate high-ratio body.
+            zstd_stream = _zstandard.ZstdDecompressor().decompressobj()
+            zstd_result: bytes = zstd_stream.decompress(data)
+            if not zstd_stream.eof:
+                raise ValueError("Truncated zstd frame")
             return zstd_result
         if encoding in ("", "identity"):
             return data

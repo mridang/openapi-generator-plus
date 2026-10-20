@@ -621,12 +621,13 @@ class _FakeResp:
     def __init__(self, status: int, headers: dict[str, Any]) -> None:
         self.status = status
         self.headers = headers
+        self.released = False
 
     def read(self) -> bytes:
         return b""
 
     def release_conn(self) -> None:
-        return None
+        self.released = True
 
 
 class TestNoRedirectOnTokenPost:
@@ -750,6 +751,26 @@ class TestBodyReplayOnTlsDowngrade:
         assert excinfo.value.status_code == 307
         # The replay over plaintext must never have happened.
         assert len(pool.calls) == 1
+
+    def test_refused_downgrade_releases_the_redirect_connection(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        redirect = _FakeResp(307, {"location": "http://example.com/insecure"})
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return redirect
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException):
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert redirect.released
 
     def test_308_downgrade_with_body_raises(self) -> None:
         from {{packageName}}.errors import ApiException
@@ -905,6 +926,28 @@ class TestRedirectExhaustion:
         assert "too many redirects" in str(excinfo.value.message or "").lower()
         assert type(excinfo.value) is ApiException
         assert excinfo.value.status_code in (301, 302, 303, 307, 308)
+
+    def test_exhausting_redirect_budget_releases_every_redirect_connection(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        responses: list[_FakeResp] = []
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                responses.append(_FakeResp(302, {"location": "https://example.com/next"}))
+                return responses[-1]
+
+        transport = (
+            TransportOptions.builder()
+            .follow_redirects(True)
+            .max_redirects(3)
+            .build()
+        )
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException):
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(responses) == 4
+        assert all(response.released for response in responses)
 
     def test_terminal_redirect_without_location_does_not_raise(self) -> None:
         # A 3xx with no Location header is a legitimate terminal response and
@@ -1177,3 +1220,51 @@ class TestRedirectToNonHttpScheme:
         assert excinfo.value.status_code == 302
         # The non-http(s) target must never have been contacted.
         assert len(pool.calls) == 1
+
+    def test_refused_scheme_releases_the_redirect_connection(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        redirect = _FakeResp(302, {"location": "file:///etc/passwd"})
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return redirect
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException):
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert redirect.released
+
+
+class TestZstdDecompression:
+    """A zstd frame written by a streaming encoder carries no content size, so
+    the decoder must not derive an output cap from the compressed length."""
+
+    @staticmethod
+    def _stream_compress(payload: bytes) -> bytes:
+        import zstandard
+
+        compressor = zstandard.ZstdCompressor().compressobj()
+        return compressor.compress(payload) + compressor.flush()
+
+    def test_frame_without_content_size_beyond_sixteen_to_one_decodes(self) -> None:
+        payload = b"a" * 1_000_000
+        compressed = self._stream_compress(payload)
+        assert len(compressed) * 16 < len(payload)
+
+        assert DefaultApiClient._decompress_body(compressed, "zstd") == payload
+
+    def test_frame_with_content_size_decodes(self) -> None:
+        import zstandard
+
+        payload = b'{"id":7,"name":"doggie"}' * 100
+        compressed = zstandard.ZstdCompressor().compress(payload)
+
+        assert DefaultApiClient._decompress_body(compressed, "zstd") == payload
+
+    def test_truncated_frame_raises(self) -> None:
+        compressed = self._stream_compress(b"abcdefgh" * 100_000)
+
+        with pytest.raises(ValueError, match="Truncated zstd frame"):
+            DefaultApiClient._decompress_body(compressed[: len(compressed) // 2], "zstd")

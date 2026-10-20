@@ -7,10 +7,9 @@
 
 from __future__ import annotations
 
-import warnings
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic import StrictInt, StrictStr
-from typing import Any, List, Optional, Set
+from typing import List, Optional, Set
 from enum import Enum
 
 
@@ -36,7 +35,10 @@ class PetWithOwner(BaseModel):
     tags: Optional[List[Tag]] = Field(default=None, alias="tags")
     # .. deprecated:: This property is deprecated.
     status: Optional[PetWithOwnerStatusEnum] = Field(
-        default=None, alias="status", description="pet status in the store"
+        default=None,
+        alias="status",
+        description="pet status in the store",
+        deprecated="field 'status' on PetWithOwner is deprecated",
     )
     location: Optional[List[object]] = Field(default=None, alias="location")
     # Example: 'https://example.com/pets/fido'
@@ -65,17 +67,6 @@ class PetWithOwner(BaseModel):
         description="Pet weight in kilograms (decimal precision)",
     )
     owner_name: StrictStr = Field(alias="ownerName")
-
-    @field_validator("status")
-    def status_warn_deprecated(cls, value: Any) -> Any:
-        """Emits a DeprecationWarning when the deprecated field `status` is set."""
-        if value is not None:
-            warnings.warn(
-                "field 'status' on PetWithOwner is deprecated",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        return value
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

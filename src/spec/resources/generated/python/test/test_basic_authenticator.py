@@ -57,6 +57,18 @@ class TestBasicAuthenticator:
         assert "s3cret" not in rendered
         assert "***" in rendered
 
+    def test_equal_credentials_are_not_equal_by_value(self) -> None:
+        """Authenticators compare by identity, so a secret is never compared or hashed by value."""
+        first = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+        second = BasicAuthenticator(
+            host="https://api.example.com", username="alice", password="s3cret"
+        )
+        assert first != second
+        assert first == first
+        assert len({first, second}) == 2
+
 
 class TestBearerAuthenticator:
     def test_valid_token_produces_bearer_header(self) -> None:

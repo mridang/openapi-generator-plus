@@ -374,12 +374,11 @@ class TestRedirectSecurityGuards:
         assert not any(k.lower() == 'authorization' for k in followup_headers)
         assert not any(k.lower() == 'cookie' for k in followup_headers)
 
-    def test_clears_proxy_authorization_on_cross_origin_redirect(self) -> None:
-        """Guard 3: Proxy-Authorization lives on the pool manager's
-        proxy_headers bag, which urllib3.Retry.remove_headers_on_redirect
-        cannot reach. The manual loop must explicitly clear it on a
-        cross-origin hop, then restore it afterwards so subsequent
-        unrelated requests still authenticate to the proxy."""
+    def test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(self) -> None:
+        """The pool manager's proxy_headers authenticate the client to its
+        proxy and are shared by every concurrent request, so a cross-origin
+        redirect must never remove them, not even for the duration of the
+        follow-up."""
 
         class _FakeResp:
             def __init__(self, status: int, headers: dict[str, Any]) -> None:
@@ -408,14 +407,9 @@ class TestRedirectSecurityGuards:
         client = DefaultApiClient(transport, pool_manager=pool)
         client.send_request('GET', 'https://example.com/start', {}, None)
         assert len(pool.calls) == 2
-        # During the cross-origin follow-up, Proxy-Authorization must be absent.
-        assert not any(
-            k.lower() == 'proxy-authorization'
-            for k in observed_proxy_headers_on_followup
-        )
-        # After the loop finishes, the original Proxy-Authorization is restored
-        # on the pool manager so the next request still authenticates.
-        assert pool.proxy_headers.get('Proxy-Authorization') == 'Basic dXNlcjpwYXNz'
+        # During the cross-origin follow-up, Proxy-Authorization is still present.
+        assert observed_proxy_headers_on_followup == {'Proxy-Authorization': 'Basic dXNlcjpwYXNz'}
+        assert pool.proxy_headers == {'Proxy-Authorization': 'Basic dXNlcjpwYXNz'}
 
 
 class TestN1RedirectBodyReplayMatrix:

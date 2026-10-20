@@ -80,6 +80,21 @@ class TestApiErrorShape:
         assert isinstance(err, Exception)
         assert str(err) != ''
 
+    def test_none_message_renders_the_default_text(self) -> None:
+        err = ApiException(status_code=0, message=None)
+
+        assert str(err) == 'Error message: the server returns an error'
+
+    def test_empty_message_renders_the_default_text(self) -> None:
+        err = ApiException(status_code=0, message='')
+
+        assert str(err) == 'Error message: the server returns an error'
+
+    def test_empty_message_keeps_the_status_line_after_the_default_text(self) -> None:
+        err = ApiException(status_code=502, message='')
+
+        assert str(err) == 'Error message: the server returns an error\nHTTP status code: 502'
+
 
 class TestExceptionHierarchy:
     def test_typed_error_inherits_through_to_branded_root(self) -> None:

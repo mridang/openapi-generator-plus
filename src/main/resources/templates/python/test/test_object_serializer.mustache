@@ -1,6 +1,8 @@
 import datetime
+import warnings
 from decimal import Decimal
 import pytest
+from pydantic import ValidationError
 from {{packageName}}.errors import {{errorPrefix}}Exception
 from {{packageName}}.errors import SerializationException
 from {{packageName}}.object_serializer import ObjectSerializer
@@ -678,6 +680,27 @@ class TestNanInfinityRejection:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"val": Infinity}', 'object')
 
+    @pytest.mark.parametrize('value', [float('nan'), float('inf'), float('-inf')])
+    def test_model_double_field_rejects_a_non_finite_value(self, value: float) -> None:
+        from {{packageName}}.models.photo_metadata_location import PhotoMetadataLocation
+        with pytest.raises(ValidationError, match='finite number'):
+            PhotoMetadataLocation(lat=value, lng=0.0)
+
+    def test_model_double_field_rejects_a_non_finite_value_on_assignment(self) -> None:
+        from {{packageName}}.models.photo_metadata_location import PhotoMetadataLocation
+        location = PhotoMetadataLocation(lat=1.0, lng=2.0)
+        with pytest.raises(ValidationError, match='finite number'):
+            location.lat = float('nan')
+
+    def test_deserialize_double_field_overflowing_to_infinity_raises(self) -> None:
+        with pytest.raises(SerializationException, match='finite number'):
+            ObjectSerializer().deserialize('{"lat":1e999,"lng":0}', 'PhotoMetadataLocation')
+
+    def test_serialize_decimal_number_beyond_double_range_raises(self) -> None:
+        pet = Pet(name='Fido', photoUrls=set(), weightKg=Decimal('1e400'))
+        with pytest.raises(SerializationException, match='finite JSON number'):
+            ObjectSerializer().serialize(pet)
+
 
 class TestTimeFormat:
     """4.8: ``format: time`` round-trips through ``datetime.time``."""
@@ -1196,3 +1219,62 @@ class TestCanonicalSerdeBehaviours:
         beyond = '[' * 1500 + ']' * 1500
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(beyond, 'object')
+
+
+class TestWireDecodeIgnoresAttributeNames:
+    """Models accept the snake_case attribute name in constructors, but a wire
+    payload is matched on the declared property name only, as in the other SDKs."""
+
+    def test_attribute_name_does_not_satisfy_a_required_property(self) -> None:
+        with pytest.raises(SerializationException, match='photoUrls'):
+            ObjectSerializer().deserialize('{"name":"Fido","photo_urls":["a"]}', 'Pet')
+
+    def test_attribute_name_is_ignored_as_an_unknown_key(self) -> None:
+        from {{packageName}}.models.order import Order
+        result = ObjectSerializer().deserialize('{"pet_id":5}', 'Order')
+        assert isinstance(result, Order)
+        assert result.pet_id is None
+
+    def test_declared_property_name_wins_over_the_attribute_name(self) -> None:
+        from {{packageName}}.models.order import Order
+        result = ObjectSerializer().deserialize('{"pet_id":5,"petId":7}', 'Order')
+        assert isinstance(result, Order)
+        assert result.pet_id == 7
+
+    def test_list_elements_ignore_the_attribute_name(self) -> None:
+        result = ObjectSerializer().deserialize('[{"pet_id":5},{"petId":6}]', 'List[Order]')
+        assert [order.pet_id for order in result] == [None, 6]
+
+    def test_dict_values_ignore_the_attribute_name(self) -> None:
+        result = ObjectSerializer().deserialize('{"a":{"pet_id":5},"b":{"petId":6}}', 'Dict[str, Order]')
+        assert {key: order.pet_id for key, order in result.items()} == {'a': None, 'b': 6}
+
+    def test_direct_validation_still_accepts_the_attribute_name(self) -> None:
+        from {{packageName}}.models.order import Order
+        assert Order.model_validate({'pet_id': 5}).pet_id == 5
+
+
+class TestDeprecatedFieldWarnsOnAccessOnly:
+    """`Pet.status` is deprecated. Decoding a response that carries it, or
+    sending it, must stay silent; only reading the attribute warns, so a
+    warnings-as-errors run does not fail on a normal server response."""
+
+    WIRE = '{"name":"Fido","photoUrls":[],"status":"available"}'
+
+    def test_decoding_a_response_with_the_deprecated_field_does_not_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            result = ObjectSerializer().deserialize(self.WIRE, 'Pet')
+        assert isinstance(result, Pet)
+
+    def test_serializing_the_deprecated_field_does_not_warn(self) -> None:
+        pet = ObjectSerializer().deserialize(self.WIRE, 'Pet')
+        with warnings.catch_warnings():
+            warnings.simplefilter('error')
+            serialized = ObjectSerializer().serialize(pet)
+        assert '"status":"available"' in serialized
+
+    def test_reading_the_deprecated_field_warns(self) -> None:
+        pet = ObjectSerializer().deserialize(self.WIRE, 'Pet')
+        with pytest.warns(DeprecationWarning, match="field 'status' on Pet is deprecated"):
+            assert pet.status is not None

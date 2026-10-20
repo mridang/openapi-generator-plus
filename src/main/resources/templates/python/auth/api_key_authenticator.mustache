@@ -7,7 +7,7 @@ from .base_authenticator import BaseAuthenticator
 from .api_key_location import ApiKeyLocation
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class ApiKeyAuthenticator(BaseAuthenticator):
     """Authenticator for API key authentication."""
 
