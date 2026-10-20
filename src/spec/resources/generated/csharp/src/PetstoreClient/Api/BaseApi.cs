@@ -362,7 +362,11 @@ public abstract class BaseApi
     /// <param name="paramName">The dotted option path reported as the argument name.</param>
     /// <param name="message">The canonical missing-parameter message.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
-    protected static void RequireOption(object? value, string paramName, string message)
+    protected static void RequireOption(
+        [System.Diagnostics.CodeAnalysis.NotNull] object? value,
+        string paramName,
+        string message
+    )
     {
         if (value is null)
         {

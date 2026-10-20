@@ -52,7 +52,6 @@ public class OAuth2PasswordAuthenticatorTest
             "my-client-id",
             "my-client-secret",
             new Uri("https://auth.example.com/token"),
-            null,
             "testuser",
             "testpass",
             Scopes
@@ -138,6 +137,33 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
+    public async Task RefreshGrantGoesToTheOptionalTrailingRefreshUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            Scopes,
+            new Uri("https://auth.example.com/refresh")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
+
+    [Fact]
     public void GetHostReturnsConfiguredHost()
     {
         var auth = CreateAuthenticator();
@@ -161,10 +187,10 @@ public class OAuth2PasswordAuthenticatorTest
             "id+with/special",
             "secret&with=stuff",
             new Uri("https://auth.example.com/token"),
-            null,
             "testuser",
             "testpass",
             new[] { "read" },
+            null,
             ClientAuthMethod.Basic
         );
         auth.SetApiClient(client);

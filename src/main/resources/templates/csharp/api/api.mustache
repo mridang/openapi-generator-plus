@@ -121,18 +121,31 @@ public class {{classname}} : BaseApi
     {{#pathParams}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
-    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/pathParams}}
     {{#bodyParam}}
     /// <param name="{{paramName}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{#vendorExtensions.pluralExamples}}
-    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{value}}{{/lambda.escapeXml}}</example>
+    /// <example>{{#lambda.escapeXml}}{{{summary}}}: {{{value}}}{{/lambda.escapeXml}}</example>
     {{/vendorExtensions.pluralExamples}}
     {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{! The Options object holds the operation's query, header, form and cookie
+    parameters, plus the optional auth field only on operations that declare
+    their own security, so the sentence names each part only where it exists. }}
+{{#queryParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#servers}}
@@ -207,7 +220,20 @@ public class {{classname}} : BaseApi
     {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+{{! The Options object holds the operation's query, header, form and cookie
+    parameters, plus the optional auth field only on operations that declare
+    their own security, so the sentence names each part only where it exists. }}
+{{#queryParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+    /// <param name="options">Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.</param>
+{{/-first}}{{/cookieParams}}{{^cookieParams}}{{#hasAuthMethods}}
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
+{{/hasAuthMethods}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#servers}}
@@ -264,7 +290,7 @@ public class {{classname}} : BaseApi
 {{/vendorExtensions.op.optionsParamRequired}}
 {{#queryParams}}
 {{#required}}
-        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        RequireOption(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}), "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
@@ -275,7 +301,7 @@ public class {{classname}} : BaseApi
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        RequireOption(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}), "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
@@ -286,7 +312,7 @@ public class {{classname}} : BaseApi
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        RequireOption(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}), "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {
@@ -297,7 +323,7 @@ public class {{classname}} : BaseApi
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        ArgumentNullException.ThrowIfNull(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}));
+        RequireOption(options.{{vendorExtensions.pascalName}}, nameof(options) + "." + nameof(options.{{vendorExtensions.pascalName}}), "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
 {{#isString}}
         if (options.{{vendorExtensions.pascalName}}.Length == 0)
         {

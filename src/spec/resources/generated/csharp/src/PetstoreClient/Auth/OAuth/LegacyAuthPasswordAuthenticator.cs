@@ -25,9 +25,9 @@ public sealed class LegacyAuthPasswordAuthenticator : OAuth2PasswordAuthenticato
             clientId,
             clientSecret,
             new Uri("https://auth.example.com/oauth/token"),
-            new Uri("https://auth.example.com/oauth/refresh"),
             username,
             password,
-            ["read"]
+            ["read"],
+            new Uri("https://auth.example.com/oauth/refresh")
         ) { }
 }

@@ -23,9 +23,9 @@ public static class Servers
 {
 {{#serverConfigs}}
     /// <summary>
-    /// Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+    /// Server {{serverIndex}}: {{#lambda.escapeXml}}{{{serverUrl}}}{{/lambda.escapeXml}}{{#serverDescription}}
     ///
-    /// {{{serverDescription}}}{{/serverDescription}}
+    /// {{#lambda.escapeXml}}{{{serverDescription}}}{{/lambda.escapeXml}}{{/serverDescription}}
     /// </summary>
     {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{{serverUrl}}}", {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []);{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
         "{{{serverUrl}}}",

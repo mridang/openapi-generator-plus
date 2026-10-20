@@ -111,7 +111,6 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             _clientSecret,
             authorizationEndpoint,
             tokenEndpoint,
-            null,
             _redirectUri,
             _scopes
         );

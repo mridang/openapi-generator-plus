@@ -248,7 +248,7 @@ public class PetApi : BaseApi
     /// Add a new pet to the store
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> AddPetAsync(Pet pet, AddPetOptions? options = null)
@@ -283,7 +283,7 @@ public class PetApi : BaseApi
     /// Add a new pet to the store (with HTTP info)
     /// </summary>
     /// <param name="pet">Create a new pet in the store</param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> AddPetWithHttpInfoAsync(
@@ -315,7 +315,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[List<Photo>]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<List<Photo>> AddPetPhotosAsync(long petId, AddPetPhotosOptions options)
@@ -351,7 +351,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(
@@ -375,13 +375,15 @@ public class PetApi : BaseApi
             );
         }
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.Files,
-            nameof(options) + "." + nameof(options.Files)
+            nameof(options) + "." + nameof(options.Files),
+            "Missing the required parameter 'files' when calling PetApi.AddPetPhotos"
         );
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.Metadata,
-            nameof(options) + "." + nameof(options.Metadata)
+            nameof(options) + "." + nameof(options.Metadata),
+            "Missing the required parameter 'metadata' when calling PetApi.AddPetPhotos"
         );
         string path = "/pet/{petId}/photos";
         path = path.Replace(
@@ -424,7 +426,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
     /// <returns><![CDATA[PetTreatment]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<PetTreatment> AddPetTreatmentAsync(
@@ -468,7 +470,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="petTreatment"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options carrying an optional per-operation authenticator.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<PetTreatment>> AddPetTreatmentWithHttpInfoAsync(
@@ -514,7 +516,7 @@ public class PetApi : BaseApi
     /// Deletes a pet
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task DeletePetAsync(long petId, DeletePetOptions? options = null)
     {
@@ -526,7 +528,7 @@ public class PetApi : BaseApi
     /// Deletes a pet (with HTTP info)
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
@@ -783,7 +785,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Finds Pets by status
     /// </summary>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[List<Pet>]]></returns>
     /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -819,7 +821,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Finds Pets by status (with HTTP info)
     /// </summary>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
@@ -1343,7 +1345,7 @@ public class PetApi : BaseApi
     /// Look up a pet by name (simple string path param + required query)
     /// </summary>
     /// <param name="name"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetPetByNameAsync(string name, GetPetByNameOptions options)
@@ -1378,7 +1380,7 @@ public class PetApi : BaseApi
     /// Look up a pet by name (simple string path param + required query) (with HTTP info)
     /// </summary>
     /// <param name="name"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetPetByNameWithHttpInfoAsync(
@@ -1397,9 +1399,10 @@ public class PetApi : BaseApi
             );
         }
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.Category,
-            nameof(options) + "." + nameof(options.Category)
+            nameof(options) + "." + nameof(options.Category),
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName"
         );
         if (options.Category.Length == 0)
         {
@@ -1641,7 +1644,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="tagName"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Pet> GetPetTagAsync(
@@ -1681,7 +1684,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <param name="tagName"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(
@@ -2055,7 +2058,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResponse> SetPetPreferencesAsync(
@@ -2094,7 +2097,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ApiResponse>> SetPetPreferencesWithHttpInfoAsync(
@@ -2113,9 +2116,10 @@ public class PetApi : BaseApi
             );
         }
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.Nickname,
-            nameof(options) + "." + nameof(options.Nickname)
+            nameof(options) + "." + nameof(options.Nickname),
+            "Missing the required parameter 'nickname' when calling PetApi.SetPetPreferences"
         );
         if (options.Nickname.Length == 0)
         {
@@ -2253,7 +2257,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResponse> UploadPetCertificateAsync(
@@ -2292,7 +2296,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(
@@ -2311,9 +2315,10 @@ public class PetApi : BaseApi
             );
         }
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.File,
-            nameof(options) + "." + nameof(options.File)
+            nameof(options) + "." + nameof(options.File),
+            "Missing the required parameter 'file' when calling PetApi.UploadPetCertificate"
         );
         string path = "/pet/{petId}/certificate";
         path = path.Replace(
@@ -2355,7 +2360,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (multipart/form-data, application/octet-stream). Defaults to the first declared type when null.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -2400,7 +2405,7 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.</remarks>
     /// <param name="petId"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <param name="requestContentType">Optional request Content-Type, chosen from the operation's declared content-types (multipart/form-data, application/octet-stream). Defaults to the first declared type when null.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
@@ -2421,9 +2426,10 @@ public class PetApi : BaseApi
             );
         }
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(
+        RequireOption(
             options.File,
-            nameof(options) + "." + nameof(options.File)
+            nameof(options) + "." + nameof(options.File),
+            "Missing the required parameter 'file' when calling PetApi.UploadPetDocument"
         );
         string path = "/pet/{petId}/documents";
         path = path.Replace(

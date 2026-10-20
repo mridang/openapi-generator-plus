@@ -53,7 +53,6 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             "my-client-secret",
             new Uri("https://auth.example.com/authorize"),
             new Uri("https://auth.example.com/token"),
-            null,
             new Uri("https://app.example.com/callback"),
             Scopes
         );
@@ -212,7 +211,6 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             "my-client-secret",
             new Uri("https://x.auth0.com/authorize?audience=api"),
             new Uri("https://x.auth0.com/oauth/token"),
-            null,
             new Uri("https://app.example.com/callback"),
             new[] { "read" }
         );
@@ -234,7 +232,6 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             "my-client-secret",
             new Uri("https://auth.example.com/authorize"),
             new Uri("https://auth.example.com/token"),
-            null,
             redirect,
             Scopes
         );
@@ -273,7 +270,6 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             "my-client-secret",
             new Uri("https://Auth.Example.com:443/authorize"),
             new Uri("https://auth.example.com/token"),
-            null,
             new Uri("https://app.example.com/callback"),
             Scopes
         );

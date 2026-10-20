@@ -25,8 +25,8 @@ public sealed class UserAuthAuthorizationCodeAuthenticator : OAuth2Authorization
             clientSecret,
             new Uri("https://auth.example.com/authorize"),
             new Uri("https://auth.example.com/oauth/token"),
-            new Uri("https://auth.example.com/oauth/refresh"),
             redirectUri,
-            ["pets:write", "pets:read"]
+            ["pets:write", "pets:read"],
+            new Uri("https://auth.example.com/oauth/refresh")
         ) { }
 }

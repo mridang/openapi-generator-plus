@@ -741,10 +741,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             superCall =
                     "host, clientId, clientSecret, new Uri(\""
                             + spec.tokenUrl()
-                            + "\"), "
-                            + refreshArg
-                            + ", username, password, "
-                            + scopes;
+                            + "\"), username, password, "
+                            + scopes
+                            + ", "
+                            + refreshArg;
             namespaceSuffix = "OAuth";
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg =
@@ -758,10 +758,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             + spec.authorizationUrl()
                             + "\"), new Uri(\""
                             + spec.tokenUrl()
-                            + "\"), "
-                            + refreshArg
-                            + ", redirectUri, "
-                            + scopes;
+                            + "\"), redirectUri, "
+                            + scopes
+                            + ", "
+                            + refreshArg;
             namespaceSuffix = "OAuth";
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorSig = "string host, string clientId";

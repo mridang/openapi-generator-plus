@@ -118,7 +118,7 @@ public class StoreApi : BaseApi
     /// Echoes a swatch supplied via path, query and header parameters.
     /// </summary>
     /// <param name="pathSwatch"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[Category]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Category> GetBySwatchAsync(
@@ -156,7 +156,7 @@ public class StoreApi : BaseApi
     /// Echoes a swatch supplied via path, query and header parameters. (with HTTP info)
     /// </summary>
     /// <param name="pathSwatch"></param>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Category>> GetBySwatchWithHttpInfoAsync(
@@ -601,7 +601,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
     /// </summary>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[StockItem]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<StockItem> GetStockItemAsync(GetStockItemOptions? options = null)
@@ -635,7 +635,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields. (with HTTP info)
     /// </summary>
-    /// <param name="options">Options for query, header, and form parameters, and an optional per-operation authenticator.</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<StockItem>> GetStockItemWithHttpInfoAsync(

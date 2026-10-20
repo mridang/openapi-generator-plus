@@ -163,6 +163,24 @@ public class PetApiTest
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
             () => _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = null! }));
         Assert.Equal("options.Category", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TestAddPetPhotosMissingRequiredFormParamThrows()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _api.AddPetPhotosAsync(
+                1L,
+                new AddPetPhotosOptions { Files = null!, Metadata = new PhotoMetadata() }));
+        Assert.Equal("options.Files", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'files' when calling PetApi.AddPetPhotos",
+            ex.Message,
+            StringComparison.Ordinal);
     }
 
     [Fact]
