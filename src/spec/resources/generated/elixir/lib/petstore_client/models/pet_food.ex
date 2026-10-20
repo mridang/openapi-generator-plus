@@ -33,6 +33,13 @@ defmodule PetstoreClient.Models.PetFood do
 
   @doc "Build the appropriate type from data."
   @spec build(map() | list() | nil) :: term()
+  # The discriminator is read by key, which only a JSON object supports; any
+  # other non-nil value is a wire-shape failure, not a raw Access error.
+  def build(data) when not is_map(data) and not is_nil(data) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Expected a JSON object for PetFood, got #{inspect(data)}"
+  end
+
   def build(data) do
     discriminator_value = data[to_string(openapi_discriminator_name())]
     # Raise on missing/unknown discriminator instead of silently

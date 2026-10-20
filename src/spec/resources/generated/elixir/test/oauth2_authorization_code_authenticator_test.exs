@@ -53,6 +53,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert auth.redirect_uri == "https://app.example.com/callback"
     end
 
+    test "scheme authenticator keeps the declared scopes in the authorization URL" do
+      auth =
+        PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "https://app.example.com/callback"
+        )
+
+      assert auth.scopes |> Enum.map(&(&1 |> String.split(":") |> List.last())) |> Enum.sort() ==
+               ["read", "write"]
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
+
+      assert String.contains?(url, "scope=")
+    end
+
     test "builds authorization URL with required params" do
       auth = create_authenticator()
 

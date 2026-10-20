@@ -22,7 +22,7 @@ defmodule PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator do
       "https://auth.example.com/authorize",
       "https://auth.example.com/oauth/token",
       redirect_uri,
-      [],
+      ["pets:write", "pets:read"],
       refresh_url: "https://auth.example.com/oauth/refresh"
     )
   end

@@ -100,6 +100,15 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/discriminator}}
   @doc "Build the appropriate type from data."
   @spec build({{#discriminator}}map() | list() | nil{{/discriminator}}{{^discriminator}}term(){{/discriminator}}) :: term()
+  {{#discriminator}}
+  # The discriminator is read by key, which only a JSON object supports; any
+  # other non-nil value is a wire-shape failure, not a raw Access error.
+  def build(data) when not is_map(data) and not is_nil(data) do
+    raise {{moduleName}}.Errors.SerializationError,
+          message: "Expected a JSON object for {{classname}}, got #{inspect(data)}"
+  end
+
+  {{/discriminator}}
   def build(data) do
   {{#discriminator}}
     discriminator_value = data[to_string(openapi_discriminator_name())]

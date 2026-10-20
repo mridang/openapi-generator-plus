@@ -19,7 +19,7 @@ defmodule PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator do
       host,
       client_id,
       "https://auth.example.com/authorize",
-      []
+      ["read"]
     )
   end
 end

@@ -675,6 +675,23 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
+    /**
+     * Renders the spec's declared scopes as an Elixir list of strings. A scope
+     * name is escaped for a double-quoted literal, including the interpolation
+     * opener, so an unusual scope cannot break the generated source.
+     */
+    private static String formatElixirScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        final List<String> quoted = new ArrayList<>();
+        for (final String scope : scopes.keySet()) {
+            quoted.add("\"" + scope.replace("\\", "\\\\").replace("\"", "\\\"")
+                    .replace("#{", "\\#{") + "\"");
+        }
+        return "[" + String.join(", ", quoted) + "]";
+    }
+
     @SuppressFBWarnings(value = "IMPROPER_UNICODE",
             justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
                     + " — toLowerCase(Locale.ROOT) is intentional and safe here")
@@ -691,7 +708,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", "client_secret",
-                    "\"" + spec.tokenUrl() + "\"", "[]");
+                    "\"" + spec.tokenUrl() + "\"", formatElixirScopes(spec.scopes()));
         }
         // The refresh URL is passed as the `refresh_url` keyword option; the
         // positional parameters end at the scopes list. It is written without
@@ -699,7 +716,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         // which is why the formatter step runs twice.
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
-                    "\"" + spec.tokenUrl() + "\"", "username", "password", "[]"));
+                    "\"" + spec.tokenUrl() + "\"", "username", "password",
+                    formatElixirScopes(spec.scopes())));
             if (spec.refreshUrl() != null) {
                 args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
             }
@@ -708,18 +726,20 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final List<String> args = new ArrayList<>(List.of("host", "client_id", "client_secret",
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                    "redirect_uri", "[]"));
+                    "redirect_uri", formatElixirScopes(spec.scopes())));
             if (spec.refreshUrl() != null) {
                 args.add("refresh_url: \"" + spec.refreshUrl() + "\"");
             }
             return args;
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"", "[]");
+            return List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"",
+                    formatElixirScopes(spec.scopes()));
         }
         if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
-                    "client_id", "client_secret", "redirect_uri", "[]");
+                    "client_id", "client_secret", "redirect_uri",
+                    formatElixirScopes(spec.scopes()));
         }
         return List.of();
     }

@@ -47,6 +47,19 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
   end
 
   describe "OAuth2PasswordAuthenticator" do
+    test "scheme authenticator keeps the declared scopes" do
+      auth =
+        PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "alice",
+          "s3cret"
+        )
+
+      assert auth.scopes == ["read"]
+    end
+
     # The authenticator generated for the spec's password scheme passes its
     # token and refresh URLs to the flow in the right places.
     test "scheme authenticator keeps the credentials and the declared URLs" do

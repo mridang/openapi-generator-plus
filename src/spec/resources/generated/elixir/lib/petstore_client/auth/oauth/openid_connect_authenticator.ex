@@ -163,7 +163,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     if expiry != nil and System.system_time(:second) < expiry do
       self
     else
-      cache_discovery(fetch_discovery(self))
+      cache_discovery(fetch_discovery(self, delegate))
     end
   end
 
@@ -173,11 +173,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         if System.system_time(:second) < expiry do
           %{self | delegate: delegate, discovery_expiry: expiry}
         else
-          cache_discovery(fetch_discovery(self))
+          cache_discovery(fetch_discovery(self, delegate))
         end
 
       _ ->
-        cache_discovery(fetch_discovery(self))
+        cache_discovery(fetch_discovery(self, nil))
     end
   end
 
@@ -197,9 +197,11 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     self
   end
 
-  defp fetch_discovery(%__MODULE__{api_client: nil}), do: raise_client_not_injected()
+  # `previous` is the delegate of an expired discovery, if any. Its token manager
+  # outlives the rediscovery, so the tokens and the exchanged flag survive it.
+  defp fetch_discovery(%__MODULE__{api_client: nil}, _previous), do: raise_client_not_injected()
 
-  defp fetch_discovery(%__MODULE__{} = self) do
+  defp fetch_discovery(%__MODULE__{} = self, previous) do
     headers = %{"Accept" => "application/json"}
 
     response =
@@ -260,6 +262,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
         self.scopes
       )
 
+    delegate = keep_token_manager(delegate, previous)
+
     delegate =
       PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
         delegate,
@@ -269,6 +273,13 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     response_headers = Map.get(response, :headers, %{}) || %{}
     expiry = System.system_time(:second) + parse_max_age(response_headers)
     %{self | delegate: delegate, discovery_expiry: expiry}
+  end
+
+  defp keep_token_manager(delegate, nil), do: delegate
+
+  defp keep_token_manager(delegate, %{token_manager: manager}) do
+    Agent.stop(delegate.token_manager)
+    %{delegate | token_manager: manager}
   end
 
   # Parse `Cache-Control: max-age=<seconds>` from response headers.

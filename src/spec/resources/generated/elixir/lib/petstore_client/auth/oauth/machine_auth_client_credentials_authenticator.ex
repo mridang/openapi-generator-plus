@@ -20,7 +20,7 @@ defmodule PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator do
       client_id,
       client_secret,
       "https://auth.example.com/oauth/token",
-      []
+      ["pets:write", "pets:read"]
     )
   end
 end

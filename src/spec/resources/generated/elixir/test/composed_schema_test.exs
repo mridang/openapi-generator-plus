@@ -42,6 +42,15 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
+    test "raises SerializationError for an array body instead of an Access error" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize("[1,2]", "PetFood")
+        end
+
+      assert err.message == "Expected a JSON object for PetFood, got [1, 2]"
+    end
+
     test "raises SerializationError for empty discriminator value" do
       # An empty discriminator value matches no listed mapping and must raise
       # rather than route to a structurally-fitting variant.

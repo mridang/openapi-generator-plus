@@ -194,6 +194,59 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       end
     end
 
+    test "a string where an object model is expected raises, naming the model" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(~s("oops"), "Category")
+        end
+
+      assert err.message ==
+               "Expected a JSON object for {{moduleName}}.Models.Category, got \"oops\""
+    end
+
+    test "an array where an object model is expected raises, naming the model" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize("[1,2]", "Category")
+        end
+
+      assert err.message ==
+               "Expected a JSON object for {{moduleName}}.Models.Category, got [1, 2]"
+    end
+
+    test "a scalar where a nested model is expected raises instead of dropping the field" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(
+            ~s({"name":"x","photoUrls":[],"category":5}),
+            "Pet"
+          )
+        end
+
+      assert err.message == "Expected a JSON object for {{moduleName}}.Models.Category, got 5"
+    end
+
+    test "a string where a set is expected raises instead of passing the raw string" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.deserialize(
+            ~s({"name":"x","photoUrls":"abc"}),
+            "Pet"
+          )
+        end
+
+      assert err.message == "Expected a list for array type, got \"abc\""
+    end
+
+    test "a list where a string-keyed map is expected raises" do
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.convert_to_type([1], "%{String.t() => integer()}")
+        end
+
+      assert err.message == "Expected a JSON object for map type, got [1]"
+    end
+
     test "thrown SerializationError has a message referencing the failure" do
       try do
         {{moduleName}}.ObjectSerializer.deserialize("{", "Category")
@@ -386,6 +439,36 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       data = Jason.decode!(json)
       assert data["id"] == 1
       assert data["name"] == "Dogs"
+    end
+
+    test "an inline enum atom outside the declared values raises instead of being sent" do
+      pet = %{{moduleName}}.Models.Pet{name: "x", photo_urls: [], status: :bogus}
+
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.serialize(pet)
+        end
+
+      assert err.message ==
+               ~s(Unknown enum value "bogus"; allowed values: ["available", "pending", "sold"])
+    end
+
+    test "a standalone enum atom outside the declared values raises a SerializationError" do
+      item = %{{moduleName}}.Models.StockItem{priority: :bogus}
+
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.ObjectSerializer.serialize(item)
+        end
+
+      assert err.message ==
+               "Unknown enum value :bogus for {{moduleName}}.Models.Priority"
+    end
+
+    test "a declared inline enum atom serializes to its name" do
+      pet = %{{moduleName}}.Models.Pet{name: "x", photo_urls: [], status: :sold}
+
+      assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(pet))["status"] == "sold"
     end
 
     test "handles nil" do

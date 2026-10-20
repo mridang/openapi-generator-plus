@@ -11,6 +11,20 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   end
 
   describe "OAuth2ImplicitAuthenticator" do
+    test "scheme authenticator keeps the declared scopes in the authorization URL" do
+      auth =
+        PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id"
+        )
+
+      assert auth.scopes == ["read"]
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "scope=read")
+    end
+
     test "builds authorization URL with response type token" do
       auth = create_authenticator()
 

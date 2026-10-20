@@ -485,6 +485,21 @@ defmodule PetstoreClient.ObjectSerializer do
     Map.new(value, fn {k, v} -> {k, sanitize_field_value(v, sub_type)} end)
   end
 
+  # Inline property enum: the atom name is the wire value, so an atom outside
+  # the declared values is spec drift and must not reach the wire as typed.
+  # Mirrors the deserialize side in convert_to_type/2.
+  defp sanitize_field_value(value, "Enum<" <> rest) when is_atom(value) or is_binary(value) do
+    allowed = rest |> String.trim_trailing(">") |> String.split(",", trim: true)
+    str = to_string(value)
+
+    if str in allowed do
+      str
+    else
+      raise PetstoreClient.Errors.SerializationError,
+        message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
+    end
+  end
+
   # Named enum field - the field carries an atom whose name is the
   # lowercased constant, which is NOT necessarily the wire value (e.g.
   # `:great_dane` -> "GreatDane"). The enum module's `value/1` is the only
@@ -496,7 +511,14 @@ defmodule PetstoreClient.ObjectSerializer do
     module = resolve_model_module(type)
 
     if function_exported?(module, :value, 1) do
-      module.value(value)
+      try do
+        module.value(value)
+      rescue
+        FunctionClauseError ->
+          reraise PetstoreClient.Errors.SerializationError,
+                  [message: "Unknown enum value #{inspect(value)} for #{inspect(module)}"],
+                  __STACKTRACE__
+      end
     else
       sanitize_for_serialization(value)
     end
@@ -680,6 +702,16 @@ defmodule PetstoreClient.ObjectSerializer do
     end)
   end
 
+  # A container descriptor given the wrong kind of JSON value is a type
+  # mismatch and must raise (like the "[" clause below), not fall through to
+  # the model-name fallback, which would hand the raw value back as if it had
+  # decoded. The "Array<"/"MapSet.t("/"Map<String, " forms carry no model
+  # name of their own, so they share one raise here.
+  def convert_to_type(data, "Array<" <> _rest), do: raise_not_a_list(data)
+  def convert_to_type(data, "MapSet.t(" <> _rest), do: raise_not_a_list(data)
+
+  def convert_to_type(data, "Map<String, " <> _rest), do: raise_not_a_map(data)
+
   # Operation return types and model fields are described with the native
   # Elixir typespec container forms the codegen emits: an array is "[Inner]"
   # and a string-keyed map is "%{String.t() => Inner}". These two clauses peel
@@ -712,11 +744,7 @@ defmodule PetstoreClient.ObjectSerializer do
   # through to the scalar "binary()" clause, so a scalar resolves to the
   # scalar variant (base64-decoded bytes), never mis-parsed element-by-
   # element into a list.
-  def convert_to_type(data, "[" <> _rest),
-    do:
-      raise(PetstoreClient.Errors.SerializationError,
-        message: "Expected a list for array type, got #{inspect(data)}"
-      )
+  def convert_to_type(data, "[" <> _rest), do: raise_not_a_list(data)
 
   def convert_to_type(data, "%{String.t() => " <> rest) when is_map(data) do
     sub_type = String.replace_suffix(rest, "}", "")
@@ -725,6 +753,8 @@ defmodule PetstoreClient.ObjectSerializer do
       {key, convert_to_type(value, sub_type)}
     end)
   end
+
+  def convert_to_type(data, "%{String.t() => " <> _rest), do: raise_not_a_map(data)
 
   # Inline property enum: the model's openapi_types map carries the allowed
   # wire values as an "Enum<a,b,c>" sentinel. An out-of-schema wire value is
@@ -786,6 +816,18 @@ defmodule PetstoreClient.ObjectSerializer do
       abs_offset |> rem(3600) |> div(60) |> Integer.to_string() |> String.pad_leading(2, "0")
 
     NaiveDateTime.to_iso8601(local) <> sign <> hours <> ":" <> minutes
+  end
+
+  @spec raise_not_a_list(term()) :: no_return()
+  defp raise_not_a_list(data) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Expected a list for array type, got #{inspect(data)}"
+  end
+
+  @spec raise_not_a_map(term()) :: no_return()
+  defp raise_not_a_map(data) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Expected a JSON object for map type, got #{inspect(data)}"
   end
 
   @spec raise_unparseable(term(), String.t()) :: no_return()
@@ -1030,7 +1072,14 @@ defmodule PetstoreClient.ObjectSerializer do
     struct(module, transformed)
   end
 
-  defp deserialize_model(_data, _module), do: nil
+  # A model-typed value that is not a JSON object (a string, number, boolean or
+  # array) is a wire-shape failure, not an absent value: raise instead of
+  # returning nil, which would drop a nested field silently or surface a
+  # top-level body as the empty-body ApiError.
+  defp deserialize_model(data, module) do
+    raise PetstoreClient.Errors.SerializationError,
+      message: "Expected a JSON object for #{inspect(module)}, got #{inspect(data)}"
+  end
 
   # additionalProperties round-trip: when the model declares
   # `additional_properties/0 == true`, undeclared wire keys are not discarded

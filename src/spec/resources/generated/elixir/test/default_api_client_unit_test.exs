@@ -504,6 +504,56 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
            )
   end
 
+  test "3.3: body replay is refused only for a real body on a 307/308 downgrade" do
+    https = "https://api.example.com/x"
+    http = "http://api.example.com/y"
+
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, ~s({"a":1}))
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, ~s({"a":1}))
+
+    # No body to leak: absent, or the empty string sent to force Content-Length: 0.
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, nil)
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "")
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(308, https, http, "")
+
+    # The body is dropped on these statuses, and https->https is no downgrade.
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(302, https, http, "x")
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, https, "x")
+  end
+
+  test "decode_text_body honours a little-endian BOM on a bare utf-16 label" do
+    body = <<0xFF, 0xFE, 0x41, 0x00, 0x42, 0x00>>
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body(body, "text/plain; charset=utf-16") ==
+             "AB"
+  end
+
+  test "decode_text_body honours a big-endian BOM on a bare utf-16 label" do
+    body = <<0xFE, 0xFF, 0x00, 0x41, 0x00, 0x42>>
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body(body, "text/plain; charset=utf-16") ==
+             "AB"
+  end
+
+  test "decode_text_body reads a bare utf-16 body without a BOM as big-endian" do
+    body = <<0x00, 0x41, 0x00, 0x42>>
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body(body, "text/plain; charset=utf-16") ==
+             "AB"
+  end
+
+  test "decode_text_body decodes windows-1252 including the C1 range" do
+    body = <<0x80, 0x20, 0x93, 0x68, 0x69, 0x94, 0x20, 0xE9>>
+
+    for label <- ["windows-1252", "cp1252", "Windows-1252"] do
+      assert PetstoreClient.DefaultApiClient.decode_text_body(
+               body,
+               "text/plain; charset=#{label}"
+             ) ==
+               "\u20AC \u201Chi\u201D \u00E9"
+    end
+  end
+
   test "3.3: HTTP->HTTP 307 replay is permitted (no downgrade)" do
     # Sanity check: the guard is strictly HTTPS->HTTP. Pure-HTTP 307 chains
     # must continue to round-trip the body untouched.

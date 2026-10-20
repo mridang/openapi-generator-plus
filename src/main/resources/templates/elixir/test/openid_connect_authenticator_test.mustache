@@ -287,6 +287,37 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert inspect(auth) =~ ~s(client_secret: "***")
     end
 
+    # An expired discovery document is fetched again, but the token state lives
+    # on across it: a code exchanged before the expiry is still exchanged after.
+    test "rediscovery after expiry keeps the exchanged tokens" do
+      discovery = %{{moduleName}}.ApiHttpResponse{
+        status_code: 200,
+        headers: %{"Cache-Control" => "max-age=0"},
+        body: Jason.encode!(%{
+          "authorization_endpoint" => "https://auth.example.com/authorize",
+          "token_endpoint" => "https://auth.example.com/token"
+        })
+      }
+
+      fake_client = FakeApiClient.new([
+        discovery,
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+        },
+        discovery
+      ])
+
+      auth = create_authenticator()
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.exchange_code(auth, "oidc-code")
+      headers = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.get_count(fake_client) == 2
+      assert headers["Authorization"] == "Bearer oidc-tok"
+    end
+
     # The discovery document must be cached: a second build should reuse it
     # rather than issue a second GET to the discovery endpoint.
     test "fetches discovery document only once" do

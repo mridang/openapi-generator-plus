@@ -45,6 +45,20 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
   end
 
   describe "OAuth2ClientCredentialsAuthenticator" do
+    # The authenticator generated for the spec's client credentials scheme
+    # carries the scopes the spec declares for that flow.
+    test "scheme authenticator keeps the declared scopes" do
+      auth =
+        PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret"
+        )
+
+      assert auth.scopes |> Enum.map(&(&1 |> String.split(":") |> List.last())) |> Enum.sort() ==
+               ["read", "write"]
+    end
+
     test "sends client credentials grant type" do
       fake_client =
         FakeApiClient.new([

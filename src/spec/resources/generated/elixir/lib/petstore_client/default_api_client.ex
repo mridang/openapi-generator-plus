@@ -505,15 +505,18 @@ defmodule PetstoreClient.DefaultApiClient do
         body
 
       other ->
-        encoding = charset_to_atom(other)
+        {encoding, payload} = charset_encoding(other, body)
 
         case encoding do
           nil ->
             body
 
+          :windows_1252 ->
+            decode_windows_1252(payload)
+
           atom ->
             try do
-              case :unicode.characters_to_binary(body, atom, :utf8) do
+              case :unicode.characters_to_binary(payload, atom, :utf8) do
                 result when is_binary(result) -> result
                 _ -> body
               end
@@ -553,6 +556,35 @@ defmodule PetstoreClient.DefaultApiClient do
 
   defp parse_charset(_), do: nil
 
+  @utf16_little {:utf16, :little}
+  @utf16_big {:utf16, :big}
+
+  # A bare `utf-16` label honours a leading byte order mark (and drops it), and
+  # is big-endian only without one, as RFC 2781 prescribes.
+  defp charset_encoding(label, <<0xFF, 0xFE, rest::binary>>) when label in ["utf-16", "utf16"],
+    do: {@utf16_little, rest}
+
+  defp charset_encoding(label, <<0xFE, 0xFF, rest::binary>>) when label in ["utf-16", "utf16"],
+    do: {@utf16_big, rest}
+
+  defp charset_encoding(label, body), do: {charset_to_atom(label), body}
+
+  # The C1 range of windows-1252 (0x80..0x9F); the five undefined bytes map to
+  # the matching control code point. Every other byte is its latin1 code point.
+  @windows_1252_c1 {0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030,
+                    0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F, 0x90, 0x2018, 0x2019, 0x201C,
+                    0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D,
+                    0x017E, 0x0178}
+
+  defp decode_windows_1252(body) do
+    for <<byte <- body>>, into: "" do
+      codepoint = if byte in 0x80..0x9F, do: elem(@windows_1252_c1, byte - 0x80), else: byte
+      <<codepoint::utf8>>
+    end
+  end
+
+  defp charset_to_atom("windows-1252"), do: :windows_1252
+  defp charset_to_atom("cp1252"), do: :windows_1252
   defp charset_to_atom("iso-8859-1"), do: :latin1
   defp charset_to_atom("latin1"), do: :latin1
   defp charset_to_atom("latin-1"), do: :latin1
@@ -847,8 +879,7 @@ defmodule PetstoreClient.DefaultApiClient do
               # not the original request (orig_url): an http -> https -> http
               # chain downgrades on the final hop even though the first request
               # was already http, which an orig_url anchor would miss.
-              if downgrade?(url, next_url) and body != nil and
-                   response.status in [307, 308] do
+              if refuse_body_replay?(response.status, url, next_url, body) do
                 raise PetstoreClient.Errors.ApiError,
                   message:
                     "refusing to replay request body across HTTPS->HTTP downgrade " <>
@@ -978,6 +1009,16 @@ defmodule PetstoreClient.DefaultApiClient do
     os = if o.scheme, do: String.downcase(o.scheme), else: nil
     ns = if n.scheme, do: String.downcase(n.scheme), else: nil
     os == "https" and ns == "http"
+  end
+
+  @doc false
+  # Whether following a redirect would replay a request body over an HTTPS ->
+  # HTTP downgrade. Only 307/308 preserve the body, and only a real body can
+  # leak: nil is no body, and so is the empty string the client substitutes on
+  # POST/PUT/PATCH to force an explicit `Content-Length: 0`.
+  @spec refuse_body_replay?(integer(), String.t(), String.t(), term()) :: boolean()
+  def refuse_body_replay?(status, url, next_url, body) do
+    status in [307, 308] and body not in [nil, ""] and downgrade?(url, next_url)
   end
 
   defp default_port("https"), do: 443
