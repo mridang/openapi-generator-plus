@@ -41,6 +41,13 @@ module {{moduleName}}
       def initialize({{#serverVariables}}{{snakeName}}:{{^-last}}, {{/-last}}{{/serverVariables}})
         super()
 {{#serverVariables}}
+{{#hasEnumValues}}
+        allowed = {{serverTypeName}}{{pascalName}}.constants.map { |constant| {{serverTypeName}}{{pascalName}}.const_get(constant) }
+        unless allowed.include?({{snakeName}})
+          raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: %<allowed>s", value: {{snakeName}}, allowed: allowed)
+        end
+
+{{/hasEnumValues}}
         @{{snakeName}} = {{snakeName}}
 {{/serverVariables}}
       end

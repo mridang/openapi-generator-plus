@@ -373,6 +373,21 @@ describe {{moduleName}}::ObjectSerializer do
       _(data).must_include('name')
       _(data['name']).must_equal('')
     end
+
+    it 'serializes a DateTime in the canonical date-time form' do
+      json = {{moduleName}}::ObjectSerializer.serialize(DateTime.new(2024, 1, 1, 12, 30, 45))
+      _(JSON.parse(json)).must_equal('2024-01-01T12:30:45.000+00:00')
+    end
+
+    it 'serializes a Time in the canonical date-time form' do
+      json = {{moduleName}}::ObjectSerializer.serialize(Time.new(2024, 1, 1, 12, 30, 45, '+00:00'))
+      _(JSON.parse(json)).must_equal('2024-01-01T12:30:45.000+00:00')
+    end
+
+    it 'serializes a Date in calendar form' do
+      json = {{moduleName}}::ObjectSerializer.serialize(Date.new(2024, 1, 1))
+      _(JSON.parse(json)).must_equal('2024-01-01')
+    end
   end
 
   describe '.deserialize' do
@@ -393,6 +408,34 @@ describe {{moduleName}}::ObjectSerializer do
       _(category).must_be_kind_of({{moduleName}}::Models::Category)
       _(category.id).must_equal(1)
       _(category.name).must_equal('Dogs')
+    end
+
+    it 'raises SerializationError for a string body where an object model is expected' do
+      err = _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('"oops"', 'Pet')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+      _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Pet, got String')
+    end
+
+    it 'raises SerializationError for an array body where an object model is expected' do
+      err = _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('[1,2]', 'Pet')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+      _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Pet, got Array')
+    end
+
+    it 'raises SerializationError for a scalar where a nested model is expected' do
+      err = _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":5}', 'Pet')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+      _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Category, got Integer')
+    end
+
+    it 'raises SerializationError for an array where a nested model is expected' do
+      err = _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":[1,2]}', 'Pet')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+      _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Category, got Array')
     end
 
     it 'returns nil for empty input' do

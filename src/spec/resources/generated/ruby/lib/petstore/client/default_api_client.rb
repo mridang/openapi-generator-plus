@@ -55,20 +55,29 @@ module Petstore::Client
     # so the cross-origin filter can compare case-insensitively.
     EXTRA_SENSITIVE_HEADER_NAMES = %w[x-api-key x-internal-key].freeze
 
-    # Faraday's default params encoder emits '+' for a space (the
-    # application/x-www-form-urlencoded convention). RFC 3986 requires %20 in a
-    # URL query component, and a strict server reads '+' as a literal plus.
-    # Delegate to Faraday's encoder, then normalise the space-derived '+' to
-    # %20 -- a literal '+' is already %2B, so it is left untouched. Every other
-    # character keeps Faraday's encoding; only spaces change. This matches the
-    # other SDKs, whose query builders all emit %20.
+    # BaseApi builds the query string itself, with the per-parameter style,
+    # explode and allowReserved rules already applied, and hands Faraday the
+    # whole URL. Faraday would otherwise decode that query into a Hash and
+    # re-encode it, which keeps only the last value of a repeated key, sorts
+    # the parameters, and percent-encodes the reserved characters that
+    # allowReserved left literal. This encoder carries the query through as one
+    # opaque string, so the bytes BaseApi built are the bytes sent. Params that
+    # reach Faraday separately still get Faraday's encoding, with the
+    # space-derived '+' normalised to %20 (RFC 3986 query component).
     module QueryParamsEncoder
+      RAW_QUERY_KEY = '__raw_query__'
+
       def self.encode(params)
-        ::Faraday::NestedParamsEncoder.encode(params)&.gsub('+', '%20')
+        raw = params[RAW_QUERY_KEY]
+        rest = params.reject { |key, _value| key == RAW_QUERY_KEY }
+        encoded = rest.empty? ? nil : ::Faraday::NestedParamsEncoder.encode(rest)&.gsub('+', '%20')
+        return encoded if raw.nil?
+
+        [raw, encoded].compact.reject(&:empty?).join('&')
       end
 
       def self.decode(query)
-        ::Faraday::NestedParamsEncoder.decode(query)
+        query.nil? || query.empty? ? {} : { RAW_QUERY_KEY => query }
       end
     end
 
@@ -236,8 +245,10 @@ module Petstore::Client
           # still returning a 3xx, the request never reached a final
           # resource. Surface this loudly as an ApiError instead of silently
           # returning the last redirect response as if it were the answer,
-          # matching the other SDKs.
-          raise unusable_response(response, "Exceeded maximum number of redirects (#{max_redirects})") if redirect_status?(response.status)
+          # matching the other SDKs. A 3xx with no usable Location breaks out of
+          # the loop early and is a legitimate terminal response, so the budget
+          # check is gated on the hop count.
+          raise unusable_response(response, "Exceeded maximum number of redirects (#{max_redirects})") if hops >= max_redirects && redirect_status?(response.status)
         end
       rescue Faraday::TimeoutError, Faraday::ConnectionFailed, Faraday::SSLError => e
         raise network_error_class(e).new(message: e.message)
@@ -448,8 +459,7 @@ module Petstore::Client
 
     def build_connection
       Faraday.new do |f|
-        # Emit %20 (not '+') for spaces in the query component. See
-        # {QueryParamsEncoder}.
+        # Send the query BaseApi built unchanged. See {QueryParamsEncoder}.
         f.options.params_encoder = QueryParamsEncoder
         f.proxy = @transport_options.proxy if @transport_options.proxy
         f.ssl.verify = @transport_options.verify_ssl

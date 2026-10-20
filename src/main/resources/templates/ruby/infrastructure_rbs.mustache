@@ -113,6 +113,7 @@
       def self.from_response: (Integer, Hash[String, String]?, String?) -> ApiError
       def self.parse_error_body: (String?) -> untyped
       def initialize: (?untyped) -> void
+      def detail_message: () -> String
       def message: () -> String
       def typed_error_body: (untyped) -> untyped
     end
@@ -186,6 +187,7 @@
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
     module QueryParamsEncoder
+      RAW_QUERY_KEY: String
       def self.encode: (untyped) -> String?
       def self.decode: (String?) -> untyped
     end

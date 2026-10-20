@@ -272,6 +272,10 @@ module Petstore::Client
         nil
       when String, Integer, Float, TrueClass, FalseClass
         object
+      when Time, DateTime
+        # Before the Date arm: DateTime is a Date subclass and would otherwise
+        # be sent as Date#to_s without the canonical fractional seconds.
+        object.strftime(DEFAULT_DATETIME_FORMAT)
       when Date
         # Date#to_s emits ISO-8601 calendar form.
         object.to_s
@@ -279,8 +283,6 @@ module Petstore::Client
         # format: duration → protobuf-JSON duration ("3600s"). See
         # #duration_to_protobuf_json; the native ISO-8601 form is rejected.
         duration_to_protobuf_json(object)
-      when Time, DateTime
-        object.strftime(DEFAULT_DATETIME_FORMAT)
       when Tod::TimeOfDay
         # 4.8: format: time — emit HH:MM:SS for JSON wire form.
         object.strftime('%H:%M:%S')
@@ -454,7 +456,10 @@ module Petstore::Client
     end
 
     def self.deserialize_model(data, klass)
-      return nil unless data.is_a?(Hash)
+      unless data.is_a?(Hash)
+        raise Errors::SerializationError,
+              "Expected a JSON object for #{klass}, got #{data.class}: #{data.inspect}"
+      end
 
       data = data.transform_keys(&:to_s)
 

@@ -51,6 +51,9 @@ module Petstore::Client
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
       def initialize(region:)
         super()
+        allowed = GetMultiServerPetInfoServerRegion.constants.map { |constant| GetMultiServerPetInfoServerRegion.const_get(constant) }
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
+
         @region = region
       end
 
@@ -99,7 +102,13 @@ module Petstore::Client
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
       def initialize(environment:, version:)
         super()
+        allowed = GetStagingPetInfoServerEnvironment.constants.map { |constant| GetStagingPetInfoServerEnvironment.const_get(constant) }
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'environment'. Allowed values: %<allowed>s", value: environment, allowed: allowed) unless allowed.include?(environment)
+
         @environment = environment
+        allowed = GetStagingPetInfoServerVersion.constants.map { |constant| GetStagingPetInfoServerVersion.const_get(constant) }
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'version'. Allowed values: %<allowed>s", value: version, allowed: allowed) unless allowed.include?(version)
+
         @version = version
       end
 

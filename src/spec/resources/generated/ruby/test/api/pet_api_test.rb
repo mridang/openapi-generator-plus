@@ -505,6 +505,43 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe 'per-operation server variables' do
+    it 'resolves the URL from enum values' do
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
+      )
+
+      _(server.url).must_equal('https://sandbox.example.com/api/v3')
+    end
+
+    it 'rejects a value outside the enum' do
+      err = _(lambda {
+        Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'attacker.net/x#', version: 'v2')
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_include("Invalid value 'attacker.net/x#' for server variable 'environment'. Allowed values: [")
+      _(err.message).must_include('"staging"')
+      _(err.message).must_include('"sandbox"')
+    end
+
+    it 'rejects a value outside the enum on a later variable' do
+      err = _(lambda {
+        Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'staging', version: 'v9')
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_include("Invalid value 'v9' for server variable 'version'")
+    end
+
+    it 'rejects nil for an enum variable' do
+      err = _(lambda {
+        Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(region: nil) # steep:ignore ArgumentTypeMismatch
+      }).must_raise(ArgumentError)
+
+      _(err.message).must_include("Invalid value '' for server variable 'region'")
+    end
+  end
+
   describe '#get_external_pet_info' do
     it 'uses per-operation server URL' do
       # The operation's own server wins over the client's base URL: the client

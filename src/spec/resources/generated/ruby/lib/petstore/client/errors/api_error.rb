@@ -101,13 +101,26 @@ module Petstore::Client
         ::Petstore::Client::ObjectSerializer.deserialize(response_body, klass)
       end
 
-      # Build a human-readable error message from the stored attributes.
+      # The bare detail message, without the status, headers and body that
+      # #message appends. Falls back to the default text when the detail is
+      # nil or empty.
+      #
+      # @return [String] the detail message
+      def detail_message
+        detail = @message
+        return 'Error message: the server returns an error' if detail.nil? || detail.to_s.empty?
+
+        detail
+      end
+
+      # Build a human-readable error message from the stored attributes. The
+      # headers and body sections are left out when they are nil or empty.
       def message
-        msg = @message.nil? ? 'Error message: the server returns an error' : @message
+        msg = detail_message
 
         msg += "\nHTTP status code: #{status_code}" if status_code && status_code != 0
-        msg += "\nResponse headers: #{response_headers}" if response_headers
-        msg += "\nResponse body: #{response_body}" if response_body
+        msg += "\nResponse headers: #{response_headers}" unless response_headers.nil? || response_headers.empty?
+        msg += "\nResponse body: #{response_body}" unless response_body.nil? || response_body.empty?
 
         msg
       end

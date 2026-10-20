@@ -266,8 +266,14 @@ module Petstore::Client
           body.to_s
         elsif content_type == 'application/x-www-form-urlencoded'
           # Omit nil-valued fields entirely rather than emitting a valueless
-          # `key=` pair, matching the query builder and the other SDKs.
-          URI.encode_www_form(body.compact)
+          # `key=` pair, matching the query builder and the other SDKs. Each
+          # scalar goes through ObjectSerializer.stringify for the canonical
+          # wire form, and nil array elements are skipped.
+          pairs = body.compact.flat_map do |key, value|
+            items = value.is_a?(Array) || value.is_a?(Set) ? value.to_a : [value]
+            items.compact.map { |item| [key.to_s, ::Petstore::Client::ObjectSerializer.stringify(item)] }
+          end
+          URI.encode_www_form(pairs)
         else
           ::Petstore::Client::ObjectSerializer.serialize(body)
         end

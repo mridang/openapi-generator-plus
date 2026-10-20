@@ -497,6 +497,35 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).wont_include 'note'
   end
 
+  it 'form-urlencoded body skips nil elements inside an array property' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, { 'tags' => ['a', nil, 'b'] },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'tags=a&tags=b'
+  end
+
+  it 'form-urlencoded body stringifies a date-time in the canonical wire form' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    when_at = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+    test_api.call('POST', '/test', {}, {}, { 'remindAt' => when_at },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'remindAt=2024-01-15T10%3A30%3A00.000%2B00%3A00'
+  end
+
+  it 'form-urlencoded body stringifies a duration, a boolean and a number' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    form = { 'snooze' => ISO8601::Duration.new('PT1H'), 'urgent' => true, 'weight' => 1.5 }
+    test_api.call('POST', '/test', {}, {}, form,
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'snooze=3600s&urgent=true&weight=1.5'
+  end
+
   it 'passes binary body as-is' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build

@@ -41,6 +41,61 @@ describe Petstore::Client::DefaultApiClient do
     Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
   end
 
+  def stub_connection_with_query_encoder(stubs)
+    Faraday.new('http://localhost') do |f|
+      f.options.params_encoder = Petstore::Client::DefaultApiClient::QueryParamsEncoder
+      f.adapter :test, stubs
+    end
+  end
+
+  def sent_query(query)
+    sent = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        sent = env.url.query
+        [200, {}, 'ok']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection_with_query_encoder(stubs)) do
+      client.send_request('GET', "http://localhost/echo?#{query}", {}, nil)
+    end
+    sent
+  end
+
+  it 'installs the passthrough query encoder on the connection it builds' do
+    connection = Petstore::Client::DefaultApiClient.new.send(:build_connection)
+    _(connection.options.params_encoder).must_equal Petstore::Client::DefaultApiClient::QueryParamsEncoder
+  end
+
+  it 'sends a repeated query key once per value' do
+    _(sent_query('tags=a&tags=b&tags=c')).must_equal 'tags=a&tags=b&tags=c'
+  end
+
+  it 'keeps the order of the query parameters' do
+    _(sent_query('z=1&a=2&m=3')).must_equal 'z=1&a=2&m=3'
+  end
+
+  it 'keeps allowReserved characters literal' do
+    _(sent_query('revision=v1.0/beta:rc1&at=a@b,c;d')).must_equal 'revision=v1.0/beta:rc1&at=a@b,c;d'
+  end
+
+  it 'keeps an encoded plus and an encoded space distinct' do
+    _(sent_query('a=1%2B2&b=x%20y')).must_equal 'a=1%2B2&b=x%20y'
+  end
+
+  it 'query encoder decodes to the raw string and encodes it back unchanged' do
+    encoder = Petstore::Client::DefaultApiClient::QueryParamsEncoder
+    _(encoder.encode(encoder.decode('b=2&a=1&b=3'))).must_equal 'b=2&a=1&b=3'
+    _(encoder.decode(nil)).must_equal({})
+    _(encoder.decode('')).must_equal({})
+  end
+
+  it 'query encoder encodes separate params with %20 for a space' do
+    encoder = Petstore::Client::DefaultApiClient::QueryParamsEncoder
+    _(encoder.encode({ 'q' => 'a b' })).must_equal 'q=a%20b'
+  end
+
   it 'sends GET request and returns response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'content-type' => 'application/json' }, '{"method":"GET"}'] }
@@ -739,6 +794,32 @@ describe Petstore::Client::DefaultApiClient do
       # ApiError with the 3xx status, never a NetworkError.
       _(err).must_be_instance_of Petstore::Client::Errors::ApiError
       _(err.status_code).must_equal 302
+    end
+  end
+
+  it 'returns a 3xx without a Location header as the terminal response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') { [301, { 'content-type' => 'text/plain' }, 'moved body'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 301
+      _(resp.body).must_equal 'moved body'
+    end
+  end
+
+  it 'returns a 3xx with an empty Location header as the terminal response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') { [302, { 'location' => '', 'content-type' => 'text/plain' }, 'moved body'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.body).must_equal 'moved body'
     end
   end
 

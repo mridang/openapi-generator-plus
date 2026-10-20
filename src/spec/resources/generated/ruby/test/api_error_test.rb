@@ -42,6 +42,50 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).wont_be_empty
   end
 
+  it 'omits the headers and body sections when they are empty' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 404, message: 'missing', response_headers: {}, response_body: ''
+    )
+
+    _(err.message).must_equal("missing\nHTTP status code: 404")
+  end
+
+  it 'omits the headers and body sections when they are nil' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 0, message: 'connection reset', response_headers: nil, response_body: nil
+    )
+
+    _(err.message).must_equal('connection reset')
+  end
+
+  it 'renders the headers and body sections when they carry content' do
+    headers = { 'x-id' => '1' }
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 500, message: 'boom', response_headers: headers, response_body: 'oops'
+    )
+
+    _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: #{headers}\nResponse body: oops")
+  end
+
+  it 'substitutes the default text for an empty detail message' do
+    _(Petstore::Client::Errors::ApiError.new('').message).must_equal('Error message: the server returns an error')
+    _(Petstore::Client::Errors::ApiError.new(message: '').message).must_equal('Error message: the server returns an error')
+    _(Petstore::Client::Errors::ApiError.new.message).must_equal('Error message: the server returns an error')
+  end
+
+  it 'detail_message returns the bare detail without the rendered context' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, { 'x-id' => '1' }, 'gone')
+
+    _(err.detail_message).must_equal('API returned status code 404')
+    _(err.message).must_include("\nHTTP status code: 404")
+    _(err.to_s).must_equal(err.message)
+  end
+
+  it 'detail_message falls back to the default text for a nil or empty detail' do
+    _(Petstore::Client::Errors::ApiError.new(status_code: 500).detail_message).must_equal('Error message: the server returns an error')
+    _(Petstore::Client::Errors::ApiError.new('').detail_message).must_equal('Error message: the server returns an error')
+  end
+
   # Unified exception hierarchy: every SDK-thrown error must reach the
   # branded root (::Petstore::Client::Errors::OpenAPIError) so a single rescue catches them all.
   it 'roots ApiError at the branded base' do
