@@ -698,6 +698,31 @@ final class PetApiTests {
       mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
   }
 
+  // required-date-path-validation: a required `format: date` path param is a
+  // String in swift, so an empty value must be rejected before dispatch just
+  // like an empty string path param, never sent as `/pet/born-on/`.
+  @Test func testRequiredDatePathParamEmptyThrows() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "[]"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.findPetsBornOn(bornOn: "")
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+      return
+    }
+    #expect(
+      message == "Missing the required parameter 'bornOn' when calling PetApi.findPetsBornOn",
+      "expected the canonical required-parameter message, got: \(message)")
+    #expect(
+      mockClient.lastURL.isEmpty, "transport must not be called when a required param is missing")
+  }
+
   // required-nested-param-validation (happy path): a present required query
   // param passes the guard and the request is dispatched normally.
   @Test func testRequiredQueryParamPresentSucceeds() async throws {

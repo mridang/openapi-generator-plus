@@ -40,6 +40,17 @@ import Testing
         #expect(description.contains("***"))
     }
 
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func dumpDoesNotLeakSecret() async throws {
+        let auth = try BasicAuthenticator(host: "https://api.example.com", username: "alice", password: "dump-secret-pass")
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-pass"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
     /* Malformed credentials would corrupt the Authorization header (RFC 7617
      * §2): each is rejected at construction with
      * ConfigurationError.invalidArgument, never a trap. */

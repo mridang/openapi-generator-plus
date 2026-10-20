@@ -47,6 +47,19 @@ import FoundationNetworking
         #expect(!(capturedUA!.isEmpty))
     }
 
+    /* An explicitly empty User-Agent is sent as an empty header, like the
+     * other SDKs, instead of being silently omitted. */
+    @Test func testEmptyUserAgentIsSentAsEmptyHeader() async throws {
+        var capturedUA: String?
+        let transport = TransportOptionsBuilder().userAgent("").build()
+        let client = makeClient(transport: transport) { req in
+            capturedUA = req.value(forHTTPHeaderField: "User-Agent")
+            return (self.body(), 200, [:])
+        }
+        _ = try await client.sendRequest(method: "GET", url: "http://localhost/test", headers: [:], body: nil)
+        #expect(capturedUA == "")
+    }
+
     // MARK: - X-Request-ID injection
 
     @Test func testInjectsRequestId() async throws {
@@ -383,6 +396,25 @@ import FoundationNetworking
         }
         let resp = try await client.sendRequest(method: "GET", url: "http://localhost/case", headers: [:], body: nil)
         #expect(resp.body == "é", "charset= parsing must be case-insensitive")
+    }
+
+    /* A byte that is invalid in the declared charset AND in UTF-8 must not
+     * blank the whole body: it decodes leniently with U+FFFD for the bad byte. */
+    @Test func testInvalidUtf8BodyDecodesLeniently() async throws {
+        let bytes = Data("{\"a\":\"".utf8) + Data([0xE9]) + Data("\"}".utf8)
+        let client = makeClient { _ in
+            (bytes, 200, ["Content-Type": "application/json"])
+        }
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/bad-utf8", headers: [:], body: nil)
+        #expect(resp.body == "{\"a\":\"\u{FFFD}\"}", "invalid byte must become U+FFFD, got: \(resp.body)")
+    }
+
+    @Test func testBytesInvalidInDeclaredCharsetFallBackLeniently() async throws {
+        let client = makeClient { _ in
+            (Data([0x68, 0xE9]), 200, ["Content-Type": "text/plain; charset=us-ascii"])
+        }
+        let resp = try await client.sendRequest(method: "GET", url: "http://localhost/bad-ascii", headers: [:], body: nil)
+        #expect(resp.body == "h\u{FFFD}", "got: \(resp.body)")
     }
 
     /// A BOM-less `utf-16` body must decode as big-endian per RFC 2781.

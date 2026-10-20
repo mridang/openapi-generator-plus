@@ -46,6 +46,28 @@ import Testing
         #expect(err.errorDescription?.isEmpty == false)
     }
 
+    /* A top-level scalar error body (JSON fragment) populates errorBody like
+     * the other SDKs; a bare null stays absent. */
+    @Test func testFromResponseParsesScalarJsonBody() {
+        let text = ApiError.fromResponse(statusCode: 404, headers: [:], body: "\"Not found\"")
+        #expect(text.errorBody as? String == "Not found")
+        let number = ApiError.fromResponse(statusCode: 404, headers: [:], body: "123")
+        #expect((number.errorBody as? NSNumber)?.intValue == 123)
+        let flag = ApiError.fromResponse(statusCode: 500, headers: [:], body: "true")
+        #expect((flag.errorBody as? NSNumber)?.boolValue == true)
+        let null = ApiError.fromResponse(statusCode: 500, headers: [:], body: "null")
+        #expect(null.errorBody == nil)
+    }
+
+    /* OAuth2TokenError renders its message through localizedDescription
+     * instead of Foundation's generic "operation couldn't be completed". */
+    @Test func testOAuth2TokenErrorLocalizedDescriptionIsTheMessage() {
+        let missing: any Error = OAuth2TokenError.missingAccessToken("empty access_token")
+        #expect(missing.localizedDescription == "empty access_token")
+        let invalid: any Error = OAuth2TokenError.invalidResponse("not a token object")
+        #expect(invalid.localizedDescription == "not a token object")
+    }
+
     @Test func testGetTypedErrorBodyDeserializesBody() throws {
         let err = ApiError(
             statusCode: 400,

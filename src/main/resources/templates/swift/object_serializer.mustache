@@ -73,9 +73,23 @@ internal enum ObjectSerializer {
         return dateOnlyFormatter.date(from: string)
     }
 
+    /// Formats a date in the canonical `date-time` wire form, TRUNCATING any
+    /// sub-millisecond component like the other eleven SDKs. `DateFormatter`
+    /// would round instead, which can roll `...59.9996` into the next second
+    /// (or year). The one-microsecond slack absorbs `Date`'s binary-double
+    /// error so a millisecond parsed from the wire (`.123`) is not floored to
+    /// `.122`.
+    static func formatDateTime(_ date: Date) -> String {
+        let millis = (date.timeIntervalSince1970 * 1000 + 0.001).rounded(.down)
+        return dateFormatter.string(from: Date(timeIntervalSince1970: millis / 1000))
+    }
+
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .formatted(dateFormatter)
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(formatDateTime(date))
+        }
         return encoder
     }()
 
@@ -254,7 +268,7 @@ internal enum ObjectSerializer {
         case let boolVal as Bool:
             return boolVal ? "true" : "false"
         case let date as Date:
-            return dateFormatter.string(from: date)
+            return formatDateTime(date)
         case let str as String:
             return str
         case let int as Int:

@@ -19,3 +19,14 @@ public enum OAuth2TokenError: OpenAPIError, Equatable {
   /// The token endpoint's 2xx body is not UTF-8 or not a token JSON object.
   case invalidResponse(String)
 }
+
+extension OAuth2TokenError: LocalizedError {
+  /// The message carried by either case, so `localizedDescription` shows it
+  /// instead of Foundation's generic "operation couldn't be completed" text.
+  public var errorDescription: String? {
+    switch self {
+    case .missingAccessToken(let message), .invalidResponse(let message):
+      return message
+    }
+  }
+}

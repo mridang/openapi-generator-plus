@@ -123,6 +123,9 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#isString}}
         try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
 {{/isString}}
+{{#isDate}}
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
+{{/isDate}}
 {{/required}}
 {{/pathParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
@@ -133,6 +136,11 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -142,6 +150,11 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
@@ -151,6 +164,11 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
@@ -160,6 +178,11 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
+{{#isDate}}
+        guard !options.{{paramName}}.isEmpty else {
+            throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+        }
+{{/isDate}}
 {{/required}}
 {{/cookieParams}}
 {{/vendorExtensions.op.optionsParamRequired}}

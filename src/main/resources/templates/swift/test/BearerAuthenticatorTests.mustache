@@ -44,6 +44,17 @@ import Testing
         #expect(description.contains("***"))
     }
 
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func dumpDoesNotLeakSecret() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "dump-secret-token")
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-token"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
     /* An empty or whitespace-only token would emit a bare
      * `Authorization: Bearer ` header, and CR/LF or non-ASCII bytes would
      * inject or mangle it: each is rejected at construction with

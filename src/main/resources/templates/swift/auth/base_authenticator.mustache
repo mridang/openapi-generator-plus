@@ -23,3 +23,11 @@ open class BaseAuthenticator: Authenticator, @unchecked Sendable {
     /// Returns an empty dictionary. Override in concrete authenticators if needed.
     open func cookieParams() -> [String: String] { return [:] }
 }
+
+extension BaseAuthenticator: CustomReflectable {
+    /// A mirror with no children, so `dump(_:)` and `Mirror(reflecting:)` never
+    /// walk the stored credentials of any subclass (private ones included).
+    public var customMirror: Mirror {
+        Mirror(self, children: [Mirror.Child]())
+    }
+}

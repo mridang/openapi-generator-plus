@@ -56,6 +56,17 @@ import Testing
         #expect(description.contains("***"))
     }
 
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func dumpDoesNotLeakSecret() async throws {
+        let auth = try ApiKeyAuthenticator(host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "dump-secret-key", location: .header)
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-key"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
     /* Empty or whitespace-only keys and CR/LF/NUL are rejected at every
      * location, and RFC 7230 §3.2.6 rejects non-ASCII in a header key: each
      * with ConfigurationError.invalidArgument, never a trap. */

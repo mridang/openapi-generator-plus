@@ -425,6 +425,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
 
   /// Performs the findPetsBornOn operation and returns the full API result.
   public func findPetsBornOnWithHTTPInfo(bornOn: String) async throws -> ApiResult<[Pet]> {
+    try ValueSerializer.requirePathParam("bornOn", bornOn, operation: "PetApi.findPetsBornOn")
 
     var path = "/pet/born-on/{bornOn}"
     path = path.replacingOccurrences(

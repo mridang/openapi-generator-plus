@@ -104,7 +104,11 @@ public class ApiError: {{errorPrefix}}Error, LocalizedError, @unchecked Sendable
              * error payload is refused before it can recurse through the call
              * stack. Skip parsing entirely if the depth exceeds the cap. */
             if ObjectSerializer.jsonMaxDepth(data) <= ObjectSerializer.maxJsonDepth {
-                parsed = try? JSONSerialization.jsonObject(with: data)
+                /* .fragmentsAllowed so a top-level scalar body (`"Not found"`, `123`,
+                 * `true`) populates errorBody like the other SDKs. A bare `null`
+                 * stays absent rather than surfacing as an NSNull. */
+                let value = try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)
+                parsed = value is NSNull ? nil : value
             }
         }
 

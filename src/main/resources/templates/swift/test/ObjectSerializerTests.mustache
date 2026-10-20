@@ -267,6 +267,20 @@ import Testing
         #expect(ObjectSerializer.stringify(nil) == "")
     }
 
+    /* The sub-millisecond part is truncated, never rounded: rounding would
+     * roll ...59.9999 into the next second (or year). */
+    @Test(arguments: [
+        (0.9996, "1970-01-01T00:00:00.999+00:00"),
+        (0.1239, "1970-01-01T00:00:00.123+00:00"),
+        (1704067199.9999, "2023-12-31T23:59:59.999+00:00"),
+    ])
+    func testDateTimeTruncatesSubMillisecond(seconds: Double, expected: String) throws {
+        let date = Date(timeIntervalSince1970: seconds)
+        #expect(ObjectSerializer.stringify(date) == expected)
+        let json = try ObjectSerializer.serialize(PhotoMetadata(takenAt: date))
+        #expect(json.contains(expected), "model encoder must truncate too, got: \(json)")
+    }
+
     // MARK: - DateTimeOffsetPreservationTests
 
     @Test func testDateTimeUTCSerializesWithOffset() {

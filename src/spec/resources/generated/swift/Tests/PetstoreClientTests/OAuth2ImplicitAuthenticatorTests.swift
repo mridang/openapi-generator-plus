@@ -113,4 +113,16 @@ import Testing
     #expect(!description.contains("implicit-tok"))
     #expect(description.contains("***"))
   }
+
+  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+   * included, so the redacted description is not enough: the reflection
+   * must hide the secret too. */
+  @Test func dumpDoesNotLeakSecret() async throws {
+    let auth = createAuthenticator()
+    try auth.setAccessToken("implicit-tok")
+    var dumped = ""
+    dump(auth, to: &dumped)
+    #expect(!dumped.contains("implicit-tok"), "dump leaked the secret: \(dumped)")
+    #expect(Mirror(reflecting: auth).children.isEmpty)
+  }
 }
