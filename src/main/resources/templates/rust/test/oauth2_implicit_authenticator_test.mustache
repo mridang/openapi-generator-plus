@@ -1,6 +1,6 @@
 {{>api_info}}
 
-use {{packageName}}::auth::oauth::OAuth2ImplicitAuthenticator;
+use {{packageName}}::auth::oauth::{BrowserAuthImplicitAuthenticator, OAuth2ImplicitAuthenticator};
 use {{packageName}}::auth::Authenticator;
 use {{packageName}}::ConfigurationError;
 
@@ -106,4 +106,17 @@ fn redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("implicit-tok"));
     assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+    let auth = BrowserAuthImplicitAuthenticator::new("https://api.example.com", "id");
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&']).any(|pair| pair == "scope=read"),
+        "authorization url: {}",
+        url
+    );
 }

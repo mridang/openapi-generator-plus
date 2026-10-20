@@ -86,6 +86,18 @@ pub struct {{classname}} {
     base: BaseApi,
 }
 
+impl Default for {{classname}} {
+    /// Creates a {{classname}} on a default HTTP client and the default
+    /// configuration, with no authenticator.
+    fn default() -> Self {
+        Self::new(
+            Arc::new(crate::default_api_client::DefaultApiClient::new(None)),
+            Configuration::default(),
+            None,
+        )
+    }
+}
+
 impl {{classname}} {
     /// Creates a new {{classname}} instance.
     pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
@@ -167,14 +179,15 @@ impl {{classname}} {
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
-        // optional-request-content-type-selector: this operation declares
-        // {{#consumes}}`{{{mediaType}}}`{{^-last}}, {{/-last}}{{/consumes}} as request content-types.
-        // The public {{operationId}}_with_http_info entry point keeps its original
-        // signature (no selector) and so always sends the FIRST declared type —
-        // {{vendorExtensions.op.effectiveConsumes}} — exactly as before. The shared
-        // implementation below takes the resolved Content-Type as an argument so
-        // the {{operationId}}_with_content_type variant (generated only when more
-        // than one content-type is declared) can override it.
+        // The public {{operationId}}_with_http_info entry point always sends the
+        // first declared request content-type, {{vendorExtensions.op.effectiveConsumes}}. The shared
+        // implementation below takes the resolved Content-Type as an argument
+{{#consumes.1}}
+        // so the {{operationId}}_with_content_type variant can override it.
+{{/consumes.1}}
+{{^consumes.1}}
+        // and this operation declares no alternative to select.
+{{/consumes.1}}
         self.{{operationId}}_invoke(
 {{#vendorExtensions.op.signatureArgs}}
 {{#isPath}}            {{paramName}},

@@ -34,6 +34,16 @@ impl ApiKeyHeaderAuthenticator {
     }
 }
 
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for ApiKeyHeaderAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ApiKeyHeaderAuthenticator")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 impl std::ops::Deref for ApiKeyHeaderAuthenticator {
     type Target = ApiKeyAuthenticator;
 

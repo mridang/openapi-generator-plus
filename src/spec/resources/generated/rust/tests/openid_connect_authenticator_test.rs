@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
@@ -17,7 +18,7 @@ use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 use petstore::{
     ApiError, ConfigurationError, InternalServerError, NetworkError, NetworkTimeoutError,
-    NotFoundError, SerializationError,
+    NotFoundError, OAuth2AuthorizationCodeError, SerializationError,
 };
 
 type BoxError = Box<dyn std::error::Error + Send + Sync>;
@@ -28,6 +29,9 @@ struct FakeApiClient {
     last_body: Mutex<Option<String>>,
     last_method: Mutex<Option<String>>,
     get_count: Mutex<u32>,
+    gate_posts: AtomicBool,
+    post_entered: AtomicBool,
+    post_released: AtomicBool,
 }
 
 impl FakeApiClient {
@@ -38,6 +42,25 @@ impl FakeApiClient {
             last_body: Mutex::new(None),
             last_method: Mutex::new(None),
             get_count: Mutex::new(0),
+            gate_posts: AtomicBool::new(false),
+            post_entered: AtomicBool::new(false),
+            post_released: AtomicBool::new(false),
+        }
+    }
+
+    /// Makes every POST (a token request) wait, once it has started, until
+    /// `release_posts` is called, so a test can interleave other calls with it.
+    fn gate_posts(&self) {
+        self.gate_posts.store(true, Ordering::SeqCst);
+    }
+
+    fn release_posts(&self) {
+        self.post_released.store(true, Ordering::SeqCst);
+    }
+
+    async fn wait_for_post(&self) {
+        while !self.post_entered.load(Ordering::SeqCst) {
+            tokio::task::yield_now().await;
         }
     }
 
@@ -115,7 +138,16 @@ impl ApiClient for FakeApiClient {
             let mut responses = self.responses.lock().unwrap();
             responses.remove(0)
         };
-        Box::pin(async move { response })
+        let gated = method == "POST" && self.gate_posts.load(Ordering::SeqCst);
+        Box::pin(async move {
+            if gated {
+                self.post_entered.store(true, Ordering::SeqCst);
+                while !self.post_released.load(Ordering::SeqCst) {
+                    tokio::task::yield_now().await;
+                }
+            }
+            response
+        })
     }
 }
 
@@ -448,4 +480,65 @@ fn redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("my-client-secret"));
     assert!(debug.contains("***"));
+}
+
+const DISCOVERY: &str = r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    client.enqueue(DISCOVERY, 200);
+    client.gate_posts();
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    let exchange = auth.exchange_code("oidc-code");
+    let concurrent = async {
+        client.wait_for_post().await;
+        let url = auth.build_authorization_url("s").await;
+        let headers = auth.try_auth_headers().await;
+        client.release_posts();
+        (url, headers)
+    };
+    let (exchanged, (url, headers)) = tokio::join!(exchange, concurrent);
+
+    exchanged.expect("the exchange must succeed");
+    let url = url.expect("a call during the exchange must not fail");
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    let err = headers.expect_err("the code is not exchanged yet");
+    assert_eq!(
+        err.downcast_ref::<OAuth2AuthorizationCodeError>(),
+        Some(&OAuth2AuthorizationCodeError::CodeNotExchanged)
+    );
+    assert_eq!(1, client.get_count());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_cancelled_code_exchange_keeps_the_delegate() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    client.enqueue(DISCOVERY, 200);
+    client.gate_posts();
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    tokio::select! {
+        _ = auth.exchange_code("oidc-code") => panic!("the gated exchange must not finish"),
+        _ = client.wait_for_post() => {}
+    }
+
+    auth.build_authorization_url("")
+        .await
+        .expect("the delegate must survive a dropped call");
+    assert_eq!(1, client.get_count());
 }

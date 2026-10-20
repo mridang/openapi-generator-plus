@@ -52,6 +52,43 @@ async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
     assert!(resp.body().contains("\"method\""));
 }
 
+/* A configured CA is the only trust anchor. example.com presents a chain from a
+ * public CA, which the system store trusts but the fixture CA does not, so the
+ * handshake must be refused. The test is skipped when the host is unreachable. */
+#[tokio::test]
+async fn test_custom_ca_cert_replaces_the_system_trust_store() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    if !reachable {
+        eprintln!("skipping: example.com:443 is unreachable");
+        return;
+    }
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let result = client
+        .send_request("GET", "https://example.com/", &headers, None)
+        .await;
+
+    let err = result.expect_err("a public CA must not be trusted next to a pinned CA");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_some(),
+        "expected a NetworkError, got: {}",
+        err
+    );
+}
+
 #[tokio::test]
 async fn test_default_api_client_makes_http_request_through_proxy() {
     let chasm_url = testcontainers_helper::chasm_internal_http_url();

@@ -34,6 +34,16 @@ impl SessionCookieAuthenticator {
     }
 }
 
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for SessionCookieAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SessionCookieAuthenticator")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 impl std::ops::Deref for SessionCookieAuthenticator {
     type Target = ApiKeyAuthenticator;
 

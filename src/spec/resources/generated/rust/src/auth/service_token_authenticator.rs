@@ -28,6 +28,16 @@ impl ServiceTokenAuthenticator {
     }
 }
 
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for ServiceTokenAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("ServiceTokenAuthenticator")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 impl std::ops::Deref for ServiceTokenAuthenticator {
     type Target = BearerAuthenticator;
 

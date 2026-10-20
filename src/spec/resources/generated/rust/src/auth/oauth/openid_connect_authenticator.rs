@@ -34,7 +34,9 @@ pub struct OpenIdConnectAuthenticator {
     redirect_uri: String,
     scopes: Vec<String>,
     api_client: Mutex<Option<Arc<dyn ApiClient>>>,
-    delegate: Mutex<Option<OAuth2AuthorizationCodeAuthenticator>>,
+    /* Shared, never moved out of the lock: concurrent and cancelled calls
+     * all see the one delegate that holds the exchanged tokens. */
+    delegate: Mutex<Option<Arc<OAuth2AuthorizationCodeAuthenticator>>>,
     discovery_expiry: Mutex<Option<Instant>>,
 }
 
@@ -100,12 +102,7 @@ impl OpenIdConnectAuthenticator {
         state: &str,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         self.resolve_delegate().await?;
-        let delegate_guard = self.delegate.lock().unwrap();
-        let delegate = delegate_guard.as_ref().ok_or_else(|| {
-            Box::new(ConfigurationError::InvalidState(
-                "OIDC delegate is in use by a concurrent call".to_string(),
-            )) as Box<dyn std::error::Error + Send + Sync>
-        })?;
+        let delegate = self.current_delegate()?;
         Ok(delegate.build_authorization_url(state))
     }
 
@@ -118,28 +115,21 @@ impl OpenIdConnectAuthenticator {
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.resolve_delegate().await?;
-        /* The delegate's exchange_code is async; take ownership of the
-         * delegate temporarily so the mutex is not held across the await. */
-        let delegate = self.take_delegate()?;
-        let result = delegate.exchange_code(code).await;
-        /* Restore the delegate regardless of the result. */
-        {
-            let mut delegate_guard = self.delegate.lock().unwrap();
-            *delegate_guard = Some(delegate);
-        }
-        result
+        /* The delegate's exchange_code is async; clone the shared handle so
+         * the mutex is not held across the await. */
+        let delegate = self.current_delegate()?;
+        delegate.exchange_code(code).await
     }
 
-    /// Takes the resolved delegate out of its mutex so it can be awaited on
-    /// without holding the lock. Two concurrent calls can race for it; the
-    /// loser gets [`ConfigurationError::InvalidState`].
-    fn take_delegate(
+    /// Returns a shared handle to the resolved delegate. The delegate stays in
+    /// its mutex, so a concurrent call or a cancelled await never loses it.
+    fn current_delegate(
         &self,
-    ) -> Result<OAuth2AuthorizationCodeAuthenticator, Box<dyn std::error::Error + Send + Sync>>
+    ) -> Result<Arc<OAuth2AuthorizationCodeAuthenticator>, Box<dyn std::error::Error + Send + Sync>>
     {
-        self.delegate.lock().unwrap().take().ok_or_else(|| {
+        self.delegate.lock().unwrap().clone().ok_or_else(|| {
             Box::new(ConfigurationError::InvalidState(
-                "OIDC delegate is in use by a concurrent call".to_string(),
+                "OIDC delegate has not been resolved".to_string(),
             )) as Box<dyn std::error::Error + Send + Sync>
         })
     }
@@ -244,7 +234,12 @@ impl OpenIdConnectAuthenticator {
 
         let mut delegate_guard = self.delegate.lock().unwrap();
         let mut expiry_guard = self.discovery_expiry.lock().unwrap();
-        *delegate_guard = Some(delegate);
+        /* A concurrent call may have installed a live delegate while this one
+         * was fetching discovery; keep it so its exchanged tokens survive. */
+        if delegate_guard.is_some() && expiry_guard.is_none_or(|e| Instant::now() < e) {
+            return Ok(());
+        }
+        *delegate_guard = Some(Arc::new(delegate));
         *expiry_guard = Some(new_expiry);
         Ok(())
     }
@@ -306,18 +301,10 @@ impl Authenticator for OpenIdConnectAuthenticator {
         Box::pin(async move {
             self.resolve_delegate().await?;
 
-            /* The delegate's try_auth_headers is async; take ownership briefly
-             * so the mutex is not held across the await. */
-            let delegate = self.take_delegate()?;
-
-            let headers = delegate.try_auth_headers().await;
-
-            {
-                let mut delegate_guard = self.delegate.lock().unwrap();
-                *delegate_guard = Some(delegate);
-            }
-
-            headers
+            /* The delegate's try_auth_headers is async; clone the shared
+             * handle so the mutex is not held across the await. */
+            let delegate = self.current_delegate()?;
+            delegate.try_auth_headers().await
         })
     }
 

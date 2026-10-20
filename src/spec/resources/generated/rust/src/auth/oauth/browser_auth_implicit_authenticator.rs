@@ -19,8 +19,18 @@ impl BrowserAuthImplicitAuthenticator {
             host,
             client_id,
             "https://auth.example.com/authorize",
-            vec![],
+            vec!["read".to_string()],
         ))
+    }
+}
+
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for BrowserAuthImplicitAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("BrowserAuthImplicitAuthenticator")
+            .field(&self.0)
+            .finish()
     }
 }
 

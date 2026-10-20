@@ -12,7 +12,9 @@ use std::sync::{Arc, Mutex};
 
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_http_response::ApiHttpResponse;
-use petstore::auth::oauth::OAuth2AuthorizationCodeAuthenticator;
+use petstore::auth::oauth::{
+    OAuth2AuthorizationCodeAuthenticator, UserAuthAuthorizationCodeAuthenticator,
+};
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 use petstore::OAuth2AuthorizationCodeError;
@@ -297,4 +299,23 @@ fn redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("my-client-secret"));
     assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
+    let auth = UserAuthAuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "id",
+        "secret",
+        "https://app.example.com/callback",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&'])
+            .any(|pair| pair == "scope=pets%3Awrite%20pets%3Aread"),
+        "authorization url: {}",
+        url
+    );
 }

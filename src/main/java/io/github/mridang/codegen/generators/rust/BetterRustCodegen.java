@@ -995,7 +995,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"));
             superArgs =
                     List.of("host", "client_id", "client_secret",
-                            "\"" + spec.tokenUrl() + "\"", "vec![]");
+                            "\"" + spec.tokenUrl() + "\"", formatRustScopes(spec.scopes()));
         } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
             final String refreshArg =
@@ -1007,7 +1007,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             superArgs =
                     List.of("host", "client_id", "client_secret",
                             "\"" + spec.tokenUrl() + "\"",
-                            "username", "password", "vec![]", refreshArg);
+                            "username", "password", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             // refresh_url is &str — empty string means "fall back to token_url"
             final String refreshArg =
@@ -1019,11 +1019,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             superArgs =
                     List.of("host", "client_id", "client_secret",
                             "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                            "redirect_uri", "vec![]", refreshArg);
+                            "redirect_uri", formatRustScopes(spec.scopes()), refreshArg);
         } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
             superArgs =
-                    List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"", "vec![]");
+                    List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"",
+                            formatRustScopes(spec.scopes()));
         } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
             constructorParams =
                     List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
@@ -1049,6 +1050,21 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 "BasicAuthenticator", "BearerAuthenticator", "ApiKeyAuthenticator")
                 .contains(spec.baseClass()));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    /**
+     * Renders the scopes a scheme declares as a Rust {@code Vec<String>}
+     * expression, so the per-scheme wrapper requests the spec's scopes.
+     */
+    private static String formatRustScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "vec![]";
+        }
+        final List<String> items = new ArrayList<>();
+        for (final String scope : scopes.keySet()) {
+            items.add("\"" + scope.replace("\\", "\\\\").replace("\"", "\\\"") + "\".to_string()");
+        }
+        return "vec![" + String.join(", ", items) + "]";
     }
 
     private static Map<String, String> p(String name, String type) {

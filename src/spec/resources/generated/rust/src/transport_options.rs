@@ -37,9 +37,9 @@ pub struct TransportOptions {
 
     /// Path to a custom CA certificate bundle for TLS verification.
     ///
-    /// When set together with `verify_ssl` enabled, the client trusts
-    /// certificates signed by this CA in addition to (or instead of) the
-    /// system trust store. `None` uses the system default.
+    /// When set together with `verify_ssl` enabled, the client trusts only
+    /// certificates signed by this CA and ignores the system trust store.
+    /// `None` uses the system default.
     ca_cert_path: Option<String>,
 
     /// The PEM bytes read from `ca_cert_path` by `build`, which also checked
@@ -329,12 +329,25 @@ impl TransportOptionsBuilder {
                         path, reason
                     ))
                 })?;
-                reqwest::Certificate::from_pem(&pem).map_err(|e| {
+                let cert = reqwest::Certificate::from_pem(&pem).map_err(|e| {
                     ConfigurationError::InvalidCaCertificate(format!(
                         "failed to parse {:?}: {}",
                         path, e
                     ))
                 })?;
+                /* A DER-shaped block that is not an X.509 certificate is only
+                 * rejected when the TLS config is built, so build a client with
+                 * it now; otherwise `DefaultApiClient::new` would panic. */
+                reqwest::Client::builder()
+                    .tls_built_in_root_certs(false)
+                    .add_root_certificate(cert)
+                    .build()
+                    .map_err(|e| {
+                        ConfigurationError::InvalidCaCertificate(format!(
+                            "failed to parse {:?}: {}",
+                            path, e
+                        ))
+                    })?;
                 Some(pem)
             }
         };

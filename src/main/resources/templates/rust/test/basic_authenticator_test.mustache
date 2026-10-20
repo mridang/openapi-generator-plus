@@ -1,7 +1,7 @@
 {{>api_info}}
 
 use {{packageName}}::auth::Authenticator;
-use {{packageName}}::auth::BasicAuthenticator;
+use {{packageName}}::auth::{AdminBasicAuthenticator, BasicAuthenticator};
 use {{packageName}}::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -20,16 +20,14 @@ async fn test_valid_credentials_produce_basic_header() {
 /// never an empty header map that would send the request unauthenticated.
 #[test]
 fn test_malformed_credentials_are_invalid_arguments() {
-    for (username, password) in [
-        ("alice\r\n", "s3cret"),
-        ("al\nice", "s3cret"),
-        ("alice", "s3c\0ret"),
-        ("ali:ce", "s3cret"),
+    for (username, password, expected) in [
+        ("alice\r\n", "s3cret", "Basic auth username must not contain CR, LF, or NUL characters"),
+        ("al\nice", "s3cret", "Basic auth username must not contain CR, LF, or NUL characters"),
+        ("alice", "s3c\0ret", "Basic auth password must not contain CR, LF, or NUL characters"),
+        ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 §2)"),
     ] {
         match BasicAuthenticator::new("https://api.example.com", username, password) {
-            Err(ConfigurationError::InvalidArgument(reason)) => {
-                assert!(reason.contains("invalid HTTP Basic credentials"), "{}", reason)
-            }
+            Err(ConfigurationError::InvalidArgument(reason)) => assert_eq!(expected, reason),
             other => panic!(
                 "expected ConfigurationError::InvalidArgument for ({:?}, {:?}), got {:?}",
                 username, password, other
@@ -44,4 +42,13 @@ fn redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("s3cret"));
     assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
+    let auth = AdminBasicAuthenticator::new("https://api.example.com", "alice", "s3cret").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(debug.starts_with("AdminBasicAuthenticator("), "{}", debug);
+    assert!(!debug.contains("s3cret"), "{}", debug);
+    assert!(debug.contains("***"), "{}", debug);
 }

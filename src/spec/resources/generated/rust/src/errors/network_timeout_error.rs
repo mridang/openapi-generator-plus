@@ -26,11 +26,7 @@ impl NetworkTimeoutError {
 
 impl fmt::Display for NetworkTimeoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Network timeout: {}",
-            self.network_error.api_error().message()
-        )
+        fmt::Display::fmt(self.network_error.api_error(), f)
     }
 }
 

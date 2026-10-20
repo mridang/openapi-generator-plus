@@ -22,9 +22,19 @@ impl UserAuthAuthorizationCodeAuthenticator {
             "https://auth.example.com/authorize",
             "https://auth.example.com/oauth/token",
             redirect_uri,
-            vec![],
+            vec!["pets:write".to_string(), "pets:read".to_string()],
             "https://auth.example.com/oauth/refresh",
         ))
+    }
+}
+
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for UserAuthAuthorizationCodeAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("UserAuthAuthorizationCodeAuthenticator")
+            .field(&self.0)
+            .finish()
     }
 }
 

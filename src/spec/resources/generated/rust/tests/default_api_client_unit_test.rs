@@ -83,6 +83,182 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
     (base_url, captured)
 }
 
+/// Starts a minimal HTTP server that answers one request with a 200 and returns
+/// the base URL with the request head it received.
+fn start_head_capture_server() -> (String, std::sync::mpsc::Receiver<String>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n_read]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (base_url, rx)
+}
+
+/// Returns the value of the named request header in a captured request head, or
+/// `None` when the header is absent.
+fn head_header(head: &str, name: &str) -> Option<String> {
+    let prefix = format!("{}:", name.to_lowercase());
+    head.lines()
+        .find(|line| line.to_lowercase().starts_with(&prefix))
+        .map(|line| line[prefix.len()..].trim().to_string())
+}
+
+/// Starts a server that redirects the first request with `status` and returns
+/// the head of the follow-up request it receives on the second connection.
+fn start_redirect_server(status: u16) -> (String, std::sync::mpsc::Receiver<String>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let response = if i == 0 {
+                format!(
+                    "HTTP/1.1 {} Redirect\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    status
+                )
+            } else {
+                let _ = tx.send(String::from_utf8_lossy(&buf[..n_read]).to_string());
+                "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
+            };
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            if i > 0 {
+                break;
+            }
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (base_url, rx)
+}
+
+#[tokio::test]
+async fn test_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers() {
+    for status in [301u16, 302, 303] {
+        let (base_url, head) = start_redirect_server(status);
+        let transport = TransportOptionsBuilder::new()
+            .follow_redirects(true)
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        client
+            .send_request("POST", &format!("{}/start", base_url), &headers, None)
+            .await
+            .expect("unexpected error");
+
+        let head = head.recv().expect("no follow-up request captured");
+        assert!(
+            head.starts_with("GET /next "),
+            "status {}: {}",
+            status,
+            head
+        );
+        assert_eq!(
+            None,
+            head_header(&head, "content-length"),
+            "status {}: {}",
+            status,
+            head
+        );
+        assert_eq!(
+            None,
+            head_header(&head, "content-type"),
+            "status {}: {}",
+            status,
+            head
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length() {
+    let (base_url, head) = start_redirect_server(307);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request(
+            "POST",
+            &format!("{}/start", base_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no follow-up request captured");
+    assert!(head.starts_with("POST /next "), "{}", head);
+    assert_eq!(
+        Some("0".to_string()),
+        head_header(&head, "content-length"),
+        "{}",
+        head
+    );
+}
+
+#[tokio::test]
+async fn test_empty_user_agent_is_sent_as_an_empty_header() {
+    let (base_url, head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(
+        Some(String::new()),
+        head_header(&head, "user-agent"),
+        "{}",
+        head
+    );
+}
+
+#[tokio::test]
+async fn test_no_user_agent_is_omitted_when_cleared() {
+    let (base_url, head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .user_agent_opt(None)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(None, head_header(&head, "user-agent"), "{}", head);
+}
+
 #[tokio::test]
 async fn test_default_api_client_injects_custom_user_agent() {
     let base_url = start_echo_server();

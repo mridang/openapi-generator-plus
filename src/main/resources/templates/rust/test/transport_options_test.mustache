@@ -192,6 +192,15 @@ fn test_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
 }
 
 #[test]
+fn test_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
+    let reason = ca_file_rejection(
+        "not-x509",
+        "-----BEGIN CERTIFICATE-----\nMAA=\n-----END CERTIFICATE-----\n",
+    );
+    assert!(reason.contains("failed to parse"), "unexpected reason: {}", reason);
+}
+
+#[test]
 fn test_transport_options_ca_cert_block_without_end_line_is_rejected() {
     let reason = ca_file_rejection("no-end", "-----BEGIN CERTIFICATE-----\nMIIB\n");
     assert!(

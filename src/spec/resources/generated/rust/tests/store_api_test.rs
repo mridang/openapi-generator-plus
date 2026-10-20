@@ -300,3 +300,20 @@ async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
         "a malformed 2xx body must fail loud, not return the raw string"
     );
 }
+
+/// The API group can be built without wiring a client, configuration or
+/// authenticator, like the no-argument constructors in the other SDKs.
+#[test]
+fn test_store_api_default_constructs_without_arguments() {
+    let _api = StoreApi::default();
+}
+
+/// Operations that declare no alternative request content-type carry no comment
+/// about a request-content-type selector that is not generated.
+#[test]
+fn test_operations_without_a_content_type_selector_do_not_mention_one() {
+    let source = include_str!("../src/api/store_api.rs");
+    assert!(!source.contains("optional-request-content-type-selector"));
+    assert!(!source.contains("as request content-types"));
+    assert!(!source.contains("_with_content_type"));
+}

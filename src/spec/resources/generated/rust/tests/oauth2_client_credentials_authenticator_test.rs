@@ -15,7 +15,9 @@ use base64::Engine as _;
 use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_http_response::ApiHttpResponse;
 use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
-use petstore::auth::oauth::OAuth2ClientCredentialsAuthenticator;
+use petstore::auth::oauth::{
+    MachineAuthClientCredentialsAuthenticator, OAuth2ClientCredentialsAuthenticator,
+};
 use petstore::auth::Authenticator;
 use petstore::auth::HttpAwareAuthenticator;
 
@@ -283,4 +285,43 @@ fn redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("my-client-secret"));
     assert!(debug.contains("***"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_scheme_wrapper_sends_the_scopes_declared_by_the_spec() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+
+    let mut auth =
+        MachineAuthClientCredentialsAuthenticator::new("https://api.example.com", "id", "secret");
+    auth.as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    let body = client.last_body().expect("should have body");
+    assert!(
+        body.split('&')
+            .any(|pair| pair == "scope=pets%3Awrite+pets%3Aread"),
+        "token request body: {}",
+        body
+    );
+}
+
+#[test]
+fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
+    let auth = MachineAuthClientCredentialsAuthenticator::new(
+        "https://api.example.com",
+        "id",
+        "wrapper-secret",
+    );
+    let debug = format!("{:?}", auth);
+    assert!(
+        debug.starts_with("MachineAuthClientCredentialsAuthenticator("),
+        "{}",
+        debug
+    );
+    assert!(!debug.contains("wrapper-secret"), "{}", debug);
+    assert!(debug.contains("***"), "{}", debug);
 }

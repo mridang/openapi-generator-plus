@@ -28,6 +28,16 @@ impl PetStoreBearerAuthenticator {
     }
 }
 
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for PetStoreBearerAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("PetStoreBearerAuthenticator")
+            .field(&self.0)
+            .finish()
+    }
+}
+
 impl std::ops::Deref for PetStoreBearerAuthenticator {
     type Target = BearerAuthenticator;
 

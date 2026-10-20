@@ -24,11 +24,7 @@ impl NotFoundError {
 
 impl fmt::Display for NotFoundError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Not found (404): {}",
-            self.client_error.api_error().message()
-        )
+        fmt::Display::fmt(self.client_error.api_error(), f)
     }
 }
 

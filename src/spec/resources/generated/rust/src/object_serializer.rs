@@ -363,8 +363,9 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> 
 
 /// Deserializes a JSON byte slice into the target type.
 ///
-/// Returns `None` if the data is empty, and a [`SerializationError`] if
-/// deserialization fails.
+/// Returns `None` if the data is empty or a bare JSON `null` (an absent body,
+/// as in the other SDKs), and a [`SerializationError`] if deserialization
+/// fails.
 pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, SerializationError> {
     if data.is_empty() {
         return Ok(None);
@@ -379,6 +380,11 @@ pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, Serial
         } else {
             data
         };
+    /* A bare `null` is an absent body, not a value to decode: serde would
+     * reject it for a model or collection target. */
+    if stripped.trim_ascii() == b"null" {
+        return Ok(None);
+    }
     /* Pre-flight nesting-depth cap. serde_json's own recursion limit (~128)
      * differs from the 1000-deep cap the other eleven SDKs pin, so a payload
      * nested 129..=1000 deep would be accepted everywhere else but rejected
@@ -591,6 +597,27 @@ mod tests {
             .expect("unexpected deserialization error")
             .expect("expected Some value");
         assert_eq!(result["name"], "example");
+    }
+
+    #[test]
+    fn test_deserialize_bare_null_is_an_absent_body() {
+        let model: Option<std::collections::HashMap<String, String>> =
+            object_serializer::deserialize(b"null").expect("null must not be an error");
+        assert!(model.is_none());
+        let list: Option<Vec<String>> = object_serializer::deserialize(b" \r\n null\t")
+            .expect("padded null must not be an error");
+        assert!(list.is_none());
+        let bom: Option<Vec<String>> = object_serializer::deserialize(b"\xEF\xBB\xBFnull")
+            .expect("BOM null must not be an error");
+        assert!(bom.is_none());
+    }
+
+    #[test]
+    fn test_deserialize_null_inside_a_document_is_still_decoded() {
+        let list: Option<Vec<Option<String>>> =
+            object_serializer::deserialize(br#"[null]"#).expect("array of null decodes");
+        assert_eq!(list, Some(vec![None]));
+        assert!(object_serializer::deserialize::<Vec<String>>(b"nullx").is_err());
     }
 
     #[test]
@@ -1144,17 +1171,6 @@ mod tests {
         let json =
             object_serializer::serialize(&Option::<i32>::None).expect("serialize must succeed");
         assert_eq!(json, "null");
-    }
-
-    // A bare JSON null body is a JSON null value. Rust models are non-null
-    // structs (no nil-model concept), so a null body decoded to a value type
-    // surfaces as serde_json::Value::Null; the empty-body path returns None and
-    // is covered by test_deserialize_empty_data.
-    #[test]
-    fn test_deserialize_null_body_is_json_null_value() {
-        let result: Option<serde_json::Value> =
-            object_serializer::deserialize(b"null").expect("null body must decode");
-        assert_eq!(result, Some(serde_json::Value::Null));
     }
 
     // format:byte is base64-decoded by serde on the model field, not in this

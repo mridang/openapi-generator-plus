@@ -20,8 +20,18 @@ impl MachineAuthClientCredentialsAuthenticator {
             client_id,
             client_secret,
             "https://auth.example.com/oauth/token",
-            vec![],
+            vec!["pets:write".to_string(), "pets:read".to_string()],
         ))
+    }
+}
+
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for MachineAuthClientCredentialsAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("MachineAuthClientCredentialsAuthenticator")
+            .field(&self.0)
+            .finish()
     }
 }
 

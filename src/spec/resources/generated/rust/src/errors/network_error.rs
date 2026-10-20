@@ -26,7 +26,7 @@ impl NetworkError {
 
 impl fmt::Display for NetworkError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Network error: {}", self.api_error.message())
+        fmt::Display::fmt(&self.api_error, f)
     }
 }
 

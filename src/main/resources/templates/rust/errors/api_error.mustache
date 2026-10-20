@@ -246,30 +246,48 @@ impl ApiError {
     }
 }
 
+/// Renders an error as the message followed by whatever response context was
+/// captured, one labelled field per line. Shared by [`ApiError`], every
+/// per-status wrapper (which delegates to it) and [`ApiErrorKind`], so they all
+/// print the same text for the same failure.
+fn render_error(
+    message: &str,
+    status_code: u16,
+    headers: Option<&HashMap<String, String>>,
+    body: Option<&str>,
+) -> String {
+    let mut msg = if message.is_empty() {
+        "Error message: the server returns an error".to_string()
+    } else {
+        message.to_string()
+    };
+
+    if status_code != 0 {
+        msg.push_str(&format!("\nHTTP status code: {}", status_code));
+    }
+    if let Some(headers) = headers {
+        if !headers.is_empty() {
+            msg.push_str(&format!("\nResponse headers: {:?}", headers));
+        }
+    }
+    if let Some(body) = body {
+        if !body.is_empty() {
+            msg.push_str(&format!("\nResponse body: {}", body));
+        }
+    }
+    msg
+}
+
 impl fmt::Display for ApiError {
     /// Renders the error as the message followed by whatever response context
     /// was captured, one labelled field per line.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut msg = if self.message.is_empty() {
-            "Error message: the server returns an error".to_string()
-        } else {
-            self.message.clone()
-        };
-
-        if self.status_code != 0 {
-            msg.push_str(&format!("\nHTTP status code: {}", self.status_code));
-        }
-        if let Some(headers) = &self.response_headers {
-            if !headers.is_empty() {
-                msg.push_str(&format!("\nResponse headers: {:?}", headers));
-            }
-        }
-        if let Some(body) = &self.response_body {
-            if !body.is_empty() {
-                msg.push_str(&format!("\nResponse body: {}", body));
-            }
-        }
-        write!(f, "{}", msg)
+        f.write_str(&render_error(
+            &self.message,
+            self.status_code,
+            self.response_headers.as_ref(),
+            self.response_body.as_deref(),
+        ))
     }
 }
 
@@ -445,12 +463,15 @@ impl From<ApiError> for ApiErrorKind {
 impl fmt::Display for ApiErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Network(fields) => write!(f, "Network error: {}", fields.message),
-            Self::NetworkTimeout(fields) => write!(f, "Network timeout: {}", fields.message),
-            Self::Other(code, msg) => write!(f, "API error (status {}): {}", code, msg),
+            Self::Other(code, msg) => f.write_str(&render_error(msg, *code, None, None)),
             other => {
                 let fields = other.fields().expect("HTTP variants have fields");
-                write!(f, "API error (status {}): {}", fields.status_code, fields.message)
+                f.write_str(&render_error(
+                    &fields.message,
+                    fields.status_code,
+                    fields.response_headers.as_ref(),
+                    fields.response_body.as_deref(),
+                ))
             }
         }
     }

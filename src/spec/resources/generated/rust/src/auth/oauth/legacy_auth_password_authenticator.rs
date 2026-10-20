@@ -28,9 +28,19 @@ impl LegacyAuthPasswordAuthenticator {
             "https://auth.example.com/oauth/token",
             username,
             password,
-            vec![],
+            vec!["read".to_string()],
             "https://auth.example.com/oauth/refresh",
         ))
+    }
+}
+
+/// Prints the wrapper's own name around the wrapped authenticator's redacting
+/// representation, so credentials never reach logs through `{:?}`.
+impl std::fmt::Debug for LegacyAuthPasswordAuthenticator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("LegacyAuthPasswordAuthenticator")
+            .field(&self.0)
+            .finish()
     }
 }
 

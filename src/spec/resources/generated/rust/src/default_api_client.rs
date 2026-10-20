@@ -169,11 +169,11 @@ impl ApiClient for DefaultApiClient {
             }
             if !merged.contains_key("User-Agent") {
                 // Only inject a User-Agent header when one is configured; a
-                // `None` user_agent means the header is omitted entirely.
+                // `None` user_agent means the header is omitted entirely, while
+                // an explicit empty string is sent as an empty header, as in the
+                // other SDKs.
                 if let Some(ua) = self.transport_options.user_agent() {
-                    if !ua.is_empty() {
-                        merged.insert("User-Agent".to_string(), ua.to_string());
-                    }
+                    merged.insert("User-Agent".to_string(), ua.to_string());
                 }
             }
             if !merged.contains_key("Accept-Encoding") {
@@ -370,16 +370,20 @@ impl ApiClient for DefaultApiClient {
                         self.http_client.request(http_method, next_url.clone());
                     let mut redirect_headers = current_headers.clone();
                     if next_body.is_none() {
+                        let keeps_method = next_method == current_method;
                         redirect_headers.retain(|k, v| {
                             let lk = k.to_lowercase();
                             // Drop Content-Type unconditionally when there is
                             // no body. Drop Content-Length too, EXCEPT a
-                            // literal `0`: an original empty-body POST/PUT/PATCH
-                            // carries an explicit `Content-Length: 0` workaround
-                            // (for WAFs/servers that 411 on body-less POSTs)
-                            // and that header stays valid across a 307/308
-                            // replay, where the empty body is preserved.
-                            lk != "content-type" && (lk != "content-length" || v.trim() == "0")
+                            // literal `0` on a hop that keeps the method: an
+                            // original empty-body POST/PUT/PATCH carries an
+                            // explicit `Content-Length: 0` workaround (for
+                            // WAFs/servers that 411 on body-less POSTs) and
+                            // that header stays valid across a 307/308 replay,
+                            // where the empty body is preserved. A hop demoted
+                            // to GET sends neither entity header.
+                            lk != "content-type"
+                                && (lk != "content-length" || (keeps_method && v.trim() == "0"))
                         });
                     }
                     for (k, v) in &redirect_headers {
@@ -563,7 +567,11 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     // The CA bundle was read and parsed by TransportOptionsBuilder::build,
     // which reports an unreadable file as ConfigurationError::InvalidCaCertificate
     // rather than silently falling back to the system trust store.
+    // A configured CA is the only trust anchor: the built-in (native) roots are
+    // turned off so a certificate from any public or OS-installed CA is refused,
+    // matching the SDKs that pin to the given CA.
     if let Some(pem) = opts.ca_cert_pem() {
+        builder = builder.tls_built_in_root_certs(false);
         if let Ok(cert) = reqwest::Certificate::from_pem(pem) {
             builder = builder.add_root_certificate(cert);
         }

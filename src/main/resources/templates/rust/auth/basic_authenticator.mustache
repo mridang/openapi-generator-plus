@@ -34,10 +34,7 @@ impl BasicAuthenticator {
     /// [`ConfigurationError::InvalidArgument`].
     pub fn new(host: &str, username: &str, password: &str) -> Result<Self, ConfigurationError> {
         if let Some(problem) = credential_problem(username, password) {
-            return Err(ConfigurationError::InvalidArgument(format!(
-                "invalid HTTP Basic credentials: {}",
-                problem
-            )));
+            return Err(ConfigurationError::InvalidArgument(problem.to_string()));
         }
         Ok(Self {
             host: host.to_string(),

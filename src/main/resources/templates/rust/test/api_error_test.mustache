@@ -491,3 +491,33 @@ fn test_package_root_exports_the_whole_error_tree() {
     let _: fn(&{{packageName}}::ConfigurationError) = |_| {};
     let _: fn(&{{packageName}}::OAuth2AuthorizationCodeError) = |_| {};
 }
+
+/// Every per-status wrapper renders the wrapped ApiError's text (message, status
+/// code, headers and body), the same string `ApiError` and `ApiErrorKind` print,
+/// so logging any of them keeps the response body.
+#[test]
+fn test_status_wrappers_display_the_wrapped_api_error() {
+    let mut headers = HashMap::new();
+    headers.insert("x-trace".to_string(), "abc".to_string());
+    for status in [400u16, 401, 403, 404, 409, 418, 422, 500, 503] {
+        let boxed = ApiError::from_response(status, &headers, "detail-body");
+        let expected = ApiError::new(
+            status,
+            format!("API returned status code {}", status),
+            Some("detail-body".to_string()),
+            Some(headers.clone()),
+        );
+        assert_eq!(expected.to_string(), boxed.to_string(), "status {}", status);
+        let kind = {{packageName}}::ApiErrorKind::from(expected.clone());
+        assert_eq!(expected.to_string(), kind.to_string(), "kind for status {}", status);
+        assert!(boxed.to_string().contains("Response body: detail-body"), "status {}", status);
+    }
+}
+
+#[test]
+fn test_network_wrappers_display_the_wrapped_api_error() {
+    let transport = ApiError::new(0, "connection refused".to_string(), None, None);
+    let network = NetworkError::from(transport);
+    assert_eq!("connection refused", network.to_string());
+    assert_eq!("connection refused", NetworkTimeoutError::from(network).to_string());
+}

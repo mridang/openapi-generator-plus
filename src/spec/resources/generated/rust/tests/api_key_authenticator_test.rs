@@ -7,6 +7,7 @@
 
 use petstore::auth::api_key_authenticator::ApiKeyAuthenticator;
 use petstore::auth::api_key_location::ApiKeyLocation;
+use petstore::auth::ApiKeyHeaderAuthenticator;
 use petstore::auth::Authenticator;
 use petstore::ConfigurationError;
 
@@ -104,4 +105,13 @@ fn test_redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("abc123"));
     assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_key() {
+    let auth = ApiKeyHeaderAuthenticator::new("https://api.example.com", "wrapper-key").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(debug.starts_with("ApiKeyHeaderAuthenticator("), "{}", debug);
+    assert!(!debug.contains("wrapper-key"), "{}", debug);
+    assert!(debug.contains("***"), "{}", debug);
 }

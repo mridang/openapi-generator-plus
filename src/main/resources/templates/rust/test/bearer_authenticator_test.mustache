@@ -1,7 +1,7 @@
 {{>api_info}}
 
 use {{packageName}}::auth::Authenticator;
-use {{packageName}}::auth::BearerAuthenticator;
+use {{packageName}}::auth::{BearerAuthenticator, ServiceTokenAuthenticator};
 use {{packageName}}::ConfigurationError;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -77,4 +77,13 @@ fn test_redacts_secret() {
     let debug = format!("{:?}", auth);
     assert!(!debug.contains("token: \"xyz\""));
     assert!(debug.contains("***"));
+}
+
+#[test]
+fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_token() {
+    let auth = ServiceTokenAuthenticator::new("https://api.example.com", "wrapper-tok").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(debug.starts_with("ServiceTokenAuthenticator("), "{}", debug);
+    assert!(!debug.contains("wrapper-tok"), "{}", debug);
+    assert!(debug.contains("***"), "{}", debug);
 }

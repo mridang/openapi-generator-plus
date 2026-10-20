@@ -464,6 +464,34 @@ async fn test_pet_api_get_pet_by_id_empty_body_throws_api_error() {
     );
 }
 
+/// A bare JSON `null` body is an absent body: the convenience method raises the
+/// same typed ApiError as for an empty body rather than a SerializationError,
+/// and `with_http_info` reports no data.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_id_null_body_throws_api_error() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+
+    let err = api.get_pet_by_id(1, None).await.unwrap_err();
+    let api_err = err
+        .downcast_ref::<petstore::ApiError>()
+        .unwrap_or_else(|| panic!("null-body error must be the typed ApiError, got: {}", err));
+    assert!(
+        api_err
+            .message()
+            .contains("Expected a response body for get_pet_by_id but received none"),
+        "null-body message must name the operation, got: {}",
+        api_err.message()
+    );
+
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let result = api
+        .get_pet_by_id_with_http_info(1, None)
+        .await
+        .expect("a null body is a result");
+    assert_eq!(result.status_code(), 200);
+    assert!(result.data().is_none());
+}
+
 /// Starts a mock server that records the raw request bytes (so the test can
 /// assert on request headers) and returns them alongside the PetApi.
 fn new_pet_api_for_capture() -> (PetApi, std::sync::mpsc::Receiver<String>, String) {
@@ -1032,4 +1060,11 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
         "default multipart body must carry the `file` part, got body: {}",
         String::from_utf8_lossy(body)
     );
+}
+
+/// The API group can be built without wiring a client, configuration or
+/// authenticator, like the no-argument constructors in the other SDKs.
+#[test]
+fn test_pet_api_default_constructs_without_arguments() {
+    let _api = PetApi::default();
 }
