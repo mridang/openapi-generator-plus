@@ -25,6 +25,42 @@ import Testing
     #expect(headers["Authorization"] == "Basic YWxpY2U6czNjcmV0")
   }
 
+  /* Non-ASCII credentials are sent as their UTF-8 bytes. */
+  @Test func nonAsciiCredentialsAreEncodedAsUtf8() async throws {
+    let auth = try BasicAuthenticator(
+      host: "https://api.example.com",
+      username: "\u{FC}n\u{EF}c\u{F8}d\u{E9}",
+      password: "p\u{E4}ssw\u{F6}rd"
+    )
+    let headers = try await auth.authHeaders()
+    #expect(headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==")
+  }
+
+  /* A password may contain ':' (only the user-id may not) and an empty
+   * password is still a valid credential. */
+  @Test func passwordMayContainColonAndMayBeEmpty() async throws {
+    let withColon = try BasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "a:b")
+    #expect(try await withColon.authHeaders()["Authorization"] == "Basic YWxpY2U6YTpi")
+    let empty = try BasicAuthenticator(
+      host: "https://api.example.com", username: "alice", password: "")
+    #expect(try await empty.authHeaders()["Authorization"] == "Basic YWxpY2U6")
+  }
+
+  /* Each rejection names the offending field exactly. */
+  @Test(arguments: [
+    ("alice\r\n", "s3cret", "Basic auth username must not contain CR, LF, or NUL characters"),
+    ("alice", "s3c\u{0}ret", "Basic auth password must not contain CR, LF, or NUL characters"),
+    ("alice", "s3c\nret", "Basic auth password must not contain CR, LF, or NUL characters"),
+    ("ali:ce", "s3cret", "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)"),
+  ])
+  func rejectionMessagesNameTheOffendingField(username: String, password: String, message: String) {
+    #expect(throws: ConfigurationError.invalidArgument(message)) {
+      _ = try BasicAuthenticator(
+        host: "https://api.example.com", username: username, password: password)
+    }
+  }
+
   /* authenticator-secret-in-default-string-repr: the default string
    * representation must never expose the stored password. */
   @Test func passwordIsNotLeakedInDefaultStringRepr() async throws {
@@ -45,6 +81,11 @@ import Testing
     let description = String(describing: auth)
     #expect(!description.contains("s3cret"))
     #expect(description.contains("***"))
+    /* Everything except the secret stays visible. */
+    #expect(
+      description
+        == "BasicAuthenticator(host: https://api.example.com, username: alice, password: ***)")
+    #expect(String(reflecting: auth) == description)
   }
 
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones

@@ -459,6 +459,63 @@ final class PetApiTests {
         #expect(result.id != nil)
     }
 
+    // MARK: - Operation-level servers
+
+    private func operationServerUrl(
+        _ call: (PetApi) async throws -> Pet
+    ) async throws -> String {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        _ = try await call(PetApi(apiClient: mockClient, config: config))
+        return mockClient.lastURL
+    }
+
+    /* An operation that declares its own servers sends the request to the
+     * server it was given, with the variables substituted, instead of the
+     * configured base URL. */
+    @Test func testOperationServerReplacesTheBaseUrl() async throws {
+        #expect(
+            try await operationServerUrl { try await $0.getExternalPetInfo(petId: 1, server: GetExternalPetInfoServerServer0()) }
+                == "https://external-api.example.com/v1/pet/1/external")
+        #expect(
+            try await operationServerUrl {
+                try await $0.getStagingPetInfo(
+                    petId: 2,
+                    server: GetStagingPetInfoServerStagingServer(environment: .SANDBOX, version: .V2))
+            } == "https://sandbox.example.com/api/v2/pet/2/staging")
+        #expect(
+            try await operationServerUrl {
+                try await $0.getStagingPetInfo(
+                    petId: 2,
+                    server: GetStagingPetInfoServerStagingServer(environment: .STAGING, version: .V3))
+            } == "https://staging.example.com/api/v3/pet/2/staging")
+    }
+
+    /* An operation with several servers offers one type per server. */
+    @Test func testMultiServerOperationOffersEachServer() async throws {
+        #expect(
+            try await operationServerUrl { try await $0.getMultiServerPetInfo(petId: 3, server: GetMultiServerPetInfoServerPrimary()) }
+                == "https://primary.example.com/v1/pet/3/multi")
+        #expect(
+            try await operationServerUrl {
+                try await $0.getMultiServerPetInfo(
+                    petId: 3, server: GetMultiServerPetInfoServerRegional(region: .EU))
+            } == "https://eu.example.com/v1/pet/3/multi")
+        #expect(
+            try await operationServerUrl {
+                try await $0.getMultiServerPetInfo(
+                    petId: 3, server: GetMultiServerPetInfoServerRegional(region: .AP))
+            } == "https://ap.example.com/v1/pet/3/multi")
+    }
+
+    /* Without a server of its own the call uses the configured base URL. */
+    @Test func testOperationWithoutServerUsesTheBaseUrl() async throws {
+        #expect(
+            try await operationServerUrl { try await $0.getStagingPetInfo(petId: 4) }
+                == "https://example.com/pet/4/staging")
+    }
+
     // MARK: - Mock Helpers
 
     private func petApiForMock(
@@ -502,22 +559,18 @@ final class PetApiTests {
 
     @Test func testErrorHandlingNotFound() async throws {
         let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
-        do {
+        let error = await #expect(throws: NotFoundError.self) {
             _ = try await mockApi.getPetById(petId: 99999)
-            Issue.record("Expected error for status 404")
-        } catch {
-            #expect(error != nil)
         }
+        #expect(error?.statusCode == 404)
     }
 
     @Test func testErrorHandlingServerError() async throws {
         let mockApi = petApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
-        do {
+        let error = await #expect(throws: InternalServerError.self) {
             _ = try await mockApi.getPetById(petId: 1)
-            Issue.record("Expected error for status 500")
-        } catch {
-            #expect(error != nil)
         }
+        #expect(error?.statusCode == 500)
     }
 
     // per-call-auth-override: an Authenticator passed to the BASE operation

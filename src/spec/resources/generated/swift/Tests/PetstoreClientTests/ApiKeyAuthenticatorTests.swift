@@ -61,6 +61,12 @@ import Testing
     let description = String(describing: auth)
     #expect(!description.contains("abc123"))
     #expect(description.contains("***"))
+    /* Everything except the secret stays visible. */
+    #expect(
+      description
+        == "ApiKeyAuthenticator(host: https://api.example.com, keyParamName: X-API-Key, apiKey: ***, location: header)"
+    )
+    #expect(String(reflecting: auth) == description)
   }
 
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
@@ -98,6 +104,65 @@ import Testing
     guard case .invalidArgument? = error else {
       Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
       return
+    }
+  }
+
+  /* Each rejection branch reports its own exact message. */
+  @Test(arguments: [
+    ("", ApiKeyLocation.header, "API key value for 'X-API-Key' must not be empty"),
+    ("  \t", ApiKeyLocation.cookie, "API key value for 'X-API-Key' must not be empty"),
+    (
+      "abc\r\n", ApiKeyLocation.query,
+      "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"
+    ),
+    (
+      "a\u{0}b", ApiKeyLocation.cookie,
+      "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"
+    ),
+    (
+      "a\nb", ApiKeyLocation.header,
+      "API key value for 'X-API-Key' contains forbidden control characters (CR/LF/NUL)"
+    ),
+    (
+      "kéy", ApiKeyLocation.header,
+      "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
+    ),
+    (
+      "a\u{7F}b", ApiKeyLocation.header,
+      "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
+    ),
+  ])
+  func rejectionMessagesNameTheBranch(apiKey: String, location: ApiKeyLocation, message: String) {
+    #expect(throws: ConfigurationError.invalidArgument(message)) {
+      _ = try ApiKeyAuthenticator(
+        host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey,
+        location: location)
+    }
+  }
+
+  /* The printable-ASCII rule is for header values only: a query or cookie
+   * value may carry any other character. */
+  @Test(arguments: [ApiKeyLocation.query, ApiKeyLocation.cookie])
+  func nonAsciiKeyIsAcceptedOutsideTheHeader(location: ApiKeyLocation) throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com", keyParamName: "k", apiKey: "kéy", location: location)
+    let emitted = location == .query ? auth.queryParams() : auth.cookieParams()
+    #expect(emitted == ["k": "kéy"])
+  }
+
+  /* The key is emitted at its own location and nowhere else. */
+  @Test func keyIsEmittedOnlyAtItsOwnLocation() async throws {
+    let cases: [(ApiKeyLocation, [String: String], [String: String], [String: String])] = [
+      (.header, ["k": "v"], [:], [:]),
+      (.query, [:], ["k": "v"], [:]),
+      (.cookie, [:], [:], ["k": "v"]),
+    ]
+    for (location, header, query, cookie) in cases {
+      let auth = try ApiKeyAuthenticator(
+        host: "https://api.example.com", keyParamName: "k", apiKey: "v", location: location)
+      #expect(await auth.authHeaders() == header, "headers for \(location)")
+      #expect(auth.queryParams() == query, "query for \(location)")
+      #expect(auth.cookieParams() == cookie, "cookies for \(location)")
     }
   }
 }

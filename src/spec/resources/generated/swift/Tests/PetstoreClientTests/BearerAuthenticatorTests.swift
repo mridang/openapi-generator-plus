@@ -49,6 +49,9 @@ import Testing
     let description = String(describing: auth)
     #expect(!description.contains("token=xyz"))
     #expect(description.contains("***"))
+    /* Everything except the secret stays visible. */
+    #expect(description == "BearerAuthenticator(host: https://api.example.com, token: ***)")
+    #expect(String(reflecting: auth) == description)
   }
 
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
@@ -78,5 +81,30 @@ import Testing
     if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
       #expect(message.contains("Bearer token must not be empty"))
     }
+  }
+
+  /* Each rejection branch reports its own exact message. */
+  @Test(arguments: [
+    ("", "Bearer token must not be empty"),
+    ("  \n", "Bearer token must not be empty"),
+    (
+      "tok\r\nInjected: yes",
+      "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
+    ),
+    ("ñoño", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+  ])
+  func rejectionMessagesNameTheBranch(token: String, message: String) {
+    #expect(throws: ConfigurationError.invalidArgument(message)) {
+      _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+    }
+  }
+
+  /* The prefix is removed once and only as a whole word: a token that
+   * merely starts with the letters is left alone. */
+  @Test func prefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
+    let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
+    #expect(await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
+    let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
+    #expect(await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
   }
 }

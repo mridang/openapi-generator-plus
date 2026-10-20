@@ -105,12 +105,10 @@ import Testing
 
   @Test func testGetOrderNotFound() async throws {
     let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-    do {
+    let error = await #expect(throws: NotFoundError.self) {
       _ = try await mockApi.getOrderById(orderId: 99999)
-      Issue.record("Expected error for status 404")
-    } catch {
-      #expect(error != nil)
     }
+    #expect(error?.statusCode == 404)
   }
 
   /* An optional request body can be left out of the call altogether. */
@@ -124,12 +122,10 @@ import Testing
 
   @Test func testPlaceOrderServerError() async throws {
     let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
-    do {
+    let error = await #expect(throws: InternalServerError.self) {
       _ = try await mockApi.placeOrder(order: Order())
-      Issue.record("Expected error for status 500")
-    } catch {
-      #expect(error != nil)
     }
+    #expect(error?.statusCode == 500)
   }
 
   // nested-container deserialise (array of map of Category): the
@@ -153,14 +149,66 @@ import Testing
     #expect(second?.name == "Cats")
   }
 
+  /* A named enum travels as its wire value in the path, the query and a
+   * header, never as the case name or a type-qualified description. */
+  @Test func testGetBySwatchSendsEnumWireValuesInPathQueryAndHeader() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getBySwatch(
+      pathSwatch: .red,
+      options: GetBySwatchOptions(querySwatch: .green, preferredSwatch: .blue))
+
+    #expect(mockClient.lastMethod == "GET")
+    #expect(mockClient.lastURL == "https://example.com/store/by-swatch/red?querySwatch=green")
+    #expect(mockClient.lastHeaders["Preferred-Swatch"] == "blue")
+  }
+
+  @Test func testGetBySwatchOmitsUnsetQueryAndHeader() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getBySwatch(pathSwatch: .blue)
+
+    #expect(mockClient.lastURL == "https://example.com/store/by-swatch/blue")
+    #expect(mockClient.lastHeaders["Preferred-Swatch"] == nil)
+  }
+
+  /* Nested containers decode their leaves into the declared element type. */
+  @Test func testGetMatrixDeserializesNestedIntegers() async throws {
+    let mockApi = storeApiForMock(statusCode: 200, body: "[[1,2],[3,4,5]]")
+    let result = try await mockApi.getMatrix()
+    #expect(result == [[1, 2], [3, 4, 5]])
+  }
+
+  @Test func testGetSwatchGroupsDeserializesEnumLeaves() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200, body: "[{\"a\":\"red\"},{\"b\":\"blue\",\"c\":\"green\"}]")
+    let result = try await mockApi.getSwatchGroups()
+    #expect(result.count == 2)
+    #expect(result[0]["a"] == Swatch.red)
+    #expect(result[1]["b"] == Swatch.blue)
+    #expect(result[1]["c"] == Swatch.green)
+  }
+
+  @Test func testGetTimestampGroupsDeserializesDateLeaves() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200, body: "[{\"t\":\"2024-01-02T03:04:05Z\"}]")
+    let result = try await mockApi.getTimestampGroups()
+    #expect(result.count == 1)
+    #expect(result[0]["t"] == Date(timeIntervalSince1970: 1_704_164_645))
+  }
+
   @Test func testDeleteOrderNotFound() async throws {
     let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-    do {
+    let error = await #expect(throws: NotFoundError.self) {
       try await mockApi.deleteOrder(orderId: 99999)
-      Issue.record("Expected error for status 404")
-    } catch {
-      #expect(error != nil)
     }
+    #expect(error?.statusCode == 404)
   }
 }
 

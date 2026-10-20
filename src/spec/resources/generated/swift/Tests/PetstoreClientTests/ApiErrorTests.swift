@@ -96,6 +96,60 @@ import Testing
     #expect(typed == nil)
   }
 
+  @Test func testGetTypedErrorBodyReturnsNilWhenBodyIsEmptyString() throws {
+    let err = ApiError(statusCode: 500, message: "oops", responseBody: "")
+
+    #expect(try err.getTypedErrorBody([String: Int].self) == nil)
+  }
+
+  /* A body that does not decode into the requested type is the SDK's
+   * SerializationError, not a Foundation decoding error. */
+  @Test func testGetTypedErrorBodyThrowsSerializationErrorWhenBodyDoesNotDecode() {
+    let err = ApiError(statusCode: 500, message: "oops", responseBody: "not json at all")
+
+    let error = #expect(throws: SerializationError.self) {
+      _ = try err.getTypedErrorBody([String: Int].self)
+    }
+    #expect(error?.message == "Failed to deserialize JSON")
+  }
+
+  /* The rendered message lists the status, the headers and the body, each
+   * only when it carries something. */
+  @Test func testErrorDescriptionRendersEachPartOnlyWhenPresent() {
+    let full = ApiError(
+      statusCode: 404, message: "not found", responseBody: "{}",
+      responseHeaders: ["a": "b"])
+    #expect(
+      full.errorDescription
+        == "not found\nHTTP status code: 404\nResponse headers: [\"a\": \"b\"]\nResponse body: {}"
+    )
+
+    let emptyParts = ApiError(
+      statusCode: 500, message: "boom", responseBody: "", responseHeaders: [:])
+    #expect(emptyParts.errorDescription == "boom\nHTTP status code: 500")
+
+    let transport = ApiError(statusCode: 0, message: "connection reset")
+    #expect(transport.errorDescription == "connection reset")
+
+    #expect(ApiError().errorDescription == "Error message: the server returns an error")
+  }
+
+  /* A response body nested deeper than the serializer's cap is kept as the
+   * raw body but is never handed to the JSON parser. */
+  @Test func testFromResponseDoesNotParseADeeplyNestedBody() {
+    func nested(_ depth: Int) -> String {
+      String(repeating: "[", count: depth) + String(repeating: "]", count: depth)
+    }
+    let within = ApiError.fromResponse(statusCode: 500, headers: [:], body: nested(100))
+    #expect(within.errorBody != nil)
+
+    let body = nested(1500)
+    let tooDeep = ApiError.fromResponse(statusCode: 500, headers: [:], body: body)
+    #expect(tooDeep is InternalServerError)
+    #expect(tooDeep.errorBody == nil)
+    #expect(tooDeep.responseBody == body)
+  }
+
   @Test func testApiErrorConformsToOpenAPIError() {
     // Branded root: every SDK-thrown error reaches OpenAPIError, so a
     // caller can catch the whole hierarchy with one `as? OpenAPIError`.

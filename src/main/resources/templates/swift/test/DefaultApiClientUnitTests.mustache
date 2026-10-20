@@ -585,6 +585,36 @@ import FoundationNetworking
         #expect(!(error is NetworkError))
     }
 
+    // A connection that is reset, or a deadline that passes, AFTER the response
+    // headers arrived is still a transport failure: status 0 and the URLError
+    // kept as the cause, never an ApiError carrying the 200 that was received.
+    @Test func testBodyTruncatedAfterHeadersIsNetworkError() async throws {
+        let client = makeClient { _ in
+            (Data("partial body".utf8), 200,
+             ["Content-Type": "application/json", UnitStubURLProtocol.failWithHeader: "networkConnectionLost"])
+        }
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://localhost/truncated", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+        #expect(!(error is NetworkTimeoutError))
+        #expect((error?.underlyingError as? URLError)?.code == .networkConnectionLost)
+    }
+
+    @Test func testBodyStalledPastTheDeadlineAfterHeadersIsNetworkTimeoutError() async throws {
+        let client = makeClient { _ in
+            (Data("partial body".utf8), 200,
+             ["Content-Type": "application/json", UnitStubURLProtocol.failWithHeader: "timedOut"])
+        }
+        let error = await #expect(throws: NetworkTimeoutError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://localhost/stalled", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+        #expect((error?.underlyingError as? URLError)?.code == .timedOut)
+    }
+
     // A malformed or non-HTTP request URL is a caller mistake:
     // ConfigurationError.invalidArgument, never a NetworkError.
     @Test(arguments: ["http://[::1", "file:///etc/passwd"])
@@ -661,6 +691,50 @@ import FoundationNetworking
             method: "GET", url: "http://localhost/empty-gzip", headers: [:], body: nil)
         #expect(resp.statusCode == 200)
         #expect(resp.body.isEmpty)
+    }
+
+    // MARK: - Redirect origin comparison
+
+    /* Credentials are stripped on a redirect only when the origin changes, so
+     * the comparison must treat an implicit and an explicit default port as
+     * the same origin (https://h and https://h:443) and must not do so for
+     * any other difference in scheme, host or port. */
+    @Test func testSameOriginComparesSchemeHostAndEffectivePort() throws {
+        let cases: [(String, String, Bool)] = [
+            ("https://example.com/a", "https://example.com:443/b", true),
+            ("https://example.com:443/a", "https://example.com/b", true),
+            ("http://example.com/a", "http://example.com:80/b", true),
+            ("https://EXAMPLE.com/a", "https://example.com/b", true),
+            ("https://example.com:8443/a", "https://example.com:8443/b", true),
+            ("https://example.com/a", "https://example.com:8443/b", false),
+            ("https://example.com/a", "https://example.com:80/b", false),
+            ("http://example.com/a", "http://example.com:443/b", false),
+            ("https://example.com/a", "http://example.com/b", false),
+            ("http://example.com:443/a", "https://example.com/b", false),
+            ("https://example.com/a", "https://other.example.com/b", false),
+        ]
+        for (left, right, expected) in cases {
+            let a = try #require(URL(string: left))
+            let b = try #require(URL(string: right))
+            #expect(
+                DefaultApiClient.sameOrigin(a, b) == expected,
+                "sameOrigin(\(left), \(right)) should be \(expected)")
+        }
+    }
+
+    // MARK: - Accept-Encoding
+
+    /* URLSession negotiates and decodes content encodings itself only while
+     * the header is left unset, so the client must not advertise one of its
+     * own. */
+    @Test func testDoesNotSetAcceptEncodingByDefault() async throws {
+        var capturedEncoding: String?
+        let client = makeClient { req in
+            capturedEncoding = req.value(forHTTPHeaderField: "Accept-Encoding")
+            return (self.body(), 200, [:])
+        }
+        _ = try await client.sendRequest(method: "GET", url: "http://localhost/test", headers: [:], body: nil)
+        #expect(capturedEncoding == nil)
     }
 
     // MARK: - Session configuration
@@ -929,6 +1003,14 @@ private final class UnitStubURLProtocol: URLProtocol {
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         if failWith == "cannotDecodeContentData" {
             client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
+            return
+        }
+        /* The connection dies, or the deadline passes, after the response
+         * headers and part of the body have already arrived. */
+        if failWith == "networkConnectionLost" || failWith == "timedOut" {
+            client?.urlProtocol(self, didLoad: data.prefix(1))
+            let code: URLError.Code = failWith == "timedOut" ? .timedOut : .networkConnectionLost
+            client?.urlProtocol(self, didFailWithError: URLError(code))
             return
         }
         client?.urlProtocol(self, didLoad: data)

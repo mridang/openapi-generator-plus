@@ -57,9 +57,64 @@ import Testing
         "env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])
       ]
     )
-    #expect(throws: ConfigurationError.self) {
+    #expect(
+      throws: ConfigurationError.invalidServerVariable(
+        variable: "env", value: "dev", allowed: ["prod", "staging"])
+    ) {
       _ = try server.url(variables: ["env": "dev"])
     }
+  }
+
+  @Test func rejectionMessageNamesTheValueTheVariableAndTheAllowedValues() {
+    let error = ConfigurationError.invalidServerVariable(
+      variable: "env", value: "dev", allowed: ["prod", "staging"])
+    #expect(
+      error.errorDescription
+        == "Invalid value 'dev' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]")
+  }
+
+  @Test func variableWithoutEnumAcceptsAnyOverride() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(
+      try server.url(variables: ["env": "anything-goes"]) == "https://anything-goes.api.example.com"
+    )
+  }
+
+  @Test func partialOverrideKeepsTheOtherDefaults() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v{version}",
+      variables: [
+        "env": ServerVariable(defaultValue: "prod"),
+        "version": ServerVariable(defaultValue: "1"),
+      ]
+    )
+    #expect(try server.url(variables: ["version": "2"]) == "https://prod.api.example.com/v2")
+  }
+
+  @Test func unknownOverrideIsIgnored() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(try server.url(variables: ["nope": "x"]) == "https://prod.api.example.com")
+  }
+
+  @Test func exposesTheRawTemplateAndDescription() {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com",
+      description: "Main server",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(server.urlTemplate == "https://{env}.api.example.com")
+    #expect(server.description == "Main server")
+    #expect(server.variables["env"]?.defaultValue == "prod")
+  }
+
+  @Test func descriptionDefaultsToEmpty() {
+    #expect(ServerConfiguration(urlTemplate: "https://api.example.com").description == "")
   }
 
   @Test func urlRejectsDefaultNotInEnumValues() throws {

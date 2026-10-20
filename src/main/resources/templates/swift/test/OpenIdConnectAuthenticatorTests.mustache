@@ -230,6 +230,31 @@ import Testing
         #expect(client.getCount == 1)
     }
 
+    /* The discovery document is cached for the Cache-Control max-age the
+     * server sent, and for a day when it sent none that can be read. */
+    @Test(arguments: [
+        ("max-age=0", 2),
+        ("public, max-age=0, must-revalidate", 2),
+        ("public, MAX-AGE=3600", 1),
+        ("no-store", 1),
+        ("max-age=abc", 1),
+    ])
+    func testDiscoveryIsCachedForTheMaxAgeTheServerSent(cacheControl: String, discoveryRequests: Int) async throws {
+        let client = MockApiClient()
+        for _ in 0..<2 {
+            client.responses.append(.success(ApiHttpResponse(
+                statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": cacheControl])))
+        }
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.buildAuthorizationURL()
+        _ = try await auth.buildAuthorizationURL()
+
+        #expect(client.getCount == discoveryRequests)
+    }
+
     @Test func testGetHostReturnsConfiguredHost() {
         let auth = createAuthenticator()
 

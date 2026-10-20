@@ -20,6 +20,8 @@ import Testing
     var lastURL: String = ""
     var lastHeaders: [String: String] = [:]
     var lastBody: Data? = nil
+    /// The URL of every request received, in order.
+    var urls: [String] = []
 
     /// Satisfies the ApiClient requirement that carries no request options.
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -34,6 +36,7 @@ import Testing
     ) async throws -> ApiHttpResponse {
       lastMethod = method
       lastURL = url
+      urls.append(url)
       lastHeaders = headers
       lastBody = body as? Data
       return responses.removeFirst()
@@ -144,6 +147,63 @@ import Testing
     #expect(headers["Authorization"] == "Bearer tok2")
   }
 
+  /* The code exchange goes to tokenURL and the refresh grant to refreshURL,
+   * which is only observable when the two differ. */
+  @Test func testRefreshGrantGoesToRefreshUrlAndCodeExchangeToTokenUrl() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://app.example.com/callback",
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("auth-code-xyz")
+    _ = try await auth.authHeaders()
+
+    #expect(client.urls == ["https://auth.example.com/token", "https://auth.example.com/refresh"])
+  }
+
+  @Test func testRefreshGrantFallsBackToTokenUrlWithoutRefreshUrl() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("auth-code-xyz")
+    _ = try await auth.authHeaders()
+
+    #expect(client.urls == ["https://auth.example.com/token", "https://auth.example.com/token"])
+  }
+
+  /* The token body form-encodes the redirect URI and the authorization code
+   * so reserved characters in either cannot corrupt the request. */
+  @Test func testCodeExchangeBodyPercentEncodesTheRedirectUriAndCode() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("co+de/with*stars!")
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    let fields = bodyString.split(separator: "&")
+    #expect(fields.contains("code=co%2Bde%2Fwith%2Astars%21"))
+    #expect(fields.contains("redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"))
+  }
+
   @Test func testThrowsBeforeExchangeCodeCalled() async {
     let auth = createAuthenticator()
 
@@ -238,6 +298,12 @@ import Testing
     let description = String(describing: auth)
     #expect(!description.contains("my-client-secret"))
     #expect(description.contains("***"))
+    /* Everything except the secret stays visible. */
+    #expect(
+      description
+        == "OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/token, refreshURL: https://auth.example.com/token, redirectURI: https://app.example.com/callback, scopes: [\"read\", \"write\"], tokenExchanged: false)"
+    )
+    #expect(String(reflecting: auth) == description)
   }
 
   /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones

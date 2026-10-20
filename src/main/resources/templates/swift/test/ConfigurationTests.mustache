@@ -154,7 +154,10 @@ import Testing
             ]
         )
 
-        #expect(throws: (any Error).self) {
+        #expect(
+            throws: ConfigurationError.invalidServerVariable(
+                variable: "env", value: "invalid", allowed: ["api", "staging"])
+        ) {
             try ConfigurationBuilder().server(server, variables: ["env": "invalid"]).build()
         }
     }

@@ -92,9 +92,39 @@ import Testing
   }
 
   @Test func testInvalidProxyUrlThrowsException() {
-    #expect(throws: ConfigurationError.self) {
+    #expect(throws: ConfigurationError.invalidProxyURL("not a valid url")) {
       try TransportOptionsBuilder().proxy("not a valid url")
     }
+  }
+
+  /* Anything that is not an http(s) URL with a host is refused with the
+   * offending text echoed back in invalidProxyURL, whatever the reason. */
+  @Test(arguments: [
+    "ftp://proxy.example.com:21",
+    "file:///tmp/proxy",
+    "ws://proxy.example.com:8080",
+    "proxy.example.com:8080",
+    "http://",
+    "http:///only-a-path",
+  ])
+  func testProxyWithoutHttpSchemeOrHostIsRejected(url: String) {
+    #expect(throws: ConfigurationError.invalidProxyURL(url)) {
+      try TransportOptionsBuilder().proxy(url)
+    }
+  }
+
+  @Test func testProxySchemeIsMatchedCaseInsensitively() throws {
+    let opts = try TransportOptionsBuilder().proxy("HTTP://proxy.example.com:8080").build()
+    #expect(opts.proxy?.host == "proxy.example.com")
+    #expect(opts.proxy?.port == 8080)
+  }
+
+  @Test func testEmptyProxyStringClearsTheProxy() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://proxy.example.com:8080")
+      .proxy("")
+      .build()
+    #expect(opts.proxy == nil)
   }
 
   @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() {

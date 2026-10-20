@@ -1193,12 +1193,12 @@ import Testing
         }
     }
 
-    // Foundation's JSONDecoder enforces its own JSON nesting limit (well below
-    // the 1000-deep cap the other SDKs pin), so a moderately nested body decodes
-    // while a very deeply nested one is rejected as a SerializationError. Swift
-    // relies on the platform decoder's guard rather than a 1000-deep pre-flight
-    // cap, mirroring how Rust leans on serde_json's built-in recursion limit. A
-    // recursive `{"a":{...}}` shape drives the nesting.
+    // ObjectSerializer refuses a body nested deeper than maxJsonDepth (1000)
+    // with a pre-flight scan, like the other SDKs. Below that cap Foundation's
+    // own JSONDecoder still enforces a 512-deep limit, and decoding a recursive
+    // model that deep overflows a test thread's stack, so the within-cap case
+    // nests 200 deep, not the 600 the other SDKs use. A recursive
+    // `{"a":{...}}` shape drives the nesting.
     final class DepthNest: Codable { let a: DepthNest? }
 
     private func nestedObjects(_ n: Int) -> String {
@@ -1208,10 +1208,37 @@ import Testing
     }
 
     @Test func testDeepJsonWithinCapDecodesButBeyondIsRejected() throws {
-        let within = try ObjectSerializer.deserialize(nestedObjects(50), as: DepthNest.self)
+        let within = try ObjectSerializer.deserialize(nestedObjects(200), as: DepthNest.self)
         #expect(within != nil)
-        #expect(throws: SerializationError.self) {
+        let error = #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.deserialize(nestedObjects(1500), as: DepthNest.self)
+        }
+        #expect(error?.message == "JSON nesting depth 1500 exceeds limit 1000")
+    }
+
+    // MARK: - Integer fields
+
+    /* A fractional number is not an integer: it is rejected, never truncated. */
+    @Test(arguments: ["{\"quantity\":1.5}", "{\"id\":2.5}", "{\"quantity\":\"7\"}"])
+    func testFractionalOrNonNumericIntegerFieldIsRejected(json: String) {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(json, as: Order.self)
+        }
+    }
+
+    /* An int64 field keeps every digit, including values a double cannot hold. */
+    @Test func testInt64FieldKeepsFullPrecision() throws {
+        let decoded = try ObjectSerializer.deserialize(
+            "{\"id\":9007199254740993,\"petId\":-9223372036854775808}", as: Order.self)
+        #expect(decoded?.id == 9_007_199_254_740_993)
+        #expect(decoded?.petId == Int64.min)
+        let json = try ObjectSerializer.serialize(Order(id: 9_007_199_254_740_993))
+        #expect(json.contains("\"id\":9007199254740993"))
+    }
+
+    @Test func testInt64FieldBeyondRangeIsRejected() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"id\":9223372036854775808}", as: Order.self)
         }
     }
 

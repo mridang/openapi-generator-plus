@@ -96,6 +96,32 @@ import Testing
     }
   }
 
+  /* Through the public serializer, every way a oneOf body can fail to decode
+   * is the SDK's SerializationError, never a Foundation DecodingError. */
+  @Test(arguments: [
+    "{\"foodType\":\"raw\",\"calories\":300}",
+    "{\"weightKg\":2.0}",
+    "{\"foodType\":\"\",\"weightKg\":2.5}",
+    "{\"foodType\":7,\"weightKg\":2.5}",
+    "[1,2,3]",
+    "\"dry\"",
+  ])
+  func testPetFoodDecodeFailuresSurfaceAsSerializationError(json: String) {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: PetFood.self)
+    }
+    #expect(error?.message == "Failed to deserialize JSON")
+    #expect(error?.cause != nil)
+  }
+
+  @Test func testPetFoodUnknownDiscriminatorNamesTheValueInTheCause() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"foodType\":\"raw\"}", as: PetFood.self)
+    }
+    let cause = String(describing: error?.cause)
+    #expect(cause.contains("Unknown discriminator value: raw"))
+  }
+
   @Test func testPetFoodSerializeDryFood() throws {
     let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)

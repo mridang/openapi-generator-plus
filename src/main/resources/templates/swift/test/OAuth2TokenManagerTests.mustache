@@ -14,6 +14,8 @@ import Testing
         var lastHeaders: [String: String] = [:]
         var lastBody: Data? = nil
         var lastNoRedirect: Bool = false
+        /// Every request received, in order, as its URL and raw form body.
+        var requests: [(url: String, body: String)] = []
         /// When set, every request fails with this error instead of answering.
         var failure: Error? = nil
 
@@ -31,6 +33,7 @@ import Testing
             lastHeaders = headers
             lastBody = body as? Data
             lastNoRedirect = noRedirect
+            requests.append((url, (body as? Data).flatMap { String(data: $0, encoding: .utf8) } ?? ""))
             if let failure = failure {
                 throw failure
             }
@@ -352,6 +355,171 @@ import Testing
 
         #expect(first == "edge1")
         #expect(second == "edge2")
+    }
+
+    /// Splits an application/x-www-form-urlencoded body into its decoded fields.
+    private func formFields(_ body: String) -> [String: String] {
+        var fields: [String: String] = [:]
+        for pair in body.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            let decode = { (s: Substring) -> String in
+                s.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? String(s)
+            }
+            fields[decode(parts[0])] = decode(parts.count > 1 ? parts[1] : "")
+        }
+        return fields
+    }
+
+    private let authorizationCodeGrant = [
+        "grant_type": "authorization_code",
+        "code": "auth-code",
+        "client_id": "my-client",
+        "client_secret": "my-secret",
+    ]
+
+    /* The refresh grant sends the cached refresh token and carries over only
+     * the client credentials: the authorization code is single-use and must
+     * not travel with it. */
+    @Test func testRefreshGrantCarriesRefreshTokenAndClientCredentialsOnly() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let refreshed = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(refreshed == "tok2")
+        #expect(client.requests.count == 2)
+        #expect(formFields(client.requests[0].body) == authorizationCodeGrant)
+        #expect(
+            formFields(client.requests[1].body) == [
+                "grant_type": "refresh_token",
+                "refresh_token": "ref1",
+                "client_id": "my-client",
+                "client_secret": "my-secret",
+            ])
+    }
+
+    /* A refresh the server rejects is not fatal: the original grant is run
+     * again, and the call only fails if that fails too. */
+    @Test func testRejectedRefreshFallsBackToTheOriginalGrant() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok3")
+        #expect(client.requests.count == 3)
+        #expect(formFields(client.requests[1].body)["grant_type"] == "refresh_token")
+        #expect(formFields(client.requests[2].body) == authorizationCodeGrant)
+    }
+
+    @Test func testMalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "<html>gateway</html>"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok3")
+        #expect(formFields(client.requests[2].body)["grant_type"] == "authorization_code")
+    }
+
+    @Test func testFailedRefreshAndFailedOriginalGrantSurfacesTheOriginalGrantError() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        }
+        #expect(error?.statusCode == 401)
+        #expect(error?.code == "invalid_client")
+    }
+
+    /* Both the field names and the values are percent-encoded: only
+     * letters, digits and - . _ ~ stay literal, a space becomes +, and the
+     * characters * ! ' ( ) are encoded too. */
+    @Test func testTokenRequestBodyPercentEncodesReservedCharacters() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: [
+                "client_secret": "a~b-c.d_e*f!g'h(i)j k+l&m=n/o%p",
+                "scope": "read write",
+            ])
+
+        let fields = client.requests[0].body.split(separator: "&").map(String.init).sorted()
+        #expect(
+            fields == [
+                "client_secret=a~b-c.d_e%2Af%21g%27h%28i%29j+k%2Bl%26m%3Dn%2Fo%25p",
+                "scope=read+write",
+            ])
+    }
+
+    @Test func testTokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token", params: ["password": "p\u{00E4}ss"])
+
+        #expect(client.requests[0].body == "password=p%C3%A4ss")
+    }
+
+    /* The three forms of the token-endpoint failure message. */
+    @Test func testTokenEndpointFailureMessageHasThreeForms() async {
+        let cases: [(body: String, message: String)] = [
+            ("upstream down", "Token request failed with status 400: upstream down"),
+            (
+                "{\"error\":\"invalid_grant\"}",
+                "Token request failed with status 400: invalid_grant"
+            ),
+            (
+                "{\"error\":\"invalid_grant\",\"error_description\":\"code expired\"}",
+                "Token request failed with status 400: invalid_grant -- code expired"
+            ),
+        ]
+        for testCase in cases {
+            let client = MockApiClient()
+            client.responses.append(makeResponse(body: testCase.body, statusCode: 400))
+            let manager = OAuth2TokenManager()
+            manager.setApiClient(client)
+            let error = await #expect(throws: OAuth2ServerError.self) {
+                _ = try await manager.getAccessToken(
+                    tokenURL: "https://auth.example.com/token", params: ["grant_type": "client_credentials"])
+            }
+            #expect(error?.errorDescription == testCase.message)
+        }
     }
 
     @Test func testRefreshTokenEmptyStringPreservesExisting() async throws {

@@ -418,6 +418,23 @@ import Testing
         #expect(result as? String == "a+b")
     }
 
+    /* The path segment keeps every RFC 3986 sub-delimiter and the unreserved
+     * tilde literal, and percent-encodes everything else, including a
+     * percent sign that already starts an escape. */
+    @Test(arguments: [
+        (";", ";"), ("=", "="), (",", ","), (":", ":"), ("@", "@"), ("!", "!"), ("$", "$"),
+        ("&", "&"), ("'", "'"), ("(", "("), (")", ")"), ("*", "*"), ("+", "+"), ("~", "~"),
+        ("-", "-"), (".", "."), ("_", "_"),
+        ("%", "%25"), ("%20", "%2520"), ("\"", "%22"), ("<", "%3C"), (">", "%3E"), ("[", "%5B"),
+        ("]", "%5D"), ("|", "%7C"), ("\\", "%5C"), ("^", "%5E"), ("`", "%60"),
+        ("{", "%7B"), ("}", "%7D"), ("/", "%2F"), ("?", "%3F"), ("#", "%23"), (" ", "%20"),
+    ])
+    func testPathEncodingParityEverySpecialCharacter(raw: String, encoded: String) {
+        let result = ValueSerializer.serializeValue(
+            "a" + raw + "b", location: "path", schemaType: "string", collectionFormat: "")
+        #expect(result as? String == "a" + encoded + "b")
+    }
+
     @Test func testPathEncodingParityUnicodeEncoded() {
         let result = ValueSerializer.serializeValue("日本", location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "%E6%97%A5%E6%9C%AC")

@@ -438,6 +438,66 @@ import FoundationNetworking
         #expect(capturedRequest?.httpMethod == "POST")
     }
 
+    // MARK: - Credential stripping across redirects
+
+    private static let credentialHeaders = [
+        "Authorization": "Bearer secret-token",
+        "Cookie": "session=secret",
+        "Proxy-Authorization": "Basic c2VjcmV0",
+        "X-API-Key": "secret-key",
+        "X-Internal-Key": "secret-internal",
+    ]
+
+    /* Sends a request carrying every credential header and returns the
+     * headers of the request that arrived on the second hop. */
+    private func headersOnSecondHop(redirectingTo location: String) async throws -> [String: String] {
+        let transport = TransportOptionsBuilder().followRedirects(true).build()
+        let hops = HopCounter()
+        var followUp: [String: String]?
+        let client = makeClient(transport: transport) { req in
+            if hops.increment() == 1 {
+                return (Data(), 302, ["Location": location])
+            }
+            followUp = req.allHTTPHeaderFields ?? [:]
+            return (self.jsonBody(), 200, ["Content-Type": "application/json"])
+        }
+        var headers = DefaultApiClientTests.credentialHeaders
+        headers["X-Custom"] = "kept"
+        let resp = try await client.sendRequest(
+            method: "GET", url: "https://example.com/start", headers: headers, body: nil)
+        #expect(resp.statusCode == 200)
+        return try #require(followUp)
+    }
+
+    /* A 302 to another origin must not carry any credential header to the new
+     * host, while ordinary headers still travel with the request. */
+    @Test func testCrossOriginRedirectDropsCredentialHeaders() async throws {
+        let followUp = try await headersOnSecondHop(redirectingTo: "https://other.example.org/landing")
+        for name in DefaultApiClientTests.credentialHeaders.keys {
+            #expect(
+                !followUp.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame },
+                "\(name) must not reach a different origin")
+        }
+        #expect(followUp["X-Custom"] == "kept")
+    }
+
+    /* A different port is a different origin, even on the same host. */
+    @Test func testRedirectToDifferentPortDropsCredentialHeaders() async throws {
+        let followUp = try await headersOnSecondHop(redirectingTo: "https://example.com:8443/landing")
+        #expect(followUp["X-API-Key"] == nil)
+        #expect(followUp["Cookie"] == nil)
+    }
+
+    /* The same origin keeps its credentials, whether the Location is relative
+     * or spells out the scheme's default port. */
+    @Test(arguments: ["/landing", "https://example.com/landing", "https://example.com:443/landing"])
+    func testSameOriginRedirectKeepsCredentialHeaders(location: String) async throws {
+        let followUp = try await headersOnSecondHop(redirectingTo: location)
+        for (name, value) in DefaultApiClientTests.credentialHeaders {
+            #expect(followUp[name] == value, "\(name) must survive a same-origin redirect to \(location)")
+        }
+    }
+
     // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
 
     /// An HTTPS -> HTTP redirect with a body in flight MUST be

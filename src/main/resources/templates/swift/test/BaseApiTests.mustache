@@ -761,45 +761,6 @@ import Testing
         #expect(result.rawBody.isEmpty, "rawBody should be empty when response body is empty")
     }
 
-    // MARK: - CrossOriginRedirectTests
-
-    @Test func testSameOriginRedirectForwardsAuthorization() {
-        let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
-        let isSameOrigin = true
-        let originalHeaders = ["Authorization": "Bearer token123", "Accept": "application/json"]
-        let forwarded = originalHeaders.filter { (k, _) in
-            isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
-        }
-        #expect(forwarded["Authorization"] == "Bearer token123",
-            "Authorization should be forwarded on same-origin redirect")
-    }
-
-    @Test func testCrossOriginRedirectDropsAuthorization() {
-        let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
-        let isSameOrigin = false
-        let originalHeaders = ["Authorization": "Bearer token123", "Accept": "application/json"]
-        let forwarded = originalHeaders.filter { (k, _) in
-            isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
-        }
-        #expect(forwarded["Authorization"] == nil,
-            "Authorization should be dropped on cross-origin redirect")
-        #expect(forwarded["Accept"] != nil,
-            "Accept should be forwarded on cross-origin redirect")
-    }
-
-    @Test func testCrossOriginRedirectDropsCookie() {
-        let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
-        let isSameOrigin = false
-        let originalHeaders = ["Cookie": "session=abc123", "Accept": "application/json"]
-        let forwarded = originalHeaders.filter { (k, _) in
-            isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
-        }
-        #expect(forwarded["Cookie"] == nil,
-            "Cookie should be dropped on cross-origin redirect")
-        #expect(forwarded["Accept"] != nil,
-            "Accept should be forwarded on cross-origin redirect")
-    }
-
     // MARK: - NullBodyContentTypeTests
 
     @Test func testNullBodyPostDoesNotSendContentType() async throws {

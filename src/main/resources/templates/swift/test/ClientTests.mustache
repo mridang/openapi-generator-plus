@@ -78,6 +78,18 @@ import Testing
         #expect(headers["Authorization"] == "Bearer abc.def-123")
     }
 
+    /* Tests/Spec is where hand-written specs are kept, so the test target must
+     * compile and run them; only the fixture data is left out of it. */
+    @Test func testSpecDirectoryIsPartOfTheTestTarget() throws {
+        let manifest = try String(
+            contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                .appendingPathComponent("Package.swift"),
+            encoding: .utf8)
+        let exclude = try #require(manifest.range(of: #"exclude: \[[^\]]*\]"#, options: .regularExpression))
+        #expect(manifest[exclude].contains("\"Fixtures\""))
+        #expect(!manifest[exclude].contains("\"Spec\""))
+    }
+
     @Test func testApiGroupsAreAccessible() throws {
         let client = try {{clientClassName}}(authenticator: authenticator)
 
