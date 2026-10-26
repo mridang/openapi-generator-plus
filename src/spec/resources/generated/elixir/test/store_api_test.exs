@@ -1,0 +1,219 @@
+defmodule PetstoreClient.Api.StoreApiTest do
+  use ExUnit.Case, async: true
+
+  setup do
+    base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
+
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: base_url,
+        default_headers: %{"Authorization" => "Bearer test-token"}
+      )
+
+    api = PetstoreClient.Api.StoreApi.new(nil, config)
+
+    %{api: api}
+  end
+
+  test "get_inventory returns inventory", %{api: api} do
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory(api)
+    assert is_map(result)
+  end
+
+  test "place_order places an order", %{api: api} do
+    order = %PetstoreClient.Models.Order{
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
+      quantity: 1,
+      ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
+      status: :placed,
+      complete: false
+    }
+
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.place_order(api, order)
+    assert result != nil
+    assert result.id != nil
+  end
+
+  test "get_inventory_with_http_info returns status and data", %{api: api} do
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_inventory_with_http_info(api)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+  end
+
+  test "place_order_with_http_info returns status and data", %{api: api} do
+    order = %PetstoreClient.Models.Order{
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
+      quantity: 1,
+      ship_date: DateTime.utc_now() |> DateTime.to_iso8601(),
+      status: :placed,
+      complete: false
+    }
+
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.place_order_with_http_info(api, order)
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+  end
+
+  test "get_order_by_id returns an order by id", %{api: api} do
+    assert {:ok, result} =
+             PetstoreClient.Api.StoreApi.get_order_by_id(api, :rand.uniform(1_000_000_000))
+
+    assert result != nil
+    assert result.id != nil
+  end
+
+  test "get_order_by_id_with_http_info returns status and data", %{api: api} do
+    assert {:ok, result} =
+             PetstoreClient.Api.StoreApi.get_order_by_id_with_http_info(
+               api,
+               :rand.uniform(1_000_000_000)
+             )
+
+    assert result.status_code >= 200 and result.status_code < 300
+    assert result.data != nil
+  end
+
+  test "delete_order deletes an order", %{api: api} do
+    assert {:ok, _result} =
+             PetstoreClient.Api.StoreApi.delete_order(api, :rand.uniform(1_000_000_000))
+  end
+
+  defp new_store_api_for_mock(status, content_type, body) do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+
+    spawn(fn ->
+      {:ok, client} = :gen_tcp.accept(socket)
+      {:ok, _data} = :gen_tcp.recv(client, 0)
+
+      response =
+        "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
+
+      :gen_tcp.send(client, response)
+      :gen_tcp.close(client)
+      :gen_tcp.close(socket)
+    end)
+
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "http://127.0.0.1:#{port}",
+        default_headers: %{}
+      )
+
+    PetstoreClient.Api.StoreApi.new(nil, config)
+  end
+
+  test "get_order_by_id 404 returns error" do
+    api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
+
+    assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
+             PetstoreClient.Api.StoreApi.get_order_by_id(api, 99_999)
+  end
+
+  test "place_order 500 returns error" do
+    api = new_store_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
+
+    order = %PetstoreClient.Models.Order{
+      id: :rand.uniform(1_000_000_000),
+      pet_id: :rand.uniform(1_000_000_000),
+      quantity: 1,
+      status: :placed,
+      complete: false
+    }
+
+    assert {:error, %PetstoreClient.Errors.InternalServerError{status_code: 500}} =
+             PetstoreClient.Api.StoreApi.place_order(api, order)
+  end
+
+  test "delete_order 404 returns error" do
+    api = new_store_api_for_mock(404, "application/json", ~s({"message":"Order not found"}))
+
+    assert {:error, %PetstoreClient.Errors.NotFoundError{status_code: 404}} =
+             PetstoreClient.Api.StoreApi.delete_order(api, 99_999)
+  end
+
+  # Nested container deserialization: getGroupedCategories returns
+  # Array<Record<string, Category>>. Each leaf of the array-of-maps must be
+  # decoded into a typed Category struct, not left as a raw map.
+  test "get_grouped_categories deserializes nested map leaves into typed Category structs" do
+    body = ~s([{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}])
+    api = new_store_api_for_mock(200, "application/json", body)
+
+    assert {:ok, result} = PetstoreClient.Api.StoreApi.get_grouped_categories(api)
+    assert %PetstoreClient.Models.Category{} = Enum.at(result, 0)["a"]
+    assert Enum.at(result, 0)["a"].id == 1
+    assert Enum.at(result, 0)["a"].name == "Dogs"
+  end
+
+  # A module-style api_client that records the request it was handed and
+  # answers with a canned JSON body.
+  defmodule StubApiClient do
+    use Agent
+
+    def start(body) do
+      name = :"#{__MODULE__}-#{System.unique_integer([:positive])}"
+      {:ok, _pid} = Agent.start_link(fn -> %{request: nil, body: body} end, name: name)
+      Process.put(__MODULE__, name)
+      {:ok, name}
+    end
+
+    def captured(name), do: Agent.get(name, & &1.request)
+
+    def send_request(method, url, headers, body) do
+      name = Process.get(__MODULE__)
+
+      Agent.get_and_update(name, fn state ->
+        response = %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          body: state.body,
+          headers: %{"Content-Type" => "application/json"}
+        }
+
+        {response, %{state | request: %{method: method, url: url, headers: headers, body: body}}}
+      end)
+    end
+  end
+
+  # A named-enum ($ref) parameter goes on the wire as its declared value in a
+  # path, a query string and a header, never as the atom's debug form.
+  test "get_by_swatch sends the named enum's wire value in path, query and header" do
+    {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    options = %PetstoreClient.Api.Options.GetBySwatchOptions{
+      query_swatch: PetstoreClient.Models.Swatch.green(),
+      preferred_swatch: PetstoreClient.Models.Swatch.blue()
+    }
+
+    assert {:ok, %PetstoreClient.Models.Category{id: 1}} =
+             PetstoreClient.Api.StoreApi.get_by_swatch(
+               api,
+               PetstoreClient.Models.Swatch.red(),
+               options
+             )
+
+    captured = StubApiClient.captured(name)
+    assert captured.url == "http://localhost/store/by-swatch/red?querySwatch=green"
+    assert captured.headers["Preferred-Swatch"] == "blue"
+
+    Agent.stop(name)
+  end
+
+  test "get_by_swatch without options sends only the path value" do
+    {:ok, name} = StubApiClient.start(~s({"id":1,"name":"sample"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, _category} =
+             PetstoreClient.Api.StoreApi.get_by_swatch(api, PetstoreClient.Models.Swatch.blue())
+
+    captured = StubApiClient.captured(name)
+    assert captured.url == "http://localhost/store/by-swatch/blue"
+    refute Map.has_key?(captured.headers, "Preferred-Swatch")
+
+    Agent.stop(name)
+  end
+end

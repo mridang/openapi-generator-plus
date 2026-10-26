@@ -1,0 +1,149 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+)
+
+// mustBearer builds a BearerAuthenticator from a token the test knows is
+// valid, failing the test if the constructor rejects it.
+func mustBearer(t *testing.T, host, token string) *auth.BearerAuthenticator {
+	t.Helper()
+	a, err := auth.NewBearerAuthenticator(host, token)
+	if err != nil {
+		t.Fatalf("unexpected error from NewBearerAuthenticator: %v", err)
+	}
+	return a
+}
+
+func TestBearerAuthenticator_RawTokenIsPrefixedWithBearer(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_AlreadyPrefixedTokenIsNotDoubled(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "Bearer xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_LowercaseBearerPrefixIsStripped(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "bearer xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+func TestBearerAuthenticator_MixedCaseBearerPrefixIsStripped(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "BeArEr xyz")
+	headers := a.AuthHeaders()
+	if got, want := headers["Authorization"], "Bearer xyz"; got != want {
+		t.Fatalf("Authorization header = %q, want %q", got, want)
+	}
+}
+
+// bearer-no-empty-token-guard: an empty or whitespace-only Bearer token would
+// emit the literal `Authorization: Bearer ` header and send the request
+// unauthenticated. RFC 7230 §3.2.6 — Bearer tokens commonly arrive with
+// trailing newlines from .env / file reads; CRLF would inject the
+// Authorization header, and non-ASCII bytes are silently mangled per HTTP lib.
+// The constructor returns ErrInvalidBearerToken for all of them, never panics.
+func TestBearerAuthenticator_RejectsInvalidToken(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t", "tok\r\nInjected: yes", "ñoño"} {
+		a, err := auth.NewBearerAuthenticator("https://api.example.com", bad)
+		if !errors.Is(err, auth.ErrInvalidBearerToken) {
+			t.Errorf("expected ErrInvalidBearerToken for %q, got %v", bad, err)
+		}
+		if a != nil {
+			t.Errorf("expected a nil authenticator for %q", bad)
+		}
+	}
+	// The rejection reads as the canonical sentence the other SDKs use, only
+	// lowercased as staticcheck ST1005 requires.
+	if _, err := auth.NewBearerAuthenticator("https://api.example.com", ""); err == nil ||
+		err.Error() != "bearer token must not be empty" {
+		t.Errorf("empty token: expected %q, got %v", "bearer token must not be empty", err)
+	}
+	if _, err := auth.NewBearerAuthenticator("https://api.example.com", "ñoño"); err == nil ||
+		err.Error() != "bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)" {
+		t.Errorf("non-ASCII token: unexpected message %v", err)
+	}
+}
+
+// A per-scheme wrapper prints its own type name, not the base authenticator's,
+// and stays redacted when it is formatted as a value or through %#v.
+func TestBearerAuthenticator_SchemeWrapperPrintsItsOwnName(t *testing.T) {
+	t.Parallel()
+	w, err := auth.NewPetStoreBearerAuthenticator("https://api.example.com", "super-secret-token")
+	if err != nil {
+		t.Fatalf("NewPetStoreBearerAuthenticator failed: %v", err)
+	}
+	want := `PetStoreBearerAuthenticator{host: "https://api.example.com", token: ***}`
+	for _, s := range []string{w.String(), fmt.Sprintf("%v", w), fmt.Sprintf("%+v", *w), fmt.Sprintf("%#v", w)} {
+		if s != want {
+			t.Errorf("expected %q, got %q", want, s)
+		}
+	}
+}
+
+// authenticator-secret-in-default-string-repr: the bearer token must not leak
+// through the default string/format representation.
+func TestBearerAuthenticator_RedactsSecret(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "super-secret-token")
+	for _, s := range []string{a.String(), fmt.Sprintf("%v", a), fmt.Sprintf("%+v", a), fmt.Sprintf("%#v", a), fmt.Sprintf("%v", *a), fmt.Sprintf("%+v", *a), fmt.Sprintf("%#v", *a)} {
+		if strings.Contains(s, "super-secret-token") {
+			t.Errorf("expected token to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+// The printed form shows the non-secret host and masks only the token.
+func TestBearerAuthenticator_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	a := mustBearer(t, "https://api.example.com", "super-secret-token")
+	want := `BearerAuthenticator{host: "https://api.example.com", token: ***}`
+	if got := a.String(); got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// The service-token wrapper is a Bearer authenticator under its own name: it
+// emits the same header, refuses an empty token, and prints its own name with
+// the token masked.
+func TestBearerAuthenticator_ServiceTokenWrapperBehavesAsBearerUnderItsOwnName(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewServiceTokenAuthenticator("https://api.example.com", "xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], "Bearer xyz"; got != want {
+		t.Errorf("Authorization header = %q, want %q", got, want)
+	}
+	want := `ServiceTokenAuthenticator{host: "https://api.example.com", token: ***}`
+	if got := fmt.Sprint(a); got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+	if _, err := auth.NewServiceTokenAuthenticator("https://api.example.com", ""); !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken for an empty token, got %v", err)
+	}
+}

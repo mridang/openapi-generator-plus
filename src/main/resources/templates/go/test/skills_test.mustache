@@ -1,0 +1,32 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestSkills_UploadParametersAreDocumentedAsOsFile(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	if !strings.Contains(skills, "File upload parameters are typed as `*os.File`.") {
+		t.Errorf("expected SKILLS.md to document file upload parameters as *os.File")
+	}
+	if strings.Contains(skills, "typed as `io.Reader`") {
+		t.Errorf("expected SKILLS.md not to document file upload parameters as io.Reader")
+	}
+}
+
+func TestSkills_ErrorHandlingExampleEndsWithTheBaseApiErrorArm(t *testing.T) {
+	t.Parallel()
+	skills := readSourceFile(t, "../SKILLS.md")
+	for _, want := range []string{
+		"var apiErr *{{packageName}}.ApiError",
+		"} else if errors.As(err, &apiErr) {",
+		"fmt.Printf(\"API error %d: %s\\n\", apiErr.StatusCode(), apiErr.Error())",
+	} {
+		if !strings.Contains(skills, want) {
+			t.Errorf("expected the SKILLS.md error handling example to contain %q", want)
+		}
+	}
+}

@@ -1,0 +1,12 @@
+{{>api_info}}
+
+{{#imports}}
+from {{module}} import {{classNames}}
+{{/imports}}
+
+
+class {{className}}({{baseClass}}):
+    """Scheme-specific authenticator for the {{schemeName}} security scheme."""
+
+    def __init__(self, {{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}):
+        super().__init__({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})

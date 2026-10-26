@@ -1,0 +1,131 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"{{packageName}}/pkg/auth"
+)
+
+// {{clientClassName}} is the unified entry point for all API services.
+//
+// Takes an Authenticator and optionally TransportOptions, then exposes
+// each API group as a typed field. If the authenticator implements
+// auth.HttpAwareAuthenticator, the shared ApiClient is injected so that
+// authentication HTTP calls (token exchange, discovery) use the same
+// transport configuration as regular API calls.
+//
+// Usage:
+//
+//	// Default transport
+//	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+//
+//	// Custom transport (proxy, timeouts, etc.)
+//
+//	timeout := 5000
+//	transport, err := {{packageName}}.NewTransportOptionsBuilder().
+//		Proxy("http://proxy:3128").
+//		Timeout(&timeout).
+//		Build()
+//	if err != nil {
+//		return err
+//	}
+//	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+type {{clientClassName}} struct {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	/* {{baseName}} holds the API operations for the {{classname}} group. */
+	{{baseName}} *{{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+// New{{clientClassName}} creates a new client with the given authenticator and transport options.
+//
+// The authenticator provides the host URL and auth headers. The transport
+// options carry the HTTP transport configuration (proxy, TLS, timeouts, etc.);
+// nil selects the default transport settings.
+//
+// If the authenticator implements auth.HttpAwareAuthenticator, the shared ApiClient
+// is injected so that token exchange and discovery requests use the same proxy,
+// TLS, and timeout settings.
+func New{{clientClassName}}(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
+	if transportOptions == nil {
+		transportOptions = defaultTransportOptions()
+	}
+	apiClient := NewDefaultApiClient(transportOptions)
+
+	if httpAware, ok := authenticator.(auth.HttpAwareAuthenticator); ok {
+		httpAware.SetApiClient(&authApiClientAdapter{inner: apiClient})
+	}
+
+	config := NewConfigurationBuilder().
+		BaseURL(authenticator.Host()).
+		Build()
+
+	return &{{clientClassName}}{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+		{{baseName}}: New{{classname}}(apiClient, config, authenticator),
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+	}
+}
+
+// New{{clientClassName}}WithToken creates a client authenticated with a static Bearer token.
+//
+// The host is the API base URL and the accessToken is the Bearer token. The
+// optional transport options carry the HTTP transport configuration (proxy,
+// TLS, timeouts, etc.).
+//
+// Returns auth.ErrInvalidBearerToken when the token is empty or contains a
+// character that cannot be sent in a header.
+func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions) (*{{clientClassName}}, error) {
+	authenticator, err := auth.NewBearerAuthenticator(host, accessToken)
+	if err != nil {
+		return nil, err
+	}
+	return New{{clientClassName}}(authenticator, transportOptions), nil
+}
+
+// New{{clientClassName}}WithAuthenticator creates a client from any Authenticator implementation.
+//
+// This is the generic entry point for bespoke authentication strategies such as
+// OAuth2 client credentials, JWT private-key (service account), or a personal
+// access token (PAT). Supply any Authenticator implementation; if it also
+// implements auth.HttpAwareAuthenticator, the shared ApiClient is injected so
+// its HTTP calls reuse the same transport configuration. The optional transport
+// options are applied to both API calls and any authentication HTTP calls the
+// authenticator performs.
+func New{{clientClassName}}WithAuthenticator(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
+	return New{{clientClassName}}(authenticator, transportOptions)
+}
+
+// authApiClientAdapter adapts the main package's ApiClient interface to the
+// auth package's ApiClient interface, bridging the ApiHttpResponse types to
+// avoid circular imports between the root module and the auth subpackage.
+type authApiClientAdapter struct {
+	inner ApiClient
+}
+
+func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return a.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (a *authApiClientAdapter) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	var inner *RequestOptions
+	if opts != nil {
+		inner = &RequestOptions{NoRedirect: opts.NoRedirect}
+	}
+	resp, err := a.inner.SendRequestWithOptions(method, url, headers, body, inner)
+	if err != nil {
+		return nil, err
+	}
+	return &auth.ApiHttpResponse{
+		StatusCode: resp.StatusCode,
+		Body:       resp.Body,
+		Headers:    resp.Headers,
+	}, nil
+}

@@ -1,0 +1,20 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+/**
+ * Represents a typed API response with deserialized data, status code,
+ * raw body, and headers. Returned by `withHttpInfo` methods.
+ *
+ * @param T the type of the deserialized response data
+ * @property statusCode the HTTP status code
+ * @property data the deserialized response body (null for void responses)
+ * @property rawBody the raw response body string (never null; empty for no body)
+ * @property headers the response headers
+ */
+data class ApiResult<T>(
+    val statusCode: Int,
+    val data: T?,
+    val rawBody: String,
+    val headers: Map<String, String>
+)

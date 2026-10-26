@@ -1,0 +1,444 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"errors"
+	"time"
+
+	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/models"
+	pkgerrors "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/options"
+)
+
+func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
+	t.Helper()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL(chasmURL).
+		DefaultHeader("Authorization", "Bearer test-token").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config, nil)
+}
+
+func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
+	t.Helper()
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config, nil)
+}
+
+func TestStoreApi_PlaceOrder(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrder(order)
+	if err != nil {
+		t.Fatalf("PlaceOrder failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from PlaceOrder")
+	}
+}
+
+func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrderWithHTTPInfo(order)
+	if err != nil {
+		t.Fatalf("PlaceOrderWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode < 200 || result.StatusCode >= 300 {
+		t.Errorf("expected 2xx status, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+	if result.RawBody == "" {
+		t.Error("expected non-empty RawBody")
+	}
+}
+
+func TestStoreApi_GetOrderById(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderById(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderById failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetOrderById")
+	}
+}
+
+func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderByIdWithHTTPInfo(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderByIdWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Headers == nil {
+		t.Error("expected non-nil Headers")
+	}
+}
+
+func TestStoreApi_DeleteOrder(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	err := api.DeleteOrder(int64(1))
+	if err != nil {
+		t.Fatalf("DeleteOrder failed: %v", err)
+	}
+}
+
+func TestStoreApi_GetInventory(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventory()
+	if err != nil {
+		t.Fatalf("GetInventory failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetInventory")
+	}
+}
+
+func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
+	t.Parallel()
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventoryWithHTTPInfo()
+	if err != nil {
+		t.Fatalf("GetInventoryWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+}
+
+func TestStoreApi_GetOrderNotFound(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	_, err := api.GetOrderById(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for non-existent order")
+	}
+	var notFound *pkgerrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T: %v", err, err)
+	}
+	if notFound.StatusCode() != 404 {
+		t.Errorf("expected status 404, got %d", notFound.StatusCode())
+	}
+}
+
+func TestStoreApi_PlaceOrderServerError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	order := models.NewOrder()
+	_, err := api.PlaceOrder(order)
+	if err == nil {
+		t.Fatal("expected error for server error response")
+	}
+	var serverErr *pkgerrors.InternalServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *InternalServerError, got %T: %v", err, err)
+	}
+	if serverErr.StatusCode() != 500 {
+		t.Errorf("expected status 500, got %d", serverErr.StatusCode())
+	}
+}
+
+// A nested generic container (array of map of Category) must deserialize so its
+// leaves are typed Category instances, not raw maps. The static type of the
+// result already guarantees this in Go; this asserts the values decode and the
+// typed fields are populated end-to-end through the operation.
+func TestStoreApi_GetGroupedCategoriesDeserializesTypedLeaves(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	result, err := api.GetGroupedCategories()
+	if err != nil {
+		t.Fatalf("GetGroupedCategories failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetGroupedCategories")
+	}
+	groups := *result
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 groups, got %d", len(groups))
+	}
+
+	// result[0]["a"] must be a typed Category with its fields decoded.
+	var first models.Category = groups[0]["a"]
+	if first.Id == nil || *first.Id != 1 {
+		t.Errorf("expected first.Id 1, got %v", first.Id)
+	}
+	if first.Name == nil || *first.Name != "Dogs" {
+		t.Errorf("expected first.Name 'Dogs', got %v", first.Name)
+	}
+
+	second := groups[1]["b"]
+	if second.Id == nil || *second.Id != 2 {
+		t.Errorf("expected second.Id 2, got %v", second.Id)
+	}
+	if second.Name == nil || *second.Name != "Cats" {
+		t.Errorf("expected second.Name 'Cats', got %v", second.Name)
+	}
+}
+
+func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	err := api.DeleteOrder(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for deleting non-existent order")
+	}
+	var notFound *pkgerrors.NotFoundError
+	if !errors.As(err, &notFound) {
+		t.Fatalf("expected *NotFoundError, got %T: %v", err, err)
+	}
+}
+
+// jsonStoreServer answers every request with the given JSON body and hands the
+// request to seen, so a test can assert what the operation put on the wire.
+func jsonStoreServer(body string, seen func(*http.Request)) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen(r)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(body))
+	}))
+}
+
+// A named-enum ($ref) parameter reaches the wire as its declared value in the
+// path, in the query and in a header, never as a Go-specific rendering of the
+// type.
+func TestStoreApi_GetBySwatchSendsTheEnumWireValueInPathQueryAndHeader(t *testing.T) {
+	t.Parallel()
+	var path, query, header string
+	server := jsonStoreServer(`{"id":1,"name":"echo"}`, func(r *http.Request) {
+		path = r.URL.Path
+		query = r.URL.RawQuery
+		header = r.Header.Get("Preferred-Swatch")
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	querySwatch := models.SwatchGreen
+	preferred := models.SwatchBlue
+	result, err := api.GetBySwatch(models.SwatchRed, &options.GetBySwatchOptions{
+		QuerySwatch:     &querySwatch,
+		PreferredSwatch: &preferred,
+	})
+	if err != nil {
+		t.Fatalf("GetBySwatch failed: %v", err)
+	}
+	if result == nil || result.Name == nil || *result.Name != "echo" {
+		t.Errorf("expected the echoed category, got %v", result)
+	}
+	if path != "/store/by-swatch/red" {
+		t.Errorf("expected path /store/by-swatch/red, got %q", path)
+	}
+	if query != "querySwatch=green" {
+		t.Errorf("expected query querySwatch=green, got %q", query)
+	}
+	if header != "blue" {
+		t.Errorf("expected header Preferred-Swatch: blue, got %q", header)
+	}
+}
+
+// The optional enum parameters are left off the wire when they are not set.
+func TestStoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t *testing.T) {
+	t.Parallel()
+	var query, header string
+	server := jsonStoreServer(`{"id":1}`, func(r *http.Request) {
+		query = r.URL.RawQuery
+		header = r.Header.Get("Preferred-Swatch")
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	if _, err := api.GetBySwatch(models.SwatchRed, nil); err != nil {
+		t.Fatalf("GetBySwatch failed: %v", err)
+	}
+	if query != "" {
+		t.Errorf("expected no query string, got %q", query)
+	}
+	if header != "" {
+		t.Errorf("expected no Preferred-Swatch header, got %q", header)
+	}
+}
+
+// Nested containers and enum bodies decode into their typed leaves through the
+// operation, not just through the serializer.
+func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
+	t.Parallel()
+
+	t.Run("matrix", func(t *testing.T) {
+		t.Parallel()
+		server := jsonStoreServer(`[[1,2],[3,4]]`, func(*http.Request) {})
+		defer server.Close()
+		result, err := newStoreApiForMock(t, server).GetMatrix()
+		if err != nil {
+			t.Fatalf("GetMatrix failed: %v", err)
+		}
+		rows := *result
+		if len(rows) != 2 || len(rows[1]) != 2 || rows[1][0] != 3 {
+			t.Errorf("expected [[1 2] [3 4]], got %v", rows)
+		}
+	})
+
+	t.Run("swatch", func(t *testing.T) {
+		t.Parallel()
+		server := jsonStoreServer(`"green"`, func(*http.Request) {})
+		defer server.Close()
+		result, err := newStoreApiForMock(t, server).GetSwatch()
+		if err != nil {
+			t.Fatalf("GetSwatch failed: %v", err)
+		}
+		if *result != models.SwatchGreen {
+			t.Errorf("expected green, got %v", *result)
+		}
+	})
+
+	t.Run("swatch groups", func(t *testing.T) {
+		t.Parallel()
+		server := jsonStoreServer(`[{"warm":"red"},{"cool":"blue"}]`, func(*http.Request) {})
+		defer server.Close()
+		result, err := newStoreApiForMock(t, server).GetSwatchGroups()
+		if err != nil {
+			t.Fatalf("GetSwatchGroups failed: %v", err)
+		}
+		groups := *result
+		if len(groups) != 2 || groups[0]["warm"] != models.SwatchRed || groups[1]["cool"] != models.SwatchBlue {
+			t.Errorf("expected typed swatches per group, got %v", groups)
+		}
+	})
+
+	t.Run("timestamp groups", func(t *testing.T) {
+		t.Parallel()
+		server := jsonStoreServer(`[{"created":"2024-01-02T03:04:05.000Z"}]`, func(*http.Request) {})
+		defer server.Close()
+		result, err := newStoreApiForMock(t, server).GetTimestampGroups()
+		if err != nil {
+			t.Fatalf("GetTimestampGroups failed: %v", err)
+		}
+		groups := *result
+		if len(groups) != 1 {
+			t.Fatalf("expected 1 group, got %d", len(groups))
+		}
+		if got := groups[0]["created"].Time().UTC().Format("2006-01-02T15:04:05"); got != "2024-01-02T03:04:05" {
+			t.Errorf("expected the timestamp to decode, got %s", got)
+		}
+	})
+
+	t.Run("tree", func(t *testing.T) {
+		t.Parallel()
+		server := jsonStoreServer(`{"value":"root","child":{"value":"leaf"}}`, func(*http.Request) {})
+		defer server.Close()
+		result, err := newStoreApiForMock(t, server).GetTree()
+		if err != nil {
+			t.Fatalf("GetTree failed: %v", err)
+		}
+		if result.Value != "root" || result.Child == nil || result.Child.Value != "leaf" {
+			t.Errorf("expected root with a leaf child, got %+v", result)
+		}
+	})
+}
+
+// A model that refers back to the one that contains it decodes through the
+// operation without recursing forever.
+func TestStoreApi_GetDepartmentDecodesTheMutualReference(t *testing.T) {
+	t.Parallel()
+	server := jsonStoreServer(`{"name":"eng","lead":{"name":"ada","department":{"name":"inner"}}}`, func(*http.Request) {})
+	defer server.Close()
+
+	result, err := newStoreApiForMock(t, server).GetDepartment()
+	if err != nil {
+		t.Fatalf("GetDepartment failed: %v", err)
+	}
+	if result.Name != "eng" || result.Lead == nil || result.Lead.Name != "ada" {
+		t.Fatalf("expected department eng led by ada, got %+v", result)
+	}
+	if result.Lead.Department == nil || result.Lead.Department.Name != "inner" {
+		t.Errorf("expected the lead's own department to decode, got %+v", result.Lead.Department)
+	}
+}
+
+// An optional date-time query parameter is sent in the canonical date-time form.
+func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := jsonStoreServer(`{"priority":1}`, func(r *http.Request) {
+		query = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	asOf := models.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))
+	if _, err := newStoreApiForMock(t, server).GetStockItem(&options.GetStockItemOptions{AsOf: &asOf}); err != nil {
+		t.Fatalf("GetStockItem failed: %v", err)
+	}
+	if want := "asOf=2024-01-02T03%3A04%3A05.000%2B00%3A00"; query != want {
+		t.Errorf("expected query %q, got %q", want, query)
+	}
+}

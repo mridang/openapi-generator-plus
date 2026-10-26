@@ -1,0 +1,497 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+	"{{packageName}}/pkg/auth/oauth"
+)
+
+// fakeAuthCodeClient implements auth.ApiClient for auth code tests.
+type fakeAuthCodeClient struct {
+	responses []fakeAuthCodeResponse
+	index     int32
+	LastBody  string
+	LastURL   string
+}
+
+type fakeAuthCodeResponse struct {
+	body       string
+	statusCode int
+}
+
+func (c *fakeAuthCodeClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *fakeAuthCodeClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	_ = opts
+	c.LastURL = url
+	if body != nil {
+		if b, ok := body.([]byte); ok {
+			c.LastBody = string(b)
+		}
+	}
+	idx := atomic.AddInt32(&c.index, 1) - 1
+	resp := c.responses[idx]
+	return &auth.ApiHttpResponse{
+		StatusCode: resp.statusCode,
+		Body:       resp.body,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+func createAuthCodeAuthenticator() *oauth.OAuth2AuthorizationCodeAuthenticator {
+	return oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read", "write"},
+		"",
+	)
+}
+
+func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
+	t.Parallel()
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "response_type=code") {
+		t.Error("expected URL to contain response_type=code")
+	}
+	if !strings.Contains(url, "client_id=my-client-id") {
+		t.Error("expected URL to contain client_id=my-client-id")
+	}
+	if !strings.Contains(url, "redirect_uri=") {
+		t.Error("expected URL to contain redirect_uri")
+	}
+	if !strings.Contains(url, "scope=read") {
+		t.Error("expected URL to contain scope with read")
+	}
+	if !strings.HasPrefix(url, "https://auth.example.com/authorize?") {
+		t.Errorf("expected URL to start with authorization endpoint, got %q", url)
+	}
+}
+
+// The per-scheme wrapper requests the scopes its security scheme declares.
+func TestUserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+	t.Parallel()
+	auth := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=pets%3Awrite%20pets%3Aread") {
+		t.Errorf("expected URL to carry the declared scopes, got %q", url)
+	}
+}
+
+func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
+	t.Parallel()
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("csrf-state-123")
+
+	if !strings.Contains(url, "state=csrf-state-123") {
+		t.Errorf("expected URL to contain state=csrf-state-123, got %q", url)
+	}
+}
+
+// ExchangeCode runs on a callback goroutine while requests read the exchanged
+// flag on others. Run under the race detector (make test), this fails when the
+// flag is a plain bool.
+func TestOAuth2AuthCode_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := authObj.ExchangeCode("code"); err != nil {
+			t.Errorf("ExchangeCode failed: %v", err)
+		}
+	}()
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = authObj.AuthHeadersOrError()
+		}()
+	}
+	wg.Wait()
+
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
+		t.Errorf("expected the exchanged token to be used, got %q", got)
+	}
+}
+
+// oauth-exchangecode-no-empty-code-guard: ExchangeCode must reject an empty or
+// whitespace-only code before issuing the token POST.
+func TestOAuth2AuthCode_ExchangeCodeRejectsEmptyCode(t *testing.T) {
+	t.Parallel()
+	for _, bad := range []string{"", "   ", "\t"} {
+		authObj := createAuthCodeAuthenticator()
+		err := authObj.ExchangeCode(bad)
+		if err == nil {
+			t.Fatalf("expected error for empty/whitespace code %q", bad)
+		}
+		if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+			t.Errorf("expected ErrAuthCodeEmpty for code %q, got %v", bad, err)
+		}
+		if want := "authorization code must not be empty"; err.Error() != want {
+			t.Errorf("expected message %q for code %q, got %q", want, bad, err.Error())
+		}
+	}
+}
+
+func TestOAuth2AuthCode_ExchangeCodeRejectsWhitespaceOnlyCode(t *testing.T) {
+	t.Parallel()
+	// oauth-exchangecode-no-empty-code-guard: a whitespace-only code is distinct
+	// from the empty-string case and must also be rejected (TrimSpace guard)
+	// before any token POST is issued.
+	authObj := createAuthCodeAuthenticator()
+	err := authObj.ExchangeCode("   ")
+	if err == nil {
+		t.Fatalf("expected error for whitespace-only code")
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeEmpty) {
+		t.Errorf("expected ErrAuthCodeEmpty for whitespace-only code, got %v", err)
+	}
+}
+
+func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(client.LastBody, "grant_type=authorization_code") {
+		t.Errorf("expected body to contain grant_type=authorization_code, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "code=auth-code-xyz") {
+		t.Errorf("expected body to contain code=auth-code-xyz, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_id=my-client-id") {
+		t.Errorf("expected body to contain client_id=my-client-id, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_secret=my-client-secret") {
+		t.Errorf("expected body to contain client_secret=my-client-secret, got %q", client.LastBody)
+	}
+}
+
+func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// AuthHeaders triggers a refresh since token is expired (expires_in=1 minus 30s buffer)
+	headers := authObj.AuthHeaders()
+
+	if !strings.Contains(client.LastBody, "refresh_token=ref1") {
+		t.Errorf("expected body to contain refresh_token=ref1, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "grant_type=refresh_token") {
+		t.Errorf("expected body to contain grant_type=refresh_token, got %q", client.LastBody)
+	}
+	if headers["Authorization"] != "Bearer tok2" {
+		t.Errorf("expected Authorization 'Bearer tok2', got %q", headers["Authorization"])
+	}
+}
+
+func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	// AuthHeaders (interface method) must NOT panic if ExchangeCode was
+	// never called -- it now soft-fails to an empty map so the resulting
+	// request surfaces as a 401 instead of crashing the process. Callers
+	// that want a precise error use AuthHeadersOrError.
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("AuthHeaders must not panic before ExchangeCode, got: %v", r)
+		}
+	}()
+
+	headers := authObj.AuthHeaders()
+	if len(headers) != 0 {
+		t.Errorf("expected empty headers before ExchangeCode, got %v", headers)
+	}
+}
+
+func TestOAuth2AuthCode_auth_headers_before_exchange_returns_recoverable_error(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	// Construct without ExchangeCode, then prove the precondition
+	// violation is catchable: AuthHeadersOrError returns a sentinel error
+	// the caller can match on with errors.Is and recover from.
+	headers, err := authObj.AuthHeadersOrError()
+	if err == nil {
+		t.Fatal("expected AuthHeadersOrError to return error before ExchangeCode")
+	}
+	if headers != nil {
+		t.Errorf("expected nil headers on error, got %v", headers)
+	}
+	if !errors.Is(err, oauth.ErrAuthCodeNotExchanged) {
+		t.Errorf("expected ErrAuthCodeNotExchanged, got %v", err)
+	}
+
+	// Caller continues normally after catching -- no process crash.
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}
+
+func TestOAuth2AuthCodeRedactsSecret(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+	for _, s := range []string{authObj.String(), fmt.Sprintf("%v", authObj), fmt.Sprintf("%+v", authObj), fmt.Sprintf("%#v", authObj)} {
+		if strings.Contains(s, "my-client-secret") {
+			t.Errorf("expected client secret to be redacted, got %q", s)
+		}
+		if !strings.Contains(s, "***") {
+			t.Errorf("expected redaction marker '***', got %q", s)
+		}
+	}
+}
+
+func TestOAuth2AuthorizationCodeAuthenticator_AuthorizeURLWithExistingQueryStringUsesAmpSeparator(t *testing.T) {
+	t.Parallel()
+	// RFC 6749 §3.1: the authorization endpoint URI MAY already include a
+	// query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
+	// into the configured authorization_url). The builder must use '&' as
+	// the separator so existing params are preserved alongside the OAuth2
+	// ones, not '?' which would corrupt the URL.
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://x.auth0.com/authorize?audience=api",
+		"https://x.auth0.com/oauth/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "audience=api") {
+		t.Errorf("existing query param must be preserved: %q", url)
+	}
+	if !strings.Contains(url, "response_type=code") {
+		t.Errorf("response_type must be appended: %q", url)
+	}
+	if count := strings.Count(url, "?"); count != 1 {
+		t.Errorf("result must contain exactly one '?', got %d: %q", count, url)
+	}
+}
+
+// The authorize URL is a URL, not a form body: a space between scopes is %20,
+// never a plus, which a strict server reads as a literal plus.
+func TestOAuth2AuthCode_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+	t.Parallel()
+	url := createAuthCodeAuthenticator().BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "scope=read%20write") {
+		t.Errorf("expected URL to contain scope=read%%20write, got %q", url)
+	}
+	if strings.Contains(url, "+") {
+		t.Errorf("expected no plus sign in the authorize URL, got %q", url)
+	}
+}
+
+// Exactly `-._~` stays literal in the authorize URL's client_id, scope and
+// state, and `*`, `!`, `'`, `(` and `)` are percent-encoded.
+func TestOAuth2AuthCode_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"s~*!'()"},
+		"",
+	)
+
+	url := authObj.BuildAuthorizationURL("st~*!'()")
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"scope=s~%2A%21%27%28%29",
+		"state=st~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(url, want) {
+			t.Errorf("expected URL to contain %q, got %q", want, url)
+		}
+	}
+}
+
+// The code exchange is a form body, so the same punctuation rule applies there.
+func TestOAuth2AuthCode_ExchangeBodyPercentEncodesReservedPunctuation(t *testing.T) {
+	t.Parallel()
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"id~-._*!'()",
+		"s~-._*!'()",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		nil,
+		"",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("code~*!'()"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, want := range []string{
+		"client_id=id~-._%2A%21%27%28%29",
+		"client_secret=s~-._%2A%21%27%28%29",
+		"code=code~%2A%21%27%28%29",
+	} {
+		if !strings.Contains(client.LastBody, want) {
+			t.Errorf("expected body to contain %q, got %q", want, client.LastBody)
+		}
+	}
+}
+
+// The code exchange goes to tokenUrl and the later refresh to refreshUrl.
+func TestOAuth2AuthCode_SendsTheExchangeToTokenUrlAndTheRefreshToRefreshUrl(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read"},
+		"https://auth.example.com/refresh",
+	)
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[0].url; got != "https://auth.example.com/token" {
+		t.Errorf("expected the code exchange at tokenUrl, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh grant at refreshUrl, got %q", got)
+	}
+}
+
+// The per-scheme wrapper declares its own authorize, token and refresh URLs.
+func TestUserAuthWrapper_RoutesToTheDeclaredUrls(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := oauth.NewUserAuthAuthorizationCodeAuthenticator(
+		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
+	authObj.SetApiClient(client)
+
+	if got := authObj.BuildAuthorizationURL(""); !strings.HasPrefix(got, "https://auth.example.com/authorize?") {
+		t.Errorf("expected the declared authorize URL, got %q", got)
+	}
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error on refresh: %v", err)
+	}
+
+	if got := client.requests[0].url; got != "https://auth.example.com/oauth/token" {
+		t.Errorf("expected the code exchange at the declared token URL, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/oauth/refresh" {
+		t.Errorf("expected the refresh grant at the declared refresh URL, got %q", got)
+	}
+}
+
+// The printed form shows the non-secret fields and masks only the secret.
+func TestOAuth2AuthCode_ReprShowsTheNonSecretFields(t *testing.T) {
+	t.Parallel()
+	repr := createAuthCodeAuthenticator().String()
+	for _, want := range []string{
+		`host: "https://api.example.com"`,
+		`clientID: "my-client-id"`,
+		`clientSecret: ***`,
+		`authorizationURL: "https://auth.example.com/authorize"`,
+		`tokenURL: "https://auth.example.com/token"`,
+		`redirectURI: "https://app.example.com/callback"`,
+		`scopes: ["read" "write"]`,
+	} {
+		if !strings.Contains(repr, want) {
+			t.Errorf("expected %q to contain %q", repr, want)
+		}
+	}
+}

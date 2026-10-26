@@ -1,0 +1,14 @@
+{{>api_info}}
+
+/// Location where an API key credential is sent on a request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiKeyLocation {
+    /// The API key is sent as an HTTP request header.
+    Header,
+
+    /// The API key is sent as a query parameter.
+    Query,
+
+    /// The API key is sent as a cookie.
+    Cookie,
+}

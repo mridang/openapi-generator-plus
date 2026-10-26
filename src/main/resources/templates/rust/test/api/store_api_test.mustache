@@ -1,0 +1,417 @@
+{{>api_info}}
+
+mod testcontainers_helper;
+
+use std::collections::HashMap;
+use std::io::Read;
+use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+use {{packageName}}::*;
+use {{packageName}}::api::*;
+use {{packageName}}::api::options::*;
+use {{packageName}}::models::*;
+
+fn new_store_api_for_integration() -> StoreApi {
+    let base_url = testcontainers_helper::chasm_url();
+    let config = ConfigurationBuilder::new()
+        .base_url(base_url)
+        .default_header("Authorization", "Bearer test-token")
+        .build();
+    let client = DefaultApiClient::new(None);
+    StoreApi::new(Arc::new(client), config, None)
+}
+
+/// Starts a minimal HTTP mock server and returns a StoreApi configured against it.
+fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreApi {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    let content_type = content_type.to_string();
+    let body = body.to_string();
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+
+            let response = format!(
+                "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
+                status,
+                content_type,
+                body.len(),
+                body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(None);
+    StoreApi::new(Arc::new(client), config, None)
+}
+
+/// Records the headers and body of the request it is asked to send.
+struct RecordingApiClient {
+    url: Mutex<String>,
+    headers: Mutex<HashMap<String, String>>,
+    body: Mutex<Option<Vec<u8>>>,
+}
+
+impl RecordingApiClient {
+    fn new() -> Self {
+        RecordingApiClient {
+            url: Mutex::new(String::new()),
+            headers: Mutex::new(HashMap::new()),
+            body: Mutex::new(None),
+        }
+    }
+}
+
+impl {{packageName}}::api_client::ApiClient for RecordingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        *self.url.lock().unwrap() = url.to_string();
+        *self.headers.lock().unwrap() = headers.clone();
+        *self.body.lock().unwrap() = match body {
+            Some({{packageName}}::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
+            _ => None,
+        };
+        Box::pin(async {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(200, "{}".to_string(), {
+                let mut h = HashMap::new();
+                h.insert("Content-Type".to_string(), "application/json".to_string());
+                h
+            }))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_type() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let _ = api.place_order_with_http_info(None).await;
+    let headers = client.headers.lock().unwrap();
+    assert!(headers.contains_key("Accept"), "expected the request to be dispatched");
+    assert!(
+        client.body.lock().unwrap().is_none(),
+        "an omitted optional body must not be sent as a JSON null"
+    );
+    assert!(
+        !headers.contains_key("Content-Type"),
+        "an omitted optional body must not carry a Content-Type"
+    );
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_supplied_body_sends_json_with_content_type() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let _ = api.place_order_with_http_info(Some(Order::new())).await;
+    let body = client.body.lock().unwrap();
+    assert!(
+        body.as_ref().is_some_and(|b| b.starts_with(b"{")),
+        "a supplied body must be sent as a JSON object"
+    );
+    assert_eq!(
+        client.headers.lock().unwrap().get("Content-Type").map(|s| s.as_str()),
+        Some("application/json")
+    );
+}
+
+#[tokio::test]
+async fn test_store_api_get_inventory() {
+    let api = new_store_api_for_integration();
+    let result = api.get_inventory().await;
+    assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_store_api_get_inventory_with_http_info() {
+    let api = new_store_api_for_integration();
+    let result = api.get_inventory_with_http_info().await;
+    assert!(result.is_ok(), "GetInventoryWithHttpInfo failed: {:?}", result.err());
+    let result = result.unwrap();
+    assert!(result.status_code() >= 200 && result.status_code() < 300);
+    assert!(result.data().is_some());
+}
+
+#[tokio::test]
+async fn test_store_api_get_order_by_id() {
+    let api = new_store_api_for_integration();
+    let result = api.get_order_by_id(1).await;
+    assert!(
+        result.is_ok(),
+        "GetOrderById failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
+async fn test_store_api_get_order_by_id_with_http_info() {
+    let api = new_store_api_for_integration();
+    let result = api.get_order_by_id_with_http_info(1).await;
+    assert!(result.is_ok(), "GetOrderByIdWithHttpInfo failed: {:?}", result.err());
+    let result = result.unwrap();
+    assert!(result.status_code() >= 200 && result.status_code() < 300);
+    assert!(result.data().is_some());
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_with_http_info() {
+    let api = new_store_api_for_integration();
+    let order = Order::new();
+    let result = api.place_order_with_http_info(Some(order)).await;
+    assert!(result.is_ok(), "PlaceOrderWithHttpInfo failed: {:?}", result.err());
+    let result = result.unwrap();
+    assert!(result.status_code() >= 200 && result.status_code() < 300);
+    assert!(result.data().is_some());
+}
+
+#[tokio::test]
+async fn test_store_api_place_order() {
+    let api = new_store_api_for_integration();
+    let order = Order::new();
+    let result = api.place_order(Some(order)).await;
+    assert!(result.is_ok(), "PlaceOrder failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_store_api_delete_order() {
+    let api = new_store_api_for_integration();
+    let result = api.delete_order(1).await;
+    assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_store_api_get_order_not_found() {
+    let api = new_store_api_for_mock(
+        404,
+        "application/json",
+        r#"{"message":"Order not found"}"#,
+    );
+
+    let err = api
+        .get_order_by_id(99999)
+        .await
+        .expect_err("expected error for non-existent order");
+    let not_found = err
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
+}
+
+#[tokio::test]
+async fn test_store_api_place_order_server_error() {
+    let api = new_store_api_for_mock(
+        500,
+        "application/json",
+        r#"{"message":"Internal server error"}"#,
+    );
+
+    let order = Order::new();
+    let err = api
+        .place_order(Some(order))
+        .await
+        .expect_err("expected error for server error response");
+    let server_error = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("a 500 must be an InternalServerError, got: {}", err));
+    assert_eq!(server_error.server_error().api_error().status_code(), 500);
+}
+
+#[tokio::test]
+async fn test_store_api_delete_order_not_found() {
+    let api = new_store_api_for_mock(
+        404,
+        "application/json",
+        r#"{"message":"Order not found"}"#,
+    );
+
+    let err = api
+        .delete_order(99999)
+        .await
+        .expect_err("expected error for deleting non-existent order");
+    let not_found = err
+        .downcast_ref::<NotFoundError>()
+        .unwrap_or_else(|| panic!("a 404 must be a NotFoundError, got: {}", err));
+    assert_eq!(not_found.client_error().api_error().status_code(), 404);
+}
+
+// Nested generic container: `getGroupedCategories` returns
+// `Vec<HashMap<String, Category>>` (array of map of model). The leaves must
+// decode into TYPED `Category` instances, not raw maps/JSON values. With a
+// strongly-typed return type the field access below only compiles if the
+// leaf is genuinely a `Category`.
+#[tokio::test]
+async fn test_store_api_get_grouped_categories_typed_leaves() {
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"a":{"id":1,"name":"Dogs"}},{"b":{"id":2,"name":"Cats"}}]"#,
+    );
+
+    let result = api
+        .get_grouped_categories()
+        .await
+        .expect("GetGroupedCategories failed");
+
+    let first: &Category = result[0]
+        .get("a")
+        .expect("expected key `a` in first map");
+    assert_eq!(first.id, Some(1), "leaf id mismatch");
+    assert_eq!(
+        first.name,
+        Some("Dogs".to_string()),
+        "leaf name mismatch"
+    );
+}
+
+// Nested containers and named enums decode into their typed leaves: a matrix of
+// integers, a named enum, arrays of maps of enums and of timestamps, and a
+// self-referencing model.
+#[tokio::test]
+async fn test_store_api_nested_container_responses_decode_into_typed_leaves() {
+    let api = new_store_api_for_mock(200, "application/json", "[[1,2],[3]]");
+    assert_eq!(api.get_matrix().await.expect("get_matrix failed"), vec![vec![1, 2], vec![3]]);
+
+    let api = new_store_api_for_mock(200, "application/json", r#""green""#);
+    assert_eq!(api.get_swatch().await.expect("get_swatch failed"), Swatch::Green);
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"a":"red"},{"b":"blue"}]"#,
+    );
+    let groups = api.get_swatch_groups().await.expect("get_swatch_groups failed");
+    assert_eq!(groups.len(), 2);
+    assert_eq!(groups[0].get("a"), Some(&Swatch::Red));
+    assert_eq!(groups[1].get("b"), Some(&Swatch::Blue));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"[{"at":"2024-01-15T10:30:00Z"}]"#,
+    );
+    let stamps = api.get_timestamp_groups().await.expect("get_timestamp_groups failed");
+    assert_eq!(stamps.len(), 1);
+    assert!(stamps[0].contains_key("at"));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"value":"root","child":{"value":"leaf"}}"#,
+    );
+    let tree = api.get_tree().await.expect("get_tree failed");
+    assert_eq!(tree.value, "root");
+    assert_eq!(tree.child.expect("expected a child node").value, "leaf");
+}
+
+// Schema defaults apply to absent properties, mutually recursive models decode
+// through both directions, and an integer-backed enum decodes from its number.
+#[tokio::test]
+async fn test_store_api_defaults_cycles_and_integer_enums_decode() {
+    let api = new_store_api_for_mock(200, "application/json", "{}");
+    let defaults = api.get_defaults().await.expect("get_defaults failed");
+    assert_eq!(defaults.retries, Some(3));
+    assert_eq!(defaults.mode, Some(DefaultsModeEnum::Medium));
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"name":"ops","lead":{"name":"ann","department":{"name":"inner"}}}"#,
+    );
+    let department = api.get_department().await.expect("get_department failed");
+    assert_eq!(department.name, "ops");
+    let lead = department.lead.expect("expected a lead");
+    assert_eq!(lead.name, "ann");
+    assert_eq!(lead.department.expect("expected a department").name, "inner");
+
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"priority":2,"matrix":[[1,2]]}"#,
+    );
+    let item = api
+        .get_stock_item(Some(&GetStockItemOptions::new()))
+        .await
+        .expect("get_stock_item failed");
+    assert_eq!(item.priority, Priority::NUMBER_2);
+    assert_eq!(item.matrix, Some(vec![vec![1, 2]]));
+}
+
+// malformed-2xx-fails-loud (behavior 11): a 2xx response whose body is not
+// valid JSON for the operation's declared return type must propagate the
+// deserialization error, NOT silently hand back the raw body string. The
+// convenience method returns Err rather than a defaulted/empty value.
+#[tokio::test]
+async fn test_store_api_get_order_by_id_malformed_body_fails_loud() {
+    let api = new_store_api_for_mock(
+        200,
+        "application/json",
+        "this is not valid json at all",
+    );
+
+    let err = api
+        .get_order_by_id(1)
+        .await
+        .expect_err("a malformed 2xx body must fail loud, not return the raw string");
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "a malformed 2xx body must be a SerializationError, got: {}",
+        err
+    );
+}
+
+/// A named-enum parameter is sent as its wire value in the path, the query and
+/// a header, never as the language's name for the variant.
+#[tokio::test]
+async fn test_store_api_get_by_swatch_sends_enum_wire_values() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = GetBySwatchOptions::new()
+        .query_swatch(Swatch::Green)
+        .preferred_swatch(Swatch::Blue);
+
+    api.get_by_swatch(Swatch::Red, Some(&opts))
+        .await
+        .expect("get_by_swatch failed");
+
+    let url = client.url.lock().unwrap().clone();
+    assert_eq!(url, "http://localhost/store/by-swatch/red?querySwatch=green");
+    assert_eq!(
+        client.headers.lock().unwrap().get("Preferred-Swatch").map(|s| s.as_str()),
+        Some("blue")
+    );
+}
+
+/// The API group can be built without wiring a client, configuration or
+/// authenticator, like the no-argument constructors in the other SDKs.
+#[test]
+fn test_store_api_default_constructs_without_arguments() {
+    let _api = StoreApi::default();
+}
+
+/// Operations that declare no alternative request content-type carry no comment
+/// about a request-content-type selector that is not generated.
+#[test]
+fn test_operations_without_a_content_type_selector_do_not_mention_one() {
+    let source = include_str!("../src/api/store_api.rs");
+    assert!(!source.contains("optional-request-content-type-selector"));
+    assert!(!source.contains("as request content-types"));
+    assert!(!source.contains("_with_content_type"));
+}

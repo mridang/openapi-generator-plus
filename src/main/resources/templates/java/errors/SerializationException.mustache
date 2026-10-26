@@ -1,0 +1,30 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+/**
+ * Exception raised when serialization or deserialization fails.
+ */
+public class SerializationException extends {{errorPrefix}}Exception {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Creates an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the underlying cause
+     */
+    public SerializationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    /**
+     * Creates an exception with a detail message.
+     *
+     * @param message the detail message
+     */
+    public SerializationException(String message) {
+        super(message);
+    }
+}

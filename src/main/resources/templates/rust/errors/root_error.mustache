@@ -1,0 +1,71 @@
+{{>api_info}}
+
+use crate::errors::api_error::{ApiError, ApiErrorKind};
+use crate::errors::bad_request_error::BadRequestError;
+use crate::errors::client_error::ClientError;
+use crate::errors::conflict_error::ConflictError;
+use crate::errors::forbidden_error::ForbiddenError;
+use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::network_error::NetworkError;
+use crate::errors::network_timeout_error::NetworkTimeoutError;
+use crate::errors::not_found_error::NotFoundError;
+use crate::errors::server_error::ServerError;
+use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::errors::oauth2_server_error::OAuth2ServerError;
+use crate::errors::oauth2_token_error::OAuth2TokenError;
+use crate::errors::serialization_error::SerializationError;
+
+/// Branded root of the SDK error hierarchy.
+///
+/// Rust has no class inheritance, so the "every SDK-thrown error is a
+/// `{{errorPrefix}}Error`" relationship that the OO SDKs express via a base class is
+/// modelled here as a marker trait. Every error type this client produces —
+/// the transport/API root [`ApiError`] and its per-status wrappers
+/// ([`ClientError`]/[`ServerError`] and the concrete 4xx/5xx types,
+/// [`NetworkError`]/[`NetworkTimeoutError`] for failures with no response), the
+/// pattern-matching [`ApiErrorKind`] view, the (de)serialization
+/// [`SerializationError`], and the token-endpoint [`OAuth2ServerError`] and
+/// [`OAuth2TokenError`] — has an explicit `impl {{errorPrefix}}Error`, so a single
+/// `&dyn {{errorPrefix}}Error` / `Box<dyn {{errorPrefix}}Error>` can hold any of them.
+///
+/// The trait is implemented *explicitly* (not via a blanket
+/// `impl<T: std::error::Error> {{errorPrefix}}Error for T`) precisely so it stays
+/// branded: only the SDK's own error types qualify, mirroring the
+/// `instanceof {{errorPrefix}}Error` / `except {{errorPrefix}}Exception` check the Node and
+/// Python SDKs use to tell SDK-originated errors apart from unrelated ones.
+///
+/// `{{errorPrefix}}Error` is a supertrait of [`std::error::Error`] (plus `Send + Sync`
+/// for use across threads), so any `&dyn {{errorPrefix}}Error` already gives you
+/// [`std::fmt::Display`], [`std::fmt::Debug`], and
+/// [`std::error::Error::source`] chaining for free.
+///
+/// ```ignore
+/// fn classify(err: &dyn {{errorPrefix}}Error) {
+///     // Display + Debug + source() are all available through the supertrait.
+///     eprintln!("SDK error: {err}");
+///     let mut cause = std::error::Error::source(err);
+///     while let Some(c) = cause {
+///         eprintln!("  caused by: {c}");
+///         cause = c.source();
+///     }
+/// }
+/// ```
+pub trait {{errorPrefix}}Error: std::error::Error + Send + Sync {}
+
+impl {{errorPrefix}}Error for ApiError {}
+impl {{errorPrefix}}Error for ApiErrorKind {}
+impl {{errorPrefix}}Error for ClientError {}
+impl {{errorPrefix}}Error for ServerError {}
+impl {{errorPrefix}}Error for BadRequestError {}
+impl {{errorPrefix}}Error for UnauthorizedError {}
+impl {{errorPrefix}}Error for ForbiddenError {}
+impl {{errorPrefix}}Error for NotFoundError {}
+impl {{errorPrefix}}Error for ConflictError {}
+impl {{errorPrefix}}Error for UnprocessableEntityError {}
+impl {{errorPrefix}}Error for InternalServerError {}
+impl {{errorPrefix}}Error for NetworkError {}
+impl {{errorPrefix}}Error for NetworkTimeoutError {}
+impl {{errorPrefix}}Error for SerializationError {}
+impl {{errorPrefix}}Error for OAuth2ServerError {}
+impl {{errorPrefix}}Error for OAuth2TokenError {}

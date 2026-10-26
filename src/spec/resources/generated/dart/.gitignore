@@ -1,0 +1,11 @@
+# Dart build artifacts
+.dart_tool/
+build/
+
+# Pub cache
+.pub-cache/
+.packages
+pubspec.lock
+
+# Coverage output
+.out/

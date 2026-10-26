@@ -1,0 +1,8 @@
+# Cargo build output
+target/
+
+# Lock file (libraries; keep for binaries)
+Cargo.lock
+
+# Coverage output
+.out/

@@ -1,0 +1,101 @@
+{{>api_info}}
+
+package {{invokerPackage}}.auth;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Map;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+class BasicAuthenticatorTest {
+
+    @Test
+    void validCredentialsProduceBasicHeader() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        Map<String, String> headers = auth.getAuthHeaders();
+        assertEquals("Basic YWxpY2U6czNjcmV0", headers.get("Authorization"));
+    }
+
+    @Test
+    void nonAsciiCredentialsAreEncodedAsUtf8() {
+        BasicAuthenticator auth = new BasicAuthenticator("https://api.example.com",
+                "ünïcødé", "pässwörd");
+        assertEquals("Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA==",
+                auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void schemeWrappersEmitTheSameBasicHeaderAndKeepTheirOwnName() {
+        AdminBasicAuthenticator admin =
+                new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        PetStoreBasicAuthenticator store =
+                new PetStoreBasicAuthenticator("https://api.example.com", "alice", "s3cret");
+
+        assertEquals("Basic YWxpY2U6czNjcmV0", admin.getAuthHeaders().get("Authorization"));
+        assertEquals("Basic YWxpY2U6czNjcmV0", store.getAuthHeaders().get("Authorization"));
+        assertEquals("https://api.example.com", admin.getHost());
+        assertEquals(
+                "AdminBasicAuthenticator(host=https://api.example.com,"
+                        + " username=alice, password=***)",
+                admin.toString());
+        assertEquals(
+                "PetStoreBasicAuthenticator(host=https://api.example.com,"
+                        + " username=alice, password=***)",
+                store.toString());
+    }
+
+    @Test
+    void schemeWrapperValidatesTheCredentialsAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
+    void rejectsUsernameWithCrlfAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice\r\n", "s3cret"));
+    }
+
+    @Test
+    void rejectsPasswordWithNulAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "alice", "s3c\0ret"));
+    }
+
+    @Test
+    void rejectsUsernameWithColonAtConstruction() {
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
+    void passwordIsNotLeakedInDefaultToString() {
+        // authenticator-secret-in-default-string-repr: the default toString()
+        // must never expose the stored password.
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        assertFalse(auth.toString().contains("s3cret"));
+    }
+
+    /**
+     * The default {@code toString()} must mask the stored password: the secret
+     * value must be absent and a redaction marker present.
+     */
+    @Test
+    @DisplayName("toString() redacts the password")
+    void redactsSecret() {
+        BasicAuthenticator auth =
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret");
+        String repr = auth.toString();
+        assertFalse(repr.contains("s3cret"));
+        assertTrue(repr.contains("***"));
+        assertEquals(
+                "BasicAuthenticator(host=https://api.example.com, username=alice, password=***)",
+                repr);
+    }
+}

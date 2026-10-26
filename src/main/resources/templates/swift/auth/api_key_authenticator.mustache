@@ -1,0 +1,93 @@
+{{>api_info}}
+import Foundation
+
+/// Authenticator for API key authentication. Supports sending the key
+/// as a header, query parameter, or cookie.
+public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
+    private let _host: String
+    private let keyParamName: String
+    private let apiKey: String
+    private let location: ApiKeyLocation
+
+    /// Creates an API key authenticator.
+    ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - keyParamName: The name of the header, query parameter, or cookie carrying the key.
+    ///   - apiKey: The API key value.
+    ///   - location: Where the API key is sent on each request.
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the key
+    ///   cannot be sent safely.
+    public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) throws {
+        /* Validation applies to ALL locations: empty/whitespace API keys
+         * and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+         * printable-ASCII rule still applies to HEADER values. */
+        if apiKey.isEmpty || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            throw ConfigurationError.invalidArgument(
+                "API key value for '\(keyParamName)' must not be empty"
+            )
+        }
+        if apiKey.unicodeScalars.contains(where: { s in
+            s.value == 0x0D || s.value == 0x0A || s.value == 0x00
+        }) {
+            throw ConfigurationError.invalidArgument(
+                "API key value for '\(keyParamName)' contains forbidden control characters (CR/LF/NUL)"
+            )
+        }
+        if location == .header && apiKey.unicodeScalars.contains(where: { s in
+            s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
+        }) {
+            throw ConfigurationError.invalidArgument(
+                "API key for header '\(keyParamName)' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+        }
+        self._host = host
+        self.keyParamName = keyParamName
+        self.apiKey = apiKey
+        self.location = location
+        super.init()
+    }
+
+    /// Returns the base URL of the API.
+    override public func host() -> String {
+        return _host
+    }
+
+    /// Returns the API key as a header if the location is `.header`.
+    override public func authHeaders() async -> [String: String] {
+        if location == .header {
+            return [keyParamName: apiKey]
+        }
+        return [:]
+    }
+
+    /// Returns the API key as a query parameter if the location is `.query`.
+    override public func queryParams() -> [String: String] {
+        if location == .query {
+            return [keyParamName: apiKey]
+        }
+        return [:]
+    }
+
+    /// Returns the API key as a cookie if the location is `.cookie`.
+    override public func cookieParams() -> [String: String] {
+        if location == .cookie {
+            return [keyParamName: apiKey]
+        }
+        return [:]
+    }
+}
+
+extension ApiKeyAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
+    /// A string representation that redacts the API key so credentials never
+    /// leak into logs or stack traces (matching the other SDKs).
+    public var description: String {
+        "\(type(of: self))(host: \(_host), keyParamName: \(keyParamName), apiKey: ***, location: \(location))"
+    }
+
+    /// A debug string representation that redacts the API key so credentials
+    /// never leak into logs or stack traces (matching the other SDKs).
+    public var debugDescription: String {
+        description
+    }
+}

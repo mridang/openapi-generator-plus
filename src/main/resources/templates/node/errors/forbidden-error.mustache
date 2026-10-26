@@ -1,0 +1,25 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 403 Forbidden.
+ */
+export class ForbiddenError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string,
+    responseHeaders: Record<string, string> | null = {},
+    responseBody: string | null = null,
+    errorBody: T | null = null
+  ) {
+    super(403, message, responseHeaders, responseBody, errorBody);
+    this.name = 'ForbiddenError';
+  }
+}
+
+ApiError.registerStatusError(
+  403,
+  (_statusCode, message, headers, body, errorBody) =>
+    new ForbiddenError(message, headers, body, errorBody)
+);
