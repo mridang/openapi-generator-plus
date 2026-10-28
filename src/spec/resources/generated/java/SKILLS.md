@@ -241,9 +241,9 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 Models are generated as Java classes in the `com.example.petstore.models` package.
 
 ```java
-import com.example.petstore.models.ApiResponse;
+import com.example.petstore.models.Account;
 
-var model = new ApiResponse();
+var model = new Account();
 ```
 
 ## Binary / File Uploads

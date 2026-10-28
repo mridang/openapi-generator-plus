@@ -4,6 +4,7 @@ package {{apiPackage}};
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.errors.ApiException;
+import {{invokerPackage}}.errors.SerializationException;
 import {{invokerPackage}}.ApiHttpResponse;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
@@ -35,7 +36,7 @@ public abstract class BaseApi {
     protected final Configuration config;
 
     /** Serializer for request/response body conversion. */
-    private final ObjectSerializer objectSerializer;
+    protected final ObjectSerializer objectSerializer;
 
     /** Content negotiation logic for Accept and Content-Type headers. */
     private final HeaderSelector headerSelector;
@@ -241,6 +242,8 @@ public abstract class BaseApi {
                  * transport see a Map and emit multipart/form-data instead. */
                 requestBody = extractBinaryPart(binaryForm);
             } else if (body instanceof byte[]
+                    || body instanceof InputStream
+                    || body instanceof java.io.File
                     || contentType.startsWith("image/")
                     || "application/octet-stream".equals(contentType)) {
                 requestBody = body;
@@ -264,18 +267,21 @@ public abstract class BaseApi {
                     if (value == null) {
                         continue;
                     }
-                    String key = formEncode(String.valueOf(entry.getKey()));
+                    String name = String.valueOf(entry.getKey());
+                    String key = formEncode(name);
                     if (value instanceof Iterable<?> values) {
                         for (Object element : values) {
                             if (element == null) {
                                 continue;
                             }
+                            requireFormScalar(name, element);
                             joiner.add(
                                     key
                                             + "="
                                             + formEncode(ObjectSerializer.toFormValue(element)));
                         }
                     } else {
+                        requireFormScalar(name, value);
                         joiner.add(
                                 key
                                         + "="
@@ -605,5 +611,35 @@ public abstract class BaseApi {
         return URLEncoder.encode(value, StandardCharsets.UTF_8)
                 .replace("*", "%2A")
                 .replace("%7E", "~");
+    }
+
+    /**
+     * Reject a form-urlencoded field value that has no defined encoding.
+     *
+     * <p>Only scalars (strings, numbers, booleans, enums, temporal values,
+     * UUIDs, URIs and byte arrays) and arrays of scalars are encoded. A model,
+     * map or nested array would otherwise reach the wire as its
+     * {@code toString()} text, so it is refused instead.
+     *
+     * @param name  the form field name
+     * @param value the non-null field value
+     * @throws SerializationException if the value is not a scalar
+     */
+    static void requireFormScalar(String name, Object value) {
+        if (value instanceof CharSequence
+                || value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof Enum<?>
+                || value instanceof java.time.temporal.TemporalAccessor
+                || value instanceof java.time.Duration
+                || value instanceof java.util.Date
+                || value instanceof java.util.UUID
+                || value instanceof java.net.URI
+                || value instanceof byte[]) {
+            return;
+        }
+        throw new SerializationException(
+                "form-urlencoded field " + name + " must be a scalar or array of scalars");
     }
 }

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -76,7 +77,7 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
     if (!scopes.isEmpty()) {
       url.append("&scope=").append(encode(String.join(" ", scopes)));
     }
-    if (state != null) {
+    if (state != null && !state.isEmpty()) {
       url.append("&state=").append(encode(state));
     }
     return url.toString();
@@ -113,9 +114,11 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   @Override
   public Map<String, String> getAuthHeaders() {
     /* setAccessToken is typically called from a callback thread; read the
-     * volatile field once so the null check and the header agree. */
+     * volatile field once so the null check and the header agree. An
+     * empty token is treated as unset so no credential-less Bearer
+     * header reaches the wire. */
     String token = accessToken;
-    if (token == null) {
+    if (token == null || token.isEmpty()) {
       throw new IllegalStateException("Must set the access token before making API requests");
     }
     return Collections.singletonMap("Authorization", "Bearer " + token);

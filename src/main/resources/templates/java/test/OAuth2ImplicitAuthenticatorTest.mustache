@@ -124,6 +124,26 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
+    void throwsWhenAccessTokenSetToEmpty() {
+        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+        auth.setAccessToken("");
+
+        IllegalStateException ex = assertThrowsExactly(
+                IllegalStateException.class, auth::getAuthHeaders);
+        assertEquals("Must set the access token before making API requests", ex.getMessage());
+    }
+
+    @Test
+    void omitsAnEmptyStateFromTheAuthorizationUrl() {
+        OAuth2ImplicitAuthenticator auth = createAuthenticator();
+
+        String url = auth.buildAuthorizationUrl("");
+
+        assertFalse(url.contains("state"), url);
+        assertEquals(auth.buildAuthorizationUrl(null), url);
+    }
+
+    @Test
     void getHostReturnsConfiguredHost() {
         OAuth2ImplicitAuthenticator auth = createAuthenticator();
 

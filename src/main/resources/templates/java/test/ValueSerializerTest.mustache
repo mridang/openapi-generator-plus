@@ -31,6 +31,26 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("a dot segment value is rejected")
+        void dotSegmentValueIsRejected() {
+            for (String dots : List.of(".", "..")) {
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                        () -> ValueSerializer.serializeStyled(
+                                "name", dots, "path", "string", null, "simple", false));
+                assertEquals("Path parameter 'name' must not be '.' or '..'", ex.getMessage());
+            }
+        }
+
+        @Test
+        @DisplayName("a value merely containing dots is kept")
+        void valueContainingDotsIsKept() {
+            assertEquals("a..b", ValueSerializer.serializeStyled(
+                    "name", "a..b", "path", "string", null, "simple", false));
+            assertEquals(".hidden", ValueSerializer.serializeStyled(
+                    "name", ".hidden", "path", "string", null, "simple", false));
+        }
+
+        @Test
         @DisplayName("string returns URL-encoded value")
         void stringReturnsUrlEncodedValue() {
             assertEquals("hello", ValueSerializer.serialize("hello", "path", "string", null));
@@ -532,6 +552,15 @@ class ValueSerializerTest {
             // Space is illegal in a URL and must still be percent-encoded even
             // when reserved characters are preserved.
             assertEquals("a%20b:c", ValueSerializer.encodeQueryAllowingReserved("a b:c"));
+        }
+
+        @Test
+        @DisplayName("only the RFC 3986 query-legal reserved set stays literal")
+        void onlyQueryLegalReservedCharsStayLiteral() {
+            assertEquals(
+                    "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u",
+                    ValueSerializer.encodeQueryAllowingReserved(
+                            "a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u"));
         }
 
         @Test

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -63,6 +64,19 @@ class OpenIdConnectAuthenticatorTest {
     assertTrue(url.contains("response_type=code"));
     assertTrue(url.contains("client_id=my-client-id"));
     assertTrue(url.contains("state=csrf-state"));
+  }
+
+  @Test
+  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+    ApiClient client =
+        (method, url, headers, body) -> new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+    OpenIdConnectAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    String url = auth.buildAuthorizationUrl("");
+
+    assertFalse(url.contains("state"), url);
+    assertEquals(auth.buildAuthorizationUrl(null), url);
   }
 
   @Test

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,6 +17,7 @@ import com.example.petstore.ObjectSerializer;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.SerializationException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Type;
@@ -40,7 +42,7 @@ public abstract class BaseApi {
   protected final Configuration config;
 
   /** Serializer for request/response body conversion. */
-  private final ObjectSerializer objectSerializer;
+  protected final ObjectSerializer objectSerializer;
 
   /** Content negotiation logic for Accept and Content-Type headers. */
   private final HeaderSelector headerSelector;
@@ -233,6 +235,8 @@ public abstract class BaseApi {
          * transport see a Map and emit multipart/form-data instead. */
         requestBody = extractBinaryPart(binaryForm);
       } else if (body instanceof byte[]
+          || body instanceof InputStream
+          || body instanceof java.io.File
           || contentType.startsWith("image/")
           || "application/octet-stream".equals(contentType)) {
         requestBody = body;
@@ -256,15 +260,18 @@ public abstract class BaseApi {
           if (value == null) {
             continue;
           }
-          String key = formEncode(String.valueOf(entry.getKey()));
+          String name = String.valueOf(entry.getKey());
+          String key = formEncode(name);
           if (value instanceof Iterable<?> values) {
             for (Object element : values) {
               if (element == null) {
                 continue;
               }
+              requireFormScalar(name, element);
               joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(element)));
             }
           } else {
+            requireFormScalar(name, value);
             joiner.add(key + "=" + formEncode(ObjectSerializer.toFormValue(value)));
           }
         }
@@ -577,5 +584,34 @@ public abstract class BaseApi {
    */
   static String formEncode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("*", "%2A").replace("%7E", "~");
+  }
+
+  /**
+   * Reject a form-urlencoded field value that has no defined encoding.
+   *
+   * <p>Only scalars (strings, numbers, booleans, enums, temporal values, UUIDs, URIs and byte
+   * arrays) and arrays of scalars are encoded. A model, map or nested array would otherwise reach
+   * the wire as its {@code toString()} text, so it is refused instead.
+   *
+   * @param name the form field name
+   * @param value the non-null field value
+   * @throws SerializationException if the value is not a scalar
+   */
+  static void requireFormScalar(String name, Object value) {
+    if (value instanceof CharSequence
+        || value instanceof Number
+        || value instanceof Boolean
+        || value instanceof Character
+        || value instanceof Enum<?>
+        || value instanceof java.time.temporal.TemporalAccessor
+        || value instanceof java.time.Duration
+        || value instanceof java.util.Date
+        || value instanceof java.util.UUID
+        || value instanceof java.net.URI
+        || value instanceof byte[]) {
+      return;
+    }
+    throw new SerializationException(
+        "form-urlencoded field " + name + " must be a scalar or array of scalars");
   }
 }

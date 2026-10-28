@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiHttpResponse;
@@ -647,6 +649,135 @@ class OAuth2TokenManagerTest {
             "client_secret",
             "my-secret"),
         formFields(bodies.get(1)));
+  }
+
+  @Test
+  void refreshGrantGoesToTheRefreshUrlInTheCanonicalOrder() {
+    java.util.List<String> urls = new java.util.ArrayList<>();
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          bodies.add(String.valueOf(body));
+          if (bodies.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"a1\",\"refresh_token\":\"R\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"a2\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    Map<String, String> params = new java.util.LinkedHashMap<>();
+    params.put("grant_type", "client_credentials");
+    params.put("client_id", "my-client");
+    params.put("client_secret", "my-secret");
+    manager.getAccessToken(
+        "https://auth.example.com/token", params, Map.of(), "https://auth.example.com/refresh");
+    String token =
+        manager.getAccessToken(
+            "https://auth.example.com/token", params, Map.of(), "https://auth.example.com/refresh");
+
+    assertEquals("a2", token);
+    assertEquals(
+        java.util.List.of("https://auth.example.com/token", "https://auth.example.com/refresh"),
+        urls);
+    assertEquals(
+        "grant_type=client_credentials&client_id=my-client&client_secret=my-secret", bodies.get(0));
+    assertEquals(
+        "grant_type=refresh_token&refresh_token=R&client_id=my-client&client_secret=my-secret",
+        bodies.get(1));
+  }
+
+  @Test
+  void refreshGrantInTheParamsIsPostedExactlyOnce() {
+    AtomicInteger calls = new AtomicInteger();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          if (calls.incrementAndGet() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"a1\",\"refresh_token\":\"R\",\"expires_in\":0}",
+                Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> first = new java.util.LinkedHashMap<>();
+    first.put("grant_type", "client_credentials");
+    manager.getAccessToken("https://auth.example.com/token", first);
+
+    Map<String, String> refresh = new java.util.LinkedHashMap<>();
+    refresh.put("grant_type", "refresh_token");
+    refresh.put("refresh_token", "R");
+    assertThrowsExactly(
+        OAuth2ServerException.class,
+        () -> manager.getAccessToken("https://auth.example.com/token", refresh));
+
+    assertEquals(2, calls.get());
+  }
+
+  @Test
+  void exchangeBypassesTheCacheAndTheRefreshGrant() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(String.valueOf(body));
+          return new ApiHttpResponse(
+              200,
+              "{\"access_token\":\"a"
+                  + bodies.size()
+                  + "\",\"refresh_token\":\"R\","
+                  + "\"expires_in\":3600}",
+              Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> params = new java.util.LinkedHashMap<>();
+    params.put("grant_type", "authorization_code");
+    params.put("code", "C");
+
+    assertEquals("a1", manager.exchange("https://auth.example.com/token", params, Map.of()));
+    assertEquals("a2", manager.exchange("https://auth.example.com/token", params, Map.of()));
+
+    assertEquals(
+        java.util.List.of(
+            "grant_type=authorization_code&code=C", "grant_type=authorization_code&code=C"),
+        bodies);
+    assertTrue(manager.isExchanged());
+  }
+
+  @Test
+  void failedExchangeRestoresThePreviousSession() {
+    AtomicInteger calls = new AtomicInteger();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          if (calls.incrementAndGet() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"a1\",\"refresh_token\":\"R\",\"expires_in\":3600}",
+                Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> params = new java.util.LinkedHashMap<>();
+    params.put("grant_type", "authorization_code");
+    params.put("code", "C");
+    manager.exchange("https://auth.example.com/token", params, Map.of());
+
+    assertThrowsExactly(
+        OAuth2ServerException.class,
+        () -> manager.exchange("https://auth.example.com/token", params, Map.of()));
+
+    assertEquals("R", manager.getRefreshToken());
+    assertTrue(manager.isExchanged());
+    assertEquals("a1", manager.getAccessToken("https://auth.example.com/token", params));
   }
 
   @Test

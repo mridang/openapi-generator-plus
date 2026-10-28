@@ -80,7 +80,12 @@ public final class {{className}} {
         this.{{paramName}} = {{paramName}} == null ? null : {{copyFactory}}.copyOf({{paramName}});
 {{/isMutableCollection}}
 {{^isMutableCollection}}
+{{#isByteArrayParam}}
+        this.{{paramName}} = {{paramName}} == null ? null : {{paramName}}.clone();
+{{/isByteArrayParam}}
+{{^isByteArrayParam}}
         this.{{paramName}} = {{paramName}};
+{{/isByteArrayParam}}
 {{/isMutableCollection}}
         return this;
     }
@@ -117,7 +122,12 @@ public final class {{className}} {
     @Deprecated
 {{/deprecated}}
     public {{{dataType}}} {{paramName}}() {
+{{#isByteArrayParam}}
+        return {{paramName}} == null ? null : {{paramName}}.clone();
+{{/isByteArrayParam}}
+{{^isByteArrayParam}}
         return {{paramName}};
+{{/isByteArrayParam}}
     }
 {{/params}}
 {{#hasAuthField}}

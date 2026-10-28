@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -472,6 +473,23 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void callerHeadersWinRegardlessOfCase() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder()
+            .injectRequestId(true)
+            .defaultHeader("user-agent", "MyApp")
+            .defaultHeader("x-request-id", "abc")
+            .build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    String body = response.body();
+    assertTrue(body.contains("\"user-agent\":\"MyApp\""), body);
+    assertTrue(body.contains("\"x-request-id\":\"abc\""), body);
+    assertFalse(body.contains("(java)"), body);
+  }
+
+  @Test
   void generatesUniqueRequestIds() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -863,6 +881,24 @@ class DefaultApiClientUnitTest {
     assertTrue(
         part.contains("Content-Type: application/octet-stream"),
         "byte[] part must carry Content-Type: application/octet-stream, got: " + part);
+  }
+
+  @Test
+  void multipartPrimitivePartsArePlainTextInTheCanonicalForm() throws Exception {
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+        renderMultipartPart("flag", true));
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+        renderMultipartPart("count", 3L));
+    String at =
+        renderMultipartPart(
+            "at", java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC));
+    assertTrue(at.endsWith("name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n"), at);
+    assertFalse(at.contains("Content-Type"), at);
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"day\"\r\n\r\n2024-01-15\r\n",
+        renderMultipartPart("day", java.time.LocalDate.of(2024, 1, 15)));
   }
 
   static class MultipartModelPart {

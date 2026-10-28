@@ -1,6 +1,7 @@
 package com.example.petstore.api.options;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -10,6 +11,7 @@ public final class SetPetPreferencesOptions {
   @Nullable private List<String> tags;
   @Nullable private String note;
   @Nullable private LocalDate renewalDate;
+  @Nullable private OffsetDateTime reminder;
 
   /**
    * Creates an options instance with the required parameters.
@@ -90,5 +92,26 @@ public final class SetPetPreferencesOptions {
   @Nullable
   public LocalDate renewalDate() {
     return renewalDate;
+  }
+
+  /**
+   * Sets the {@code reminder} parameter.
+   *
+   * @param reminder the {@code reminder} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions reminder(OffsetDateTime reminder) {
+    this.reminder = reminder;
+    return this;
+  }
+
+  /**
+   * Returns the {@code reminder} parameter.
+   *
+   * @return the {@code reminder} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public OffsetDateTime reminder() {
+    return reminder;
   }
 }

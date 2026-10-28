@@ -159,6 +159,11 @@ public final class ObjectSerializer {
         if (value == null) {
             return "";
         }
+        if (value instanceof byte[] bytes) {
+            /* OAS format: byte is RFC 4648 standard-alphabet base64 with
+               padding, the same form model bodies already use. */
+            return java.util.Base64.getEncoder().encodeToString(bytes);
+        }
         if (value instanceof Boolean b) {
             return b.toString();
         }
@@ -439,11 +444,76 @@ public final class ObjectSerializer {
                    value the other SDKs reject. This module fails loudly instead,
                    matching python (allow_nan=False), go, node, etc. */
                 .addModule(nonFiniteNumberModule())
+                /* format: byte and format: uri are validated on decode, so a
+                   malformed value fails here instead of being accepted. */
+                .addModule(strictFormatModule())
                 {{#openApiNullable}}
                 .addModule(new JsonNullableModule())
                 {{/openApiNullable}}
                 .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
                 .build();
+    }
+
+    /**
+     * RFC 4648 section 4 standard-alphabet base64: groups of four, {@code =}
+     * padding required, no whitespace and no URL-safe {@code -} or {@code _}.
+     */
+    private static final java.util.regex.Pattern STANDARD_BASE64 = java.util.regex.Pattern.compile(
+            "(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?");
+
+    /**
+     * An absolute RFC 3986 URI: a scheme, a colon, then no whitespace or
+     * control characters. Any scheme is accepted (http, ftp, mailto, urn).
+     */
+    private static final java.util.regex.Pattern ABSOLUTE_URI = java.util.regex.Pattern.compile(
+            "[A-Za-z][A-Za-z0-9+.-]*:[^\\s\\x00-\\x1F\\x7F]*");
+
+    /**
+     * Build a Jackson module that decodes {@code format: byte} strictly (the
+     * standard base64 alphabet with padding, nothing else) and accepts a
+     * {@code format: uri} value only when it is an absolute URI. The JSON
+     * string is kept verbatim, so a decoded URI re-encodes to the same text.
+     *
+     * @return the strict-format module
+     */
+    private static SimpleModule strictFormatModule() {
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(byte[].class, new JsonDeserializer<byte[]>() {
+            @Override
+            public byte[] deserialize(JsonParser parser, DeserializationContext context)
+                    throws IOException {
+                if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+                    return (byte[]) context.handleUnexpectedToken(byte[].class, parser);
+                }
+                String text = parser.getText();
+                if (!STANDARD_BASE64.matcher(text).matches()) {
+                    throw context.weirdStringException(
+                            text, byte[].class, "not RFC 4648 standard base64 with padding");
+                }
+                return java.util.Base64.getDecoder().decode(text);
+            }
+        });
+        module.addDeserializer(java.net.URI.class, new JsonDeserializer<java.net.URI>() {
+            @Override
+            public java.net.URI deserialize(JsonParser parser, DeserializationContext context)
+                    throws IOException {
+                if (!parser.hasToken(JsonToken.VALUE_STRING)) {
+                    return (java.net.URI) context.handleUnexpectedToken(java.net.URI.class, parser);
+                }
+                String text = parser.getText();
+                if (!ABSOLUTE_URI.matcher(text).matches()) {
+                    throw context.weirdStringException(
+                            text, java.net.URI.class, "not an absolute URI");
+                }
+                try {
+                    return new java.net.URI(text);
+                } catch (java.net.URISyntaxException e) {
+                    throw context.weirdStringException(
+                            text, java.net.URI.class, "not an absolute URI");
+                }
+            }
+        });
+        return module;
     }
 
     /**

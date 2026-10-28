@@ -217,6 +217,30 @@ class StoreApiTest {
     }
 
     @Test
+    void testCreateAccountSendsAndReceivesReadOnlyAndWriteOnlyProperties() throws Exception {
+        // readOnly/writeOnly have no wire effect: the writeOnly password is
+        // sent, and the readOnly id in the response is decoded.
+        Object[] capturedBody = new Object[1];
+        ApiClient recording = (method, url, headers, body) -> {
+            capturedBody[0] = body;
+            return new ApiHttpResponse(200, "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+                    Map.of("Content-Type", "application/json"));
+        };
+        StoreApi mockedApi = new StoreApi(recording,
+                Configuration.builder().baseUrl("http://localhost").build());
+        {{modelPackage}}.Account account = new {{modelPackage}}.Account();
+        account.username = "u";
+        account.password = "p";
+
+        {{modelPackage}}.Account result = mockedApi.createAccount(account);
+
+        assertThat(String.valueOf(capturedBody[0])).contains("\"password\":\"p\"");
+        assertNotNull(result);
+        assertThat(result.id).isEqualTo(7L);
+        assertThat(result.password).isEqualTo("p");
+    }
+
+    @Test
     void testGetBySwatchWithoutOptionsSendsOnlyThePathValue() throws Exception {
         String[] capturedUrl = new String[1];
         Map<String, String> capturedHeaders = new java.util.HashMap<>();

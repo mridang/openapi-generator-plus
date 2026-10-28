@@ -22,10 +22,10 @@ import javax.annotation.Nullable;
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see <a href="{{url}}">{{{description}}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/tagExternalDocs}}
  */
 public class {{classname}} extends BaseApi {
@@ -56,8 +56,8 @@ public class {{classname}} extends BaseApi {
         /** Allowed values for the {@code {{name}}} server variable. */
         enum {{pascalName}} {
 {{#enumValues}}
-            /** The {@code {{value}}} value. */
-            {{name}}("{{value}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+            /** The {@code {{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}} value. */
+            {{name}}("{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
 {{/enumValues}}
 
             private final String value;
@@ -260,7 +260,7 @@ public class {{classname}} extends BaseApi {
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
-        if ({{paramName}} == null{{#isString}} || {{paramName}}.isEmpty(){{/isString}}) {
+        if ({{paramName}} == null{{#isString}}{{^isUuid}} || {{paramName}}.isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -277,7 +277,7 @@ public class {{classname}} extends BaseApi {
 {{! A required Options object that is null reports the first required field, so each required check below tests the Options object itself. Objects.isNull rather than a plain comparison keeps SpotBugs from flagging the repeats as redundant. }}
 {{#queryParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -285,7 +285,7 @@ public class {{classname}} extends BaseApi {
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -293,7 +293,7 @@ public class {{classname}} extends BaseApi {
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -301,7 +301,7 @@ public class {{classname}} extends BaseApi {
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }

@@ -523,11 +523,59 @@ class PetApiTest {
         Configuration config = Configuration.builder().baseUrl("http://localhost").build();
         PetApi petApi = new PetApi(capturing, config);
 
-        petApi.getPetByName("a~b", new GetPetByNameOptions("cats"));
+        petApi.getPetByName("a~b", new GetPetByNameOptions("cats", "corr-1"));
 
         assertNotNull(capturing.capturedUrl);
         assertThat(capturing.capturedUrl).contains("/pet/byName/a~b");
         assertThat(capturing.capturedUrl).doesNotContain("%7E");
+    }
+
+    @Test
+    void getPetByNameRejectsADotSegmentBeforeDispatch() throws Exception {
+        // RFC 3986 section 5.2.4: '.' and '..' are path navigation, so a URL
+        // parser could re-route the request. They are rejected client-side.
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        for (String dots : List.of(".", "..")) {
+            assertThatThrownBy(() -> petApi.getPetByName(dots, new GetPetByNameOptions("cats", "corr-1")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("Path parameter 'name' must not be '.' or '..'");
+        }
+        assertThat(capturing.capturedUrl).isNull();
+
+        petApi.getPetByName("a..b", new GetPetByNameOptions("cats", "corr-1"));
+        assertThat(capturing.capturedUrl).startsWith("http://localhost/pet/byName/a..b?");
+    }
+
+    @Test
+    void getPetTagSendsByteParametersAsStandardPaddedBase64() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .fingerprint(new byte[] {0x68, 0x69})
+                .xFingerprint(new byte[] {0x68, 0x69}));
+        assertThat(capturing.capturedUrl).contains("fingerprint=aGk%3D");
+        assertThat(capturing.capturedHeaders).containsEntry("X-Fingerprint", "aGk=");
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .fingerprint(new byte[] {(byte) 0xFB, (byte) 0xFF}));
+        assertThat(capturing.capturedUrl).contains("fingerprint=%2B%2F8%3D");
+        assertThat(capturing.capturedUrl).doesNotContain("fingerprint=-");
+    }
+
+    @Test
+    void getPetTagPercentEncodesAHashInAnAllowReservedValue() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions().revision("v1.0/beta:rc1#frag"));
+
+        assertThat(capturing.capturedUrl).contains("revision=v1.0/beta:rc1%23frag");
     }
 
     @Test
@@ -541,7 +589,7 @@ class PetApiTest {
         Configuration config = Configuration.builder().baseUrl("http://localhost").build();
         PetApi petApi = new PetApi(capturing, config);
 
-        GetPetByNameOptions options = new GetPetByNameOptions("placeholder");
+        GetPetByNameOptions options = new GetPetByNameOptions("placeholder", "corr-1");
         java.lang.reflect.Field categoryField = GetPetByNameOptions.class.getDeclaredField("category");
         categoryField.setAccessible(true);
         categoryField.set(options, null);
@@ -604,7 +652,7 @@ class PetApiTest {
         Configuration config = Configuration.builder().baseUrl("http://localhost").build();
         PetApi petApi = new PetApi(capturing, config);
 
-        GetPetByNameOptions options = new GetPetByNameOptions("");
+        GetPetByNameOptions options = new GetPetByNameOptions("", "corr-1");
 
         assertThatThrownBy(() -> petApi.getPetByName("Rex", options))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -666,7 +714,9 @@ class PetApiTest {
         PetApi petApi = new PetApi(capturing, config);
 
         SetPetPreferencesOptions options =
-                new SetPetPreferencesOptions("a b").tags(List.of("x", "y"));
+                new SetPetPreferencesOptions("a b").tags(List.of("x", "y"))
+                        .reminder(java.time.OffsetDateTime.of(
+                                2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC));
         petApi.setPetPreferences(1L, options);
 
         assertNotNull(capturing.capturedBody);
@@ -674,7 +724,8 @@ class PetApiTest {
 
         // Order-tolerant on field grouping, but the exact tokens must be present.
         List<String> pairs = List.of(wire.split("&"));
-        assertThat(pairs).contains("nickname=a+b", "tags=x", "tags=y");
+        assertThat(pairs).contains("nickname=a+b", "tags=x", "tags=y",
+                "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00");
         assertThat(wire).doesNotContain("note=");
         assertThat(wire).doesNotContain("tags=x,y");
         assertThat(wire).doesNotContain("tags%5B%5D");
@@ -746,6 +797,25 @@ class PetApiTest {
         assertThat(pngCapture.capturedBody).isInstanceOf(InputStream.class);
         byte[] wireBytes =
                 ((InputStream) java.util.Objects.requireNonNull(pngCapture.capturedBody))
+                        .readAllBytes();
+        assertThat(wireBytes).isEqualTo(payload);
+    }
+
+    @Test
+    void setPetAvatarSendsTheBytesVerbatimUnderTheJsonSelector() throws Exception {
+        // A format:binary body is never routed through the JSON serializer:
+        // the application/json selector only changes the Content-Type.
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        byte[] payload = new byte[] {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0};
+        CapturingApiClient jsonCapture = new CapturingApiClient();
+        PetApi jsonApi = new PetApi(jsonCapture, config);
+
+        jsonApi.setPetAvatar(1L, new ByteArrayInputStream(payload), "application/json");
+
+        assertThat(jsonCapture.capturedHeaders).containsEntry("Content-Type", "application/json");
+        assertThat(jsonCapture.capturedBody).isInstanceOf(InputStream.class);
+        byte[] wireBytes =
+                ((InputStream) java.util.Objects.requireNonNull(jsonCapture.capturedBody))
                         .readAllBytes();
         assertThat(wireBytes).isEqualTo(payload);
     }
@@ -838,6 +908,49 @@ class PetApiTest {
             assertThat(capturedContentType[0]).startsWith("application/octet-stream");
             assertThat(capturedContentType[0]).doesNotContain("multipart");
             assertThat(capturedContentType[0]).doesNotContain("boundary");
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void uploadPetDocumentPrimitivePartsArePlainTextParts() throws Exception {
+        // Primitive multipart fields are text parts with no part Content-Type
+        // and the canonical stringify form; never quoted JSON parts.
+        final byte[][] capturedBody = new byte[1][];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1}))
+                            .isPrimary(true)
+                            .pageCount(3L)
+                            .takenAt(java.time.OffsetDateTime.of(
+                                    2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC))
+                            .swatch({{modelPackage}}.Swatch.RED));
+
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
+            assertThat(wireText).contains("name=\"isPrimary\"\r\n\r\ntrue\r\n");
+            assertThat(wireText).contains("name=\"pageCount\"\r\n\r\n3\r\n");
+            assertThat(wireText).contains(
+                    "name=\"takenAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+            assertThat(wireText).contains("name=\"swatch\"\r\n\r\nred\r\n");
         } finally {
             server.stop(0);
         }
@@ -993,13 +1106,20 @@ class PetApiTest {
         petApi.getMultiServerPetInfo(1L, new PetApi.GetMultiServerPetInfoServer.Primary());
         assertThat(capturing.capturedUrl).isEqualTo("https://primary.example.com/v1/pet/1/multi");
 
-        for (PetApi.GetMultiServerPetInfoServer.Region region
-                : PetApi.GetMultiServerPetInfoServer.Region.values()) {
+        for (PetApi.GetMultiServerPetInfoServer.RegionalRegion region
+                : PetApi.GetMultiServerPetInfoServer.RegionalRegion.values()) {
             petApi.getMultiServerPetInfo(
                     2L, new PetApi.GetMultiServerPetInfoServer.Regional(region));
             assertThat(capturing.capturedUrl)
                     .isEqualTo("https://" + region.getValue() + ".example.com/v1/pet/2/multi");
         }
+
+        petApi.getMultiServerPetInfo(3L, new PetApi.GetMultiServerPetInfoServer.Mirror(
+                PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
+                PetApi.GetMultiServerPetInfoServer.Channel.A_B));
+        assertThat(capturing.capturedUrl)
+                .isEqualTo("https://eu.mirror.example.com/a&b/v1/pet/3/multi");
+        assertThat(PetApi.GetMultiServerPetInfoServer.Channel.IT_S.getValue()).isEqualTo("it's");
     }
 
     @Test

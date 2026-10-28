@@ -128,7 +128,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("set", "LinkedHashSet");
         instantiationTypes.put("map", "HashMap");
 
-        reservedWords = loadReservedWords("/reserved-words/java.txt");
+        reservedWords = new HashSet<>(loadReservedWords("/reserved-words/java.txt"));
+        // The literals are not keywords but are just as illegal as an
+        // identifier, so a property named null/true/false must be escaped.
+        reservedWords.addAll(Set.of("null", "true", "false", "_"));
 
         cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
                 CodegenConstants.SOURCE_FOLDER_DESC));
@@ -205,7 +208,129 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
-        return super.postProcessOperationsWithModels(objs, allModels);
+        final OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> processed = (Map<String, Object>) result.get("operations");
+        if (processed != null) {
+            disambiguateServerEnums(processed);
+        }
+        return result;
+    }
+
+    /**
+     * Makes the per-operation server variable enums legal Java.
+     *
+     * <p>A variable that appears in two or more variants of one operation is
+     * declared once per variant, so each such enum is named
+     * {@code <VariantName><Var>} (e.g. {@code MirrorRegion}); a variable used by
+     * a single variant keeps its plain name. An enum constant whose name is not
+     * a Java identifier (a value such as {@code a&b} or {@code it's}) is reduced
+     * to letters, digits and underscores.
+     *
+     * @param operations the post-processed operations map
+     */
+    @SuppressWarnings("unchecked")
+    private static void disambiguateServerEnums(Map<String, Object> operations) {
+        final Object defs = operations.get("serverTypeDefs");
+        if (!(defs instanceof List<?>)) {
+            return;
+        }
+        for (final Object def : (List<?>) defs) {
+            final Map<String, Object> typeDef = (Map<String, Object>) def;
+            final List<Map<String, Object>> variants =
+                    (List<Map<String, Object>>) typeDef.get("variants");
+            if (variants == null) {
+                continue;
+            }
+            final Map<String, Integer> uses = new HashMap<>();
+            for (final Map<String, Object> variant : variants) {
+                for (final Map<String, Object> var : serverVariablesOf(variant)) {
+                    if (Boolean.TRUE.equals(var.get("hasEnumValues"))) {
+                        uses.merge(String.valueOf(var.get("name")), 1, Integer::sum);
+                    }
+                }
+            }
+            for (final Map<String, Object> variant : variants) {
+                for (final Map<String, Object> var : serverVariablesOf(variant)) {
+                    if (!Boolean.TRUE.equals(var.get("hasEnumValues"))) {
+                        continue;
+                    }
+                    if (uses.getOrDefault(String.valueOf(var.get("name")), 0) > 1) {
+                        var.put("pascalName",
+                                String.valueOf(variant.get("variantName")) + var.get("pascalName"));
+                    }
+                    final List<Map<String, String>> values =
+                            (List<Map<String, String>>) var.get("enumValues");
+                    if (values == null) {
+                        continue;
+                    }
+                    final Set<String> seen = new HashSet<>();
+                    for (final Map<String, String> value : values) {
+                        String name = String.valueOf(value.get("name")).replaceAll("[^A-Za-z0-9_]+", "_")
+                                .replaceAll("_+", "_")
+                                .replaceAll("^_|_$", "");
+                        if (name.isEmpty() || !Character.isLetter(name.charAt(0))) {
+                            name = "V_" + name;
+                        }
+                        final String base = name;
+                        for (int i = 2; !seen.add(name); i++) {
+                            name = base + "_" + i;
+                        }
+                        value.put("name", name);
+                    }
+                }
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> serverVariablesOf(Map<String, Object> variant) {
+        final Object vars = variant.get("serverVariables");
+        return vars instanceof List<?> ? (List<Map<String, Object>>) vars : List.of();
+    }
+
+    /**
+     * Prefixes a model named {@code Error} or {@code Result} with
+     * {@code Model}: {@code Error} would shadow {@code java.lang.Error}
+     * (error-prone JavaLangClash), and both names are prefixed in every SDK.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        if ("Error".equals(modelName) || "Result".equals(modelName)) {
+            return "Model" + modelName;
+        }
+        return modelName;
+    }
+
+    /** Applies the {@link #toModelName} prefix to $ref property and parameter types. */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("Error".equals(type) || "Result".equals(type)) {
+            return "Model" + type;
+        }
+        return type;
+    }
+
+    /**
+     * Gives an enum constant whose sanitised name is empty a legal, stable
+     * name: whitespace-only values become {@code SPACE_<length>}, any other
+     * value {@code VALUE_<hex code points>} (e.g. {@code @@} is
+     * {@code VALUE_0040_0040}).
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (!name.isEmpty() || value.isEmpty()) {
+            return name;
+        }
+        if (value.isBlank()) {
+            return "SPACE_" + value.length();
+        }
+        final StringBuilder hex = new StringBuilder("VALUE");
+        value.codePoints().forEach(cp -> hex.append(String.format(java.util.Locale.ROOT, "_%04X", cp)));
+        return hex.toString();
     }
 
     /** {@inheritDoc} */
@@ -411,7 +536,29 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 .put(
                         "javadocDescription",
                         (fragment, writer) ->
-                                writer.write(escapeForJavadoc(fragment.execute())));
+                                writer.write(escapeForJavadoc(fragment.execute())))
+                .put(
+                        "javaString",
+                        (fragment, writer) ->
+                                writer.write(escapeForJavaString(fragment.execute())));
+    }
+
+    /**
+     * Escapes raw text for use inside a Java string literal: backslash, double
+     * quote and the line/tab control characters.
+     *
+     * @param text the raw text
+     * @return the text escaped for a Java string literal
+     */
+    private static String escapeForJavaString(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     /**
@@ -427,7 +574,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (text == null) {
             return "";
         }
-        return text.replace("<", "{@literal <}").replace(">", "{@literal >}");
+        /* A literal comment terminator would end the doc comment early, so
+         * its slash is moved into an inline literal tag as well. */
+        return text.replace("<", "{@literal <}")
+                .replace(">", "{@literal >}")
+                .replace("*/", "*{@literal /}");
     }
 
     @Override
@@ -452,8 +603,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
+        // The User-Agent product token is the published Maven artifactId, the
+        // name a user types into their build file, not the Java package.
         additionalProperties.put(
-                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (java)");
+                "userAgentDefault", artifactId + "/" + artifactVersion + " (java)");
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
@@ -638,10 +791,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 return unaliased.getDefault() + "F";
             }
             // A {@code number} with {@code format: double} maps to
-            // {@code Double}, for which a bare decimal literal is a
-            // valid initializer.
+            // {@code Double}; the D suffix makes an integral default such as
+            // {@code 2} a double literal (a bare int does not box to Double).
             if (ModelUtils.isDoubleSchema(unaliased)) {
-                return unaliased.getDefault().toString();
+                return unaliased.getDefault() + "D";
             }
             // A format-less {@code number} (and the explicit
             // {@code decimal} type) maps to {@code BigDecimal}, which
@@ -1032,6 +1185,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             // exposure-safe — no suppression and no config relaxation needed.
             final String copyFactory = collectionCopyFactory(p);
             param.put("isMutableCollection", copyFactory != null);
+            // A format: byte parameter is a mutable byte[]; it is copied in and
+            // out so the options object never shares the caller's array.
+            param.put("isByteArrayParam", "byte[]".equals(p.dataType));
             if (copyFactory != null) {
                 param.put("copyFactory", copyFactory);
             }
@@ -1058,6 +1214,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     && p.dataType != null
                     && !languageSpecificPrimitives.contains(p.dataType)
                     && !typeMapping.containsValue(p.dataType)) {
+                modelTypes.add(p.dataType);
+            }
+            // An object-typed (style form/deepObject) or content-encoded
+            // parameter may carry the model name only in dataType.
+            if (!p.isArray
+                    && !p.isMap
+                    && p.dataType != null
+                    && p.dataType.matches("[A-Z][A-Za-z0-9_]*")
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)
+                    && !importMapping.containsKey(p.dataType)) {
                 modelTypes.add(p.dataType);
             }
             if ((p.isArray || p.isMap)

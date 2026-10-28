@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -56,6 +57,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     String url = auth.buildAuthorizationUrl("csrf-state-123");
 
     assertTrue(url.contains("state=csrf-state-123"));
+  }
+
+  @Test
+  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+
+    String url = auth.buildAuthorizationUrl("");
+
+    assertFalse(url.contains("state"), url);
+    assertEquals(auth.buildAuthorizationUrl(null), url);
   }
 
   @Test
@@ -375,13 +386,123 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  @DisplayName(
-      "tokenExchanged is volatile so a callback-thread write is visible to request threads")
-  void tokenExchangedFieldIsVolatile() throws NoSuchFieldException {
-    assertTrue(
-        java.lang.reflect.Modifier.isVolatile(
-            OAuth2AuthorizationCodeAuthenticator.class
-                .getDeclaredField("tokenExchanged")
-                .getModifiers()));
+  void sendsTheCodeExchangeFieldsInTheCanonicalOrder() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("C");
+
+    assertEquals(
+        "grant_type=authorization_code&code=C&client_id=my-client-id"
+            + "&client_secret=my-client-secret"
+            + "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback",
+        capturedBody.get());
+  }
+
+  @Test
+  void refreshCarriesTheClientCredentialsAndARejectionIsPostedOnce() {
+    List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          if (bodies.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":1}",
+                Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.exchangeCode("C");
+
+    OAuth2ServerException ex =
+        assertThrowsExactly(OAuth2ServerException.class, auth::getAuthHeaders);
+
+    assertEquals("invalid_grant", ex.getCode());
+    assertEquals(2, bodies.size());
+    assertEquals(
+        "grant_type=refresh_token&refresh_token=rt"
+            + "&client_id=my-client-id&client_secret=my-client-secret",
+        bodies.get(1));
+  }
+
+  @Test
+  void secondExchangeCodeSendsTheNewCode() {
+    List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          String token = bodies.size() == 1 ? "token1" : "token2";
+          return new ApiHttpResponse(
+              200,
+              "{\"access_token\":\"" + token + "\",\"refresh_token\":\"rt\",\"expires_in\":3600}",
+              Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("a");
+    auth.exchangeCode("b");
+
+    assertEquals(2, bodies.size());
+    assertTrue(bodies.get(1).startsWith("grant_type=authorization_code&code=b&"), bodies.get(1));
+    assertEquals("Bearer token2", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void secondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
+    List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          if (bodies.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"token1\",\"refresh_token\":\"old\",\"expires_in\":3600}",
+                Map.of());
+          }
+          if (bodies.size() == 2) {
+            return new ApiHttpResponse(
+                200, "{\"access_token\":\"token2\",\"expires_in\":1}", Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.exchangeCode("a");
+    auth.exchangeCode("b");
+    assertThrowsExactly(OAuth2ServerException.class, auth::getAuthHeaders);
+
+    assertTrue(bodies.get(2).matches("(.*&)?refresh_token=(&.*)?"), bodies.get(2));
+  }
+
+  @Test
+  void failedExchangeKeepsThePreviousSession() {
+    ApiClient client =
+        (method, url, headers, body) -> {
+          String sent = body != null ? body.toString() : "";
+          if (sent.contains("code=bad")) {
+            return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"token1\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+    auth.exchangeCode("good");
+
+    assertThrowsExactly(OAuth2ServerException.class, () -> auth.exchangeCode("bad"));
+
+    assertEquals("Bearer token1", auth.getAuthHeaders().get("Authorization"));
   }
 }

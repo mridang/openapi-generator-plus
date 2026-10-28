@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -231,6 +232,33 @@ class StoreApiTest {
 
     assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/red?querySwatch=green");
     assertThat(capturedHeaders).containsEntry("Preferred-Swatch", "blue");
+  }
+
+  @Test
+  void testCreateAccountSendsAndReceivesReadOnlyAndWriteOnlyProperties() throws Exception {
+    // readOnly/writeOnly have no wire effect: the writeOnly password is
+    // sent, and the readOnly id in the response is decoded.
+    Object[] capturedBody = new Object[1];
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedBody[0] = body;
+          return new ApiHttpResponse(
+              200,
+              "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+              Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    com.example.petstore.models.Account account = new com.example.petstore.models.Account();
+    account.username = "u";
+    account.password = "p";
+
+    com.example.petstore.models.Account result = mockedApi.createAccount(account);
+
+    assertThat(String.valueOf(capturedBody[0])).contains("\"password\":\"p\"");
+    assertNotNull(result);
+    assertThat(result.id).isEqualTo(7L);
+    assertThat(result.password).isEqualTo("p");
   }
 
   @Test

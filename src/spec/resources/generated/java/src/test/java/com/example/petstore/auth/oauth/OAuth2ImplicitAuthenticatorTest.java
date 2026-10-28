@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -128,6 +129,26 @@ class OAuth2ImplicitAuthenticatorTest {
     assertTrue(
         java.util.Objects.requireNonNull(ex.getMessage())
             .contains("Must set the access token before making API requests"));
+  }
+
+  @Test
+  void throwsWhenAccessTokenSetToEmpty() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+    auth.setAccessToken("");
+
+    IllegalStateException ex =
+        assertThrowsExactly(IllegalStateException.class, auth::getAuthHeaders);
+    assertEquals("Must set the access token before making API requests", ex.getMessage());
+  }
+
+  @Test
+  void omitsAnEmptyStateFromTheAuthorizationUrl() {
+    OAuth2ImplicitAuthenticator auth = createAuthenticator();
+
+    String url = auth.buildAuthorizationUrl("");
+
+    assertFalse(url.contains("state"), url);
+    assertEquals(auth.buildAuthorizationUrl(null), url);
   }
 
   @Test

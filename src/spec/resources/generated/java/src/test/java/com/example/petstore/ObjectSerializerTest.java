@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -43,6 +44,13 @@ class ObjectSerializerTest {
     @DisplayName("null returns empty string")
     void nullReturnsEmptyString() {
       assertEquals("", ObjectSerializer.stringify(null));
+    }
+
+    @Test
+    @DisplayName("bytes return standard padded base64")
+    void bytesReturnStandardPaddedBase64() {
+      assertEquals("aGk=", ObjectSerializer.stringify(new byte[] {0x68, 0x69}));
+      assertEquals("+/8=", ObjectSerializer.stringify(new byte[] {(byte) 0xFB, (byte) 0xFF}));
     }
 
     @Test
@@ -573,6 +581,100 @@ class ObjectSerializerTest {
       assertNotNull(category, "deserialized category must not be null");
       assertEquals(1L, category.id);
       assertEquals("Dogs", category.name);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+        strings = {"dGVzdA", "dGVz dA==", "dGVz\ndA==", "-_8=", "!!!!"})
+    @DisplayName("format: byte rejects anything but padded standard base64")
+    void byteFieldRejectsNonStandardBase64(String encoded) {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"thumbnail\":\"" + encoded.replace("\n", "\\n") + "\"}",
+                  com.example.petstore.models.PetPassport.class));
+    }
+
+    @Test
+    @DisplayName("format: byte accepts padded standard base64")
+    void byteFieldAcceptsPaddedStandardBase64() {
+      com.example.petstore.models.PetPassport passport =
+          serializer.deserialize(
+              "{\"thumbnail\":\"dGVzdA==\"}", com.example.petstore.models.PetPassport.class);
+      assertNotNull(passport);
+      assertEquals(
+          "test",
+          new String(
+              java.util.Objects.requireNonNull(passport.thumbnail),
+              java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+        strings = {
+          "urn:isbn:0451450523",
+          "mailto:a@b.com",
+          "ftp://x.org/f",
+          "https://example.com/a/b"
+        })
+    @DisplayName("format: uri accepts any absolute URI and re-encodes it verbatim")
+    void uriFieldAcceptsAbsoluteUris(String uri) {
+      String json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"" + uri + "\"}";
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(json, com.example.petstore.models.Pet.class);
+      assertNotNull(pet);
+      assertEquals(uri, String.valueOf(pet.homepageUrl));
+      assertTrue(serializer.serialize(pet).contains("\"homepageUrl\":\"" + uri + "\""));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"/relative", "not a uri", ""})
+    @DisplayName("format: uri rejects relative, whitespace-bearing and empty values")
+    void uriFieldRejectsNonAbsoluteValues(String uri) {
+      assertThrowsExactly(
+          SerializationException.class,
+          () ->
+              serializer.deserialize(
+                  "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"" + uri + "\"}",
+                  com.example.petstore.models.Pet.class));
+    }
+
+    @Test
+    @DisplayName("format: uri-reference stays a plain string")
+    void uriReferenceFieldAcceptsARelativeReference() {
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(
+              "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}",
+              com.example.petstore.models.Pet.class);
+      assertNotNull(pet);
+      assertEquals("/assets/thumb.png", pet.thumbnailRef);
+    }
+
+    @Test
+    @DisplayName("a readOnly property is populated on decode")
+    void readOnlyPropertyIsPopulatedOnDecode() {
+      com.example.petstore.models.Account account =
+          serializer.deserialize(
+              "{\"id\":7,\"username\":\"u\"}", com.example.petstore.models.Account.class);
+      assertNotNull(account);
+      assertEquals(7L, account.id);
+    }
+
+    @Test
+    @DisplayName("a writeOnly property is written on encode and kept on decode")
+    void writeOnlyPropertyIsWrittenAndDecoded() {
+      com.example.petstore.models.Account account = new com.example.petstore.models.Account();
+      account.username = "u";
+      account.password = "p";
+      assertTrue(serializer.serialize(account).contains("\"password\":\"p\""));
+
+      com.example.petstore.models.Account decoded =
+          serializer.deserialize(
+              "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+              com.example.petstore.models.Account.class);
+      assertNotNull(decoded);
+      assertEquals("p", decoded.password);
     }
 
     @Test

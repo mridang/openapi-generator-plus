@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -9,6 +10,7 @@ package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
@@ -68,6 +70,46 @@ public class EdgeCases {
   @Nullable
   public OffsetDateTime expiresAt;
 
+  /** The {@code _2fa} property. */
+  @JsonProperty("2fa")
+  @Nullable
+  public Boolean _2fa;
+
+  /** The {@code separator} property. */
+  @JsonProperty("separator")
+  @Nullable
+  public Separator separator;
+
+  /** The {@code _null} property. */
+  @JsonProperty("null")
+  @Nullable
+  public String _null;
+
+  /** The {@code _true} property. */
+  @JsonProperty("true")
+  @Nullable
+  public Boolean _true;
+
+  /** The {@code _false} property. */
+  @JsonProperty("false")
+  @Nullable
+  public Boolean _false;
+
+  /** The {@code lastError} property. */
+  @JsonProperty("lastError")
+  @Nullable
+  public ModelError lastError;
+
+  /** The {@code outcome} property. */
+  @JsonProperty("outcome")
+  @Nullable
+  public ModelResult outcome;
+
+  /** The {@code cutoff} property. */
+  @JsonProperty("cutoff")
+  @Nullable
+  public LocalTime cutoff;
+
   /** Creates an empty instance. */
   public EdgeCases() {}
 
@@ -93,7 +135,15 @@ public class EdgeCases {
         && java.util.Objects.equals(this._class, other._class)
         && java.util.Objects.equals(this._return, other._return)
         && java.util.Objects.equals(this.retryAfter, other.retryAfter)
-        && java.util.Objects.equals(this.expiresAt, other.expiresAt);
+        && java.util.Objects.equals(this.expiresAt, other.expiresAt)
+        && java.util.Objects.equals(this._2fa, other._2fa)
+        && java.util.Objects.equals(this.separator, other.separator)
+        && java.util.Objects.equals(this._null, other._null)
+        && java.util.Objects.equals(this._true, other._true)
+        && java.util.Objects.equals(this._false, other._false)
+        && java.util.Objects.equals(this.lastError, other.lastError)
+        && java.util.Objects.equals(this.outcome, other.outcome)
+        && java.util.Objects.equals(this.cutoff, other.cutoff);
   }
 
   @Override
@@ -108,7 +158,15 @@ public class EdgeCases {
         _class,
         _return,
         retryAfter,
-        expiresAt);
+        expiresAt,
+        _2fa,
+        separator,
+        _null,
+        _true,
+        _false,
+        lastError,
+        outcome,
+        cutoff);
   }
 
   @Override
@@ -125,6 +183,14 @@ public class EdgeCases {
     sb.append(", _return=").append(_return);
     sb.append(", retryAfter=").append(retryAfter);
     sb.append(", expiresAt=").append(expiresAt);
+    sb.append(", _2fa=").append(_2fa);
+    sb.append(", separator=").append(separator);
+    sb.append(", _null=").append(_null);
+    sb.append(", _true=").append(_true);
+    sb.append(", _false=").append(_false);
+    sb.append(", lastError=").append(lastError);
+    sb.append(", outcome=").append(outcome);
+    sb.append(", cutoff=").append(cutoff);
     sb.append("}");
     return sb.toString();
   }

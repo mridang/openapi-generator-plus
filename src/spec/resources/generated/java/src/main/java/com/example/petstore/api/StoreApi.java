@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,8 +13,10 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.api.options.GetStockItemOptions;
+import com.example.petstore.api.options.SearchStoreOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.models.Account;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
@@ -26,10 +29,14 @@ import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 /** StoreApi provides methods for the Store API group. Access to Petstore orders */
 public class StoreApi extends BaseApi {
+
+  private static final java.lang.reflect.Type createAccountTypeRef =
+      new TypeReference<Account>() {}.getType();
 
   private static final java.lang.reflect.Type getBySwatchTypeRef =
       new TypeReference<Category>() {}.getType();
@@ -52,6 +59,9 @@ public class StoreApi extends BaseApi {
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
 
+  private static final java.lang.reflect.Type getOrderByTrackingIdTypeRef =
+      new TypeReference<Order>() {}.getType();
+
   private static final java.lang.reflect.Type getStockItemTypeRef =
       new TypeReference<StockItem>() {}.getType();
 
@@ -69,6 +79,9 @@ public class StoreApi extends BaseApi {
 
   private static final java.lang.reflect.Type placeOrderTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type searchStoreTypeRef =
+      new TypeReference<List<Order>>() {}.getType();
 
   /** Creates an instance with the default client and configuration. */
   public StoreApi() {
@@ -95,6 +108,44 @@ public class StoreApi extends BaseApi {
   public StoreApi(
       ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
     super(apiClient, config, authenticator);
+  }
+
+  /**
+   * Create an account
+   *
+   * @param account (required)
+   * @return {@code Account}
+   * @throws ApiException if fails to make API call
+   */
+  public Account createAccount(Account account) {
+    return requireBody(createAccountWithHttpInfo(account), "createAccount");
+  }
+
+  /**
+   * Create an account
+   *
+   * @param account (required)
+   * @return the API result wrapping {@code Account}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Account> createAccountWithHttpInfo(Account account) {
+    if (account == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'account' when calling StoreApi.createAccount");
+    }
+    String path = "/store/account";
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "POST",
+        path,
+        queryParams,
+        headerParams,
+        account,
+        new String[] {"application/json"},
+        "application/json",
+        createAccountTypeRef,
+        NO_AUTH);
   }
 
   /**
@@ -439,6 +490,50 @@ public class StoreApi extends BaseApi {
   }
 
   /**
+   * Find purchase order by tracking id
+   *
+   * @param trackingId (required)
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public Order getOrderByTrackingId(UUID trackingId) {
+    return requireBody(getOrderByTrackingIdWithHttpInfo(trackingId), "getOrderByTrackingId");
+  }
+
+  /**
+   * Find purchase order by tracking id
+   *
+   * @param trackingId (required)
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<Order> getOrderByTrackingIdWithHttpInfo(UUID trackingId) {
+    if (trackingId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'trackingId' when calling StoreApi.getOrderByTrackingId");
+    }
+    String path =
+        "/store/order/by-tracking/{trackingId}"
+            .replace(
+                "{" + "trackingId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "trackingId", trackingId, "path", "UUID", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getOrderByTrackingIdTypeRef,
+        NO_AUTH);
+  }
+
+  /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -666,6 +761,92 @@ public class StoreApi extends BaseApi {
         "application/json",
         placeOrderTypeRef,
         null);
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
+   *
+   * @return {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Order> searchStore() {
+    return searchStore(null);
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters default to unset and the client's configured credentials are used.
+   *
+   * @return the API result wrapping {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Order>> searchStoreWithHttpInfo() {
+    return searchStoreWithHttpInfo(null);
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
+  public List<Order> searchStore(@Nullable SearchStoreOptions options) {
+    return requireBody(searchStoreWithHttpInfo(options), "searchStore");
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code List<Order>}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options) {
+    String path = "/store/search";
+    Map<String, Object> queryParams = new HashMap<>();
+    if (options != null && options.q() != null) {
+      queryParams.put("q", objectSerializer.serialize(options.q()));
+    }
+    if (options != null && options.labels() != null) {
+      queryParams.put(
+          "labels",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "labels", options.labels(), "query", "Set<String>", "multi", "form", true),
+              false));
+    }
+    if (options != null && options.at() != null) {
+      queryParams.put(
+          "at",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "at", options.at(), "query", "LocalTime", null, "form", true),
+              false));
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    if (options != null && options.xFilter() != null) {
+      headerParams.put(
+          "X-Filter",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "X-Filter", options.xFilter(), "header", "Map<String, String>", null, "", false));
+    }
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        searchStoreTypeRef,
+        NO_AUTH);
   }
 
   /**

@@ -42,6 +42,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bytes return standard padded base64")
+        void bytesReturnStandardPaddedBase64() {
+            assertEquals("aGk=", ObjectSerializer.stringify(new byte[] {0x68, 0x69}));
+            assertEquals("+/8=", ObjectSerializer.stringify(new byte[] {(byte) 0xFB, (byte) 0xFF}));
+        }
+
+        @Test
         @DisplayName("boolean true returns \"true\"")
         void booleanTrueReturnsTrue() {
             assertEquals("true", ObjectSerializer.stringify(true));
@@ -531,6 +538,84 @@ class ObjectSerializerTest {
             assertNotNull(category, "deserialized category must not be null");
             assertEquals(1L, category.id);
             assertEquals("Dogs", category.name);
+        }
+
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.ValueSource(
+                strings = {"dGVzdA", "dGVz dA==", "dGVz\ndA==", "-_8=", "!!!!"})
+        @DisplayName("format: byte rejects anything but padded standard base64")
+        void byteFieldRejectsNonStandardBase64(String encoded) {
+            assertThrowsExactly(SerializationException.class, () ->
+                serializer.deserialize(
+                    "{\"thumbnail\":\"" + encoded.replace("\n", "\\n") + "\"}",
+                    {{modelPackage}}.PetPassport.class));
+        }
+
+        @Test
+        @DisplayName("format: byte accepts padded standard base64")
+        void byteFieldAcceptsPaddedStandardBase64() {
+            {{modelPackage}}.PetPassport passport = serializer.deserialize(
+                    "{\"thumbnail\":\"dGVzdA==\"}", {{modelPackage}}.PetPassport.class);
+            assertNotNull(passport);
+            assertEquals("test", new String(
+                    java.util.Objects.requireNonNull(passport.thumbnail),
+                    java.nio.charset.StandardCharsets.UTF_8));
+        }
+
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/a/b"})
+        @DisplayName("format: uri accepts any absolute URI and re-encodes it verbatim")
+        void uriFieldAcceptsAbsoluteUris(String uri) {
+            String json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"" + uri + "\"}";
+            {{modelPackage}}.Pet pet = serializer.deserialize(json, {{modelPackage}}.Pet.class);
+            assertNotNull(pet);
+            assertEquals(uri, String.valueOf(pet.homepageUrl));
+            assertTrue(serializer.serialize(pet).contains("\"homepageUrl\":\"" + uri + "\""));
+        }
+
+        @org.junit.jupiter.params.ParameterizedTest
+        @org.junit.jupiter.params.provider.ValueSource(strings = {"/relative", "not a uri", ""})
+        @DisplayName("format: uri rejects relative, whitespace-bearing and empty values")
+        void uriFieldRejectsNonAbsoluteValues(String uri) {
+            assertThrowsExactly(SerializationException.class, () ->
+                serializer.deserialize(
+                    "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"" + uri + "\"}",
+                    {{modelPackage}}.Pet.class));
+        }
+
+        @Test
+        @DisplayName("format: uri-reference stays a plain string")
+        void uriReferenceFieldAcceptsARelativeReference() {
+            {{modelPackage}}.Pet pet = serializer.deserialize(
+                    "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}",
+                    {{modelPackage}}.Pet.class);
+            assertNotNull(pet);
+            assertEquals("/assets/thumb.png", pet.thumbnailRef);
+        }
+
+        @Test
+        @DisplayName("a readOnly property is populated on decode")
+        void readOnlyPropertyIsPopulatedOnDecode() {
+            {{modelPackage}}.Account account = serializer.deserialize(
+                    "{\"id\":7,\"username\":\"u\"}", {{modelPackage}}.Account.class);
+            assertNotNull(account);
+            assertEquals(7L, account.id);
+        }
+
+        @Test
+        @DisplayName("a writeOnly property is written on encode and kept on decode")
+        void writeOnlyPropertyIsWrittenAndDecoded() {
+            {{modelPackage}}.Account account = new {{modelPackage}}.Account();
+            account.username = "u";
+            account.password = "p";
+            assertTrue(serializer.serialize(account).contains("\"password\":\"p\""));
+
+            {{modelPackage}}.Account decoded = serializer.deserialize(
+                    "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}",
+                    {{modelPackage}}.Account.class);
+            assertNotNull(decoded);
+            assertEquals("p", decoded.password);
         }
 
         @Test

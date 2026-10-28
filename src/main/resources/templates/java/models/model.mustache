@@ -681,6 +681,16 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    *
    * <p>{{summary}}: {@code {{{value}}}}
   {{/vendorExtensions.pluralExamples}}
+  {{#isReadOnly}}
+   *
+   * <p>Read-only: the server sets this value. It is still sent and
+   * received like any other property.
+  {{/isReadOnly}}
+  {{#isWriteOnly}}
+   *
+   * <p>Write-only: the server accepts this value but does not return it.
+   * It is still sent and received like any other property.
+  {{/isWriteOnly}}
   {{#deprecated}}
    *
    * @deprecated This property is deprecated.
@@ -689,17 +699,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{#deprecated}}
   @Deprecated
   {{/deprecated}}
-  {{#isReadOnly}}
-  @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.READ_ONLY)
-  {{/isReadOnly}}
-  {{#isWriteOnly}}
-  @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.WRITE_ONLY)
-  {{/isWriteOnly}}
-  {{^isReadOnly}}
-  {{^isWriteOnly}}
   @JsonProperty("{{baseName}}")
-  {{/isWriteOnly}}
-  {{/isReadOnly}}
   {{^required}}@Nullable{{/required}}
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}}{{^isContainer}} = {{{.}}}{{/isContainer}}{{#isContainer}}{{#required}} = {{{.}}}{{/required}}{{/isContainer}}{{/defaultValue}};
 

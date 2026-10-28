@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -74,6 +75,13 @@ class TransportOptionsTest {
     TransportOptions opts = TransportOptions.builder().build();
     assertNotNull(opts.getUserAgent());
     assertFalse(opts.getUserAgent().isEmpty());
+  }
+
+  @Test
+  @DisplayName("userAgent defaults to the published artifact name")
+  void userAgentDefaultsToThePublishedArtifactName() {
+    TransportOptions opts = TransportOptions.builder().build();
+    assertEquals("petstore-client/1.0.0 (java)", opts.getUserAgent());
   }
 
   @Test

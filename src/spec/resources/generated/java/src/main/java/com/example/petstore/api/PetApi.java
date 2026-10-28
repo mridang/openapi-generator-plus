@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -37,9 +38,11 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * PetApi provides methods for the Pet API group. Everything about your Pets
+ * PetApi provides methods for the Pet API group. Everything about your Pets (globs like /pets/* and
+ * /pets/**{@literal /} and an id of #{petId})
  *
- * @see <a href="https://example.com/docs/pets">Find out more about pets</a>
+ * @see <a href="https://example.com/docs/pets">Find out more about pets (it's *{@literal /} here)
+ *     on two lines</a>
  */
 public class PetApi extends BaseApi {
 
@@ -83,6 +86,9 @@ public class PetApi extends BaseApi {
 
   private static final java.lang.reflect.Type getPetPhotoTypeRef =
       new TypeReference<InputStream>() {}.getType();
+
+  private static final java.lang.reflect.Type getPetSummaryTypeRef =
+      new TypeReference<String>() {}.getType();
 
   private static final java.lang.reflect.Type getPetTagTypeRef =
       new TypeReference<Pet>() {}.getType();
@@ -132,7 +138,7 @@ public class PetApi extends BaseApi {
     String getUrl();
 
     /** Allowed values for the {@code region} server variable. */
-    enum Region {
+    enum RegionalRegion {
       /** The {@code us} value. */
       US("us"),
       /** The {@code eu} value. */
@@ -142,7 +148,53 @@ public class PetApi extends BaseApi {
 
       private final String value;
 
-      Region(String value) {
+      RegionalRegion(String value) {
+        this.value = value;
+      }
+
+      /**
+       * Returns the wire value of this enum constant.
+       *
+       * @return the wire value
+       */
+      public String getValue() {
+        return value;
+      }
+    }
+
+    /** Allowed values for the {@code region} server variable. */
+    enum MirrorRegion {
+      /** The {@code us} value. */
+      US("us"),
+      /** The {@code eu} value. */
+      EU("eu");
+
+      private final String value;
+
+      MirrorRegion(String value) {
+        this.value = value;
+      }
+
+      /**
+       * Returns the wire value of this enum constant.
+       *
+       * @return the wire value
+       */
+      public String getValue() {
+        return value;
+      }
+    }
+
+    /** Allowed values for the {@code channel} server variable. */
+    enum Channel {
+      /** The {@code a&b} value. */
+      A_B("a&b"),
+      /** The {@code it's} value. */
+      IT_S("it's");
+
+      private final String value;
+
+      Channel(String value) {
         this.value = value;
       }
 
@@ -171,12 +223,29 @@ public class PetApi extends BaseApi {
      *
      * @param region the {@code region} server variable
      */
-    record Regional(Region region) implements GetMultiServerPetInfoServer {
+    record Regional(RegionalRegion region) implements GetMultiServerPetInfoServer {
 
       @Override
       public String getUrl() {
         String url = "https://{region}.example.com/v1";
         url = url.replace("{" + "region" + "}", region.getValue());
+        return url;
+      }
+    }
+
+    /**
+     * Mirror
+     *
+     * @param region the {@code region} server variable
+     * @param channel the {@code channel} server variable
+     */
+    record Mirror(MirrorRegion region, Channel channel) implements GetMultiServerPetInfoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://{region}.mirror.example.com/{channel}/v1";
+        url = url.replace("{" + "region" + "}", region.getValue());
+        url = url.replace("{" + "channel" + "}", channel.getValue());
         return url;
       }
     }
@@ -805,6 +874,14 @@ public class PetApi extends BaseApi {
                   "bornAfter", options.bornAfter(), "query", "LocalDate", null, "form", true),
               false));
     }
+    if (options != null && options._2ndPage() != null) {
+      queryParams.put(
+          "2ndPage",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "2ndPage", options._2ndPage(), "query", "Integer", null, "form", true),
+              false));
+    }
     Map<String, String> headerParams = new HashMap<>();
     if (options != null && options.reportDate() != null) {
       headerParams.put(
@@ -1188,6 +1265,12 @@ public class PetApi extends BaseApi {
       throw new IllegalArgumentException(
           "Missing the required parameter 'category' when calling PetApi.getPetByName");
     }
+    if (java.util.Objects.isNull(options)
+        || options.xCorrelationId() == null
+        || options.xCorrelationId().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'X-Correlation-Id' when calling PetApi.getPetByName");
+    }
     String path =
         "/pet/byName/{name}"
             .replace(
@@ -1205,6 +1288,19 @@ public class PetApi extends BaseApi {
               false));
     }
     Map<String, String> headerParams = new HashMap<>();
+    if (options.xCorrelationId() != null) {
+      headerParams.put(
+          "X-Correlation-Id",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "X-Correlation-Id",
+                  options.xCorrelationId(),
+                  "header",
+                  "String",
+                  null,
+                  "simple",
+                  false));
+    }
     return invokeApiForResult(
         "GET",
         path,
@@ -1323,6 +1419,50 @@ public class PetApi extends BaseApi {
   }
 
   /**
+   * Get a plain-text summary of the pet
+   *
+   * @param petId (required)
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  public String getPetSummary(Long petId) {
+    return requireBody(getPetSummaryWithHttpInfo(petId), "getPetSummary");
+  }
+
+  /**
+   * Get a plain-text summary of the pet
+   *
+   * @param petId (required)
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<String> getPetSummaryWithHttpInfo(Long petId) {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling PetApi.getPetSummary");
+    }
+    String path =
+        "/pet/{petId}/summary"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"text/plain"},
+        "application/json",
+        getPetSummaryTypeRef,
+        null);
+  }
+
+  /**
    * Get a tag for a pet
    *
    * <p>Convenience overload that omits the optional {@code options} argument; any optional
@@ -1437,7 +1577,67 @@ public class PetApi extends BaseApi {
                   "revision", options.revision(), "query", "String", null, "form", true),
               true));
     }
+    if (options != null && options.criteria() != null) {
+      queryParams.put(
+          "criteria",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "criteria", options.criteria(), "query", "PetCriteria", null, "form", true),
+              false));
+    }
+    if (options != null && options.criteriaCsv() != null) {
+      queryParams.put(
+          "criteriaCsv",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "criteriaCsv",
+                  options.criteriaCsv(),
+                  "query",
+                  "PetCriteria",
+                  null,
+                  "form",
+                  false),
+              false));
+    }
+    if (options != null && options.criteriaDeep() != null) {
+      queryParams.putAll(
+          ValueSerializer.serializeDeepObject("criteriaDeep", options.criteriaDeep()));
+    }
+    if (options != null && options.fingerprint() != null) {
+      queryParams.put(
+          "fingerprint",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "fingerprint", options.fingerprint(), "query", "byte[]", null, "form", true),
+              false));
+    }
     Map<String, String> headerParams = new HashMap<>();
+    if (options != null && options.xCriteria() != null) {
+      headerParams.put(
+          "X-Criteria",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "X-Criteria",
+                  options.xCriteria(),
+                  "header",
+                  "PetCriteria",
+                  null,
+                  "simple",
+                  false));
+    }
+    if (options != null && options.xFingerprint() != null) {
+      headerParams.put(
+          "X-Fingerprint",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "X-Fingerprint",
+                  options.xFingerprint(),
+                  "header",
+                  "byte[]",
+                  null,
+                  "simple",
+                  false));
+    }
     return invokeApiForResult(
         "GET",
         path,
@@ -1742,6 +1942,9 @@ public class PetApi extends BaseApi {
     if (options.renewalDate() != null) {
       formBody.put("renewalDate", options.renewalDate());
     }
+    if (options.reminder() != null) {
+      formBody.put("reminder", options.reminder());
+    }
 
     return invokeApiForResult(
         "POST",
@@ -1951,6 +2154,18 @@ public class PetApi extends BaseApi {
     }
     if (options.notes() != null) {
       formBody.put("notes", options.notes());
+    }
+    if (options.isPrimary() != null) {
+      formBody.put("isPrimary", options.isPrimary());
+    }
+    if (options.pageCount() != null) {
+      formBody.put("pageCount", options.pageCount());
+    }
+    if (options.takenAt() != null) {
+      formBody.put("takenAt", options.takenAt());
+    }
+    if (options.swatch() != null) {
+      formBody.put("swatch", options.swatch());
     }
 
     /* This operation declares more than one request content-type. The

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -14,7 +15,15 @@ public enum Availability {
   /** The {@code "Sold"} value. */
   SOLD("Sold"),
   /** The {@code "on-hold"} value. */
-  ON_HOLD("on-hold");
+  ON_HOLD("on-hold"),
+  /** The {@code "o'clock"} value. */
+  OCLOCK("o'clock"),
+  /** The {@code "a\b"} value. */
+  A_B("a\b"),
+  /** The {@code "$eq"} value. */
+  EQ("$eq"),
+  /** The {@code "#{x}"} value. */
+  X("#{x}");
 
   private final String value;
 

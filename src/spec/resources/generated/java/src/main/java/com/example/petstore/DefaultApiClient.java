@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -389,10 +390,12 @@ public final class DefaultApiClient implements ApiClient {
     Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
     mergedHeaders.putAll(headers);
 
-    if (transportOptions.getUserAgent() != null && !mergedHeaders.containsKey("User-Agent")) {
+    /* RFC 9110 section 5.1: field names are case-insensitive, so a caller
+     * header in any case wins and nothing is injected beside it. */
+    if (transportOptions.getUserAgent() != null && !hasHeader(mergedHeaders, "User-Agent")) {
       mergedHeaders.put("User-Agent", transportOptions.getUserAgent());
     }
-    if (transportOptions.isInjectRequestId() && !mergedHeaders.containsKey("X-Request-ID")) {
+    if (transportOptions.isInjectRequestId() && !hasHeader(mergedHeaders, "X-Request-ID")) {
       mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());
     }
 
@@ -707,6 +710,10 @@ public final class DefaultApiClient implements ApiClient {
       pending.cancel(true);
       throw e;
     }
+  }
+
+  private static boolean hasHeader(Map<String, String> headers, String name) {
+    return headers.keySet().stream().anyMatch(key -> key.equalsIgnoreCase(name));
   }
 
   private static boolean isIdempotentMethod(String method) {
@@ -1085,8 +1092,22 @@ public final class DefaultApiClient implements ApiClient {
       } catch (IOException e) {
         throw new IllegalArgumentException("Failed to read stream: " + fieldName, e);
       }
-    } else if (value instanceof String || value instanceof Number || value instanceof Boolean) {
-      byteArrays.add(("\"" + safeName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
+    } else if (value instanceof CharSequence
+        || value instanceof Number
+        || value instanceof Boolean
+        || value instanceof Character
+        || value instanceof Enum<?>
+        || value instanceof java.time.temporal.TemporalAccessor
+        || value instanceof java.time.Duration
+        || value instanceof java.util.Date
+        || value instanceof UUID
+        || value instanceof java.net.URI) {
+      /* OAS Encoding Object: a primitive part is text/plain, so it is a
+       * plain text part (no part Content-Type) carrying the canonical
+       * stringify form; only objects and models are JSON parts. */
+      byteArrays.add(
+          ("\"" + safeName + "\"\r\n\r\n" + ObjectSerializer.toFormValue(value))
+              .getBytes(StandardCharsets.UTF_8));
     } else {
       try {
         String json = MULTIPART_MAPPER.writeValueAsString(value);

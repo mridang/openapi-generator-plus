@@ -62,6 +62,19 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    void omitsAnEmptyStateFromTheAuthorizationUrl() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        String url = auth.buildAuthorizationUrl("");
+
+        assertFalse(url.contains("state"), url);
+        assertEquals(auth.buildAuthorizationUrl(null), url);
+    }
+
+    @Test
     void fetchesDiscoveryDocument() {
         AtomicReference<String> capturedMethod = new AtomicReference<>();
         AtomicReference<String> capturedUrl = new AtomicReference<>();

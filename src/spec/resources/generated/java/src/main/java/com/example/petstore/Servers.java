@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -53,8 +54,20 @@ public final class Servers {
                       "api", "API environment", List.of("api", "staging", "sandbox")),
               "version", new ServerVariable("v3", "API version", List.of("v2", "v3"))));
 
+  /**
+   * Server 2: {@code https://{tenant}.example.com/api}
+   *
+   * <p>Bob's "sandbox" & co: $5 #{x} a*{@literal /}b
+   */
+  public static final ServerConfiguration SERVER_2 =
+      new ServerConfiguration(
+          "https://{tenant}.example.com/api",
+          "Bob's \"sandbox\" & co: $5 #{x} a*/b",
+          Map.of(
+              "tenant", new ServerVariable("o'neil", "Tenant's \"id\"", List.of("o'neil", "a&b"))));
+
   /** All server configurations in declaration order. */
-  public static final List<ServerConfiguration> ALL = List.of(SERVER_0, SERVER_1);
+  public static final List<ServerConfiguration> ALL = List.of(SERVER_0, SERVER_1, SERVER_2);
 
   private Servers() {}
 }

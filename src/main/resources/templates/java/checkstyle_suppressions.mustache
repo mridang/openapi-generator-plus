@@ -32,6 +32,11 @@
        wire name it carries. -->
   <suppress checks="MemberName" files="."/>
 
+  <!-- An Options accessor and its parameter are named after the document's
+       parameter (q, X-Correlation-Id as xCorrelationId, 2ndPage as _2ndPage),
+       so the generator cannot guarantee two leading lowercase letters. -->
+  <suppress checks="MethodName|ParameterName" files="[\\/]api[\\/]options[\\/][^\\/]*Options\.java$"/>
+
   <!-- A generated API file is operation-major: each operation's overloads and
        its private *Internal helper form one block, as in every other SDK.
        Grouping by method name instead would interleave unrelated operations. -->
