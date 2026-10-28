@@ -751,7 +751,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             return mapped;
         }
         final String name = super.toEnumVarName(value, datatype);
-        if (!name.isEmpty() || value == null) {
+        if (!name.isEmpty()) {
             return name;
         }
         // A value that sanitises to nothing still needs a legal member name:
