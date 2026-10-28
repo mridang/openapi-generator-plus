@@ -71,6 +71,7 @@ export abstract class BaseApi {
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -83,6 +84,7 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    rawBody = false,
   ): Promise<ApiResult<T>> {
     let url: string;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -183,7 +185,7 @@ export abstract class BaseApi {
     }
     injectTraceContext(headers);
 
-    const serializedBody = this.serializeBody(body, contentType);
+    const serializedBody = this.serializeBody(body, contentType, rawBody);
     if (serializedBody === null) {
       delete headers["Content-Type"];
     }
@@ -266,6 +268,7 @@ export abstract class BaseApi {
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -278,6 +281,7 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    rawBody = false,
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -289,6 +293,7 @@ export abstract class BaseApi {
       contentType,
       returnType,
       auth,
+      rawBody,
     );
     return result.data;
   }
@@ -325,9 +330,21 @@ export abstract class BaseApi {
   private serializeBody(
     body: unknown,
     contentType: string,
+    rawBody = false,
   ): string | Buffer | Record<string, unknown> | null {
     if (body == null) {
       return null;
+    }
+    /* A `format: binary` request body is the caller's bytes, sent unchanged
+     * under whichever declared Content-Type was selected (application/json
+     * included): it is never routed through the JSON serializer. */
+    if (
+      rawBody &&
+      (Buffer.isBuffer(body) ||
+        body instanceof Uint8Array ||
+        body instanceof Blob)
+    ) {
+      return body as Buffer;
     }
     if (contentType === "multipart/form-data") {
       return body as Record<string, unknown>;

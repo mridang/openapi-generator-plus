@@ -14,6 +14,7 @@ import { NetworkTimeoutError } from "./errors/network-timeout-error.js";
 import type { ApiHttpResponse } from "./api-http-response.js";
 import { ObjectSerializer } from "./object-serializer.js";
 import { TransportOptions } from "./transport-options.js";
+import { Temporal } from "temporal-polyfill";
 
 /**
  * Header names that MUST be stripped when following a cross-origin
@@ -679,7 +680,18 @@ export abstract class AbstractApiClient implements ApiClient {
         Buffer.from("\r\n", "utf-8"),
       ]);
     }
-    if (typeof value === "object" && value !== null) {
+    /* A date, date-time, time or duration is a primitive in the schema, so
+     * it is a plain text part in its canonical stringify form; only a
+     * model, map or array is a JSON part. */
+    const isScalarObject =
+      value instanceof Date ||
+      value instanceof Temporal.PlainDate ||
+      value instanceof Temporal.PlainTime ||
+      value instanceof Temporal.PlainDateTime ||
+      value instanceof Temporal.Instant ||
+      value instanceof Temporal.ZonedDateTime ||
+      value instanceof Temporal.Duration;
+    if (typeof value === "object" && value !== null && !isScalarObject) {
       AbstractApiClient.assertNoControlChars(name, "multipart field name");
       const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       /*
@@ -701,7 +713,7 @@ export abstract class AbstractApiClient implements ApiClient {
     AbstractApiClient.assertNoControlChars(name, "multipart field name");
     const escapedName = name.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     return Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${String(value)}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${ObjectSerializer.stringify(value)}\r\n`,
       "utf-8",
     );
   }

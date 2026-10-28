@@ -920,7 +920,7 @@ describe("ObjectSerializer", () => {
       expect(() =>
         ObjectSerializer.deserialize({ shipDate: "garbage" }, Order),
       ).toThrow(
-        /^Failed to deserialize object: shipDate must be a valid Date, got Invalid Date$/,
+        /^Failed to deserialize object: shipDate must be a valid Date, got garbage$/,
       );
     });
   });
@@ -1177,6 +1177,64 @@ describe("ObjectSerializer", () => {
       const parsed = JSON.parse(ObjectSerializer.serialize(pet));
       expect(Array.isArray(parsed.photoUrls)).toBe(true);
       expect(parsed.photoUrls.sort()).toEqual(["x", "y"]);
+    });
+  });
+
+  describe("date-time decode strictness", () => {
+    test.each([
+      "2024-01-01T10:00:00",
+      "01/02/2024 10:00",
+      "tomorrow",
+      "10:00",
+      "1700000000",
+    ])("rejects the non-RFC 3339 date-time %p", (shipDate) => {
+      expect(() => ObjectSerializer.deserialize({ shipDate }, Order)).toThrow(
+        SerializationError,
+      );
+    });
+
+    test.each([
+      ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
+      ["2024-01-01T10:00:00.123456789+05:30", "2024-01-01T04:30:00.123Z"],
+    ])("accepts the RFC 3339 date-time %p", (shipDate, instant) => {
+      const order = ObjectSerializer.deserialize({ shipDate }, Order);
+      expect(order!.shipDate!.toISOString()).toBe(instant);
+    });
+  });
+
+  describe("format: uri decode", () => {
+    test.each([
+      "urn:isbn:0451450523",
+      "mailto:a@b.com",
+      "ftp://x.org/f",
+      "https://example.com/items/sample",
+    ])("accepts the absolute URI %p and keeps its text", (homepageUrl) => {
+      const pet = ObjectSerializer.deserialize(
+        { name: "sample", photoUrls: [], homepageUrl },
+        Pet,
+      );
+      expect(pet!.homepageUrl).toBe(homepageUrl);
+    });
+
+    test.each(["/relative", "not a uri", ""])("rejects %p", (homepageUrl) => {
+      expect(() =>
+        ObjectSerializer.deserialize(
+          { name: "sample", photoUrls: [], homepageUrl },
+          Pet,
+        ),
+      ).toThrow(SerializationError);
+    });
+
+    test("a uri-reference field still accepts a relative reference", () => {
+      const pet = ObjectSerializer.deserialize(
+        {
+          name: "sample",
+          photoUrls: [],
+          thumbnailRef: "/assets/thumb-sample.png",
+        },
+        Pet,
+      );
+      expect(pet!.thumbnailRef).toBe("/assets/thumb-sample.png");
     });
   });
 

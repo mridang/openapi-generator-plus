@@ -155,6 +155,20 @@ export class PetWithOwner {
         `homepageUrl must be a string, got ${typeof this.homepageUrl}`,
       );
     }
+    /* `format: uri` is an absolute RFC 3986 URI: a scheme, a colon, then no
+     * whitespace or control characters. Any scheme is valid; a relative
+     * reference or free text is not. The text is kept exactly as given. */
+    if (
+      this.homepageUrl != null &&
+      (!/^[A-Za-z][A-Za-z0-9+.-]*:\S*$/.test(this.homepageUrl) ||
+        [...this.homepageUrl].some(
+          (c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f,
+        ))
+    ) {
+      throw new TypeError(
+        `homepageUrl must be an absolute URI, got ${JSON.stringify(this.homepageUrl)}`,
+      );
+    }
     if (this.thumbnailRef != null && typeof this.thumbnailRef !== "string") {
       throw new TypeError(
         `thumbnailRef must be a string, got ${typeof this.thumbnailRef}`,

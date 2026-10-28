@@ -593,6 +593,32 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
     }
   });
 
+  it('primitive parts are plain text in the stringify form and only an object is a JSON part', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, {
+        flag: true,
+        count: 3,
+        when: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+        colour: 'red',
+        payload: { label: 'sample' },
+      });
+      const body = getBody().toString('utf-8');
+      const part = (name: string) => body.split('\r\n--').find((p) => p.includes(`name="${name}"`))!;
+      expect(part('flag')).toMatch(/name="flag"\r\n\r\ntrue$/);
+      expect(part('count')).toMatch(/name="count"\r\n\r\n3$/);
+      expect(part('when')).toMatch(/name="when"\r\n\r\n2024-01-15T10:30:00\.000\+00:00$/);
+      expect(part('colour')).toMatch(/name="colour"\r\n\r\nred$/);
+      for (const name of ['flag', 'count', 'when', 'colour']) {
+        expect(part(name)).not.toContain('Content-Type');
+      }
+      expect(part('payload')).toContain('name="payload"\r\nContent-Type: application/json\r\n\r\n{"label":"sample"}');
+    } finally {
+      close();
+    }
+  });
+
   it('#4 unknown file extension falls back to application/octet-stream', async () => {
     const { url, getBody, close } = await captureRawBody();
     try {

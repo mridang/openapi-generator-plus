@@ -1094,6 +1094,35 @@ describe("PetApi request content-type selector", () => {
       close();
     }
   });
+
+  test("setPetAvatar with the JSON selector sends the binary body verbatim", async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      await api
+        .setPetAvatar(1, bytes, "application/json")
+        .catch(() => undefined);
+
+      const { body, contentType } = getCapture();
+      expect(contentType).toBe("application/json");
+      expect(body.equals(bytes)).toBe(true);
+    } finally {
+      close();
+    }
+  });
+
+  test("setPetAvatarThumbnail still sends a format:byte JSON body as base64", async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      await api
+        .setPetAvatarThumbnail(1, Buffer.from([1, 2, 3, 4]))
+        .catch(() => undefined);
+
+      expect(getCapture().body.toString("utf-8")).toBe('"AQIDBA=="');
+    } finally {
+      close();
+    }
+  });
 });
 
 describe("PetApi operation servers", () => {

@@ -1765,6 +1765,7 @@ export class PetApi extends BaseApi {
       contentType ?? "image/jpeg",
       null,
       undefined,
+      true,
     );
   }
 

@@ -341,11 +341,17 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. */
+   * constructor reject anything that is not a string. A string must be an RFC
+   * 3339 date-time with an explicit offset; anything else (no offset, a bare
+   * date, free text) is handed on raw too, so it never resolves against the
+   * host time zone or the current date. */
   @Transform(
     ({ value, obj }) => {
       const raw = (obj as Record<string, unknown>)['{{baseName}}'];
-      return raw === undefined || raw === null || typeof raw === 'string' || raw instanceof Date ? value : raw;
+      if (typeof raw === 'string') {
+        return /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(raw) ? value : raw;
+      }
+      return raw === undefined || raw === null || raw instanceof Date ? value : raw;
     },
     { toClassOnly: true }
   )
@@ -642,6 +648,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
       throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
     }
+{{#isUri}}
+    /* `format: uri` is an absolute RFC 3986 URI: a scheme, a colon, then no
+     * whitespace or control characters. Any scheme is valid; a relative
+     * reference or free text is not. The text is kept exactly as given. */
+    if (
+      this.{{name}} != null &&
+      (!/^[A-Za-z][A-Za-z0-9+.-]*:\S*$/.test(this.{{name}}) ||
+        [...this.{{name}}].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f))
+    ) {
+      throw new TypeError(`{{name}} must be an absolute URI, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/isUri}}
 {{/vendorExtensions.isDurationFormat}}
 {{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
