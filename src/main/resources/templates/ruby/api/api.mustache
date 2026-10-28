@@ -17,15 +17,15 @@ module {{moduleName}}
     end
 {{#variants}}
 {{#serverVariables}}
-{{#hasEnumValues}}
+{{#rubyEmitEnumModule}}
 
     # Valid values for {{name}} in {{serverTypeName}}.
     module {{serverTypeName}}{{pascalName}}
-{{#enumValues}}
-      {{name}} = '{{value}}'
-{{/enumValues}}
+{{#rubyEnumModuleValues}}
+      {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}} = '{{#lambda.rubyQuoted}}{{{value}}}{{/lambda.rubyQuoted}}'
+{{/rubyEnumModuleValues}}
     end
-{{/hasEnumValues}}
+{{/rubyEmitEnumModule}}
 {{/serverVariables}}
 {{/variants}}
 {{#variants}}
@@ -42,7 +42,7 @@ module {{moduleName}}
         super()
 {{#serverVariables}}
 {{#hasEnumValues}}
-        allowed = [{{#enumValues}}{{serverTypeName}}{{pascalName}}::{{name}}{{^-last}}, {{/-last}}{{/enumValues}}]
+        allowed = [{{#enumValues}}{{serverTypeName}}{{pascalName}}::{{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}{{^-last}}, {{/-last}}{{/enumValues}}]
         unless allowed.include?({{snakeName}})
           raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: %<allowed>s", value: {{snakeName}}, allowed: allowed)
         end
@@ -75,10 +75,10 @@ module {{moduleName}}
 
     # {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-    # {{{tagDescription}}}
+    # {{#lambda.rubyComment}}{{{tagDescription}}}{{/lambda.rubyComment}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-    # @see {{url}} {{{description}}}
+    # @see {{url}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
       def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil)
@@ -243,7 +243,7 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+        path = path.gsub('{<%baseName%>}', ::<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%#isByteArray%>::<%moduleName%>::ObjectSerializer.encode_base64_param(<%paramName%>)<%/isByteArray%><%^isByteArray%><%paramName%><%/isByteArray%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -261,7 +261,7 @@ module {{moduleName}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
             ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
-              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}options.{{paramName}}{{/isByteArray}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
               {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             )
         end
@@ -270,13 +270,13 @@ module {{moduleName}}
         query_params.merge!(::{{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.nil? || options.{{paramName}}.nil?
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-        query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
+        query_params['{{baseName}}'] = ::{{moduleName}}::ObjectSerializer.serialize(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
         unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
             ::{{moduleName}}::ValueSerializer.maybe_allow_reserved(
-              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
+              ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}options.{{paramName}}{{/isByteArray}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}),
               {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}
             )
         end
@@ -285,7 +285,7 @@ module {{moduleName}}
         # @type var header_params: Hash[String, String]
         header_params = {}
 {{#headerParams}}
-        header_params['{{baseName}}'] = ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
+        header_params['{{baseName}}'] = ::{{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}options.{{paramName}}{{/isByteArray}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = [] # : Array[String]
@@ -312,10 +312,10 @@ module {{moduleName}}
         request_body = {}
 {{#formParams}}
 {{#required}}
-        request_body['{{baseName}}'] = options.{{paramName}}
+        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}options.{{paramName}}{{/isByteArray}}
 {{/required}}
 {{^required}}
-        request_body['{{baseName}}'] = options.{{paramName}} unless options.{{paramName}}.nil?
+        request_body['{{baseName}}'] = {{#isByteArray}}::{{moduleName}}::ObjectSerializer.encode_base64_param(options.{{paramName}}){{/isByteArray}}{{^isByteArray}}options.{{paramName}}{{/isByteArray}} unless options.{{paramName}}.nil?
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
@@ -366,7 +366,8 @@ module {{moduleName}}
           '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.hasMultipleConsumes}}
           {{#vendorExtensions.deserializeReturnType}}'{{{.}}}'{{/vendorExtensions.deserializeReturnType}}{{^vendorExtensions.deserializeReturnType}}{{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.deserializeReturnType}},
-          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}
+          {{#hasAuthMethods}}options&.auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}::{{moduleName}}::Api::BaseApi::NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+          raw_body: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}}
         )
       end
     {{/operation}}

@@ -71,6 +71,20 @@ Minitest/EmptyLineBeforeAssertionMethods:
 Naming/AccessorMethodName:
   Enabled: false
 
+# Spec text (descriptions, defaults, enum values) is emitted verbatim inside
+# single-quoted literals, where a literal `#{x}` is data the spec chose, not a
+# forgotten interpolation.
+Lint/InterpolationCheck:
+  Enabled: false
+
+# Parameter names are the API's own names (`q`, a digit-leading name mapped to
+# `_2nd_page`), so the keyword a caller passes matches the spec in all twelve
+# SDKs instead of a Ruby-only rename.
+Naming/MethodParameterName:
+  Enabled: false
+Lint/UnderscorePrefixedVariableName:
+  Enabled: false
+
 # Anonymous argument forwarding (`*`) erases the parameter names that the
 # generated RBS signatures in sig/ declare, so steep can no longer match the
 # method against its signature.

@@ -16,6 +16,7 @@ module Petstore::Client::Models
     attr_reader link_template: String?
     attr_reader owner_email: String?
     attr_reader weight_kg: Float?
+    attr_reader nickname: String?
     attr_reader owner_name: String
   end
 end

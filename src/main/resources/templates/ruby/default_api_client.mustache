@@ -115,8 +115,12 @@ module {{moduleName}}
       raise 'ApiClient has been closed and can no longer send requests' if @closed
 
       merged = @transport_options.default_headers.dup.merge(headers)
-      merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
-      merged['X-Request-ID'] ||= SecureRandom.uuid if @transport_options.inject_request_id
+      # RFC 9110 §5.1: field names are case-insensitive, so a caller's
+      # `user-agent` or `x-request-id` (any casing, even empty) wins and
+      # nothing is injected alongside it.
+      user_agent = @transport_options.user_agent
+      merged['User-Agent'] = user_agent if user_agent && !header?(merged, 'User-Agent')
+      merged['X-Request-ID'] = SecureRandom.uuid if @transport_options.inject_request_id && !header?(merged, 'X-Request-ID')
 
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
@@ -318,6 +322,11 @@ module {{moduleName}}
     end
 
     private
+
+    # Whether +headers+ already holds +name+ under ASCII case-folding.
+    def header?(headers, name)
+      headers.keys.any? { |key| key.to_s.casecmp?(name) }
+    end
 
     # Faraday's net_http adapter reports a connect timeout (Net::OpenTimeout)
     # as Faraday::ConnectionFailed, so the underlying cause decides whether a
@@ -586,7 +595,10 @@ module {{moduleName}}
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
           "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
       else
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{value}\r\n"
+        # A primitive is a plain text part (no part Content-Type) carrying
+        # the canonical stringify form, the same one query and form values use.
+        text = ObjectSerializer.stringify(value)
+        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{text}\r\n"
       end
     end
 

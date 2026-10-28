@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -15,14 +15,16 @@ module Petstore::Client
       # @deprecated This parameter is deprecated.
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs
       # @param born_after [Date] Only return pets born on or after this date
+      # @param _2nd_page [Integer]
       # @param report_date [Date] Reference date for the report
       class FindPetsByStatusOptions
-        attr_reader :status, :filter, :born_after, :report_date
+        attr_reader :status, :filter, :born_after, :_2nd_page, :report_date
 
-        def initialize(status: nil, filter: nil, born_after: nil, report_date: nil)
+        def initialize(status: nil, filter: nil, born_after: nil, _2nd_page: nil, report_date: nil)
           @status = status
           @filter = filter
           @born_after = born_after
+          @_2nd_page = _2nd_page
           @report_date = report_date
           freeze
         end

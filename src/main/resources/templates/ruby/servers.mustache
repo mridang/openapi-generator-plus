@@ -20,14 +20,14 @@ module {{moduleName}}
 {{#serverConfigs}}
     # Server {{serverIndex}}: +{{serverUrl}}+{{#serverDescription}}
     #
-    # {{serverDescription}}{{/serverDescription}}
+    # {{#lambda.rubyComment}}{{{serverDescription}}}{{/lambda.rubyComment}}{{/serverDescription}}
     SERVER_{{serverIndex}} = ServerConfiguration.new(
-      url_template: '{{{serverUrl}}}',
-      description: {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
+      url_template: '{{#lambda.rubyQuoted}}{{{serverUrl}}}{{/lambda.rubyQuoted}}',
+      description: {{#serverDescription}}'{{#lambda.rubyQuoted}}{{{serverDescription}}}{{/lambda.rubyQuoted}}'{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
       variables: {{#hasVariables}}{
-{{#serverVariables}}        '{{{varName}}}' => ServerVariable.new(
-          default_value: '{{{varDefault}}}',
-          description: {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
+{{#serverVariables}}        '{{#lambda.rubyQuoted}}{{{varName}}}{{/lambda.rubyQuoted}}' => ServerVariable.new(
+          default_value: '{{#lambda.rubyQuoted}}{{{varDefault}}}{{/lambda.rubyQuoted}}',
+          description: {{#varDescription}}'{{#lambda.rubyQuoted}}{{{varDescription}}}{{/lambda.rubyQuoted}}'{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
           enum_values: {{#hasEnumValues}}%w[{{#varEnumValues}}{{{.}}}{{^-last}} {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
         ){{^-last}},{{/-last}}
 {{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}}

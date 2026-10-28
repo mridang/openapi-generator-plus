@@ -47,6 +47,34 @@ describe Petstore::Client::Api::StoreApi do
     [Petstore::Client::Api::StoreApi.new(nil, config), server, thread, captured]
   end
 
+  describe '#search_store content-encoded query' do
+    it 'encodes the q value through the SDK serializer as compact JSON' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        query = Petstore::Client::Models::PhotoMetadata.new(caption: 'a/b<é')
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(q: query))
+        request_line = captured.pop[:request_line]
+        _(request_line).must_include 'q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises SerializationError for an unserializable q and sends nothing' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        query = Petstore::Client::Models::PhotoMetadata.new(caption: 'c', location: { 'lat' => Float::NAN })
+        _ { api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(q: query)) }
+          .must_raise(Petstore::Client::Errors::SerializationError)
+        _(captured.empty?).must_equal(true)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#get_inventory' do
     it 'returns inventory' do
       result = @api.get_inventory

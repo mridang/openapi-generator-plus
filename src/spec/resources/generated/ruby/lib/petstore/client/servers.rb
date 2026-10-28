@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -51,11 +51,27 @@ module Petstore::Client
       }
     ).freeze
 
+    # Server 2: +https://{tenant}.example.com/api+
+    #
+    # Bob's "sandbox" & co: $5 #{x} a*/b
+    SERVER_2 = ServerConfiguration.new(
+      url_template: 'https://{tenant}.example.com/api',
+      description: 'Bob\'s "sandbox" & co: $5 #{x} a*/b',
+      variables: {
+        'tenant' => ServerVariable.new(
+          default_value: 'o\'neil',
+          description: 'Tenant\'s "id"',
+          enum_values: %w[o'neil a&b]
+        )
+      }
+    ).freeze
+
     # All server configurations in declaration order.
     # @return [Array<ServerConfiguration>]
     ALL = [
       SERVER_0,
-      SERVER_1
+      SERVER_1,
+      SERVER_2
     ].freeze
   end
 end

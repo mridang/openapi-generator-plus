@@ -377,6 +377,9 @@ module {{moduleName}}
         {{#isUuid}}
         {{{name}}}: 'uuid',
         {{/isUuid}}
+        {{#isUri}}
+        {{{name}}}: 'uri',
+        {{/isUri}}
         {{^isByteArray}}{{^isUuid}}
         {{#isArray}}
         {{#items.isByteArray}}

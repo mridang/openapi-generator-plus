@@ -48,19 +48,51 @@ module {{moduleName}}
         #
         # This method is synchronized to prevent concurrent token requests.
         #
+        # When a refresh token is held and +params+ is not itself a refresh
+        # grant, the refresh grant (carrying the same client authentication,
+        # RFC 6749 §6) is POSTed to +refresh_url+ first; on failure the
+        # original grant is re-run against +token_url+. Params that already
+        # are a refresh grant are POSTed exactly once.
+        #
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
+        # @param refresh_url [String, nil] the refresh endpoint (defaults to token_url)
         # @return [String] a valid access token
         # @raise [RuntimeError] if no API client has been injected
         # @raise [::{{moduleName}}::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
         # @raise [::{{moduleName}}::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
-        def get_access_token(token_url, params, extra_headers = {})
+        def get_access_token(token_url, params, extra_headers = {}, refresh_url: nil)
           @mutex.synchronize do
             return @access_token if token_still_valid?
-            return @access_token if try_refresh_token(token_url, params, extra_headers)
+
+            return @access_token if params['grant_type'] != 'refresh_token' && try_refresh_token(refresh_url || token_url, params, extra_headers)
 
             fetch_token(token_url, params, extra_headers)
             @access_token
+          end
+        end
+
+        # POST +params+ verbatim to +token_url+, bypassing the token cache and
+        # the refresh path, and replace the session with exactly what the
+        # response carried. On any failure the previous session is restored
+        # and the error re-raised, so a rejected exchange does not log out.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [String] the newly issued access token
+        def exchange(token_url, params, extra_headers = {})
+          @mutex.synchronize do
+            previous = [@access_token, @refresh_token, @token_expiry]
+            @access_token = nil
+            @refresh_token = nil
+            @token_expiry = nil
+            begin
+              fetch_token(token_url, params, extra_headers)
+            rescue StandardError
+              @access_token, @refresh_token, @token_expiry = previous
+              raise
+            end
+            @access_token.to_s
           end
         end
 

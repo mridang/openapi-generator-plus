@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -12,11 +12,13 @@ module Petstore::Client
     module Options
       # Options for the get_pet_by_name operation.
       # @param category [String]
+      # @param x_correlation_id [String]
       class GetPetByNameOptions
-        attr_reader :category
+        attr_reader :category, :x_correlation_id
 
-        def initialize(category:)
+        def initialize(category:, x_correlation_id:)
           @category = category
+          @x_correlation_id = x_correlation_id
           freeze
         end
       end

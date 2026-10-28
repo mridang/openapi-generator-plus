@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -42,6 +42,18 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
   it 'builds authorization URL with state' do
     url = auth.build_authorization_url('csrf_state_456')
     _(url).must_include 'state=csrf_state_456'
+  end
+
+  it 'omits an empty state from the authorization URL' do
+    url = auth.build_authorization_url('')
+    _(url).wont_include 'state'
+    _(url).must_equal auth.build_authorization_url
+  end
+
+  it 'treats an empty access token as unset' do
+    auth.access_token = ''
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must set the access token before making API requests'
   end
 
   it 'getAuthHeaders returns Bearer after setAccessToken' do

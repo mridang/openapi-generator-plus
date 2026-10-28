@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -40,6 +40,12 @@ module Petstore::Client
       AP = 'ap'
     end
 
+    # Valid values for channel in GetMultiServerPetInfoServer.
+    module GetMultiServerPetInfoServerChannel
+      A_B = 'a&b'
+      IT_S = 'it\'s'
+    end
+
     # Primary
     class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
       def url
@@ -60,6 +66,27 @@ module Petstore::Client
       def url
         url = 'https://{region}.example.com/v1'
         url.gsub('{region}') { @region.to_s }
+      end
+    end
+
+    # Mirror
+    class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
+      def initialize(region:, channel:)
+        super()
+        allowed = [GetMultiServerPetInfoServerRegion::US, GetMultiServerPetInfoServerRegion::EU]
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
+
+        @region = region
+        allowed = [GetMultiServerPetInfoServerChannel::A_B, GetMultiServerPetInfoServerChannel::IT_S]
+        raise ArgumentError, format("Invalid value '%<value>s' for server variable 'channel'. Allowed values: %<allowed>s", value: channel, allowed: allowed) unless allowed.include?(channel)
+
+        @channel = channel
+      end
+
+      def url
+        url = 'https://{region}.mirror.example.com/{channel}/v1'
+        url = url.gsub('{region}') { @region.to_s }
+        url.gsub('{channel}') { @channel.to_s }
       end
     end
 
@@ -120,8 +147,8 @@ module Petstore::Client
     end
 
     # PetApi provides methods for the Pet API group.
-    # Everything about your Pets
-    # @see https://example.com/docs/pets Find out more about pets
+    # Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
+    # @see https://example.com/docs/pets Find out more about pets (it's */ here) on two lines
     class PetApi < BaseApi
       def initialize(api_client = nil, config = ::Petstore::Client::Configuration.default_configuration, authenticator = nil)
         super
@@ -179,7 +206,7 @@ module Petstore::Client
         )
       end
 
-      # Add photos to the pet's gallery
+      # Add photos to the pet\'s gallery
       # Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
       # @param pet_id [Integer]
       # @param options [AddPetPhotosOptions] options for query, header, form, and cookie parameters
@@ -491,6 +518,13 @@ module Petstore::Client
               false
             )
         end
+        unless options.nil? || options._2nd_page.nil?
+          query_params['2ndPage'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('2ndPage', options._2nd_page, :query, 'Integer', nil, 'form', true),
+              false
+            )
+        end
         # @type var header_params: Hash[String, String]
         header_params = {}
         header_params['Report-Date'] = ::Petstore::Client::ValueSerializer.serialize_styled('Report-Date', options.report_date, :header, 'Date', nil, 'simple', false).to_s unless options.nil? || options.report_date.nil?
@@ -604,8 +638,8 @@ module Petstore::Client
         )
       end
 
-      # Get the pet's profile photo
-      # Returns the raw image bytes of the pet's current avatar.
+      # Get the pet\'s profile photo
+      # Returns the raw image bytes of the pet\'s current avatar.
       # @param pet_id [Integer]
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
@@ -651,7 +685,7 @@ module Petstore::Client
         )
       end
 
-      # Get the pet's avatar thumbnail as base64
+      # Get the pet\'s avatar thumbnail as base64
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
       # @return [String]
@@ -803,6 +837,16 @@ module Petstore::Client
                 "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
         end
 
+        if options.nil? || options.x_correlation_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name"
+        end
+
+        if options.x_correlation_id == ''
+          raise ArgumentError,
+                "Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name"
+        end
+
         path = '/pet/byName/{name}'
         path = path.gsub('{name}', ::Petstore::Client::ValueSerializer.serialize_styled('name', name, :path, 'String', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
@@ -816,6 +860,7 @@ module Petstore::Client
         end
         # @type var header_params: Hash[String, String]
         header_params = {}
+        header_params['X-Correlation-Id'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Correlation-Id', options.x_correlation_id, :header, 'String', nil, 'simple', false).to_s unless options.nil? || options.x_correlation_id.nil?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
@@ -826,8 +871,8 @@ module Petstore::Client
         )
       end
 
-      # Get the pet's passport
-      # Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+      # Get the pet\'s passport
+      # Returns a single JSON document combining the pet\'s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
@@ -927,6 +972,52 @@ module Petstore::Client
         )
       end
 
+      # Get a plain-text summary of the pet
+      # @param pet_id [Integer]
+      # @return [String]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_summary(pet_id)
+        result = get_pet_summary_with_http_info(pet_id)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for get_pet_summary but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_summary_with_http_info(pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
+        end
+
+        path = '/pet/{petId}/summary'
+        path = path.gsub('{petId}', ::Petstore::Client::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['text/plain'],
+          'application/json',
+          'String',
+          nil
+        )
+      end
+
       # Get a tag for a pet
       # @param pet_id [Integer]
       # @param tag_name [String]
@@ -1002,8 +1093,32 @@ module Petstore::Client
               true
             )
         end
+        unless options.nil? || options.criteria.nil?
+          query_params['criteria'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('criteria', options.criteria, :query, 'PetCriteria', nil, 'form', true),
+              false
+            )
+        end
+        unless options.nil? || options.criteria_csv.nil?
+          query_params['criteriaCsv'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('criteriaCsv', options.criteria_csv, :query, 'PetCriteria', nil, 'form', false),
+              false
+            )
+        end
+        query_params.merge!(::Petstore::Client::ValueSerializer.serialize_deep_object('criteriaDeep', options.criteria_deep)) unless options.nil? || options.criteria_deep.nil?
+        unless options.nil? || options.fingerprint.nil?
+          query_params['fingerprint'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('fingerprint', ::Petstore::Client::ObjectSerializer.encode_base64_param(options.fingerprint), :query, 'String', nil, 'form', true),
+              false
+            )
+        end
         # @type var header_params: Hash[String, String]
         header_params = {}
+        header_params['X-Criteria'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Criteria', options.x_criteria, :header, 'PetCriteria', nil, 'simple', false).to_s unless options.nil? || options.x_criteria.nil?
+        header_params['X-Fingerprint'] = ::Petstore::Client::ValueSerializer.serialize_styled('X-Fingerprint', ::Petstore::Client::ObjectSerializer.encode_base64_param(options.x_fingerprint), :header, 'String', nil, 'simple', false).to_s unless options.nil? || options.x_fingerprint.nil?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
@@ -1064,7 +1179,7 @@ module Petstore::Client
         )
       end
 
-      # Set the pet's profile photo
+      # Set the pet\'s profile photo
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
@@ -1126,11 +1241,12 @@ module Petstore::Client
           [],
           resolved_content_type,
           nil,
-          nil
+          nil,
+          raw_body: true
         )
       end
 
-      # Set the pet's avatar thumbnail as base64
+      # Set the pet\'s avatar thumbnail as base64
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
@@ -1175,7 +1291,7 @@ module Petstore::Client
         )
       end
 
-      # Update a pet's notification preferences
+      # Update a pet\'s notification preferences
       # Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
       # @param pet_id [Integer]
       # @param options [SetPetPreferencesOptions] options for query, header, form, and cookie parameters
@@ -1229,6 +1345,7 @@ module Petstore::Client
         request_body['tags'] = options.tags unless options.tags.nil?
         request_body['note'] = options.note unless options.note.nil?
         request_body['renewalDate'] = options.renewal_date unless options.renewal_date.nil?
+        request_body['reminder'] = options.reminder unless options.reminder.nil?
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
@@ -1296,7 +1413,7 @@ module Petstore::Client
         )
       end
 
-      # Upload the pet's adoption certificate
+      # Upload the pet\'s adoption certificate
       # Attaches a single adoption certificate document. No metadata fields are required alongside the file.
       # @param pet_id [Integer]
       # @param options [UploadPetCertificateOptions] options for query, header, form, and cookie parameters
@@ -1400,6 +1517,10 @@ module Petstore::Client
         request_body['file'] = options.file
         request_body['documentType'] = options.document_type unless options.document_type.nil?
         request_body['notes'] = options.notes unless options.notes.nil?
+        request_body['isPrimary'] = options.is_primary unless options.is_primary.nil?
+        request_body['pageCount'] = options.page_count unless options.page_count.nil?
+        request_body['takenAt'] = options.taken_at unless options.taken_at.nil?
+        request_body['swatch'] = options.swatch unless options.swatch.nil?
         # This operation declares multiple request content-types. The optional
         # `content_type:` selector lets the caller choose among the declared
         # types; when nil it defaults to the first declared type. An

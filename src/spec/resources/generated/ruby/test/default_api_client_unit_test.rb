@@ -483,6 +483,36 @@ describe Petstore::Client::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
+  it 'writes primitive multipart values as text parts in the canonical form' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    form = {
+      'flag' => true,
+      'count' => 3,
+      'stamp' => Time.utc(2024, 1, 15, 10, 30, 0),
+      'shade' => 'red',
+      'meta' => MultipartModelPart.new(is_enabled: true)
+    }
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, form)
+    end
+    parts = captured_body.to_s.dup.force_encoding(Encoding::UTF_8).split(/--[0-9a-f-]{36}(?:--)?\r\n/).reject(&:empty?)
+    _(parts.first(4)).must_equal [
+      "Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+      "Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+      "Content-Disposition: form-data; name=\"stamp\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n",
+      "Content-Disposition: form-data; name=\"shade\"\r\n\r\nred\r\n"
+    ]
+    _(parts.last).must_include "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true"
+    stubs.verify_stubbed_calls
+  end
+
   # ── Per-part MIME sniffing (Gap J) ──
 
   it 'sets image/png Content-Type for .png upload' do

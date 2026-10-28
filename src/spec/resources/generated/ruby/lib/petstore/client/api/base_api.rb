@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -73,7 +73,7 @@ module Petstore::Client
       # @raise [Errors::ApiError] if the API call fails
       def invoke_api_for_result(
         method, path, query_params, header_params, body,
-        accepts, content_type, return_type, auth = nil
+        accepts, content_type, return_type, auth = nil, raw_body: false
       )
         url = if path.start_with?('http://', 'https://')
                 path
@@ -138,7 +138,7 @@ module Petstore::Client
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
         ::Petstore::Client::TraceContextUtil.inject_trace_context(headers)
-        serialized_body = serialize_body(body, content_type)
+        serialized_body = serialize_body(body, content_type, raw_body: raw_body)
         headers.delete('Content-Type') if serialized_body.nil?
         response = @api_client.send_request(method, url, headers, serialized_body)
         throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
@@ -245,13 +245,16 @@ module Petstore::Client
         end
       end
 
-      def serialize_body(body, content_type)
+      def serialize_body(body, content_type, raw_body: false)
         return nil if body.nil?
 
         if content_type == 'multipart/form-data'
           body
-        elsif content_type&.start_with?('image/') ||
+        elsif raw_body || content_type&.start_with?('image/') ||
               content_type == 'application/octet-stream'
+          # A format: binary body (raw_body) is the caller's bytes under
+          # whichever declared Content-Type was selected, application/json
+          # included; it is never re-encoded through the JSON serializer.
           # An operation that declares BOTH multipart/form-data and a raw binary
           # content-type (e.g. application/octet-stream) builds its body as a
           # form-parts Hash for the multipart case. When the caller selects the
@@ -271,7 +274,17 @@ module Petstore::Client
           # wire form, and nil array elements are skipped.
           pairs = body.compact.flat_map do |key, value|
             items = value.is_a?(Array) || value.is_a?(Set) ? value.to_a : [value]
-            items.compact.map { |item| [key.to_s, ::Petstore::Client::ObjectSerializer.stringify(item)] }
+            items.compact.map do |item|
+              # A model, map or nested array has no defined form encoding (the
+              # generator does not emit the OAS encoding style), so refuse it
+              # rather than putting its to_s on the wire.
+              if item.is_a?(Hash) || item.is_a?(Struct) || item.is_a?(Array) || item.respond_to?(:to_hash)
+                raise ::Petstore::Client::Errors::SerializationError,
+                      "form-urlencoded field #{key} must be a scalar or array of scalars"
+              end
+
+              [key.to_s, ::Petstore::Client::ObjectSerializer.stringify(item)]
+            end
           end
           # encode_www_form keeps '*' literal and escapes '~' to %7E; the other
           # SDKs (and the OAuth2 token body) keep '~' and escape '*'.

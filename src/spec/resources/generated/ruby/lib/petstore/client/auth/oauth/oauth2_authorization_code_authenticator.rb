@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -73,7 +73,7 @@ module Petstore::Client
             'redirect_uri' => @redirect_uri
           }
           params['scope'] = @scopes.join(' ') unless @scopes.empty?
-          params['state'] = state if state
+          params['state'] = state unless state.nil? || state.empty?
           # RFC 6749 §3.1: the authorization endpoint URI MAY already include
           # a query component. Use '&' as the separator when one is already
           # present so existing params are preserved, '?' otherwise.
@@ -104,7 +104,9 @@ module Petstore::Client
             'client_secret' => @client_secret,
             'redirect_uri' => @redirect_uri
           }
-          @token_manager.get_access_token(@token_url, params)
+          # Always POST the new code (never the cache or the refresh path);
+          # a rejected code keeps the previous session.
+          @token_manager.exchange(@token_url, params)
           @token_exchanged = true
         end
 
@@ -112,9 +114,13 @@ module Petstore::Client
         def auth_headers
           raise 'Must call exchange_code before making API requests' unless @token_exchanged
 
+          # RFC 6749 §6: the refresh authenticates the client the same way
+          # the code exchange did.
           params = {
             'grant_type' => 'refresh_token',
-            'refresh_token' => @token_manager.refresh_token.to_s
+            'refresh_token' => @token_manager.refresh_token.to_s,
+            'client_id' => @client_id,
+            'client_secret' => @client_secret
           }
           token = @token_manager.get_access_token(@refresh_url, params)
           { 'Authorization' => "Bearer #{token}" }

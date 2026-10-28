@@ -7,7 +7,8 @@ module Petstore::Client
       # frozen after construction, so only readers are exposed.
       class GetPetByNameOptions
         attr_reader category: String
-        def initialize: (category: String) -> void
+        attr_reader x_correlation_id: String
+        def initialize: (category: String, x_correlation_id: String) -> void
       end
     end
   end

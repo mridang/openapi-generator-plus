@@ -17,11 +17,20 @@ module Petstore::Client
       AP: String
     end
 
+    module GetMultiServerPetInfoServerChannel
+      A_B: String
+      IT_S: String
+    end
+
     class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
       def url: () -> String
     end
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
       def initialize: (region: String) -> void
+      def url: () -> String
+    end
+    class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
+      def initialize: (region: String, channel: String) -> void
       def url: () -> String
     end
     class GetPetByIdServer
@@ -81,6 +90,8 @@ module Petstore::Client
       def get_pet_passport_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[Models::PetPassport]
       def get_pet_photo: (Integer pet_id, Integer photo_id) -> ::StringIO
       def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::Petstore::Client::ApiResult[::StringIO]
+      def get_pet_summary: (Integer pet_id) -> String
+      def get_pet_summary_with_http_info: (Integer pet_id) -> ::Petstore::Client::ApiResult[String]
       def get_pet_tag: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> Models::Pet
       def get_pet_tag_with_http_info: (Integer pet_id, String tag_name, ?Options::GetPetTagOptions? options) -> ::Petstore::Client::ApiResult[Models::Pet]
       def get_staging_pet_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> Models::Pet

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.authors     = ['Swagger Petstore - OpenAPI 3.0']
   s.summary     = 'Swagger Petstore - OpenAPI 3.0 Ruby Gem'
-  s.description = 'A simplified Pet Store API for integration testing.'
+  s.description = 'A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.'
   s.license     = 'MIT'
   s.required_ruby_version = '>= 3.4'
   s.metadata['rubygems_mfa_required'] = 'true'

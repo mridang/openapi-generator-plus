@@ -545,6 +545,18 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).must_equal 'snooze=3600s&urgent=true&weight=1.5'
   end
 
+  it 'form-urlencoded body rejects a nested map value' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    err = assert_raises({{moduleName}}::Errors::SerializationError) do
+      test_api.call('POST', '/test', {}, {}, { 'location' => { 'lat' => 1.5 } },
+                    ['application/json'], 'application/x-www-form-urlencoded', nil)
+    end
+    _(err.message).must_equal 'form-urlencoded field location must be a scalar or array of scalars'
+    _(client.captured_body).must_be_nil
+  end
+
   it 'passes binary body as-is' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build

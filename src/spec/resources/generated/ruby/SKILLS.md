@@ -201,7 +201,7 @@ Each API group is exposed as a typed attribute on the client (e.g., `client.pet`
 Models are generated as Ruby classes under the `Petstore::Client::Models` namespace.
 
 ```ruby
-model = Petstore::Client::Models::ApiResponse.new
+model = Petstore::Client::Models::Account.new
 ```
 
 ## Binary / File Uploads

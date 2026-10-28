@@ -494,6 +494,22 @@ describe Petstore::Client::ValueSerializer do
       }).must_raise ArgumentError
     end
 
+    ['.', '..'].each do |segment|
+      it "rejects the dot segment #{segment.inspect} as a simple path value" do
+        err = _(lambda {
+          Petstore::Client::ValueSerializer.serialize_styled('id', segment, :path, 'string', nil, 'simple', false)
+        }).must_raise ArgumentError
+        _(err.message).must_equal "Path parameter 'id' must not be '.' or '..'"
+      end
+    end
+
+    it 'keeps dots inside a path value and dot values in label and matrix styles' do
+      _(Petstore::Client::ValueSerializer.serialize_styled('id', 'a..b', :path, 'string', nil, 'simple', false)).must_equal('a..b')
+      _(Petstore::Client::ValueSerializer.serialize_styled('id', '.hidden', :path, 'string', nil, 'simple', false)).must_equal('.hidden')
+      _(Petstore::Client::ValueSerializer.serialize_styled('id', '..', :path, 'string', nil, 'label', false)).must_equal('...')
+      _(Petstore::Client::ValueSerializer.serialize_styled('id', '..', :path, 'string', nil, 'matrix', false)).must_equal(';id=..')
+    end
+
     it 'path value is encoded exactly once (no double-encoding)' do
       # path-double-encoding: serialize_styled already percent-encodes the path
       # segment, so the api template must NOT wrap it again. A space must become
@@ -516,6 +532,11 @@ describe Petstore::Client::ValueSerializer do
       # Space is illegal in a URL and must still be percent-encoded even
       # when reserved characters are preserved.
       _(Petstore::Client::ValueSerializer.encode_query_allowing_reserved('a b:c')).must_equal('a%20b:c')
+    end
+
+    it 'keeps only the RFC 3986 query-legal reserved set literal and encodes # [ ]' do
+      encoded = Petstore::Client::ValueSerializer.encode_query_allowing_reserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u")
+      _(encoded).must_equal("a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u")
     end
 
     it 'maybe_allow_reserved wraps only when allow_reserved is true' do

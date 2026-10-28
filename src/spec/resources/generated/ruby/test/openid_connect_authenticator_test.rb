@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -87,6 +87,23 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'client_id=my_client_id'
     _(url).must_include 'state=state_abc'
     _(url).must_include 'scope=openid%20profile'
+  end
+
+  it 'omits an empty state from the authorization URL' do
+    client = FakeOidcClient.new([discovery_response])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid profile]
+    )
+    auth.api_client = client
+
+    url = auth.build_authorization_url('')
+    _(url).wont_include 'state'
+    _(url).must_equal auth.build_authorization_url
   end
 
   it 'fetches discovery document' do

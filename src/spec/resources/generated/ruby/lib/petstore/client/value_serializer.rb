@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -31,14 +31,15 @@ module Petstore::Client
     }.freeze
 
     # RFC 3986 reserved characters that must be left literal when a query
-    # parameter declares +allowReserved: true+. Everything else (spaces,
-    # control characters, non-ASCII) is still percent-encoded, so the result
+    # parameter declares +allowReserved: true+: exactly the set RFC 3986
+    # §3.4 permits in a query. '#' (the fragment delimiter, which would
+    # truncate the query) and '[' ']' stay percent-encoded, as does
+    # everything else (spaces, control characters, non-ASCII), so the result
     # is always a valid query segment. URI.encode_www_form_component
     # percent-encodes each of these; restore it to its literal byte. '~' is
     # restored for the same reason as in PRESERVE_ENCODED.
     RESERVED_PRESERVED = {
-      '%3A' => ':', '%2F' => '/', '%3F' => '?', '%23' => '#',
-      '%5B' => '[', '%5D' => ']', '%40' => '@', '%21' => '!',
+      '%3A' => ':', '%2F' => '/', '%3F' => '?', '%40' => '@', '%21' => '!',
       '%24' => '$', '%26' => '&', '%27' => "'", '%28' => '(',
       '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
       '%3B' => ';', '%3D' => '=', '%7E' => '~'
@@ -142,6 +143,14 @@ module Petstore::Client
       # lives in the operation method; here we catch the empty-string
       # case that slips through it.
       raise ArgumentError, "Path parameter '#{param_name}' must not be empty" if location == :path && value.is_a?(String) && value.empty?
+
+      # RFC 3986 §5.2.4: a '.' or '..' segment is path navigation, so a URL
+      # parser would silently re-route the request. Matrix and label styles
+      # prefix the value and can never produce such a segment.
+      if location == :path && !%w[matrix label].include?(style) && !value.nil?
+        segment = value.is_a?(Array) ? value.map { |v| ObjectSerializer.stringify(v) }.join(',') : ObjectSerializer.stringify(value)
+        raise ArgumentError, "Path parameter '#{param_name}' must not be '.' or '..'" if %w[. ..].include?(segment)
+      end
 
       return serialize(value, location, schema_type, collection_format: collection_format) if style.nil? || style.empty?
 

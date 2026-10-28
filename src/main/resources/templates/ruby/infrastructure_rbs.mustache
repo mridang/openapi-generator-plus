@@ -197,6 +197,7 @@
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def header?: (Hash[String, String], String) -> bool
     def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
     def https_to_http_downgrade?: (String, String) -> bool
@@ -246,10 +247,12 @@
 
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
+    RFC3339_DATETIME_REGEX: Regexp
     MAX_JSON_DEPTH: Integer
     PROTOBUF_DURATION_REGEX: Regexp
     UUID_REGEX: Regexp
     def self.stringify: (untyped) -> String
+    def self.encode_base64_param: (String?) -> String?
     def self.serialize: (untyped) -> String
     def self.encode_oneof_body: (untyped, String) -> untyped
     def self.parse_json: (String, ?symbolize_names: bool) -> untyped
@@ -260,12 +263,16 @@
     def self.to_header_value: (untyped) -> String
     def self.to_cookie_value: (untyped) -> String
     def self.to_form_value: (untyped) -> String
+    def self.convert_element: (untyped, String) -> untyped
+    def self.model_type?: (String) -> bool
     def self.convert_to_type: (untyped, String) -> untyped
     def self.sanitize_for_serialization: (untyped, ?Set[Integer]) -> untyped
     def self.deserialize_model: (untyped, untyped) -> untyped
     def self.apply_format_on_deserialize: (untyped, String?) -> untyped
     def self.apply_format_on_serialize: (untyped, String?) -> untyped
     def self.validate_uuid: (untyped) -> String
+    URI_REGEX: Regexp
+    def self.validate_uri: (untyped) -> String
     def self.encode_byte: (untyped) -> String
     def self.decode_byte: (untyped) -> String
     def self.duration_to_protobuf_json: (ISO8601::Duration) -> String
@@ -362,8 +369,6 @@
         private
 
         def basic_auth_headers: () -> Hash[String, String]
-        def token_request: () -> [Hash[String, String], String]
-        def refresh_grant_params: (String) -> Hash[String, String]
         def password_grant_params: () -> Hash[String, String]
       end
 {{/hasOAuth2Password}}
@@ -405,7 +410,8 @@
         attr_writer api_client: ApiClient?
         attr_reader refresh_token: String?
         def initialize: () -> void
-        def get_access_token: (String, Hash[String, String], ?Hash[String, String]) -> String
+        def get_access_token: (String, Hash[String, String], ?Hash[String, String], ?refresh_url: String?) -> String
+        def exchange: (String, Hash[String, String], ?Hash[String, String]) -> String
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
         private
@@ -446,13 +452,13 @@
       NO_AUTH: Object
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?) -> ApiResult[untyped]
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?raw_body: bool) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?) -> untyped
       private
       def throw_api_error: (ApiHttpResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
       def encode_query_value: (untyped, bool) -> String
-      def serialize_body: (untyped, String?) -> untyped
+      def serialize_body: (untyped, String?, ?raw_body: bool) -> untyped
       def binary_part_from_form_body: (Hash[String, untyped]) -> untyped
       def binary_return_type?: (String?) -> bool
       def text_response_content_type?: (String?) -> bool

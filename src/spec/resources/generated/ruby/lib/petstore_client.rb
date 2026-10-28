@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -68,6 +68,7 @@ require 'petstore/client/auth/oauth/openid_connect_authenticator'
 require 'petstore/client/petstore'
 
 # Models
+require 'petstore/client/models/account'
 require 'petstore/client/models/api_response'
 require 'petstore/client/models/availability'
 require 'petstore/client/models/binary_vault'
@@ -78,10 +79,12 @@ require 'petstore/client/models/department'
 require 'petstore/client/models/dry_food'
 require 'petstore/client/models/edge_cases'
 require 'petstore/client/models/employee'
+require 'petstore/client/models/error'
 require 'petstore/client/models/medication'
 require 'petstore/client/models/metadata'
 require 'petstore/client/models/order'
 require 'petstore/client/models/pet'
+require 'petstore/client/models/pet_criteria'
 require 'petstore/client/models/pet_food'
 require 'petstore/client/models/pet_passport'
 require 'petstore/client/models/pet_treatment'
@@ -90,6 +93,9 @@ require 'petstore/client/models/photo'
 require 'petstore/client/models/photo_metadata'
 require 'petstore/client/models/photo_metadata_location'
 require 'petstore/client/models/priority'
+require 'petstore/client/models/required_nullable'
+require 'petstore/client/models/result'
+require 'petstore/client/models/separator'
 require 'petstore/client/models/set_pet_avatar_request'
 require 'petstore/client/models/set_pet_avatar_thumbnail_request'
 require 'petstore/client/models/stock_item'
@@ -97,6 +103,7 @@ require 'petstore/client/models/strict_tag'
 require 'petstore/client/models/surgery'
 require 'petstore/client/models/swatch'
 require 'petstore/client/models/tag'
+require 'petstore/client/models/treatment_record'
 require 'petstore/client/models/tree_node'
 require 'petstore/client/models/wet_food'
 
@@ -117,3 +124,4 @@ require 'petstore/client/api/options/upload_pet_certificate_options'
 require 'petstore/client/api/options/upload_pet_document_options'
 require 'petstore/client/api/options/get_by_swatch_options'
 require 'petstore/client/api/options/get_stock_item_options'
+require 'petstore/client/api/options/search_store_options'

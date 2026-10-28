@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -84,7 +84,7 @@ module Petstore::Client
           params = { 'response_type' => 'token' }
           params['client_id'] = @client_id
           params['scope'] = @scopes.join(' ') unless @scopes.empty?
-          params['state'] = state if state
+          params['state'] = state unless state.nil? || state.empty?
           # RFC 6749 §3.1: the authorization endpoint URI MAY already include
           # a query component. Use '&' as the separator when one is already
           # present so existing params are preserved, '?' otherwise.
@@ -112,7 +112,7 @@ module Petstore::Client
 
         # @return [Hash{String => String}]
         def auth_headers
-          raise 'Must set the access token before making API requests' if @access_token.nil?
+          raise 'Must set the access token before making API requests' if @access_token.nil? || @access_token.empty?
 
           { 'Authorization' => "Bearer #{@access_token}" }
         end

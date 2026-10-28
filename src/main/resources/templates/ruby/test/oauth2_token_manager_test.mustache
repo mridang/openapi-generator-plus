@@ -111,6 +111,69 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(manager.refresh_token).must_equal 'ref_xyz'
   end
 
+  it 'sends the refresh grant to the refresh URL with the client credentials' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 1 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'password', 'client_id' => 'cid', 'client_secret' => 'sec' }
+
+    manager.get_access_token('https://auth.example.com/token', params, refresh_url: 'https://auth.example.com/refresh')
+    token = manager.get_access_token('https://auth.example.com/token', params, refresh_url: 'https://auth.example.com/refresh')
+    _(token).must_equal 'tok_two'
+    _(client.last_url).must_equal 'https://auth.example.com/refresh'
+    _(client.last_body).must_equal 'grant_type=refresh_token&refresh_token=ref_one&client_id=cid&client_secret=sec'
+  end
+
+  it 'posts params that already are a refresh grant exactly once' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 1 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+
+    assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
+      manager.get_access_token('https://auth.example.com/refresh', { 'grant_type' => 'refresh_token', 'refresh_token' => 'ref_one' })
+    end
+    _(client.call_count).must_equal 2
+  end
+
+  it 'exchange bypasses the cache and the refresh path' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+
+    token = manager.exchange('https://auth.example.com/token', { 'grant_type' => 'authorization_code', 'code' => 'c' })
+    _(token).must_equal 'tok_two'
+    _(client.call_count).must_equal 2
+    _(client.last_body).must_equal 'grant_type=authorization_code&code=c'
+    _(manager.refresh_token).must_be_nil
+  end
+
+  it 'exchange restores the previous session when it fails' do
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+
+    assert_raises({{moduleName}}::Errors::OAuth2ServerError) do
+      manager.exchange('https://auth.example.com/token', { 'grant_type' => 'authorization_code', 'code' => 'bad' })
+    end
+    _(manager.refresh_token).must_equal 'ref_one'
+    _(manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })).must_equal 'tok_one'
+  end
+
   it 'returns cached token when not expired' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }

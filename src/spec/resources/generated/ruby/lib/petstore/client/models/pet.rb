@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -33,7 +33,8 @@ module Petstore::Client
         thumbnail_ref: 'thumbnailRef',
         link_template: 'linkTemplate',
         owner_email: 'ownerEmail',
-        weight_kg: 'weightKg'
+        weight_kg: 'weightKg',
+        nickname: 'nickname'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -52,7 +53,8 @@ module Petstore::Client
         thumbnail_ref: 'String',
         link_template: 'String',
         owner_email: 'String',
-        weight_kg: 'Float'
+        weight_kg: 'Float',
+        nickname: 'String'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -69,7 +71,11 @@ module Petstore::Client
       # which openapi-generator calls "inner", registering a phantom +inner:+
       # key instead of the real map/array attribute.
       # @type var openapi_formats: Hash[Symbol, String]
-      openapi_formats = {}
+      openapi_formats = {
+
+        homepage_url: 'uri'
+
+      }
       OPENAPI_FORMATS = openapi_formats.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
@@ -88,7 +94,7 @@ module Petstore::Client
       # @deprecated This property is deprecated.
       attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
       attribute :location, Types::Any.optional.meta(omittable: true)
-      # Absolute URL to the pet's public profile page
+      # Absolute URL to the pet\'s public profile page
       # @example https://example.com/pets/fido
       attribute :homepage_url, Types::Any.optional.meta(omittable: true)
       # Optionally-relative thumbnail location
@@ -97,12 +103,14 @@ module Petstore::Client
       # RFC 6570 template for related-resource links
       # @example https://example.com/pets/{id}/photos{?size}
       attribute :link_template, Types::Any.optional.meta(omittable: true)
-      # Contact email for the pet's owner
+      # Contact email for the pet\'s owner
       # @example owner@example.com
       attribute :owner_email, Types::Any.optional.meta(omittable: true)
       # Pet weight in kilograms (decimal precision)
       # @example 12.345
       attribute :weight_kg, Types::Any.optional.meta(omittable: true)
+      # @example rex
+      attribute :nickname, Types::Any.optional.meta(omittable: true)
     end
   end
 end

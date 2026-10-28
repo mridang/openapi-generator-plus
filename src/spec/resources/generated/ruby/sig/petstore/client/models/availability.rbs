@@ -3,6 +3,10 @@ module Petstore::Client::Models
     AVAILABLE: String
     SOLD: String
     ON_HOLD: String
+    OCLOCK: String
+    A_B: String
+    EQ: String
+    X: String
     VALUES: Array[String]
     def self.all_vars: () -> Array[String]
     def self.validate!: (String?) -> String?

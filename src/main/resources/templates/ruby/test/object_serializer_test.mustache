@@ -129,6 +129,72 @@ describe {{moduleName}}::ObjectSerializer do
       # digits, so equal rational milliseconds proves a lossless round-trip.
       _((round_tripped.taken_at.to_r * 1000).round).must_equal((original.to_r * 1000).round)
     end
+
+    ['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000', '2024-01-01'].each do |text|
+      it "rejects the non-RFC 3339 date-time #{text.inspect}" do
+        _ { {{moduleName}}::ObjectSerializer.deserialize(JSON.generate(text), 'Time') }
+          .must_raise({{moduleName}}::Errors::SerializationError)
+      end
+    end
+
+    it 'rejects a bare epoch number as a date-time' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('1700000000', 'Time') }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'accepts an RFC 3339 date-time with Z or a numeric offset and any fraction' do
+      utc = {{moduleName}}::ObjectSerializer.deserialize('"2024-01-01T10:00:00Z"', 'Time')
+      _(utc).must_equal(Time.utc(2024, 1, 1, 10, 0, 0))
+      offset = {{moduleName}}::ObjectSerializer.deserialize('"2024-01-01T10:00:00.123456789+05:30"', 'Time')
+      _(offset.utc_offset).must_equal(19_800)
+      _(offset.nsec).must_equal(123_456_789)
+    end
+  end
+
+  describe '.encode_base64_param' do
+    it 'encodes format: byte parameter bytes as padded standard base64' do
+      _({{moduleName}}::ObjectSerializer.encode_base64_param('hi')).must_equal('aGk=')
+      _({{moduleName}}::ObjectSerializer.encode_base64_param("\xFB\xFF".b)).must_equal('+/8=')
+      _({{moduleName}}::ObjectSerializer.encode_base64_param(nil)).must_be_nil
+    end
+  end
+
+  describe 'null model elements in containers' do
+    it 'rejects a null element in an array of models' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('[null,{"name":"a","photoUrls":[]}]', 'Array<Pet>') }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'rejects a null value in a map of models' do
+      _ { {{moduleName}}::ObjectSerializer.deserialize('{"a":null,"b":{"name":"a","photoUrls":[]}}', 'Hash<String, Pet>') }
+        .must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
+    it 'keeps a null element in an array of strings' do
+      _({{moduleName}}::ObjectSerializer.deserialize('[null,"a"]', 'Array<String>')).must_equal([nil, 'a'])
+    end
+  end
+
+  describe 'format: uri validation' do
+    def decode_uri(text)
+      json = JSON.generate({ 'name' => 'n', 'photoUrls' => [], 'homepageUrl' => text, 'thumbnailRef' => '/assets/thumb.png' })
+      {{moduleName}}::ObjectSerializer.deserialize(json, 'Pet')
+    end
+
+    ['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/1'].each do |text|
+      it "accepts and re-emits the absolute URI #{text.inspect}" do
+        decoded = decode_uri(text)
+        _(decoded.homepage_url).must_equal(text)
+        _(decoded.thumbnail_ref).must_equal('/assets/thumb.png')
+        _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(decoded))['homepageUrl']).must_equal(text)
+      end
+    end
+
+    ['/relative', 'not a uri', ''].each do |text|
+      it "rejects #{text.inspect} as a format: uri value" do
+        _ { decode_uri(text) }.must_raise({{moduleName}}::Errors::SerializationError)
+      end
+    end
   end
 
   describe 'NonAsciiSerialization' do

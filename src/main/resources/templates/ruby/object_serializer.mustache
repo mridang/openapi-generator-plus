@@ -20,11 +20,15 @@ module {{moduleName}}
   class ObjectSerializer # :nodoc:
     # %3N emits exactly three fractional-second digits (milliseconds), so a
     # date-time carrying sub-second precision round-trips losslessly: the
-    # decode path (Time.parse) already accepts a fraction, and emitting one
+    # decode path (Time.iso8601) already accepts a fraction, and emitting one
     # keeps the encode side symmetric. Milliseconds are the cross-SDK common
     # denominator every native date-time type supports. Whole-second values
     # render with a ".000" fraction, which RFC 3339 / ISO 8601 parsers accept.
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S.%3N%:z'
+
+    # RFC 3339 date-time: full date, 'T', full time with an optional fraction
+    # of any length, then a mandatory 'Z' or +-HH:MM offset.
+    RFC3339_DATETIME_REGEX = /\A\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})\z/
 
     # Maximum allowed JSON nesting depth. Ruby's JSON.parse recurses through
     # the interpreter stack, so a malicious 100k-deep `{"a":{"a":...}}`
@@ -196,6 +200,15 @@ module {{moduleName}}
       end
     end
 
+    # Encode a `format: byte` parameter value as standard RFC 4648 base64
+    # with padding. A Ruby String cannot tell bytes from text, so the
+    # generated operation calls this for every byte-format parameter.
+    def self.encode_base64_param(value)
+      return nil if value.nil?
+
+      Base64.strict_encode64(value.to_s)
+    end
+
     # Convert a value to a string suitable for use as a URL path parameter.
     def self.to_path_value(value)
       stringify(value)
@@ -337,7 +350,9 @@ module {{moduleName}}
               extras = object.additional_properties
               if extras.is_a?(Hash)
                 extras.each do |json_key, value|
-                  next if value.nil?
+                  # A declared property is authoritative: an extra under the
+                  # same wire name is dropped, so no key is ever written twice.
+                  next if value.nil? || hash.key?(json_key.to_s)
 
                   hash[json_key] = sanitize_for_serialization(value, visited)
                 end
@@ -355,6 +370,30 @@ module {{moduleName}}
           object.to_s
         end
       end
+    end
+
+    # Convert one element of an array, set or map. A null element of a
+    # container of models is rejected: JSON Schema null is not an object,
+    # and Ruby cannot see whether the items schema was nullable.
+    def self.convert_element(item, sub_type)
+      raise Errors::SerializationError, "Null element in a container of #{sub_type}" if item.nil? && model_type?(sub_type)
+
+      convert_to_type(item, sub_type)
+    end
+
+    # Whether +type_name+ names a generated model (object or union) rather
+    # than a primitive, an enum or a nested container.
+    def self.model_type?(type_name)
+      return false unless type_name.match?(/\A[A-Z]\w*\z/)
+
+      klass = begin
+        ::{{moduleName}}::Models.const_get(type_name)
+      rescue NameError
+        nil
+      end
+      return false unless klass.is_a?(Module)
+
+      klass.const_defined?(:OPENAPI_TYPES) || klass.respond_to?(:openapi_one_of) || klass.respond_to?(:openapi_any_of)
     end
 
     def self.convert_to_type(data, return_type)
@@ -384,7 +423,12 @@ module {{moduleName}}
 
         data
       when 'Time'
-        Time.parse(data.to_s)
+        # RFC 3339 only: an offset is required, so no path ever falls back to
+        # the host zone or today's date (Time.parse accepted '10:00').
+        text = data.to_s
+        raise ArgumentError, "Invalid RFC 3339 date-time: #{text.inspect}" unless text.match?(RFC3339_DATETIME_REGEX)
+
+        Time.iso8601(text)
       when 'Date'
         Date.parse(data.to_s)
       when 'Tod::TimeOfDay'
@@ -414,10 +458,10 @@ module {{moduleName}}
         decode_byte(data)
       when /\AArray<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
-        data.map { |item| convert_to_type(item, sub_type) }
+        data.map { |item| convert_element(item, sub_type) }
       when /\ASet<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
-        Set.new(data.map { |item| convert_to_type(item, sub_type) })
+        Set.new(data.map { |item| convert_element(item, sub_type) })
       when /\AHash<String,\s*(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
         # @type var converted: Hash[untyped, untyped]
@@ -429,7 +473,7 @@ module {{moduleName}}
           # keys, including when it is nested inside another container
           # (e.g. Array<Hash<String, Category>>) where the leaves must be
           # reachable via the same String key the wire used.
-          hash[key.to_s] = convert_to_type(value, sub_type)
+          hash[key.to_s] = convert_element(value, sub_type)
         end
       else
         klass = begin
@@ -535,6 +579,8 @@ module {{moduleName}}
         decode_byte(value)
       when 'uuid'
         validate_uuid(value)
+      when 'uri'
+        validate_uri(value)
       when 'byte[]'
         raise Errors::SerializationError, "Expected Array for format: byte[], got #{value.class}" unless value.is_a?(Array)
 
@@ -569,6 +615,20 @@ module {{moduleName}}
     def self.validate_uuid(value)
       unless value.is_a?(String) && UUID_REGEX.match?(value)
         raise Errors::SerializationError, "Invalid UUID for format: uuid: #{value.inspect}"
+      end
+
+      value
+    end
+
+    # An absolute RFC 3986 URI: a scheme, ':' and no whitespace or control
+    # characters. Any scheme is valid (http, ftp, mailto, urn); a relative
+    # reference is not.
+    URI_REGEX = /\A[A-Za-z][A-Za-z0-9+.-]*:[^\s\x00-\x1F\x7F]*\z/
+
+    # Validate a `format: uri` wire value and return it unchanged.
+    def self.validate_uri(value)
+      unless value.is_a?(String) && URI_REGEX.match?(value)
+        raise Errors::SerializationError, "Invalid URI for format: uri: #{value.inspect}"
       end
 
       value

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -30,7 +30,15 @@ module Petstore::Client
         _class: 'class',
         _return: 'return',
         retry_after: 'retryAfter',
-        expires_at: 'expiresAt'
+        expires_at: 'expiresAt',
+        _2fa: '2fa',
+        separator: 'separator',
+        null: 'null',
+        _true: 'true',
+        _false: 'false',
+        last_error: 'lastError',
+        outcome: 'outcome',
+        cutoff: 'cutoff'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -47,7 +55,15 @@ module Petstore::Client
         _class: 'String',
         _return: 'String',
         retry_after: 'ISO8601::Duration',
-        expires_at: 'Time'
+        expires_at: 'Time',
+        _2fa: 'Boolean',
+        separator: 'Separator',
+        null: 'String',
+        _true: 'Boolean',
+        _false: 'Boolean',
+        last_error: 'Error',
+        outcome: 'Result',
+        cutoff: 'Tod::TimeOfDay'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -74,7 +90,7 @@ module Petstore::Client
 
       attribute :free_form_any, Types::Any.optional.meta(omittable: true)
       attribute :favorite_color, Types::Any.optional.meta(omittable: true)
-      # Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
+      # Required permission is "user.grant.write" for <admin> & owner roles (don\'t skip it)
       attribute :permissions_note, Types::Any.optional.meta(omittable: true)
       attribute :_and, Types::Any.optional.meta(omittable: true)
       attribute :_or, Types::Any.optional.meta(omittable: true)
@@ -85,6 +101,14 @@ module Petstore::Client
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant
       attribute :expires_at, Types::Any.optional.meta(omittable: true)
+      attribute :_2fa, Types::Any.optional.meta(omittable: true)
+      attribute :separator, Types::Any.optional.meta(omittable: true)
+      attribute :null, Types::Any.optional.meta(omittable: true)
+      attribute :_true, Types::Any.optional.meta(omittable: true)
+      attribute :_false, Types::Any.optional.meta(omittable: true)
+      attribute :last_error, Types::Any.optional.meta(omittable: true)
+      attribute :outcome, Types::Any.optional.meta(omittable: true)
+      attribute :cutoff, Types::Any.optional.meta(omittable: true)
     end
   end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -15,14 +15,16 @@ module Petstore::Client
       # @param tags [Array<String>]
       # @param note [String]
       # @param renewal_date [Date]
+      # @param reminder [Time]
       class SetPetPreferencesOptions
-        attr_reader :nickname, :tags, :note, :renewal_date
+        attr_reader :nickname, :tags, :note, :renewal_date, :reminder
 
-        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil)
+        def initialize(nickname:, tags: nil, note: nil, renewal_date: nil, reminder: nil)
           @nickname = nickname
           @tags = tags
           @note = note
           @renewal_date = renewal_date
+          @reminder = reminder
           freeze
         end
       end

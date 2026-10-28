@@ -231,6 +231,26 @@ describe {{moduleName}}::DefaultApiClient do
       json = JSON.parse(response.body)
       _(json['headers']['user-agent']).must_equal('MyApp/1.0')
     end
+
+    it 'keeps a lower-case caller User-Agent and X-Request-ID instead of injecting' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .user_agent('SdkDefault/9.9')
+        .inject_request_id(true)
+        .default_header('user-agent', 'MyApp')
+        .default_header('x-request-id', 'abc')
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['headers']['user-agent']).must_equal('MyApp')
+      _(json['headers']['x-request-id']).must_equal('abc')
+      _(response.body).wont_include('SdkDefault')
+    end
   end
 
   describe 'X-Request-ID injection' do

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -60,9 +60,10 @@ module Petstore::Client
 
         # @return [Hash{String => String}]
         def auth_headers
-          extra_headers = basic_auth_headers
-          params, url = token_request
-          token = @token_manager.get_access_token(url, params, extra_headers)
+          # Always hand the manager the password grant: it refreshes against
+          # the refresh URL with the same client authentication (RFC 6749 §6)
+          # and re-runs this grant when the refresh is rejected.
+          token = @token_manager.get_access_token(@token_url, password_grant_params, basic_auth_headers, refresh_url: @refresh_url)
           { 'Authorization' => "Bearer #{token}" }
         end
 
@@ -91,17 +92,6 @@ module Petstore::Client
           encoded_secret = CGI.escape(@client_secret).gsub('%7E', '~')
           credentials = Base64.strict_encode64("#{encoded_id}:#{encoded_secret}")
           { 'Authorization' => "Basic #{credentials}" }
-        end
-
-        # Returns [params, url] for the token request, choosing between the
-        # refresh_token grant and the password grant.
-        def token_request
-          refresh = @token_manager.refresh_token
-          refresh ? [refresh_grant_params(refresh), @refresh_url] : [password_grant_params, @token_url]
-        end
-
-        def refresh_grant_params(refresh)
-          { 'grant_type' => 'refresh_token', 'refresh_token' => refresh }
         end
 
         def password_grant_params

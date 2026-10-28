@@ -7,6 +7,7 @@ module Petstore::Client::Models
     attr_reader id: Integer?
     attr_reader pet_id: Integer?
     attr_reader quantity: Integer?
+    attr_reader tracking_id: String?
     attr_reader ship_date: Time?
     attr_reader status: String?
     attr_reader complete: bool?

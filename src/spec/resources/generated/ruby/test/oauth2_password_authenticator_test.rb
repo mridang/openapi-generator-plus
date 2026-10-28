@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -240,6 +240,63 @@ describe Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator do
     auth.auth_headers
     auth.auth_headers
     _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/refresh']
+  end
+
+  it 'authenticates the client in the body of the refresh grant' do
+    client = FakePasswordClient.new([
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token',
+      'user@example.com', 'secret_password', %w[read], refresh_url: 'https://auth.example.com/refresh'
+    )
+    auth.api_client = client
+
+    auth.auth_headers
+    auth.auth_headers
+    _(client.last_url).must_equal 'https://auth.example.com/refresh'
+    _(client.last_body).must_include 'grant_type=refresh_token'
+    _(client.last_body).must_include 'client_id=my_client_id'
+    _(client.last_body).must_include 'client_secret=my_client_secret'
+  end
+
+  it 'sends the Basic header and no body credentials on the refresh grant in BASIC mode' do
+    client = FakePasswordClient.new([
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token',
+      'user@example.com', 'secret_password', %w[read],
+      client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC
+    )
+    auth.api_client = client
+
+    auth.auth_headers
+    auth.auth_headers
+    _(client.last_body).must_include 'grant_type=refresh_token'
+    _(client.last_body).wont_include 'client_id'
+    _(client.last_headers['Authorization']).must_match(/\ABasic /)
+  end
+
+  it 're-runs the password grant when the refresh is rejected' do
+    client = FakePasswordClient.new([
+                                      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => 1 } },
+                                      { status: 400, body: { 'error' => 'invalid_grant' } },
+                                      { status: 200, body: { 'access_token' => 'pw_tok_again', 'expires_in' => 3600 } }
+                                    ])
+    auth = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token',
+      'user@example.com', 'secret_password', %w[read], refresh_url: 'https://auth.example.com/refresh'
+    )
+    auth.api_client = client
+
+    auth.auth_headers
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer pw_tok_again'
+    _(client.urls).must_equal ['https://auth.example.com/token', 'https://auth.example.com/refresh', 'https://auth.example.com/token']
+    _(client.last_body).must_include 'grant_type=password'
   end
 
   it 'sends the refresh grant to the token URL when no refresh URL is declared' do

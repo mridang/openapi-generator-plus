@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -64,6 +64,12 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url).must_include 'state=csrf_state_123'
   end
 
+  it 'omits an empty state from the authorization URL' do
+    url = auth.build_authorization_url('')
+    _(url).wont_include 'state'
+    _(url).must_equal auth.build_authorization_url
+  end
+
   it 'exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
                                       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
@@ -88,6 +94,74 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer tok_refreshed'
     _(client.last_body).must_include 'refresh_token=ref_xyz'
+  end
+
+  it 'authenticates the client on the refresh grant' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+
+    auth.exchange_code('auth_code_123')
+    auth.auth_headers
+    _(client.last_body).must_include 'grant_type=refresh_token'
+    _(client.last_body).must_include 'client_id=my_client_id'
+    _(client.last_body).must_include 'client_secret=my_client_secret'
+  end
+
+  it 'surfaces a rejected refresh after exactly one refresh POST' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+                                      { status: 400, body: { 'error' => 'invalid_grant' } }
+                                    ])
+    auth.api_client = client
+
+    auth.exchange_code('auth_code_123')
+    err = assert_raises(Petstore::Client::Errors::OAuth2ServerError) { auth.auth_headers }
+    _(err.code).must_equal 'invalid_grant'
+    _(client.urls.length).must_equal 2
+  end
+
+  it 'second exchange_code sends the new code and replaces the session' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+
+    auth.exchange_code('a')
+    auth.exchange_code('b')
+    _(client.urls.length).must_equal 2
+    _(client.last_body).must_include 'grant_type=authorization_code'
+    _(client.last_body).must_include 'code=b'
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_two'
+  end
+
+  it 'second exchange without a refresh_token drops the old refresh token' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+    manager = auth.instance_variable_get(:@token_manager)
+
+    auth.exchange_code('a')
+    _(manager.refresh_token).must_equal 'ref_one'
+    auth.exchange_code('b')
+    _(manager.refresh_token).must_be_nil
+  end
+
+  it 'a failed exchange keeps the previous session' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+                                      { status: 400, body: { 'error' => 'invalid_grant' } }
+                                    ])
+    auth.api_client = client
+
+    auth.exchange_code('a')
+    assert_raises(Petstore::Client::Errors::OAuth2ServerError) { auth.exchange_code('bad') }
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_one'
   end
 
   it 'throws before exchange code called' do

@@ -2,6 +2,8 @@ module Petstore::Client
   module Api
     class StoreApi < BaseApi
       def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator) -> void
+      def create_account: (Models::Account account) -> Models::Account
+      def create_account_with_http_info: (Models::Account account) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id) -> void
       def delete_order_with_http_info: (Integer order_id) -> ::Petstore::Client::ApiResult[nil]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
@@ -18,6 +20,8 @@ module Petstore::Client
       def get_matrix_with_http_info: () -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
       def get_order_by_id: (Integer order_id) -> Models::Order
       def get_order_by_id_with_http_info: (Integer order_id) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_order_by_tracking_id: (String tracking_id) -> Models::Order
+      def get_order_by_tracking_id_with_http_info: (String tracking_id) -> ::Petstore::Client::ApiResult[Models::Order]
       def get_stock_item: (?Options::GetStockItemOptions? options) -> Models::StockItem
       def get_stock_item_with_http_info: (?Options::GetStockItemOptions? options) -> ::Petstore::Client::ApiResult[Models::StockItem]
       def get_swatch: () -> Models::Swatch
@@ -30,6 +34,8 @@ module Petstore::Client
       def get_tree_with_http_info: () -> ::Petstore::Client::ApiResult[Models::TreeNode]
       def place_order: (Models::Order? order) -> Models::Order
       def place_order_with_http_info: (Models::Order? order) -> ::Petstore::Client::ApiResult[Models::Order]
+      def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
+      def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
     end
   end
 end

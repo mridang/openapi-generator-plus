@@ -7,5 +7,11 @@ module Petstore::Client::Models
     attr_reader retries: Integer?
     attr_reader mode: String?
     attr_reader label: String?
+    attr_reader greeting: String?
+    attr_reader swatch: Swatch?
+    attr_reader ratio: Float?
+    attr_reader scale: Float?
+    attr_reader weight: Float?
+    attr_reader ceiling: Integer?
   end
 end

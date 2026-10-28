@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -22,9 +22,13 @@ module Petstore::Client
       AVAILABLE = 'Available'
       SOLD = 'Sold'
       ON_HOLD = 'on-hold'
+      OCLOCK = 'o\'clock'
+      A_B = 'a\\b'
+      EQ = '$eq'
+      X = '#{x}'
 
       # Frozen set of all allowed values, used for validation.
-      VALUES = [AVAILABLE, SOLD, ON_HOLD].freeze
+      VALUES = [AVAILABLE, SOLD, ON_HOLD, OCLOCK, A_B, EQ, X].freeze
 
       def self.all_vars
         VALUES

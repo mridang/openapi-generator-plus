@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -15,14 +15,26 @@ module Petstore::Client
       # @param sizes [Array<String>]
       # @param filter [String]
       # @param revision [String] Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+      # @param criteria [PetCriteria] Object-valued query parameter, form style exploded (the OAS default for query)
+      # @param criteria_csv [PetCriteria]
+      # @param criteria_deep [PetCriteria]
+      # @param fingerprint [String] Opaque bytes, base64 on the wire (OAS format byte)
+      # @param x_criteria [PetCriteria]
+      # @param x_fingerprint [String]
       class GetPetTagOptions
-        attr_reader :colors, :sizes, :filter, :revision
+        attr_reader :colors, :sizes, :filter, :revision, :criteria, :criteria_csv, :criteria_deep, :fingerprint, :x_criteria, :x_fingerprint
 
-        def initialize(colors: nil, sizes: nil, filter: nil, revision: nil)
+        def initialize(colors: nil, sizes: nil, filter: nil, revision: nil, criteria: nil, criteria_csv: nil, criteria_deep: nil, fingerprint: nil, x_criteria: nil, x_fingerprint: nil)
           @colors = colors
           @sizes = sizes
           @filter = filter
           @revision = revision
+          @criteria = criteria
+          @criteria_csv = criteria_csv
+          @criteria_deep = criteria_deep
+          @fingerprint = fingerprint
+          @x_criteria = x_criteria
+          @x_fingerprint = x_fingerprint
           freeze
         end
       end
