@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -22,6 +22,7 @@ use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetStockItemOptions;
+use PetstoreClient\Api\Options\SearchStoreOptions;
 use PetstoreClient\Models\Swatch;
 
 /**
@@ -30,6 +31,68 @@ use PetstoreClient\Models\Swatch;
  */
 class StoreApi extends BaseApi
 {
+    /**
+     * Create an account
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function createAccount(\PetstoreClient\Models\Account $account): \PetstoreClient\Models\Account
+    {
+        $apiResult = $this->createAccountWithHttpInfo($account);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for createAccount but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Account $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Account>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function createAccountWithHttpInfo(\PetstoreClient\Models\Account $account): ApiResult
+    {
+        $path = '/store/account';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = $account;
+
+        /** @var ApiResult<\PetstoreClient\Models\Account> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\Account::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys
+        );
+        return $result;
+    }
+
     /**
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
@@ -157,7 +220,7 @@ class StoreApi extends BaseApi
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options !== null && $options->querySwatch !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->querySwatch instanceof \PetstoreClient\Models\Swatch) {
             $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
                 'querySwatch',
                 $options->querySwatch,
@@ -169,7 +232,7 @@ class StoreApi extends BaseApi
             );
         }
         $headerParams = [];
-        if ($options !== null && $options->preferredSwatch !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->preferredSwatch instanceof \PetstoreClient\Models\Swatch) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'Preferred-Swatch',
@@ -599,6 +662,87 @@ class StoreApi extends BaseApi
     }
 
     /**
+     * Find purchase order by tracking id
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId): \PetstoreClient\Models\Order
+    {
+        $apiResult = $this->getOrderByTrackingIdWithHttpInfo($trackingId);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getOrderByTrackingId but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getOrderByTrackingIdWithHttpInfo(\Symfony\Component\Uid\Uuid $trackingId): ApiResult
+    {
+        $path = '/store/order/by-tracking/{trackingId}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'trackingId',
+            $trackingId,
+            'path',
+            \Symfony\Component\Uid\Uuid::class,
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'trackingId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys
+        );
+        return $result;
+    }
+
+    /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -640,7 +784,7 @@ class StoreApi extends BaseApi
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options !== null && $options->asOf !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetStockItemOptions && $options->asOf instanceof \DateTime) {
             $queryParams['asOf'] = ValueSerializer::serializeStyled(
                 'asOf',
                 $options->asOf,
@@ -979,6 +1123,109 @@ class StoreApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
+            $allowReservedKeys
+        );
+        return $result;
+    }
+
+    /**
+     * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+     * @param SearchStoreOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \Ds\Vector<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function searchStore(?SearchStoreOptions $options = null): \Ds\Vector
+    {
+        $apiResult = $this->searchStoreWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for searchStore but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \Ds\Vector<\PetstoreClient\Models\Order> $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param SearchStoreOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Order>>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function searchStoreWithHttpInfo(?SearchStoreOptions $options = null): ApiResult
+    {
+        $path = '/store/search';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->q instanceof \PetstoreClient\Models\PhotoMetadata) {
+            $queryParams['q'] = \PetstoreClient\ObjectSerializer::serialize($options->q);
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->labels !== null) {
+            $queryParams['labels'] = ValueSerializer::serializeStyled(
+                'labels',
+                $options->labels,
+                'query',
+                \Ds\Set::class,
+                'multi',
+                'form',
+                true,
+            );
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->at instanceof \DateTimeImmutable) {
+            $queryParams['at'] = ValueSerializer::serializeStyled(
+                'at',
+                $options->at,
+                'query',
+                '\DateTimeImmutable',
+                null,
+                'form',
+                true,
+            );
+        }
+        $headerParams = [];
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->xFilter !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled(
+                'X-Filter',
+                $options->xFilter,
+                'header',
+                \Ds\Map::class,
+                null,
+                '',
+                false,
+            );
+            $headerParams['X-Filter'] = $headerValue;
+        }
+        $requestBody = null;
+
+        /** @var ApiResult<\Ds\Vector<\PetstoreClient\Models\Order>> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\Ds\Vector<Order>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
             $allowReservedKeys
         );
         return $result;

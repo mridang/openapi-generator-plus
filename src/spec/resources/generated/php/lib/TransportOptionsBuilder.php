@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -48,7 +48,7 @@ final class TransportOptionsBuilder
     private ?int $maxRedirects = null;
 
     /** @var string|null Custom User-Agent header value. */
-    private ?string $userAgent = 'PetstoreClient/1.0.0 (php)';
+    private ?string $userAgent = 'petstoreclient/1.0.0 (php)';
 
     /** @var array<string, string> Transport-level default headers. */
     private array $defaultHeaders = [];

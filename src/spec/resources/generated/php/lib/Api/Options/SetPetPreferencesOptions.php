@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -26,6 +26,7 @@ class SetPetPreferencesOptions
         public readonly ?array $tags = null,
         public readonly ?string $note = null,
         public readonly ?\DateTime $renewalDate = null,
+        public readonly ?\DateTime $reminder = null,
     ) {
     }
 }

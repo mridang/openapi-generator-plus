@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -802,7 +802,7 @@ class ObjectSerializer
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class, JsonEncoder::FORMAT);
             if (is_array($data)) {
-                return self::captureAdditionalProperties($result, $data);
+                $result = self::captureAdditionalProperties($result, $data);
             }
             return $result;
         } catch (\Throwable $e) {
@@ -841,7 +841,7 @@ class ObjectSerializer
         }
         $reflection = new \ReflectionClass($class);
         $constructor = $reflection->getConstructor();
-        if ($constructor === null) {
+        if (!$constructor instanceof \ReflectionMethod) {
             return;
         }
         foreach ($constructor->getParameters() as $param) {

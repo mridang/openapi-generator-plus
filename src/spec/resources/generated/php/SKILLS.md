@@ -232,9 +232,9 @@ Each API group is exposed as a typed property on the client (e.g., `$client->pet
 Models are generated as PHP classes under the `PetstoreClient\Models` namespace.
 
 ```php
-use PetstoreClient\Models\ApiResponse;
+use PetstoreClient\Models\Account;
 
-$model = new ApiResponse();
+$model = new Account();
 ```
 
 ## Binary / File Uploads

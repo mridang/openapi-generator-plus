@@ -45,6 +45,15 @@ test('path date only styled simple emits yyyy mm dd', function (): void {
     expect(ValueSerializer::serializeStyled('d', $dt, 'path', '\\DateTime|date', null, 'simple', false))->toBe('2024-01-15');
 });
 
+test('path styled simple rejects a dot segment', function (string $segment): void {
+    expect(fn () => ValueSerializer::serializeStyled('id', $segment, 'path', 'string', null, 'simple', false))
+        ->toThrow(\InvalidArgumentException::class, "Path parameter 'id' must not be '.' or '..'");
+})->with(['.', '..']);
+
+test('path styled simple keeps dots inside a value', function (): void {
+    expect(ValueSerializer::serializeStyled('id', 'a..b', 'path', 'string', null, 'simple', false))->toBe('a..b');
+});
+
 test('path date time without date marker keeps full iso', function (): void {
     $dt = new \DateTime('2024-01-15T10:30:45+00:00');
     $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');

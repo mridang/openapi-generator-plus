@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -214,6 +214,23 @@ test('builds authorization url with state', function (): void {
     $url = $authenticator->buildAuthorizationUrl('csrf-state-123');
 
     expect($url)->toContain('state=csrf-state-123');
+});
+
+test('empty state is omitted', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    expect($url)->toBe($authenticator->buildAuthorizationUrl());
 });
 
 test('auth headers before exchange returns recoverable error', function (): void {

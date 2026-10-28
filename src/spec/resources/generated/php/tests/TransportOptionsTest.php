@@ -46,6 +46,15 @@ test('user agent defaults to non empty string', function (): void {
     expect($opts->userAgent)->not->toBeEmpty();
 });
 
+test('user agent defaults to the composer package name', function (): void {
+    $raw = file_get_contents(__DIR__ . '/../composer.json');
+    /** @var array{name: string, version: string} $composer */
+    $composer = json_decode((string) $raw, true);
+    $package = substr($composer['name'], (int) strpos($composer['name'], '/') + 1);
+    $opts = TransportOptions::builder()->build();
+    expect($opts->userAgent)->toBe($package . '/' . $composer['version'] . ' (php)');
+});
+
 test('default headers defaults to empty', function (): void {
     $opts = TransportOptions::builder()->build();
     expect($opts->defaultHeaders)->toBe([]);

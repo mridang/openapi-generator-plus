@@ -205,6 +205,23 @@ test('builds authorization url with state', function (): void {
     expect($url)->toContain('state=csrf-state-123');
 });
 
+test('empty state is omitted', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+});
+
 test('auth headers before exchange returns recoverable error', function (): void {
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',

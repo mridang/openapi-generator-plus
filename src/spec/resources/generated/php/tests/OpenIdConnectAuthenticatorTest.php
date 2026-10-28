@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -54,6 +54,25 @@ test('builds authorization url from discovery', function (): void {
     expect($url)->toContain('client_id=my-client-id');
     expect($url)->toContain('state=state-123');
     expect($url)->toContain('scope=openid%20profile');
+});
+
+test('empty state is omitted', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    expect($url)->toBe($authenticator->buildAuthorizationUrl());
 });
 
 test('obtains token after code exchange', function (): void {

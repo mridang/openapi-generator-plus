@@ -168,6 +168,25 @@ test('injects custom user agent header', function (): void {
     expect($json['headers']['user-agent'])->toBe('MyApp/1.0');
 });
 
+test('caller headers in any casing win over injected user agent and request id', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $transport = TransportOptions::builder()
+        ->injectRequestId(true)
+        ->defaultHeaders(['user-agent' => 'MyApp', 'x-request-id' => 'abc'])
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    /** @var array{headers: array<string, string>} $json */
+    $json = json_decode($response->body, true);
+    expect($json['headers']['user-agent'])->toBe('MyApp');
+    expect($json['headers']['x-request-id'])->toBe('abc');
+    expect($response->body)->not->toContain('(php)');
+});
+
 // -- X-Request-ID injection --
 
 test('integration injects request id header', function (): void {

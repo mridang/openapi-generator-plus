@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -209,6 +209,17 @@ final class ValueSerializer
                 "Path parameter '$paramName' must not be empty"
             );
         }
+        if (
+            $location === 'path'
+            && (in_array($style, [null, '', 'simple'], true))
+            && ($value === '.' || $value === '..')
+        ) {
+            /* A dot segment would be collapsed by URL resolution and silently
+             * reroute the request to the parent resource. */
+            throw new \InvalidArgumentException(
+                "Path parameter '$paramName' must not be '.' or '..'"
+            );
+        }
 
         if ($style === null || $style === '') {
             return self::serialize($value, $location, $schemaType, $collectionFormat);
@@ -322,15 +333,21 @@ final class ValueSerializer
      * in a query string.
      *
      * @param string              $paramName the parameter name (e.g. 'filter')
-     * @param array<string,mixed>|null $value the associative array to serialize
+     * @param array<string,mixed>|object|null $value the associative array or model to serialize
      *
      * @return array<string,string> expanded keys to serialized values
      */
-    public static function serializeDeepObject(string $paramName, ?array $value): array
+    public static function serializeDeepObject(string $paramName, array|object|null $value): array
     {
         $result = [];
         if ($value === null) {
             return $result;
+        }
+        if (is_object($value)) {
+            /* A model is flattened through the object serializer so its keys
+             * are the wire names and unset fields are left out. */
+            $decoded = json_decode(ObjectSerializer::serialize($value), true);
+            $value = is_array($decoded) ? $decoded : [];
         }
 
         foreach ($value as $key => $val) {

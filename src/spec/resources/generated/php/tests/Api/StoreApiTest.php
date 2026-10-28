@@ -222,6 +222,31 @@ function newCapturingStoreApi(): array
     return [new StoreApi(apiClient: $client, config: $config), $captured];
 }
 
+test('content json query param is the object serializer output', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    try {
+        $api->searchStore(new \PetstoreClient\Api\Options\SearchStoreOptions(
+            q: new \PetstoreClient\Models\PhotoMetadata(caption: "a/b<\u{00E9}"),
+        ));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D');
+});
+
+test('content json query param that cannot be serialized sends no request', function (): void {
+    [$api, $captured] = newCapturingStoreApi();
+
+    expect(fn (): mixed => $api->searchStore(new \PetstoreClient\Api\Options\SearchStoreOptions(
+        q: new \PetstoreClient\Models\PhotoMetadata(
+            location: new \PetstoreClient\Models\PhotoMetadataLocation(lat: NAN),
+        ),
+    )))->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    expect($captured->url)->toBe('');
+});
+
 test('named enum path, query and header params travel as their wire values', function (): void {
     [$api, $captured] = newCapturingStoreApi();
 

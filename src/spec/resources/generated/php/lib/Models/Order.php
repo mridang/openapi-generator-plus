@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -29,6 +29,9 @@ class Order
     #[SerializedName('quantity')]
     public ?int $quantity = null;
 
+    #[SerializedName('trackingId')]
+    public ?\Symfony\Component\Uid\Uuid $trackingId = null;
+
     #[SerializedName('shipDate')]
     public ?\DateTime $shipDate = null;
 
@@ -48,6 +51,7 @@ class Order
         ?int $id = null,
         ?int $petId = null,
         ?int $quantity = null,
+        ?\Symfony\Component\Uid\Uuid $trackingId = null,
         ?\DateTime $shipDate = null,
         OrderStatusEnum $status = OrderStatusEnum::PLACED,
         ?bool $complete = null,
@@ -55,6 +59,7 @@ class Order
         $this->id = $id;
         $this->petId = $petId;
         $this->quantity = $quantity;
+        $this->trackingId = $trackingId;
         $this->shipDate = $shipDate;
         $this->complete = $complete;
         $this->status = $status;

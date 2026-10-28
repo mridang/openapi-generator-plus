@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -17,6 +17,9 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Defaults
 {
+    #[SerializedName('swatch')]
+    public ?\PetstoreClient\Models\Swatch $swatch = null;
+
     #[SerializedName('retries')]
     public int $retries = 3;
 
@@ -26,15 +29,42 @@ class Defaults
     #[SerializedName('label')]
     public ?string $label = 'untitled';
 
+    #[SerializedName('greeting')]
+    public string $greeting = "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b";
+
+    #[SerializedName('ratio')]
+    public float $ratio = 1.5;
+
+    #[SerializedName('scale')]
+    public float $scale = 0.25;
+
+    #[SerializedName('weight')]
+    public float $weight = 2;
+
+    #[SerializedName('ceiling')]
+    public int $ceiling = 9000000000;
+
     /**
      */
     public function __construct(
         int $retries = 3,
         DefaultsModeEnum $mode = DefaultsModeEnum::MEDIUM,
         ?string $label = 'untitled',
+        string $greeting = "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b",
+        ?\PetstoreClient\Models\Swatch $swatch = null,
+        float $ratio = 1.5,
+        float $scale = 0.25,
+        float $weight = 2,
+        int $ceiling = 9000000000,
     ) {
+        $this->swatch = $swatch;
         $this->retries = $retries;
         $this->mode = $mode;
         $this->label = $label;
+        $this->greeting = $greeting;
+        $this->ratio = $ratio;
+        $this->scale = $scale;
+        $this->weight = $weight;
+        $this->ceiling = $ceiling;
     }
 }

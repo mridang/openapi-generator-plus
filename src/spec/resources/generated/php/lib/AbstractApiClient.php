@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -141,17 +141,20 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
+        /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
+         * user-agent or x-request-id in any casing wins and is left as written. */
+        $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);
 
         if (
             $this->transportOptions->userAgent !== null
-            && !isset($mergedHeaders['User-Agent'])
+            && !isset($presentHeaders['user-agent'])
         ) {
             $mergedHeaders['User-Agent'] = $this->transportOptions->userAgent;
         }
 
         if (
             $this->transportOptions->injectRequestId
-            && !isset($mergedHeaders['X-Request-ID'])
+            && !isset($presentHeaders['x-request-id'])
         ) {
             $mergedHeaders['X-Request-ID'] = $this->generateUuid();
         }
@@ -554,7 +557,7 @@ abstract class AbstractApiClient implements ApiClient
         /* RFC 3986 section 5.2 reference resolution, so a query-only
          * reference keeps the base path and dot segments are removed. */
         $baseUri = \Uri\Rfc3986\Uri::parse($base);
-        if ($baseUri === null) {
+        if (!$baseUri instanceof \Uri\Rfc3986\Uri) {
             return null;
         }
         try {

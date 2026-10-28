@@ -1,13 +1,15 @@
 openapi: 3.1.0
 info:
   title: Swagger Petstore - OpenAPI 3.0
-  description: A simplified Pet Store API for integration testing.
+  description: "A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}."
   version: 1.0.0
 tags:
   - name: pet
-    description: Everything about your Pets
+    description: |
+      Everything about your Pets
+      (globs like /pets/* and /pets/**/ and an id of #{petId})
     externalDocs:
-      description: Find out more about pets
+      description: "Find out more about pets (it's */ here)\non two lines"
       url: https://example.com/docs/pets
   - name: store
     description: Access to Petstore orders
@@ -30,6 +32,18 @@ servers:
         enum:
           - v2
           - v3
+  # Third entry, appended so Server0/Server1 keep their indexes. Its text is
+  # deliberately hostile to every language's string-literal and comment syntax
+  # (quotes, backslashes, interpolation sigils, comment terminators, entities).
+  - url: https://{tenant}.example.com/api
+    description: "Bob's \"sandbox\" & co: $5 #{x} a*/b"
+    variables:
+      tenant:
+        default: "o'neil"
+        description: "Tenant's \"id\""
+        enum:
+          - "o'neil"
+          - "a&b"
 paths:
 
   # ─── Pet CRUD ────────────────────────────────────────────────────────────────
@@ -121,6 +135,15 @@ paths:
           schema:
             type: string
             format: date
+        # Digit-leading parameter name: the sanitised identifier needs a
+        # deterministic legal fallback in every SDK, while the wire name stays
+        # `2ndPage`.
+        - name: 2ndPage
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
       responses:
         '200':
           description: Successful operation
@@ -593,6 +616,13 @@ paths:
                 renewalDate:
                   type: string
                   format: date
+                # date-time form field. Must serialize with the canonical
+                # stringify form (2024-01-15T10:30:00.000+00:00), percent-encoded.
+                # (Deliberately not named after a camelCase instant: a single
+                # word keeps the fixture vocabulary check quiet.)
+                reminder:
+                  type: string
+                  format: date-time
       responses:
         '200':
           description: Successful operation
@@ -646,6 +676,18 @@ paths:
                     - microchip_record
                 notes:
                   type: string
+                # Typed scalar parts: each must be a plain text part (no part
+                # Content-Type) carrying the canonical stringify form.
+                isPrimary:
+                  type: boolean
+                pageCount:
+                  type: integer
+                  format: int64
+                takenAt:
+                  type: string
+                  format: date-time
+                swatch:
+                  $ref: '#/components/schemas/Swatch'
           # Case 2 — binary request, direct octet-stream
           application/octet-stream:
             schema:
@@ -694,6 +736,33 @@ paths:
                 format: binary
         '404':
           description: Document not found
+
+  # ─── Pet summary ─────────────────────────────────────────────────────────────
+  # Non-JSON success body on a NON-binary return: a text/plain String return.
+
+  /pet/{petId}/summary:
+    get:
+      tags:
+        - pet
+      summary: Get a plain-text summary of the pet
+      operationId: getPetSummary
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: hello
+        '404':
+          description: Pet not found
 
   # ─── Pet passport ─────────────────────────────────────────────────────────────
   # Case 14: byte response, nested in JSON object   (thumbnail property)
@@ -811,6 +880,43 @@ paths:
             such as v1.0/beta:rc1 keeping the slash and colon.
           schema:
             type: string
+        # Object-valued (model) parameters: converted to a wire-keyed map via
+        # the SDK serializer, then expanded per style/explode.
+        - name: criteria
+          in: query
+          description: Object-valued query parameter, form style exploded (the OAS default for query)
+          schema:
+            $ref: '#/components/schemas/PetCriteria'
+        - name: criteriaCsv
+          in: query
+          style: form
+          explode: false
+          schema:
+            $ref: '#/components/schemas/PetCriteria'
+        - name: criteriaDeep
+          in: query
+          style: deepObject
+          explode: true
+          schema:
+            $ref: '#/components/schemas/PetCriteria'
+        - name: X-Criteria
+          in: header
+          style: simple
+          explode: false
+          schema:
+            $ref: '#/components/schemas/PetCriteria'
+        # format: byte parameters: base64 (standard alphabet) on the wire.
+        - name: fingerprint
+          in: query
+          description: Opaque bytes, base64 on the wire (OAS format byte)
+          schema:
+            type: string
+            format: byte
+        - name: X-Fingerprint
+          in: header
+          schema:
+            type: string
+            format: byte
       responses:
         '200':
           description: OK
@@ -833,6 +939,14 @@ paths:
             type: string
         - name: category
           in: query
+          required: true
+          schema:
+            type: string
+        # Required HEADER whose name differs from its caller-facing identifier
+        # (xCorrelationId / x_correlation_id ...): the missing-parameter message
+        # names the identifier. Not X-Request-Id, which the transport injects.
+        - name: X-Correlation-Id
+          in: header
           required: true
           schema:
             type: string
@@ -921,6 +1035,24 @@ paths:
                 - us
                 - eu
                 - ap
+        # Third variant: reuses the variable name `region` with a DIFFERENT
+        # enum (one type per variable per operation) and adds a second
+        # variable whose values need escaping in a string literal.
+        - url: https://{region}.mirror.example.com/{channel}/v1
+          description: Mirror
+          variables:
+            region:
+              default: us
+              description: Mirror region
+              enum:
+                - us
+                - eu
+            channel:
+              default: "a&b"
+              description: Release channel
+              enum:
+                - "a&b"
+                - "it's"
       tags:
         - pet
       summary: Get multi-server pet info
@@ -1230,6 +1362,98 @@ paths:
         '404':
           description: Order not found
 
+  # uuid path parameter and uuid model property (lowercase hyphenated, validated).
+  /store/order/by-tracking/{trackingId}:
+    get:
+      tags:
+        - store
+      summary: Find purchase order by tracking id
+      operationId: getOrderByTrackingId
+      security: []
+      parameters:
+        - name: trackingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  # readOnly / writeOnly model properties: no wire effect in any SDK.
+  /store/account:
+    post:
+      tags:
+        - store
+      summary: Create an account
+      operationId: createAccount
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Account'
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+
+  # Content-encoded (content: instead of schema:) query and header parameters,
+  # a uniqueItems (Set) array parameter and a format: time parameter.
+  /store/search:
+    get:
+      tags:
+        - store
+      summary: Searches the store; exercises content-encoded, Set and time-of-day parameters.
+      operationId: searchStore
+      security: []
+      parameters:
+        - name: q
+          in: query
+          description: JSON-encoded query parameter (OAS `content`, not `schema`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PhotoMetadata'
+        - name: X-Filter
+          in: header
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        - name: labels
+          in: query
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              type: string
+        - name: at
+          in: query
+          schema:
+            type: string
+            format: time
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+
   # ─── Transport-test endpoints ─────────────────────────────────────────────
   # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
   # (each operation carries x-internal: true). Echo, delay, compression,
@@ -1364,6 +1588,72 @@ paths:
       responses:
         '307':
           description: Temporary Redirect (multipart replay)
+          headers:
+            Location: { schema: { type: string }, example: /test/echo }
+  # An unusable Location behaves exactly like a missing one: the 3xx is returned.
+  /test/redirect/no-location:
+    get:
+      operationId: testRedirectNoLocation
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '302':
+          description: Found without a Location header
+          content:
+            application/json:
+              schema: { type: object }
+              example: { redirect: no-location }
+  /test/redirect/malformed-location:
+    get:
+      operationId: testRedirectMalformedLocation
+      x-internal: true
+      tags: [test]
+      security: []
+      responses:
+        '302':
+          description: Found with an unparseable Location
+          headers:
+            Location: { schema: { type: string }, example: 'http://[bad' }
+          content:
+            application/json:
+              schema: { type: object }
+              example: { redirect: malformed }
+  # Three 500 ms hops then a fast echo: timeout is one end-to-end budget.
+  /test/redirect/chain/1:
+    get:
+      operationId: testRedirectChain1
+      x-internal: true
+      tags: [test]
+      security: []
+      x-chasm-delay-ms: 500
+      responses:
+        '302':
+          description: Hop 1
+          headers:
+            Location: { schema: { type: string }, example: /test/redirect/chain/2 }
+  /test/redirect/chain/2:
+    get:
+      operationId: testRedirectChain2
+      x-internal: true
+      tags: [test]
+      security: []
+      x-chasm-delay-ms: 500
+      responses:
+        '302':
+          description: Hop 2
+          headers:
+            Location: { schema: { type: string }, example: /test/redirect/chain/3 }
+  /test/redirect/chain/3:
+    get:
+      operationId: testRedirectChain3
+      x-internal: true
+      tags: [test]
+      security: []
+      x-chasm-delay-ms: 500
+      responses:
+        '302':
+          description: Hop 3
           headers:
             Location: { schema: { type: string }, example: /test/echo }
 
@@ -1516,6 +1806,11 @@ components:
           type: integer
           format: int32
           example: 7
+          minimum: 1
+          maximum: 100
+        trackingId:
+          type: string
+          format: uuid
         shipDate:
           type: string
           format: date-time
@@ -1633,6 +1928,15 @@ components:
           type: number
           description: Pet weight in kilograms (decimal precision)
           example: 12.345
+        # Validation keywords no SDK enforces: a value outside these bounds must
+        # still decode and round-trip. The look-around pattern is not portable
+        # across regex engines, so it must also not break model import.
+        nickname:
+          type: string
+          example: rex
+          minLength: 2
+          maxLength: 8
+          pattern: "^(?!admin)[a-z']+$"
 
     ApiResponse:
       type: object
@@ -1711,6 +2015,14 @@ components:
         - $ref: '#/components/schemas/Medication'
         - $ref: '#/components/schemas/Surgery'
 
+    # Same members as PetTreatment in the opposite, non-alphabetical order:
+    # variants are tried in DECLARATION order, so Surgery is tried first.
+    TreatmentRecord:
+      description: Same members as PetTreatment declared in non-alphabetical order
+      anyOf:
+        - $ref: '#/components/schemas/Surgery'
+        - $ref: '#/components/schemas/Medication'
+
     PetWithOwner:
       description: A pet record extended with owner information
       allOf:
@@ -1760,6 +2072,18 @@ components:
         lng:
           type: number
           format: double
+
+    # Object-valued parameter schema. `min_age` is deliberately snake_case so a
+    # test asserts WIRE names, and breed < min_age keeps declaration order equal
+    # to alphabetical order.
+    PetCriteria:
+      type: object
+      properties:
+        breed:
+          type: string
+        min_age:
+          type: integer
+          format: int32
 
     PetPassport:
       type: object
@@ -1923,6 +2247,30 @@ components:
           type: string
           format: date-time
           description: Absolute expiry instant
+        # Digit-leading property: needs a deterministic legal identifier, while
+        # the wire key stays `2fa`.
+        '2fa':
+          type: boolean
+        separator:
+          $ref: '#/components/schemas/Separator'
+        # Language literals as property names. Keys are quoted: YAML 1.1 reads
+        # bare null/true/false as non-strings.
+        'null':
+          type: string
+        'true':
+          type: boolean
+        'false':
+          type: boolean
+        # Model names that collide with language or SDK types (Error, Result)
+        # must be renamed (ModelError, ModelResult) in all twelve SDKs.
+        lastError:
+          $ref: '#/components/schemas/Error'
+        outcome:
+          $ref: '#/components/schemas/Result'
+        # format: time (RFC 3339 partial-time) in a model body.
+        cutoff:
+          type: string
+          format: time
 
     # Self-referential schema. Exercises recursive-type code generation: a
     # value type that contains itself has infinite size unless the recursive
@@ -1990,6 +2338,31 @@ components:
             - string
             - "null"
           default: untitled
+        # String default hostile to every language's literal syntax: quotes,
+        # backslash, tab, newline, interpolation sigils, comment terminator.
+        greeting:
+          type: string
+          default: "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+        # $ref'd enum whose COMPONENT carries the default (Swatch: green).
+        swatch:
+          $ref: '#/components/schemas/Swatch'
+        # Numeric defaults must render as exact, compiling literals of the
+        # target type (float vs double, integral double, int64 beyond int32).
+        ratio:
+          type: number
+          default: 1.5
+        scale:
+          type: number
+          format: float
+          default: 0.25
+        weight:
+          type: number
+          format: double
+          default: 2
+        ceiling:
+          type: integer
+          format: int64
+          default: 9000000000
 
     # Named string enum used as the leaf of a nested container (array<map<enum>>)
     # to exercise enum-leaf deep deserialization (must not be routed through the
@@ -2000,6 +2373,7 @@ components:
         - red
         - green
         - blue
+      default: green
 
     # Integer-backed enum component. Exercises the int-enum template path that
     # 7 SDKs hard-code as String-backed (latent finding 2.29): the backing field
@@ -2017,12 +2391,8 @@ components:
     # sanitization (2.17/2.18): the "on-hold" value requires variant-name
     # sanitization (hyphen is not a legal identifier character) and the
     # non-lowercase "Available"/"Sold" values must round-trip with their wire
-    # casing preserved. NOTE: a declared enum-property `default` is deliberately
-    # omitted -- honoring an enum-typed property default is a generator-wide gap
-    # (only dart/elixir emit the member reference today; kotlin/python/node
-    # silently fall back to null/None and go/ruby/swift mis-render it), so it is
-    # tracked as its own toDefaultValue harmonization pass rather than bundled
-    # into this change.
+    # casing preserved. The last four values carry characters that are special
+    # inside a string literal (quote, backslash, `$` and `#{` interpolation).
     Availability:
       type: string
       description: Stock availability, non-lowercase string enum
@@ -2030,6 +2400,10 @@ components:
         - Available
         - Sold
         - on-hold
+        - "o'clock"
+        - 'a\b'
+        - '$eq'
+        - '#{x}'
 
     # Model carrying the latent shapes the petstore previously masked: an
     # integer-backed enum field, a non-lowercase string enum field with a
@@ -2046,6 +2420,7 @@ components:
           $ref: '#/components/schemas/Priority'
         availability:
           $ref: '#/components/schemas/Availability'
+          default: on-hold
         matrix:
           type: array
           description: Quantity grid as an array of integer arrays
@@ -2054,3 +2429,59 @@ components:
             items:
               type: integer
               format: int32
+
+    # readOnly / writeOnly have no wire effect in any SDK: a readOnly property
+    # is still decoded from a response, a writeOnly one is still sent.
+    Account:
+      type: object
+      required:
+        - username
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        username:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+
+    # Required AND nullable: the key must be present, null is a legal value and
+    # is written as null.
+    RequiredNullable:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          type:
+            - string
+            - "null"
+
+    # String enum whose values sanitise to an empty or colliding identifier.
+    Separator:
+      type: string
+      description: String enum whose values sanitise to an empty or colliding identifier
+      enum:
+        - " "
+        - "@@"
+        - "a-b"
+        - "a_b"
+
+    # Model names that collide with language / SDK types (Error, Result) get the
+    # Model prefix in all twelve SDKs.
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    Result:
+      type: object
+      properties:
+        ok:
+          type: boolean

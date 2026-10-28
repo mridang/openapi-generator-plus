@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -113,7 +113,7 @@ class Psr18ApiClient extends AbstractApiClient
             /* PSR-18 has no timeout exception type, so look for Symfony's
              * TimeoutExceptionInterface in the chain (Symfony's Psr18Client
              * wraps it); anything else is a failure with no HTTP response. */
-            for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
+            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
                     throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e);
                 }

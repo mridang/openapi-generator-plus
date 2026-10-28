@@ -69,7 +69,7 @@ test('composer manifest has a valid name', function (): void {
 });
 
 test('composer manifest has a description', function (): void {
-    /* D2-docs: A simplified Pet Store API for integration testing. must be wired into composer.json so the
+    /* D2-docs: the app description must be wired into composer.json so the
      * package does not publish with an empty description. */
     $raw = file_get_contents(__DIR__ . '/../composer.json');
     /** @var array<string, mixed> $composer */

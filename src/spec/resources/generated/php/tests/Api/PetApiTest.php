@@ -603,6 +603,18 @@ test('date only form field serialises without time component', function (): void
     expect($captured->body)->not->toContain('10%3A30');
 });
 
+test('date-time form field serialises in the canonical form', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Rex',
+        reminder: new \DateTime('2024-01-15T10:30:00+00:00'),
+    ));
+
+    expect($captured->body)->toContain('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00');
+    expect($captured->body)->not->toContain('%20');
+});
+
 test('date only form field omitted when unset', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
@@ -1023,7 +1035,7 @@ test('options class is immutable: construction works but property writes throw',
 test('get pet by name throws when required query param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '')))
+    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '', xCorrelationId: 'abc')))
         ->toThrow(
             \InvalidArgumentException::class,
             "Missing the required parameter 'category' when calling PetApi.getPetByName",
@@ -1033,8 +1045,28 @@ test('get pet by name throws when required query param is empty', function (): v
 test('get pet by name throws when required path param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetByName('', new GetPetByNameOptions(category: 'dogs')))
+    expect(fn (): mixed => $api->getPetByName('', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc')))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('get pet by name rejects a dot segment path param before dispatch', function (string $segment): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetByName($segment, new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc')))
+        ->toThrow(\InvalidArgumentException::class, "Path parameter 'name' must not be '.' or '..'");
+    expect($captured->url)->toBe('');
+})->with(['.', '..']);
+
+test('get pet by name keeps dots inside a path param', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetByNameWithHttpInfo('a..b', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc'));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toContain('/pet/byName/a..b?');
 });
 
 test('get pet by name sends the required query param when supplied', function (): void {
@@ -1042,7 +1074,7 @@ test('get pet by name sends the required query param when supplied', function ()
     // dispatched; a header-capturing client confirms the call reached the wire.
     [$api, $captured] = newHeaderCapturingPetApi();
 
-    $result = $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs'));
+    $result = $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc'));
 
     expect($result)->not->toBeNull();
     expect($captured->headers)->not->toBeEmpty();

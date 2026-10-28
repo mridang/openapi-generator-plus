@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -15,6 +15,7 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
@@ -372,17 +373,24 @@ class BaseApi
      */
     private function queryValueText(mixed $value): string
     {
-        if (
-            is_scalar($value)
-            || $value instanceof \DateTimeInterface
-            || $value instanceof \DateInterval
-            || $value instanceof \BackedEnum
-            || $value instanceof \Symfony\Component\Uid\Uuid
-        ) {
+        if ($this->isFormScalar($value)) {
             return ObjectSerializer::stringify($value);
         }
 
         return (string) json_encode($value, JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * Whether a value has a canonical {@see ObjectSerializer::stringify} text
+     * form: a scalar, date-time, duration, UUID or backed enum.
+     */
+    private function isFormScalar(mixed $value): bool
+    {
+        return is_scalar($value)
+            || $value instanceof \DateTimeInterface
+            || $value instanceof \DateInterval
+            || $value instanceof \BackedEnum
+            || $value instanceof \Symfony\Component\Uid\Uuid;
     }
 
     /**
@@ -450,6 +458,19 @@ class BaseApi
         if ($contentType === 'application/x-www-form-urlencoded') {
             assert(is_array($body));
             /** @var array<string, mixed> $body */
+            foreach ($body as $name => $value) {
+                $values = is_array($value) && array_is_list($value) ? $value : [$value];
+                foreach ($values as $element) {
+                    if ($element !== null && !$this->isFormScalar($element)) {
+                        /* A model, map or nested array has no defined form
+                         * encoding without an OAS encoding block; failing here
+                         * keeps a JSON blob or a language repr off the wire. */
+                        throw new SerializationException(
+                            'form-urlencoded field ' . $name . ' must be a scalar or array of scalars'
+                        );
+                    }
+                }
+            }
             return $this->buildQuery($body, true);
         }
 

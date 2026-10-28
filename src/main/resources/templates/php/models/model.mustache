@@ -459,7 +459,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      * @example {{value}} {{summary}}
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
-     * @readonly
+     * Read only: the server sets this value.
 {{/isReadOnly}}
 {{#isWriteOnly}}
      * @writeOnly
@@ -523,7 +523,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     /** @example {{value}} {{summary}} */
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
-    /** @readonly */
+    /** Read only: the server sets this value. */
 {{/isReadOnly}}
 {{#isWriteOnly}}
     /** @writeOnly */

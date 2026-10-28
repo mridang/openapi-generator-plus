@@ -112,7 +112,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
         if ($this->scopes !== []) {
             $params['scope'] = implode(' ', $this->scopes);
         }
-        if ($state !== null) {
+        if ($state !== null && $state !== '') {
             $params['state'] = $state;
         }
 

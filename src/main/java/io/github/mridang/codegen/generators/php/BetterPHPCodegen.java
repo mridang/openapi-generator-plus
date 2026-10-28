@@ -307,6 +307,131 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         );
     }
 
+    /**
+     * Registers the {@code phpdocDescription} lambda. Free prose from the
+     * document (info, tag and external-docs descriptions) is placed inside a
+     * docblock; a literal comment terminator in it would end the docblock early
+     * and a newline would leave the following lines without the leading
+     * asterisk. The lambda neutralises the terminator the same way
+     * {@code escapeUnsafeCharacters} does and continues every line inside the
+     * docblock.
+     */
+    @Override
+    protected com.google.common.collect.ImmutableMap.Builder<
+                    String, com.samskivert.mustache.Mustache.Lambda>
+            addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "phpdocDescription",
+                        (fragment, writer) ->
+                                writer.write(escapeForPhpdoc(fragment.execute())))
+                .put(
+                        "phpSingleQuoted",
+                        (fragment, writer) ->
+                                writer.write(escapePhpSingleQuoted(fragment.execute())));
+    }
+
+    /**
+     * Makes doc-comment prose safe inside a PHP docblock line that starts with
+     * {@code " * "}.
+     *
+     * @param text the prose to escape
+     * @return the prose with comment delimiters broken and continuation lines prefixed
+     */
+    private static String escapeForPhpdoc(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        final String safe =
+                text.replace("*/", "*_/").replace("\r\n", "\n").strip();
+        final StringBuilder sb = new StringBuilder(safe.length());
+        final String[] lines = safe.split("\n", -1);
+        for (int i = 0; i < lines.length; i++) {
+            final String line = lines[i].stripTrailing();
+            if (i > 0) {
+                sb.append(line.isEmpty() ? "\n *" : "\n * ");
+            }
+            sb.append(line);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Escapes text for the body of a PHP single-quoted string literal, where
+     * only the backslash and the single quote are special.
+     *
+     * @param text the raw text
+     * @return the text safe between two single quotes
+     */
+    static String escapePhpSingleQuoted(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    /**
+     * Renders a raw string as a PHP string literal that evaluates to exactly
+     * that string. A single-quoted literal is used unless the text holds a
+     * control character, which only a double-quoted literal can spell as an
+     * escape sequence.
+     *
+     * @param text the raw string value
+     * @return a PHP string literal, quotes included
+     */
+    static String toPhpStringLiteral(String text) {
+        boolean hasControl = false;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) < 0x20 || text.charAt(i) == 0x7F) {
+                hasControl = true;
+                break;
+            }
+        }
+        if (!hasControl) {
+            return "'" + escapePhpSingleQuoted(text) + "'";
+        }
+        final StringBuilder sb = new StringBuilder(text.length() + 8).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '"') {
+                sb.append("\\\"");
+            } else if (c == '$') {
+                sb.append("\\$");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else if (c < 0x20 || c == 0x7F) {
+                sb.append(String.format(java.util.Locale.ROOT, "\\x%02X", (int) c));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.append('"').toString();
+    }
+
+    /**
+     * Turns an arbitrary enum value into a PHP enum case identifier: every
+     * character that cannot appear in an identifier becomes an underscore.
+     *
+     * @param name the case name computed from the wire value
+     * @return a valid PHP identifier
+     */
+    static String toPhpEnumCaseName(String name) {
+        String cleaned = name.replaceAll("[^A-Za-z0-9_]+", "_").replaceAll("_+", "_");
+        if (cleaned.length() > 1) {
+            cleaned = cleaned.replaceAll("^_|_$", "");
+        }
+        if (cleaned.isEmpty() || Character.isDigit(cleaned.charAt(0))) {
+            cleaned = "V_" + cleaned;
+        }
+        return cleaned;
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -315,8 +440,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         additionalProperties.put("invokerPackage", invokerPackage);
         final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
         additionalProperties.put("packageVersion", packageVersion);
+        final Object packageNameProp = additionalProperties.get("packageName");
+        final String composerName =
+                packageNameProp != null && isNotBlank(packageNameProp.toString())
+                        ? packageNameProp.toString()
+                        : "openapi/" + invokerPackage.toLowerCase(java.util.Locale.ROOT);
+        final String composerPackage = composerName.substring(composerName.indexOf('/') + 1);
         additionalProperties.put(
-                "userAgentDefault", invokerPackage + "/" + packageVersion + " (php)");
+                "userAgentDefault", composerPackage + "/" + packageVersion + " (php)");
 
         apiPackage = invokerPackage + "\\" + API_DIR_NAME;
         modelPackage = invokerPackage + "\\" + MODEL_DIR_NAME;
@@ -641,7 +772,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
         if (ModelUtils.isStringSchema(unaliased)) {
             return Optional.ofNullable(unaliased.getDefault())
-                    .map(d -> "'" + escapeText(String.valueOf(d)) + "'")
+                    .map(d -> toPhpStringLiteral(String.valueOf(d)))
                     .orElse(null);
         }
         return null;
@@ -695,7 +826,40 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (!value.isEmpty() && value.trim().isEmpty()) {
             return "SPACE_" + value.length();
         }
-        return super.toEnumVarName(value, datatype);
+        final String name = super.toEnumVarName(value, datatype);
+        if (name.isEmpty() || "_".equals(name)) {
+            /* Nothing of the value survives sanitising (e.g. "@@"): spell the
+             * code points so the case name is legal and stable. */
+            final StringBuilder sb = new StringBuilder("VALUE");
+            value.codePoints().forEach(cp ->
+                    sb.append(String.format(java.util.Locale.ROOT, "_%04X", cp)));
+            return sb.toString();
+        }
+        if (name.matches("_\\d.*")) {
+            return "N" + name.substring(1);
+        }
+        return name;
+    }
+
+    /**
+     * A digit-leading name gets the letter {@code n} in front before casing
+     * instead of the reserved-word suffix, because a PHP identifier cannot
+     * start with a digit whatever follows it.
+     */
+    @Override
+    public String toVarName(String name) {
+        return super.toVarName(digitLeadingFallback(name));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public String toParamName(String name) {
+        return super.toParamName(digitLeadingFallback(name));
+    }
+
+    private String digitLeadingFallback(String name) {
+        final String sanitized = sanitizeName(name);
+        return sanitized.matches("^\\d.*") ? "n" + sanitized : name;
     }
 
     /** {@inheritDoc} */
@@ -895,10 +1059,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             // A $ref to a top-level enum carries its enum type name in dataType
             // (baseType is null); the generated enum lives in the models
             // namespace and must be imported with a `use` statement.
+            /* A model-typed query or header parameter (style or content
+             * serialised) can arrive without a baseType; its dataType is the
+             * model class and still needs the import. */
+            if (p.isModel
+                    && !p.isArray
+                    && !p.isMap
+                    && p.dataType != null
+                    && !languageSpecificPrimitives.contains(p.dataType)) {
+                modelTypes.add(p.dataType.substring(p.dataType.lastIndexOf('\\') + 1));
+            }
             if (p.isEnumRef
                     && p.dataType != null
                     && !languageSpecificPrimitives.contains(p.dataType)) {
-                modelTypes.add(p.dataType);
+                /* A component enum's dataType may already be the fully
+                 * qualified name; the import takes the short class name. */
+                modelTypes.add(p.dataType.substring(p.dataType.lastIndexOf('\\') + 1));
             }
             if ((p.isArray || p.isMap) && p.items != null && p.items.baseType != null
                     && !p.items.isPrimitiveType
@@ -1305,6 +1481,21 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         if (Boolean.TRUE.equals(var.get("hasEnumValues"))) {
                             final Map<String, Object> ctx = new HashMap<>(var);
                             ctx.put("serverTypeName", serverTypeName);
+                            final List<Map<String, Object>> phpCases = new ArrayList<>();
+                            final List<Map<String, Object>> rawCases =
+                                    Optional.ofNullable(
+                                                    (List<Map<String, Object>>)
+                                                            var.get("enumValues"))
+                                            .orElse(List.of());
+                            for (final Map<String, Object> ev : rawCases) {
+                                final Map<String, Object> phpCase = new HashMap<>(ev);
+                                phpCase.put("name",
+                                        toPhpEnumCaseName(String.valueOf(ev.get("name"))));
+                                phpCase.put("value",
+                                        escapePhpSingleQuoted(String.valueOf(ev.get("value"))));
+                                phpCases.add(phpCase);
+                            }
+                            ctx.put("enumValues", phpCases);
                             writePhpClassFile(apiFileFolder(),
                                     serverTypeName + var.get("pascalName"),
                                     "api/server_variable_enum.mustache", ctx);

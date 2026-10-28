@@ -130,17 +130,20 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
+        /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
+         * user-agent or x-request-id in any casing wins and is left as written. */
+        $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);
 
         if (
             $this->transportOptions->userAgent !== null
-            && !isset($mergedHeaders['User-Agent'])
+            && !isset($presentHeaders['user-agent'])
         ) {
             $mergedHeaders['User-Agent'] = $this->transportOptions->userAgent;
         }
 
         if (
             $this->transportOptions->injectRequestId
-            && !isset($mergedHeaders['X-Request-ID'])
+            && !isset($presentHeaders['x-request-id'])
         ) {
             $mergedHeaders['X-Request-ID'] = $this->generateUuid();
         }

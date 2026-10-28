@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -58,6 +58,15 @@ test('builds authorization url with state', function (): void {
     expect($url)->toContain('state=my-state');
 });
 
+test('empty state is omitted', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+});
+
 test('get auth headers returns bearer after set access token', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 
@@ -69,6 +78,14 @@ test('get auth headers returns bearer after set access token', function (): void
 
 test('throws when access token not set', function (): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(\LogicException::class, 'Must set the access token before making API requests');
+});
+
+test('throws when access token set to empty string', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+    $authenticator->setAccessToken('');
 
     expect(fn () => $authenticator->getAuthHeaders())
         ->toThrow(\LogicException::class, 'Must set the access token before making API requests');

@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -63,7 +63,7 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
     {
         \assert(is_string($data));
         $parsed = \Uri\Rfc3986\Uri::parse($data);
-        if ($parsed === null) {
+        if (!$parsed instanceof \Uri\Rfc3986\Uri) {
             throw new \Symfony\Component\Serializer\Exception\NotNormalizableValueException(
                 sprintf('Cannot denormalize %s as %s: not a valid RFC 3986 URI', \json_encode($data), \Uri\Rfc3986\Uri::class)
             );

@@ -23,10 +23,10 @@ use {{invokerPackage}}\Models\{{.}};
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{{.}}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see {{url}} {{{description}}}
+ * @see {{url}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagExternalDocs}}
  */
 class {{classname}} extends BaseApi
@@ -162,9 +162,11 @@ class {{classname}} extends BaseApi
 {{#pathParams}}
 {{#required}}
 {{#isString}}
+{{^isUuid}}
         if (${{paramName}} === '') {
             throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -243,7 +245,7 @@ class {{classname}} extends BaseApi
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+            $queryParams['{{baseName}}'] = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -295,6 +297,20 @@ class {{classname}} extends BaseApi
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
+{{#required}}
+        /** @var string $headerValue */
+        $headerValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            $options->{{paramName}},
+            'header',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        $headerParams['{{baseName}}'] = $headerValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
@@ -308,6 +324,7 @@ class {{classname}} extends BaseApi
             );
             $headerParams['{{baseName}}'] = $headerValue;
         }
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
@@ -458,9 +475,11 @@ class {{classname}} extends BaseApi
 {{#pathParams}}
 {{#required}}
 {{#isString}}
+{{^isUuid}}
         if (${{paramName}} === '') {
             throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -539,7 +558,7 @@ class {{classname}} extends BaseApi
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+            $queryParams['{{baseName}}'] = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -591,6 +610,20 @@ class {{classname}} extends BaseApi
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
+{{#required}}
+        /** @var string $headerValue */
+        $headerValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            $options->{{paramName}},
+            'header',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        $headerParams['{{baseName}}'] = $headerValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
@@ -604,6 +637,7 @@ class {{classname}} extends BaseApi
             );
             $headerParams['{{baseName}}'] = $headerValue;
         }
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
