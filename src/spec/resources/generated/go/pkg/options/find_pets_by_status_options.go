@@ -12,6 +12,7 @@ type FindPetsByStatusOptions struct {
 	Filter *map[string]string
 	/* BornAfter Only return pets born on or after this date */
 	BornAfter *string
+	N2ndPage  *int32
 	/* ReportDate Reference date for the report */
 	ReportDate *string
 }

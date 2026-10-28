@@ -4,5 +4,6 @@ package options
 
 // GetPetByNameOptions carries the parameters for the GetPetByName operation.
 type GetPetByNameOptions struct {
-	Category string
+	Category       string
+	XCorrelationId string
 }

@@ -29,6 +29,31 @@ func TestMetadata_SerializeDeserialize(t *testing.T) {
 	}
 }
 
+func TestMetadata_DeclaredPropertyWinsOverCollidingExtra(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-15T10:30:00.000+00:00"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	metadata.AdditionalProperties = map[string]any{"createdAt": "x", "other": "y"}
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatalf("failed to serialize Metadata: %v", err)
+	}
+	if got := strings.Count(string(data), `"createdAt"`); got != 1 {
+		t.Errorf("expected exactly one createdAt key, got %d in %s", got, data)
+	}
+	if strings.Contains(string(data), `"createdAt":"x"`) || !strings.Contains(string(data), `"createdAt":"2024-01-15T10:30:00`) {
+		t.Errorf("expected the declared createdAt value, got %s", data)
+	}
+	if !strings.Contains(string(data), `"other":"y"`) {
+		t.Errorf("expected the non-colliding extra, got %s", data)
+	}
+	if metadata.AdditionalProperties["createdAt"] != "x" {
+		t.Error("the caller's AdditionalProperties map must not be modified")
+	}
+}
+
 func TestMetadata_DeserializeFromJSON(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)

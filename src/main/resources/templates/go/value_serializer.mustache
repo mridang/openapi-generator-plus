@@ -96,8 +96,10 @@ func encodePathSegment(value string) string {
 //
 // Everything that is not RFC 3986 reserved or unreserved — spaces, control
 // characters, non-ASCII — is still percent-encoded, so the result is always a
-// valid URL query segment. Only the reserved set : / ? # [ ] @ ! $ & ' ( ) * +
-// , ; = is restored after url.QueryEscape over-encodes it. url.QueryEscape
+// valid URL query segment. Only the RFC 3986 section 3.4 query-legal reserved
+// set : / ? @ ! $ & ' ( ) * + , ; = is restored after url.QueryEscape
+// over-encodes it; "#", "[" and "]" stay percent-encoded because a literal "#"
+// starts the URL fragment and the brackets are not legal in a query. url.QueryEscape
 // emits "+" for a space, so it is normalised to "%20" first; a literal "+" in
 // the value is already "%2B" at that point and is restored with the rest of the
 // reserved set.
@@ -110,9 +112,6 @@ func encodeQueryAllowingReserved(value string) string {
 	encoded = strings.ReplaceAll(encoded, "%3A", ":")
 	encoded = strings.ReplaceAll(encoded, "%2F", "/")
 	encoded = strings.ReplaceAll(encoded, "%3F", "?")
-	encoded = strings.ReplaceAll(encoded, "%23", "#")
-	encoded = strings.ReplaceAll(encoded, "%5B", "[")
-	encoded = strings.ReplaceAll(encoded, "%5D", "]")
 	encoded = strings.ReplaceAll(encoded, "%40", "@")
 	encoded = strings.ReplaceAll(encoded, "%21", "!")
 	encoded = strings.ReplaceAll(encoded, "%24", "$")
@@ -189,7 +188,9 @@ func serializeDeepObject(paramName string, value any) map[string]string {
 }
 
 // requirePathParam returns ErrMissingRequiredParameter when a path parameter is
-// nil or an empty string.
+// nil or an empty string, and ErrInvalidPathParameter when it is exactly "." or
+// "..", which a URL parser would resolve as a dot segment and so re-route the
+// request to a different endpoint (RFC 3986 section 5.2.4).
 //
 // Path parameters are required components of the URL — accepting an empty
 // string would silently produce a malformed URL like `/resource//details`,
@@ -211,6 +212,9 @@ func requirePathParam(paramName string, value any) error {
 	}
 	if rv.Kind() == reflect.String && rv.String() == "" {
 		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
+	}
+	if rv.Kind() == reflect.String && (rv.String() == "." || rv.String() == "..") {
+		return fmt.Errorf("%w: path parameter '%s' must not be '.' or '..'", ErrInvalidPathParameter, paramName)
 	}
 	return nil
 }

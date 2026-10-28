@@ -22,6 +22,7 @@ import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
@@ -324,7 +325,32 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 (Mustache.Lambda)
                         (fragment, writer) ->
                                 writer.write(
-                                        NamingConvention.PASCAL_CASE.apply(fragment.execute())));
+                                        goIdentifier(
+                                                NamingConvention.PASCAL_CASE.apply(
+                                                        fragment.execute()))));
+
+        additionalProperties.put(
+                "goIdentPart",
+                (Mustache.Lambda)
+                        (fragment, writer) ->
+                                writer.write(fragment.execute().replaceAll("[^A-Za-z0-9_]", "")));
+
+        additionalProperties.put(
+                "goStringLiteral",
+                (Mustache.Lambda)
+                        (fragment, writer) -> writer.write(goStringBody(fragment.execute())));
+
+        additionalProperties.put(
+                "goLineComment",
+                (Mustache.Lambda)
+                        (fragment, writer) ->
+                                writer.write(fragment.execute().replaceAll("\r?\n", "\n// ")));
+
+        additionalProperties.put(
+                "goBlockComment",
+                (Mustache.Lambda)
+                        (fragment, writer) ->
+                                writer.write(fragment.execute().replace("*/", "*\\/")));
 
         additionalProperties.put(
                 "goVarName",
@@ -607,6 +633,67 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return null;
     }
 
+    /**
+     * Rewrites the base-class reference default of a property that points at
+     * a component enum ({@code Swatch.Green}) to the Go constant identifier
+     * ({@code SwatchGreen}); inline enums keep the shared wire-literal rewrite.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        if (prop.defaultValue != null
+                && !prop.isEnum
+                && prop.defaultValue.matches("[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*")) {
+            prop.defaultValue = prop.defaultValue.replace(".", "");
+            return;
+        }
+        super.fixEnumDefaultValue(prop, model);
+    }
+
+    /**
+     * Keeps a property whose wire name starts with a digit ({@code 2fa})
+     * exported: the shared escape prefixes an underscore, which Go treats as
+     * unexported, so the field gets the {@code N} prefix instead.
+     */
+    @Override
+    public String toVarName(String name) {
+        final String var = super.toVarName(name);
+        if (var.matches("_\\d.*")) {
+            return "N" + var.substring(1);
+        }
+        return var;
+    }
+
+    /**
+     * Gives an enum value that sanitises to nothing (such as a single space)
+     * the empty-value name, so its constant never equals the enum type name.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (name == null || name.replace("_", "").isEmpty()) {
+            return super.toEnumVarName("", datatype);
+        }
+        return name;
+    }
+
+    /**
+     * Resolves a reference to a component schema through {@link #toModelName}
+     * so a schema renamed for a collision (Error to ModelError) is referenced
+     * by the same name its type is declared with.
+     */
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String getTypeDeclaration(Schema schema) {
+        final String type = super.getTypeDeclaration(schema);
+        if (schema != null && schema.get$ref() != null) {
+            final String simple = ModelUtils.getSimpleRef(schema.get$ref());
+            if (type.equals(simple)) {
+                return toModelName(simple);
+            }
+        }
+        return type;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected Map<String, String> getModelContextFlags() {
@@ -654,7 +741,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
-            param.put("name", NamingConvention.PASCAL_CASE.apply(p.paramName));
+            param.put("name", goIdentifier(NamingConvention.PASCAL_CASE.apply(p.paramName)));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
             // A parameter declared `deprecated: true` in the spec must carry that
@@ -1080,5 +1167,51 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .anyMatch(p -> p.required);
+    }
+
+    /**
+     * Turns a PascalCase name into a legal exported Go identifier: characters
+     * Go does not allow in an identifier are dropped and a name that would
+     * start with a digit gets an {@code N} prefix, so a spec name such as
+     * {@code 2ndPage} still compiles.
+     *
+     * @param name the PascalCase name
+     * @return a legal Go identifier
+     */
+    static String goIdentifier(String name) {
+        final String clean = name.replaceAll("[^A-Za-z0-9_]", "");
+        if (clean.isEmpty() || Character.isDigit(clean.charAt(0))) {
+            return "N" + clean;
+        }
+        return clean;
+    }
+
+    /**
+     * Escapes text for the inside of a Go interpreted string literal.
+     *
+     * @param text the raw text
+     * @return the text with backslashes, quotes and control characters escaped
+     */
+    static String goStringBody(String text) {
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20) {
+                out.append(String.format(Locale.ROOT, "\\x%02x", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 }

@@ -99,6 +99,18 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 // loop refuses every 3xx response and returns it to the caller verbatim —
 // used by OAuth2TokenManager on token endpoint POSTs so 307/308 cannot
 // replay the form-encoded client_secret onto an attacker host.
+// hasHeader reports whether headers holds name under ASCII case-folding (RFC
+// 9110 section 5.1), so a caller's "user-agent" suppresses the injected
+// User-Agent and the caller's key and value are sent exactly as written.
+func hasHeader(headers map[string]string, name string) bool {
+	for k := range headers {
+		if strings.EqualFold(k, name) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
 	if c.closed.Load() {
 		return nil, ErrClientClosed
@@ -110,10 +122,10 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	for k, v := range headers {
 		merged[k] = v
 	}
-	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != nil {
+	if !hasHeader(merged, "User-Agent") && c.transportOptions.UserAgent() != nil {
 		merged["User-Agent"] = *c.transportOptions.UserAgent()
 	}
-	if _, ok := merged["X-Request-ID"]; !ok && c.transportOptions.InjectRequestID() {
+	if !hasHeader(merged, "X-Request-ID") && c.transportOptions.InjectRequestID() {
 		merged["X-Request-ID"] = uuid.New().String()
 	}
 	if _, ok := merged["Accept-Encoding"]; !ok {

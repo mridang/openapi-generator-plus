@@ -172,6 +172,14 @@ type {{classname}} struct {
 	//
 	// Deprecated: {{#deprecationMessage}}{{{deprecationMessage}}}{{/deprecationMessage}}{{^deprecationMessage}}This property is deprecated.{{/deprecationMessage}}
 {{/deprecated}}
+{{#isReadOnly}}
+	// Read-only: the server sets this property. It is still sent and received
+	// like any other property.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+	// Write-only: the server never returns this property. It is still sent
+	// and received like any other property.
+{{/isWriteOnly}}
 {{#required}}
 	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
 {{/required}}
@@ -242,10 +250,11 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(o.AdditionalProperties) == 0 {
+	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
+	if len(extras) == 0 {
 		return b, nil
 	}
-	extra, err := marshalJSON(o.AdditionalProperties)
+	extra, err := marshalJSON(extras)
 	if err != nil {
 		return nil, err
 	}

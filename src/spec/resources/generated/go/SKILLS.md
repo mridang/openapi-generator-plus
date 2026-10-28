@@ -237,7 +237,7 @@ Models are generated as Go structs in the `models` package.
 ```go
 import "petstore/pkg/models"
 
-m := models.ApiResponse{}
+m := models.Account{}
 ```
 
 ## Binary / File Uploads

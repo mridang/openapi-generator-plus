@@ -36,12 +36,12 @@ type {{serverTypeName}} interface {
 {{#variants}}
 {{#serverVariables}}{{#hasEnumValues}}
 
-// {{serverTypeName}}{{pascalName}} represents valid values for the {{name}} server variable.
-type {{serverTypeName}}{{pascalName}} string
+// {{serverTypeName}}{{variantName}}{{pascalName}} represents valid values for the {{name}} server variable of the {{variantName}} variant.
+type {{serverTypeName}}{{variantName}}{{pascalName}} string
 
 const (
 {{#enumValues}}
-	{{serverTypeName}}{{pascalName}}{{name}} {{serverTypeName}}{{pascalName}} = "{{value}}"
+	{{serverTypeName}}{{variantName}}{{pascalName}}{{#goIdentPart}}{{{name}}}{{/goIdentPart}} {{serverTypeName}}{{variantName}}{{pascalName}} = "{{#goStringLiteral}}{{{value}}}{{/goStringLiteral}}"
 {{/enumValues}}
 )
 {{/hasEnumValues}}{{/serverVariables}}
@@ -50,11 +50,11 @@ const (
 
 // {{serverTypeName}}{{variantName}} is a server variant for {{serverTypeName}}.
 {{#hasDescription}}
-// {{{description}}}
+// {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/hasDescription}}
 type {{serverTypeName}}{{variantName}} struct {
 {{#serverVariables}}
-	{{pascalName}} {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}
+	{{pascalName}} {{#hasEnumValues}}{{serverTypeName}}{{variantName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}
 {{/serverVariables}}
 }
 
@@ -71,10 +71,10 @@ func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
 
 // {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-// {{{.}}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-// See {{url}} {{{description}}}
+// See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/tagExternalDocs}}
 type {{classname}} struct {
 	*baseApi
@@ -92,14 +92,14 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 // {{operationId}} {{{summary}}}
 {{/summary}}
 {{#notes}}
-// {{{.}}}
+// {{#goLineComment}}{{{.}}}{{/goLineComment}}
 {{/notes}}
 {{#externalDocs}}
-// See {{url}} {{{description}}}
+// See {{url}} {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/externalDocs}}
 {{#allParams}}
 {{#description}}
-// param {{paramName}}: {{{description}}}
+// param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/description}}
 {{/allParams}}
 {{#allParams}}

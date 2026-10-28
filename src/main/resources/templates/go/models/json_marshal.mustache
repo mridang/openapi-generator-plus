@@ -26,6 +26,29 @@ func marshalJSON(value any) ([]byte, error) {
 	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
+// withoutDeclaredKeys returns extras without the entries whose key equals a
+// declared property's wire name, so a caller-built model never writes the same
+// JSON key twice: the declared property's value wins. The caller's map is not
+// modified; it is copied only when a colliding key is present.
+func withoutDeclaredKeys(extras map[string]any, declared ...string) map[string]any {
+	result := extras
+	copied := false
+	for _, key := range declared {
+		if _, ok := result[key]; !ok {
+			continue
+		}
+		if !copied {
+			result = make(map[string]any, len(extras))
+			for k, v := range extras {
+				result[k] = v
+			}
+			copied = true
+		}
+		delete(result, key)
+	}
+	return result
+}
+
 // dropMiscasedKeys removes the top-level keys of a JSON object that differ from
 // a declared property name only in letter case.
 //

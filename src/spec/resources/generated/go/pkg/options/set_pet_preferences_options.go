@@ -2,10 +2,15 @@
 
 package options
 
+import (
+	. "petstore/pkg/models"
+)
+
 // SetPetPreferencesOptions carries the parameters for the SetPetPreferences operation.
 type SetPetPreferencesOptions struct {
 	Nickname    string
 	Tags        *[]string
 	Note        *string
 	RenewalDate *string
+	Reminder    *DateTime
 }

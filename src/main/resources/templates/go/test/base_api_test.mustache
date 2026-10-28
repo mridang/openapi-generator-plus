@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/auth"
@@ -613,6 +614,31 @@ func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
 	}
 }
 
+func TestBaseApi_FormUrlencodedDateTimeUsesCanonicalForm(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
+
+	when := models.DateTime(time.Date(2024, time.January, 15, 10, 30, 0, 0, time.UTC))
+	_, _ = api.SetPetPreferences(int64(1), &options.SetPetPreferencesOptions{
+		Nickname: "a b",
+		Reminder: &when,
+	})
+
+	b, ok := client.capturedBody.([]byte)
+	if !ok {
+		t.Fatalf("expected []byte body, got %T", client.capturedBody)
+	}
+	wire := string(b)
+	if !strings.Contains(wire, "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00") {
+		t.Errorf("expected canonical date-time form field, got %q", wire)
+	}
+	if strings.Contains(wire, "%20") {
+		t.Errorf("space must encode as '+' not %%20, got %q", wire)
+	}
+}
+
 // ── Query parameter serialization ──
 
 // queryCapturingApiClient captures the full URL including query string.
@@ -832,7 +858,7 @@ func TestBaseApi_EmptyPathParamReturnsMissingRequiredParameter(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
-	_, err := api.GetPetByName("", &options.GetPetByNameOptions{Category: "dog"})
+	_, err := api.GetPetByName("", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
 		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
 	}
@@ -871,9 +897,37 @@ func TestBaseApi_RequiredQueryParamIsSent(t *testing.T) {
 	client := &queryCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := {{packageName}}.NewPetApi(client, config, nil)
-	_, _ = api.GetPetByName("rex", &options.GetPetByNameOptions{Category: "dog"})
+	_, _ = api.GetPetByName("rex", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
 	if !strings.Contains(client.capturedURL, "category=dog") {
 		t.Errorf("expected URL to contain category=dog, got %q", client.capturedURL)
+	}
+}
+
+// A path parameter of exactly "." or ".." would become a dot segment and
+// re-route the request, so it is rejected before any HTTP call.
+func TestBaseApi_DotSegmentPathParamIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{".", ".."} {
+		client := &queryCapturingApiClient{}
+		config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+		api := {{packageName}}.NewPetApi(client, config, nil)
+		_, err := api.GetPetByName(name, &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
+		if !errors.Is(err, {{packageName}}.ErrInvalidPathParameter) {
+			t.Fatalf("expected ErrInvalidPathParameter for %q, got %v", name, err)
+		}
+		if !strings.Contains(err.Error(), "path parameter 'name' must not be '.' or '..'") {
+			t.Errorf("expected the canonical dot-segment message, got %q", err.Error())
+		}
+		if client.capturedURL != "" {
+			t.Errorf("expected no HTTP call for %q, got URL %q", name, client.capturedURL)
+		}
+	}
+	client := &queryCapturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
+	_, _ = api.GetPetByName("a..b", &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "c-1"})
+	if !strings.Contains(client.capturedURL, "/pet/byName/a..b?") {
+		t.Errorf("expected URL to contain /pet/byName/a..b, got %q", client.capturedURL)
 	}
 }
 
@@ -1557,8 +1611,8 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 			"templated variant",
 			func(api *{{packageName}}.PetApi) error {
 				_, err := api.GetStagingPetInfo(1, {{packageName}}.GetStagingPetInfoServerStagingServer{
-					Environment: {{packageName}}.GetStagingPetInfoServerEnvironmentSANDBOX,
-					Version:     {{packageName}}.GetStagingPetInfoServerVersionV3,
+					Environment: {{packageName}}.GetStagingPetInfoServerStagingServerEnvironmentSANDBOX,
+					Version:     {{packageName}}.GetStagingPetInfoServerStagingServerVersionV3,
 				})
 				return err
 			},
@@ -1576,11 +1630,22 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 			"second of several variants",
 			func(api *{{packageName}}.PetApi) error {
 				_, err := api.GetMultiServerPetInfo(1, {{packageName}}.GetMultiServerPetInfoServerRegional{
-					Region: {{packageName}}.GetMultiServerPetInfoServerRegionEU,
+					Region: {{packageName}}.GetMultiServerPetInfoServerRegionalRegionEU,
 				})
 				return err
 			},
 			"https://eu.example.com/v1/",
+		},
+		{
+			"variant whose enum values hold reserved characters",
+			func(api *{{packageName}}.PetApi) error {
+				_, err := api.GetMultiServerPetInfo(1, {{packageName}}.GetMultiServerPetInfoServerMirror{
+					Region:  {{packageName}}.GetMultiServerPetInfoServerMirrorRegionEU,
+					Channel: {{packageName}}.GetMultiServerPetInfoServerMirrorChannelAB,
+				})
+				return err
+			},
+			"https://eu.mirror.example.com/a&b/v1/",
 		},
 		{
 			"no variant uses the configured base URL",
