@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -143,10 +143,10 @@ class DefaultApiClient internal constructor(
         mergedHeaders.putAll(transportOptions.defaultHeaders)
         mergedHeaders.putAll(headers)
 
-        if (transportOptions.userAgent != null && "User-Agent" !in mergedHeaders) {
+        if (transportOptions.userAgent != null && !hasHeader(mergedHeaders, "User-Agent")) {
             mergedHeaders["User-Agent"] = transportOptions.userAgent!!
         }
-        if (transportOptions.injectRequestId && "X-Request-ID" !in mergedHeaders) {
+        if (transportOptions.injectRequestId && !hasHeader(mergedHeaders, "X-Request-ID")) {
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
         if ("Accept-Encoding" !in mergedHeaders) {
@@ -473,31 +473,39 @@ class DefaultApiClient internal constructor(
                 )
             }
             null -> {}
-            is String, is Number, is Boolean -> append(fieldName, value.toString())
-            else -> {
-                // Serialize the object part through the SDK's configured
-                // ObjectSerializer, NOT a bare Json instance: the configured
-                // serializer carries the contextual SerializersModule
-                // (OffsetDateTime, BigDecimal, Duration, Uuid, KtorUrl, ...),
-                // so models with those field types render as real JSON. The
-                // encoding exception is intentionally NOT swallowed into a
-                // toString() fallback — that fallback emitted the data-class
-                // toString() as the JSON part, silently corrupting the body.
-                // A genuine serialization failure must surface, not produce
-                // invalid JSON.
-                val json = objectSerializer.serialize(value)
-                append(
-                    fieldName,
-                    json,
-                    io.ktor.http.Headers.build {
-                        append(
-                            io.ktor.http.HttpHeaders.ContentType,
-                            io.ktor.http.ContentType.Application.Json
-                                .toString(),
-                        )
-                    },
-                )
-            }
+            // Every primitive (string, number, boolean, enum, date, date-time,
+            // duration, uri, uuid) is a plain text part carrying the canonical
+            // stringify form; only an object or model becomes a JSON part.
+            is String, is Number, is Boolean, is Enum<*>, is java.time.temporal.TemporalAccessor,
+            is java.time.Duration, is io.ktor.http.Url,
+            -> append(fieldName, objectSerializer.stringify(value))
+            else ->
+                if (value::class.qualifiedName == "kotlin.uuid.Uuid") {
+                    append(fieldName, objectSerializer.stringify(value))
+                } else {
+                    // Serialize the object part through the SDK's configured
+                    // ObjectSerializer, NOT a bare Json instance: the configured
+                    // serializer carries the contextual SerializersModule
+                    // (OffsetDateTime, BigDecimal, Duration, Uuid, KtorUrl, ...),
+                    // so models with those field types render as real JSON. The
+                    // encoding exception is intentionally NOT swallowed into a
+                    // toString() fallback — that fallback emitted the data-class
+                    // toString() as the JSON part, silently corrupting the body.
+                    // A genuine serialization failure must surface, not produce
+                    // invalid JSON.
+                    val json = objectSerializer.serialize(value)
+                    append(
+                        fieldName,
+                        json,
+                        io.ktor.http.Headers.build {
+                            append(
+                                io.ktor.http.HttpHeaders.ContentType,
+                                io.ktor.http.ContentType.Application.Json
+                                    .toString(),
+                            )
+                        },
+                    )
+                }
         }
     }
 
@@ -675,6 +683,12 @@ internal fun resolveRedirectLocation(
     }
     return base.resolve(location)
 }
+
+/** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
+private fun hasHeader(
+    headers: Map<String, String>,
+    name: String,
+): Boolean = headers.keys.any { it.equals(name, ignoreCase = true) }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */
 internal fun generateRequestId(): String {

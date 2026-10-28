@@ -440,6 +440,11 @@ class ObjectSerializerTest {
             assertEquals(3, fromEmpty!!.retries)
             assertEquals({{modelPackage}}.Defaults.ModeEnum.MEDIUM, fromEmpty.mode)
             assertEquals("untitled", fromEmpty.label)
+            assertEquals("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b", fromEmpty.greeting)
+            assertEquals(0, java.math.BigDecimal("1.5").compareTo(fromEmpty.ratio))
+            assertEquals(0.25f, fromEmpty.scale)
+            assertEquals(2.0, fromEmpty.weight)
+            assertEquals(9000000000L, fromEmpty.ceiling)
 
             val fromNull = serializer.deserialize<{{modelPackage}}.Defaults>("{\"label\":null,\"retries\":7}")
             assertNotNull(fromNull)
@@ -587,6 +592,13 @@ class ObjectSerializerTest {
         @DisplayName("boolean false returns \"false\"")
         fun booleanFalseReturnsFalse() {
             assertEquals("false", serializer.stringify(false))
+        }
+
+        @Test
+        @DisplayName("byte array returns padded standard-alphabet base64")
+        fun byteArrayReturnsBase64() {
+            assertEquals("aGk=", serializer.stringify("hi".toByteArray(Charsets.UTF_8)))
+            assertEquals("+/8=", serializer.stringify(byteArrayOf(0xFB.toByte(), 0xFF.toByte())))
         }
 
         @Test
@@ -1496,14 +1508,60 @@ class ObjectSerializerTest {
         // A format:byte model field (PetPassport.thumbnail) holding a
         // bad-alphabet base64 string is rejected: Base64ByteArraySerializer's
         // decoder throws rather than silently truncating, and the SDK surfaces
-        // it as SerializationException (the cause is the JDK decoder's
-        // IllegalArgumentException, not a kotlinx error).
+        // it as SerializationException.
         @Test
         @DisplayName("invalid base64 in a byte field throws SerializationException")
         fun invalidBase64ByteFieldThrowsSerializationException() {
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<{{modelPackage}}.PetPassport>("{\"thumbnail\":\"!!!!\"}")
             }
+        }
+
+        @Test
+        @DisplayName("a byte field accepts only padded standard-alphabet base64 without whitespace")
+        fun byteFieldDecodeIsStrictBase64() {
+            for (bad in listOf("dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!")) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<{{modelPackage}}.PetPassport>("{\"thumbnail\":\"$bad\"}")
+                }, bad)
+            }
+            val decoded = serializer.deserialize<{{modelPackage}}.PetPassport>("{\"thumbnail\":\"dGVzdA==\"}")
+            assertArrayEquals("test".toByteArray(Charsets.UTF_8), decoded!!.thumbnail)
+        }
+
+        @Test
+        @DisplayName("a format: uri field accepts any absolute URI and rejects relative or blank text")
+        fun uriFieldRequiresAnAbsoluteUri() {
+            val good = listOf("urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1")
+            for (uri in good) {
+                val json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"$uri\"}"
+                assertNotNull(serializer.deserialize<{{modelPackage}}.Pet>(json)!!.homepageUrl, uri)
+            }
+            val https = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"https://example.com/items/1\"}"
+            assertEquals(
+                "https://example.com/items/1",
+                serializer.deserialize<{{modelPackage}}.Pet>(https)!!.homepageUrl.toString(),
+            )
+            for (uri in listOf("/relative", "not a uri", "")) {
+                val json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"$uri\"}"
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<{{modelPackage}}.Pet>(json)
+                }, uri)
+            }
+            val ref = "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}"
+            assertEquals("/assets/thumb.png", serializer.deserialize<{{modelPackage}}.Pet>(ref)!!.thumbnailRef)
+        }
+
+        @Test
+        @DisplayName("readOnly and writeOnly properties are decoded and encoded like any other")
+        fun readOnlyAndWriteOnlyPropertiesHaveNoWireEffect() {
+            val decoded = serializer.deserialize<{{modelPackage}}.Account>("{\"id\":7,\"username\":\"u\"}")
+            assertEquals(7L, decoded!!.id)
+            val json = serializer.serialize({{modelPackage}}.Account(username = "u", password = "p"))
+            assertTrue(json.contains("\"password\":\"p\""), json)
+            val withPassword =
+                serializer.deserialize<{{modelPackage}}.Account>("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}")
+            assertEquals("p", withPassword!!.password)
         }
 
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000

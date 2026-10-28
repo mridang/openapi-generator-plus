@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -271,7 +271,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun refreshGrantCarriesOnlyTheGrantTypeAndTheRefreshToken() {
+    fun refreshGrantCarriesTheClientCredentialsInBodyMode() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
         client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
@@ -282,7 +282,54 @@ class OAuth2PasswordAuthenticatorTest {
         runBlocking { auth.getAuthHeaders() }
         runBlocking { auth.getAuthHeaders() }
 
+        assertEquals(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.lastBody,
+        )
+    }
+
+    @Test
+    fun refreshGrantCarriesTheBasicHeaderInBasicMode() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val auth =
+            OAuth2PasswordAuthenticator(
+                host = "https://api.example.com",
+                clientId = "my-client-id",
+                clientSecret = "my-client-secret",
+                tokenUrl = "https://auth.example.com/token",
+                username = "testuser",
+                password = "testpass",
+                scopes = listOf("read"),
+                clientAuthMethod = ClientAuthMethod.BASIC,
+            )
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        runBlocking { auth.getAuthHeaders() }
+
         assertEquals("grant_type=refresh_token&refresh_token=ref1", client.lastBody)
+        assertTrue(client.lastHeaders["Authorization"]!!.startsWith("Basic "), client.lastHeaders.toString())
+    }
+
+    @Test
+    fun rejectedRefreshReRunsThePasswordGrant() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer tok3", headers["Authorization"])
+        assertEquals("https://auth.example.com/token", client.lastUrl)
+        assertTrue(client.lastBody!!.contains("grant_type=password"), client.lastBody)
     }
 
     @Test

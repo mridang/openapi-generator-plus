@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -158,9 +158,11 @@ internal object ValueSerializer {
      *
      * Everything that is not RFC 3986 reserved or unreserved — spaces, control
      * characters, non-ASCII — is still percent-encoded, so the result is always
-     * a valid URL query segment. Only the reserved set
-     * `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved `~`) is
-     * restored after [URLEncoder] over-encodes it.
+     * a valid URL query segment. Only the characters RFC 3986 section 3.4
+     * permits in a query, `: / ? @ ! $ & ' ( ) * + , ; =` (plus the unreserved
+     * `~`), are restored after [URLEncoder] over-encodes them. `#`, `[` and `]`
+     * stay percent-encoded: a literal `#` would start the URL fragment and
+     * truncate the query.
      *
      * @param value the raw value to encode
      * @return the encoded value with reserved characters preserved
@@ -175,9 +177,6 @@ internal object ValueSerializer {
             .replace("%3A", ":")
             .replace("%2F", "/")
             .replace("%3F", "?")
-            .replace("%23", "#")
-            .replace("%5B", "[")
-            .replace("%5D", "]")
             .replace("%40", "@")
             .replace("%21", "!")
             .replace("%24", "$")
@@ -190,6 +189,22 @@ internal object ValueSerializer {
             .replace("%2C", ",")
             .replace("%3B", ";")
             .replace("%3D", "=")
+    }
+
+    /**
+     * Rejects a path value that is exactly a dot segment. `.` and `..` are
+     * path navigation (RFC 3986 section 5.2.4): the transport would collapse
+     * them and silently send the request to a different resource.
+     */
+    private fun rejectDotSegment(
+        paramName: String,
+        location: String,
+        serialized: Any?,
+    ): Any? {
+        if ("path" == location && (serialized == "." || serialized == "..")) {
+            throw IllegalArgumentException("Path parameter '$paramName' must not be '.' or '..'")
+        }
+        return serialized
     }
 
     /**
@@ -234,7 +249,7 @@ internal object ValueSerializer {
         }
 
         if (style.isNullOrEmpty()) {
-            return serialize(value, location, schemaType, collectionFormat)
+            return rejectDotSegment(paramName, location, serialize(value, location, schemaType, collectionFormat))
         }
 
         var items = toStringList(value)
@@ -260,7 +275,7 @@ internal object ValueSerializer {
                 } else {
                     ".${items.joinToString(",")}"
                 }
-            "simple" -> items.joinToString(",")
+            "simple" -> rejectDotSegment(paramName, location, items.joinToString(","))
             "form" ->
                 if (explode && value is Collection<*>) {
                     ArrayList(items)
@@ -294,12 +309,28 @@ internal object ValueSerializer {
     @JvmStatic
     fun serializeDeepObject(
         paramName: String,
-        value: Map<*, *>?,
+        value: Any?,
     ): Map<String, String> {
         val result = linkedMapOf<String, String>()
         if (value == null) return result
-        for ((key, v) in value) {
-            result["$paramName[$key]"] = serializer.stringify(v)
+        if (value is Map<*, *>) {
+            for ((key, v) in value) {
+                result["$paramName[$key]"] = serializer.stringify(v)
+            }
+            return result
+        }
+        // A model value: expand its JSON object form, one key per property.
+        val fields =
+            kotlinx.serialization.json.Json
+                .parseToJsonElement(serializer.serialize(value))
+        if (fields is kotlinx.serialization.json.JsonObject) {
+            for ((key, v) in fields) {
+                when (v) {
+                    is kotlinx.serialization.json.JsonNull -> {}
+                    is kotlinx.serialization.json.JsonPrimitive -> result["$paramName[$key]"] = v.content
+                    else -> result["$paramName[$key]"] = v.toString()
+                }
+            }
         }
         return result
     }

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -665,6 +665,26 @@ class BaseApiTest {
                 )
             }
             assertEquals("note=a%26b%3Dc%2Bd+%23e%2Ff%3F&k%3Dv=C%2B%2B", client.capturedBody.toString())
+        }
+
+        @Test
+        @DisplayName("form-urlencoded body rejects a nested object field instead of sending its toString")
+        fun formUrlencodedBodyRejectsNestedObject() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val ex =
+                assertThrowsExactly(SerializationException::class.java) {
+                    runBlocking {
+                        testApi.call(
+                            "POST",
+                            "/test/echo",
+                            body = mapOf("location" to mapOf("lat" to 1.5)),
+                            contentType = "application/x-www-form-urlencoded",
+                        )
+                    }
+                }
+            assertEquals("form-urlencoded field location must be a scalar or array of scalars", ex.message)
+            assertNull(client.capturedBody)
         }
 
         @Test

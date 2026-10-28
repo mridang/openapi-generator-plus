@@ -137,10 +137,10 @@ class DefaultApiClient internal constructor(
         mergedHeaders.putAll(transportOptions.defaultHeaders)
         mergedHeaders.putAll(headers)
 
-        if (transportOptions.userAgent != null && "User-Agent" !in mergedHeaders) {
+        if (transportOptions.userAgent != null && !hasHeader(mergedHeaders, "User-Agent")) {
             mergedHeaders["User-Agent"] = transportOptions.userAgent!!
         }
-        if (transportOptions.injectRequestId && "X-Request-ID" !in mergedHeaders) {
+        if (transportOptions.injectRequestId && !hasHeader(mergedHeaders, "X-Request-ID")) {
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
         if ("Accept-Encoding" !in mergedHeaders) {
@@ -459,8 +459,15 @@ class DefaultApiClient internal constructor(
                 )
             }
             null -> {}
-            is String, is Number, is Boolean -> append(fieldName, value.toString())
-            else -> {
+            // Every primitive (string, number, boolean, enum, date, date-time,
+            // duration, uri, uuid) is a plain text part carrying the canonical
+            // stringify form; only an object or model becomes a JSON part.
+            is String, is Number, is Boolean, is Enum<*>, is java.time.temporal.TemporalAccessor,
+            is java.time.Duration, is io.ktor.http.Url,
+            -> append(fieldName, objectSerializer.stringify(value))
+            else -> if (value::class.qualifiedName == "kotlin.uuid.Uuid") {
+                append(fieldName, objectSerializer.stringify(value))
+            } else {
                 // Serialize the object part through the SDK's configured
                 // ObjectSerializer, NOT a bare Json instance: the configured
                 // serializer carries the contextual SerializersModule
@@ -636,6 +643,12 @@ internal fun resolveRedirectLocation(base: java.net.URI, location: String): java
     }
     return base.resolve(location)
 }
+
+/** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
+private fun hasHeader(
+    headers: Map<String, String>,
+    name: String,
+): Boolean = headers.keys.any { it.equals(name, ignoreCase = true) }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */
 internal fun generateRequestId(): String {

@@ -640,6 +640,14 @@ class {{classname}}(
    *
    * Example: `{{{.}}}`
   {{/example}}
+  {{#isReadOnly}}
+   *
+   * This property is read-only.
+  {{/isReadOnly}}
+  {{#isWriteOnly}}
+   *
+   * This property is write-only.
+  {{/isWriteOnly}}
   {{#vendorExtensions.pluralExamples}}
    *
    * Example "{{summary}}" — {{description}}; value: {{value}}
@@ -670,7 +678,8 @@ class {{classname}}(
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
 {{/isUuid}}{{#isUri}}  @Contextual
-{{/isUri}}{{#vendorExtensions.isDuration}}  @Contextual
+{{/isUri}}{{#vendorExtensions.isLocalTime}}  @Contextual
+{{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
 {{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}

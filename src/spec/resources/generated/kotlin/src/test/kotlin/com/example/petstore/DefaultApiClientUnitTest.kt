@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -318,6 +318,52 @@ class DefaultApiClientUnitTest {
                 wire.contains("Content-Type: application/octet-stream"),
                 "raw-bytes part with no extension must default to application/octet-stream, got: $wire",
             )
+        }
+
+        @Test
+        @DisplayName("primitive parts are plain text in the stringify form; only an object is a JSON part")
+        fun primitivePartsArePlainTextAndObjectsAreJson() {
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> =
+                linkedMapOf(
+                    "flag" to true,
+                    "count" to 3L,
+                    "at" to java.time.OffsetDateTime.parse("2024-01-15T10:30:00Z"),
+                    "unit" to java.util.concurrent.TimeUnit.SECONDS,
+                    "meta" to mapOf("k" to "v"),
+                )
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.UTF_8)
+
+            fun part(name: String): String {
+                val start = wire.indexOf("name=\"$name\"")
+                assertTrue(start >= 0, "missing part $name in: $wire")
+                return wire.substring(start, wire.indexOf("\r\n--", start))
+            }
+            val expected =
+                mapOf("flag" to "true", "count" to "3", "at" to "2024-01-15T10:30:00.000+00:00", "unit" to "SECONDS")
+            for ((name, text) in expected) {
+                val part = part(name)
+                assertFalse(part.contains("Content-Type"), "text part $name must carry no Content-Type: $part")
+                assertTrue(part.endsWith("\r\n\r\n$text"), "part $name body must be $text: $part")
+            }
+            val meta = part("meta")
+            assertTrue(meta.contains("Content-Type: application/json"), meta)
+            assertTrue(meta.endsWith("\r\n\r\n{\"k\":\"v\"}"), meta)
         }
     }
 

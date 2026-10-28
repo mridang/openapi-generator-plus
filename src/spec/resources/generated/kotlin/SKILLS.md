@@ -245,7 +245,7 @@ Models are generated as Kotlin data classes in the `com.example.petstore.models`
 ```kotlin
 import com.example.petstore.models.*
 
-val model = ApiResponse(/* properties */)
+val model = Account(/* properties */)
 ```
 
 ## Binary / File Uploads

@@ -623,6 +623,23 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("form-urlencoded body rejects a nested object field instead of sending its toString")
+        fun formUrlencodedBodyRejectsNestedObject() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val ex =
+                assertThrowsExactly(SerializationException::class.java) {
+                    runBlocking {
+                        testApi.call("POST", "/test/echo",
+                            body = mapOf("location" to mapOf("lat" to 1.5)),
+                            contentType = "application/x-www-form-urlencoded")
+                    }
+                }
+            assertEquals("form-urlencoded field location must be a scalar or array of scalars", ex.message)
+            assertNull(client.capturedBody)
+        }
+
+        @Test
         @DisplayName("passes binary body as-is")
         fun passesBinaryBody() {
             val client = CapturingApiClient()

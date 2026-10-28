@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -21,6 +21,8 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
             private set
         var lastUrl: String? = null
             private set
+        var requestCount: Int = 0
+            private set
 
         fun enqueue(
             body: String,
@@ -38,6 +40,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         ): ApiHttpResponse {
             lastUrl = url
             lastBody = body?.toString()
+            requestCount++
             return responses.poll() ?: throw IllegalStateException("No responses queued")
         }
     }
@@ -74,6 +77,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         val url = auth.buildAuthorizationUrl("csrf-state-123")
 
         assertTrue(url.contains("state=csrf-state-123"))
+    }
+
+    @Test
+    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("")
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(auth.buildAuthorizationUrl(null), url)
     }
 
     @Test
@@ -125,6 +138,79 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         }
         // No token request should have been dispatched.
         assertNull(client.lastBody, "no token request should be sent for a whitespace-only code")
+    }
+
+    @Test
+    fun secondExchangeCodeSendsTheNewCode() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        runBlocking { auth.exchangeCode("second-code") }
+
+        assertTrue(client.lastBody!!.contains("grant_type=authorization_code"), client.lastBody)
+        assertTrue(client.lastBody!!.contains("code=second-code"), client.lastBody)
+        assertEquals("Bearer tok2", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    fun secondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok3","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        runBlocking { auth.exchangeCode("second-code") }
+        runBlocking { auth.getAuthHeaders() }
+
+        assertFalse(client.lastBody!!.contains("ref1"), client.lastBody)
+    }
+
+    @Test
+    fun failedExchangeKeepsThePreviousSession() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("first-code") }
+        assertThrowsExactly(com.example.petstore.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("bad-code") }
+        }
+
+        assertEquals("Bearer tok1", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
+    fun refreshCarriesClientCredentialsAndARejectedRefreshIsPostedOnce() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        client.enqueue("""{"access_token":"unexpected","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
+        assertThrowsExactly(com.example.petstore.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+
+        assertEquals(2, client.requestCount)
+        assertEquals(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.lastBody,
+        )
     }
 
     @Test

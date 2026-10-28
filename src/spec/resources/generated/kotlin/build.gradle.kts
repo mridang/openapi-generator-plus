@@ -16,7 +16,10 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
-                description.set("A simplified Pet Store API for integration testing.")
+                description.set(
+                    "A simplified Pet Store API for integration testing. Covers pets & owners, <admin" +
+                        "> notes, \"quoted\" text, it's \$USD and #{x}.",
+                )
                 licenses {
                     license {
                         name.set("MIT")

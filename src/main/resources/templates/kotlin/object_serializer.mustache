@@ -48,8 +48,18 @@ internal object Base64ByteArraySerializer : KSerializer<ByteArray> {
     override val descriptor = PrimitiveSerialDescriptor("ByteArray", PrimitiveKind.STRING)
     override fun serialize(encoder: Encoder, value: ByteArray) =
         encoder.encodeString(Base64.getEncoder().encodeToString(value))
-    override fun deserialize(decoder: Decoder): ByteArray =
-        Base64.getDecoder().decode(decoder.decodeString())
+    // RFC 4648 section 4: standard alphabet, = padding to a multiple of four,
+    // no whitespace and no URL-safe characters. java.util.Base64 alone would
+    // accept an unpadded value.
+    private val strictBase64 = Regex("^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$")
+
+    override fun deserialize(decoder: Decoder): ByteArray {
+        val text = decoder.decodeString()
+        if (!strictBase64.matches(text)) {
+            throw kotlinx.serialization.SerializationException("Invalid base64 value for a format: byte field")
+        }
+        return Base64.getDecoder().decode(text)
+    }
 }
 
 /*
@@ -446,6 +456,7 @@ internal class ObjectSerializer(
         if (value == null) return ""
         return when (value) {
             is Boolean -> if (value) "true" else "false"
+            is ByteArray -> Base64.getEncoder().encodeToString(value)
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
             is Duration -> formatDuration(value)
             // format:date-time is emitted as YYYY-MM-DDTHH:mm:ss.SSS±HH:MM: a
@@ -668,6 +679,24 @@ internal class ObjectSerializer(
                 LocalDate.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_DATE)
         }
 
+        /* `format: time` is a java.time.LocalTime: written as HH:mm:ss, or
+         * HH:mm:ss.SSS (truncated to milliseconds) when it has a fraction. */
+        private object LocalTimeSerializer : KSerializer<java.time.LocalTime> {
+            override val descriptor = PrimitiveSerialDescriptor("LocalTime", PrimitiveKind.STRING)
+            private val withFraction = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
+            private val withoutFraction = DateTimeFormatter.ofPattern("HH:mm:ss")
+
+            override fun serialize(
+                encoder: Encoder,
+                value: java.time.LocalTime,
+            ) = encoder.encodeString(
+                if (value.nano == 0) withoutFraction.format(value) else withFraction.format(value),
+            )
+
+            override fun deserialize(decoder: Decoder): java.time.LocalTime =
+                java.time.LocalTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_LOCAL_TIME)
+        }
+
         /* OpenAPI `format: uuid` is represented as kotlin.uuid.Uuid in
          * generated models. The stdlib Uuid type is graduated from
          * @ExperimentalUuidApi in newer Kotlin releases; we opt in at the
@@ -700,8 +729,19 @@ internal class ObjectSerializer(
             override val descriptor = PrimitiveSerialDescriptor("KtorUrl", PrimitiveKind.STRING)
             override fun serialize(encoder: Encoder, value: Url) =
                 encoder.encodeString(value.toString())
-            override fun deserialize(decoder: Decoder): Url =
-                Url(decoder.decodeString())
+            // format: uri is an absolute RFC 3986 URI of any scheme: a scheme,
+            // a colon, then no whitespace or control characters. Relative
+            // references and empty strings are rejected; Url(...) alone accepts
+            // almost anything.
+            private val absoluteUri = Regex("^[A-Za-z][A-Za-z0-9+.-]*:[^\\s\\p{Cntrl}]*$")
+
+            override fun deserialize(decoder: Decoder): Url {
+                val text = decoder.decodeString()
+                if (!absoluteUri.matches(text)) {
+                    throw kotlinx.serialization.SerializationException("Invalid absolute URI for a format: uri field")
+                }
+                return Url(text)
+            }
         }
 
         /* OpenAPI `format: duration` is wire-encoded as a protobuf-JSON
@@ -877,6 +917,7 @@ internal class ObjectSerializer(
         internal val contextualSerializersModule: SerializersModule = SerializersModule {
             contextual(OffsetDateTimeSerializer)
             contextual(LocalDateSerializer)
+            contextual(LocalTimeSerializer)
             contextual(BigDecimalSerializer)
             contextual(UuidSerializer)
             contextual(KtorUrlSerializer)

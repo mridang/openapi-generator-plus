@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -53,7 +53,6 @@ open class OAuth2PasswordAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        val currentRefreshToken = tokenManager.getRefreshToken()
         val extraHeaders = mutableMapOf<String, String>()
         if (clientAuthMethod == ClientAuthMethod.BASIC) {
             // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
@@ -79,36 +78,23 @@ open class OAuth2PasswordAuthenticator(
                     .encodeToString("$encodedId:$encodedSecret".toByteArray(Charsets.UTF_8))
             extraHeaders["Authorization"] = "Basic $credentials"
         }
+        // The password grant is always handed to the token manager: once a
+        // refresh token is held the manager refreshes against refreshUrl with
+        // the same client authentication (RFC 6749 section 6 and 3.2.1) and
+        // re-runs this grant against tokenUrl when the refresh is rejected.
         val params =
-            if (currentRefreshToken != null) {
-                // RFC 6749 §6: the refresh grant carries only grant_type and
-                // refresh_token — client_id/client_secret and scope belong to the
-                // initial password grant, matching the auth-code refresh path and
-                // the other SDKs.
-                mutableMapOf(
-                    "grant_type" to "refresh_token",
-                    "refresh_token" to currentRefreshToken,
-                )
-            } else {
-                mutableMapOf(
-                    "grant_type" to "password",
-                    "username" to username,
-                    "password" to password,
-                ).also { p ->
-                    if (clientAuthMethod != ClientAuthMethod.BASIC) {
-                        p["client_id"] = clientId
-                        p["client_secret"] = clientSecret
-                    }
-                    if (scopes.isNotEmpty()) p["scope"] = scopes.joinToString(" ")
+            mutableMapOf(
+                "grant_type" to "password",
+                "username" to username,
+                "password" to password,
+            ).also { p ->
+                if (clientAuthMethod != ClientAuthMethod.BASIC) {
+                    p["client_id"] = clientId
+                    p["client_secret"] = clientSecret
                 }
+                if (scopes.isNotEmpty()) p["scope"] = scopes.joinToString(" ")
             }
-        /*
-         * RFC 6749 §4.3.2: the initial password grant goes to the token
-         * endpoint; only the refresh grant (§6) goes to the refresh endpoint.
-         * These differ when the caller configures a distinct refreshUrl.
-         */
-        val endpoint = if (currentRefreshToken != null) (refreshUrl ?: tokenUrl) else tokenUrl
-        val token = tokenManager.getAccessToken(endpoint, params, extraHeaders)
+        val token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders, refreshUrl ?: tokenUrl)
         return mapOf("Authorization" to "Bearer $token")
     }
 

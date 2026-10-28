@@ -128,6 +128,67 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun refreshIsSentToTheRefreshUrlAndARefreshGrantIsPostedOnce() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials", "client_id" to "cid")
+
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        val token = runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                params,
+                emptyMap(),
+                "https://auth.example.com/refresh",
+            )
+        }
+
+        assertEquals("tok2", token)
+        assertEquals("https://auth.example.com/refresh", client.lastUrl)
+        assertEquals("grant_type=refresh_token&refresh_token=ref1&client_id=cid", client.lastBody)
+
+        val single = FakeApiClient()
+        single.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val other = OAuth2TokenManager()
+        other.apiClient = single
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking {
+                other.getAccessToken(
+                    "https://auth.example.com/refresh",
+                    mapOf("grant_type" to "refresh_token", "refresh_token" to "r"),
+                )
+            }
+        }
+        assertEquals(1, single.bodies.size)
+    }
+
+    @Test
+    fun exchangeBypassesTheCacheAndRestoresTheSessionOnFailure() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val url = "https://auth.example.com/token"
+
+        runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "a")) }
+        val second = runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "b")) }
+        assertEquals("tok2", second)
+        assertEquals("grant_type=authorization_code&code=b", client.lastBody)
+        assertNull(manager.getRefreshToken())
+
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "bad")) }
+        }
+        assertEquals("tok2", runBlocking { manager.getAccessToken(url, mapOf("grant_type" to "authorization_code")) })
+        assertEquals(3, client.bodies.size)
+    }
+
+    @Test
     fun ignoresNonStringRefreshToken() {
         // A numeric (non-string) refresh_token must be ignored, not coerced to a
         // string — matching the other SDKs, which require a JSON string.

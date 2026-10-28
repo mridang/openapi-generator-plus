@@ -774,9 +774,110 @@ class PetApiTest {
                     .build()
             val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
-            runBlocking { api.getPetByName("Rex", GetPetByNameOptions(category = "dog")) }
+            runBlocking {
+                api.getPetByName("Rex", GetPetByNameOptions(category = "dog", xCorrelationId = "corr-1"))
+            }
 
             assertTrue(capturedQuery!!.contains("category=dog"), "query was: $capturedQuery")
+        }
+
+        @Test
+        @DisplayName("getPetTag sends a '#' in an allowReserved value percent-encoded, keeping the query")
+        fun testGetPetTagAllowReservedEncodesFragmentDelimiter() {
+            var capturedQuery: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedQuery = request.url.encodedQuery
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.getPetTag(5L, "cute", GetPetTagOptions(revision = "v1.0/beta:rc1#frag"))
+            }
+
+            assertTrue(
+                capturedQuery!!.contains("revision=v1.0/beta:rc1%23frag"),
+                "query was: $capturedQuery",
+            )
+        }
+
+        @Test
+        @DisplayName("getPetTag sends format: byte query and header values as padded standard base64")
+        fun testGetPetTagByteParamsAreBase64() {
+            val queries = mutableListOf<String>()
+            val headers = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    queries.add(request.url.encodedQuery)
+                    headers.add(request.headers["X-Fingerprint"])
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val hi = "hi".toByteArray(Charsets.UTF_8)
+            val high = byteArrayOf(0xFB.toByte(), 0xFF.toByte())
+
+            runBlocking {
+                api.getPetTag(5L, "cute", GetPetTagOptions(fingerprint = hi, xFingerprint = hi))
+                api.getPetTag(5L, "cute", GetPetTagOptions(fingerprint = high, xFingerprint = high))
+            }
+
+            assertTrue(queries[0].contains("fingerprint=aGk%3D"), "query was: ${queries[0]}")
+            assertEquals("aGk=", headers[0])
+            assertTrue(queries[1].contains("fingerprint=%2B%2F8%3D"), "query was: ${queries[1]}")
+            assertEquals("+/8=", headers[1])
+        }
+
+        @Test
+        @DisplayName("getPetByName rejects a dot-segment name before sending and keeps inner dots")
+        fun testGetPetByNameRejectsDotSegments() {
+            val paths = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    paths.add(request.url.encodedPath)
+                    respond(
+                        content = """{"id":1,"name":"Rex","photoUrls":[]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+            val options = GetPetByNameOptions(category = "dog", xCorrelationId = "corr-1")
+
+            for (segment in listOf(".", "..")) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        runBlocking { api.getPetByName(segment, options) }
+                    }
+                assertEquals("Path parameter 'name' must not be '.' or '..'", ex.message)
+            }
+            assertTrue(paths.isEmpty(), "no request may be sent, saw: $paths")
+
+            runBlocking { api.getPetByName("a..b", options) }
+            assertEquals(listOf("/pet/byName/a..b"), paths)
         }
 
         @Test
@@ -868,7 +969,10 @@ class PetApiTest {
             // boundary, rather than being rejected at a cast site in the test.
             assertThrows(RuntimeException::class.java) {
                 runBlocking {
-                    api.getPetByName("Rex", GetPetByNameOptions(category = forceNull()))
+                    api.getPetByName(
+                        "Rex",
+                        GetPetByNameOptions(category = forceNull(), xCorrelationId = "corr-1"),
+                    )
                 }
             }
         }
@@ -891,7 +995,7 @@ class PetApiTest {
             val ex =
                 assertThrows(IllegalArgumentException::class.java) {
                     runBlocking {
-                        api.getPetByName("Rex", GetPetByNameOptions(category = ""))
+                        api.getPetByName("Rex", GetPetByNameOptions(category = "", xCorrelationId = "corr-1"))
                     }
                 }
             assertTrue(
@@ -1127,7 +1231,11 @@ class PetApiTest {
                 )
                 api.setPetPreferences(
                     1L,
-                    SetPetPreferencesOptions(nickname = "rex", renewalDate = date),
+                    SetPetPreferencesOptions(
+                        nickname = "rex",
+                        renewalDate = date,
+                        reminder = OffsetDateTime.parse("2024-01-15T10:30:00Z"),
+                    ),
                 )
             }
 
@@ -1142,6 +1250,10 @@ class PetApiTest {
                 "renewalDate form field must be date-only, got: $capturedBody",
             )
             assertFalse(capturedBody!!.contains("renewalDate=2024-01-01T"), "renewalDate must carry no time")
+            assertTrue(
+                capturedBody!!.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+                "reminder form field must use the canonical date-time form, got: $capturedBody",
+            )
         }
 
         private fun apiRecordingUrls(urls: MutableList<String>): PetApi {
@@ -1214,6 +1326,21 @@ class PetApiTest {
 
             assertEquals(1, urls.size)
             assertTrue(urls[0].startsWith("https://eu.example.com/v1/"), urls[0])
+        }
+
+        @Test
+        @DisplayName("a third server whose variables repeat a name gets its own enum types and literal values")
+        fun testMultiServerMirrorVariantUrl() {
+            val mirror =
+                PetApi.GetMultiServerPetInfoServer.Mirror(
+                    PetApi.GetMultiServerPetInfoServer.MirrorRegion.EU,
+                    PetApi.GetMultiServerPetInfoServer.Channel.IT_S,
+                )
+            assertEquals("https://eu.mirror.example.com/it's/v1", mirror.getUrl())
+            assertEquals(
+                listOf("a&b", "it's"),
+                PetApi.GetMultiServerPetInfoServer.Channel.entries.map { it.value },
+            )
         }
 
         @Test

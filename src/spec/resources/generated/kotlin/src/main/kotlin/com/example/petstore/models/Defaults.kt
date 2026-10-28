@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -11,9 +11,11 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
+import java.math.BigDecimal
 
 @Serializable
 data class Defaults(
@@ -33,6 +35,40 @@ data class Defaults(
      */
     @SerialName("label")
     val label: String? = "untitled",
+    /**
+     * The `greeting` property.
+     */
+    @SerialName("greeting")
+    val greeting: String? = "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b",
+    /**
+     * The `swatch` property.
+     */
+    @SerialName("swatch")
+    val swatch: Swatch? = null,
+    /**
+     * The `ratio` property.
+     */
+    @SerialName("ratio")
+    @Contextual
+    val ratio: BigDecimal? = java.math.BigDecimal("1.5"),
+    /**
+     * The `scale` property.
+     */
+    @SerialName("scale")
+    @Serializable(with = com.example.petstore.StrictFloatSerializer::class)
+    val scale: Float? = 0.25f,
+    /**
+     * The `weight` property.
+     */
+    @SerialName("weight")
+    @Serializable(with = com.example.petstore.StrictDoubleSerializer::class)
+    val weight: Double? = 2.0,
+    /**
+     * The `ceiling` property.
+     */
+    @SerialName("ceiling")
+    @Serializable(with = com.example.petstore.StrictLongSerializer::class)
+    val ceiling: Long? = 9000000000L,
 ) {
     @Serializable
     enum class ModeEnum(
@@ -53,5 +89,48 @@ data class Defaults(
                 entries.firstOrNull { it.value == value }
                     ?: throw IllegalArgumentException("Unexpected value '$value'")
         }
+    }
+
+  /* Kotlin's synthesized data-class equals/hashCode compare Array and
+   * ByteArray by reference identity (and List<ByteArray> bottoms out in
+   * reference-equal elements), so two instances decoded from identical JSON
+   * would not be equal and would hash differently. The overrides below route
+   * those fields through contentEquals/contentHashCode (element-wise for
+   * List<ByteArray>) and compare BigDecimal fields by numeric value (the data
+   * class would treat 1.5 and 1.50 as different) while every other field keeps
+   * ordinary == semantics. */
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+        other as Defaults
+        if (retries != other.retries) return false
+        if (mode != other.mode) return false
+        if (label != other.label) return false
+        if (greeting != other.greeting) return false
+        if (swatch != other.swatch) return false
+        if (ratio != null) {
+            if (other.ratio == null) return false
+            if (ratio.compareTo(other.ratio) != 0) return false
+        } else if (other.ratio != null) {
+            return false
+        }
+        if (scale != other.scale) return false
+        if (weight != other.weight) return false
+        if (ceiling != other.ceiling) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = 0
+        result = 31 * result + (retries?.hashCode() ?: 0)
+        result = 31 * result + (mode?.hashCode() ?: 0)
+        result = 31 * result + (label?.hashCode() ?: 0)
+        result = 31 * result + (greeting?.hashCode() ?: 0)
+        result = 31 * result + (swatch?.hashCode() ?: 0)
+        result = 31 * result + (ratio?.stripTrailingZeros()?.hashCode() ?: 0)
+        result = 31 * result + (scale?.hashCode() ?: 0)
+        result = 31 * result + (weight?.hashCode() ?: 0)
+        result = 31 * result + (ceiling?.hashCode() ?: 0)
+        return result
     }
 }

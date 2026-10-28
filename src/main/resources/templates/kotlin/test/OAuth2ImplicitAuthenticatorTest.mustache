@@ -56,6 +56,27 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
+    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("")
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(auth.buildAuthorizationUrl(null), url)
+    }
+
+    @Test
+    fun emptyAccessTokenIsTreatedAsUnset() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("")
+
+        val ex = assertThrowsExactly(IllegalStateException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        assertEquals("Must set the access token before making API requests", ex.message)
+    }
+
+    @Test
     fun getAuthHeadersReturnsBearerAfterSetAccessToken() {
         val auth = createAuthenticator()
         auth.setAccessToken("implicit-tok")

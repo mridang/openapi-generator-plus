@@ -1,4 +1,5 @@
 {{>api_info}}
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 
 package {{package}}
 
@@ -42,7 +43,7 @@ class {{classname}} : BaseApi {
 
         enum class {{pascalName}}(val value: String) {
 {{#enumValues}}
-            {{name}}("{{value}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+            {{name}}("{{{valueLiteral}}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
 {{/enumValues}}
         }
 {{/hasEnumValues}}
@@ -51,15 +52,15 @@ class {{classname}} : BaseApi {
 {{#variants}}
 
 {{#hasDescription}}
-        /** {{{description}}} */
+        /** {{#lambda.kdoc}}{{{description}}}{{/lambda.kdoc}} */
 {{/hasDescription}}
 {{#hasVariables}}
         data class {{variantName}}({{#serverVariables}}val {{camelName}}: {{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}} {
 
             override fun getUrl(): String {
-                var url = "{{url}}"
+                var url = "{{#lambda.kotlinString}}{{{url}}}{{/lambda.kotlinString}}"
 {{#serverVariables}}
-                url = url.replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+                url = url.replace("{" + "{{#lambda.kotlinString}}{{{name}}}{{/lambda.kotlinString}}" + "}", {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
 {{/serverVariables}}
                 return url
             }
@@ -68,7 +69,7 @@ class {{classname}} : BaseApi {
 {{^hasVariables}}
         object {{variantName}} : {{serverTypeName}} {
 
-            override fun getUrl(): String = "{{url}}"
+            override fun getUrl(): String = "{{#lambda.kotlinString}}{{{url}}}{{/lambda.kotlinString}}"
         }
 {{/hasVariables}}
 {{/variants}}
@@ -182,9 +183,11 @@ class {{classname}} : BaseApi {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
+{{^isUuid}}
         require({{paramName}}.isNotEmpty()) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -204,9 +207,11 @@ class {{classname}} : BaseApi {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
+{{^isUuid}}
         require(options.{{paramName}}.isNotEmpty()) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/queryParams}}
@@ -216,9 +221,11 @@ class {{classname}} : BaseApi {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
+{{^isUuid}}
         require(options.{{paramName}}.isNotEmpty()) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/headerParams}}
@@ -228,9 +235,11 @@ class {{classname}} : BaseApi {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
+{{^isUuid}}
         require(options.{{paramName}}.isNotEmpty()) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/formParams}}
@@ -240,9 +249,11 @@ class {{classname}} : BaseApi {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
 {{#isString}}
+{{^isUuid}}
         require(options.{{paramName}}.isNotEmpty()) {
             "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/cookieParams}}

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -127,7 +127,7 @@ class MetadataTest {
         val buildFile = java.io.File("build.gradle.kts")
         assertTrue(buildFile.exists(), "build.gradle.kts must exist at the project root")
         val contents = buildFile.readText()
-        val match = Regex("""description\.set\("([^"]*)"\)""").find(contents)
+        val match = Regex("""description\.set\(\s*"((?:[^"\\]|\\.)*)"""").find(contents)
         assertNotNull(match, "build.gradle.kts must set a POM description")
         assertTrue(
             match!!.groupValues[1].isNotBlank(),

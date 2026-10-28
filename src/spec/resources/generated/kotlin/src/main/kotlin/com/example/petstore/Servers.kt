@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -62,10 +62,30 @@ object Servers {
             ),
         )
 
+    /**
+     * Server 2: `https://{tenant}.example.com/api`
+     *
+     * Bob's "sandbox" & co: $5 #{x} a* /b
+     */
+    val SERVER_2: ServerConfiguration =
+        ServerConfiguration(
+            "https://{tenant}.example.com/api",
+            "Bob's \"sandbox\" & co: \$5 #{x} a*/b",
+            mapOf(
+                "tenant" to
+                    ServerVariable(
+                        "o'neil",
+                        "Tenant's \"id\"",
+                        listOf("o'neil", "a&b"),
+                    ),
+            ),
+        )
+
     /** All server configurations in declaration order. */
     val ALL: List<ServerConfiguration> =
         listOf(
             SERVER_0,
             SERVER_1,
+            SERVER_2,
         )
 }

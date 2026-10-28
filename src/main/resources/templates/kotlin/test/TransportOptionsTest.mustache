@@ -65,6 +65,13 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("userAgent defaults to the published artifact name, version and language")
+        fun userAgentDefaultsToTheArtifactName() {
+            val opts = TransportOptions.builder().build()
+            assertEquals("{{{artifactId}}}/{{{artifactVersion}}} (kotlin)", opts.userAgent)
+        }
+
+        @Test
         @DisplayName("defaultHeaders defaults to empty map")
         fun defaultHeadersDefaultsToEmpty() {
             val opts = TransportOptions.builder().build()

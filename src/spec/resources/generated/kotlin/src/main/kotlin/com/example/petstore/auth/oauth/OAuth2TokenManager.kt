@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -87,7 +87,15 @@ class OAuth2TokenManager {
      *
      * @param tokenUrl the OAuth2 token endpoint URL
      * @param params the token request parameters (grant_type, client_id, etc.)
+     * When a refresh token is held and [params] is not itself a refresh grant,
+     * the refresh (RFC 6749 section 6) is POSTed to [refreshUrl] with the same
+     * client authentication as the original grant: client_id/client_secret are
+     * copied from [params] and [extraHeaders] ride along. If the refresh fails
+     * the original grant in [params] is re-run against [tokenUrl]. When
+     * [params] already is a refresh grant it is POSTed exactly once.
+     *
      * @param extraHeaders additional headers to include on the token request
+     * @param refreshUrl the refresh endpoint; defaults to [tokenUrl]
      * @return a valid access token
      * @throws IllegalStateException if no API client has been injected
      */
@@ -95,6 +103,7 @@ class OAuth2TokenManager {
         tokenUrl: String,
         params: Map<String, String>,
         extraHeaders: Map<String, String> = emptyMap(),
+        refreshUrl: String? = null,
     ): String {
         // Fast path: serve the cached token without taking the lock.
         val cached = accessToken
@@ -109,6 +118,11 @@ class OAuth2TokenManager {
             if (isTokenValid(current, currentExpiry)) {
                 return@withLock current!!
             }
+            if (params["grant_type"] == "refresh_token") {
+                fetchToken(refreshUrl ?: tokenUrl, params, extraHeaders)
+                return@withLock accessToken
+                    ?: throw OAuth2TokenException("Token fetch did not return an access token")
+            }
             val currentRefreshToken = refreshToken
             if (!currentRefreshToken.isNullOrEmpty()) {
                 val refreshParams =
@@ -119,7 +133,7 @@ class OAuth2TokenManager {
                         params["client_secret"]?.let { put("client_secret", it) }
                     }
                 try {
-                    fetchToken(tokenUrl, refreshParams, extraHeaders)
+                    fetchToken(refreshUrl ?: tokenUrl, refreshParams, extraHeaders)
                     accessToken?.let { return@withLock it }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     /* Coroutine cancellation is not a refresh failure: let it
@@ -134,6 +148,45 @@ class OAuth2TokenManager {
             accessToken ?: throw OAuth2TokenException("Token fetch did not return an access token")
         }
     }
+
+    /**
+     * POST [params] verbatim to [tokenUrl] and replace the session with the
+     * response, bypassing the token cache and the refresh path. Used for the
+     * authorization_code grant, which must always send the new code.
+     *
+     * On success the session holds exactly what the response carried: a
+     * response without `refresh_token` leaves no refresh token, one without
+     * `expires_in` leaves no expiry. On any failure the previous session is
+     * restored and the error rethrown, so a rejected code does not log the
+     * caller out.
+     *
+     * @param tokenUrl the OAuth2 token endpoint URL
+     * @param params the token request parameters, sent unchanged
+     * @param extraHeaders additional headers to include on the token request
+     * @return the new access token
+     */
+    suspend fun exchange(
+        tokenUrl: String,
+        params: Map<String, String>,
+        extraHeaders: Map<String, String> = emptyMap(),
+    ): String =
+        refreshMutex.withLock {
+            val previousAccess = accessToken
+            val previousExpiry = tokenExpiryMs
+            val previousRefresh = refreshToken
+            accessToken = null
+            tokenExpiryMs = null
+            refreshToken = null
+            try {
+                fetchToken(tokenUrl, params, extraHeaders)
+                accessToken ?: throw OAuth2TokenException("Token fetch did not return an access token")
+            } catch (e: Throwable) {
+                accessToken = previousAccess
+                tokenExpiryMs = previousExpiry
+                refreshToken = previousRefresh
+                throw e
+            }
+        }
 
     /**
      * Invalidate the cached access token so that the next call to

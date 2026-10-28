@@ -75,6 +75,23 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"""
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl("") }
+        val absent = runBlocking { auth.buildAuthorizationUrl(null) }
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(absent, url)
+    }
+
+    @Test
     fun fetchesDiscoveryDocument() {
         val client = FakeApiClient()
         client.enqueue(

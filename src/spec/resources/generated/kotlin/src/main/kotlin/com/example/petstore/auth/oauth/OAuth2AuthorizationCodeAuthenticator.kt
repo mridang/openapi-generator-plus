@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -79,7 +79,7 @@ open class OAuth2AuthorizationCodeAuthenticator(
         if (scopes.isNotEmpty()) {
             url.append("&scope=").append(encode(scopes.joinToString(" ")))
         }
-        if (state != null) {
+        if (!state.isNullOrEmpty()) {
             url.append("&state=").append(encode(state))
         }
         return url.toString()
@@ -104,7 +104,9 @@ open class OAuth2AuthorizationCodeAuthenticator(
                 "client_secret" to clientSecret,
                 "redirect_uri" to redirectUri,
             )
-        tokenManager.getAccessToken(tokenUrl, params)
+        // Always POST the new code: a cached token or a stored refresh token
+        // from an earlier exchange must not stand in for this grant.
+        tokenManager.exchange(tokenUrl, params)
         tokenExchanged = true
     }
 
@@ -123,10 +125,14 @@ open class OAuth2AuthorizationCodeAuthenticator(
 
     override suspend fun getAuthHeaders(): Map<String, String> {
         check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
+        // RFC 6749 section 6: the client authenticates the refresh the same
+        // way it authenticated the code exchange (section 3.2.1).
         val params =
             mutableMapOf(
                 "grant_type" to "refresh_token",
                 "refresh_token" to (tokenManager.getRefreshToken() ?: ""),
+                "client_id" to clientId,
+                "client_secret" to clientSecret,
             )
         val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
         return mapOf("Authorization" to "Bearer $token")

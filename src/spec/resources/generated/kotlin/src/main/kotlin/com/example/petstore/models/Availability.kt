@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -28,6 +28,18 @@ enum class Availability(
 
     @SerialName("on-hold")
     ON_HOLD("on-hold"),
+
+    @SerialName("o'clock")
+    OCLOCK("o'clock"),
+
+    @SerialName("a\\b")
+    A_B("a\\b"),
+
+    @SerialName("\$eq")
+    EQ("\$eq"),
+
+    @SerialName("#{x}")
+    X("#{x}"),
     ;
 
     companion object {

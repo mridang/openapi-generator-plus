@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -238,6 +238,28 @@ class DefaultApiClientTest {
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
             assertEquals("MyApp/1.0", json.get("headers").get("user-agent").asText())
+        }
+
+        @Test
+        @DisplayName("a caller header in any letter case suppresses the injected User-Agent and X-Request-ID")
+        fun callerHeaderInAnyCaseWins() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .defaultHeaders(mapOf("user-agent" to "MyApp", "x-request-id" to "abc"))
+                    .build()
+            val client = DefaultApiClient(transport)
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            val headers = ObjectMapper().readTree(response.body).get("headers")
+            assertEquals("MyApp", headers.get("user-agent").asText())
+            assertEquals("abc", headers.get("x-request-id").asText())
+            assertFalse(response.body.contains("(kotlin)"), response.body)
         }
     }
 

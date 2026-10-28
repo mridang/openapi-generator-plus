@@ -16,7 +16,9 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
-                description.set("{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}")
+                description.set(
+                    "{{#lambda.kotlinChunked}}{{#appDescription}}{{#lambda.kotlinDollar}}{{{appDescription}}}{{/lambda.kotlinDollar}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}{{/lambda.kotlinChunked}}",
+                )
                 licenses {
                     license {
                         name.set("{{licenseId}}")
