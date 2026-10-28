@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -58,7 +58,21 @@ public static class Servers
     );
 
     /// <summary>
+    /// Server 2: https://{tenant}.example.com/api
+    ///
+    /// <![CDATA[Bob's "sandbox" & co: $5 #{x} a*/b]]>
+    /// </summary>
+    public static readonly ServerConfiguration Server2 = new(
+        "https://{tenant}.example.com/api",
+        "Bob's \"sandbox\" & co: $5 #{x} a*/b",
+        new Dictionary<string, ServerVariable>
+        {
+            ["tenant"] = new ServerVariable("o'neil", "Tenant's \"id\"", ["o'neil", "a&b"]),
+        }
+    );
+
+    /// <summary>
     /// All server configurations in declaration order.
     /// </summary>
-    public static readonly IReadOnlyList<ServerConfiguration> All = [Server0, Server1];
+    public static readonly IReadOnlyList<ServerConfiguration> All = [Server0, Server1, Server2];
 }

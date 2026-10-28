@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -86,6 +86,9 @@ public class Order : IEquatable<Order>
     [JsonPropertyName("quantity")]
     public int? Quantity { get; set; }
 
+    [JsonPropertyName("trackingId")]
+    public Guid? TrackingId { get; set; }
+
     [JsonPropertyName("shipDate")]
     public DateTimeOffset? ShipDate { get; set; }
 
@@ -108,6 +111,7 @@ public class Order : IEquatable<Order>
                 || EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
                     && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
                     && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
+                    && EqualityComparer<Guid?>.Default.Equals(this.TrackingId, other.TrackingId)
                     && EqualityComparer<DateTimeOffset?>.Default.Equals(
                         this.ShipDate,
                         other.ShipDate
@@ -128,6 +132,7 @@ public class Order : IEquatable<Order>
         hash.Add(this.Id);
         hash.Add(this.PetId);
         hash.Add(this.Quantity);
+        hash.Add(this.TrackingId);
         hash.Add(this.ShipDate);
         hash.Add(this.Status);
         hash.Add(this.Complete);
@@ -142,6 +147,7 @@ public class Order : IEquatable<Order>
         sb.Append("Id=").Append(this.Id);
         sb.Append(", PetId=").Append(this.PetId);
         sb.Append(", Quantity=").Append(this.Quantity);
+        sb.Append(", TrackingId=").Append(this.TrackingId);
         sb.Append(", ShipDate=").Append(this.ShipDate);
         sb.Append(", Status=").Append(this.Status);
         sb.Append(", Complete=").Append(this.Complete);

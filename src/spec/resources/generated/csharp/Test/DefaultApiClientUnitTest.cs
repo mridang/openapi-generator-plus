@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -319,6 +319,37 @@ public class DefaultApiClientUnitTest
             null
         );
         Assert.Equal("caller-id", capturedRequestId);
+    }
+
+    [Fact]
+    public async Task CallerHeadersWinRegardlessOfCasing()
+    {
+        List<string>? userAgents = null;
+        List<string>? requestIds = null;
+        var handler = new CapturingHandler(req =>
+        {
+            userAgents = req.Headers.TryGetValues("User-Agent", out var ua) ? ua.ToList() : null;
+            requestIds = req.Headers.TryGetValues("X-Request-ID", out var ids)
+                ? ids.ToList()
+                : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .UserAgent("SdkDefault/9.9")
+            .InjectRequestId(true)
+            .DefaultHeader("user-agent", "MyApp")
+            .DefaultHeader("x-request-id", "abc")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(new List<string> { "MyApp" }, userAgents);
+        Assert.Equal(new List<string> { "abc" }, requestIds);
     }
 
     [Fact]

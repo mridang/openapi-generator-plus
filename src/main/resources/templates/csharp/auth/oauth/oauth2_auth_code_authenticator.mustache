@@ -90,7 +90,7 @@ public class OAuth2AuthorizationCodeAuthenticator
             parameters["scope"] = string.Join(" ", _scopes);
         }
 
-        if (state is not null)
+        if (!string.IsNullOrEmpty(state))
         {
             parameters["state"] = state;
         }

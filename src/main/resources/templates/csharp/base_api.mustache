@@ -246,7 +246,7 @@ public abstract class BaseApi
                     string key = FormUrlEncode(kv.Key);
                     if (
                         kv.Value is System.Collections.IEnumerable enumerable
-                        && kv.Value is not string
+                        && !ObjectSerializer.IsScalar(kv.Value)
                     )
                     {
                         foreach (object? element in enumerable)
@@ -255,10 +255,18 @@ public abstract class BaseApi
                             {
                                 continue;
                             }
+                            if (!ObjectSerializer.IsScalar(element))
+                            {
+                                throw NonScalarFormField(kv.Key);
+                            }
                             parts.Add(
                                 key + "=" + FormUrlEncode(ObjectSerializer.Stringify(element))
                             );
                         }
+                    }
+                    else if (!ObjectSerializer.IsScalar(kv.Value))
+                    {
+                        throw NonScalarFormField(kv.Key);
                     }
                     else
                     {
@@ -418,6 +426,48 @@ public abstract class BaseApi
     /// UTF-8 bytes of the body are returned so that custom transports returning raw text
     /// still produce a usable stream.
     /// </summary>
+    /// <summary>
+    /// Flattens a model into its top-level wire fields for a deepObject query
+    /// parameter: the model is serialized with the SDK serializer and each
+    /// JSON property becomes one entry (strings unquoted, other values as their
+    /// JSON text). Null properties are omitted by the serializer.
+    /// </summary>
+    /// <param name="value">The model to flatten.</param>
+    /// <returns>The wire field names mapped to their values.</returns>
+    protected IDictionary<string, object?> ToDeepObjectFields(object value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        Dictionary<string, object?> fields = [];
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(
+            Serializer.Serialize(value)
+        );
+        if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+        {
+            return fields;
+        }
+        foreach (System.Text.Json.JsonProperty property in document.RootElement.EnumerateObject())
+        {
+            fields[property.Name] =
+                property.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? property.Value.GetString()
+                    : property.Value.GetRawText();
+        }
+        return fields;
+    }
+
+    /// <summary>
+    /// Builds the error raised when an <c>application/x-www-form-urlencoded</c>
+    /// field holds a model, map or array of objects: the generator emits no
+    /// OAS encoding style for such values, so no wire form is defined and the
+    /// SDK refuses rather than sending the value's ToString().
+    /// </summary>
+    private static SerializationException NonScalarFormField(string name)
+    {
+        return new SerializationException(
+            "form-urlencoded field " + name + " must be a scalar or array of scalars"
+        );
+    }
+
     private static byte[] DecodeBinaryBody(string body, bool base64Expected)
     {
         if (base64Expected)

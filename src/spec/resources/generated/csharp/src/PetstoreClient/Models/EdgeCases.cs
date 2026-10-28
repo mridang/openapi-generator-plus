@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -54,6 +54,30 @@ public class EdgeCases : IEquatable<EdgeCases>
     [JsonPropertyName("expiresAt")]
     public DateTimeOffset? ExpiresAt { get; set; }
 
+    [JsonPropertyName("2fa")]
+    public bool? N2fa { get; set; }
+
+    [JsonPropertyName("separator")]
+    public Separator? Separator { get; set; }
+
+    [JsonPropertyName("null")]
+    public string? Null { get; set; }
+
+    [JsonPropertyName("true")]
+    public bool? True { get; set; }
+
+    [JsonPropertyName("false")]
+    public bool? False { get; set; }
+
+    [JsonPropertyName("lastError")]
+    public Error? LastError { get; set; }
+
+    [JsonPropertyName("outcome")]
+    public Result? Outcome { get; set; }
+
+    [JsonPropertyName("cutoff")]
+    public TimeOnly? Cutoff { get; set; }
+
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(EdgeCases? other)
     {
@@ -79,6 +103,14 @@ public class EdgeCases : IEquatable<EdgeCases>
                         this.ExpiresAt,
                         other.ExpiresAt
                     )
+                    && EqualityComparer<bool?>.Default.Equals(this.N2fa, other.N2fa)
+                    && EqualityComparer<Separator?>.Default.Equals(this.Separator, other.Separator)
+                    && EqualityComparer<string?>.Default.Equals(this.Null, other.Null)
+                    && EqualityComparer<bool?>.Default.Equals(this.True, other.True)
+                    && EqualityComparer<bool?>.Default.Equals(this.False, other.False)
+                    && EqualityComparer<Error?>.Default.Equals(this.LastError, other.LastError)
+                    && EqualityComparer<Result?>.Default.Equals(this.Outcome, other.Outcome)
+                    && EqualityComparer<TimeOnly?>.Default.Equals(this.Cutoff, other.Cutoff)
             );
     }
 
@@ -100,6 +132,14 @@ public class EdgeCases : IEquatable<EdgeCases>
         hash.Add(this.Return);
         hash.Add(this.RetryAfter);
         hash.Add(this.ExpiresAt);
+        hash.Add(this.N2fa);
+        hash.Add(this.Separator);
+        hash.Add(this.Null);
+        hash.Add(this.True);
+        hash.Add(this.False);
+        hash.Add(this.LastError);
+        hash.Add(this.Outcome);
+        hash.Add(this.Cutoff);
         return hash.ToHashCode();
     }
 
@@ -118,6 +158,14 @@ public class EdgeCases : IEquatable<EdgeCases>
         sb.Append(", Return=").Append(this.Return);
         sb.Append(", RetryAfter=").Append(this.RetryAfter);
         sb.Append(", ExpiresAt=").Append(this.ExpiresAt);
+        sb.Append(", N2fa=").Append(this.N2fa);
+        sb.Append(", Separator=").Append(this.Separator);
+        sb.Append(", Null=").Append(this.Null);
+        sb.Append(", True=").Append(this.True);
+        sb.Append(", False=").Append(this.False);
+        sb.Append(", LastError=").Append(this.LastError);
+        sb.Append(", Outcome=").Append(this.Outcome);
+        sb.Append(", Cutoff=").Append(this.Cutoff);
         sb.Append('}');
         return sb.ToString();
     }

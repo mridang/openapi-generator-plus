@@ -8,4 +8,6 @@ namespace PetstoreClient.Api.Options;
 public sealed class GetPetByNameOptions
 {
     public required string Category { get; init; }
+
+    public required string XCorrelationId { get; init; }
 }

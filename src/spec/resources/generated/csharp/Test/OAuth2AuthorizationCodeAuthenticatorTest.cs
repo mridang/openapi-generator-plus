@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -92,6 +92,17 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         Uri url = auth.BuildAuthorizationUrl("csrf-state-123");
 
         Assert.Contains("state=csrf-state-123", url.ToString());
+    }
+
+    [Fact]
+    public void OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var auth = CreateAuthenticator();
+
+        string url = auth.BuildAuthorizationUrl("").OriginalString;
+
+        Assert.DoesNotContain("state", url, StringComparison.Ordinal);
+        Assert.Equal(auth.BuildAuthorizationUrl().OriginalString, url);
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -108,6 +108,48 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("\"method\"", response.Body);
+    }
+
+    [Fact]
+    public async Task CustomCaCertStillRejectsHostnameMismatch()
+    {
+        /* The mock certificate is issued by the pinned CA but names no IP
+           address, so reaching the server by its IP must fail the host name
+           check even though the chain is trusted. */
+        var caCertPath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "Test",
+            "Resources",
+            "certs",
+            "ca.pem"
+        );
+        var httpsBase = new Uri(_fixture.HttpsBaseUrl);
+        System.Net.IPAddress address = System.Net.IPAddress.TryParse(httpsBase.Host, out var parsed)
+            ? parsed
+            : (
+                await System.Net.Dns.GetHostAddressesAsync(
+                    httpsBase.Host,
+                    TestContext.Current.CancellationToken
+                )
+            )[0];
+        string host =
+            address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                ? "[" + address + "]"
+                : address.ToString();
+
+        var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
+
+        var client = new DefaultApiClient(transport);
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("https://" + host + ":" + httpsBase.Port + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(0, ex.StatusCode);
     }
 
     [Fact]

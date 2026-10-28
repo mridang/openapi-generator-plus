@@ -17,6 +17,8 @@ public sealed class FindPetsByStatusOptions
     /// <summary>Only return pets born on or after this date</summary>
     public DateOnly? BornAfter { get; init; }
 
+    public int? N2ndPage { get; init; }
+
     /// <summary>Reference date for the report</summary>
     public DateOnly? ReportDate { get; init; }
 }

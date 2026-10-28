@@ -76,6 +76,22 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("");
+
+        Assert.DoesNotContain("state", url.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task FetchesDiscoveryDocument()
     {
         var client = new FakeApiClient();

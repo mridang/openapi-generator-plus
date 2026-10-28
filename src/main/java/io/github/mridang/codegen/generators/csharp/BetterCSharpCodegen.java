@@ -169,6 +169,68 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return false;
     }
 
+    /**
+     * A digit-leading name gets the letter {@code n} prefixed before
+     * casing ({@code 2fa} becomes {@code N2fa}) instead of an
+     * underscore, which CA1707 rejects. The wire name is kept by
+     * {@code baseName}.
+     */
+    @Override
+    public String toVarName(String name) {
+        return super.toVarName(digitLeading(name) ? "n" + name : name);
+    }
+
+    /** Same digit-leading rule as {@link #toVarName(String)}. */
+    @Override
+    public String toParamName(String name) {
+        return super.toParamName(digitLeading(name) ? "n" + name : name);
+    }
+
+    /** Returns the generated model type names of every component schema. */
+    private Set<String> componentModelNames() {
+        final Set<String> names = new HashSet<>();
+        if (openAPI != null
+                && openAPI.getComponents() != null
+                && openAPI.getComponents().getSchemas() != null) {
+            for (final String key : openAPI.getComponents().getSchemas().keySet()) {
+                names.add(toModelName(key));
+            }
+        }
+        return names;
+    }
+
+    private boolean digitLeading(String name) {
+        final String sanitized = sanitizeName(name);
+        return !sanitized.isEmpty() && Character.isDigit(sanitized.charAt(0));
+    }
+
+    /**
+     * Gives every string enum member a legal public identifier: a value
+     * that cleans to nothing becomes {@code SPACE_<length>} (whitespace
+     * only) or {@code VALUE_<hex code points>}, and a digit-leading
+     * member gets the letter {@code N} rather than an underscore.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        if (value.isEmpty()) {
+            return name;
+        }
+        if (name.isEmpty()) {
+            if (value.trim().isEmpty()) {
+                return getEnumCasing().apply("SPACE_" + value.length());
+            }
+            final StringBuilder hex = new StringBuilder("VALUE");
+            value.codePoints()
+                    .forEach(cp -> hex.append('_').append(String.format(Locale.ROOT, "%04X", cp)));
+            return getEnumCasing().apply(hex.toString());
+        }
+        if (name.length() > 1 && name.charAt(0) == '_' && Character.isDigit(name.charAt(1))) {
+            return "N" + name.substring(1);
+        }
+        return name;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getOperationIdCasing() {
@@ -248,7 +310,113 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return super.addMustacheLambdas()
                 .put(
                         "escapeXml",
-                        (fragment, writer) -> writer.write(wrapDocCommentXml(fragment.execute())));
+                        (fragment, writer) ->
+                                writer.write(continueDocCommentLines(wrapDocCommentXml(fragment.execute()))))
+                .put(
+                        "escapeXmlText",
+                        (fragment, writer) -> writer.write(wrapDocCommentXml(fragment.execute())))
+                .put(
+                        "stringLiteral",
+                        (fragment, writer) -> writer.write(escapeStringLiteralBody(fragment.execute())));
+    }
+
+    /**
+     * Escapes text for the body of a C# regular string literal so the
+     * literal evaluates to exactly the spec's characters: backslash and
+     * double quote are escaped, and newline, carriage return, tab and the
+     * other C0 controls use their escape sequences.
+     */
+    static String escapeStringLiteralBody(String text) {
+        if (text == null) {
+            return "";
+        }
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20 || c == 0x7F) {
+                out.append(String.format(Locale.ROOT, "\\u%04X", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * Makes the per-operation server types compile when variants share a
+     * variable name or an enum value is not an identifier: a variable
+     * named in two or more variants of one operation gets one enum type
+     * per variant ({@code <Variant><Var>}), and enum member names are
+     * reduced to C# identifier characters.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public org.openapitools.codegen.model.OperationsMap postProcessOperationsWithModels(
+            org.openapitools.codegen.model.OperationsMap objs, List<ModelMap> allModels) {
+        final org.openapitools.codegen.model.OperationsMap processed =
+                super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
+        if (operations == null) {
+            return processed;
+        }
+        final List<Map<String, Object>> typeDefs =
+                (List<Map<String, Object>>) operations.get("serverTypeDefs");
+        if (typeDefs == null) {
+            return processed;
+        }
+        for (final Map<String, Object> typeDef : typeDefs) {
+            final List<Map<String, Object>> variants =
+                    (List<Map<String, Object>>) typeDef.getOrDefault("variants", List.of());
+            final Map<String, Integer> counts = new HashMap<>();
+            for (final Map<String, Object> variant : variants) {
+                for (final Map<String, Object> sv :
+                        (List<Map<String, Object>>) variant.getOrDefault("serverVariables", List.of())) {
+                    counts.merge((String) sv.get("name"), 1, Integer::sum);
+                }
+            }
+            for (final Map<String, Object> variant : variants) {
+                for (final Map<String, Object> sv :
+                        (List<Map<String, Object>>) variant.getOrDefault("serverVariables", List.of())) {
+                    final String pascal = (String) sv.get("pascalName");
+                    sv.put(
+                            "enumTypeName",
+                            counts.getOrDefault((String) sv.get("name"), 0) > 1
+                                    ? variant.get("variantName") + pascal
+                                    : pascal);
+                    for (final Map<String, String> ev :
+                            (List<Map<String, String>>) sv.getOrDefault("enumValues", List.of())) {
+                        String ident = String.valueOf(ev.getOrDefault("name", "")).replaceAll("[^A-Za-z0-9_]", "_");
+                        if (ident.isEmpty() || Character.isDigit(ident.charAt(0))) {
+                            ident = "_" + ident;
+                        }
+                        ev.put("name", ident);
+                    }
+                }
+            }
+        }
+        return processed;
+    }
+
+    /**
+     * Keeps multi-line prose inside the {@code ///} doc comment: every line
+     * after the first is prefixed with {@code ///}, so a description with a
+     * newline never leaks a bare line of text into the source.
+     */
+    private static String continueDocCommentLines(String text) {
+        if (text == null) {
+            return text;
+        }
+        return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\n/// ");
     }
 
     /**
@@ -560,6 +728,26 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
             return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
         }
+        if (ModelUtils.isNumberSchema(resolved) && !isEnum) {
+            /*
+             * The literal must have the field's exact type: a bare
+             * double literal does not convert to decimal (CS0664) or
+             * float, so decimal-typed numbers get the m suffix and
+             * format: float gets f. Plain text keeps the exact value.
+             */
+            final Object value = resolved.getDefault();
+            final String literal = value instanceof java.math.BigDecimal
+                    ? ((java.math.BigDecimal) value).toPlainString()
+                    : value.toString();
+            final String format = resolved.getFormat();
+            if ("float".equals(format)) {
+                return literal + "f";
+            }
+            if ("double".equals(format)) {
+                return literal;
+            }
+            return literal + "m";
+        }
         if (ModelUtils.isIntegerSchema(resolved)
                 || ModelUtils.isNumberSchema(resolved)
                 || ModelUtils.isBooleanSchema(resolved)) {
@@ -818,6 +1006,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 param.put("description", p.description);
             }
             params.add(param);
+            /* A content-based parameter (content: application/json) carries
+             * the model type in dataType only; baseType stays null. */
+            if (p.dataType != null && componentModelNames().contains(p.dataType)) {
+                hasAnyModelImports = true;
+            }
             if (!p.isPrimitiveType
                     && !p.isArray
                     && !p.isMap

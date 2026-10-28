@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -42,6 +42,13 @@ public class ObjectSerializerTest
         public void IntegerReturnsStringRepresentation()
         {
             Assert.Equal("42", ObjectSerializer.Stringify(42));
+        }
+
+        [Fact]
+        public void ByteArrayReturnsStandardBase64()
+        {
+            Assert.Equal("aGk=", ObjectSerializer.Stringify(new byte[] { 0x68, 0x69 }));
+            Assert.Equal("+/8=", ObjectSerializer.Stringify(new byte[] { 0xFB, 0xFF }));
         }
 
         [Fact]
@@ -815,6 +822,17 @@ public class ObjectSerializerTest
             Assert.Equal(7, fromNull.Retries);
             // mode was absent, so it keeps the schema default.
             Assert.Equal(Defaults.ModeEnum.Medium, fromNull.Mode);
+        }
+
+        [Fact]
+        public void DefaultsNumericLiteralsKeepTheirExactTypedValue()
+        {
+            var fromEmpty = _serializer.Deserialize<Defaults>("{}");
+            Assert.NotNull(fromEmpty);
+            Assert.Equal(1.5m, fromEmpty!.Ratio);
+            Assert.Equal(0.25f, fromEmpty.Scale);
+            Assert.Equal(2.0, fromEmpty.Weight);
+            Assert.Equal(9000000000L, fromEmpty.Ceiling);
         }
     }
 

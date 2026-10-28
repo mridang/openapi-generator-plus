@@ -664,7 +664,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{#isEnumRef}}global::{{packageName}}.Models.{{/isEnumRef}}{{{.}}};{{/defaultValue}}
 {{^-last}}
 
 {{/-last}}

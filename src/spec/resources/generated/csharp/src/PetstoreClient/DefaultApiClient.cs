@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -186,9 +186,18 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     nameof(transportOptions)
                 );
             }
-            handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+            handler.ServerCertificateCustomValidationCallback = (_, cert, _, sslPolicyErrors) =>
             {
-                if (cert == null)
+                /* The pinned CA replaces the system roots, but host name
+                 * verification still applies: a certificate issued by the
+                 * pinned CA for another host is rejected. */
+                if (
+                    cert == null
+                    || (
+                        sslPolicyErrors
+                        & System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch
+                    ) != 0
+                )
                 {
                     return false;
                 }
@@ -312,12 +321,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             mergedHeaders[header.Key] = header.Value;
         }
 
-        if (_transportOptions.UserAgent != null && !mergedHeaders.ContainsKey("User-Agent"))
+        /* Field names are case-insensitive (RFC 9110 section 5.1): a caller
+         * header in any casing wins and is left exactly as written. */
+        if (_transportOptions.UserAgent != null && !HasHeader(mergedHeaders, "User-Agent"))
         {
             mergedHeaders["User-Agent"] = _transportOptions.UserAgent;
         }
 
-        if (_transportOptions.InjectRequestId && !mergedHeaders.ContainsKey("X-Request-ID"))
+        if (_transportOptions.InjectRequestId && !HasHeader(mergedHeaders, "X-Request-ID"))
         {
             mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
         }
@@ -1294,5 +1305,14 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         _closed = true;
         _httpClient.Dispose();
+    }
+
+    /// <summary>
+    /// Reports whether <paramref name="headers"/> holds <paramref name="name"/>
+    /// under ASCII case-insensitive comparison.
+    /// </summary>
+    private static bool HasHeader(Dictionary<string, string> headers, string name)
+    {
+        return headers.Keys.Any(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -14,4 +14,6 @@ public sealed class SetPetPreferencesOptions
     public string? Note { get; init; }
 
     public DateOnly? RenewalDate { get; init; }
+
+    public DateTimeOffset? Reminder { get; init; }
 }

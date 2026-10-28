@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -19,6 +19,8 @@ namespace PetstoreClient.Api;
 /// </summary>
 public class StoreApi : BaseApi
 {
+    private static readonly string[] CreateAccountAccepts = ["application/json"];
+
     private static readonly string[] GetBySwatchAccepts = ["application/json"];
 
     private static readonly string[] GetDefaultsAccepts = ["application/json"];
@@ -33,6 +35,8 @@ public class StoreApi : BaseApi
 
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
 
+    private static readonly string[] GetOrderByTrackingIdAccepts = ["application/json"];
+
     private static readonly string[] GetStockItemAccepts = ["application/json"];
 
     private static readonly string[] GetSwatchAccepts = ["application/json"];
@@ -44,6 +48,8 @@ public class StoreApi : BaseApi
     private static readonly string[] GetTreeAccepts = ["application/json"];
 
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
+
+    private static readonly string[] SearchStoreAccepts = ["application/json"];
 
     /// <summary>Initializes a new instance of <see cref="StoreApi"/> with defaults.</summary>
     public StoreApi()
@@ -61,6 +67,67 @@ public class StoreApi : BaseApi
     /// <param name="authenticator">Optional default authenticator applied when none is passed per-operation.</param>
     public StoreApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
         : base(apiClient, config, authenticator) { }
+
+    /// <summary>
+    /// Create an account
+    /// </summary>
+    /// <param name="account"></param>
+    /// <returns><![CDATA[Account]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Account> CreateAccountAsync(Account account)
+    {
+        Task<ApiResult<Account>> task = CreateAccountWithHttpInfoAsync(account);
+        ApiResult<Account> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for CreateAccount but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Create an account (with HTTP info)
+    /// </summary>
+    /// <param name="account"></param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Account>> CreateAccountWithHttpInfoAsync(Account account)
+    {
+        string path = "/store/account";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<Account>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                account,
+                CreateAccountAccepts,
+                "application/json",
+                typeof(Account),
+                NoAuth.Instance
+            )
+            .ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Delete purchase order by ID
@@ -82,6 +149,7 @@ public class StoreApi : BaseApi
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
     {
         string path = "/store/order/{orderId}";
+
         path = path.Replace(
             "{" + nameof(orderId) + "}",
             (string)
@@ -165,6 +233,7 @@ public class StoreApi : BaseApi
     )
     {
         string path = "/store/by-swatch/{pathSwatch}";
+
         path = path.Replace(
             "{" + nameof(pathSwatch) + "}",
             (string)
@@ -566,6 +635,7 @@ public class StoreApi : BaseApi
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
     {
         string path = "/store/order/{orderId}";
+
         path = path.Replace(
             "{" + nameof(orderId) + "}",
             (string)
@@ -594,6 +664,82 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Order),
                 null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Find purchase order by tracking id
+    /// </summary>
+    /// <param name="trackingId"></param>
+    /// <returns><![CDATA[Order]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<Order> GetOrderByTrackingIdAsync(Guid trackingId)
+    {
+        Task<ApiResult<Order>> task = GetOrderByTrackingIdWithHttpInfoAsync(trackingId);
+        ApiResult<Order> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetOrderByTrackingId but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Find purchase order by tracking id (with HTTP info)
+    /// </summary>
+    /// <param name="trackingId"></param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<Order>> GetOrderByTrackingIdWithHttpInfoAsync(Guid trackingId)
+    {
+        string path = "/store/order/by-tracking/{trackingId}";
+
+        path = path.Replace(
+            "{" + nameof(trackingId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(trackingId),
+                    trackingId,
+                    "path",
+                    "Guid",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<Order>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetOrderByTrackingIdAccepts,
+                "application/json",
+                typeof(Order),
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }
@@ -976,6 +1122,116 @@ public class StoreApi : BaseApi
                 "application/json",
                 typeof(Order),
                 null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <returns><![CDATA[List<Order>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<List<Order>> SearchStoreAsync(SearchStoreOptions? options = null)
+    {
+        Task<ApiResult<List<Order>>> task = SearchStoreWithHttpInfoAsync(options);
+        ApiResult<List<Order>> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for SearchStore but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<List<Order>>> SearchStoreWithHttpInfoAsync(
+        SearchStoreOptions? options = null
+    )
+    {
+        string path = "/store/search";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Q != null)
+        {
+            queryParams["q"] = System.Text.Json.JsonSerializer.Serialize(options.Q);
+        }
+        if (options != null && options.Labels != null)
+        {
+            queryParams["labels"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "labels",
+                    options.Labels,
+                    "query",
+                    "HashSet<string>",
+                    "multi",
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.At != null)
+        {
+            queryParams["at"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "at",
+                    options.At,
+                    "query",
+                    "TimeOnly",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+        if (options != null && options.XFilter != null)
+        {
+            headerParams["X-Filter"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "X-Filter",
+                    options.XFilter,
+                    "header",
+                    "Dictionary<string, string>",
+                    null,
+                    "",
+                    false
+                )!;
+        }
+
+        return await InvokeApiForResultAsync<List<Order>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                SearchStoreAccepts,
+                "application/json",
+                typeof(List<Order>),
+                NoAuth.Instance
             )
             .ConfigureAwait(false);
     }

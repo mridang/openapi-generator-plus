@@ -1,4 +1,5 @@
 #nullable enable
+using PetstoreClient.Models;
 
 namespace PetstoreClient.Api.Options;
 
@@ -12,4 +13,12 @@ public sealed class UploadPetDocumentOptions
     public string? DocumentType { get; init; }
 
     public string? Notes { get; init; }
+
+    public bool? IsPrimary { get; init; }
+
+    public long? PageCount { get; init; }
+
+    public DateTimeOffset? TakenAt { get; init; }
+
+    public Swatch? Swatch { get; init; }
 }

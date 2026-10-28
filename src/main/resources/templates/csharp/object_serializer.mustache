@@ -153,6 +153,7 @@ internal class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
+            byte[] bytes => Convert.ToBase64String(bytes),
             DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
             TimeOnly t => t.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
             TimeSpan ts => ProtobufDurationConverter.Format(ts),
@@ -164,6 +165,17 @@ internal class ObjectSerializer
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
+    }
+
+    /// <summary>
+    /// Reports whether a value has a single canonical text form under
+    /// <see cref="Stringify"/>: strings, booleans, numbers, dates, times,
+    /// durations, uuids, enums and format:byte arrays. Models, maps and other
+    /// collections are not scalars.
+    /// </summary>
+    public static bool IsScalar(object? value)
+    {
+        return value is string or bool or char or byte[] or Uri or IFormattable;
     }
 
     /// <summary>

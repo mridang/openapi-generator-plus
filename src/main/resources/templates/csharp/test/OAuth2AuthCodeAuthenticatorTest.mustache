@@ -80,6 +80,17 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     }
 
     [Fact]
+    public void OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var auth = CreateAuthenticator();
+
+        string url = auth.BuildAuthorizationUrl("").OriginalString;
+
+        Assert.DoesNotContain("state", url, StringComparison.Ordinal);
+        Assert.Equal(auth.BuildAuthorizationUrl().OriginalString, url);
+    }
+
+    [Fact]
     public async Task ExchangesCodeWithCorrectGrantType()
     {
         var client = new FakeApiClient();

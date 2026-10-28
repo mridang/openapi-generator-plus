@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -732,6 +732,35 @@ public class BaseApiTest
         );
         Assert.NotNull(client.CapturedBody);
         Assert.Contains("name=alice", client.CapturedBody.ToString()!);
+    }
+
+    [Fact]
+    public async Task RejectsFormUrlencodedFieldHoldingAMap()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        var ex = await Assert.ThrowsAsync<SerializationException>(() =>
+            testApi.CallAsync<object>(
+                "POST",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, object>
+                {
+                    {
+                        "location",
+                        new Dictionary<string, object> { { "lat", 1.5 } }
+                    },
+                },
+                ["application/json"],
+                "application/x-www-form-urlencoded"
+            )
+        );
+        Assert.Equal(
+            "form-urlencoded field location must be a scalar or array of scalars",
+            ex.Message
+        );
+        Assert.Null(client.CapturedBody);
     }
 
     [Fact]

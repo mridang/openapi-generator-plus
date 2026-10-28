@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -151,6 +151,7 @@ internal class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
+            byte[] bytes => Convert.ToBase64String(bytes),
             DateOnly d => d.ToString(
                 "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture
@@ -181,6 +182,17 @@ internal class ObjectSerializer
             IFormattable f => f.ToString(null, System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
+    }
+
+    /// <summary>
+    /// Reports whether a value has a single canonical text form under
+    /// <see cref="Stringify"/>: strings, booleans, numbers, dates, times,
+    /// durations, uuids, enums and format:byte arrays. Models, maps and other
+    /// collections are not scalars.
+    /// </summary>
+    public static bool IsScalar(object? value)
+    {
+        return value is string or bool or char or byte[] or Uri or IFormattable;
     }
 
     /// <summary>

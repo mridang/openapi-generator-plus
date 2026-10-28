@@ -74,6 +74,9 @@ dotnet_diagnostic.CA2000.severity = none
 # named here for those two trees rather than inside the sources.
 [**/Models/*.cs]
 dotnet_diagnostic.CS0618.severity = none
+# A schema may be named like a keyword of another .NET language (Error,
+# Next, ...); the model keeps the spec's name, as in the other SDKs.
+dotnet_diagnostic.CA1716.severity = none
 
 [Test/**.cs]
 dotnet_diagnostic.CS0618.severity = none

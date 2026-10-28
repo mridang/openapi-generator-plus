@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -158,7 +158,7 @@ public class PetApiTest
     {
         var result = await _api.GetPetByNameAsync(
             "Rex",
-            new GetPetByNameOptions { Category = "dogs" }
+            new GetPetByNameOptions { Category = "dogs", XCorrelationId = "corr-1" }
         );
 
         Assert.NotNull(result);
@@ -173,7 +173,10 @@ public class PetApiTest
         // ArgumentNullException naming the offending parameter — before any
         // HTTP request is made — rather than silently dropping it.
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = null! })
+            _api.GetPetByNameAsync(
+                "Rex",
+                new GetPetByNameOptions { Category = null!, XCorrelationId = "corr-1" }
+            )
         );
         Assert.Equal("options.Category", ex.ParamName);
         Assert.Contains(
@@ -238,7 +241,10 @@ public class PetApiTest
         // fail fast with an ArgumentException naming the offending parameter —
         // before any HTTP request is made — rather than sending an empty value.
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            _api.GetPetByNameAsync("Rex", new GetPetByNameOptions { Category = "" })
+            _api.GetPetByNameAsync(
+                "Rex",
+                new GetPetByNameOptions { Category = "", XCorrelationId = "corr-1" }
+            )
         );
         Assert.Equal("options.Category", ex.ParamName);
         Assert.Contains(
@@ -607,7 +613,7 @@ public class PetApiTest
 
         await api.GetMultiServerPetInfoAsync(
             1L,
-            new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.AP)
+            new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP)
         );
         Assert.Equal("https://ap.example.com/v1/pet/1/multi", client.CapturedUrl!.AbsoluteUri);
     }
@@ -621,11 +627,27 @@ public class PetApiTest
         );
         Assert.Equal(
             "https://eu.example.com/v1",
-            new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.EU).Url
+            new GetMultiServerPetInfoServerRegional(
+                GetMultiServerPetInfoServerRegionalRegion.EU
+            ).Url
         );
         Assert.Equal(
             "https://primary.example.com/v1",
             new GetMultiServerPetInfoServerPrimary().Url
+        );
+        Assert.Equal(
+            "https://eu.mirror.example.com/a&b/v1",
+            new GetMultiServerPetInfoServerMirror(
+                GetMultiServerPetInfoServerMirrorRegion.EU,
+                GetMultiServerPetInfoServerChannel.A_B
+            ).Url
+        );
+        Assert.Equal(
+            "https://us.mirror.example.com/it's/v1",
+            new GetMultiServerPetInfoServerMirror(
+                GetMultiServerPetInfoServerMirrorRegion.US,
+                GetMultiServerPetInfoServerChannel.IT_S
+            ).Url
         );
     }
 
@@ -913,6 +935,102 @@ public class PetApiTest
         // NOT appear: no leaked List type name, and no key with no value joined.
         Assert.DoesNotContain("System.Collections", url);
         Assert.DoesNotContain("List%601", url);
+    }
+
+    [Theory]
+    [InlineData("6869", "aGk%3D", "aGk=")]
+    [InlineData("FBFF", "%2B%2F8%3D", "+/8=")]
+    public async Task ByteFormatParamsAreSentAsStandardBase64(
+        string hex,
+        string query,
+        string header
+    )
+    {
+        byte[] bytes = Convert.FromHexString(hex);
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetTagAsync(
+            7L,
+            "tag",
+            new GetPetTagOptions { Fingerprint = bytes, XFingerprint = bytes }
+        );
+
+        Assert.Contains(
+            "fingerprint=" + query,
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(header, client.CapturedHeaders["X-Fingerprint"]);
+    }
+
+    [Fact]
+    public async Task AllowReservedQueryParamEncodesAFragmentDelimiter()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetTagAsync(
+            7L,
+            "tag",
+            new GetPetTagOptions { Revision = "v1.0/beta:rc1#frag" }
+        );
+
+        Assert.Contains(
+            "revision=v1.0/beta:rc1%23frag",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData(".")]
+    [InlineData("..")]
+    public async Task GetPetByNameRejectsDotSegmentBeforeAnyRequest(string segment)
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            api.GetPetByNameAsync(
+                segment,
+                new GetPetByNameOptions { Category = "c", XCorrelationId = "corr-1" }
+            )
+        );
+
+        Assert.StartsWith(
+            "Path parameter 'name' must not be '.' or '..'",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task GetPetByNameKeepsDotsInsideTheSegment()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNameAsync(
+            "a..b",
+            new GetPetByNameOptions { Category = "c", XCorrelationId = "corr-1" }
+        );
+
+        Assert.Contains(
+            "/pet/byName/a..b",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 
     private static PetApi NewPetApiForMock(int status, string contentType, string body)
@@ -1284,6 +1402,30 @@ public class PetApiTest
         {
             System.Globalization.CultureInfo.CurrentCulture = previous;
         }
+    }
+
+    [Fact]
+    public async Task FormDateTimeParamEmitsCanonicalStringifyForm()
+    {
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"code\":200,\"type\":\"ok\",\"message\":\"updated\"}",
+        };
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.SetPetPreferencesWithHttpInfoAsync(
+            1L,
+            new SetPetPreferencesOptions
+            {
+                Nickname = "a b",
+                Reminder = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
+            }
+        );
+
+        string wire = client.CapturedBody!.ToString()!;
+        Assert.Contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00", wire);
+        Assert.DoesNotContain("%20", wire);
     }
 
     [Fact]

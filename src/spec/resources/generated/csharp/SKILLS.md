@@ -242,7 +242,7 @@ Models are generated as C# classes under the `PetstoreClient.Models` namespace.
 ```csharp
 using PetstoreClient.Models;
 
-var model = new ApiResponse();
+var model = new Account();
 ```
 
 ## Binary / File Uploads

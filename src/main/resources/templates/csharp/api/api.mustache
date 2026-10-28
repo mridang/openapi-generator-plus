@@ -25,16 +25,16 @@ public abstract class {{serverTypeName}}
 {{#hasEnumValues}}
 
 /// <summary>Enum for the {{name}} server variable.</summary>
-public sealed class {{serverTypeName}}{{pascalName}}
+public sealed class {{serverTypeName}}{{enumTypeName}}
 {
-    private {{serverTypeName}}{{pascalName}}(string value) { Value = value; }
+    private {{serverTypeName}}{{enumTypeName}}(string value) { Value = value; }
 
     /// <summary>Gets the string value.</summary>
     public string Value { get; }
 {{#enumValues}}
 
-    /// <summary>The {{value}} value.</summary>
-    public static {{serverTypeName}}{{pascalName}} {{name}} { get; } = new("{{value}}");
+    /// <summary>The {{#lambda.escapeXml}}{{{value}}}{{/lambda.escapeXml}} value.</summary>
+    public static {{serverTypeName}}{{enumTypeName}} {{{name}}} { get; } = new("{{#lambda.stringLiteral}}{{{value}}}{{/lambda.stringLiteral}}");
 {{/enumValues}}
 }
 {{/hasEnumValues}}
@@ -49,11 +49,11 @@ public sealed class {{serverTypeName}}{{pascalName}}
 /// <summary>Server variant {{variantName}} for the {{operationId}} operation.</summary>
 {{/hasDescription}}
 {{#hasVariables}}
-public sealed class {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
+public sealed class {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
 {
 {{#serverVariables}}
     /// <summary>Gets the {{name}} value.</summary>
-    public {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
+    public {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
 
 {{/serverVariables}}
     /// <inheritdoc />
@@ -61,7 +61,7 @@ public sealed class {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#has
     {
         get
         {
-            string url = "{{url}}";
+            string url = "{{#lambda.stringLiteral}}{{{url}}}{{/lambda.stringLiteral}}";
 {{#serverVariables}}
             url = url.Replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{pascalName}}.Value{{/hasEnumValues}}{{^hasEnumValues}}{{pascalName}}{{/hasEnumValues}}, StringComparison.Ordinal);
 {{/serverVariables}}
@@ -74,7 +74,7 @@ public sealed class {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#has
 public sealed class {{serverTypeName}}{{variantName}} : {{serverTypeName}}
 {
     /// <inheritdoc />
-    public override string Url => "{{url}}";
+    public override string Url => "{{#lambda.stringLiteral}}{{{url}}}{{/lambda.stringLiteral}}";
 }
 {{/hasVariables}}
 {{/variants}}
@@ -341,12 +341,12 @@ public class {{classname}} : BaseApi
 {{/isEnumRef}}
 {{/isEnum}}
 {{/isPrimitiveType}}
-{{#isString}}
+{{#isString}}{{^isUuid}}
         if ({{paramName}}.Length == 0)
         {
             throw new ArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}", nameof({{paramName}}));
         }
-{{/isString}}
+{{/isUuid}}{{/isString}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
             (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
@@ -381,10 +381,15 @@ public class {{classname}} : BaseApi
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "{{baseName}}",
+{{#isMap}}
                 options.{{vendorExtensions.pascalName}}.ToDictionary(
                     entry => entry.Key,
                     entry => (object?)entry.Value
                 )
+{{/isMap}}
+{{^isMap}}
+                ToDeepObjectFields(options.{{vendorExtensions.pascalName}})
+{{/isMap}}
             );
             foreach (KeyValuePair<string, string> entry in deepObj)
             {

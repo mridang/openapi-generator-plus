@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -39,9 +39,9 @@ public abstract class GetMultiServerPetInfoServer
 }
 
 /// <summary>Enum for the region server variable.</summary>
-public sealed class GetMultiServerPetInfoServerRegion
+public sealed class GetMultiServerPetInfoServerRegionalRegion
 {
-    private GetMultiServerPetInfoServerRegion(string value)
+    private GetMultiServerPetInfoServerRegionalRegion(string value)
     {
         Value = value;
     }
@@ -50,13 +50,49 @@ public sealed class GetMultiServerPetInfoServerRegion
     public string Value { get; }
 
     /// <summary>The us value.</summary>
-    public static GetMultiServerPetInfoServerRegion US { get; } = new("us");
+    public static GetMultiServerPetInfoServerRegionalRegion US { get; } = new("us");
 
     /// <summary>The eu value.</summary>
-    public static GetMultiServerPetInfoServerRegion EU { get; } = new("eu");
+    public static GetMultiServerPetInfoServerRegionalRegion EU { get; } = new("eu");
 
     /// <summary>The ap value.</summary>
-    public static GetMultiServerPetInfoServerRegion AP { get; } = new("ap");
+    public static GetMultiServerPetInfoServerRegionalRegion AP { get; } = new("ap");
+}
+
+/// <summary>Enum for the region server variable.</summary>
+public sealed class GetMultiServerPetInfoServerMirrorRegion
+{
+    private GetMultiServerPetInfoServerMirrorRegion(string value)
+    {
+        Value = value;
+    }
+
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+
+    /// <summary>The us value.</summary>
+    public static GetMultiServerPetInfoServerMirrorRegion US { get; } = new("us");
+
+    /// <summary>The eu value.</summary>
+    public static GetMultiServerPetInfoServerMirrorRegion EU { get; } = new("eu");
+}
+
+/// <summary>Enum for the channel server variable.</summary>
+public sealed class GetMultiServerPetInfoServerChannel
+{
+    private GetMultiServerPetInfoServerChannel(string value)
+    {
+        Value = value;
+    }
+
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+
+    /// <summary>The <![CDATA[a&b]]> value.</summary>
+    public static GetMultiServerPetInfoServerChannel A_B { get; } = new("a&b");
+
+    /// <summary>The it's value.</summary>
+    public static GetMultiServerPetInfoServerChannel IT_S { get; } = new("it's");
 }
 
 /// <summary>Primary</summary>
@@ -67,11 +103,12 @@ public sealed class GetMultiServerPetInfoServerPrimary : GetMultiServerPetInfoSe
 }
 
 /// <summary>Regional</summary>
-public sealed class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
-    : GetMultiServerPetInfoServer
+public sealed class GetMultiServerPetInfoServerRegional(
+    GetMultiServerPetInfoServerRegionalRegion region
+) : GetMultiServerPetInfoServer
 {
     /// <summary>Gets the region value.</summary>
-    public GetMultiServerPetInfoServerRegion Region { get; } = region;
+    public GetMultiServerPetInfoServerRegionalRegion Region { get; } = region;
 
     /// <inheritdoc />
     public override string Url
@@ -80,6 +117,31 @@ public sealed class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoSer
         {
             string url = "https://{region}.example.com/v1";
             url = url.Replace("{" + "region" + "}", Region.Value, StringComparison.Ordinal);
+            return url;
+        }
+    }
+}
+
+/// <summary>Mirror</summary>
+public sealed class GetMultiServerPetInfoServerMirror(
+    GetMultiServerPetInfoServerMirrorRegion region,
+    GetMultiServerPetInfoServerChannel channel
+) : GetMultiServerPetInfoServer
+{
+    /// <summary>Gets the region value.</summary>
+    public GetMultiServerPetInfoServerMirrorRegion Region { get; } = region;
+
+    /// <summary>Gets the channel value.</summary>
+    public GetMultiServerPetInfoServerChannel Channel { get; } = channel;
+
+    /// <inheritdoc />
+    public override string Url
+    {
+        get
+        {
+            string url = "https://{region}.mirror.example.com/{channel}/v1";
+            url = url.Replace("{" + "region" + "}", Region.Value, StringComparison.Ordinal);
+            url = url.Replace("{" + "channel" + "}", Channel.Value, StringComparison.Ordinal);
             return url;
         }
     }
@@ -178,8 +240,11 @@ public sealed class GetStagingPetInfoServerStagingServer(
 /// <summary>
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
+/// (globs like /pets/* and /pets/**/ and an id of #{petId})
+///
 /// </summary>
-/// <seealso href="https://example.com/docs/pets">Find out more about pets</seealso>
+/// <seealso href="https://example.com/docs/pets">Find out more about pets (it's */ here)
+/// on two lines</seealso>
 public class PetApi : BaseApi
 {
     private static readonly string[] AddPetAccepts = ["application/json"];
@@ -214,6 +279,8 @@ public class PetApi : BaseApi
         "image/png",
         "application/json",
     ];
+
+    private static readonly string[] GetPetSummaryAccepts = ["text/plain"];
 
     private static readonly string[] GetPetTagAccepts = ["application/json"];
 
@@ -386,6 +453,7 @@ public class PetApi : BaseApi
             "Missing the required parameter 'metadata' when calling PetApi.AddPetPhotos"
         );
         string path = "/pet/{petId}/photos";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -480,6 +548,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/treatment";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -537,6 +606,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -661,6 +731,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/documents/{documentId}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -675,6 +746,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
+
         path = path.Replace(
             "{" + nameof(documentId) + "}",
             (string)
@@ -750,6 +822,7 @@ public class PetApi : BaseApi
     public async Task<ApiResult<List<Pet>>> FindPetsBornOnWithHttpInfoAsync(DateOnly bornOn)
     {
         string path = "/pet/born-on/{bornOn}";
+
         path = path.Replace(
             "{" + nameof(bornOn) + "}",
             (string)
@@ -873,6 +946,21 @@ public class PetApi : BaseApi
                 false
             );
         }
+        if (options != null && options.N2ndPage != null)
+        {
+            queryParams["2ndPage"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "2ndPage",
+                    options.N2ndPage,
+                    "query",
+                    "int",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
         Dictionary<string, string> headerParams = [];
         if (options != null && options.ReportDate != null)
         {
@@ -953,6 +1041,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/external";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1047,6 +1136,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/multi";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1135,6 +1225,7 @@ public class PetApi : BaseApi
     public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(long petId)
     {
         string path = "/pet/{petId}/avatar";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1212,6 +1303,7 @@ public class PetApi : BaseApi
     public async Task<ApiResult<byte[]>> GetPetAvatarThumbnailWithHttpInfoAsync(long petId)
     {
         string path = "/pet/{petId}/avatar/thumbnail";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1298,6 +1390,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1397,6 +1490,11 @@ public class PetApi : BaseApi
                 nameof(options) + ".Category",
                 "Missing the required parameter 'category' when calling PetApi.GetPetByName"
             );
+            RequireOption(
+                null,
+                nameof(options) + ".XCorrelationId",
+                "Missing the required parameter 'xCorrelationId' when calling PetApi.GetPetByName"
+            );
         }
         ArgumentNullException.ThrowIfNull(options);
         RequireOption(
@@ -1411,7 +1509,20 @@ public class PetApi : BaseApi
                 nameof(options) + "." + nameof(options.Category)
             );
         }
+        RequireOption(
+            options.XCorrelationId,
+            nameof(options) + "." + nameof(options.XCorrelationId),
+            "Missing the required parameter 'xCorrelationId' when calling PetApi.GetPetByName"
+        );
+        if (options.XCorrelationId.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'xCorrelationId' when calling PetApi.GetPetByName",
+                nameof(options) + "." + nameof(options.XCorrelationId)
+            );
+        }
         string path = "/pet/byName/{name}";
+
         if (name.Length == 0)
         {
             throw new ArgumentException(
@@ -1419,6 +1530,7 @@ public class PetApi : BaseApi
                 nameof(name)
             );
         }
+
         path = path.Replace(
             "{" + nameof(name) + "}",
             (string)
@@ -1451,6 +1563,19 @@ public class PetApi : BaseApi
             );
         }
         Dictionary<string, string> headerParams = [];
+        if (options != null && options.XCorrelationId != null)
+        {
+            headerParams["X-Correlation-Id"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "X-Correlation-Id",
+                    options.XCorrelationId,
+                    "header",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
 
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
@@ -1511,6 +1636,7 @@ public class PetApi : BaseApi
     public async Task<ApiResult<PetPassport>> GetPetPassportWithHttpInfoAsync(long petId)
     {
         string path = "/pet/{petId}/passport";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1593,6 +1719,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/photos/{photoId}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1607,6 +1734,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
+
         path = path.Replace(
             "{" + nameof(photoId) + "}",
             (string)
@@ -1634,6 +1762,82 @@ public class PetApi : BaseApi
                 GetPetPhotoAccepts,
                 "application/json",
                 typeof(System.IO.Stream),
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get a plain-text summary of the pet
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[string]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<string> GetPetSummaryAsync(long petId)
+    {
+        Task<ApiResult<string>> task = GetPetSummaryWithHttpInfoAsync(petId);
+        ApiResult<string> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetPetSummary but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Get a plain-text summary of the pet (with HTTP info)
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<string>> GetPetSummaryWithHttpInfoAsync(long petId)
+    {
+        string path = "/pet/{petId}/summary";
+
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<string>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetSummaryAccepts,
+                "application/json",
+                typeof(string),
                 null
             )
             .ConfigureAwait(false);
@@ -1694,6 +1898,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/tag/{tagName}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1708,6 +1913,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
+
         if (tagName.Length == 0)
         {
             throw new ArgumentException(
@@ -1715,6 +1921,7 @@ public class PetApi : BaseApi
                 nameof(tagName)
             );
         }
+
         path = path.Replace(
             "{" + nameof(tagName) + "}",
             (string)
@@ -1791,7 +1998,89 @@ public class PetApi : BaseApi
                 true
             );
         }
+        if (options != null && options.Criteria != null)
+        {
+            queryParams["criteria"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "criteria",
+                    options.Criteria,
+                    "query",
+                    "PetCriteria",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.CriteriaCsv != null)
+        {
+            queryParams["criteriaCsv"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "criteriaCsv",
+                    options.CriteriaCsv,
+                    "query",
+                    "PetCriteria",
+                    null,
+                    "form",
+                    false
+                ),
+                false
+            );
+        }
+        if (options != null && options.CriteriaDeep != null)
+        {
+            Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
+                "criteriaDeep",
+                ToDeepObjectFields(options.CriteriaDeep)
+            );
+            foreach (KeyValuePair<string, string> entry in deepObj)
+            {
+                queryParams[entry.Key] = entry.Value;
+            }
+        }
+        if (options != null && options.Fingerprint != null)
+        {
+            queryParams["fingerprint"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "fingerprint",
+                    options.Fingerprint,
+                    "query",
+                    "byte[]",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
         Dictionary<string, string> headerParams = [];
+        if (options != null && options.XCriteria != null)
+        {
+            headerParams["X-Criteria"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "X-Criteria",
+                    options.XCriteria,
+                    "header",
+                    "PetCriteria",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
+        if (options != null && options.XFingerprint != null)
+        {
+            headerParams["X-Fingerprint"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "X-Fingerprint",
+                    options.XFingerprint,
+                    "header",
+                    "byte[]",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
 
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
@@ -1858,6 +2147,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/staging";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -1939,6 +2229,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/avatar";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2021,6 +2312,7 @@ public class PetApi : BaseApi
     )
     {
         string path = "/pet/{petId}/avatar/thumbnail";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2129,6 +2421,7 @@ public class PetApi : BaseApi
             );
         }
         string path = "/pet/{petId}/preferences";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2159,6 +2452,10 @@ public class PetApi : BaseApi
         if (options != null && options.RenewalDate != null)
         {
             formBody["renewalDate"] = options.RenewalDate;
+        }
+        if (options != null && options.Reminder != null)
+        {
+            formBody["reminder"] = options.Reminder;
         }
 
         return await InvokeApiForResultAsync<ApiResponse>(
@@ -2220,6 +2517,7 @@ public class PetApi : BaseApi
     public async Task<ApiResult<Pet>> UpdatePetWithHttpInfoAsync(long petId, Pet pet)
     {
         string path = "/pet/{petId}";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2321,6 +2619,7 @@ public class PetApi : BaseApi
             "Missing the required parameter 'file' when calling PetApi.UploadPetCertificate"
         );
         string path = "/pet/{petId}/certificate";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2432,6 +2731,7 @@ public class PetApi : BaseApi
             "Missing the required parameter 'file' when calling PetApi.UploadPetDocument"
         );
         string path = "/pet/{petId}/documents";
+
         path = path.Replace(
             "{" + nameof(petId) + "}",
             (string)
@@ -2458,6 +2758,22 @@ public class PetApi : BaseApi
         if (options != null && options.Notes != null)
         {
             formBody["notes"] = options.Notes;
+        }
+        if (options != null && options.IsPrimary != null)
+        {
+            formBody["isPrimary"] = options.IsPrimary;
+        }
+        if (options != null && options.PageCount != null)
+        {
+            formBody["pageCount"] = options.PageCount;
+        }
+        if (options != null && options.TakenAt != null)
+        {
+            formBody["takenAt"] = options.TakenAt;
+        }
+        if (options != null && options.Swatch != null)
+        {
+            formBody["swatch"] = options.Swatch;
         }
 
         /* Multi-consume operation: reject an unrecognised requestContentType

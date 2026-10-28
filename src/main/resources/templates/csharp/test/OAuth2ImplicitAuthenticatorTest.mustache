@@ -87,6 +87,27 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
+    public void OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var auth = CreateAuthenticator();
+
+        string url = auth.BuildAuthorizationUrl("").OriginalString;
+
+        Assert.DoesNotContain("state", url, StringComparison.Ordinal);
+        Assert.Equal(auth.BuildAuthorizationUrl().OriginalString, url);
+    }
+
+    [Fact]
+    public void ThrowsWhenAccessTokenSetToEmpty()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        Assert.Equal("Must set the access token before making API requests", ex.Message);
+    }
+
+    [Fact]
     public void GetAuthHeadersReturnsBearerAfterSetAccessToken()
     {
         var auth = CreateAuthenticator();

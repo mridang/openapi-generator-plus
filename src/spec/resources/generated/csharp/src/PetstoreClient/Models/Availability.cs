@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -22,6 +22,14 @@ public enum Availability
     Sold,
 
     OnHold,
+
+    Oclock,
+
+    AB,
+
+    Eq,
+
+    X,
 }
 
 /// <summary>
@@ -52,6 +60,10 @@ internal sealed class AvailabilityConverter : JsonConverter<Availability>
             "Available" => Availability.Available,
             "Sold" => Availability.Sold,
             "on-hold" => Availability.OnHold,
+            "o'clock" => Availability.Oclock,
+            "a\b" => Availability.AB,
+            "$eq" => Availability.Eq,
+            "#{x}" => Availability.X,
             _ => throw new JsonException($"Unknown value '{value}' for enum Availability."),
         };
     }
@@ -68,6 +80,10 @@ internal sealed class AvailabilityConverter : JsonConverter<Availability>
                 Availability.Available => "Available",
                 Availability.Sold => "Sold",
                 Availability.OnHold => "on-hold",
+                Availability.Oclock => "o'clock",
+                Availability.AB => "a\b",
+                Availability.Eq => "$eq",
+                Availability.X => "#{x}",
                 _ => throw new JsonException($"Unknown value '{value}' for enum Availability."),
             }
         );

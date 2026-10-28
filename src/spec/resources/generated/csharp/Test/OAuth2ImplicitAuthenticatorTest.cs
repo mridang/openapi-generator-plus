@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -94,6 +94,27 @@ public class OAuth2ImplicitAuthenticatorTest
         Uri url = auth.BuildAuthorizationUrl("my-state");
 
         Assert.Contains("state=my-state", url.ToString());
+    }
+
+    [Fact]
+    public void OmitsEmptyStateFromAuthorizationUrl()
+    {
+        var auth = CreateAuthenticator();
+
+        string url = auth.BuildAuthorizationUrl("").OriginalString;
+
+        Assert.DoesNotContain("state", url, StringComparison.Ordinal);
+        Assert.Equal(auth.BuildAuthorizationUrl().OriginalString, url);
+    }
+
+    [Fact]
+    public void ThrowsWhenAccessTokenSetToEmpty()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("");
+
+        var ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        Assert.Equal("Must set the access token before making API requests", ex.Message);
     }
 
     [Fact]
