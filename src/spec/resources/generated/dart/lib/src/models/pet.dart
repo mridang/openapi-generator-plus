@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -81,6 +81,9 @@ class Pet {
   /// Example: `12.345`
   final double? weightKg;
 
+  /// Example: `rex`
+  final String? nickname;
+
   const Pet({
     this.id,
     required this.name,
@@ -94,6 +97,7 @@ class Pet {
     this.linkTemplate,
     this.ownerEmail,
     this.weightKg,
+    this.nickname,
   });
 
   /// Creates a [Pet] from a JSON map.
@@ -141,7 +145,9 @@ class Pet {
           ? deserializeArray(json['location'] as List, (e) => e as Object)
           : null,
 
-      homepageUrl: json['homepageUrl'] as String?,
+      homepageUrl: json['homepageUrl'] != null
+          ? parseUri(json['homepageUrl'] as String)
+          : null,
 
       thumbnailRef: json['thumbnailRef'] as String?,
 
@@ -150,6 +156,8 @@ class Pet {
       ownerEmail: json['ownerEmail'] as String?,
 
       weightKg: (json['weightKg'] as num?)?.toDouble(),
+
+      nickname: json['nickname'] as String?,
     );
   }
 
@@ -192,6 +200,9 @@ class Pet {
     if (weightKg != null) {
       json['weightKg'] = weightKg;
     }
+    if (nickname != null) {
+      json['nickname'] = nickname;
+    }
     return json;
   }
 
@@ -214,7 +225,8 @@ class Pet {
         thumbnailRef == other.thumbnailRef &&
         linkTemplate == other.linkTemplate &&
         ownerEmail == other.ownerEmail &&
-        weightKg == other.weightKg;
+        weightKg == other.weightKg &&
+        nickname == other.nickname;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -236,5 +248,6 @@ class Pet {
     linkTemplate,
     ownerEmail,
     weightKg,
+    nickname,
   ]);
 }

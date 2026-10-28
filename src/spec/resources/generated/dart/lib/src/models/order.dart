@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -47,6 +47,8 @@ class Order {
   /// Example: `7`
   final int? quantity;
 
+  final UuidValue? trackingId;
+
   final DateTime? shipDate;
 
   /// Order Status
@@ -59,6 +61,7 @@ class Order {
     this.id,
     this.petId,
     this.quantity,
+    this.trackingId,
     this.shipDate,
     /* Cross-cutting `optional-enum-default-omitted`: an OPTIONAL enum field
      * with a schema `default` is initialised to that default variant so a
@@ -81,8 +84,12 @@ class Order {
 
       quantity: json['quantity'] as int?,
 
+      trackingId: json['trackingId'] != null
+          ? UuidValue.fromString(json['trackingId'] as String)
+          : null,
+
       shipDate: json['shipDate'] != null
-          ? DateTime.parse(json['shipDate'] as String)
+          ? parseDateTime(json['shipDate'] as String)
           : null,
 
       /* Cross-cutting `default-applies-only-when-absent`: apply the enum
@@ -110,6 +117,9 @@ class Order {
     if (quantity != null) {
       json['quantity'] = quantity;
     }
+    if (trackingId != null) {
+      json['trackingId'] = trackingId?.toString();
+    }
     if (shipDate != null) {
       json['shipDate'] = formatDateTimeOffset(shipDate!);
     }
@@ -133,6 +143,7 @@ class Order {
         id == other.id &&
         petId == other.petId &&
         quantity == other.quantity &&
+        trackingId == other.trackingId &&
         shipDate == other.shipDate &&
         status == other.status &&
         complete == other.complete;
@@ -144,6 +155,13 @@ class Order {
   /// and byte fields are hashed structurally via `DeepCollectionEquality.hash`
   /// so equal instances hash equally.
   @override
-  int get hashCode =>
-      Object.hashAll([id, petId, quantity, shipDate, status, complete]);
+  int get hashCode => Object.hashAll([
+    id,
+    petId,
+    quantity,
+    trackingId,
+    shipDate,
+    status,
+    complete,
+  ]);
 }

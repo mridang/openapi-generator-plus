@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -8,6 +8,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
 import 'client_auth_method.dart';
@@ -75,8 +76,14 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
        * with ':' and base64-encoding. Uri.encodeQueryComponent applies the
        * form-encoding the spec calls for; Uri.encodeComponent would emit
        * '%20' and diverge from the other SDKs for a space-bearing credential. */
-      final encodedId = _rfc3986(Uri.encodeQueryComponent(_clientId));
-      final encodedSecret = _rfc3986(Uri.encodeQueryComponent(_clientSecret));
+      final encodedId = encodeRfc3986QueryComponent(
+        _clientId,
+        spaceToPlus: true,
+      );
+      final encodedSecret = encodeRfc3986QueryComponent(
+        _clientSecret,
+        spaceToPlus: true,
+      );
       final credentials = base64.encode(
         utf8.encode('$encodedId:$encodedSecret'),
       );
@@ -105,15 +112,3 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
       'tokenUrl: $_tokenUrl, scopes: $_scopes, '
       'clientAuthMethod: ${_clientAuthMethod.name})';
 }
-
-/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
-/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
-/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
-/// (unreserved in both), and space handling (the '+' already produced for the
-/// Basic header) is left untouched.
-String _rfc3986(String encoded) => encoded
-    .replaceAll('!', '%21')
-    .replaceAll("'", '%27')
-    .replaceAll('(', '%28')
-    .replaceAll(')', '%29')
-    .replaceAll('*', '%2A');

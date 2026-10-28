@@ -1,5 +1,6 @@
 {{>api_info}}
 import '../../api_client.dart';
+import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
 import 'oauth2_token_manager.dart';
@@ -78,7 +79,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
      * in a query component (a strict server reads '+' as a literal plus). */
     final query = params.entries
         .map((e) =>
-            '${_rfc3986(Uri.encodeQueryComponent(e.key).replaceAll('+', '%20'))}=${_rfc3986(Uri.encodeQueryComponent(e.value).replaceAll('+', '%20'))}')
+            '${encodeRfc3986QueryComponent(e.key)}=${encodeRfc3986QueryComponent(e.value)}')
         .join('&');
     /* RFC 6749 §3.1: the authorization endpoint URI MAY already include
      * a query component. Use '&' as the separator when one is already
@@ -103,7 +104,10 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
       'client_secret': _clientSecret,
       'redirect_uri': _redirectUri,
     };
-    await _tokenManager.getAccessToken(_tokenUrl, params);
+    /* Always POST the new code: the exchange bypasses the token cache and
+     * the refresh path, replaces the session on success and keeps the
+     * previous one on failure. */
+    await _tokenManager.exchange(_tokenUrl, params);
     _tokenExchanged = true;
   }
 
@@ -125,9 +129,13 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
       throw StateError('Must call exchangeCode before making API requests');
     }
 
+    /* The refresh grant carries the client credentials (RFC 6749 sections
+     * 6 and 3.2.1); being a refresh_token grant, the manager posts it once. */
     final params = <String, String>{
       'grant_type': 'refresh_token',
       'refresh_token': _tokenManager.refreshToken,
+      'client_id': _clientId,
+      'client_secret': _clientSecret,
     };
 
     final token = await _tokenManager.getAccessToken(_refreshUrl, params);
@@ -143,15 +151,3 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
       'refreshUrl: $_refreshUrl, redirectUri: $_redirectUri, scopes: $_scopes, '
       'tokenExchanged: $_tokenExchanged)';
 }
-
-/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
-/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
-/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
-/// (unreserved in both), and space handling (the '%20' the caller already
-/// substituted for the query) is left untouched.
-String _rfc3986(String encoded) => encoded
-    .replaceAll('!', '%21')
-    .replaceAll("'", '%27')
-    .replaceAll('(', '%28')
-    .replaceAll(')', '%29')
-    .replaceAll('*', '%2A');

@@ -242,6 +242,16 @@ class {{classname}} {
   /// {{value}}
   /// ```
 {{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+  ///
+  /// This property is read-only; it is still sent and received like any
+  /// other property.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+  ///
+  /// This property is write-only; it is still sent and received like any
+  /// other property.
+{{/isWriteOnly}}
 {{#deprecated}}
   @Deprecated('This property is deprecated.')
 {{/deprecated}}
@@ -394,7 +404,7 @@ class {{classname}} {
           decode each one to native bytes, mirroring the array-of-byte branch. A
           plain `.cast<String, Uint8List>()` would leave them as undecoded
           strings. }}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map((k, v) => MapEntry(k, base64Decode(v as String))),
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>).map((k, v) => MapEntry(k, decodeBase64(v as String))),
 {{/items.isByteArray}}
 {{^items.isByteArray}}
 {{#items.isPrimitiveType}}
@@ -407,12 +417,12 @@ class {{classname}} {
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
-      {{name}}: base64Decode(json['{{baseName}}'] as String),
+      {{name}}: decodeBase64(json['{{baseName}}'] as String),
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
-      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
+      {{name}}: parseDateTime(json['{{baseName}}'] as String),
 {{/isDateTime}}
 {{#isDate}}
       {{name}}: DateTime.parse(json['{{baseName}}'] as String),
@@ -442,7 +452,12 @@ class {{classname}} {
       {{name}}: (json['{{baseName}}'] as num).toDouble(),
 {{/isDouble}}
 {{^isDouble}}
+{{#isUri}}
+      {{name}}: parseUri(json['{{baseName}}'] as String),
+{{/isUri}}
+{{^isUri}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{/isUri}}
 {{/isDouble}}
 {{/isFloat}}
 {{/isNumber}}
@@ -514,7 +529,7 @@ class {{classname}} {
 {{#items.isByteArray}}
       {{! Optional map-of-byte: each value is a base64 STRING on the wire, decoded
           to native bytes, mirroring the array-of-byte branch above. }}
-      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, base64Decode(v as String))),
+      {{name}}: (json['{{baseName}}'] as Map<String, dynamic>?)?.map((k, v) => MapEntry(k, decodeBase64(v as String))),
 {{/items.isByteArray}}
 {{^items.isByteArray}}
 {{#items.isPrimitiveType}}
@@ -527,12 +542,12 @@ class {{classname}} {
 {{/isMap}}
 {{^isMap}}
 {{#isByteArray}}
-      {{name}}: json['{{baseName}}'] != null ? base64Decode(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] != null ? decodeBase64(json['{{baseName}}'] as String) : null,
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
-      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] != null ? parseDateTime(json['{{baseName}}'] as String) : null,
 {{/isDateTime}}
 {{#isDate}}
       {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
@@ -568,7 +583,12 @@ class {{classname}} {
       {{name}}: (json['{{baseName}}'] as num?)?.toDouble(),
 {{/isDouble}}
 {{^isDouble}}
+{{#isUri}}
+      {{name}}: json['{{baseName}}'] != null ? parseUri(json['{{baseName}}'] as String) : null,
+{{/isUri}}
+{{^isUri}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/isUri}}
 {{/isDouble}}
 {{/isFloat}}
 {{/isNumber}}
@@ -862,13 +882,13 @@ class {{classname}} {
     try {
       return {{classname}}._(
 {{#isByteArray}}
-        base64Decode(json as String),
+        decodeBase64(json as String),
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isArray}}
 {{#items}}
 {{#isByteArray}}
-        (json as List).map((e) => base64Decode(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+        (json as List).map((e) => decodeBase64(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
@@ -968,13 +988,13 @@ class {{classname}} {
     try {
       return {{classname}}._(
 {{#isByteArray}}
-        base64Decode(json as String),
+        decodeBase64(json as String),
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isArray}}
 {{#items}}
 {{#isByteArray}}
-        (json as List).map((e) => base64Decode(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
+        (json as List).map((e) => decodeBase64(e as String)).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}

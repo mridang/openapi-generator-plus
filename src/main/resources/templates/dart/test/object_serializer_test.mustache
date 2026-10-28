@@ -226,6 +226,27 @@ void main() {
       expect(stringify(3.14), equals('3.14'));
     });
 
+    test('stringify bytes is padded standard base64', () {
+      expect(stringify(Uint8List.fromList([0x68, 0x69])), equals('aGk='));
+      expect(stringify(Uint8List.fromList([0xFB, 0xFF])), equals('+/8='));
+    });
+
+    test('a readOnly property is decoded', () {
+      final decoded = Account.fromJson({'id': 7, 'username': 'u'});
+      expect(decoded.id, equals(7));
+    });
+
+    test('a writeOnly property is serialized', () {
+      final encoded = serialize(const Account(username: 'u', password: 'p'));
+      expect(jsonDecode(encoded), equals({'username': 'u', 'password': 'p'}));
+    });
+
+    test('a writeOnly property is decoded', () {
+      final decoded =
+          Account.fromJson({'id': 7, 'username': 'u', 'password': 'p'});
+      expect(decoded.password, equals('p'));
+    });
+
     test('stringify bool', () {
       expect(stringify(true), equals('true'));
       expect(stringify(false), equals('false'));
@@ -1035,6 +1056,81 @@ void main() {
         throwsA(isA<SerializationException>()),
       );
     });
+
+    for (final text in [
+      '2024-01-01T10:00:00',
+      '01/02/2024 10:00',
+      'tomorrow',
+      '10:00',
+      '1700000000',
+      '2024-01-01',
+    ]) {
+      test('a non RFC 3339 date-time "$text" is rejected', () {
+        expect(
+          () => deserialize<Order>(
+              jsonEncode({'shipDate': text}), Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      });
+    }
+
+    test('an RFC 3339 date-time with any fraction and offset is accepted', () {
+      expect(parseDateTime('2024-01-01T10:00:00Z'),
+          equals(DateTime.utc(2024, 1, 1, 10)));
+      expect(parseDateTime('2024-01-01T10:00:00.123456789+05:30'),
+          equals(DateTime.utc(2024, 1, 1, 4, 30, 0, 123, 456)));
+    });
+
+    for (final text in ['dGVzdA', 'dGVz dA==', 'dGVz\ndA==', '-_8=', '!!!!']) {
+      test('a non-standard base64 value ${jsonEncode(text)} is rejected', () {
+        expect(
+          () => deserialize<PetPassport>(
+              jsonEncode({'thumbnail': text}), PetPassport.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      });
+    }
+
+    test('a padded standard base64 value is accepted', () {
+      final decoded = deserialize<PetPassport>(
+          '{"thumbnail":"dGVzdA=="}', PetPassport.fromJson);
+      expect(decoded!.thumbnail, equals(utf8.encode('test')));
+    });
+
+    for (final uri in [
+      'urn:isbn:0451450523',
+      'mailto:a@b.com',
+      'ftp://x.org/f',
+      'https://example.com/items/1',
+    ]) {
+      test('an absolute URI $uri is accepted verbatim', () {
+        expect(parseUri(uri), equals(uri));
+      });
+    }
+
+    test('a format: uri model field rejects a relative reference', () {
+      expect(
+        () => deserialize<Pet>(
+            '{"name":"x","photoUrls":[],"homepageUrl":"/relative"}', Pet.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('a format: uri-reference model field still accepts a relative reference',
+        () {
+      final decoded = deserialize<Pet>(
+          '{"name":"x","photoUrls":[],"thumbnailRef":"/assets/thumb.png",'
+          '"homepageUrl":"urn:isbn:0451450523"}',
+          Pet.fromJson);
+      expect(decoded!.thumbnailRef, equals('/assets/thumb.png'));
+      expect(decoded.homepageUrl, equals('urn:isbn:0451450523'));
+    });
+
+    for (final uri in ['/relative', 'not a uri', '']) {
+      test('a non-absolute URI "$uri" is rejected', () {
+        expect(() => parseUri(uri), throwsA(isA<SerializationException>()));
+      });
+    }
 
     // parseJson parses a payload within the 1000-deep cap and rejects one past it.
     test('deep JSON within the cap parses but past it is rejected', () {

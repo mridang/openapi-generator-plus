@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -11,6 +11,7 @@ import 'base_api.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_exception.dart';
+import '../models/account.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
@@ -20,11 +21,58 @@ import '../models/swatch.dart';
 import '../models/tree_node.dart';
 import 'options/get_by_swatch_options.dart';
 import 'options/get_stock_item_options.dart';
+import 'options/search_store_options.dart';
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
 class StoreApi extends BaseApi {
   StoreApi({super.apiClient, super.config, super.authenticator});
+
+  /// Create an account
+
+  Future<Account> createAccount(Account account) async {
+    final result = await createAccountWithHttpInfo(account);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Account` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for createAccount but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the createAccount operation and returns the full API result.
+  Future<ApiResult<Account>> createAccountWithHttpInfo(Account account) async {
+    var path = '/store/account';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object requestBody = account;
+
+    return invokeApiForResult<Account>(
+      method: 'POST',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Account',
+      auth: noAuth,
+
+      deserialize: (body) => deserialize(body, Account.fromJson) as Account,
+    );
+  }
 
   /// Delete purchase order by ID
   /// `orderId` ID of the order to delete
@@ -484,6 +532,77 @@ class StoreApi extends BaseApi {
     );
   }
 
+  /// Find purchase order by tracking id
+
+  Future<Order> getOrderByTrackingId(UuidValue trackingId) async {
+    final result = await getOrderByTrackingIdWithHttpInfo(trackingId);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as Order` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getOrderByTrackingId but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getOrderByTrackingId operation and returns the full API result.
+  Future<ApiResult<Order>> getOrderByTrackingIdWithHttpInfo(
+    UuidValue trackingId,
+  ) async {
+    var path = '/store/order/by-tracking/{trackingId}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
+    path = path.replaceAll(
+      '{'
+      'trackingId'
+      '}',
+      serializeStyled(
+        'trackingId',
+        trackingId,
+        'path',
+        'UuidValue',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<Order>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'Order',
+      auth: noAuth,
+
+      deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
   /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
   /// `asOf` Only consider stock as of this instant
 
@@ -693,7 +812,7 @@ class StoreApi extends BaseApi {
       deserialize: (body) =>
           deserializeArrayFromJson(
                 body,
-                (e) => deserializeMap(e, (e) => DateTime.parse(e as String)),
+                (e) => deserializeMap(e, (e) => parseDateTime(e as String)),
               )
               as List<Map<String, DateTime>>,
     );
@@ -788,6 +907,83 @@ class StoreApi extends BaseApi {
       auth: null,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
+  /// `q` JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
+
+  Future<List<Order>> searchStore(SearchStoreOptions? options) async {
+    final result = await searchStoreWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as List<Order>` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for searchStore but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the searchStore operation and returns the full API result.
+  Future<ApiResult<List<Order>>> searchStoreWithHttpInfo(
+    SearchStoreOptions? options,
+  ) async {
+    var path = '/store/search';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.q != null) {
+      queryParams['q'] = serialize(options.q);
+    }
+    if (options != null && options.labels != null) {
+      queryParams['labels'] = maybeAllowReserved(
+        serializeStyled(
+          'labels',
+          options.labels,
+          'query',
+          'List<String>',
+          'multi',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.at != null) {
+      queryParams['at'] = maybeAllowReserved(
+        serializeStyled('at', options.at, 'query', 'String', '', 'form', true),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+    if (options != null && options.xFilter != null) {
+      headerParams['X-Filter'] =
+          '${serializeStyled('X-Filter', options.xFilter, 'header', 'Map<String, String>', '', '', false)}';
+    }
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<List<Order>>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'List<Order>',
+      auth: noAuth,
+
+      deserialize: (body) =>
+          deserializeList(body, Order.fromJson) as List<Order>,
     );
   }
 }

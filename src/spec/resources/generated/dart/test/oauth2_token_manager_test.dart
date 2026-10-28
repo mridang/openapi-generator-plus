@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -637,6 +637,88 @@ void main() {
         startsWith('grant_type=refresh_token&refresh_token=ref1'),
       );
       expect(client.bodies[2], equals(client.bodies[0]));
+    });
+
+    test('the refresh grant goes to the refreshUrl', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      const refreshUrl = 'https://auth.example.com/refresh';
+      await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
+      await manager.getAccessToken(tokenUrl, original, const {}, refreshUrl);
+
+      expect(client.urls, equals([tokenUrl, refreshUrl]));
+    });
+
+    test(
+      'params that already are a refresh grant are posted exactly once',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken(tokenUrl, original);
+        await expectLater(
+          manager.getAccessToken(tokenUrl, {
+            'grant_type': 'refresh_token',
+            'refresh_token': 'ref1',
+          }),
+          throwsA(isA<OAuth2ServerException>()),
+        );
+        expect(client.requestCount, equals(2));
+      },
+    );
+
+    test('exchange bypasses the cache and the refresh path', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken(tokenUrl, original);
+      await manager.exchange(tokenUrl, {
+        'grant_type': 'authorization_code',
+        'code': 'b',
+      });
+
+      expect(client.bodies[1], equals('grant_type=authorization_code&code=b'));
+      expect(await manager.getAccessToken(tokenUrl, original), equals('tok2'));
+      expect(manager.refreshToken, isEmpty);
+    });
+
+    test('a failed exchange restores the previous session', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+      );
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken(tokenUrl, original);
+      await expectLater(
+        manager.exchange(tokenUrl, {
+          'grant_type': 'authorization_code',
+          'code': 'bad',
+        }),
+        throwsA(isA<OAuth2ServerException>()),
+      );
+
+      expect(await manager.getAccessToken(tokenUrl, original), equals('tok1'));
+      expect(manager.refreshToken, equals('ref1'));
+      expect(client.requestCount, equals(2));
     });
 
     test('a response without expires_in is cached indefinitely', () async {

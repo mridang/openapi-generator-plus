@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -45,20 +45,20 @@ class PetPassport {
           ? Pet.fromJson(json['pet'] as Map<String, dynamic>)
           : null,
       thumbnail: json['thumbnail'] != null
-          ? base64Decode(json['thumbnail'] as String)
+          ? decodeBase64(json['thumbnail'] as String)
           : null,
       scans: json['scans'] != null
           ? deserializeArray(
               json['scans'] as List,
-              (e) => base64Decode(e as String),
+              (e) => decodeBase64(e as String),
             )
           : null,
       issuedAt: json['issuedAt'] != null
-          ? DateTime.parse(json['issuedAt'] as String)
+          ? parseDateTime(json['issuedAt'] as String)
           : null,
 
       biometricChip: json['biometricChip'] != null
-          ? base64Decode(json['biometricChip'] as String)
+          ? decodeBase64(json['biometricChip'] as String)
           : null,
     );
   }

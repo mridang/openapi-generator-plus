@@ -1,5 +1,7 @@
 package io.github.mridang.codegen.generators.dart;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
@@ -233,11 +235,53 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     public String toEnumVarName(String value, String datatype) {
+        if (!isNumericEnumDatatype(datatype) && !value.isEmpty()) {
+            /* A value that sanitises to nothing gets a deterministic public
+             * name instead of an empty identifier: whitespace-only becomes
+             * SPACE_<length>, anything else VALUE_<hex code points>. */
+            if (value.trim().isEmpty()) {
+                return getEnumCasing().apply("SPACE_" + value.length());
+            }
+            final String cleaned = sanitizeName(value).replaceAll("_", "");
+            if (cleaned.isEmpty()) {
+                final StringBuilder hex = new StringBuilder("VALUE");
+                value.codePoints()
+                        .forEach(cp -> hex.append('_').append(String.format(Locale.ROOT, "%04X", cp)));
+                return getEnumCasing().apply(hex.toString());
+            }
+        }
         final String name = super.toEnumVarName(value, datatype);
         if (isNumericEnumDatatype(datatype) && name.startsWith("NUMBER_")) {
             return "number" + name.substring("NUMBER_".length()).toLowerCase(Locale.ROOT);
         }
+        if (name.matches("^_\\d.*")) {
+            /* A leading underscore is library-private in Dart, so a
+             * digit-leading member takes the letter prefix n instead. */
+            return "n" + name.substring(1);
+        }
         return name;
+    }
+
+    /**
+     * Prefixes a digit-leading variable name with the letter {@code n}
+     * before casing ({@code 2fa} becomes {@code n2fa}); the keyword escape
+     * would give the illegal {@code 2fa_}. The wire name is unchanged.
+     */
+    @Override
+    public String toVarName(String name) {
+        if (name.matches("^\\d.*")) {
+            return super.toVarName("n" + name);
+        }
+        return super.toVarName(name);
+    }
+
+    /** Applies the {@link #toVarName} digit rule to parameter names. */
+    @Override
+    public String toParamName(String name) {
+        if (name.matches("^\\d.*")) {
+            return super.toParamName("n" + name);
+        }
+        return super.toParamName(name);
     }
 
     /** {@inheritDoc} */
@@ -593,7 +637,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return "'" + escapeText(String.valueOf(resolved.getDefault())) + "'";
+                return "'" + escapeDartString(String.valueOf(resolved.getDefault())) + "'";
             }
         }
         return null;
@@ -783,6 +827,141 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return "dartImports";
     }
 
+    /**
+     * Rewrites every server-variable enum constant name under {@code node} into
+     * a legal Dart identifier. The shared builder upper-snake-cases the raw
+     * value, so {@code a&b} or {@code it's} would keep the punctuation; each
+     * run of characters outside {@code [A-Za-z0-9_]} becomes one underscore, a
+     * digit-leading name takes the letter prefix {@code N} and an empty one
+     * becomes {@code VALUE_<hex code points>}. The wire value is untouched.
+     */
+    @SuppressWarnings("unchecked")
+    private static void sanitizeServerEnumNames(@Nullable Object node) {
+        if (node instanceof List) {
+            for (final Object item : (List<Object>) node) {
+                sanitizeServerEnumNames(item);
+            }
+        } else if (node instanceof Map) {
+            final Map<String, Object> map = (Map<String, Object>) node;
+            final Object enumValues = map.get("enumValues");
+            if (enumValues instanceof List) {
+                for (final Object ev : (List<Object>) enumValues) {
+                    if (ev instanceof Map) {
+                        final Map<String, Object> entry = (Map<String, Object>) ev;
+                        final String name =
+                                legalServerEnumName(
+                                        String.valueOf(entry.get("name")),
+                                        String.valueOf(entry.get("value")));
+                        entry.put("name", name);
+                        entry.put("nameLowercase", name.toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            for (final Object value : map.values()) {
+                if (value instanceof List || value instanceof Map) {
+                    sanitizeServerEnumNames(value);
+                }
+            }
+        }
+    }
+
+    /**
+     * Emits one Dart enum per server variable name of an operation. Two server
+     * variants of one operation that both declare (say) {@code region} would
+     * otherwise each emit an enum with the same name; the first variant's
+     * variable carries {@code dartEmitEnum} with the union of the values in
+     * declaration order, and the later ones reuse that type.
+     */
+    @SuppressWarnings("unchecked")
+    private static void mergeServerVariableEnums(@Nullable Object serverTypeDefs) {
+        if (!(serverTypeDefs instanceof List)) {
+            return;
+        }
+        for (final Object typeDef : (List<Object>) serverTypeDefs) {
+            if (!(typeDef instanceof Map)) {
+                continue;
+            }
+            final Object variants = ((Map<String, Object>) typeDef).get("variants");
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            final Map<String, Map<String, Object>> owners = new HashMap<>();
+            for (final Object variant : (List<Object>) variants) {
+                if (!(variant instanceof Map)) {
+                    continue;
+                }
+                final Object vars = ((Map<String, Object>) variant).get("serverVariables");
+                if (!(vars instanceof List)) {
+                    continue;
+                }
+                for (final Object v : (List<Object>) vars) {
+                    if (!(v instanceof Map)) {
+                        continue;
+                    }
+                    final Map<String, Object> varMap = (Map<String, Object>) v;
+                    if (!Boolean.TRUE.equals(varMap.get("hasEnumValues"))) {
+                        continue;
+                    }
+                    final String key = String.valueOf(varMap.get("pascalName"));
+                    final Map<String, Object> owner = owners.get(key);
+                    if (owner == null) {
+                        owners.put(key, varMap);
+                        varMap.put("dartEmitEnum", true);
+                        final Object values = varMap.get("enumValues");
+                        if (values instanceof List) {
+                            varMap.put("enumValues", new ArrayList<>((List<Object>) values));
+                        }
+                        continue;
+                    }
+                    varMap.put("dartEmitEnum", false);
+                    final Object ownerValues = owner.get("enumValues");
+                    final Object ownValues = varMap.get("enumValues");
+                    if (!(ownerValues instanceof List) || !(ownValues instanceof List)) {
+                        continue;
+                    }
+                    final List<Object> merged = (List<Object>) ownerValues;
+                    for (final Object ev : (List<Object>) ownValues) {
+                        final Object value = ((Map<String, Object>) ev).get("value");
+                        final boolean present =
+                                merged.stream()
+                                        .anyMatch(m -> Objects.equals(((Map<String, Object>) m).get("value"), value));
+                        if (!present) {
+                            merged.add(ev);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /** Reports whether {@code name} is the generated class name of a component schema. */
+    private boolean isComponentModelName(final String name) {
+        if (openAPI == null
+                || openAPI.getComponents() == null
+                || openAPI.getComponents().getSchemas() == null) {
+            return false;
+        }
+        for (final String key : openAPI.getComponents().getSchemas().keySet()) {
+            if (name.equals(toModelName(key))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Returns a legal Dart identifier for a server-variable enum constant. */
+    private static String legalServerEnumName(final String name, final String value) {
+        final String cleaned =
+                name.replaceAll("[^A-Za-z0-9_]+", "_").replaceAll("_+", "_").replaceAll("^_|_$", "");
+        if (cleaned.isEmpty()) {
+            final StringBuilder hex = new StringBuilder("VALUE");
+            value.codePoints()
+                    .forEach(cp -> hex.append('_').append(String.format(Locale.ROOT, "%04X", cp)));
+            return hex.toString();
+        }
+        return cleaned.matches("^\\d.*") ? "N" + cleaned : cleaned;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected boolean filtersOperationImports() {
@@ -809,6 +988,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         // namespace as `effectiveConsumes`) and touches no shared codegen.
         final Map<String, Object> operations =
                 (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            sanitizeServerEnumNames(operations.get("serverTypeDefs"));
+            mergeServerVariableEnums(operations.get("serverTypeDefs"));
+        }
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -1029,6 +1212,16 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 imp.put("filename", toModelFilename(p.dataType));
                 optionsImports.add(imp);
             }
+            // An object-typed parameter ($ref to a model under a style, or a
+            // `content` parameter) also carries the model name only in dataType.
+            if (p.dataType != null
+                    && isComponentModelName(p.dataType)
+                    && importedTypes.add(p.dataType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.dataType);
+                imp.put("filename", toModelFilename(p.dataType));
+                optionsImports.add(imp);
+            }
         }
 
         final Map<String, Object> context = new HashMap<>();
@@ -1084,5 +1277,67 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         } catch (IOException ex) {
             LOGGER.warn("Failed to append options exports to barrel: {}", ex.getMessage());
         }
+    }
+
+    /**
+     * Registers the {@code dartString} Mustache lambda, which escapes raw spec
+     * text for the inside of a single-quoted Dart string literal: a backslash,
+     * a single quote and the {@code $} interpolation sigil are backslash
+     * escaped and line breaks become escape sequences, so a description such as
+     * {@code Bob's $5} cannot terminate the literal or start an interpolation.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "dartString",
+                        (fragment, writer) -> writer.write(escapeDartString(fragment.execute())))
+                .put(
+                        "dartDocLines",
+                        (fragment, writer) -> writer.write(toDartDocLines(fragment.execute())));
+    }
+
+    /**
+     * Continues a multi-line description inside a {@code ///} doc comment: every
+     * line break is followed by the {@code ///} prefix, so the second line of a
+     * block-scalar description cannot fall out of the comment into code.
+     */
+    static String toDartDocLines(final String text) {
+        return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\n/// ");
+    }
+
+    /**
+     * Escapes a string enum value for its single-quoted Dart literal: a
+     * backslash or the {@code $} interpolation sigil would otherwise change the
+     * value or break the literal. (The quote character itself is handled by
+     * {@code quoteEnumValue}.)
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.of(new String[] {"\\\\", "\\\\\\\\"}, new String[] {"\\$", "\\\\\\$"});
+    }
+
+    /** Escapes text for the inside of a single-quoted Dart string literal. */
+    static String escapeDartString(final String text) {
+        final StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\'') {
+                sb.append("\\'");
+            } else if (c == '$') {
+                sb.append("\\$");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }

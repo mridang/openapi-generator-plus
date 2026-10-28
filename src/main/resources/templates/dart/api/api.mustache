@@ -25,23 +25,23 @@ abstract class {{serverTypeName}} {
   String getUrl();
 }
 {{#variants}}
-{{#serverVariables}}{{#hasEnumValues}}
+{{#serverVariables}}{{#dartEmitEnum}}
 
 /// Valid values for the {{name}} server variable in {{serverTypeName}}.
 enum {{serverTypeName}}{{pascalName}} {
 {{#enumValues}}
-  {{name}}('{{value}}'),
+  {{{name}}}('{{#lambda.dartString}}{{{value}}}{{/lambda.dartString}}'),
 {{/enumValues}}
   ;
 
   final String value;
   const {{serverTypeName}}{{pascalName}}(this.value);
 }
-{{/hasEnumValues}}{{/serverVariables}}
+{{/dartEmitEnum}}{{/serverVariables}}
 {{/variants}}
 {{#variants}}
 
-/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+/// {{#hasDescription}}{{#lambda.dartDocLines}}{{{description}}}{{/lambda.dartDocLines}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
 class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#serverVariables}}
   final {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} _{{camelName}};
@@ -52,7 +52,7 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 
   @override
   String getUrl() {
-    var url = '{{url}}';
+    var url = '{{#lambda.dartString}}{{{url}}}{{/lambda.dartString}}';
 {{#serverVariables}}
     url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}_{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}_{{camelName}}{{/hasEnumValues}});
 {{/serverVariables}}
@@ -64,10 +64,10 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-/// {{.}}
+/// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-/// See <{{url}}> {{{description}}}
+/// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/tagExternalDocs}}
 class {{classname}} extends BaseApi {
   {{classname}}({
@@ -156,89 +156,89 @@ class {{classname}} extends BaseApi {
 {{! matching go/rust/swift/elixir which treat "" as "absent" for required }}
 {{! string params. The check is gated on isString so non-string params are }}
 {{! unaffected. The null check above is preserved. }}
-{{#pathParams}}{{#required}}{{#isString}}
+{{#pathParams}}{{#required}}{{#isString}}{{^isUuid}}
     if ({{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}{{/required}}{{/pathParams}}
+{{/isUuid}}{{/isString}}{{/required}}{{/pathParams}}
 {{#queryParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options?.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/queryParams}}
 {{#headerParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options?.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/headerParams}}
 {{#formParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options?.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/formParams}}
 {{#cookieParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
     if (options?.{{paramName}} == null) {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{#isString}}
+{{#isString}}{{^isUuid}}
     if (options?.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
     }
-{{/isString}}
+{{/isUuid}}{{/isString}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/required}}{{/cookieParams}}
 

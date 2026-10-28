@@ -8,10 +8,13 @@ class SetPetPreferencesOptions {
 
   final DateTime? renewalDate;
 
+  final DateTime? reminder;
+
   const SetPetPreferencesOptions({
     required this.nickname,
     this.tags,
     this.note,
     this.renewalDate,
+    this.reminder,
   });
 }

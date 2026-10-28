@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,7 +7,7 @@
 
 /// Swagger Petstore - OpenAPI 3.0 API client library.
 ///
-/// A simplified Pet Store API for integration testing.
+/// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 library;
 
 export 'src/api/pet_api.dart';
@@ -63,6 +63,7 @@ export 'src/errors/unauthorized_exception.dart';
 export 'src/errors/unprocessable_entity_exception.dart';
 export 'src/iso8601_duration.dart';
 export 'src/object_serializer.dart' show UuidValue;
+export 'src/models/account.dart';
 export 'src/models/api_response.dart';
 export 'src/models/availability.dart';
 export 'src/models/binary_vault.dart';
@@ -73,10 +74,12 @@ export 'src/models/department.dart';
 export 'src/models/dry_food.dart';
 export 'src/models/edge_cases.dart';
 export 'src/models/employee.dart';
+export 'src/models/error.dart';
 export 'src/models/medication.dart';
 export 'src/models/metadata.dart';
 export 'src/models/order.dart';
 export 'src/models/pet.dart';
+export 'src/models/pet_criteria.dart';
 export 'src/models/pet_food.dart';
 export 'src/models/pet_passport.dart';
 export 'src/models/pet_treatment.dart';
@@ -85,6 +88,9 @@ export 'src/models/photo.dart';
 export 'src/models/photo_metadata.dart';
 export 'src/models/photo_metadata_location.dart';
 export 'src/models/priority.dart';
+export 'src/models/required_nullable.dart';
+export 'src/models/result.dart';
+export 'src/models/separator.dart';
 export 'src/models/set_pet_avatar_request.dart';
 export 'src/models/set_pet_avatar_thumbnail_request.dart';
 export 'src/models/stock_item.dart';
@@ -92,6 +98,7 @@ export 'src/models/strict_tag.dart';
 export 'src/models/surgery.dart';
 export 'src/models/swatch.dart';
 export 'src/models/tag.dart';
+export 'src/models/treatment_record.dart';
 export 'src/models/tree_node.dart';
 export 'src/models/wet_food.dart';
 export 'src/server_configuration.dart';
@@ -110,3 +117,4 @@ export 'src/api/options/upload_pet_certificate_options.dart';
 export 'src/api/options/upload_pet_document_options.dart';
 export 'src/api/options/get_by_swatch_options.dart';
 export 'src/api/options/get_stock_item_options.dart';
+export 'src/api/options/search_store_options.dart';

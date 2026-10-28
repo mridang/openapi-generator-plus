@@ -1,5 +1,7 @@
 {{>api_info}}
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'object_serializer.dart';
 
 /// Serializes parameter values for HTTP requests based on their location and
@@ -121,16 +123,41 @@ Object? maybeAllowReserved(Object? value, bool allowReserved) {
   return AllowReservedValue(value);
 }
 
-/// Percent-encodes a query value while leaving RFC 3986 reserved characters
-/// literal (OAS `allowReserved: true`).
+/// Percent-encodes a query or form component keeping exactly the RFC 3986
+/// unreserved set `A-Za-z0-9-._~` literal.
 ///
-/// Everything that is not RFC 3986 reserved or unreserved — spaces, control
-/// characters, non-ASCII — is still percent-encoded, so the result is always a
-/// valid URL query segment. Only the reserved set
-/// `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` (plus the unreserved `~`) is left
-/// literal. A space becomes `%20`, never `+`.
+/// `Uri.encodeQueryComponent` leaves `!`, `'`, `(`, `)` and `*` literal, so
+/// they are percent-encoded afterwards, giving the same bytes as every other
+/// SDK (and as the OAuth2 encoders). A literal `+` is always `%2B`. A space is
+/// `%20` for a query component and `+` when [spaceToPlus] is true (an
+/// `application/x-www-form-urlencoded` body).
 ///
-/// Returns the encoded value with reserved characters preserved.
+/// Returns the percent-encoded component.
+String encodeRfc3986QueryComponent(String s, {bool spaceToPlus = false}) {
+  final encoded = Uri.encodeQueryComponent(s)
+      .replaceAll('!', '%21')
+      .replaceAll("'", '%27')
+      .replaceAll('(', '%28')
+      .replaceAll(')', '%29')
+      .replaceAll('*', '%2A');
+  return spaceToPlus ? encoded : encoded.replaceAll('+', '%20');
+}
+
+/// Percent-encodes a query value while leaving the RFC 3986 query-legal
+/// reserved characters literal (OAS `allowReserved: true`).
+///
+/// Only the characters RFC 3986 section 3.4 permits in a query component,
+/// `: / ? @ ! $ & ' ( ) * + , ; =` (plus the unreserved set), are left literal.
+/// `#`, `[` and `]` are always percent-encoded: a literal `#` would start the
+/// URL fragment and silently truncate the query, and `[`/`]` are not legal in
+/// a query. Spaces (`%20`, never `+`), control characters and non-ASCII are
+/// percent-encoded too, so the result is always a valid URL query segment.
+///
+/// This output is the contract: it is what the SDK hands the transport, and
+/// `dart:core` `Uri` then has nothing left to rewrite.
+///
+/// Returns the encoded value with the query-legal reserved characters
+/// preserved.
 String encodeQueryAllowingReserved(String s) {
   const hex = '0123456789ABCDEF';
   final bytes = utf8.encode(s);
@@ -146,9 +173,6 @@ String encodeQueryAllowingReserved(String s) {
     final isReserved = b == 0x3A // :
         || b == 0x2F // /
         || b == 0x3F // ?
-        || b == 0x23 // #
-        || b == 0x5B // [
-        || b == 0x5D // ]
         || b == 0x40 // @
         || b == 0x21 // !
         || b == 0x24 // $
@@ -206,6 +230,12 @@ Object? serializeStyled(
    * case that slips through it. */
   if (location == 'path' && value is String && value.isEmpty) {
     throw ArgumentError("Path parameter '$paramName' must not be empty");
+  }
+  /* A value of exactly '.' or '..' is a dot segment (RFC 3986 section
+   * 5.2.4): dart:core Uri removes it, so the request would silently reach
+   * a different endpoint. Reject it like the empty value. */
+  if (location == 'path' && (value == '.' || value == '..')) {
+    throw ArgumentError("Path parameter '$paramName' must not be '.' or '..'");
   }
 
   if (style.isEmpty) {
@@ -367,6 +397,8 @@ Object? _serializeQueryArray(List<String> items, String collectionFormat) {
 /// Attempts to convert a value to a [List<String>].
 /// Returns null if the conversion is not possible.
 List<String>? _toStringList(Object? value) {
+  /* A `format: byte` value is one base64 scalar, never a list of octets. */
+  if (value is Uint8List) return null;
   if (value is List<String>) return value;
   if (value is List) {
     return value.map((item) => stringify(item)).toList();

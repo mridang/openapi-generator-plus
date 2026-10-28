@@ -10,6 +10,40 @@ import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
   group('DefaultApiClient unit tests', () {
+    test('a lower-case caller user-agent and x-request-id suppress injection',
+        () async {
+      List<String>? receivedUA;
+      List<String>? receivedRequestId;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedUA = request.headers['user-agent'];
+        receivedRequestId = request.headers['x-request-id'];
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .userAgent('Sdk/9.9')
+            .injectRequestId(true)
+            .defaultHeader('user-agent', 'MyApp')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {'x-request-id': 'abc'},
+          null,
+        );
+        expect(receivedUA, equals(['MyApp']));
+        expect(receivedRequestId, equals(['abc']));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('injects custom User-Agent header', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1563,6 +1597,50 @@ void main() {
         expect(body.toLowerCase(), contains('content-type: application/json\r\n'));
         expect(body.toLowerCase(), isNot(contains('charset')));
         expect(body, contains('\r\n\r\n{"caption":"x"}\r\n'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('multipart primitive fields are text parts in the canonical form', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        body = await readBodyAsLatin1(request);
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://127.0.0.1:${server.port}/upload',
+          {},
+          {
+            'flag': true,
+            'count': 3,
+            'at': DateTime.utc(2024, 1, 15, 10, 30),
+            'shade': Swatch.red,
+            'meta': {'k': 'v'},
+          },
+        );
+        final lower = body.toLowerCase();
+        for (final part in [
+          ('flag', 'true'),
+          ('count', '3'),
+          ('at', '2024-01-15t10:30:00.000+00:00'),
+          ('shade', 'red'),
+        ]) {
+          expect(
+              lower,
+              contains('content-disposition: form-data; name="${part.$1}"'
+                  '\r\n\r\n${part.$2}\r\n'),
+              reason: '${part.$1} must be a text part, got: $body');
+        }
+        expect(RegExp('content-type: application/json').allMatches(lower),
+            hasLength(1));
       } finally {
         await server.close();
       }

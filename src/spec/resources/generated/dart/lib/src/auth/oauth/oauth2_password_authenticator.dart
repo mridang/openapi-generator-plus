@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -8,6 +8,7 @@
 import 'dart:convert';
 
 import '../../api_client.dart';
+import '../../value_serializer.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
 import 'client_auth_method.dart';
@@ -76,8 +77,6 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
   /// Asynchronously retrieves auth headers with a valid access token.
   @override
   Future<Map<String, String>> authHeadersAsync() async {
-    Map<String, String> params;
-    String tokenUrl;
     final extraHeaders = <String, String>{};
     if (_clientAuthMethod == ClientAuthMethod.basic) {
       /* RFC 6749 §2.3.1: application/x-www-form-urlencode the client_id and
@@ -85,41 +84,42 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
        * with ':' and base64-encoding. Uri.encodeQueryComponent applies the
        * form-encoding the spec calls for; Uri.encodeComponent would emit
        * '%20' and diverge from the other SDKs for a space-bearing credential. */
-      final encodedId = _rfc3986(Uri.encodeQueryComponent(_clientId));
-      final encodedSecret = _rfc3986(Uri.encodeQueryComponent(_clientSecret));
+      final encodedId = encodeRfc3986QueryComponent(
+        _clientId,
+        spaceToPlus: true,
+      );
+      final encodedSecret = encodeRfc3986QueryComponent(
+        _clientSecret,
+        spaceToPlus: true,
+      );
       final credentials = base64.encode(
         utf8.encode('$encodedId:$encodedSecret'),
       );
       extraHeaders['Authorization'] = 'Basic $credentials';
     }
 
-    final currentRefreshToken = _tokenManager.refreshToken;
-    if (currentRefreshToken.isNotEmpty) {
-      params = {
-        'grant_type': 'refresh_token',
-        'refresh_token': currentRefreshToken,
-      };
-      tokenUrl = _refreshUrl;
-    } else {
-      params = {
-        'grant_type': 'password',
-        'username': _username,
-        'password': _password,
-      };
-      if (_clientAuthMethod != ClientAuthMethod.basic) {
-        params['client_id'] = _clientId;
-        params['client_secret'] = _clientSecret;
-      }
-      if (_scopes.isNotEmpty) {
-        params['scope'] = _scopes.join(' ');
-      }
-      tokenUrl = _tokenUrl;
+    /* Always hand the manager the password grant: once a refresh token is
+     * held the manager sends the refresh grant to the refresh URL with the
+     * same client authentication (RFC 6749 section 6) and, if that fails,
+     * re-runs this password grant. */
+    final params = <String, String>{
+      'grant_type': 'password',
+      'username': _username,
+      'password': _password,
+    };
+    if (_clientAuthMethod != ClientAuthMethod.basic) {
+      params['client_id'] = _clientId;
+      params['client_secret'] = _clientSecret;
+    }
+    if (_scopes.isNotEmpty) {
+      params['scope'] = _scopes.join(' ');
     }
 
     final token = await _tokenManager.getAccessToken(
-      tokenUrl,
+      _tokenUrl,
       params,
       extraHeaders,
+      _refreshUrl,
     );
     return {'Authorization': 'Bearer $token'};
   }
@@ -133,15 +133,3 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
       'tokenUrl: $_tokenUrl, refreshUrl: $_refreshUrl, username: $_username, '
       'password: ***, scopes: $_scopes, clientAuthMethod: ${_clientAuthMethod.name})';
 }
-
-/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
-/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
-/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
-/// (unreserved in both), and space handling (the '+' already produced for the
-/// Basic header) is left untouched.
-String _rfc3986(String encoded) => encoded
-    .replaceAll('!', '%21')
-    .replaceAll("'", '%27')
-    .replaceAll('(', '%28')
-    .replaceAll(')', '%29')
-    .replaceAll('*', '%2A');

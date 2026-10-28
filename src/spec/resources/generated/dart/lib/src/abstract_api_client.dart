@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -19,6 +19,7 @@ import 'api_http_response.dart';
 import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
+import 'object_serializer.dart';
 import 'transport_options.dart';
 
 /// Transport-agnostic base for [ApiClient] implementations.
@@ -138,12 +139,15 @@ abstract class AbstractApiClient implements ApiClient {
     merged.addAll(_transportOptions.defaultHeaders);
     merged.addAll(headers);
 
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller's
+     * `user-agent` or `x-request-id` in any case, even with an empty value,
+     * suppresses the injected default and is sent exactly as written. */
     final userAgent = _transportOptions.userAgent;
-    if (!merged.containsKey('User-Agent') && userAgent != null) {
+    if (!_hasHeader(merged, 'User-Agent') && userAgent != null) {
       merged['User-Agent'] = userAgent;
     }
 
-    if (!merged.containsKey('X-Request-ID') &&
+    if (!_hasHeader(merged, 'X-Request-ID') &&
         _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
@@ -636,8 +640,17 @@ abstract class AbstractApiClient implements ApiClient {
           contentType: contentType,
         ),
       );
-    } else if (value is String || value is num || value is bool) {
-      final text = value.toString();
+    } else if (value is String ||
+        value is num ||
+        value is bool ||
+        value is DateTime ||
+        value is Duration ||
+        value is Enum ||
+        value is UuidValue) {
+      /* A primitive is a text part carrying the canonical [stringify] form
+       * (`true`, `2024-01-15T10:30:00.000+00:00`, an enum's wire value);
+       * only maps and models become application/json parts. */
+      final text = stringify(value);
       if (repeated) {
         request.files.add(http.MultipartFile.fromString(name, text));
       } else {
@@ -843,6 +856,13 @@ abstract class AbstractApiClient implements ApiClient {
   static String _supportedEncodings() {
     final encodings = ['gzip', 'deflate'];
     return encodings.join(', ');
+  }
+
+  /// Reports whether [headers] holds [name] under ASCII case-insensitive
+  /// comparison (RFC 9110 section 5.1).
+  static bool _hasHeader(Map<String, String> headers, String name) {
+    final wanted = name.toLowerCase();
+    return headers.keys.any((key) => key.toLowerCase() == wanted);
   }
 
   static String _generateUuid() {

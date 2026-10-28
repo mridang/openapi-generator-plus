@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import '../../api_client.dart';
 import '../../errors/oauth2_server_exception.dart';
 import '../../errors/oauth2_token_exception.dart';
+import '../../value_serializer.dart';
 
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
 /// refreshing.
@@ -42,10 +43,19 @@ class OAuth2TokenManager {
   /// others await the same [Future]. This avoids a thundering-herd of
   /// refresh requests against the OAuth2 provider when many requests race
   /// to refresh an expired token.
+  ///
+  /// When a refresh token is held and [params] is not itself a
+  /// `refresh_token` grant, the refresh grant goes to [refreshUrl] (default
+  /// [tokenUrl]) and carries the same client authentication as [params]
+  /// (`client_id`/`client_secret` in the body, or the Basic header in
+  /// [extraHeaders]), per RFC 6749 sections 6 and 3.2.1. If that refresh
+  /// fails, [params] is re-posted to [tokenUrl] (the original grant). When
+  /// [params] already is a `refresh_token` grant it is posted exactly once.
   Future<String> getAccessToken(
     String tokenUrl,
     Map<String, String> params, [
     Map<String, String> extraHeaders = const {},
+    String? refreshUrl,
   ]) async {
     if (_accessToken.isNotEmpty &&
         (_tokenExpiry == null ||
@@ -58,7 +68,8 @@ class OAuth2TokenManager {
       return existing;
     }
 
-    final refresh = _doRefresh(tokenUrl, params, extraHeaders);
+    final refresh =
+        _doRefresh(tokenUrl, params, extraHeaders, refreshUrl ?? tokenUrl);
     _inflightRefresh = refresh;
     try {
       return await refresh;
@@ -71,8 +82,9 @@ class OAuth2TokenManager {
     String tokenUrl,
     Map<String, String> params,
     Map<String, String> extraHeaders,
+    String refreshUrl,
   ) async {
-    if (_refreshToken.isNotEmpty) {
+    if (_refreshToken.isNotEmpty && params['grant_type'] != 'refresh_token') {
       final refreshParams = <String, String>{
         'grant_type': 'refresh_token',
         'refresh_token': _refreshToken,
@@ -86,7 +98,7 @@ class OAuth2TokenManager {
         refreshParams['client_secret'] = clientSecret;
       }
       try {
-        await _fetchToken(tokenUrl, refreshParams, extraHeaders);
+        await _fetchToken(refreshUrl, refreshParams, extraHeaders);
         if (_accessToken.isNotEmpty) {
           return _accessToken;
         }
@@ -98,6 +110,44 @@ class OAuth2TokenManager {
 
     await _fetchToken(tokenUrl, params, extraHeaders);
     return _accessToken;
+  }
+
+  /// Performs an explicit token exchange (for example the
+  /// `authorization_code` grant): posts [params] verbatim to [tokenUrl],
+  /// bypassing the token cache and the refresh path.
+  ///
+  /// On success the session holds exactly what the response carried: a
+  /// response without `refresh_token` leaves no refresh token and one without
+  /// `expires_in` leaves no expiry. On any failure the previous session is
+  /// restored and the error is rethrown, so a mistyped code does not end the
+  /// current session.
+  Future<void> exchange(
+    String tokenUrl,
+    Map<String, String> params, [
+    Map<String, String> extraHeaders = const {},
+  ]) async {
+    final inflight = _inflightRefresh;
+    if (inflight != null) {
+      try {
+        await inflight;
+      } catch (_) {
+        /* The exchange replaces the session whatever the refresh did. */
+      }
+    }
+    final previousAccessToken = _accessToken;
+    final previousRefreshToken = _refreshToken;
+    final previousExpiry = _tokenExpiry;
+    _accessToken = '';
+    _refreshToken = '';
+    _tokenExpiry = null;
+    try {
+      await _fetchToken(tokenUrl, params, extraHeaders);
+    } catch (_) {
+      _accessToken = previousAccessToken;
+      _refreshToken = previousRefreshToken;
+      _tokenExpiry = previousExpiry;
+      rethrow;
+    }
   }
 
   /// Invalidates the cached access token so that the next call to
@@ -130,7 +180,7 @@ class OAuth2TokenManager {
 
     final body = params.entries
         .map((e) =>
-            '${_rfc3986(Uri.encodeQueryComponent(e.key))}=${_rfc3986(Uri.encodeQueryComponent(e.value))}')
+            '${encodeRfc3986QueryComponent(e.key, spaceToPlus: true)}=${encodeRfc3986QueryComponent(e.value, spaceToPlus: true)}')
         .join('&');
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));
@@ -267,16 +317,3 @@ class OAuth2TokenManager {
     return 0;
   }
 }
-
-/// Escapes the RFC 2396 "mark" characters (`! * ' ( )`) that
-/// [Uri.encodeQueryComponent] keeps literal but RFC 3986 percent-encodes, so
-/// every SDK emits byte-identical OAuth2 encodings. '~' stays literal
-/// (unreserved in both), and space handling — the '+' already produced for the
-/// form body / Basic header, or the '%20' the caller substitutes for the query
-/// — is left untouched.
-String _rfc3986(String encoded) => encoded
-    .replaceAll('!', '%21')
-    .replaceAll("'", '%27')
-    .replaceAll('(', '%28')
-    .replaceAll(')', '%29')
-    .replaceAll('*', '%2A');

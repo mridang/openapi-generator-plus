@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -8,6 +8,9 @@
 import '../object_serializer.dart';
 
 import 'color.dart';
+import 'error.dart';
+import 'result.dart';
+import 'separator.dart';
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
 class EdgeCases {
@@ -34,6 +37,22 @@ class EdgeCases {
   /// Absolute expiry instant
   final DateTime? expiresAt;
 
+  final bool? n2fa;
+
+  final Separator? separator;
+
+  final String? null_;
+
+  final bool? true_;
+
+  final bool? false_;
+
+  final Error? lastError;
+
+  final Result? outcome;
+
+  final String? cutoff;
+
   const EdgeCases({
     this.freeFormAny,
     this.favoriteColor,
@@ -45,6 +64,14 @@ class EdgeCases {
     this.return_,
     this.retryAfter,
     this.expiresAt,
+    this.n2fa,
+    this.separator,
+    this.null_,
+    this.true_,
+    this.false_,
+    this.lastError,
+    this.outcome,
+    this.cutoff,
   });
 
   /// Creates a [EdgeCases] from a JSON map.
@@ -73,8 +100,29 @@ class EdgeCases {
           : null,
 
       expiresAt: json['expiresAt'] != null
-          ? DateTime.parse(json['expiresAt'] as String)
+          ? parseDateTime(json['expiresAt'] as String)
           : null,
+
+      n2fa: json['2fa'] as bool?,
+
+      separator: json['separator'] != null
+          ? Separator.fromJson(json['separator'] as String)
+          : null,
+
+      null_: json['null'] as String?,
+
+      true_: json['true'] as bool?,
+
+      false_: json['false'] as bool?,
+
+      lastError: json['lastError'] != null
+          ? Error.fromJson(json['lastError'] as Map<String, dynamic>)
+          : null,
+      outcome: json['outcome'] != null
+          ? Result.fromJson(json['outcome'] as Map<String, dynamic>)
+          : null,
+
+      cutoff: json['cutoff'] as String?,
     );
   }
 
@@ -111,6 +159,30 @@ class EdgeCases {
     if (expiresAt != null) {
       json['expiresAt'] = formatDateTimeOffset(expiresAt!);
     }
+    if (n2fa != null) {
+      json['2fa'] = n2fa;
+    }
+    if (separator != null) {
+      json['separator'] = separator?.toJson();
+    }
+    if (null_ != null) {
+      json['null'] = null_;
+    }
+    if (true_ != null) {
+      json['true'] = true_;
+    }
+    if (false_ != null) {
+      json['false'] = false_;
+    }
+    if (lastError != null) {
+      json['lastError'] = lastError?.toJson();
+    }
+    if (outcome != null) {
+      json['outcome'] = outcome?.toJson();
+    }
+    if (cutoff != null) {
+      json['cutoff'] = cutoff;
+    }
     return json;
   }
 
@@ -131,7 +203,15 @@ class EdgeCases {
         class_ == other.class_ &&
         return_ == other.return_ &&
         retryAfter == other.retryAfter &&
-        expiresAt == other.expiresAt;
+        expiresAt == other.expiresAt &&
+        n2fa == other.n2fa &&
+        separator == other.separator &&
+        null_ == other.null_ &&
+        true_ == other.true_ &&
+        false_ == other.false_ &&
+        lastError == other.lastError &&
+        outcome == other.outcome &&
+        cutoff == other.cutoff;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -151,5 +231,13 @@ class EdgeCases {
     return_,
     retryAfter,
     expiresAt,
+    n2fa,
+    separator,
+    null_,
+    true_,
+    false_,
+    lastError,
+    outcome,
+    cutoff,
   ]);
 }

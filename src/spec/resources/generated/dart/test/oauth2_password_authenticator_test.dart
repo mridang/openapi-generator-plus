@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -234,6 +234,76 @@ void main() {
         expect(client.bodies[1], startsWith('grant_type=refresh_token&'));
       },
     );
+
+    test('a BODY mode refresh carries client_id and client_secret', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = build(refreshUrl: 'https://auth.example.com/oauth/refresh');
+      auth.setApiClient(client);
+
+      await auth.authHeadersAsync();
+      await auth.authHeadersAsync();
+
+      expect(client.urls[1], equals('https://auth.example.com/oauth/refresh'));
+      expect(
+        client.bodies[1],
+        equals(
+          'grant_type=refresh_token&refresh_token=ref1'
+          '&client_id=my-client-id&client_secret=my-client-secret',
+        ),
+      );
+    });
+
+    test(
+      'a BASIC mode refresh carries the Basic header and no client_id',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final auth = OAuth2PasswordAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+          tokenUrl: 'https://auth.example.com/token',
+          username: 'testuser',
+          password: 'testpass',
+          clientAuthMethod: ClientAuthMethod.basic,
+        );
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+
+        expect(
+          client.bodies[1],
+          equals('grant_type=refresh_token&refresh_token=ref1'),
+        );
+        expect(client.lastHeaders['Authorization'], startsWith('Basic '));
+      },
+    );
+
+    test('a rejected refresh re-runs the password grant', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+        '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}',
+      );
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      client.enqueue('{"access_token":"tok3","expires_in":3600}');
+      final auth = build();
+      auth.setApiClient(client);
+
+      await auth.authHeadersAsync();
+      final headers = await auth.authHeadersAsync();
+
+      expect(headers['Authorization'], equals('Bearer tok3'));
+      expect(client.urls[2], equals('https://auth.example.com/token'));
+      expect(client.bodies[2], startsWith('grant_type=password&'));
+    });
 
     test(
       'without a refreshUrl the refresh grant also goes to tokenUrl',

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -897,7 +897,7 @@ void main() {
 
         final result = await api.getPetByName(
           'Rex',
-          const GetPetByNameOptions(category: 'dogs'),
+          const GetPetByNameOptions(category: 'dogs', xCorrelationId: 'c-1'),
         );
 
         expect(result, isNotNull);
@@ -975,7 +975,10 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       await expectLater(
-        api.getPetByName('Rex', const GetPetByNameOptions(category: '')),
+        api.getPetByName(
+          'Rex',
+          const GetPetByNameOptions(category: '', xCorrelationId: 'c-1'),
+        ),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
