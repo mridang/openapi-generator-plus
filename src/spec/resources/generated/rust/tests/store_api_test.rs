@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -136,6 +136,63 @@ async fn test_store_api_place_order_omitted_body_sends_no_body_and_no_content_ty
     assert!(
         !headers.contains_key("Content-Type"),
         "an omitted optional body must not carry a Content-Type"
+    );
+}
+
+/// A `content: application/json` query parameter is written by the SDK
+/// serializer: compact JSON with `/`, `<` and non-ASCII left unescaped, then
+/// percent-encoded by the query encoder.
+#[tokio::test]
+async fn test_store_api_search_store_content_query_uses_object_serializer() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let q = PhotoMetadata {
+        caption: Some("a/b<\u{e9}".to_string()),
+        ..PhotoMetadata::new()
+    };
+    let _ = api
+        .search_store(Some(&SearchStoreOptions::new().q(q)))
+        .await;
+    let url = client.url.lock().unwrap().clone();
+    assert!(
+        url.contains("q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D"),
+        "expected the serializer's compact JSON in the query, got: {}",
+        url
+    );
+}
+
+/// A content query value the serializer refuses surfaces as SerializationError
+/// and no request is sent (never an empty `q=` value).
+#[tokio::test]
+async fn test_store_api_search_store_content_query_serialization_failure_sends_nothing() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let q = PhotoMetadata {
+        location: Some(PhotoMetadataLocation {
+            lat: Some(f64::NAN),
+            ..PhotoMetadataLocation::new()
+        }),
+        ..PhotoMetadata::new()
+    };
+    let err = api
+        .search_store(Some(&SearchStoreOptions::new().q(q)))
+        .await
+        .expect_err("a non-finite float must fail serialization");
+    assert!(
+        err.downcast_ref::<petstore::errors::serialization_error::SerializationError>()
+            .is_some(),
+        "expected a SerializationError, got: {}",
+        err
+    );
+    assert!(
+        client.url.lock().unwrap().is_empty(),
+        "no request may be sent"
     );
 }
 

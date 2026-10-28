@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -843,6 +843,7 @@ async fn test_pet_api_get_pet_by_name_path_encoded_once() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNameOptions {
         category: "dogs".to_string(),
+        x_correlation_id: "corr-1".to_string(),
     };
     let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
 
@@ -891,6 +892,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
     let api = new_pet_api_for_integration();
     let opts = GetPetByNameOptions {
         category: String::new(),
+        x_correlation_id: "corr-1".to_string(),
     };
     let result = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
     assert!(
@@ -913,6 +915,7 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNameOptions {
         category: "cats".to_string(),
+        x_correlation_id: "corr-1".to_string(),
     };
     let _ = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
 
@@ -921,6 +924,55 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     assert!(
         request_line.contains("category=cats"),
         "expected required query param on the wire, got request line: {}",
+        request_line
+    );
+}
+
+/// A path parameter of exactly `.` or `..` is a dot segment the URL parser
+/// would collapse, re-routing the request. It is rejected before dispatch: the
+/// client points at a closed port, so any request would fail with a network
+/// error instead of this ConfigurationError.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
+    let config = ConfigurationBuilder::new()
+        .base_url("http://127.0.0.1:1")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = GetPetByNameOptions {
+        category: "cats".to_string(),
+        x_correlation_id: "corr-1".to_string(),
+    };
+    for value in [".", ".."] {
+        let err = api
+            .get_pet_by_name(value.to_string(), Some(&opts))
+            .await
+            .expect_err("a dot-segment path parameter must be rejected");
+        assert_eq!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(&ConfigurationError::InvalidArgument(
+                "Path parameter 'name' must not be '.' or '..'".to_string()
+            )),
+            "path value {:?}",
+            value
+        );
+    }
+}
+
+/// Dots inside a longer segment are not dot segments and go out unchanged.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_keeps_inner_dots() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNameOptions {
+        category: "cats".to_string(),
+        x_correlation_id: "corr-1".to_string(),
+    };
+    let _ = api.get_pet_by_name("a..b".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.starts_with("GET /pet/byName/a..b?"),
+        "expected the inner dots on the wire, got request line: {}",
         request_line
     );
 }

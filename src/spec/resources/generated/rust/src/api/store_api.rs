@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -50,6 +50,82 @@ impl StoreApi {
         Self {
             base: BaseApi::new(api_client, config, authenticator),
         }
+    }
+
+    /// Create an account
+    pub async fn create_account(
+        &self,
+        account: Account,
+    ) -> Result<Account, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.create_account_with_http_info(account).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for create_account but received none".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the create_account operation and returns the full API result.
+    pub async fn create_account_with_http_info(
+        &self,
+        account: Account,
+    ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
+        // The public create_account_with_http_info entry point always sends the
+        // first declared request content-type, application/json. The shared
+        // implementation below takes the resolved Content-Type as an argument
+        // and this operation declares no alternative to select.
+        self.create_account_invoke(account, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the create_account operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn create_account_invoke(
+        &self,
+        account: Account,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Account>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/account".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body = Some(object_serializer::serialize(&account)?.into_bytes());
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Account",
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Account>(params).await
     }
 
     /// Delete purchase order by ID
@@ -737,6 +813,101 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Order>(params).await
     }
 
+    /// Find purchase order by tracking id
+    pub async fn get_order_by_tracking_id(
+        &self,
+        tracking_id: uuid::Uuid,
+    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self
+            .get_order_by_tracking_id_with_http_info(tracking_id)
+            .await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_order_by_tracking_id but received none"
+                    .to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_order_by_tracking_id operation and returns the full API result.
+    pub async fn get_order_by_tracking_id_with_http_info(
+        &self,
+        tracking_id: uuid::Uuid,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        // The public get_order_by_tracking_id_with_http_info entry point always sends the
+        // first declared request content-type, application/json. The shared
+        // implementation below takes the resolved Content-Type as an argument
+        // and this operation declares no alternative to select.
+        self.get_order_by_tracking_id_invoke(tracking_id, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_order_by_tracking_id operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_order_by_tracking_id_invoke(
+        &self,
+        tracking_id: uuid::Uuid,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/order/by-tracking/{trackingId}".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "trackingId",
+            Some(&object_serializer::to_path_value(&tracking_id)),
+            None,
+            "path",
+            "uuid::Uuid",
+            "",
+            "simple",
+            false,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{trackingId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Order",
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Order>(params).await
+    }
+
     /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
     /// * `as_of`: Only consider stock as of this instant
     /// * `options`: Options for query, header, form, and cookie parameters.
@@ -1222,5 +1393,154 @@ impl StoreApi {
         };
 
         self.base.invoke_api_for_result::<Order>(params).await
+    }
+
+    /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
+    /// * `q`: JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn search_store(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> Result<Vec<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.search_store_with_http_info(options).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for search_store but received none".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the search_store operation and returns the full API result.
+    pub async fn search_store_with_http_info(
+        &self,
+        options: Option<&SearchStoreOptions>,
+    ) -> Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>> {
+        // The public search_store_with_http_info entry point always sends the
+        // first declared request content-type, application/json. The shared
+        // implementation below takes the resolved Content-Type as an argument
+        // and this operation declares no alternative to select.
+        self.search_store_invoke(options, "application/json").await
+    }
+
+    /// Shared implementation for the search_store operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn search_store_invoke(
+        &self,
+        options: Option<&SearchStoreOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/search".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.q {
+                query_params.push(("q".to_string(), object_serializer::serialize(val)?, false));
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.labels {
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "labels",
+                    None,
+                    Some(&items),
+                    "query",
+                    "Vec<String>",
+                    "multi",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("labels".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("labels".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.at {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "at",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "chrono::NaiveTime",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("at".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("at".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.x_filter {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "X-Filter",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "std::collections::HashMap<String, String>",
+                    "",
+                    "",
+                    false,
+                ) {
+                    header_params.insert("X-Filter".to_string(), v);
+                }
+            }
+        }
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "Vec<Order>",
+            // security-none suppression: this operation is declared
+            // `security: []` (explicitly unauthenticated). Pass the no-auth
+            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
+            // than falling back to the client-level authenticator, which would
+            // leak the client credential on reflect-style endpoints.
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Vec<Order>>(params).await
     }
 }

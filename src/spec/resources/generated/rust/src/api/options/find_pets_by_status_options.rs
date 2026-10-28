@@ -8,6 +8,7 @@ pub struct FindPetsByStatusOptions {
     pub filter: Option<std::collections::HashMap<String, String>>,
     /// Only return pets born on or after this date
     pub born_after: Option<chrono::NaiveDate>,
+    pub _2nd_page: Option<i32>,
     /// Reference date for the report
     pub report_date: Option<chrono::NaiveDate>,
 }
@@ -34,6 +35,12 @@ impl FindPetsByStatusOptions {
     /// Sets the born_after field.
     pub fn born_after(mut self, born_after: chrono::NaiveDate) -> Self {
         self.born_after = Some(born_after);
+        self
+    }
+
+    /// Sets the _2nd_page field.
+    pub fn _2nd_page(mut self, _2nd_page: i32) -> Self {
+        self._2nd_page = Some(_2nd_page);
         self
     }
 

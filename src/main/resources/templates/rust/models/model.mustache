@@ -17,7 +17,7 @@ use super::*;
 {{#isEnum}}
 {{#isInteger}}{{>integer_enum}}{{/isInteger}}{{#isLong}}{{>integer_enum}}{{/isLong}}{{^isInteger}}{{^isLong}}
 {{#description}}
-/// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+/// {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/description}}
 {{^description}}
 /// {{classname}} is an enumeration of allowed values.
@@ -58,7 +58,7 @@ impl {{classname}} {
 /// {{classname}} is a model class generated from the OpenAPI schema.
 {{/description}}
 {{#externalDocumentation}}
-/// See <{{url}}> {{description}}
+/// See <{{url}}> {{#lambda.docLines}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.docLines}}
 {{/externalDocumentation}}
 {{#isDeprecated}}
 #[deprecated(note = "This schema is deprecated.")]
@@ -139,6 +139,16 @@ pub struct {{classname}} {
 {{#example}}
     /// Example: `{{{.}}}`
 {{/example}}
+{{#isReadOnly}}
+    ///
+    /// Read-only: set by the server. It is still sent and received like any
+    /// other field.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    ///
+    /// Write-only: the server does not return it. It is still sent and
+    /// received like any other field.
+{{/isWriteOnly}}
 {{#vendorExtensions.pluralExamples}}
     /// ## {{summary}}
     /// {{description}}

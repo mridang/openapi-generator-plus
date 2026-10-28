@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -18,6 +18,18 @@ pub enum Availability {
     /// Represents the value "on-hold".
     #[serde(rename = "on-hold")]
     OnHold,
+    /// Represents the value "o'clock".
+    #[serde(rename = "o'clock")]
+    Oclock,
+    /// Represents the value "a\\b".
+    #[serde(rename = "a\\b")]
+    AB,
+    /// Represents the value "$eq".
+    #[serde(rename = "$eq")]
+    Eq,
+    /// Represents the value "#{x}".
+    #[serde(rename = "#{x}")]
+    X,
 }
 
 impl Availability {
@@ -27,6 +39,10 @@ impl Availability {
             Availability::Available,
             Availability::Sold,
             Availability::OnHold,
+            Availability::Oclock,
+            Availability::AB,
+            Availability::Eq,
+            Availability::X,
         ]
     }
 }

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -38,6 +38,22 @@ pub struct EdgeCases {
     /// Absolute expiry instant
     #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<crate::date_time::DateTime>,
+    #[serde(rename = "2fa", skip_serializing_if = "Option::is_none")]
+    pub _2fa: Option<bool>,
+    #[serde(rename = "separator", skip_serializing_if = "Option::is_none")]
+    pub separator: Option<Separator>,
+    #[serde(rename = "null", skip_serializing_if = "Option::is_none")]
+    pub null: Option<String>,
+    #[serde(rename = "true", skip_serializing_if = "Option::is_none")]
+    pub r#true: Option<bool>,
+    #[serde(rename = "false", skip_serializing_if = "Option::is_none")]
+    pub r#false: Option<bool>,
+    #[serde(rename = "lastError", skip_serializing_if = "Option::is_none")]
+    pub last_error: Option<Error>,
+    #[serde(rename = "outcome", skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<ModelResult>,
+    #[serde(rename = "cutoff", skip_serializing_if = "Option::is_none")]
+    pub cutoff: Option<chrono::NaiveTime>,
 }
 
 impl EdgeCases {
@@ -54,6 +70,14 @@ impl EdgeCases {
             r#return: None,
             retry_after: None,
             expires_at: None,
+            _2fa: None,
+            separator: None,
+            null: None,
+            r#true: None,
+            r#false: None,
+            last_error: None,
+            outcome: None,
+            cutoff: None,
         }
     }
 }

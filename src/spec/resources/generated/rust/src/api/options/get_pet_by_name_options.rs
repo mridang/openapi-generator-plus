@@ -2,6 +2,7 @@
 #[derive(Debug, Clone)]
 pub struct GetPetByNameOptions {
     pub category: String,
+    pub x_correlation_id: String,
 }
 
 impl GetPetByNameOptions {
@@ -10,7 +11,10 @@ impl GetPetByNameOptions {
     /// Every field of this struct is required and is taken as a constructor
     /// argument so it cannot be silently omitted. This struct has no optional
     /// fields and therefore no chained setters.
-    pub fn new(category: String) -> Self {
-        Self { category }
+    pub fn new(category: String, x_correlation_id: String) -> Self {
+        Self {
+            category,
+            x_correlation_id,
+        }
     }
 }

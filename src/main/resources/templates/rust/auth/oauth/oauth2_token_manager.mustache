@@ -186,8 +186,8 @@ impl OAuth2TokenManager {
             headers.insert(k.clone(), v.clone());
         }
 
-        let body: String = params
-            .iter()
+        let body: String = ordered_params(params)
+            .into_iter()
             .map(|(k, v)| format!("{}={}", form_url_encode(k), form_url_encode(v)))
             .collect::<Vec<_>>()
             .join("&");
@@ -301,6 +301,36 @@ impl OAuth2TokenManager {
 /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed
 /// [`OAuth2ServerError`]. Falls back to a generic error using the raw body
 /// when the body is not a valid OAuth2 error object.
+/// Wire order of the token-request body, shared by every SDK. Keys not listed
+/// here follow in ascending order.
+const TOKEN_PARAM_ORDER: [&str; 9] = [
+    "grant_type",
+    "code",
+    "refresh_token",
+    "username",
+    "password",
+    "client_id",
+    "client_secret",
+    "redirect_uri",
+    "scope",
+];
+
+/// Returns the token-request parameters in the canonical wire order, so the
+/// body bytes do not depend on the `HashMap` iteration order.
+pub(crate) fn ordered_params(params: &HashMap<String, String>) -> Vec<(&String, &String)> {
+    let mut entries: Vec<(&String, &String)> = params.iter().collect();
+    entries.sort_by(|(a, _), (b, _)| {
+        let rank = |k: &str| {
+            TOKEN_PARAM_ORDER
+                .iter()
+                .position(|p| *p == k)
+                .unwrap_or(TOKEN_PARAM_ORDER.len())
+        };
+        rank(a).cmp(&rank(b)).then_with(|| a.cmp(b))
+    });
+    entries
+}
+
 fn parse_oauth2_server_error(status_code: u16, body: &str) -> OAuth2ServerError {
     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(body) {
         if let Some(code) = parsed.get("error").and_then(|v| v.as_str()) {

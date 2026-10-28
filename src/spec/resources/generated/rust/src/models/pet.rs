@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -64,6 +64,9 @@ pub struct Pet {
     /// Example: `12.345`
     #[serde(rename = "weightKg", skip_serializing_if = "Option::is_none")]
     pub weight_kg: Option<f64>,
+    /// Example: `rex`
+    #[serde(rename = "nickname", skip_serializing_if = "Option::is_none")]
+    pub nickname: Option<String>,
 }
 
 impl Pet {
@@ -82,6 +85,7 @@ impl Pet {
             link_template: None,
             owner_email: None,
             weight_kg: None,
+            nickname: None,
         }
     }
 }

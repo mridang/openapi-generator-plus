@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -272,4 +272,22 @@ fn test_naive_time_serde_round_trip() {
 
     let back: Wrap = serde_json::from_str(&json).expect("deserialize");
     assert_eq!(back, value);
+}
+
+// readOnly and writeOnly carry no wire effect: a readOnly id is decoded from a
+// response and a writeOnly password is written on a request and kept on decode.
+#[test]
+fn test_read_only_and_write_only_fields_round_trip() {
+    use petstore::models::Account;
+
+    let decoded: Account = serde_json::from_str(r#"{"id":7,"username":"u"}"#).unwrap();
+    assert_eq!(decoded.id, Some(7));
+
+    let mut outgoing = Account::new("u".to_string());
+    outgoing.password = Some("p".to_string());
+    let body = serde_json::to_string(&outgoing).unwrap();
+    assert!(body.contains(r#""password":"p""#), "body: {}", body);
+
+    let full: Account = serde_json::from_str(r#"{"id":7,"username":"u","password":"p"}"#).unwrap();
+    assert_eq!(full.password.as_deref(), Some("p"));
 }

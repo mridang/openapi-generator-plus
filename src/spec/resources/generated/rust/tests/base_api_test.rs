@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -773,6 +773,35 @@ async fn test_set_pet_preferences_form_body_wire_format() {
     );
 }
 
+// A date-time form field goes on the wire in the canonical stringify form
+// (millisecond fraction, numeric offset), percent-encoded.
+#[tokio::test]
+async fn test_set_pet_preferences_form_body_date_time_canonical() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+
+    let instant = chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").unwrap();
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .reminder(petstore::date_time::DateTime::new(instant));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+        "date-time form value must use the canonical form: {}",
+        body_str
+    );
+    assert!(
+        !body_str.contains("%20"),
+        "space must never encode as %20: {}",
+        body_str
+    );
+}
+
 // -- form-urlencoded Content-Type set on the generated operation --
 #[tokio::test]
 async fn test_set_pet_preferences_sends_form_content_type() {
@@ -1042,6 +1071,7 @@ async fn test_base_api_missing_required_param_is_invalid_argument() {
             String::new(),
             Some(&petstore::api::options::GetPetByNameOptions::new(
                 "dog".to_string(),
+                "corr-1".to_string(),
             )),
         )
         .await,

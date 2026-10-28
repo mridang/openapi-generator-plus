@@ -4,7 +4,7 @@ version = "1.0.0"
 edition = "2021"
 rust-version = "1.85"
 license = "MIT"
-description = "A simplified Pet Store API for integration testing."
+description = "A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}."
 
 # Lint configuration for the generated crate.
 #

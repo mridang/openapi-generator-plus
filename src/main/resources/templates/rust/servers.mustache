@@ -34,12 +34,12 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// Server {{serverIndex}}: `{{serverUrl}}`
 {{#serverDescription}}
 ///
-/// {{serverDescription}}
+/// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/serverDescription}}
 pub fn server_{{serverIndex}}() -> ServerConfiguration {
     ServerConfiguration::new(
         "{{{serverUrl}}}".to_string(),
-        "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}".to_string(),
+        "{{#serverDescription}}{{#lambda.rustString}}{{{serverDescription}}}{{/lambda.rustString}}{{/serverDescription}}".to_string(),
         {{#hasVariables}}{
             let mut vars = HashMap::new();
 {{#serverVariables}}
@@ -47,8 +47,8 @@ pub fn server_{{serverIndex}}() -> ServerConfiguration {
                 "{{{varName}}}".to_string(),
                 ServerVariable::new(
                     "{{{varDefault}}}".to_string(),
-                    "{{#varDescription}}{{{varDescription}}}{{/varDescription}}".to_string(),
-                    {{#hasEnumValues}}vec![{{#varEnumValues}}"{{{.}}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
+                    "{{#varDescription}}{{#lambda.rustString}}{{{varDescription}}}{{/lambda.rustString}}{{/varDescription}}".to_string(),
+                    {{#hasEnumValues}}vec![{{#varEnumValues}}"{{#lambda.rustString}}{{{.}}}{{/lambda.rustString}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
                 ),
             );
 {{/serverVariables}}

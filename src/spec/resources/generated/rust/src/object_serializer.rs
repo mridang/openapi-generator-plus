@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -456,6 +456,25 @@ fn deserialize_last_duplicate_wins<T: DeserializeOwned>(
 ///
 /// Booleans produce lowercase `"true"`/`"false"`, null produces the empty
 /// string, and strings pass through unquoted.
+/// Flattens a model or map into the `name -> value` table a deepObject query
+/// parameter is built from: one entry per present property, each stringified.
+pub fn to_deep_object_map<T: Serialize>(
+    value: &T,
+) -> Result<std::collections::HashMap<String, String>, SerializationError> {
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::Object(fields)) => Ok(fields
+            .into_iter()
+            .filter(|(_, v)| !v.is_null())
+            .map(|(k, v)| (k, stringify(&v)))
+            .collect()),
+        Ok(_) => Ok(std::collections::HashMap::new()),
+        Err(e) => Err(SerializationError::new(
+            format!("failed to serialize deepObject parameter: {}", e),
+            Some(Box::new(e)),
+        )),
+    }
+}
+
 pub fn stringify<T: Serialize>(value: &T) -> String {
     match serde_json::to_value(value) {
         Ok(serde_json::Value::String(s)) => s,

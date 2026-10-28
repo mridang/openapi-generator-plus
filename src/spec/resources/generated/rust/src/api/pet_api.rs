@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -62,6 +62,22 @@ impl GetMultiServerPetInfoServerRegion {
     }
 }
 
+/// Valid values for the channel server variable in GetMultiServerPetInfoServer.
+#[derive(Debug, Clone)]
+pub enum GetMultiServerPetInfoServerChannel {
+    AB,
+    ITS,
+}
+
+impl GetMultiServerPetInfoServerChannel {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::AB => "a&b",
+            Self::ITS => "it's",
+        }
+    }
+}
+
 /// Primary
 #[derive(Debug, Clone)]
 pub struct GetMultiServerPetInfoServerPrimary {}
@@ -83,6 +99,24 @@ impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
         let mut url = "https://{region}.example.com/v1".to_string();
 
         url = url.replace(&("{".to_owned() + "region" + "}"), self.region.as_str());
+
+        url
+    }
+}
+
+/// Mirror
+#[derive(Debug, Clone)]
+pub struct GetMultiServerPetInfoServerMirror {
+    pub region: GetMultiServerPetInfoServerRegion,
+    pub channel: GetMultiServerPetInfoServerChannel,
+}
+
+impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerMirror {
+    fn get_url(&self) -> String {
+        let mut url = "https://{region}.mirror.example.com/{channel}/v1".to_string();
+
+        url = url.replace(&("{".to_owned() + "region" + "}"), self.region.as_str());
+        url = url.replace(&("{".to_owned() + "channel" + "}"), self.channel.as_str());
 
         url
     }
@@ -165,7 +199,9 @@ impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
 
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
-/// See <https://example.com/docs/pets> Find out more about pets
+/// (globs like /pets/* and /pets/**/ and an id of #{petId})
+/// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
+/// on two lines
 pub struct PetApi {
     base: BaseApi,
 }
@@ -941,7 +977,10 @@ impl PetApi {
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.filter {
-                for (k, v) in value_serializer::serialize_deep_object("filter", val) {
+                for (k, v) in value_serializer::serialize_deep_object(
+                    "filter",
+                    &object_serializer::to_deep_object_map(val)?,
+                ) {
                     query_params.push((k, v, false));
                 }
             }
@@ -965,6 +1004,31 @@ impl PetApi {
                         SerializedValue::Multi(values) => {
                             for v in values {
                                 query_params.push(("bornAfter".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts._2nd_page {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "2ndPage",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "i32",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("2ndPage".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("2ndPage".to_string(), v, false));
                             }
                         }
                     }
@@ -1562,6 +1626,16 @@ impl PetApi {
                 )),
             ));
         }
+        // A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+        // URL parser would collapse it and silently re-route the request.
+        if name == "." || name == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "name"
+                )),
+            ));
+        }
 
         let mut path = "/pet/byName/{name}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
@@ -1626,6 +1700,36 @@ impl PetApi {
         }
 
         let mut header_params: HashMap<String, String> = HashMap::new();
+        // Required header parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_name",
+                    "X-Correlation-Id"
+                )),
+            )
+        })?;
+        // A required string must not be empty: reject it like the other SDKs.
+        if opts.x_correlation_id.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_by_name",
+                    "X-Correlation-Id"
+                )),
+            ));
+        }
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "X-Correlation-Id",
+            Some(&object_serializer::stringify(&opts.x_correlation_id)),
+            None,
+            "header",
+            "String",
+            "",
+            "simple",
+            false,
+        ) {
+            header_params.insert("X-Correlation-Id".to_string(), v);
+        }
 
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<HashMap<String, MultipartValue>> = None;
@@ -1847,8 +1951,99 @@ impl PetApi {
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
+    /// Get a plain-text summary of the pet
+    pub async fn get_pet_summary(
+        &self,
+        pet_id: i64,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_pet_summary_with_http_info(pet_id).await?;
+        // convenience-empty-body-handling: a body-returning operation that
+        // receives no decodable body must surface the SDK's typed ApiError
+        // (not a silent null / zero value), matching the other SDKs.
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_pet_summary but received none".to_string(),
+                Some(raw_body),
+                Some(headers),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_pet_summary operation and returns the full API result.
+    pub async fn get_pet_summary_with_http_info(
+        &self,
+        pet_id: i64,
+    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+        // The public get_pet_summary_with_http_info entry point always sends the
+        // first declared request content-type, application/json. The shared
+        // implementation below takes the resolved Content-Type as an argument
+        // and this operation declares no alternative to select.
+        self.get_pet_summary_invoke(pet_id, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_pet_summary operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_pet_summary_invoke(
+        &self,
+        pet_id: i64,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/pet/{petId}/summary".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "petId",
+            Some(&object_serializer::to_path_value(&pet_id)),
+            None,
+            "path",
+            "i64",
+            "",
+            "simple",
+            false,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{petId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<HashMap<String, MultipartValue>> = None;
+
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["text/plain"],
+            content_type: request_content_type,
+            return_type: "String",
+            // This operation inherits the global security requirement; pass
+            // None so BaseApi falls back to the client-level authenticator.
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<String>(params).await
+    }
+
     /// Get a tag for a pet
     /// * `revision`: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+    /// * `criteria`: Object-valued query parameter, form style exploded (the OAS default for query)
+    /// * `fingerprint`: Opaque bytes, base64 on the wire (OAS format byte)
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_tag(
         &self,
@@ -1908,6 +2103,16 @@ impl PetApi {
                 crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
                     "Missing the required parameter '{}' when calling PetApi.get_pet_tag",
                     "tag_name"
+                )),
+            ));
+        }
+        // A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+        // URL parser would collapse it and silently re-route the request.
+        if tag_name == "." || tag_name == ".." {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Path parameter '{}' must not be '.' or '..'",
+                    "tagName"
                 )),
             ));
         }
@@ -2049,8 +2254,125 @@ impl PetApi {
                 }
             }
         }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.criteria {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "criteria",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "PetCriteria",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("criteria".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("criteria".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.criteria_csv {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "criteriaCsv",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "PetCriteria",
+                    "",
+                    "form",
+                    false,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("criteriaCsv".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("criteriaCsv".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.criteria_deep {
+                for (k, v) in value_serializer::serialize_deep_object(
+                    "criteriaDeep",
+                    &object_serializer::to_deep_object_map(val)?,
+                ) {
+                    query_params.push((k, v, false));
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.fingerprint {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "fingerprint",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "Vec<u8>",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("fingerprint".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("fingerprint".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let mut header_params: HashMap<String, String> = HashMap::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.x_criteria {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "X-Criteria",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "PetCriteria",
+                    "",
+                    "simple",
+                    false,
+                ) {
+                    header_params.insert("X-Criteria".to_string(), v);
+                }
+            }
+        }
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.x_fingerprint {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "X-Fingerprint",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "Vec<u8>",
+                    "",
+                    "simple",
+                    false,
+                ) {
+                    header_params.insert("X-Fingerprint".to_string(), v);
+                }
+            }
+        }
 
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<HashMap<String, MultipartValue>> = None;
@@ -2478,6 +2800,9 @@ impl PetApi {
             if let Some(ref val) = opts.renewal_date {
                 form_pairs.push(("renewalDate".to_string(), serde_json::to_value(val)?));
             }
+            if let Some(ref val) = opts.reminder {
+                form_pairs.push(("reminder".to_string(), serde_json::to_value(val)?));
+            }
         }
         let request_body = Some(serde_json::to_vec(&form_pairs)?);
         let multipart: Option<HashMap<String, MultipartValue>> = None;
@@ -2853,6 +3178,30 @@ impl PetApi {
             multipart.insert(
                 "notes".to_string(),
                 MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.is_primary {
+            multipart.insert(
+                "isPrimary".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.page_count {
+            multipart.insert(
+                "pageCount".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.taken_at {
+            multipart.insert(
+                "takenAt".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            );
+        }
+        if let Some(ref val) = opts.swatch {
+            multipart.insert(
+                "swatch".to_string(),
+                MultipartValue::Json(object_serializer::serialize(val)?),
             );
         }
         // multi-content-type-multipart-or-raw: this operation also declares a

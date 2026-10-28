@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -78,8 +78,29 @@ pub fn server_1() -> ServerConfiguration {
         },
     )
 }
+/// Server 2: `https://{tenant}.example.com/api`
+///
+/// Bob's "sandbox" & co: $5 #{x} a*/b
+pub fn server_2() -> ServerConfiguration {
+    ServerConfiguration::new(
+        "https://{tenant}.example.com/api".to_string(),
+        "Bob's \"sandbox\" & co: $5 #{x} a*/b".to_string(),
+        {
+            let mut vars = HashMap::new();
+            vars.insert(
+                "tenant".to_string(),
+                ServerVariable::new(
+                    "o'neil".to_string(),
+                    "Tenant's \"id\"".to_string(),
+                    vec!["o'neil".to_string(), "a&b".to_string()],
+                ),
+            );
+            vars
+        },
+    )
+}
 
 /// All server configurations in declaration order.
 pub fn all_servers() -> Vec<ServerConfiguration> {
-    vec![server_0(), server_1()]
+    vec![server_0(), server_1(), server_2()]
 }

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -41,6 +41,8 @@ pub struct Order {
     /// Example: `7`
     #[serde(rename = "quantity", skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i32>,
+    #[serde(rename = "trackingId", skip_serializing_if = "Option::is_none")]
+    pub tracking_id: Option<uuid::Uuid>,
     #[serde(rename = "shipDate", skip_serializing_if = "Option::is_none")]
     pub ship_date: Option<crate::date_time::DateTime>,
     /// Order Status
@@ -62,6 +64,7 @@ impl Order {
             id: None,
             pet_id: None,
             quantity: None,
+            tracking_id: None,
             ship_date: None,
             // Optional enum field with a schema default: seed it with the
             // DECLARED default variant so a default-constructed value
@@ -87,6 +90,7 @@ impl Default for Order {
             id: None,
             pet_id: None,
             quantity: None,
+            tracking_id: None,
             ship_date: None,
             // Optional field with a schema default: seed the declared default
             // so `default()` matches `new()` (and the wire output of the other

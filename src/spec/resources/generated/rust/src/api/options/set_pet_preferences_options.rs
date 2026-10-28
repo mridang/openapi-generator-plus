@@ -5,6 +5,7 @@ pub struct SetPetPreferencesOptions {
     pub tags: Option<Vec<String>>,
     pub note: Option<String>,
     pub renewal_date: Option<chrono::NaiveDate>,
+    pub reminder: Option<crate::date_time::DateTime>,
 }
 
 impl SetPetPreferencesOptions {
@@ -19,6 +20,7 @@ impl SetPetPreferencesOptions {
             tags: None,
             note: None,
             renewal_date: None,
+            reminder: None,
         }
     }
 
@@ -37,6 +39,12 @@ impl SetPetPreferencesOptions {
     /// Sets the renewal_date field.
     pub fn renewal_date(mut self, renewal_date: chrono::NaiveDate) -> Self {
         self.renewal_date = Some(renewal_date);
+        self
+    }
+
+    /// Sets the reminder field.
+    pub fn reminder(mut self, reminder: crate::date_time::DateTime) -> Self {
+        self.reminder = Some(reminder);
         self
     }
 }

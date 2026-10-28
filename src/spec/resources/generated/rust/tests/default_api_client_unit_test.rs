@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -373,6 +373,70 @@ async fn test_default_api_client_does_not_override_caller_request_id() {
         .expect("unexpected error");
 
     assert_eq!(resp.status_code(), 200);
+}
+
+/// A caller header in any letter case suppresses the injected User-Agent and
+/// X-Request-ID: exactly one value of each reaches the wire, the caller's.
+#[tokio::test]
+async fn test_default_api_client_caller_headers_win_case_insensitively() {
+    let (base_url, rx) = start_head_capture_server();
+
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("SdkAgent/1.0")
+        .inject_request_id(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("user-agent".to_string(), "MyApp".to_string());
+    headers.insert("x-request-id".to_string(), "abc".to_string());
+    let _ = client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await;
+
+    let head = rx.recv().expect("expected a captured request");
+    let count = |name: &str| {
+        head.lines()
+            .filter(|line| line.to_lowercase().starts_with(&format!("{}:", name)))
+            .count()
+    };
+    assert_eq!(count("user-agent"), 1, "head: {}", head);
+    assert_eq!(count("x-request-id"), 1, "head: {}", head);
+    assert_eq!(head_header(&head, "User-Agent").as_deref(), Some("MyApp"));
+    assert_eq!(head_header(&head, "X-Request-ID").as_deref(), Some("abc"));
+    assert!(
+        !head.contains("SdkAgent"),
+        "the SDK default must not be sent: {}",
+        head
+    );
+}
+
+/// Ambient proxy variables are ignored: with no explicit proxy the client
+/// connects directly even when HTTP_PROXY points at a dead address.
+#[tokio::test]
+async fn test_default_api_client_ignores_ambient_proxy_environment() {
+    let (base_url, rx) = start_head_capture_server();
+    // reqwest reads the proxy variables when the client is built. The other
+    // tests in this binary only talk to 127.0.0.1, which a correct client
+    // reaches directly whatever these variables say.
+    for name in ["HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"] {
+        std::env::set_var(name, "http://127.0.0.1:1");
+    }
+    for name in ["NO_PROXY", "no_proxy"] {
+        std::env::remove_var(name);
+    }
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("a direct connection must succeed");
+    assert_eq!(resp.status_code(), 200);
+    assert!(
+        rx.recv().is_ok(),
+        "the local server must have received the request"
+    );
 }
 
 #[tokio::test]

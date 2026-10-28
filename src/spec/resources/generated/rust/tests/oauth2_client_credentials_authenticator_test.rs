@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -145,6 +145,24 @@ async fn test_sends_scopes() {
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("scope=read+write"));
+}
+
+// The token body is written in the canonical key order on every run, whatever
+// the HashMap iteration order.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_token_body_uses_canonical_parameter_order() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    assert_eq!(
+        client.last_body().expect("should have body"),
+        "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

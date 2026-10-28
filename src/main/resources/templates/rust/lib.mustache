@@ -1,7 +1,7 @@
 //! {{#appName}}{{{.}}}{{/appName}}{{^appName}}{{packageName}}{{/appName}}
 //!
 {{#appDescription}}
-//! {{{.}}}
+//! {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 //!
 {{/appDescription}}
 //! The version of the OpenAPI document: {{#version}}{{{.}}}{{/version}}

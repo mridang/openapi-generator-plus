@@ -148,7 +148,10 @@ impl ApiClient for DefaultApiClient {
             for (k, v) in &headers {
                 merged.insert(k.clone(), v.clone());
             }
-            if !merged.contains_key("User-Agent") {
+            // RFC 9110 section 5.1: field names are case-insensitive, so a caller
+            // header in any case suppresses the injected value and keeps its own
+            // spelling and value untouched.
+            if !has_header(&merged, "User-Agent") {
                 // Only inject a User-Agent header when one is configured; a
                 // `None` user_agent means the header is omitted entirely, while
                 // an explicit empty string is sent as an empty header, as in the
@@ -163,7 +166,7 @@ impl ApiClient for DefaultApiClient {
                     "gzip, deflate, br, zstd".to_string(),
                 );
             }
-            if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
+            if !has_header(&merged, "X-Request-ID") && self.transport_options.inject_request_id() {
                 merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
             }
             // T-new-3: Pre-serialize the body to a Vec<u8> up-front so we can
@@ -526,8 +529,17 @@ fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync
     }
 }
 
+/// Returns true when `headers` holds `name` under ASCII case-folding.
+fn has_header(headers: &HashMap<String, String>, name: &str) -> bool {
+    headers.keys().any(|k| k.eq_ignore_ascii_case(name))
+}
+
 fn build_http_client(opts: &TransportOptions) -> Client {
-    let mut builder = ClientBuilder::new();
+    // `TransportOptions::proxy` is the only proxy source: reqwest would
+    // otherwise honour HTTP(S)_PROXY / ALL_PROXY / NO_PROXY and the system
+    // settings, silently routing traffic through a proxy the caller never
+    // configured. The explicit proxy, when set, is added below.
+    let mut builder = ClientBuilder::new().no_proxy();
 
     // F-W5-5: response bodies are decompressed by `decompress_body` after the
     // raw bytes are read, not by reqwest, so a body that arrived but cannot be

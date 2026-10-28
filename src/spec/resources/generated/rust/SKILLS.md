@@ -249,9 +249,9 @@ All API methods are asynchronous; call them with `.await`.
 Models are generated as Rust structs in the `models` module.
 
 ```rust
-use petstore::models::ApiResponse;
+use petstore::models::Account;
 
-let model = ApiResponse {
+let model = Account {
     ..Default::default()
 };
 ```
