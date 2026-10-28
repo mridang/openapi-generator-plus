@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -107,25 +107,26 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
   });
 }
 
-/** Canonical base64 (standard alphabet, optional `=` padding), whitespace already stripped. */
+/** Canonical base64: RFC 4648 standard alphabet with `=` padding, no whitespace. */
 const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
  * Decode a `format: byte` base64 string to a Buffer, REJECTING malformed input.
  *
  * `Buffer.from(s, 'base64')` silently ignores characters outside the base64
- * alphabet (so `"!!!!"` decodes to empty bytes rather than erroring), which
- * diverges from the strict decoders in ruby/php/python/elixir/go/rust. Validate
- * the alphabet and length first and throw on anything invalid, matching them.
+ * alphabet (so `"!!!!"` decodes to empty bytes rather than erroring) and
+ * accepts whitespace, the URL-safe alphabet and missing padding. The raw
+ * string must be RFC 4648 section 4 base64: standard alphabet, a length that
+ * is a multiple of 4 with `=` padding, and no whitespace or newline. Anything
+ * else is rejected, as the decoders in the other SDKs do.
  */
 export function decodeBase64(value: string): Buffer {
-  const compact = value.replace(/\s+/g, "");
-  if (compact.length % 4 !== 0 || !BASE64_PATTERN.test(compact)) {
+  if (value.length % 4 !== 0 || !BASE64_PATTERN.test(value)) {
     throw new SerializationError(
       `Invalid base64 string: ${JSON.stringify(value)}`,
     );
   }
-  return Buffer.from(compact, "base64");
+  return Buffer.from(value, "base64");
 }
 
 /**
@@ -742,15 +743,20 @@ export class ObjectSerializer {
     const deserializeElement = ObjectSerializer.elementDeserializer(cls);
     const mapped = json.map((item: unknown) => deserializeElement(item));
     /**
-     * Only drop nulls for a model-class element type, where `deserialize`
-     * returns null for a null/absent element and dropping it is the
-     * established behaviour. For a primitive/enum element deserializer a
-     * `null` is a legitimate wire value (e.g. `items: { nullable: true }`),
-     * so preserving it keeps the array length and index alignment intact
-     * rather than silently losing data.
+     * A null element of a model-class element type is rejected: null is not
+     * an object, and the element type cannot express nullability, so it is
+     * neither kept nor silently dropped (dropping would shift indices). For a
+     * primitive/enum element deserializer a `null` is a legitimate wire value
+     * (e.g. `items: { nullable: true }`) and is preserved.
      */
     if (ObjectSerializer.isClassConstructor(cls)) {
-      return mapped.filter((x): x is T => x !== null);
+      mapped.forEach((x, index) => {
+        if (x === null || x === undefined) {
+          throw new SerializationError(
+            `Null element at index ${index} of an array of ${(cls as ClassConstructor<T>).name}`,
+          );
+        }
+      });
     }
     return mapped as T[];
   }
@@ -812,18 +818,24 @@ export class ObjectSerializer {
     }
     const deserializeValue = ObjectSerializer.elementDeserializer(cls);
     /**
-     * As in deserializeArray: drop a null only for a model-class value type
-     * (where null is a failed-parse sentinel). For a primitive/enum value
-     * deserializer a null is a legitimate nullable wire value and the key
-     * must be retained so the map's key set is not silently mutated.
+     * As in deserializeArray: a null value of a model-class value type is
+     * rejected. For a primitive/enum value deserializer a null is a
+     * legitimate nullable wire value and the key is retained so the map's
+     * key set is not silently mutated.
      */
-    const dropNulls = ObjectSerializer.isClassConstructor(cls);
+    const rejectNulls = ObjectSerializer.isClassConstructor(cls);
     const out: Record<string, T> = {};
     for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
       const deserialized = deserializeValue(v);
-      if (deserialized !== null || !dropNulls) {
-        out[k] = deserialized as T;
+      if (
+        rejectNulls &&
+        (deserialized === null || deserialized === undefined)
+      ) {
+        throw new SerializationError(
+          `Null value for key ${JSON.stringify(k)} of a map of ${(cls as ClassConstructor<T>).name}`,
+        );
       }
+      out[k] = deserialized as T;
     }
     return out;
   }
@@ -921,6 +933,17 @@ export class ObjectSerializer {
     }
     if (value instanceof Date) {
       return ObjectSerializer.formatDateTimeOffset(value);
+    }
+    /**
+     * `format: byte` parameters are standard-alphabet RFC 4648 base64 with
+     * padding, never the raw bytes as text.
+     */
+    if (value instanceof Uint8Array) {
+      return Buffer.from(
+        value.buffer,
+        value.byteOffset,
+        value.byteLength,
+      ).toString("base64");
     }
     /**
      * 4.8 — Temporal types. PlainTime emits its canonical ISO 8601 form

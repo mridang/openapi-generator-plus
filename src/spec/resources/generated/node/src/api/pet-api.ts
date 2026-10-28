@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -36,7 +36,6 @@ import type { UploadPetDocumentOptions } from "./options/upload-pet-document-opt
 export abstract class GetExternalPetInfoServer {
   abstract getUrl(): string;
 }
-
 export class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
   constructor() {
     super();
@@ -55,6 +54,10 @@ export enum GetMultiServerPetInfoServerRegion {
   AP = "ap",
 }
 
+export enum GetMultiServerPetInfoServerChannel {
+  A_B = "a&b",
+  IT_S = "it's",
+}
 /**
  * Primary
  */
@@ -85,10 +88,36 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
     );
   }
 }
+/**
+ * Mirror
+ */
+export class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
+  readonly region: GetMultiServerPetInfoServerRegion;
+  readonly channel: GetMultiServerPetInfoServerChannel;
+  constructor(
+    region: GetMultiServerPetInfoServerRegion,
+    channel: GetMultiServerPetInfoServerChannel,
+  ) {
+    super();
+    this.region = region;
+    this.channel = channel;
+  }
+  getUrl(): string {
+    const resolved = new Map<string, string>([
+      ["region", this.region],
+      ["channel", this.channel],
+    ]);
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return "https://{region}.mirror.example.com/{channel}/v1".replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
+  }
+}
 export abstract class GetPetByIdServer {
   abstract getUrl(): string;
 }
-
 /**
  * CDN-backed read endpoint for pet details
  */
@@ -113,7 +142,6 @@ export enum GetStagingPetInfoServerVersion {
   V2 = "v2",
   V3 = "v3",
 }
-
 /**
  * Staging server
  */
@@ -143,8 +171,8 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
 }
 /**
  * PetApi provides methods for the Pet API group.
- * Everything about your Pets
- * @see {@link https://example.com/docs/pets} Find out more about pets
+ * Everything about your Pets (globs like /pets/* and /pets/**\/ and an id of #{petId})
+ * @see {@link https://example.com/docs/pets} Find out more about pets (it's *\/ here) on two lines
  */
 export class PetApi extends BaseApi {
   constructor(
@@ -600,6 +628,7 @@ export class PetApi extends BaseApi {
    * @example Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @param options.bornAfter Only return pets born on or after this date (optional)
+   * @param options._2ndPage  (optional)
    * @param options.reportDate Reference date for the report (optional)
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call
@@ -653,13 +682,27 @@ export class PetApi extends BaseApi {
     if (options?.filter != null) {
       const deepObj = ValueSerializer.serializeDeepObject(
         "filter",
-        options.filter as Record<string, unknown>,
+        options.filter as unknown as Record<string, unknown>,
       );
       Object.assign(queryParams, deepObj);
     }
     if (options?.bornAfter != null) {
       queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.stringifyDate(options.bornAfter),
+        false,
+      );
+    }
+    if (options?._2ndPage != null) {
+      queryParams["2ndPage"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "2ndPage",
+          options._2ndPage,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
         false,
       );
     }
@@ -1032,6 +1075,7 @@ export class PetApi extends BaseApi {
    * Look up a pet by name (simple string path param + required query)
    * @param name  (required)
    * @param options.category  (required)
+   * @param options.xCorrelationId  (required)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -1073,6 +1117,11 @@ export class PetApi extends BaseApi {
         "Missing the required parameter 'category' when calling PetApi.getPetByName",
       );
     }
+    if (options?.xCorrelationId == null || options.xCorrelationId === "") {
+      throw new TypeError(
+        "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+      );
+    }
     let path = `/pet/byName/{name}`;
     path = path.replace(
       `{${"name"}}`,
@@ -1102,6 +1151,17 @@ export class PetApi extends BaseApi {
       );
     }
     const headerParams: Record<string, string> = {};
+    if (options?.xCorrelationId != null) {
+      headerParams["X-Correlation-Id"] = ValueSerializer.serializeStyled(
+        "X-Correlation-Id",
+        options.xCorrelationId,
+        "header",
+        "string",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
     return await this.invokeApiForResult(
       "GET",
       path,
@@ -1266,6 +1326,67 @@ export class PetApi extends BaseApi {
   }
 
   /**
+   * Get a plain-text summary of the pet
+   * @param petId  (required)
+   * @return string
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetSummary(petId: number): Promise<string> {
+    const getPetSummaryResult = await this.getPetSummaryWithHttpInfo(petId);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getPetSummaryResult.data == null) {
+      throw new ApiError(
+        getPetSummaryResult.statusCode,
+        "Expected a response body for getPetSummary but received none",
+        getPetSummaryResult.headers,
+        getPetSummaryResult.rawBody,
+        null,
+      );
+    }
+    return getPetSummaryResult.data as string;
+  }
+
+  /**
+   * Get a plain-text summary of the pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetSummaryWithHttpInfo(petId: number): Promise<ApiResult<string>> {
+    if (petId == null) {
+      throw new TypeError(
+        "Missing the required parameter 'petId' when calling PetApi.getPetSummary",
+      );
+    }
+    let path = `/pet/{petId}/summary`;
+    path = path.replace(
+      `{${"petId"}}`,
+      ValueSerializer.serializeStyled(
+        "petId",
+        petId,
+        "path",
+        "number",
+        null,
+        "simple",
+        false,
+      ) as string,
+    );
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["text/plain"],
+      "application/json",
+      (json: unknown) => json as string,
+      undefined,
+    );
+  }
+
+  /**
    * Get a tag for a pet
    * @param petId  (required)
    * @param tagName  (required)
@@ -1273,6 +1394,12 @@ export class PetApi extends BaseApi {
    * @param options.sizes  (optional)
    * @param options.filter  (optional)
    * @param options.revision Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon. (optional)
+   * @param options.criteria Object-valued query parameter, form style exploded (the OAS default for query) (optional)
+   * @param options.criteriaCsv  (optional)
+   * @param options.criteriaDeep  (optional)
+   * @param options.fingerprint Opaque bytes, base64 on the wire (OAS format byte) (optional)
+   * @param options.xCriteria  (optional)
+   * @param options.xFingerprint  (optional)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -1402,7 +1529,78 @@ export class PetApi extends BaseApi {
         true,
       );
     }
+    if (options?.criteria != null) {
+      queryParams["criteria"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteria",
+          options.criteria,
+          "query",
+          "PetCriteria",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.criteriaCsv != null) {
+      queryParams["criteriaCsv"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteriaCsv",
+          options.criteriaCsv,
+          "query",
+          "PetCriteria",
+          null,
+          "form",
+          false,
+        ),
+        false,
+      );
+    }
+    if (options?.criteriaDeep != null) {
+      const deepObj = ValueSerializer.serializeDeepObject(
+        "criteriaDeep",
+        options.criteriaDeep as unknown as Record<string, unknown>,
+      );
+      Object.assign(queryParams, deepObj);
+    }
+    if (options?.fingerprint != null) {
+      queryParams["fingerprint"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "fingerprint",
+          options.fingerprint,
+          "query",
+          "Buffer",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
     const headerParams: Record<string, string> = {};
+    if (options?.xCriteria != null) {
+      headerParams["X-Criteria"] = ValueSerializer.serializeStyled(
+        "X-Criteria",
+        options.xCriteria,
+        "header",
+        "PetCriteria",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
+    if (options?.xFingerprint != null) {
+      headerParams["X-Fingerprint"] = ValueSerializer.serializeStyled(
+        "X-Fingerprint",
+        options.xFingerprint,
+        "header",
+        "Buffer",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
     return await this.invokeApiForResult(
       "GET",
       path,
@@ -1641,6 +1839,7 @@ export class PetApi extends BaseApi {
    * @param options.tags  (optional)
    * @param options.note  (optional)
    * @param options.renewalDate  (optional)
+   * @param options.reminder  (optional)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1714,6 +1913,9 @@ export class PetApi extends BaseApi {
       formBody["renewalDate"] = ValueSerializer.stringifyDate(
         options.renewalDate,
       );
+    }
+    if (options?.reminder != null) {
+      formBody["reminder"] = options.reminder;
     }
 
     return await this.invokeApiForResult(
@@ -1887,6 +2089,10 @@ export class PetApi extends BaseApi {
    * @param options.file  (required)
    * @param options.documentType  (optional)
    * @param options.notes  (optional)
+   * @param options.isPrimary  (optional)
+   * @param options.pageCount  (optional)
+   * @param options.takenAt  (optional)
+   * @param options.swatch  (optional)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1958,6 +2164,18 @@ export class PetApi extends BaseApi {
     }
     if (options?.notes != null) {
       formBody["notes"] = options.notes;
+    }
+    if (options?.isPrimary != null) {
+      formBody["isPrimary"] = options.isPrimary;
+    }
+    if (options?.pageCount != null) {
+      formBody["pageCount"] = options.pageCount;
+    }
+    if (options?.takenAt != null) {
+      formBody["takenAt"] = options.takenAt;
+    }
+    if (options?.swatch != null) {
+      formBody["swatch"] = options.swatch;
     }
     /* This operation declares multiple request content types. The
      * multipart/form-data envelope (formBody, a Record assembled above) is

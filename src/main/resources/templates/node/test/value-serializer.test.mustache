@@ -180,6 +180,18 @@ describe('ValueSerializer', () => {
     });
   });
 
+  describe('serializeStyled - path dot segments', () => {
+    test.each(['.', '..'])('rejects a simple-style path value of %p', (value) => {
+      expect(() => ValueSerializer.serializeStyled('name', value, 'path', 'string', null, 'simple', false)).toThrow(
+        new TypeError(`Path parameter 'name' must not be '.' or '..'`),
+      );
+    });
+
+    test('keeps a value that only contains dots', () => {
+      expect(ValueSerializer.serializeStyled('name', 'a..b', 'path', 'string', null, 'simple', false)).toBe('a..b');
+    });
+  });
+
   describe('serializeStyled - matrix style', () => {
     test('scalar returns semicolon-prefixed name=value', () => {
       expect(ValueSerializer.serializeStyled('color', 'blue', 'path', 'string', null, 'matrix', true)).toBe(';color=blue');
@@ -472,6 +484,12 @@ describe('ValueSerializer', () => {
       // Space is illegal in a URL and must still be percent-encoded even
       // when reserved characters are preserved.
       expect(ValueSerializer.encodeQueryAllowingReserved('a b:c')).toBe('a%20b:c');
+    });
+
+    test('keeps only the RFC 3986 query-legal reserved set literal', () => {
+      expect(
+        ValueSerializer.encodeQueryAllowingReserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u"),
+      ).toBe("a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u");
     });
 
     test('maybeAllowReserved wraps only when allowReserved is true', () => {

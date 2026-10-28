@@ -25,7 +25,7 @@ import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFi
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
+import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
 
 
 class CapturingApiClient implements ApiClient {
@@ -455,6 +455,20 @@ describe('BaseApi body serialization', () => {
       testApi.call('POST', '/test/echo', {}, {}, body,
         ['application/json'], 'application/x-www-form-urlencoded', null),
     ).rejects.toThrow(new URIError('URI malformed'));
+    expect(client.capturedBody).toBeNull();
+  });
+
+  test.each([
+    ['a nested map', { location: { lat: 1.5 } }],
+    ['an array of objects', { location: [{ lat: 1.5 }] }],
+  ])('form-urlencoded body rejects %s with SerializationError', async (_label, body) => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await expect(
+      testApi.call('POST', '/test/echo', {}, {}, body,
+        ['application/json'], 'application/x-www-form-urlencoded', null),
+    ).rejects.toThrow(new SerializationError('form-urlencoded field location must be a scalar or array of scalars'));
     expect(client.capturedBody).toBeNull();
   });
 

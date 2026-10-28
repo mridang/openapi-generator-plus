@@ -12,6 +12,7 @@ export interface FindPetsByStatusOptions {
   readonly filter?: { [key: string]: string };
   /** Only return pets born on or after this date */
   readonly bornAfter?: Date;
+  readonly _2ndPage?: number;
   /** Reference date for the report */
   readonly reportDate?: Date;
 }

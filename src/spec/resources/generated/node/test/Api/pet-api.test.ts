@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -581,13 +581,23 @@ describe("PetApi error handling", () => {
   // the empty string the same way it rejects null, matching go/rust/swift/elixir.
   // Validation happens before any HTTP call, so no mock server is needed.
   test("required string query param rejects empty string", async () => {
-    await expect(api.getPetByName("Rex", { category: "" })).rejects.toThrow(
+    await expect(
+      api.getPetByName("Rex", {
+        category: "",
+        xCorrelationId: "sample-correlation",
+      }),
+    ).rejects.toThrow(
       "Missing the required parameter 'category' when calling PetApi.getPetByName",
     );
   });
 
   test("required string path param rejects empty string", async () => {
-    await expect(api.getPetByName("", { category: "dog" })).rejects.toThrow(
+    await expect(
+      api.getPetByName("", {
+        category: "dog",
+        xCorrelationId: "sample-correlation",
+      }),
+    ).rejects.toThrow(
       "Missing the required parameter 'name' when calling PetApi.getPetByName",
     );
   });
@@ -856,6 +866,22 @@ describe("PetApi form-urlencoded body serialization", () => {
       close();
     }
   });
+
+  test("#5 date-time form field serializes in the canonical stringify form", async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = {
+        nickname: "Rex",
+        reminder: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+      };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00");
+      expect(body).not.toContain("%20");
+    } finally {
+      close();
+    }
+  });
 });
 
 // Cross-SDK multipart parity — addPetPhotos sends a multipart/form-data body
@@ -1102,10 +1128,18 @@ describe("PetApi operation servers", () => {
 });
 
 describe("PetApi against a recording client", () => {
-  const recorded: Array<{ method: string; url: string }> = [];
+  const recorded: Array<{
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+  }> = [];
   const recordingClient: ApiClient = {
-    async sendRequest(method: string, url: string): Promise<ApiHttpResponse> {
-      recorded.push({ method, url });
+    async sendRequest(
+      method: string,
+      url: string,
+      headers: Record<string, string>,
+    ): Promise<ApiHttpResponse> {
+      recorded.push({ method, url, headers });
       return {
         statusCode: 200,
         body: url.includes("/pet/born-on/")
@@ -1189,6 +1223,58 @@ describe("PetApi against a recording client", () => {
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+    },
+  );
+
+  test.each([".", ".."])(
+    "getPetByName rejects the dot segment %p before sending",
+    async (name) => {
+      const error = await recordingApi
+        .getPetByName(name, {
+          category: "sample",
+          xCorrelationId: "sample-correlation",
+        })
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(TypeError);
+      expect((error as Error).message).toBe(
+        `Path parameter 'name' must not be '.' or '..'`,
+      );
+      expect(recorded).toHaveLength(0);
+    },
+  );
+
+  test("getPetByName keeps a name that only contains dots", async () => {
+    await recordingApi.getPetByName("a..b", {
+      category: "sample",
+      xCorrelationId: "sample-correlation",
+    });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).toContain("/pet/byName/a..b?");
+  });
+
+  test("getPetTag percent-encodes # in an allowReserved value", async () => {
+    await recordingApi.getPetTag(5, "sample", {
+      revision: "v1.0/beta:rc1#frag",
+    });
+
+    expect(recorded[0]!.url).toContain("revision=v1.0/beta:rc1%23frag");
+  });
+
+  test.each([
+    [Buffer.from("hi", "utf-8"), "fingerprint=aGk%3D", "aGk="],
+    [Buffer.from([0xfb, 0xff]), "fingerprint=%2B%2F8%3D", "+/8="],
+  ])(
+    "getPetTag sends format:byte parameters as standard base64",
+    async (bytes, query, header) => {
+      await recordingApi.getPetTag(5, "sample", {
+        fingerprint: bytes,
+        xFingerprint: bytes,
+      });
+
+      expect(recorded[0]!.url).toContain(query);
+      expect(recorded[0]!.headers["X-Fingerprint"]).toBe(header);
     },
   );
 

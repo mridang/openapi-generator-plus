@@ -10,3 +10,4 @@ export * from "./upload-pet-certificate-options.js";
 export * from "./upload-pet-document-options.js";
 export * from "./get-by-swatch-options.js";
 export * from "./get-stock-item-options.js";
+export * from "./search-store-options.js";

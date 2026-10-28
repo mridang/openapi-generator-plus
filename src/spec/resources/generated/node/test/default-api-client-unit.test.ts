@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -224,6 +224,25 @@ describe("DefaultApiClient unit", () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body["user-agent"]).toBe("");
+  });
+
+  it("keeps lower-case caller User-Agent and X-Request-ID headers without injecting its own", async () => {
+    const transport = TransportOptions.builder()
+      .userAgent("Sdk/1.0")
+      .injectRequestId(true)
+      .defaultHeader("user-agent", "MyApp")
+      .defaultHeader("x-request-id", "abc")
+      .build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      "GET",
+      `${baseUrl}/echo-headers`,
+      {},
+      null,
+    );
+    const body = JSON.parse(response.body);
+    expect(body["user-agent"]).toBe("MyApp");
+    expect(body["x-request-id"]).toBe("abc");
   });
 
   it("injects default User-Agent when not explicitly set", async () => {

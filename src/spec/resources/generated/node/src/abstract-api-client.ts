@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -240,16 +240,19 @@ export abstract class AbstractApiClient implements ApiClient {
       ...headers,
     };
 
-    if (
-      this.transportOptions.userAgent != null &&
-      mergedHeaders["User-Agent"] === undefined
-    ) {
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header in any case, even with an empty value, wins and is left exactly
+     * as written; nothing is injected next to it. */
+    const hasHeader = (name: string): boolean => {
+      const wanted = name.toLowerCase();
+      return Object.keys(mergedHeaders).some(
+        (key) => key.toLowerCase() === wanted,
+      );
+    };
+    if (this.transportOptions.userAgent != null && !hasHeader("User-Agent")) {
       mergedHeaders["User-Agent"] = this.transportOptions.userAgent;
     }
-    if (
-      this.transportOptions.injectRequestId &&
-      !mergedHeaders["X-Request-ID"]
-    ) {
+    if (this.transportOptions.injectRequestId && !hasHeader("X-Request-ID")) {
       mergedHeaders["X-Request-ID"] = globalThis.crypto.randomUUID();
     }
 

@@ -6,11 +6,12 @@ import type { Authenticator } from '../auth/authenticator{{importFileExtension}}
 import { isNoAuth } from '../auth/authenticator{{importFileExtension}}';
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
-import { ApiError } from '../errors/index{{importFileExtension}}';
+import { ApiError, SerializationError } from '../errors/index{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
 import { AllowReservedValue, ValueSerializer } from '../value-serializer{{importFileExtension}}';
 import { injectTraceContext } from '../trace-context-util{{importFileExtension}}';
 
@@ -339,6 +340,26 @@ export abstract class BaseApi {
         }
         return text;
       };
+      /* A model, map or array of objects has no defined form-urlencoded
+       * encoding (no OAS encoding style is emitted), so it is rejected
+       * instead of being sent as '[object Object]'. */
+      const isScalarObject = (value: object): boolean =>
+        value instanceof Date ||
+        value instanceof Uint8Array ||
+        value instanceof Temporal.PlainDate ||
+        value instanceof Temporal.PlainTime ||
+        value instanceof Temporal.PlainDateTime ||
+        value instanceof Temporal.Instant ||
+        value instanceof Temporal.ZonedDateTime ||
+        value instanceof Temporal.Duration;
+      const scalar = (key: string, value: unknown): string => {
+        if (typeof value === 'object' && value !== null && !isScalarObject(value)) {
+          throw new SerializationError(
+            `form-urlencoded field ${key} must be a scalar or array of scalars`
+          );
+        }
+        return wellFormed(ObjectSerializer.stringify(value));
+      };
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
         if (value == null) {
@@ -349,10 +370,10 @@ export abstract class BaseApi {
             if (item == null) {
               continue;
             }
-            params.append(wellFormed(key), wellFormed(ObjectSerializer.stringify(item)));
+            params.append(wellFormed(key), scalar(key, item));
           }
         } else {
-          params.append(wellFormed(key), wellFormed(ObjectSerializer.stringify(value)));
+          params.append(wellFormed(key), scalar(key, value));
         }
       }
       /* The serialized text only contains a percent sign as an escape, so

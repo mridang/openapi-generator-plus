@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -229,6 +229,41 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize([1, 2, 3], "header", "array")).toBe(
         "1,2,3",
       );
+    });
+  });
+
+  describe("serializeStyled - path dot segments", () => {
+    test.each([".", ".."])(
+      "rejects a simple-style path value of %p",
+      (value) => {
+        expect(() =>
+          ValueSerializer.serializeStyled(
+            "name",
+            value,
+            "path",
+            "string",
+            null,
+            "simple",
+            false,
+          ),
+        ).toThrow(
+          new TypeError(`Path parameter 'name' must not be '.' or '..'`),
+        );
+      },
+    );
+
+    test("keeps a value that only contains dots", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "name",
+          "a..b",
+          "path",
+          "string",
+          null,
+          "simple",
+          false,
+        ),
+      ).toBe("a..b");
     });
   });
 
@@ -899,6 +934,14 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.encodeQueryAllowingReserved("a b:c")).toBe(
         "a%20b:c",
       );
+    });
+
+    test("keeps only the RFC 3986 query-legal reserved set literal", () => {
+      expect(
+        ValueSerializer.encodeQueryAllowingReserved(
+          "a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u",
+        ),
+      ).toBe("a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u");
     });
 
     test("maybeAllowReserved wraps only when allowReserved is true", () => {

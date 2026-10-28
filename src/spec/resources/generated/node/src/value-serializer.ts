@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -90,6 +90,15 @@ export class ValueSerializer {
      * case that slips through it. */
     if (location === "path" && typeof value === "string" && value === "") {
       throw new TypeError(`Path parameter '${paramName}' must not be empty`);
+    }
+    /* A path value of exactly `.` or `..` is a dot segment (RFC 3986
+     * section 5.2.4): the WHATWG URL parser resolves it, even when percent
+     * encoded, and silently re-routes the request to another endpoint.
+     * Reject it before dispatch. */
+    if (location === "path" && (value === "." || value === "..")) {
+      throw new TypeError(
+        `Path parameter '${paramName}' must not be '.' or '..'`,
+      );
     }
 
     if (value === null || value === undefined) {
@@ -242,21 +251,24 @@ export class ValueSerializer {
    * Percent-encodes a query value while leaving RFC 3986 reserved characters
    * literal (OAS `allowReserved: true`).
    *
-   * Everything that is not RFC 3986 reserved or unreserved — spaces, control
-   * characters, non-ASCII — is still percent-encoded, so the result is always
-   * a valid URL query segment. `encodeURIComponent` already leaves the
-   * unreserved set (and `! ' ( ) *`) alone and encodes a space as `%20`; here
-   * the remaining reserved characters `: / ? # [ ] @ $ & + , ; =` are restored,
-   * matching Java's `encodeQueryAllowingReserved`.
+   * Only the characters RFC 3986 section 3.4 permits in a query component
+   * stay literal: `: / ? @ ! $ & ' ( ) * + , ; =` plus the unreserved set.
+   * `#` (the fragment delimiter, which would truncate the query), `[` and
+   * `]` are always percent-encoded, as are spaces, control characters and
+   * non-ASCII. `encodeURIComponent` already leaves the unreserved set (and
+   * `! ' ( ) *`) alone and encodes a space as `%20`; here the remaining
+   * query-legal reserved characters are restored.
+   *
+   * This output is the contract. FORCED exception: the WHATWG URL parser
+   * used by fetch rewrites a literal `'` in the query to `%27` after this
+   * encoder runs (its special-query percent-encode set). The server decodes
+   * both forms to the same value, so the SDK does not try to defeat it.
    */
   static encodeQueryAllowingReserved(value: string): string {
     return encodeURIComponent(value)
       .replace(/%3A/g, ":")
       .replace(/%2F/g, "/")
       .replace(/%3F/g, "?")
-      .replace(/%23/g, "#")
-      .replace(/%5B/g, "[")
-      .replace(/%5D/g, "]")
       .replace(/%40/g, "@")
       .replace(/%21/g, "!")
       .replace(/%24/g, "$")

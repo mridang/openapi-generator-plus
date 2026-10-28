@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,6 +12,7 @@ import {
   Order,
   OrderStatusEnum,
   Category,
+  PhotoMetadata,
   Swatch,
 } from "../../src/models/index.js";
 import { InternalServerError, NotFoundError } from "../../src/errors/index.js";
@@ -212,6 +213,53 @@ describe("StoreApi nested container deserialization", () => {
     } finally {
       close();
     }
+  });
+});
+
+describe("StoreApi content-encoded query parameters", () => {
+  async function captureSearch(q: PhotoMetadata): Promise<string> {
+    let capturedUrl = "";
+    const server = http.createServer((req, res) => {
+      capturedUrl = req.url ?? "";
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end("[]");
+    });
+    await new Promise<void>((resolve) =>
+      server.listen(0, "127.0.0.1", resolve),
+    );
+    try {
+      const addr = server.address() as { port: number };
+      const searchApi = new StoreApi(
+        undefined,
+        Configuration.builder()
+          .baseUrl(`http://127.0.0.1:${addr.port}`)
+          .build(),
+      );
+      await searchApi.searchStore({ q });
+      return capturedUrl;
+    } finally {
+      server.close();
+    }
+  }
+
+  test("searchStore sends q as the ObjectSerializer JSON, unescaped and percent-encoded", async () => {
+    const url = await captureSearch(
+      new PhotoMetadata({ caption: "a/b<\u00e9" }),
+    );
+
+    expect(url).toContain("q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22");
+  });
+
+  test("searchStore sends a date-time inside q in the canonical +00:00 form", async () => {
+    const url = await captureSearch(
+      new PhotoMetadata({ takenAt: new Date("2024-01-02T03:04:05Z") }),
+    );
+
+    expect(
+      JSON.parse(new URL(url, "http://localhost").searchParams.get("q")!),
+    ).toEqual({
+      takenAt: "2024-01-02T03:04:05.000+00:00",
+    });
   });
 });
 

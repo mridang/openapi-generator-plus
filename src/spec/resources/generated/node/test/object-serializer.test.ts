@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -611,6 +611,10 @@ describe("ObjectSerializer", () => {
       expect(fromEmpty!.retries).toBe(3);
       expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
       expect(fromEmpty!.label).toBe("untitled");
+      expect(fromEmpty!.ratio).toBe("1.5");
+      expect(fromEmpty!.scale).toBe(0.25);
+      expect(fromEmpty!.weight).toBe(2.0);
+      expect(fromEmpty!.ceiling).toBe(9000000000);
 
       const fromNull = ObjectSerializer.deserialize(
         { label: null, retries: 7 },
@@ -994,6 +998,36 @@ describe("ObjectSerializer", () => {
       ).toThrow();
     });
 
+    test.each(["dGVzdA", "dGVz dA==", "dGVz\ndA==", "-_8=", "!!!!"])(
+      "deserialize: non-canonical base64 %p is rejected with SerializationError",
+      (thumbnail) => {
+        expect(() =>
+          ObjectSerializer.deserialize({ thumbnail }, PetPassport),
+        ).toThrow(SerializationError);
+      },
+    );
+
+    test("deserialize: canonical padded base64 is accepted", () => {
+      const passport = ObjectSerializer.deserialize(
+        { thumbnail: "dGVzdA==" },
+        PetPassport,
+      );
+      expect(
+        ((passport as PetPassport).thumbnail as unknown as Buffer).toString(
+          "utf-8",
+        ),
+      ).toBe("test");
+    });
+
+    test("stringify: bytes become standard padded base64", () => {
+      expect(ObjectSerializer.stringify(Buffer.from("hi", "utf-8"))).toBe(
+        "aGk=",
+      );
+      expect(ObjectSerializer.stringify(new Uint8Array([0xfb, 0xff]))).toBe(
+        "+/8=",
+      );
+    });
+
     test("round-trip: serialize then deserialize preserves the Buffer bytes", () => {
       const original = Buffer.from([0x00, 0x01, 0xff, 0xee, 0xab]);
       const passport = new PetPassport({
@@ -1149,8 +1183,8 @@ describe("ObjectSerializer", () => {
   describe("DeserializeArrayNullHandling", () => {
     // For a primitive/enum element deserializer a null is a legitimate
     // nullable wire value and must be preserved (array length and index
-    // alignment intact). For a model-class element type a null is a
-    // failed-parse sentinel and is dropped.
+    // alignment intact). For a model-class element type a null is not an
+    // object and is rejected, never kept and never silently dropped.
 
     test("preserves null elements for a primitive element deserializer", () => {
       const out = ObjectSerializer.deserializeArray(
@@ -1161,13 +1195,22 @@ describe("ObjectSerializer", () => {
       expect(out.length).toBe(3);
     });
 
-    test("drops null elements for a model-class element type", () => {
-      const out = ObjectSerializer.deserializeArray(
-        [{ id: 1, name: "Dogs" }, null],
-        Category,
-      );
-      expect(out.length).toBe(1);
-      expect(out[0]).toBeInstanceOf(Category);
+    test("rejects a null element for a model-class element type", () => {
+      expect(() =>
+        ObjectSerializer.deserializeArray(
+          [null, { id: 1, name: "sample" }],
+          Category,
+        ),
+      ).toThrow(SerializationError);
+    });
+
+    test("rejects a null value for a model-class map value type", () => {
+      expect(() =>
+        ObjectSerializer.deserializeMap(
+          { first: null, second: { id: 1, name: "sample" } },
+          Category,
+        ),
+      ).toThrow(SerializationError);
     });
 
     test("deserializeMap preserves a null value for a primitive value type", () => {

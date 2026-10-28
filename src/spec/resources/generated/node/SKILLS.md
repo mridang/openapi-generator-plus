@@ -287,9 +287,9 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory.
 
 ```typescript
-import { ApiResponse } from "petstore-client";
+import { Account } from "petstore-client";
 
-const model = new ApiResponse();
+const model = new Account();
 ```
 
 ## Binary / File Uploads

@@ -1,6 +1,9 @@
 {{#modelImports}}
 import type { {{.}} } from '../../models/index.js';
 {{/modelImports}}
+{{#hasTemporalImport}}
+import type { Temporal } from 'temporal-polyfill';
+{{/hasTemporalImport}}
 {{#hasAuthField}}
 import type { {{authFieldType}} } from '{{authImport}}';
 {{/hasAuthField}}

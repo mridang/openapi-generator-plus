@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -15,7 +15,9 @@ import { Configuration } from "../configuration.js";
 import { ObjectSerializer } from "../object-serializer.js";
 import { ValueSerializer } from "../value-serializer.js";
 import type { DeepInput } from "../deep-input.js";
+import type { UUID } from "../brand.js";
 import {
+  Account,
   Category,
   Defaults,
   Department,
@@ -26,6 +28,7 @@ import {
 } from "../models/index.js";
 import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
 import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
+import type { SearchStoreOptions } from "./options/search-store-options.js";
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -38,6 +41,57 @@ export class StoreApi extends BaseApi {
     authenticator?: Authenticator | null,
   ) {
     super(apiClient, config, authenticator);
+  }
+
+  /**
+   * Create an account
+   * @param account  (required)
+   * @return Account
+   * @throws {ApiError} if fails to make API call
+   */
+  async createAccount(account: DeepInput<Account>): Promise<Account> {
+    const createAccountResult = await this.createAccountWithHttpInfo(account);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (createAccountResult.data == null) {
+      throw new ApiError(
+        createAccountResult.statusCode,
+        "Expected a response body for createAccount but received none",
+        createAccountResult.headers,
+        createAccountResult.rawBody,
+        null,
+      );
+    }
+    return createAccountResult.data as Account;
+  }
+
+  /**
+   * Create an account (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async createAccountWithHttpInfo(
+    account: DeepInput<Account>,
+  ): Promise<ApiResult<Account>> {
+    if (account == null) {
+      throw new TypeError(
+        "Missing the required parameter 'account' when calling StoreApi.createAccount",
+      );
+    }
+    const path = `/store/account`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "POST",
+      path,
+      queryParams,
+      headerParams,
+      account,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Account)!,
+      NO_AUTH,
+    );
   }
 
   /**
@@ -479,6 +533,70 @@ export class StoreApi extends BaseApi {
   }
 
   /**
+   * Find purchase order by tracking id
+   * @param trackingId  (required)
+   * @return Order
+   * @throws {ApiError} if fails to make API call
+   */
+  async getOrderByTrackingId(trackingId: UUID): Promise<Order> {
+    const getOrderByTrackingIdResult =
+      await this.getOrderByTrackingIdWithHttpInfo(trackingId);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getOrderByTrackingIdResult.data == null) {
+      throw new ApiError(
+        getOrderByTrackingIdResult.statusCode,
+        "Expected a response body for getOrderByTrackingId but received none",
+        getOrderByTrackingIdResult.headers,
+        getOrderByTrackingIdResult.rawBody,
+        null,
+      );
+    }
+    return getOrderByTrackingIdResult.data as Order;
+  }
+
+  /**
+   * Find purchase order by tracking id (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getOrderByTrackingIdWithHttpInfo(
+    trackingId: UUID,
+  ): Promise<ApiResult<Order>> {
+    if (trackingId == null || trackingId === "") {
+      throw new TypeError(
+        "Missing the required parameter 'trackingId' when calling StoreApi.getOrderByTrackingId",
+      );
+    }
+    let path = `/store/order/by-tracking/{trackingId}`;
+    path = path.replace(
+      `{${"trackingId"}}`,
+      ValueSerializer.serializeStyled(
+        "trackingId",
+        trackingId,
+        "path",
+        "UUID",
+        null,
+        "simple",
+        false,
+      ) as string,
+    );
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      NO_AUTH,
+    );
+  }
+
+  /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
    * @param options.asOf Only consider stock as of this instant (optional)
    * @return StockItem
@@ -775,6 +893,97 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
       undefined,
+    );
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters.
+   * @param options.q JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;) (optional)
+   * @param options.labels  (optional)
+   * @param options.at  (optional)
+   * @param options.xFilter  (optional)
+   * @return Array<Order>
+   * @throws {ApiError} if fails to make API call
+   */
+  async searchStore(options?: SearchStoreOptions): Promise<Array<Order>> {
+    const searchStoreResult = await this.searchStoreWithHttpInfo(options);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (searchStoreResult.data == null) {
+      throw new ApiError(
+        searchStoreResult.statusCode,
+        "Expected a response body for searchStore but received none",
+        searchStoreResult.headers,
+        searchStoreResult.rawBody,
+        null,
+      );
+    }
+    return searchStoreResult.data as Array<Order>;
+  }
+
+  /**
+   * Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async searchStoreWithHttpInfo(
+    options?: SearchStoreOptions,
+  ): Promise<ApiResult<Array<Order>>> {
+    const path = `/store/search`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.q != null) {
+      queryParams["q"] = ObjectSerializer.serialize(options.q);
+    }
+    if (options?.labels != null) {
+      queryParams["labels"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "labels",
+          options.labels,
+          "query",
+          "Set<string>",
+          "multi",
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.at != null) {
+      queryParams["at"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "at",
+          options.at,
+          "query",
+          "Temporal.PlainTime",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    if (options?.xFilter != null) {
+      headerParams["X-Filter"] = ValueSerializer.serializeStyled(
+        "X-Filter",
+        options.xFilter,
+        "header",
+        "{ [key: string]: string }",
+        null,
+        "",
+        false,
+      ) as string;
+    }
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserializeArray(json, Order),
+      NO_AUTH,
     );
   }
 }

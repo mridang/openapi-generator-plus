@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -82,6 +82,9 @@ export class Pet {
    */
   @Expose({ name: "weightKg" })
   weightKg?: Decimal;
+  /** @example rex */
+  @Expose({ name: "nickname" })
+  nickname?: string;
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);
@@ -180,6 +183,11 @@ export class Pet {
         `weightKg must be a Decimal string or number, got ${typeof this.weightKg}`,
       );
     }
+    if (this.nickname != null && typeof this.nickname !== "string") {
+      throw new TypeError(
+        `nickname must be a string, got ${typeof this.nickname}`,
+      );
+    }
     if (this.photoUrls != null) {
       for (const __e of this.photoUrls as Iterable<unknown>) {
         if (__e != null && typeof __e !== "string") {
@@ -269,6 +277,9 @@ export class Pet {
       return false;
     }
     if (!Pet.__deepEquals(this.weightKg, (other as Pet).weightKg, true)) {
+      return false;
+    }
+    if (!Pet.__deepEquals(this.nickname, (other as Pet).nickname)) {
       return false;
     }
     return true;

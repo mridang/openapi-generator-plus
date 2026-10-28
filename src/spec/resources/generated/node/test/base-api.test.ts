@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -33,7 +33,7 @@ import { ApiKeyAuthenticator } from "../src/auth/api-key-authenticator.js";
 import { ApiKeyLocation } from "../src/auth/api-key-location.js";
 import { Category } from "../src/models/index.js";
 import { ObjectSerializer } from "../src/object-serializer.js";
-import { OpenAPIError } from "../src/errors/index.js";
+import { OpenAPIError, SerializationError } from "../src/errors/index.js";
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = "";
@@ -727,6 +727,35 @@ describe("BaseApi body serialization", () => {
           null,
         ),
       ).rejects.toThrow(new URIError("URI malformed"));
+      expect(client.capturedBody).toBeNull();
+    },
+  );
+
+  test.each([
+    ["a nested map", { location: { lat: 1.5 } }],
+    ["an array of objects", { location: [{ lat: 1.5 }] }],
+  ])(
+    "form-urlencoded body rejects %s with SerializationError",
+    async (_label, body) => {
+      const client = new CapturingApiClient();
+      const config = new Configuration({ baseUrl: "http://localhost" });
+      const testApi = new TestableApi(client, config);
+      await expect(
+        testApi.call(
+          "POST",
+          "/test/echo",
+          {},
+          {},
+          body,
+          ["application/json"],
+          "application/x-www-form-urlencoded",
+          null,
+        ),
+      ).rejects.toThrow(
+        new SerializationError(
+          "form-urlencoded field location must be a scalar or array of scalars",
+        ),
+      );
       expect(client.capturedBody).toBeNull();
     },
   );

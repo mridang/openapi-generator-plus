@@ -16,6 +16,9 @@ import { ValueSerializer } from '../value-serializer{{importFileExtension}}';
 {{#hasDeepInputBody}}
 import type { DeepInput } from '../deep-input{{importFileExtension}}';
 {{/hasDeepInputBody}}
+{{#hasBrandImports}}
+import type { {{#brandImports}}{{.}}{{^-last}}, {{/-last}}{{/brandImports}} } from '../brand{{importFileExtension}}';
+{{/hasBrandImports}}
 {{#imports.0}}
 import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/imports.0}}
@@ -28,19 +31,18 @@ import type { {{optionsClassName}} } from './options/{{optionsFileName}}{{import
 export abstract class {{serverTypeName}} {
   abstract getUrl(): string;
 }
-{{#variants}}
-{{#serverVariables}}{{#hasEnumValues}}
+{{#serverEnums}}
+
 export enum {{serverTypeName}}{{pascalName}} {
-{{#enumValues}}
-  {{name}} = '{{value}}',
-{{/enumValues}}
+{{#members}}
+  {{memberName}} = {{{memberLiteral}}},
+{{/members}}
 }
-{{/hasEnumValues}}{{/serverVariables}}
-{{/variants}}
+{{/serverEnums}}
 {{#variants}}
 {{#hasDescription}}
 /**
- * {{{description}}}
+ * {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/hasDescription}}
 export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
@@ -76,10 +78,10 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{.}}
+ * {{#lambda.tsComment}}{{{.}}}{{/lambda.tsComment}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/tagExternalDocs}}
  */
 export class {{classname}} extends BaseApi {
@@ -145,7 +147,7 @@ export class {{classname}} extends BaseApi {
    * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-   * @see {@link {{url}}} {{description}}
+   * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/externalDocs}}
    */
   async {{nickname}}({{#vendorExtensions.op.requestWrapperFields}}{{name}}{{#optional}}?{{/optional}}: {{{type}}}{{^-last}}, {{/-last}}{{/vendorExtensions.op.requestWrapperFields}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
@@ -247,13 +249,13 @@ export class {{classname}} extends BaseApi {
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
     if (options?.{{paramName}} != null) {
-      const deepObj = ValueSerializer.serializeDeepObject('{{baseName}}', options.{{paramName}} as Record<string, unknown>);
+      const deepObj = ValueSerializer.serializeDeepObject('{{baseName}}', options.{{paramName}} as unknown as Record<string, unknown>);
       Object.assign(queryParams, deepObj);
     }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
     if (options?.{{paramName}} != null) {
-      queryParams['{{baseName}}'] = JSON.stringify(options.{{paramName}});
+      queryParams['{{baseName}}'] = ObjectSerializer.serialize(options.{{paramName}});
     }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
