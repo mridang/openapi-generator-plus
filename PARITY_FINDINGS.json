@@ -30739,6 +30739,1222 @@
    "status": "open",
    "note": "reported by the go fix agent, unverified",
    "batch": null
+  },
+  {
+   "id": "F585",
+   "severity": "medium",
+   "title": "The expanded spec broke the csharp golden in about ten places, so the fixes below are in this commit, made csharp-local (BetterCSharpCodegen and templates) where the decisions name shared codegen",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The expanded spec broke the csharp golden in about ten places, so the fixes below are in this commit, made csharp-local (BetterCSharpCodegen and templates) where the decisions name shared codegen. The shared waves for D40, D42 and D43 should take them over and reconcile.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F586",
+   "severity": "medium",
+   "title": "Server literals (D40): all global and per-operation server literals now go through a new csharp lambda.stringLiteral instead of raw or HTML-escaped mustache",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "Server literals (D40): all global and per-operation server literals now go through a new csharp lambda.stringLiteral instead of raw or HTML-escaped mustache.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F587",
+   "severity": "medium",
+   "title": "Server enum types (D42): enumTypeName is set to <Variant><Var> when a variable is shared across variants, done in BetterCSharpCodegen.postProcessOperationsWithModels",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "Server enum types (D42): enumTypeName is set to <Variant><Var> when a variable is shared across variants, done in BetterCSharpCodegen.postProcessOperationsWithModels. The shared enrichOperationServers should own this.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F588",
+   "severity": "medium",
+   "title": "Identifiers (D43): toVarName/toParamName prefix n on digit-leading names (2ndPage becomes N2ndPage, 2fa becomes N2fa)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "Identifiers (D43): toVarName/toParamName prefix n on digit-leading names (2ndPage becomes N2ndPage, 2fa becomes N2fa). toEnumVarName maps an empty cleaned name to SPACE_<n> or VALUE_<hex> and gives digit-leading members an N prefix. This is a csharp override; the shared AbstractBetterCodegen should own it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F589",
+   "severity": "medium",
+   "title": "The csharp escapeXml lambda now continues multi-line prose with '/// ', and a new escapeXmlText lambda wraps the csproj Description in CDATA",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The csharp escapeXml lambda now continues multi-line prose with '/// ', and a new escapeXmlText lambda wraps the csproj Description in CDATA. A newline in a tag description or externalDocs description previously leaked raw text into PetApi.cs.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F590",
+   "severity": "medium",
+   "title": "csharp Options files did not import Models for content-based query parameters (PetCriteria, PhotoMetadata) because baseType is null for them",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "csharp Options files did not import Models for content-based query parameters (PetCriteria, PhotoMetadata) because baseType is null for them. They are now detected by dataType against the component model names.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F591",
+   "severity": "medium",
+   "title": "A required format:uuid path parameter (getOrderByTrackingId) emitted Guid.Length; the empty-string check is now skipped for isUuid",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "A required format:uuid path parameter (getOrderByTrackingId) emitted Guid.Length; the empty-string check is now skipped for isUuid.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F592",
+   "severity": "medium",
+   "title": "An enum-ref property default without the required flag (Defaults.swatch) resolved Swatch.Green against the property name (CS0236); it is now global::-qualified like the required branch",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "An enum-ref property default without the required flag (Defaults.swatch) resolved Swatch.Green against the property name (CS0236); it is now global::-qualified like the required branch.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F593",
+   "severity": "medium",
+   "title": "deepObject query params typed as a model (criteriaDeep: PetCriteria) called ToDictionary on the model",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "deepObject query params typed as a model (criteriaDeep: PetCriteria) called ToDictionary on the model. They now go through a new BaseApi.ToDeepObjectFields, which serializes with the SDK serializer.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F594",
+   "severity": "medium",
+   "title": "The new Error schema trips CA1716",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The new Error schema trips CA1716. It is suppressed for Models/*.cs in .editorconfig rather than renaming the model.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F595",
+   "severity": "medium",
+   "title": "csharp toDefaultValue still uses escapeText for string defaults, so the hostile Defaults.greeting default turns tab and newline into spaces and */ into *_/",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "csharp toDefaultValue still uses escapeText for string defaults, so the hostile Defaults.greeting default turns tab and newline into spaces and */ into *_/. It compiles, but the value differs from the spec (D40 remains open for csharp).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F596",
+   "severity": "medium",
+   "title": "The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The 2ndPage query parameter (D43 fixture) has no csharp test asserting 2ndPage=2 on the wire yet.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the csharp fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F597",
+   "severity": "medium",
+   "title": "ValueSerializer.serialize_deep_object calls each_with_object on its value, so a deepObject query param typed as a model (getPetTag criteriaDeep: PetCriteria) would raise NoMethodError at runtime",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "ValueSerializer.serialize_deep_object calls each_with_object on its value, so a deepObject query param typed as a model (getPetTag criteriaDeep: PetCriteria) would raise NoMethodError at runtime. Steep now reports it as the one remaining type error.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F598",
+   "severity": "medium",
+   "title": "AbstractBetterCodegen builds server-variable enum constant names with UPPER_SNAKE_CASE of the raw value, so a&b gives 'A&B' and it's gives \"IT'S\", which are illegal identifiers in most languages",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "AbstractBetterCodegen builds server-variable enum constant names with UPPER_SNAKE_CASE of the raw value, so a&b gives 'A&B' and it's gives \"IT'S\", which are illegal identifiers in most languages. Ruby now sanitizes them in a template lambda; other languages likely need a shared fix.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F599",
+   "severity": "medium",
+   "title": "AbstractBetterCodegen.toEnumVarName returns an empty string when a value sanitizes to nothing (' ', '@@'); the dedupe then yields '' and '2'",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "AbstractBetterCodegen.toEnumVarName returns an empty string when a value sanitizes to nothing (' ', '@@'); the dedupe then yields '' and '2'. Ruby now overrides it to fall back to EMPTY; other languages likely have the same defect.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F600",
+   "severity": "medium",
+   "title": "Two variants of one operation that share a server variable name (Regional and Mirror region) produce duplicate per-variable enum types in shared serverTypeDefs",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Two variants of one operation that share a server variable name (Regional and Mirror region) produce duplicate per-variable enum types in shared serverTypeDefs. Ruby now merges them in BetterRubyCodegen.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F601",
+   "severity": "medium",
+   "title": "Ruby escapeText now flattens tab and newline to spaces, as DefaultCodegen already did, so Defaults.greeting still does not round-trip the tab and newline from the spec (D40, not in this batch)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Ruby escapeText now flattens tab and newline to spaces, as DefaultCodegen already did, so Defaults.greeting still does not round-trip the tab and newline from the spec (D40, not in this batch). Doc comments now show it\\'s instead of it's, because the same escaped text feeds comments.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the ruby fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F602",
+   "severity": "medium",
+   "title": "Order.trackingId (format uuid) cannot be decoded: ObjectSerializer registers no Symfony UidNormalizer, so 4 StoreApiTest order tests fail on the expanded spec",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Order.trackingId (format uuid) cannot be decoded: ObjectSerializer registers no Symfony UidNormalizer, so 4 StoreApiTest order tests fail on the expanded spec. Likely fix: add new UidNormalizer() in templates/php/object_serializer.mustache.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F603",
+   "severity": "medium",
+   "title": "AbstractBetterCodegen's server-variable enum naming (UPPER_SNAKE_CASE of the raw value) gives illegal identifiers such as A&B and IT'S for every language that uses the name directly",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "AbstractBetterCodegen's server-variable enum naming (UPPER_SNAKE_CASE of the raw value) gives illegal identifiers such as A&B and IT'S for every language that uses the name directly. php now sanitises them locally, but the shared code still emits them (D43 territory).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F604",
+   "severity": "medium",
+   "title": "node/package.mustache renders the description with double-brace HTML escaping, so the hostile info description becomes HTML entities in package.json, which is likely what broke php composer.json",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "node/package.mustache renders the description with double-brace HTML escaping, so the hostile info description becomes HTML entities in package.json, which is likely what broke php composer.json.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F605",
+   "severity": "medium",
+   "title": "The deepObject query param on a model (getPetTag criteriaDeep) passed a model to serializeDeepObject(?array), which would have been a TypeError at runtime",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "The deepObject query param on a model (getPetTag criteriaDeep) passed a model to serializeDeepObject(?array), which would have been a TypeError at runtime. It now flattens through ObjectSerializer, but D47's full style rules are not implemented.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F606",
+   "severity": "medium",
+   "title": "The base escapeText applied to php string defaults turned tabs and newlines into spaces and left quote and backslash escapes that are wrong for single-quoted PHP literals",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "The base escapeText applied to php string defaults turned tabs and newlines into spaces and left quote and backslash escapes that are wrong for single-quoted PHP literals. php now emits exact literals.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the php fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F607",
+   "severity": "medium",
+   "title": "The expanded spec broke the dart golden at the template level, and I fixed each case in the dart templates or in BetterDartCodegen: servers.mustache emitted hostile descriptions and variable values un",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "The expanded spec broke the dart golden at the template level, and I fixed each case in the dart templates or in BetterDartCodegen: servers.mustache emitted hostile descriptions and variable values unescaped (new dartString lambda); string defaults went through escapeText (now Dart-escaped); multi-line tag and externalDocs descriptions fell out of /// comments (new dartDocLines lambda); options files did not import model-typed params (PetCriteria, PhotoMetadata); enum values containing a backslash or $ were not escaped; and a required uuid param was compared to ''.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F608",
+   "severity": "medium",
+   "title": "D43 (not in my list) had to be implemented locally in BetterDartCodegen to make the golden compile: digit-leading var/param names now get an n prefix (2fa -> n2fa), whitespace-only enum values become ",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "D43 (not in my list) had to be implemented locally in BetterDartCodegen to make the golden compile: digit-leading var/param names now get an n prefix (2fa -> n2fa), whitespace-only enum values become space<N>, empty-sanitising values become value<hex>, and digit-leading enum members get n instead of the private _. The shared wave should move this into AbstractBetterCodegen and then drop the dart override.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F609",
+   "severity": "medium",
+   "title": "AbstractBetterCodegen.enrichOperationServers builds server-variable enum constant names with UPPER_SNAKE_CASE of the raw value (A&B, IT'S) and emits one enum per variant, so two variants that share a ",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "AbstractBetterCodegen.enrichOperationServers builds server-variable enum constant names with UPPER_SNAKE_CASE of the raw value (A&B, IT'S) and emits one enum per variant, so two variants that share a variable name produce duplicate enums. Dart now sanitises the names and merges the enums in BetterDartCodegen; this should be fixed in the shared code.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F610",
+   "severity": "medium",
+   "title": "Because shouldEscapeQuotationMark() is false for dart, quoteEnumValue strips apostrophes from string enum wire values: Availability \"o'clock\" is sent and accepted as 'oclock'",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "Because shouldEscapeQuotationMark() is false for dart, quoteEnumValue strips apostrophes from string enum wire values: Availability \"o'clock\" is sent and accepted as 'oclock'. That is silent data loss. Fixing it needs an escape that does not break the base enum-default matching in getEnumDefaultValue.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F611",
+   "severity": "medium",
+   "title": "On the raw sendRequest(Map) multipart path, package:http writes a file part's content-type BEFORE content-disposition (lowercase), unlike the canonical BaseApi path",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "On the raw sendRequest(Map) multipart path, package:http writes a file part's content-type BEFORE content-disposition (lowercase), unlike the canonical BaseApi path. This is library-forced and should be documented next to the D38 exception.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F612",
+   "severity": "medium",
+   "title": "The info description reaches the petstore_client.dart header comments still string-escaped (\\\"quoted\\\")",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "The info description reaches the petstore_client.dart header comments still string-escaped (\\\"quoted\\\").",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the dart fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F613",
+   "severity": "medium",
+   "title": "Several golden-compile fixes are java-only stand-ins for shared decisions (D42 serverEnums, D43 enum fallback names, D44 reserved literals, D45 ModelError): the shared wave should move them into Abstr",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Several golden-compile fixes are java-only stand-ins for shared decisions (D42 serverEnums, D43 enum fallback names, D44 reserved literals, D45 ModelError): the shared wave should move them into AbstractBetterCodegen and reserved-words/java.txt, then delete the overrides in BetterJavaCodegen (disambiguateServerEnums, toEnumVarName, the reservedWords additions, toModelName and getSchemaType).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F614",
+   "severity": "medium",
+   "title": "Defaults.greeting's string default is still mangled in java (tab and newline become spaces, '*/' becomes '*_/') by escapeText in BetterJavaCodegen.toDefaultValue (D40)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Defaults.greeting's string default is still mangled in java (tab and newline become spaces, '*/' becomes '*_/') by escapeText in BetterJavaCodegen.toDefaultValue (D40).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F615",
+   "severity": "medium",
+   "title": "Availability's enum value a\\b is emitted as the Java literal \"a\\b\", which is a backspace escape, so the wire value is wrong (D46)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Availability's enum value a\\b is emitted as the Java literal \"a\\b\", which is a backspace escape, so the wire value is wrong (D46).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F616",
+   "severity": "medium",
+   "title": "Defaults.swatch has no component default (green is not applied) in java (D60)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Defaults.swatch has no component default (green is not applied) in java (D60).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F617",
+   "severity": "medium",
+   "title": "The required X-Correlation-Id error message names the wire name 'X-Correlation-Id' rather than the identifier 'xCorrelationId' (D28)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "The required X-Correlation-Id error message names the wire name 'X-Correlation-Id' rather than the identifier 'xCorrelationId' (D28).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F618",
+   "severity": "medium",
+   "title": "The api_info file header used to show \\\" escapes from the pre-escaped description; it now goes through unescapeDocComment",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "The api_info file header used to show \\\" escapes from the pre-escaped description; it now goes through unescapeDocComment.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the java fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F619",
+   "severity": "medium",
+   "title": "pyproject_toml.mustache renders appDescription with double braces, so the hostile info description is HTML-escaped and the TOML fails to parse; triple braces fix it",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "pyproject_toml.mustache renders appDescription with double braces, so the hostile info description is HTML-escaped and the TOML fails to parse; triple braces fix it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F620",
+   "severity": "medium",
+   "title": "BetterPythonCodegen does not sanitise property and parameter names that start with a digit (2nd_page_, 2fa_), so the generated Python is invalid",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "BetterPythonCodegen does not sanitise property and parameter names that start with a digit (2nd_page_, 2fa_), so the generated Python is invalid.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F621",
+   "severity": "medium",
+   "title": "Python enum member names for server variable enums keep HTML entities (A&amp;B, IT&#39;S) and Separator enum values sanitise to an empty or digit identifier, which is a syntax error",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Python enum member names for server variable enums keep HTML entities (A&amp;B, IT&#39;S) and Separator enum values sanitise to an empty or digit identifier, which is a syntax error.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F622",
+   "severity": "medium",
+   "title": "BetterPythonCodegen.toDefaultValue escapes only the apostrophe in string defaults, so a default holding a backslash, tab or newline produces an unterminated literal (defaults.py greeting)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "BetterPythonCodegen.toDefaultValue escapes only the apostrophe in string defaults, so a default holding a backslash, tab or newline produces an unterminated literal (defaults.py greeting).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F623",
+   "severity": "medium",
+   "title": "model.mustache emits pattern=r'...' and field_validator r\"...\", which break on a pattern containing an apostrophe or double quote (Pet.nickname)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "model.mustache emits pattern=r'...' and field_validator r\"...\", which break on a pattern containing an apostrophe or double quote (Pet.nickname).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F624",
+   "severity": "medium",
+   "title": "servers.mustache puts the server description inside '...' without escaping, so an apostrophe breaks servers.py",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "servers.mustache puts the server description inside '...' without escaping, so an apostrophe breaks servers.py.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F625",
+   "severity": "medium",
+   "title": "fixEnumDefaultValue prefixes the class name onto any default containing '.', so numeric defaults become Defaults1.5 (D61)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "fixEnumDefaultValue prefixes the class name onto any default containing '.', so numeric defaults become Defaults1.5 (D61).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the python fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F626",
+   "severity": "medium",
+   "title": "Root fixes the expanded spec forced, all in kotlin-only code: server literals and KDoc were raw or HTML-escaped (new kotlinString/kdoc lambdas)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "Root fixes the expanded spec forced, all in kotlin-only code: server literals and KDoc were raw or HTML-escaped (new kotlinString/kdoc lambdas). Server enum constants such as A&B were invalid, and a second `region` variable redeclared Region (now MirrorRegion). Model enum values $eq and a\\b were not escaped, and Separator's ' ' and '@@' got empty names (now SPACE_1 and VALUE_0040_0040, following the D43 rule locally). Option classes did not import object-typed params (PetCriteria, PhotoMetadata). StoreApi had no Uuid opt-in and called isNotEmpty on a Uuid. serializeDeepObject accepted only Map, not a model. LocalTime (EdgeCases.cutoff) had no contextual serializer and crashed the compiler; it now writes HH:mm:ss or HH:mm:ss.SSS. The build.gradle.kts description broke on $USD and on the 140-column limit.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F627",
+   "severity": "medium",
+   "title": "A form-style object query param (criteria/criteriaCsv, a PetCriteria model) still goes through toStringList, so it is sent as the data class toString() rather than OAS form/explode key=value pairs",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "A form-style object query param (criteria/criteriaCsv, a PetCriteria model) still goes through toStringList, so it is sent as the data class toString() rather than OAS form/explode key=value pairs.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F628",
+   "severity": "medium",
+   "title": "The generated file header (api_info.mustache `//` lines) shows appDescription with literal backslash-escaped quotes (\\\"quoted\\\")",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The generated file header (api_info.mustache `//` lines) shows appDescription with literal backslash-escaped quotes (\\\"quoted\\\"). This is cosmetic but differs from the source text.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F629",
+   "severity": "medium",
+   "title": "The D43 enum-name fallback (SPACE_n / VALUE_hex) is implemented only as a kotlin override of toEnumVarName",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The D43 enum-name fallback (SPACE_n / VALUE_hex) is implemented only as a kotlin override of toEnumVarName. The shared AbstractBetterCodegen change is still needed for the other 11 languages, and collision suffixes are still '2' rather than '_2'.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the kotlin fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F630",
+   "severity": "medium",
+   "title": "The swift SDK generated from the expanded petstore spec does not compile, so every swift spec is red at the base commit (b72620a)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The swift SDK generated from the expanded petstore spec does not compile, so every swift spec is red at the base commit (b72620a).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F631",
+   "severity": "medium",
+   "title": "servers.mustache puts {{{serverDescription}}} and {{{varDescription}}} into a Swift string literal without escaping, so a description containing a double quote or backslash breaks Servers.swift",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "servers.mustache puts {{{serverDescription}}} and {{{varDescription}}} into a Swift string literal without escaping, so a description containing a double quote or backslash breaks Servers.swift.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F632",
+   "severity": "medium",
+   "title": "The per-operation server-variable enum in api/api.mustache uses HTML-escaped {{value}}, and its case names come from the shared AbstractBetterCodegen UPPER_SNAKE_CASE of the raw value (around line 459",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The per-operation server-variable enum in api/api.mustache uses HTML-escaped {{value}}, and its case names come from the shared AbstractBetterCodegen UPPER_SNAKE_CASE of the raw value (around line 4593), producing 'case A&amp;B' and 'IT&#39;S'. This needs a shared fix that sanitises the names into identifiers, plus triple-brace values in the swift template.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F633",
+   "severity": "medium",
+   "title": "Swift enum case naming (toEnumVarName) returns an empty name for ' ', '2' for '@@', and the same name 'ab' for both 'a-b' and 'a\\b' (Separator model); it needs a non-empty fallback, a leading-letter r",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Swift enum case naming (toEnumVarName) returns an empty name for ' ', '2' for '@@', and the same name 'ab' for both 'a-b' and 'a\\b' (Separator model); it needs a non-empty fallback, a leading-letter rule and de-duplication.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F634",
+   "severity": "medium",
+   "title": "Swift string enum raw values are not escaped: 'a\\b' is emitted as \"a\\b\", an invalid escape (Availability.swift:16)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Swift string enum raw values are not escaped: 'a\\b' is emitted as \"a\\b\", an invalid escape (Availability.swift:16). escapeEnumStringValue needs a swift override that escapes backslash and double quote.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F635",
+   "severity": "medium",
+   "title": "The required header X-Correlation-Id on getPetByName makes GetPetByNameOptions(category:xCorrelationId:) required, so the two PetApiTests calls that pass only category stop compiling; the fix is in th",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The required header X-Correlation-Id on getPetByName makes GetPetByNameOptions(category:xCorrelationId:) required, so the two PetApiTests calls that pass only category stop compiling; the fix is in the saved patch.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the swift fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F636",
+   "severity": "medium",
+   "title": "Expanded-spec baseline breakages fixed in rust (template and codegen root causes): Cargo.toml description was HTML-escaped (&amp; &quot;) and broke cargo metadata; it now uses the unescaped text",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Expanded-spec baseline breakages fixed in rust (template and codegen root causes): Cargo.toml description was HTML-escaped (&amp; &quot;) and broke cargo metadata; it now uses the unescaped text.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F637",
+   "severity": "medium",
+   "title": "Server descriptions and server-variable enum values were emitted raw inside Rust string literals (Bob's \"sandbox\") and as HTML entities in doc comments; a new rustString lambda escapes them and the do",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Server descriptions and server-variable enum values were emitted raw inside Rust string literals (Bob's \"sandbox\") and as HTML entities in doc comments; a new rustString lambda escapes them and the doc lines use the rustdoc and unescapeDocComment lambdas.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F638",
+   "severity": "medium",
+   "title": "Multi-line tag and externalDocs descriptions broke out of /// doc comments; a new docLines lambda prefixes every line",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Multi-line tag and externalDocs descriptions broke out of /// doc comments; a new docLines lambda prefixes every line.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F639",
+   "severity": "medium",
+   "title": "The shared server-variable enum naming (AbstractBetterCodegen ~4596, UPPER_SNAKE_CASE of the raw value) gives non-identifiers such as A&B and IT'S",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The shared server-variable enum naming (AbstractBetterCodegen ~4596, UPPER_SNAKE_CASE of the raw value) gives non-identifiers such as A&B and IT'S. Rust sanitizes them in BetterRustCodegen.sanitizeServerEnumNames, but other languages using that name likely break too (needs-shared).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F640",
+   "severity": "medium",
+   "title": "The per-operation server enum is named per operation and variable, not per variant, so the third Mirror variant re-declared GetMultiServerPetInfoServerRegion",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The per-operation server enum is named per operation and variable, not per variant, so the third Mirror variant re-declared GetMultiServerPetInfoServerRegion. Rust now declares it once, with the union of the values (declareEnum flag).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F641",
+   "severity": "medium",
+   "title": "Digit-leading identifiers (2ndPage, 2fa) were escaped as the invalid raw identifier r#2nd_page; rust escapeReservedWord now uses _2nd_page and _2fa",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Digit-leading identifiers (2ndPage, 2fa) were escaped as the invalid raw identifier r#2nd_page; rust escapeReservedWord now uses _2nd_page and _2fa.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F642",
+   "severity": "medium",
+   "title": "The string enum value a\\b was emitted unescaped (unknown escape); rust now overrides getEnumStringEscapes",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The string enum value a\\b was emitted unescaped (unknown escape); rust now overrides getEnumStringEscapes.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F643",
+   "severity": "medium",
+   "title": "Separator values ' ' and '@@' produced empty and '2' variant names; rust toEnumVarName now falls back to Empty and Empty2",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Separator values ' ' and '@@' produced empty and '2' variant names; rust toEnumVarName now falls back to Empty and Empty2.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F644",
+   "severity": "medium",
+   "title": "The new schema Result shadowed std Result in every glob-importing module (350 compile errors); rust toModelName now prefixes prelude names (ModelResult) and fixes the property complexType to match",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The new schema Result shadowed std Result in every glob-importing module (350 compile errors); rust toModelName now prefixes prelude names (ModelResult) and fixes the property complexType to match.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F645",
+   "severity": "medium",
+   "title": "A component default on a $ref string enum (Swatch) rendered as String::from(\"green\"); toDefaultValue now names the enum variant",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "A component default on a $ref string enum (Swatch) rendered as String::from(\"green\"); toDefaultValue now names the enum variant.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F646",
+   "severity": "medium",
+   "title": "A deepObject query param typed as a model (criteriaDeep: PetCriteria) did not compile against serialize_deep_object(&HashMap); object_serializer::to_deep_object_map now flattens it first",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "A deepObject query param typed as a model (criteriaDeep: PetCriteria) did not compile against serialize_deep_object(&HashMap); object_serializer::to_deep_object_map now flattens it first.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F647",
+   "severity": "medium",
+   "title": "Escaped {{description}} remains in a few rust doc sites (param and operation docs, api.mustache:124/132, model.mustache:144/156); it will emit HTML entities once a hostile text reaches them",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Escaped {{description}} remains in a few rust doc sites (param and operation docs, api.mustache:124/132, model.mustache:144/156); it will emit HTML entities once a hostile text reaches them.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the rust fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F648",
+   "severity": "medium",
+   "title": "Elixir string escaping: the escaped description text keeps '#{', so the hostile info description breaks mix.exs line 44 ('undefined variable x')",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Elixir string escaping: the escaped description text keeps '#{', so the hostile info description breaks mix.exs line 44 ('undefined variable x'). The WIP patch overrides escapeUnsafeCharacters in BetterElixirCodegen to also turn '#{' into '\\#{'.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F649",
+   "severity": "medium",
+   "title": "servers.mustache emits serverDescription and varDescription raw inside double quotes, so a quote in a server description ('Bob's \"sandbox\"') is a syntax error",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "servers.mustache emits serverDescription and varDescription raw inside double quotes, so a quote in a server description ('Bob's \"sandbox\"') is a syntax error. The heredoc doc line uses double-brace HTML escaping, which emits banned HTML entities (&#39; &quot; &amp;). The WIP patch adds an elixirString lambda that escapes backslash, quote and '#{'.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F650",
+   "severity": "medium",
+   "title": "In models/model.mustache, enum value literals (def value / def from_value) are not interpolation-safe: the Availability value '#{x}' becomes \"#{x}\"",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "In models/model.mustache, enum value literals (def value / def from_value) are not interpolation-safe: the Availability value '#{x}' becomes \"#{x}\". Separately, the enum value 'a\\b' is emitted as \"a\\b\", which Elixir reads as a backspace escape, so the wire value is wrong.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F651",
+   "severity": "medium",
+   "title": "The Separator enum (' ', '@@') sanitises to empty and colliding names in elixir ('def , do: :\"\"', 'def 2')",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "The Separator enum (' ', '@@') sanitises to empty and colliding names in elixir ('def , do: :\"\"', 'def 2'). D43 makes this a shared AbstractBetterCodegen.toEnumVarName change; until it lands the elixir golden cannot compile. The WIP patch has a local SPACE_n / VALUE_hex fallback.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F652",
+   "severity": "medium",
+   "title": "In api/api.mustache line 16, server-variable enum helpers use the raw lowercased value as a function name with HTML escaping ('def a&amp;b, do: \"a&amp;b\"' for the GetMultiServerPetInfoServer.Channel v",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "In api/api.mustache line 16, server-variable enum helpers use the raw lowercased value as a function name with HTML escaping ('def a&amp;b, do: \"a&amp;b\"' for the GetMultiServerPetInfoServer.Channel variable). This was the last blocker, still unfixed: the name needs a sanitised identifier and the value needs triple-brace plus string escaping.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F653",
+   "severity": "medium",
+   "title": "`devbox run` / `eval \"$(devbox shellenv)\"` does not put mvn on PATH in these worktrees",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "`devbox run` / `eval \"$(devbox shellenv)\"` does not put mvn on PATH in these worktrees. The wrapper has to use the main checkout's .devbox/nix/profile/default/bin and the zulu JDK 25 nix store path as JAVA_HOME.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the elixir fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F654",
+   "severity": "medium",
+   "title": "Defaults.greeting component default loses its tab and newline and turns '*/' into '*_/' before it reaches the go template (likely shared escapeText), so the decoded default does not equal the spec str",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Defaults.greeting component default loses its tab and newline and turns '*/' into '*_/' before it reaches the go template (likely shared escapeText), so the decoded default does not equal the spec string.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F655",
+   "severity": "medium",
+   "title": "The expanded spec broke the go golden in seven ways, each fixed in this commit: tag, operation and parameter descriptions with newlines broke // comments (new goLineComment lambda); the server descrip",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "The expanded spec broke the go golden in seven ways, each fixed in this commit: tag, operation and parameter descriptions with newlines broke // comments (new goLineComment lambda); the server description and variables were not escaped as Go strings or comments (new goStringLiteral and goBlockComment lambdas); server enum constants came out as A&amp;B and IT&#39;S (new goIdentPart lambda plus triple-brace values); the Mirror and Regional variants both declared GetMultiServerPetInfoServerRegion (enum types are now qualified by variant name, which renames the existing public server enum types); the 2ndPage option and the 2fa field were not legal exported identifiers (N prefix: N2ndPage, N2fa); the Swatch enum-ref default was emitted as Swatch.Green (now SwatchGreen); the ' ' enum value produced a constant named Separator, the same as its type (now the empty-value name); EdgeCases referenced Error while the type is declared ModelError (getTypeDeclaration resolves refs through toModelName).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F656",
+   "severity": "medium",
+   "title": "The Mirror channel enum values a&b and it's both sanitise by stripping characters (AB, ITS), so two values that differ only in punctuation would collide; the shared UPPER_SNAKE enum naming for server ",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "The Mirror channel enum values a&b and it's both sanitise by stripping characters (AB, ITS), so two values that differ only in punctuation would collide; the shared UPPER_SNAKE enum naming for server variables in AbstractBetterCodegen has no collision handling.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the go fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F657",
+   "severity": "medium",
+   "title": "D43's enum-name fallback is needed for the node golden to compile, so I implemented it node-locally in BetterNodeCodegen.toEnumVarName (SPACE_<n>, VALUE_<hex>)",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "D43's enum-name fallback is needed for the node golden to compile, so I implemented it node-locally in BetterNodeCodegen.toEnumVarName (SPACE_<n>, VALUE_<hex>). The shared AbstractBetterCodegen fix should replace it, and its collision suffix is still '2' (AB2) rather than the canonical '_2'.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F658",
+   "severity": "medium",
+   "title": "The header comment emitted by api_info (a // line in every generated node source file) still shows escapeText's backslash-escaped quotes (\\\"quoted\\\") from info.description; that is D41 territory",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "The header comment emitted by api_info (a // line in every generated node source file) still shows escapeText's backslash-escaped quotes (\\\"quoted\\\") from info.description; that is D41 territory.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F659",
+   "severity": "medium",
+   "title": "ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only and date-time leaves, so the D57 offset requirement is not enforced on container or top-level date-time values",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only and date-time leaves, so the D57 offset requirement is not enforced on container or top-level date-time values.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
+  },
+  {
+   "id": "F660",
+   "severity": "medium",
+   "title": "The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec",
+   "lens": "batch5-discovered",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "reported by the node fix agent, unverified",
+   "batch": null
   }
  ]
 }
