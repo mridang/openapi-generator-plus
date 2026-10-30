@@ -1815,6 +1815,7 @@ class PetApi(BaseApi):
             content_type,
             None,
             None,
+            raw_body=True,
         )
 
     async def set_pet_avatar_thumbnail(

@@ -134,6 +134,13 @@ class TestPackageManifest:
         assert isinstance(description, str)
         assert description.strip() != ""
 
+    def test_pyproject_description_keeps_quotes_and_markup_unescaped(self) -> None:
+        with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
+            description = tomllib.load(handle)["project"]["description"]
+        assert '"quoted"' in description
+        assert "&" + "amp;" not in description
+        assert "&" + "#39;" not in description
+
 
 class TestMakefileTestTarget:
     def test_make_test_runs_the_configured_testpaths_not_only_the_test_directory(

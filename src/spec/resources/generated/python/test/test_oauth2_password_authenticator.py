@@ -273,6 +273,94 @@ class TestPasswordRefreshUrlRouting:
         ]
 
 
+def _form_of(call: Any) -> dict[str, list[str]]:
+    from urllib.parse import parse_qs
+
+    return parse_qs(call[0][3], keep_blank_values=True)
+
+
+def _refreshing_authenticator(
+    method: ClientAuthMethod, *replies: object
+) -> tuple[OAuth2PasswordAuthenticator, MagicMock]:
+    auth = OAuth2PasswordAuthenticator(
+        host="https://api.example.com",
+        client_id="my_client_id",
+        client_secret="my_client_secret",
+        token_url="https://auth.example.com/token",
+        username="testuser",
+        password="testpass",
+        scopes=[],
+        refresh_url="https://auth.example.com/refresh",
+        client_auth_method=method,
+    )
+    mock_client = MagicMock()
+    mock_client.send_request.side_effect = list(replies)
+    auth.set_api_client(mock_client)
+    return auth, mock_client
+
+
+class TestPasswordRefreshClientAuthentication:
+    def test_body_mode_refresh_carries_the_client_credentials(self) -> None:
+        auth, mock_client = _refreshing_authenticator(
+            ClientAuthMethod.BODY,
+            _token_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="t2", expires_in=3600),
+        )
+        auth.get_auth_headers()
+
+        auth.get_auth_headers()
+
+        refresh = mock_client.send_request.call_args_list[1]
+        assert refresh[0][1] == "https://auth.example.com/refresh"
+        assert _form_of(refresh) == {
+            "grant_type": ["refresh_token"],
+            "refresh_token": ["r1"],
+            "client_id": ["my_client_id"],
+            "client_secret": ["my_client_secret"],
+        }
+
+    def test_basic_mode_refresh_carries_the_basic_header_and_no_body_credentials(
+        self,
+    ) -> None:
+        auth, mock_client = _refreshing_authenticator(
+            ClientAuthMethod.BASIC,
+            _token_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="t2", expires_in=3600),
+        )
+        auth.get_auth_headers()
+
+        auth.get_auth_headers()
+
+        refresh = mock_client.send_request.call_args_list[1]
+        expected = base64.b64encode(b"my_client_id:my_client_secret").decode("ascii")
+        assert refresh[0][2]["Authorization"] == f"Basic {expected}"
+        assert _form_of(refresh) == {
+            "grant_type": ["refresh_token"],
+            "refresh_token": ["r1"],
+        }
+
+    def test_a_rejected_refresh_re_runs_the_password_grant(self) -> None:
+        auth, mock_client = _refreshing_authenticator(
+            ClientAuthMethod.BODY,
+            _token_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            ApiHttpResponse(
+                status_code=400,
+                body=json.dumps({"error": "invalid_grant"}),
+                headers={"content-type": "application/json"},
+            ),
+            _token_reply(access_token="t3", expires_in=3600),
+        )
+        auth.get_auth_headers()
+
+        headers = auth.get_auth_headers()
+
+        assert headers == {"Authorization": "Bearer t3"}
+        calls = mock_client.send_request.call_args_list
+        assert len(calls) == 3
+        assert calls[2][0][1] == "https://auth.example.com/token"
+        assert _form_of(calls[2])["grant_type"] == ["password"]
+
+
 class TestPasswordWireEncoding:
     def test_body_keeps_unreserved_marks_and_encodes_the_sub_delimiters(self) -> None:
         auth = OAuth2PasswordAuthenticator(

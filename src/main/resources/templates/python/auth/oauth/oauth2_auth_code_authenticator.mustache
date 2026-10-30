@@ -56,7 +56,6 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         self._redirect_uri = redirect_uri
         self._scopes = tuple(scopes)
         self._token_manager = OAuth2TokenManager()
-        self._token_exchanged = False
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making token requests.
@@ -98,6 +97,10 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         Args:
             code: The authorization code from the callback.
 
+        Always POSTs the authorization_code grant, even when a token is
+        already held, and replaces the session with the response. A failed
+        exchange keeps the previous session.
+
         Raises:
             ValueError: If ``code`` is empty or whitespace-only.
         """
@@ -110,8 +113,7 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             'client_secret': self._client_secret,
             'redirect_uri': self._redirect_uri,
         }
-        self._token_manager.get_access_token(self._token_url, params)
-        self._token_exchanged = True
+        self._token_manager.exchange(self._token_url, params)
 
     def get_host(self) -> str:
         """Returns the base URL of the API."""
@@ -126,11 +128,15 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         Returns:
             Dict with the Authorization header.
         """
-        if not self._token_exchanged:
+        if not self._token_manager.exchanged:
             raise RuntimeError('Must call exchange_code() before making API requests')
+        # RFC 6749 section 6: the refresh authenticates the client the same
+        # way the code exchange did (client_secret_post).
         params = {
             'grant_type': 'refresh_token',
             'refresh_token': self._token_manager.refresh_token or '',
+            'client_id': self._client_id,
+            'client_secret': self._client_secret,
         }
         token = self._token_manager.get_access_token(self._refresh_url, params)
         return {'Authorization': f'Bearer {token}'}

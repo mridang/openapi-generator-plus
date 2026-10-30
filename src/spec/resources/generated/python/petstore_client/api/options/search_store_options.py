@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional, Dict
+from petstore_client.models.photo_metadata import PhotoMetadata
+from pydantic import StrictStr
+from typing import Optional, Dict, Set
 import datetime
 
 

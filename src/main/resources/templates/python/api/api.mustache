@@ -338,6 +338,11 @@ class {{classname}}(BaseApi):
             {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
             {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}None{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#bodyParam}}
+{{#isBinary}}
+            raw_body=True,
+{{/isBinary}}
+{{/bodyParam}}
         )
 {{/operation}}
 {{/operations}}

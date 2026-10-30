@@ -707,6 +707,117 @@ class TestRefreshGrant:
 
         assert client.send_request.call_count == 3
 
+    def test_the_refresh_goes_to_the_refresh_url_with_the_extra_headers(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _token_reply(access_token="a2", expires_in=3600),
+        )
+        headers = {"Authorization": "Basic abc"}
+        manager.get_access_token(
+            _TOKEN_URL, _FIRST_GRANT, headers, refresh_url=_REFRESH_URL
+        )
+
+        manager.get_access_token(
+            _TOKEN_URL, _FIRST_GRANT, headers, refresh_url=_REFRESH_URL
+        )
+
+        first, second = client.send_request.call_args_list
+        assert first[0][1] == _TOKEN_URL
+        assert second[0][1] == _REFRESH_URL
+        assert second[0][2]["Authorization"] == "Basic abc"
+
+    def test_a_rejected_refresh_re_runs_the_grant_at_the_token_url(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _invalid_grant(),
+            _token_reply(access_token="a2", expires_in=3600),
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT, refresh_url=_REFRESH_URL)
+
+        assert (
+            manager.get_access_token(_TOKEN_URL, _FIRST_GRANT, refresh_url=_REFRESH_URL)
+            == "a2"
+        )
+
+        urls = [call[0][1] for call in client.send_request.call_args_list]
+        assert urls == [_TOKEN_URL, _REFRESH_URL, _TOKEN_URL]
+
+    def test_params_that_already_are_a_refresh_grant_are_posted_once(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=1),
+            _invalid_grant(),
+        )
+        manager.get_access_token(_TOKEN_URL, _FIRST_GRANT)
+        refresh = {"grant_type": "refresh_token", "refresh_token": "r1"}
+
+        with pytest.raises(OAuth2ServerException):
+            manager.get_access_token(_REFRESH_URL, refresh)
+
+        assert client.send_request.call_count == 2
+
+
+def _invalid_grant() -> ApiHttpResponse:
+    return ApiHttpResponse(
+        status_code=400,
+        body=json.dumps({"error": "invalid_grant"}),
+        headers={"content-type": "application/json"},
+    )
+
+
+_REFRESH_URL = "https://auth.example.com/refresh"
+
+
+class TestExchange:
+    def test_exchange_bypasses_a_cached_token_and_the_refresh_grant(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
+            _token_reply(access_token="a2", refresh_token="r2", expires_in=3600),
+        )
+        manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        token = manager.exchange(_TOKEN_URL, {**_FIRST_GRANT, "code": "d"})
+
+        assert token == "a2"
+        second = client.send_request.call_args_list[1]
+        assert _form(second)["grant_type"] == ["authorization_code"]
+        assert _form(second)["code"] == ["d"]
+        assert manager.refresh_token == "r2"
+        assert manager.exchanged is True
+
+    def test_exchange_without_a_refresh_token_drops_the_old_one(self) -> None:
+        manager, _ = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
+            _token_reply(access_token="a2"),
+        )
+        manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        assert manager.refresh_token is None
+
+    def test_a_failed_exchange_restores_the_previous_session(self) -> None:
+        manager, client = _manager_replying(
+            _token_reply(access_token="a1", refresh_token="r1", expires_in=3600),
+            _invalid_grant(),
+        )
+        manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        with pytest.raises(OAuth2ServerException):
+            manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        assert manager.get_access_token(_TOKEN_URL, _FIRST_GRANT) == "a1"
+        assert manager.refresh_token == "r1"
+        assert manager.exchanged is True
+        assert client.send_request.call_count == 2
+
+    def test_a_failed_first_exchange_leaves_the_session_unexchanged(self) -> None:
+        manager, _ = _manager_replying(_invalid_grant())
+
+        with pytest.raises(OAuth2ServerException):
+            manager.exchange(_TOKEN_URL, _FIRST_GRANT)
+
+        assert manager.exchanged is False
+
 
 class TestTokenWithoutExpiresIn:
     def test_a_token_without_expires_in_is_cached_indefinitely(self) -> None:

@@ -88,9 +88,9 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
     def get_auth_headers(self) -> Dict[str, str]:
         """Returns the authentication headers with a valid Bearer token.
 
-        Fetches or refreshes the token automatically. If a refresh token
-        is available, it is used with the refresh URL; otherwise, the
-        password grant is re-issued against the token URL.
+        Fetches or refreshes the token automatically. A held refresh token
+        is used against the refresh URL first; if that fails, the password
+        grant is re-issued against the token URL.
 
         Returns:
             Dict with the Authorization header.
@@ -107,28 +107,23 @@ class OAuth2PasswordAuthenticator(HttpAwareAuthenticator):
                 f"{encoded_id}:{encoded_secret}".encode("utf-8")
             ).decode("ascii")
             extra_headers = {"Authorization": f"Basic {credentials}"}
-        if self._token_manager.refresh_token:
-            params = {
-                "grant_type": "refresh_token",
-                "refresh_token": self._token_manager.refresh_token,
-            }
-            token = self._token_manager.get_access_token(
-                self._refresh_url, params, extra_headers
-            )
-        else:
-            params = {
-                "grant_type": "password",
-                "username": self.username,
-                "password": self.password,
-            }
-            if self.client_auth_method == ClientAuthMethod.BODY:
-                params["client_id"] = self.client_id
-                params["client_secret"] = self.client_secret
-            if self.scopes:
-                params["scope"] = " ".join(self.scopes)
-            token = self._token_manager.get_access_token(
-                self.token_url, params, extra_headers
-            )
+        # The password-grant params always go to the manager: it refreshes
+        # with the same client authentication (client_id/client_secret in
+        # BODY mode, the Basic header otherwise) against the refresh URL and
+        # falls back to re-running this grant when the refresh fails.
+        params = {
+            "grant_type": "password",
+            "username": self.username,
+            "password": self.password,
+        }
+        if self.client_auth_method == ClientAuthMethod.BODY:
+            params["client_id"] = self.client_id
+            params["client_secret"] = self.client_secret
+        if self.scopes:
+            params["scope"] = " ".join(self.scopes)
+        token = self._token_manager.get_access_token(
+            self.token_url, params, extra_headers, refresh_url=self._refresh_url
+        )
         return {"Authorization": f"Bearer {token}"}
 
     def __repr__(self) -> str:

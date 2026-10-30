@@ -38,6 +38,7 @@ class OAuth2TokenManager:
         self._access_token: Optional[str] = None
         self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
+        self._exchanged = False
         self._lock = threading.Lock()
 
     def set_api_client(self, api_client: ApiClient) -> None:
@@ -53,17 +54,29 @@ class OAuth2TokenManager:
         token_url: str,
         params: Dict[str, str],
         extra_headers: Optional[Dict[str, str]] = None,
+        refresh_url: Optional[str] = None,
     ) -> str:
         """Get a valid access token, fetching or refreshing as necessary.
 
         This method is thread-safe; concurrent calls will not trigger
         duplicate token requests.
 
+        When no cached token is usable and a refresh token is held, the
+        refresh grant is POSTed to ``refresh_url`` first. It carries the
+        ``client_id`` / ``client_secret`` found in ``params`` and the same
+        ``extra_headers``, so the client authenticates the refresh exactly as
+        it authenticated the original grant (RFC 6749 section 6). If the
+        refresh fails, ``params`` are POSTed to ``token_url``, re-running the
+        original grant. When ``params`` already are a refresh grant, they are
+        POSTed once to ``token_url`` with no internal refresh attempt.
+
         Args:
             token_url: The OAuth2 token endpoint URL.
             params: The token request parameters (grant_type, client_id, etc.).
             extra_headers: Optional additional HTTP headers to send with the
                 token request (e.g. Authorization for HTTP Basic client auth).
+            refresh_url: The endpoint for the refresh grant. Defaults to
+                ``token_url``.
 
         Returns:
             A valid access token.
@@ -79,7 +92,7 @@ class OAuth2TokenManager:
                 or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
             ):
                 return self._access_token
-            if self._refresh_token:
+            if self._refresh_token and params.get("grant_type") != "refresh_token":
                 refresh_params: Dict[str, str] = {
                     "grant_type": "refresh_token",
                     "refresh_token": self._refresh_token,
@@ -89,7 +102,9 @@ class OAuth2TokenManager:
                 if "client_secret" in params:
                     refresh_params["client_secret"] = params["client_secret"]
                 try:
-                    self._fetch_token(token_url, refresh_params, extra_headers)
+                    self._fetch_token(
+                        refresh_url or token_url, refresh_params, extra_headers
+                    )
                     if self._access_token is not None:
                         return self._access_token
                 except Exception:
@@ -100,6 +115,64 @@ class OAuth2TokenManager:
             if self._access_token is None:
                 raise OAuth2TokenException("Token fetch did not return an access token")
             return self._access_token
+
+    def exchange(
+        self,
+        token_url: str,
+        params: Dict[str, str],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> str:
+        """POST ``params`` verbatim to ``token_url`` and replace the session.
+
+        Never answers from the cache and never tries the refresh grant. On
+        success the session holds exactly what the response carried: a
+        response without ``refresh_token`` leaves no refresh token, one
+        without ``expires_in`` leaves no expiry. On any failure the previous
+        session is restored and the error re-raised, so a rejected exchange
+        does not log the caller out.
+
+        Args:
+            token_url: The OAuth2 token endpoint URL.
+            params: The grant parameters, sent unchanged.
+            extra_headers: Optional additional HTTP headers.
+
+        Returns:
+            The new access token.
+
+        Raises:
+            RuntimeError: If no API client has been injected.
+            OAuth2ServerException: If the token endpoint answers non-2xx.
+            OAuth2TokenException: If the response carries no usable token.
+        """
+        with self._lock:
+            previous = (
+                self._access_token,
+                self._refresh_token,
+                self._token_expiry,
+                self._exchanged,
+            )
+            self._access_token = None
+            self._refresh_token = None
+            self._token_expiry = None
+            try:
+                self._fetch_token(token_url, params, extra_headers)
+            except BaseException:
+                (
+                    self._access_token,
+                    self._refresh_token,
+                    self._token_expiry,
+                    self._exchanged,
+                ) = previous
+                raise
+            self._exchanged = True
+            if self._access_token is None:
+                raise OAuth2TokenException("Token fetch did not return an access token")
+            return self._access_token
+
+    @property
+    def exchanged(self) -> bool:
+        """Whether :meth:`exchange` has completed successfully."""
+        return self._exchanged
 
     def invalidate_access_token(self) -> None:
         """Invalidate the cached access token.

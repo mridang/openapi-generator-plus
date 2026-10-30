@@ -79,6 +79,16 @@ class TestOAuth2ImplicitAuthenticator:
             auth.get_auth_headers()
         assert type(exc_info.value) is RuntimeError
 
+    def test_throws_when_access_token_set_to_empty_string(self) -> None:
+        auth = _create_authenticator()
+        auth.set_access_token("")
+
+        with pytest.raises(
+            RuntimeError, match="Must set the access token before making API requests"
+        ) as exc_info:
+            auth.get_auth_headers()
+        assert type(exc_info.value) is RuntimeError
+
     def test_get_host_returns_configured_host(self) -> None:
         auth = _create_authenticator()
 

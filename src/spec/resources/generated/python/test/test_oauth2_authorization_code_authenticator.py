@@ -307,6 +307,110 @@ class TestAuthorizationCodeRefreshUrlRouting:
         ]
 
 
+def _code_error(error: str) -> ApiHttpResponse:
+    return ApiHttpResponse(
+        status_code=400,
+        body=json.dumps({"error": error}),
+        headers={"content-type": "application/json"},
+    )
+
+
+def _form_of(call: Any) -> dict[str, list[str]]:
+    return parse_qs(call[0][3], keep_blank_values=True)
+
+
+class TestAuthorizationCodeSession:
+    def test_the_refresh_carries_the_client_credentials(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _code_reply(access_token="t2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+        auth.exchange_code("a")
+
+        auth.get_auth_headers()
+
+        assert _form_of(mock_client.send_request.call_args_list[1]) == {
+            "grant_type": ["refresh_token"],
+            "refresh_token": ["r1"],
+            "client_id": ["my_client_id"],
+            "client_secret": ["my_secret"],
+        }
+
+    def test_a_rejected_refresh_surfaces_after_exactly_one_refresh_post(self) -> None:
+        from petstore_client.errors import OAuth2ServerException
+
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=1),
+            _code_error("invalid_grant"),
+            _code_reply(access_token="unexpected", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+        auth.exchange_code("a")
+
+        with pytest.raises(OAuth2ServerException) as excinfo:
+            auth.get_auth_headers()
+
+        assert excinfo.value.code == "invalid_grant"
+        assert mock_client.send_request.call_count == 2
+
+    def test_a_second_exchange_sends_the_new_code(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=3600),
+            _code_reply(access_token="t2", refresh_token="r2", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+        auth.exchange_code("a")
+
+        auth.exchange_code("b")
+
+        second = _form_of(mock_client.send_request.call_args_list[1])
+        assert second["grant_type"] == ["authorization_code"]
+        assert second["code"] == ["b"]
+        assert auth.get_auth_headers() == {"Authorization": "Bearer t2"}
+
+    def test_a_second_exchange_without_a_refresh_token_drops_the_old_one(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=3600),
+            _code_reply(access_token="t2", expires_in=1),
+            _code_reply(access_token="t3", expires_in=3600),
+        ]
+        auth.set_api_client(mock_client)
+        auth.exchange_code("a")
+        auth.exchange_code("b")
+
+        auth.get_auth_headers()
+
+        third = _form_of(mock_client.send_request.call_args_list[2])
+        assert third["refresh_token"] == [""]
+
+    def test_a_failed_exchange_keeps_the_previous_session(self) -> None:
+        from petstore_client.errors import OAuth2ServerException
+
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = [
+            _code_reply(access_token="t1", refresh_token="r1", expires_in=3600),
+            _code_error("invalid_grant"),
+        ]
+        auth.set_api_client(mock_client)
+        auth.exchange_code("a")
+
+        with pytest.raises(OAuth2ServerException):
+            auth.exchange_code("bad")
+
+        assert auth.get_auth_headers() == {"Authorization": "Bearer t1"}
+        assert mock_client.send_request.call_count == 2
+
+
 class TestUserAuthWrapper:
     def test_uses_the_spec_urls_and_scopes(self) -> None:
         from petstore_client.auth.oauth.user_auth_authorization_code_authenticator import (

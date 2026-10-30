@@ -307,6 +307,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validat
     resolvable; the footer may re-import a subset, which Python tolerates. }}
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
+{{! A bare number default is built as a Decimal; ruff prunes it when unused. }}
+from decimal import Decimal
 {{#hasEnums}}
 from enum import Enum
 {{/hasEnums}}
@@ -370,7 +372,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: {{classname}}{{enumName}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#pattern}}, pattern={{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}}{{/pattern}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
 {{/isEnum}}
 {{/required}}
 {{^required}}
@@ -378,7 +380,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     {{name}}: Optional[{{classname}}{{enumName}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
 {{/isEnum}}
 {{^isEnum}}
-    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#pattern}}, pattern={{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}}{{/pattern}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
+    {{name}}: Optional[{{{dataType}}}] = Field({{#defaultValue}}{{#isEnumRef}}default_factory=lambda: {{{.}}}{{/isEnumRef}}{{^isEnumRef}}default={{{.}}}{{/isEnumRef}}{{/defaultValue}}{{^defaultValue}}default=None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#minLength}}, min_length={{minLength}}{{/minLength}}{{#maxLength}}, max_length={{maxLength}}{{/maxLength}}{{#minimum}}{{#exclusiveMinimum}}, gt={{minimum}}{{/exclusiveMinimum}}{{^exclusiveMinimum}}, ge={{minimum}}{{/exclusiveMinimum}}{{/minimum}}{{#maximum}}{{#exclusiveMaximum}}, lt={{maximum}}{{/exclusiveMaximum}}{{^exclusiveMaximum}}, le={{maximum}}{{/exclusiveMaximum}}{{/maximum}}{{#multipleOf}}, multiple_of={{multipleOf}}{{/multipleOf}}{{#minItems}}, min_length={{minItems}}{{/minItems}}{{#maxItems}}, max_length={{maxItems}}{{/maxItems}}{{#deprecated}}, deprecated="field '{{{name}}}' on {{classname}} is deprecated"{{/deprecated}})
 {{/isEnum}}
 {{/required}}
 {{/vars}}
@@ -489,6 +491,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     via ConfigDict(extra='forbid') on the model_config below; no
     hand-rolled model_validator is required because pydantic 2 raises
     a ValidationError on extra keys when extra='forbid'. }}
+{{! The pattern is enforced here with Python re only, never as a Field
+    pattern: pydantic-core's regex engine has no look-around, so a spec
+    pattern using one would make the model fail at import. }}
 {{#vars}}
     {{#pattern}}
 
@@ -497,8 +502,8 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
         """Validates the regular expression"""
         if value is None:
             return value
-        if not re.match(r"{{{pattern}}}", value):
-            raise ValueError(r"must validate the regular expression {{{pattern}}}")
+        if not re.match({{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}}, value):
+            raise ValueError('must validate the regular expression ' + {{#lambda.quotedLiteral}}{{{pattern}}}{{/lambda.quotedLiteral}})
         return value
     {{/pattern}}
 {{/vars}}

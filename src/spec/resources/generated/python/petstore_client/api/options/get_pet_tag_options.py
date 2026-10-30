@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from petstore_client.models.pet_criteria import PetCriteria
 from pydantic import StrictStr
 from typing import Optional, List
 

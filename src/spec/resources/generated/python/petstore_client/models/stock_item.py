@@ -19,7 +19,7 @@ class StockItem(BaseModel):
 
     priority: Priority = Field(alias="priority")
     availability: Optional[Availability] = Field(
-        default=on - hold, alias="availability"
+        default_factory=lambda: Availability("on-hold"), alias="availability"
     )
     matrix: Optional[List[List[StrictInt]]] = Field(
         default=None,

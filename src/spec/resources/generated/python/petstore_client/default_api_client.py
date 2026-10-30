@@ -64,6 +64,12 @@ def _network_exception(error: urllib3.exceptions.HTTPError) -> NetworkException:
     return NetworkException(message=str(error))
 
 
+def _has_header(headers: Dict[str, str], name: str) -> bool:
+    """Whether ``headers`` holds ``name`` under ASCII case-folding."""
+    wanted = name.lower()
+    return any(key.lower() == wanted for key in headers)
+
+
 def _supported_encodings() -> str:
     """Return a comma-separated string of supported content encodings.
 
@@ -373,15 +379,16 @@ class DefaultApiClient:
         merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
         merged_headers.update(headers)
 
-        if (
-            self._transport_options.user_agent is not None
-            and "User-Agent" not in merged_headers
+        # Header names are case-insensitive (RFC 9110 section 5.1): any case
+        # variant the caller set, even with an empty value, wins and nothing
+        # is injected next to it.
+        if self._transport_options.user_agent is not None and not _has_header(
+            merged_headers, "User-Agent"
         ):
             merged_headers["User-Agent"] = self._transport_options.user_agent
 
-        if (
-            self._transport_options.inject_request_id
-            and "X-Request-ID" not in merged_headers
+        if self._transport_options.inject_request_id and not _has_header(
+            merged_headers, "X-Request-ID"
         ):
             merged_headers["X-Request-ID"] = str(uuid.uuid4())
 

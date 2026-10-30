@@ -95,7 +95,7 @@ class TransportOptions:
     uses the HTTP client's built-in default.
     """
 
-    user_agent: Optional[str] = "petstore_client/1.0.0 (python)"
+    user_agent: Optional[str] = "petstore-client/1.0.0 (python)"
     """Custom ``User-Agent`` header value.
 
     When set, this value is sent as the ``User-Agent`` header on every
@@ -167,7 +167,7 @@ class TransportOptionsBuilder:
         self._timeout: Optional[int] = 10000
         self._follow_redirects: bool = True
         self._max_redirects: Optional[int] = None
-        self._user_agent: Optional[str] = "petstore_client/1.0.0 (python)"
+        self._user_agent: Optional[str] = "petstore-client/1.0.0 (python)"
         self._default_headers: Dict[str, str] = {}
         self._inject_request_id: bool = False
 

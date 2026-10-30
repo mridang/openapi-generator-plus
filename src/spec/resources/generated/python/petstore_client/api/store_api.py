@@ -18,6 +18,7 @@ from petstore_client.models.order import Order
 from petstore_client.models.stock_item import StockItem
 from petstore_client.models.swatch import Swatch
 from petstore_client.models.tree_node import TreeNode
+import uuid
 
 from ..api_client import ApiClient
 from ..api_result import ApiResult

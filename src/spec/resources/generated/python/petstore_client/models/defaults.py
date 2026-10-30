@@ -10,6 +10,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic import StrictInt, StrictStr
 from typing import Optional
+from decimal import Decimal
 from enum import Enum
 
 
@@ -35,7 +36,7 @@ class Defaults(BaseModel):
         default='it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b', alias="greeting"
     )
     swatch: Optional[Swatch] = Field(default=None, alias="swatch")
-    ratio: Optional[JsonNumber] = Field(default=1.5, alias="ratio")
+    ratio: Optional[JsonNumber] = Field(default=Decimal("1.5"), alias="ratio")
     scale: Optional[LaxFloat] = Field(default=0.25, alias="scale")
     weight: Optional[LaxFloat] = Field(default=2, alias="weight")
     ceiling: Optional[StrictInt] = Field(default=9000000000, alias="ceiling")

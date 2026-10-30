@@ -1,4 +1,6 @@
 import dataclasses
+import os
+import tomllib
 
 import pytest
 from types import MappingProxyType
@@ -36,6 +38,12 @@ class TestTransportOptions:
         opts = TransportOptions.builder().build()
         assert opts.user_agent is not None
         assert len(opts.user_agent) > 0
+
+    def test_user_agent_default_names_the_published_distribution(self) -> None:
+        with open(os.path.join(os.getcwd(), "pyproject.toml"), "rb") as handle:
+            project = tomllib.load(handle)["project"]
+        opts = TransportOptions.builder().build()
+        assert opts.user_agent == f"{project['name']}/{project['version']} (python)"
 
     def test_default_headers_defaults_to_empty(self) -> None:
         opts = TransportOptions.builder().build()

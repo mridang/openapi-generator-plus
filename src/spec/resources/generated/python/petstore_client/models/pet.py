@@ -77,11 +77,7 @@ class Pet(BaseModel):
     )
     # Example: 'rex'
     nickname: Optional[StrictStr] = Field(
-        default=None,
-        alias="nickname",
-        min_length=2,
-        max_length=8,
-        pattern="/^(?!admin)[a-z']+$/",
+        default=None, alias="nickname", min_length=2, max_length=8
     )
 
     @field_validator("nickname")
@@ -89,9 +85,9 @@ class Pet(BaseModel):
         """Validates the regular expression"""
         if value is None:
             return value
-        if not re.match(r"/^(?!admin)[a-z']+$/", value):
+        if not re.match("^(?!admin)[a-z']+$", value):
             raise ValueError(
-                r"must validate the regular expression /^(?!admin)[a-z']+$/"
+                "must validate the regular expression " + "^(?!admin)[a-z']+$"
             )
         return value
 
