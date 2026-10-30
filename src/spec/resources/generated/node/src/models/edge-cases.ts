@@ -14,6 +14,7 @@ import { Temporal } from "temporal-polyfill";
 import {
   durationFromProtoJson,
   durationToProtoJson,
+  reattachAdditionalProperties,
 } from "../object-serializer.js";
 
 /**
@@ -120,9 +121,29 @@ export class EdgeCases {
   false?: boolean;
   @Expose({ name: "lastError" })
   @Type(() => Error)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["lastError"],
+      ),
+    { toClassOnly: true },
+  )
   lastError?: Error;
   @Expose({ name: "outcome" })
   @Type(() => Result)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["outcome"],
+      ),
+    { toClassOnly: true },
+  )
   outcome?: Result;
   @Expose({ name: "cutoff" })
   /* 4.8 — `format: time` round-trips via Temporal.PlainTime. */

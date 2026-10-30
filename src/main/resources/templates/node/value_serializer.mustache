@@ -229,6 +229,15 @@ export class ValueSerializer {
   }
 
   /**
+   * Formats every element of an array (or Set) of `format: date` values as
+   * YYYY-MM-DD, in iteration order, so a date array is styled and joined
+   * like any other array instead of sending each item as a date-time.
+   */
+  static stringifyDates(values: Iterable<Date | string>): string[] {
+    return Array.from(values, (value) => ValueSerializer.stringifyDate(value));
+  }
+
+  /**
    * Percent-encodes a value for use as a URL path segment.
    *
    * Mirrors Swift's `.urlPathAllowed` character set: encodes characters that

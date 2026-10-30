@@ -7,7 +7,8 @@
 
 import { Category } from "./category.js";
 import { Tag } from "./tag.js";
-import { Expose, Type } from "class-transformer";
+import { Expose, Type, Transform } from "class-transformer";
+import { reattachAdditionalProperties } from "../object-serializer.js";
 import { URI } from "../brand.js";
 import { Email } from "../brand.js";
 import { Decimal } from "../brand.js";
@@ -45,11 +46,31 @@ export class PetWithOwner {
   name!: string;
   @Expose({ name: "category" })
   @Type(() => Category)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["category"],
+      ),
+    { toClassOnly: true },
+  )
   category?: Category;
   @Expose({ name: "photoUrls" })
   photoUrls!: Set<string>;
   @Expose({ name: "tags" })
   @Type(() => Tag)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["tags"],
+      ),
+    { toClassOnly: true },
+  )
   tags?: Array<Tag>;
   /**
    * pet status in the store

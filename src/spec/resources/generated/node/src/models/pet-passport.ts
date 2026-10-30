@@ -7,7 +7,10 @@
 
 import { Pet } from "./pet.js";
 import { Expose, Type, Transform } from "class-transformer";
-import { decodeBase64 } from "../object-serializer.js";
+import {
+  decodeBase64,
+  reattachAdditionalProperties,
+} from "../object-serializer.js";
 
 export class PetPassport {
   /**
@@ -33,6 +36,16 @@ export class PetPassport {
 
   @Expose({ name: "pet" })
   @Type(() => Pet)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["pet"],
+      ),
+    { toClassOnly: true },
+  )
   pet?: Pet;
   /**
    * Base64-encoded primary thumbnail

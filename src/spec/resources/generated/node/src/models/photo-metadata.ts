@@ -7,6 +7,7 @@
 
 import { PhotoMetadataLocation } from "./photo-metadata-location.js";
 import { Expose, Type, Transform } from "class-transformer";
+import { reattachAdditionalProperties } from "../object-serializer.js";
 
 export class PhotoMetadata {
   /**
@@ -61,6 +62,16 @@ export class PhotoMetadata {
   takenAt?: Date;
   @Expose({ name: "location" })
   @Type(() => PhotoMetadataLocation)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["location"],
+      ),
+    { toClassOnly: true },
+  )
   location?: PhotoMetadataLocation;
 
   constructor(data?: Partial<PhotoMetadata>) {

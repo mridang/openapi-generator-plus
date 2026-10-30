@@ -1275,9 +1275,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     && p.dataType.matches("^[A-Z]\\w*$")) {
                 modelTypes.add(p.dataType);
             }
+            // An array of `format: date` items has the global `Date` as its
+            // item type, which is not a generated model and must not be imported.
             if ((p.isArray || p.isMap)
                     && p.items != null
                     && p.items.baseType != null
+                    && !"Date".equals(p.items.baseType)
                     && !languageSpecificPrimitives.contains(p.items.baseType)
                     && p.items.baseType.matches("^[A-Z]\\w*$")) {
                 modelTypes.add(p.items.baseType);
@@ -1362,8 +1365,24 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model == null || model.vars == null) {
                     continue;
                 }
+                final boolean nestsModel = model.vars.stream().anyMatch(BetterNodeCodegen::nestsModel);
                 modelMap.put("hasTypeDecorator", model.vars.stream().anyMatch(this::needsTypeDecorator));
-                modelMap.put("hasTransformDecorator", model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
+                modelMap.put(
+                        "hasTransformDecorator",
+                        nestsModel || model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
+                final List<String> serializerImports = new ArrayList<>();
+                if (Boolean.TRUE.equals(modelMap.get("hasDurationImport"))) {
+                    serializerImports.add("durationFromProtoJson");
+                    serializerImports.add("durationToProtoJson");
+                }
+                if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))) {
+                    serializerImports.add("decodeBase64");
+                }
+                if (nestsModel) {
+                    serializerImports.add("reattachAdditionalProperties");
+                }
+                modelMap.put("serializerImports", String.join(", ", serializerImports));
+                modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
                 modelMap.put("hasUriImport", namesType(model, "URI"));
                 modelMap.put("hasEmailImport", namesType(model, "Email"));
@@ -1382,6 +1401,19 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 || prop.isDateTime
                 || prop.isDate
                 || (prop.isArray && prop.items != null && prop.items.isByteArray);
+    }
+
+    /**
+     * Whether the property holds a generated model, directly or as array
+     * items. The model template gives such a property a {@code @Transform}
+     * that re-attaches the free-form keys of a nested model declaring
+     * {@code additionalProperties}, which class-transformer would drop.
+     */
+    private static boolean nestsModel(CodegenProperty prop) {
+        if (prop.isArray) {
+            return prop.items != null && prop.items.isModel;
+        }
+        return prop.isModel && !prop.isMap;
     }
 
     /** Whether any property's type names {@code type} as a whole word. */

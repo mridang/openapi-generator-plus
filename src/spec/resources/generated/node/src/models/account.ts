@@ -8,7 +8,7 @@
 import { Expose } from "class-transformer";
 
 /**
- * @see {@link https://example.com/docs/account} Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
+ * @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here
  */
 export class Account {
   /**

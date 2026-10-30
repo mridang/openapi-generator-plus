@@ -42,6 +42,17 @@ describe("generated model docblocks (L1 parity)", () => {
       expect(source).not.toMatch(/Example:\s+null\b/);
     }
   });
+
+  test("a model externalDocs description is rendered raw, without HTML entities", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "..", "src", "models", "account.ts"),
+      "utf-8",
+    );
+
+    expect(source).toContain(
+      `* @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here\n`,
+    );
+  });
 });
 
 describe("FindPetsByStatusOptions deprecated parameter (L3)", () => {

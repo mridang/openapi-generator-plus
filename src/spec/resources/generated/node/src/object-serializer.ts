@@ -336,6 +336,54 @@ function revalidateNestedValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Copies the free-form wire keys of `raw` onto `value` when `value` is a
+ * generated model that declares `additionalProperties` (its class carries
+ * `__additionalPropertiesDeclaredKeys`). plainToInstance with
+ * excludeExtraneousValues keeps only @Expose keys, so without this the extras
+ * of the root model, of a nested model field and of every array element would
+ * be lost. An array is matched element by element; any other value, or a model
+ * without the marker, is returned untouched.
+ *
+ * @param value the model instance (or array of them) built from `raw`
+ * @param raw the wire JSON the value was built from
+ * @returns `value`, with the undeclared keys of `raw` attached
+ */
+export function reattachAdditionalProperties(
+  value: unknown,
+  raw: unknown,
+): unknown {
+  if (Array.isArray(value)) {
+    if (Array.isArray(raw)) {
+      value.forEach((element, i) =>
+        reattachAdditionalProperties(element, raw[i]),
+      );
+    }
+    return value;
+  }
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    raw === null ||
+    typeof raw !== "object" ||
+    Array.isArray(raw)
+  ) {
+    return value;
+  }
+  const declaredKeys = (
+    value.constructor as
+      { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> } | undefined
+  )?.__additionalPropertiesDeclaredKeys;
+  if (declaredKeys) {
+    for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
+      if (!declaredKeys.has(key)) {
+        (value as Record<string, unknown>)[key] = extra;
+      }
+    }
+  }
+  return value;
+}
+
 function revalidateNestedFields(holder: Record<string, unknown>): void {
   for (const key of Object.keys(holder)) {
     holder[key] = revalidateNestedValue(holder[key]);
@@ -786,18 +834,7 @@ export class ObjectSerializer {
          * Re-attach any json key NOT in the model's declared-key set so free-form
          * data survives. Models without the marker intentionally discard extras.
          */
-        const declaredKeys = (
-          cls as { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> }
-        ).__additionalPropertiesDeclaredKeys;
-        if (declaredKeys && json && typeof json === "object") {
-          for (const [key, value] of Object.entries(
-            json as Record<string, unknown>,
-          )) {
-            if (!declaredKeys.has(key)) {
-              (built as Record<string, unknown>)[key] = value;
-            }
-          }
-        }
+        reattachAdditionalProperties(built, json);
         return built;
       }
       return instance;

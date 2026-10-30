@@ -1,5 +1,3 @@
-import type { Date } from "../../models/index.js";
-
 /**
  * Options for the getPetSummary operation.
  */

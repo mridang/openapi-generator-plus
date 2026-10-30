@@ -144,6 +144,7 @@ export class StoreApi extends BaseApi {
   /**
    * Echoes a swatch supplied via path, query and header parameters.
    * @param pathSwatch  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.querySwatch  (optional)
    * @param options.preferredSwatch  (optional)
    * @return Category
@@ -598,6 +599,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
+   * @param options options for query, header, form, and cookie parameters
    * @param options.asOf Only consider stock as of this instant (optional)
    * @return StockItem
    * @throws {ApiError} if fails to make API call
@@ -898,7 +900,8 @@ export class StoreApi extends BaseApi {
 
   /**
    * Searches the store; exercises content-encoded, Set and time-of-day parameters.
-   * @param options.q JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;) (optional)
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.q JSON-encoded query parameter (OAS `content`, not `schema`) (optional)
    * @param options.labels  (optional)
    * @param options.at  (optional)
    * @param options.xFilter  (optional)

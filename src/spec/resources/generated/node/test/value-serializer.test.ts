@@ -991,6 +991,37 @@ describe("ValueSerializer", () => {
         "2024-01-15",
       );
     });
+
+    test("stringifyDates formats each array element as YYYY-MM-DD in order", () => {
+      expect(
+        ValueSerializer.stringifyDates([
+          new Date(Date.UTC(2024, 1, 1, 23, 59)),
+          new Date(Date.UTC(2024, 0, 15, 10)),
+        ]),
+      ).toEqual(["2024-02-01", "2024-01-15"]);
+    });
+
+    test("stringifyDates expands a Set in iteration order", () => {
+      expect(
+        ValueSerializer.stringifyDates(
+          new Set(["2024-01-15T00:00:00Z", "2024-02-01"]),
+        ),
+      ).toEqual(["2024-01-15", "2024-02-01"]);
+    });
+
+    test("a styled matrix path value keeps the date part only", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "day",
+          ValueSerializer.stringifyDate(new Date(Date.UTC(2024, 0, 15, 13))),
+          "path",
+          "Date",
+          null,
+          "matrix",
+          false,
+        ),
+      ).toBe(";day=2024-01-15");
+    });
   });
 
   describe("encodeQueryComponent", () => {

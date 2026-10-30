@@ -1156,6 +1156,46 @@ describe("PetApi operation servers", () => {
   });
 });
 
+describe("PetApi doc comments", () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), "src/api/pet-api.ts"),
+    "utf8",
+  );
+
+  test("a parameter description keeps its quotes, angle brackets and ampersand raw", () => {
+    expect(source).toContain(
+      String.raw`* @param options.session Session token: \"a<b>\" & it's required (required)`,
+    );
+  });
+
+  test("no doc comment carries an HTML entity", () => {
+    expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
+  });
+
+  test.each([
+    [
+      "deletePet",
+      "* @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator\n",
+    ],
+    [
+      "addPet",
+      "* @param options options carrying an optional per-call authenticator\n",
+    ],
+    [
+      "getPetSummary",
+      "* @param options options for query, header, form, and cookie parameters\n",
+    ],
+  ])("%s documents its options argument", (operation, line) => {
+    const start = source.lastIndexOf(
+      "/**",
+      source.indexOf(`  async ${operation}(`),
+    );
+    const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
+
+    expect(doc).toContain(line);
+  });
+});
+
 describe("PetApi against a recording client", () => {
   const recorded: Array<{
     method: string;
@@ -1321,6 +1361,40 @@ describe("PetApi against a recording client", () => {
     );
 
     expect(new URL(recorded[0]!.url).pathname).toBe("/pet/born-on/2024-01-01");
+  });
+
+  test("getPetSummary applies the matrix style to the format:date path parameter", async () => {
+    await recordingApi.getPetSummary(
+      1,
+      new Date(Date.UTC(2024, 0, 15, 13, 45, 30)),
+      { session: "abc" },
+    );
+
+    expect(new URL(recorded[0]!.url).pathname).toBe(
+      "/pet/1/summary/;asOf=2024-01-15",
+    );
+  });
+
+  test("getPetSummary sends each format:date array item as YYYY-MM-DD", async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
+      session: "abc",
+      days: [
+        new Date(Date.UTC(2024, 0, 15, 10, 30)),
+        new Date(Date.UTC(2024, 1, 1, 23, 59)),
+      ],
+    });
+
+    expect(new URL(recorded[0]!.url).search).toBe(
+      "?days=2024-01-15&days=2024-02-01",
+    );
+  });
+
+  test("getPetSummary sends the required cookie parameter", async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
+      session: "abc",
+    });
+
+    expect(recorded[0]!.headers["Cookie"]).toBe("session=abc");
   });
 
   test.each([

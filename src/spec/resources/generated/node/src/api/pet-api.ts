@@ -191,8 +191,9 @@ export class PetApi extends BaseApi {
 
   /**
    * Add a new pet to the store
-   * @param options.auth optional authenticator for this operation
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -246,6 +247,7 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery
    * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.files  (required)
    * @param options.metadata  (required)
    * @return Array<Photo>
@@ -335,9 +337,10 @@ export class PetApi extends BaseApi {
 
   /**
    * Record a treatment for a pet
-   * @param options.auth optional authenticator for this operation
    * @param petId  (required)
    * @param petTreatment  (required)
+   * @param options options carrying an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @return PetTreatment
    * @throws {ApiError} if fails to make API call
    */
@@ -415,8 +418,9 @@ export class PetApi extends BaseApi {
 
   /**
    * Deletes a pet
-   * @param options.auth optional authenticator for this operation
    * @param petId Pet id to delete (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @param options.apiKey Session cookie used for authentication (optional)
    * @throws {ApiError} if fails to make API call
    */
@@ -610,7 +614,15 @@ export class PetApi extends BaseApi {
     let path = `/pet/born-on/{bornOn}`;
     path = path.replace(
       `{${"bornOn"}}`,
-      ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate(bornOn)),
+      ValueSerializer.serializeStyled(
+        "bornOn",
+        ValueSerializer.stringifyDate(bornOn),
+        "path",
+        "Date",
+        null,
+        "simple",
+        false,
+      ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -629,6 +641,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Finds Pets by status
+   * @param options options for query, header, form, and cookie parameters
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
    * @example Available only - available
    * @example Sold pets - sold
@@ -694,7 +707,15 @@ export class PetApi extends BaseApi {
     }
     if (options?.bornAfter != null) {
       queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
-        ValueSerializer.stringifyDate(options.bornAfter),
+        ValueSerializer.serializeStyled(
+          "bornAfter",
+          ValueSerializer.stringifyDate(options.bornAfter),
+          "query",
+          "Date",
+          null,
+          "form",
+          true,
+        ),
         false,
       );
     }
@@ -714,9 +735,15 @@ export class PetApi extends BaseApi {
     }
     const headerParams: Record<string, string> = {};
     if (options?.reportDate != null) {
-      headerParams["Report-Date"] = ValueSerializer.stringifyDate(
-        options.reportDate,
-      );
+      headerParams["Report-Date"] = ValueSerializer.serializeStyled(
+        "Report-Date",
+        ValueSerializer.stringifyDate(options.reportDate),
+        "header",
+        "Date",
+        null,
+        "simple",
+        false,
+      ) as string;
     }
     return await this.invokeApiForResult(
       "GET",
@@ -1080,6 +1107,7 @@ export class PetApi extends BaseApi {
   /**
    * Look up a pet by name (simple string path param + required query)
    * @param name  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.category  (required)
    * @param options.xCorrelationId  (required)
    * @return Pet
@@ -1336,8 +1364,9 @@ export class PetApi extends BaseApi {
    * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
    * @param petId  (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.days Extra dates to summarise (optional)
-   * @param options.session Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required (required)
+   * @param options.session Session token: \"a<b>\" & it's required (required)
    * @return string
    * @throws {ApiError} if fails to make API call
    */
@@ -1405,14 +1434,22 @@ export class PetApi extends BaseApi {
     );
     path = path.replace(
       `{${"asOf"}}`,
-      ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate(asOf)),
+      ValueSerializer.serializeStyled(
+        "asOf",
+        ValueSerializer.stringifyDate(asOf),
+        "path",
+        "Date",
+        null,
+        "matrix",
+        false,
+      ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     if (options?.days != null) {
       queryParams["days"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
           "days",
-          options.days,
+          ValueSerializer.stringifyDates(options.days),
           "query",
           "Array<Date>",
           "multi",
@@ -1460,6 +1497,7 @@ export class PetApi extends BaseApi {
    * Get a tag for a pet
    * @param petId  (required)
    * @param tagName  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.colors  (optional)
    * @param options.sizes  (optional)
    * @param options.filter  (optional)
@@ -1906,6 +1944,7 @@ export class PetApi extends BaseApi {
    * Update a pet's notification preferences
    * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.nickname  (required)
    * @param options.tags  (optional)
    * @param options.note  (optional)
@@ -2076,6 +2115,7 @@ export class PetApi extends BaseApi {
    * Upload the pet's adoption certificate
    * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.file  (required)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
@@ -2156,7 +2196,7 @@ export class PetApi extends BaseApi {
    * Attach a vet document or health record
    * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
    * @param petId  (required)
-   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
+   * @param options options for query, header, form, and cookie parameters
    * @param options.file  (required)
    * @param options.documentType  (optional)
    * @param options.notes  (optional)
@@ -2164,6 +2204,7 @@ export class PetApi extends BaseApi {
    * @param options.pageCount  (optional)
    * @param options.takenAt  (optional)
    * @param options.swatch  (optional)
+   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
