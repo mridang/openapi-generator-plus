@@ -664,6 +664,20 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
     expect(header).not.toContain("filename*=");
     expect(header).toContain('filename="hello.txt"');
   });
+
+  it.each([
+    [
+      "résumé*(1).pdf",
+      `filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf`,
+    ],
+    ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
+    ["\u{1F600}.png", `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
+    ["plain.txt", 'filename="plain.txt"'],
+  ])("builds the filename directive for %p", (filename, expected) => {
+    expect(DefaultApiClient.buildContentDisposition("file", filename)).toBe(
+      `form-data; name="file"; ${expected}`,
+    );
+  });
 });
 
 // Canonical behavior #4 — a multipart file part advertises a Content-Type

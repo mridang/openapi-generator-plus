@@ -32,7 +32,6 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private readonly redirectUri: string;
   private readonly scopes: readonly string[];
   private readonly tokenManager: OAuth2TokenManager;
-  private tokenExchanged = false;
 
   /**
    * Create a new authorization code authenticator.
@@ -45,6 +44,9 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param redirectUri redirect URI registered with the OAuth2 provider
    * @param scopes requested scopes
    * @param refreshUrl refresh token endpoint URL (defaults to tokenUrl if null)
+   * @param tokenManager the session to use; an OpenID Connect authenticator
+   *   passes the same manager to every delegate it builds so the session
+   *   survives rediscovery (a new manager by default)
    */
   constructor(
     host: string,
@@ -55,6 +57,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     redirectUri: string,
     scopes: string[],
     refreshUrl?: string | null,
+    tokenManager?: OAuth2TokenManager,
   ) {
     this.host = host;
     this.clientId = clientId;
@@ -64,7 +67,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     this.refreshUrl = refreshUrl ?? tokenUrl;
     this.redirectUri = redirectUri;
     this.scopes = Object.freeze([...scopes]);
-    this.tokenManager = new OAuth2TokenManager();
+    this.tokenManager = tokenManager ?? new OAuth2TokenManager();
   }
 
   /**
@@ -113,6 +116,10 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   /**
    * Exchange an authorization code for an access token.
    *
+   * Always POSTs the authorization_code grant (never answered from the
+   * cached token) and replaces the session with the response. A failed
+   * exchange leaves the previous session in place.
+   *
    * @param code the authorization code from the callback
    */
   async exchangeCode(code: string): Promise<void> {
@@ -129,8 +136,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       client_secret: this.clientSecret,
       redirect_uri: this.redirectUri,
     };
-    await this.tokenManager.getAccessToken(this.tokenUrl, params);
-    this.tokenExchanged = true;
+    await this.tokenManager.exchange(this.tokenUrl, params);
   }
 
   /**
@@ -164,12 +170,14 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @throws Error if exchangeCode() has not been called
    */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
-    if (!this.tokenExchanged) {
+    if (!this.tokenManager.isExchanged()) {
       throw new Error("Must call exchangeCode() before making API requests");
     }
     const params: Record<string, string> = {
       grant_type: "refresh_token",
       refresh_token: this.tokenManager.getRefreshToken() ?? "",
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
     };
     const token = await this.tokenManager.getAccessToken(
       this.refreshUrl,

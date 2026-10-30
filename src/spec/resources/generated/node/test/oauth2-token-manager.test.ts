@@ -556,6 +556,127 @@ describe("OAuth2TokenManager", () => {
     expect(Object.fromEntries(bodies[2]!)).toEqual(originalParams);
   });
 
+  test("the refresh grant goes to the refresh URL and the fallback to the token URL", async () => {
+    const { client, urls } = scripted([
+      {
+        status: 200,
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+      { status: 200, body: { access_token: "fresh", expires_in: 3600 } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+      {},
+      "https://auth.example.com/refresh",
+    );
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+      {},
+      "https://auth.example.com/refresh",
+    );
+
+    expect(urls).toEqual([
+      "https://auth.example.com/token",
+      "https://auth.example.com/refresh",
+      "https://auth.example.com/token",
+    ]);
+  });
+
+  test("a grant that already is a refresh grant is sent exactly once", async () => {
+    const { client, bodies } = scripted([
+      {
+        status: 200,
+        body: { access_token: "old", refresh_token: "ref-1", expires_in: 1 },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+      { status: 200, body: { access_token: "unexpected", expires_in: 3600 } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    const refreshParams = {
+      grant_type: "refresh_token",
+      refresh_token: "ref-1",
+    };
+
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+    const error = await manager
+      .getAccessToken("https://auth.example.com/refresh", refreshParams)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(OAuth2ServerError);
+    expect(bodies).toHaveLength(2);
+  });
+
+  test("exchange bypasses the cached token and the refresh grant", async () => {
+    const { client, bodies } = scripted([
+      {
+        status: 200,
+        body: {
+          access_token: "first",
+          refresh_token: "ref-1",
+          expires_in: 3600,
+        },
+      },
+      { status: 200, body: { access_token: "second" } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.getAccessToken(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+    const token = await manager.exchange(
+      "https://auth.example.com/token",
+      originalParams,
+    );
+
+    expect(token).toBe("second");
+    expect(Object.fromEntries(bodies[1]!)).toEqual(originalParams);
+    expect(manager.getRefreshToken()).toBeNull();
+    expect(manager.isExchanged()).toBe(true);
+  });
+
+  test("a failed exchange restores the previous session", async () => {
+    const { client } = scripted([
+      {
+        status: 200,
+        body: {
+          access_token: "first",
+          refresh_token: "ref-1",
+          expires_in: 3600,
+        },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+    ]);
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.exchange("https://auth.example.com/token", originalParams);
+    const error = await manager
+      .exchange("https://auth.example.com/token", originalParams)
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(OAuth2ServerError);
+    expect(
+      await manager.getAccessToken(
+        "https://auth.example.com/token",
+        originalParams,
+      ),
+    ).toBe("first");
+    expect(manager.getRefreshToken()).toBe("ref-1");
+    expect(manager.isExchanged()).toBe(true);
+  });
+
   test("a token response without expires_in is cached indefinitely", async () => {
     mockClient.responseBody = JSON.stringify({ access_token: "forever" });
     const originalNow = Date.now;

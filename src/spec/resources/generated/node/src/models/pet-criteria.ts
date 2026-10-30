@@ -22,6 +22,13 @@ export class PetCriteria {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "breed" })
   breed?: string;
   @Expose({ name: "min_age" })
@@ -43,6 +50,15 @@ export class PetCriteria {
       !Number.isInteger(this.min_age)
     ) {
       throw new TypeError(`min_age must be an integer, got ${this.min_age}`);
+    }
+    if (
+      this.min_age != null &&
+      ((this.min_age as number) < -2147483648 ||
+        (this.min_age as number) > 2147483647)
+    ) {
+      throw new TypeError(
+        `min_age is outside the 32-bit integer range, got ${this.min_age}`,
+      );
     }
   }
 

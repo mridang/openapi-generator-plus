@@ -30,6 +30,13 @@ export class PetWithOwner {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set(["weightKg"]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   /** @example 10 */
   @Expose({ name: "id" })
   id?: number;

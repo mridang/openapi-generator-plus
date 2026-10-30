@@ -752,6 +752,22 @@ describe('ObjectSerializer', () => {
       expect(pet.tags).toEqual([]);
     });
 
+    test('serializes a uniqueItems array of strings in code point order', () => {
+      const first = ObjectSerializer.serialize(new Pet({ name: 'x', photoUrls: new Set(['c', 'a', 'b']) }));
+      const second = ObjectSerializer.serialize(new Pet({ name: 'x', photoUrls: new Set(['b', 'c', 'a']) }));
+      expect(first).toContain('"photoUrls":["a","b","c"]');
+      expect(second).toBe(first);
+    });
+
+    test('orders astral characters after the rest of the BMP', () => {
+      const json = ObjectSerializer.serialize({ values: new Set(['\u{1F600}', '\uFFFD', 'z']) });
+      expect(JSON.parse(json)).toEqual({ values: ['z', '\uFFFD', '\u{1F600}'] });
+    });
+
+    test('serializes a Set of numbers in numeric order', () => {
+      expect(ObjectSerializer.serialize({ values: new Set([10, 2, 1]) })).toBe('{"values":[1,2,10]}');
+    });
+
     test('collapses a nested uniqueItems array into a Set and keeps Decimal as a string', () => {
       const json = { pet: { name: 'x', photoUrls: ['a', 'a', 'b'], weightKg: 12.5 } };
       const passport = ObjectSerializer.deserialize(json, PetPassport)!;
@@ -783,6 +799,47 @@ describe('ObjectSerializer', () => {
     });
 
     test.each([
+      ['an int32 above the range', { quantity: 3000000000 }],
+      ['an int32 below the range', { quantity: -2147483649 }],
+      ['a fractional int32', { quantity: 1.5 }],
+      ['a quoted int32', { quantity: '5' }],
+      ['a boolean int32', { quantity: true }],
+      ['a fractional int64', { id: 1.5 }],
+      ['a quoted int64', { id: '5' }],
+    ])('rejects %s', (_label, json) => {
+      expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(SerializationError);
+    });
+
+    test('decodes the int32 and int64 limits', () => {
+      expect(ObjectSerializer.deserialize({ quantity: 2147483647 }, Order)!.quantity).toBe(2147483647);
+      expect(ObjectSerializer.deserialize(JSON.parse('{"id":9223372036854775807}'), Order)!.id).toBe(
+        2 ** 63,
+      );
+    });
+
+    test('rejects an int32 outside the range handed to a model constructor', () => {
+      expect(() => new Order({ quantity: 3000000000 })).toThrow(
+        'quantity is outside the 32-bit integer range, got 3000000000',
+      );
+    });
+
+    const int32Leaf = (x: unknown) => ObjectSerializer.deserializeLeaf<number>(x, 'int32');
+
+    test.each([
+      ['a quoted element', { a: '5' }],
+      ['an out-of-range element', { a: 3000000000 }],
+      ['a fractional element', { a: 1.5 }],
+    ])('rejects %s of a map of int32', (_label, json) => {
+      expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(SerializationError);
+    });
+
+    test('rejects a fractional element of a nested array of int32', () => {
+      expect(() =>
+        ObjectSerializer.deserializeArray([[1.5]], (x: unknown) => ObjectSerializer.deserializeArray(x, int32Leaf)),
+      ).toThrow(SerializationError);
+    });
+
+    test.each([
       ['a number', 1700000000],
       ['a boolean', true],
       ['an array', [2024]],
@@ -807,16 +864,23 @@ describe('ObjectSerializer', () => {
 
   describe('deserializeLeaf', () => {
     test.each([
-      ['integer', 5],
+      ['int32', 5],
+      ['int32', 2147483647],
+      ['int32', -2147483648],
+      ['int64', 3000000000],
       ['boolean', false],
     ] as const)('passes a valid %s through', (kind, value) => {
       expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
     });
 
     test.each([
-      ['integer', '5', 'string'],
-      ['integer', 7.5, 'number'],
-      ['integer', true, 'boolean'],
+      ['int32', '5', 'string'],
+      ['int32', 7.5, 'number'],
+      ['int32', true, 'boolean'],
+      ['int32', 3000000000, 'number'],
+      ['int32', -2147483649, 'number'],
+      ['int64', '5', 'string'],
+      ['int64', 1.5, 'number'],
       ['boolean', 1, 'number'],
       ['date', 1700000000, 'number'],
       ['date', 'garbage', 'string'],
@@ -827,7 +891,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('maps a null leaf to null and parses a date string', () => {
-      expect(ObjectSerializer.deserializeLeaf(null, 'integer')).toBeNull();
+      expect(ObjectSerializer.deserializeLeaf(null, 'int32')).toBeNull();
       expect(ObjectSerializer.deserializeLeaf<Date>('2024-01-02T03:04:05.000Z', 'date').getTime()).toBe(
         new Date('2024-01-02T03:04:05.000Z').getTime(),
       );
@@ -912,6 +976,26 @@ describe('ObjectSerializer', () => {
 
     test('uuid(): rejects a string with the wrong segment lengths', () => {
       expect(() => uuid('550e8400-e29b-41d4-a716-44665544000')).toThrow(TypeError);
+    });
+
+    const upperUuid = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F';
+    const lowerUuid = 'e621e1f8-c36c-495a-93fc-0c247a3e6e5f';
+
+    test('serialize writes a uuid field in lowercase', () => {
+      const order = new Order({ trackingId: uuid(upperUuid) });
+      expect(JSON.parse(ObjectSerializer.serialize(order)).trackingId).toBe(lowerUuid);
+    });
+
+    test('serialize writes a uuid field of a plain request body in lowercase', () => {
+      expect(JSON.parse(ObjectSerializer.serialize({ trackingId: upperUuid }))).toEqual({ trackingId: lowerUuid });
+    });
+
+    test('decode accepts an uppercase uuid and returns it lowercase', () => {
+      expect(ObjectSerializer.deserialize({ trackingId: upperUuid }, Order)!.trackingId).toBe(lowerUuid);
+    });
+
+    test('decode rejects a malformed uuid', () => {
+      expect(() => ObjectSerializer.deserialize({ trackingId: 'not-a-uuid' }, Order)).toThrow(SerializationError);
     });
 
     test('isUuid(): narrows a valid string to UUID', () => {
@@ -1188,9 +1272,27 @@ describe('ObjectSerializer', () => {
         expect(ObjectSerializer.stringify(t)).toBe('14:30:00');
       });
 
-      test('stringify: PlainTime preserves sub-second precision', () => {
+      test('stringify: PlainTime writes a non-zero millisecond part as three digits', () => {
         const t = Temporal.PlainTime.from('09:15:30.250');
-        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.25');
+        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.250');
+      });
+
+      test.each([
+        ['10:30:00', '10:30:00'],
+        ['10:30:00.123456789', '10:30:00.123'],
+        ['10:30:00.9996', '10:30:00.999'],
+        ['10:30:00.000999', '10:30:00'],
+      ])('stringify: %s is written as %s', (input, expected) => {
+        expect(ObjectSerializer.stringify(Temporal.PlainTime.from(input))).toBe(expected);
+      });
+
+      test('serialize: a time model field is truncated to milliseconds and decodes back', () => {
+        const json = ObjectSerializer.serialize(
+          new EdgeCases({ cutoff: Temporal.PlainTime.from('10:30:00.123456789') }),
+        );
+        expect(JSON.parse(json)).toEqual({ cutoff: '10:30:00.123' });
+        const decoded = ObjectSerializer.deserialize(JSON.parse(json), EdgeCases)!;
+        expect(decoded.cutoff!.equals(Temporal.PlainTime.from('10:30:00.123'))).toBe(true);
       });
 
       test('toQueryValue: PlainTime serialises to its ISO string', () => {

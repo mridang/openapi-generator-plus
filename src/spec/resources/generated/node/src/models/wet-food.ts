@@ -22,6 +22,13 @@ export class WetFood {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "foodType" })
   foodType: string = "wet";
   @Expose({ name: "volumeMl" })
@@ -53,6 +60,15 @@ export class WetFood {
       !Number.isInteger(this.volumeMl)
     ) {
       throw new TypeError(`volumeMl must be an integer, got ${this.volumeMl}`);
+    }
+    if (
+      this.volumeMl != null &&
+      ((this.volumeMl as number) < -2147483648 ||
+        (this.volumeMl as number) > 2147483647)
+    ) {
+      throw new TypeError(
+        `volumeMl is outside the 32-bit integer range, got ${this.volumeMl}`,
+      );
     }
   }
 

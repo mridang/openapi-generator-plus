@@ -9,6 +9,7 @@ import type { ApiClient } from "../../api-client.js";
 import { ApiError, SerializationError } from "../../errors/index.js";
 import type { HttpAwareAuthenticator } from "../http-aware-authenticator.js";
 import { OAuth2AuthorizationCodeAuthenticator } from "./oauth2-authorization-code-authenticator.js";
+import { OAuth2TokenManager } from "./oauth2-token-manager.js";
 
 /**
  * Authenticator for OpenID Connect.
@@ -31,6 +32,11 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private apiClient: ApiClient | null = null;
   private delegate: OAuth2AuthorizationCodeAuthenticator | null = null;
   private discoveryExpiry = 0;
+  private inflightDiscovery: Promise<OAuth2AuthorizationCodeAuthenticator> | null =
+    null;
+  /* The session (tokens and the exchanged flag) outlives discovery: every
+   * delegate built from a (re)fetched document shares this manager. */
+  private readonly tokenManager = new OAuth2TokenManager();
 
   /** RFC 8414 recommended default max-age for OIDC discovery documents. */
   private static readonly DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
@@ -72,10 +78,14 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    */
   setApiClient(apiClient: ApiClient): void {
     this.apiClient = apiClient;
+    this.tokenManager.setApiClient(apiClient);
   }
 
   /**
-   * Fetch the OIDC discovery document and create the delegate authenticator.
+   * Return the delegate, fetching the discovery document when it is missing
+   * or its max-age has passed. Concurrent callers share one fetch. A failed
+   * rediscovery leaves the previous delegate and expiry untouched, so the
+   * next call retries.
    *
    * @returns the delegate authorization code authenticator
    * @throws Error if the API client has not been injected
@@ -87,6 +97,24 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     if (this.delegate && Date.now() < this.discoveryExpiry) {
       return this.delegate;
     }
+    if (this.inflightDiscovery) {
+      return this.inflightDiscovery;
+    }
+    this.inflightDiscovery = (async () => {
+      try {
+        return await this.discover();
+      } finally {
+        this.inflightDiscovery = null;
+      }
+    })();
+    return this.inflightDiscovery;
+  }
+
+  /**
+   * Fetch the OIDC discovery document and build a delegate around the
+   * shared token manager.
+   */
+  private async discover(): Promise<OAuth2AuthorizationCodeAuthenticator> {
     if (this.apiClient == null) {
       throw new Error(
         "ApiClient has not been injected. " +
@@ -147,7 +175,7 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         "OIDC discovery document is missing 'token_endpoint'",
       );
     }
-    this.delegate = new OAuth2AuthorizationCodeAuthenticator(
+    const delegate = new OAuth2AuthorizationCodeAuthenticator(
       this.host,
       this.clientId,
       this.clientSecret,
@@ -155,12 +183,15 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       tokenEndpoint,
       this.redirectUri,
       [...this.scopes],
+      null,
+      this.tokenManager,
     );
-    this.delegate.setApiClient(this.apiClient);
+    delegate.setApiClient(this.apiClient);
+    this.delegate = delegate;
     this.discoveryExpiry =
       Date.now() +
       OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
-    return this.delegate;
+    return delegate;
   }
 
   /**

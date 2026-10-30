@@ -193,6 +193,71 @@ function decimalFieldNames(): ReadonlySet<string> {
 }
 
 /**
+ * Property names of every `format: uuid` field across the generated models,
+ * for plain-object request bodies (see {@link decimalFieldNames}). On such a
+ * body a value is lowercased only when it already has the UUID shape, so a
+ * same-named free-form string elsewhere is never rewritten.
+ */
+let globalUuidFields: ReadonlySet<string> | undefined;
+
+function uuidFieldNames(): ReadonlySet<string> {
+  if (globalUuidFields === undefined) {
+    const names = new Set<string>();
+    for (const exported of Object.values(models as Record<string, unknown>)) {
+      const fields = (exported as { __uuidFields?: unknown } | undefined)?.__uuidFields;
+      if (fields instanceof Set) {
+        for (const name of fields as Set<string>) {
+          names.add(name);
+        }
+      }
+    }
+    globalUuidFields = names;
+  }
+  return globalUuidFields;
+}
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Code-point order for strings. UTF-8 byte order equals Unicode code point
+ * order, which the default UTF-16 comparison breaks for astral characters.
+ */
+function compareCodePoints(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
+/**
+ * The wire order of a `uniqueItems` array. Scalar members (strings, enum
+ * values, numbers, booleans) are written in ascending natural order so the
+ * bytes do not depend on insertion order; any other members keep the Set's
+ * own (unspecified) order.
+ */
+function setElements(value: Set<unknown>): unknown[] {
+  const elements = [...value];
+  if (elements.every((e) => typeof e === 'string')) {
+    return (elements as string[]).sort(compareCodePoints);
+  }
+  if (elements.every((e) => typeof e === 'number')) {
+    return (elements as number[]).sort((a, b) => a - b);
+  }
+  if (elements.every((e) => typeof e === 'boolean')) {
+    return (elements as boolean[]).sort((a, b) => Number(a) - Number(b));
+  }
+  return elements;
+}
+
+/**
+ * The `format: time` wire form: `HH:mm:ss`, plus `.SSS` only when the
+ * millisecond part is non-zero (sub-millisecond digits are truncated).
+ */
+function formatPlainTime(time: Temporal.PlainTime): string {
+  return time.toString({
+    fractionalSecondDigits: time.millisecond === 0 ? 0 : 3,
+    roundingMode: 'trunc',
+  });
+}
+
+/**
  * Nested-model validation. class-transformer builds every nested `@Type`
  * model with a no-argument `new X()`, so the nested model's constructor runs
  * with `data === undefined`: its required-field check is skipped and its
@@ -383,7 +448,7 @@ export class ObjectSerializer {
           }
         }
         if (value instanceof Set) {
-          const elements = [...value];
+          const elements = setElements(value);
           if (underModel.has(value)) underModel.add(elements);
           return elements;
         }
@@ -416,7 +481,7 @@ export class ObjectSerializer {
          * google.protobuf.Duration field rejects the ISO form. Without these
          * branches JSON.stringify would emit the polyfill's internal object.
          */
-        if (this[_key] instanceof Temporal.PlainTime) return (this[_key] as Temporal.PlainTime).toString();
+        if (this[_key] instanceof Temporal.PlainTime) return formatPlainTime(this[_key] as Temporal.PlainTime);
         if (this[_key] instanceof Temporal.Duration) return durationToProtoJson(this[_key] as Temporal.Duration);
         /**
          * 2.5 — `type: number` (no format) Decimal field. The model holds it
@@ -444,6 +509,16 @@ export class ObjectSerializer {
           const plainFallback = !underModel.has(this as unknown as object) && decimalFieldNames().has(_key);
           if (ownDecimals ? ownDecimals.has(_key) : plainFallback) {
             return rawDecimal(value);
+          }
+          const uuidCtor = ctor as { __uuidFields?: ReadonlySet<string> } | undefined;
+          const ownUuids = uuidCtor && uuidCtor.__uuidFields instanceof Set ? uuidCtor.__uuidFields : undefined;
+          if (ownUuids ? ownUuids.has(_key) : !underModel.has(this as unknown as object) && uuidFieldNames().has(_key)) {
+            if (UUID_SHAPE.test(value)) {
+              return value.toLowerCase();
+            }
+            if (ownUuids) {
+              throw new SerializationError(`${_key} is not a canonical UUID: ${JSON.stringify(value)}`);
+            }
           }
         }
         if (value === null && _key !== '') return undefined;
@@ -811,23 +886,29 @@ export class ObjectSerializer {
    * legitimate and a non-nullable one is not distinguished here. The error
    * names the expected and received types only, never the value.
    *
+   * `int32` (also used for a format-less integer) must be an integer inside
+   * [-2^31, 2^31-1]. `int64` must be an integer; values beyond 2^53 cannot be
+   * checked because JSON.parse has already rounded them.
+   *
    * @param value the parsed wire value
    * @param kind the expected leaf type
    * @returns the value, typed as the expected leaf
    */
   static deserializeLeaf<T>(
     value: unknown,
-    kind: 'integer' | 'boolean' | 'date',
+    kind: 'int32' | 'int64' | 'boolean' | 'date',
   ): T {
     if (value === null || value === undefined) {
       return null as T;
     }
     const valid =
-      kind === 'integer'
-        ? Number.isInteger(value)
-        : kind === 'boolean'
-          ? typeof value === 'boolean'
-          : typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
+      kind === 'int32'
+        ? Number.isInteger(value) && (value as number) >= -2147483648 && (value as number) <= 2147483647
+        : kind === 'int64'
+          ? Number.isInteger(value)
+          : kind === 'boolean'
+            ? typeof value === 'boolean'
+            : typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
     if (!valid) {
       throw new SerializationError(`Expected ${kind} but received: ${typeof value}`);
     }
@@ -868,7 +949,7 @@ export class ObjectSerializer {
      * fields accept only the seconds-suffixed form.
      */
     if (value instanceof Temporal.PlainTime) {
-      return value.toString();
+      return formatPlainTime(value);
     }
     if (value instanceof Temporal.Duration) {
       return durationToProtoJson(value);

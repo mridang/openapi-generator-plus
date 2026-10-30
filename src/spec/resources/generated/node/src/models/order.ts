@@ -23,6 +23,13 @@ export class Order {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set(["trackingId"]);
+
   /** @example 10 */
   @Expose({ name: "id" })
   id?: number;
@@ -105,6 +112,15 @@ export class Order {
     ) {
       throw new TypeError(`quantity must be an integer, got ${this.quantity}`);
     }
+    if (
+      this.quantity != null &&
+      ((this.quantity as number) < -2147483648 ||
+        (this.quantity as number) > 2147483647)
+    ) {
+      throw new TypeError(
+        `quantity is outside the 32-bit integer range, got ${this.quantity}`,
+      );
+    }
     /**
      * 2.2 — `format: uuid`. Branded string; validate the canonical
      * 8-4-4-4-12 hex shape at construction. Re-uses the regex bundled with
@@ -125,6 +141,10 @@ export class Order {
           `trackingId is not a canonical UUID: ${JSON.stringify(this.trackingId)}`,
         );
       }
+      /* Input is case-insensitive; the canonical form is lowercase. */
+      this.trackingId = (
+        this.trackingId as unknown as string
+      ).toLowerCase() as unknown as UUID;
     }
     if (this.complete != null && typeof this.complete !== "boolean") {
       throw new TypeError(

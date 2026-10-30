@@ -1512,7 +1512,7 @@ describe("Container response leaves are type-checked", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     await expect(storeApi.getInventory()).rejects.toThrow(
-      "Expected integer but received: string",
+      "Expected int32 but received: string",
     );
   });
 
@@ -1524,8 +1524,18 @@ describe("Container response leaves are type-checked", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     await expect(storeApi.getInventory()).rejects.toThrow(
-      "Expected integer but received: number",
+      "Expected int32 but received: number",
     );
+  });
+
+  test("getInventory rejects an out-of-range number in the integer map", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"available":3000000000}';
+    const storeApi = new StoreApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await expect(storeApi.getInventory()).rejects.toThrow(SerializationError);
   });
 
   test("getInventory still decodes integer values", async () => {

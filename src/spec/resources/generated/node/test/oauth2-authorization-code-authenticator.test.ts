@@ -10,6 +10,7 @@ import { OAuth2AuthorizationCodeAuthenticator } from "../src/auth/oauth/oauth2-a
 import type { ApiClient } from "../src/api-client.js";
 import { OpenAPIError } from "../src/errors/index.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
+import { OAuth2ServerError } from "../src/errors/oauth2-server-error.js";
 
 class MockApiClient implements ApiClient {
   lastMethod = "";
@@ -18,6 +19,12 @@ class MockApiClient implements ApiClient {
   lastBody: string | Buffer | null = null;
   responseBody = "";
   responseStatus = 200;
+  queued: Array<{ status: number; body: unknown }> = [];
+  calls: Array<{
+    url: string;
+    headers: Record<string, string>;
+    params: URLSearchParams;
+  }> = [];
 
   async sendRequest(
     method: string,
@@ -29,9 +36,15 @@ class MockApiClient implements ApiClient {
     this.lastUrl = url;
     this.lastHeaders = headers;
     this.lastBody = body;
+    this.calls.push({
+      url,
+      headers,
+      params: new URLSearchParams(String(body)),
+    });
+    const next = this.queued.shift();
     return {
-      statusCode: this.responseStatus,
-      body: this.responseBody,
+      statusCode: next?.status ?? this.responseStatus,
+      body: next === undefined ? this.responseBody : JSON.stringify(next.body),
       headers: { "content-type": "application/json" },
     };
   }
@@ -246,6 +259,126 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
       "https://auth.example.com/token",
       "https://auth.example.com/oauth/refresh",
     ]);
+  });
+
+  test("the refresh grant carries the client credentials", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+      },
+      { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+    ];
+
+    await authenticator.exchangeCode("first-code");
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await authenticator.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(Object.fromEntries(mockClient.calls[1]!.params)).toEqual({
+      grant_type: "refresh_token",
+      refresh_token: "ref1",
+      client_id: "my-client-id",
+      client_secret: "my-client-secret",
+    });
+  });
+
+  test("a rejected refresh surfaces OAuth2ServerError after exactly one refresh request", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+      { status: 200, body: { access_token: "unexpected", expires_in: 3600 } },
+    ];
+
+    await authenticator.exchangeCode("first-code");
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    let error: unknown;
+    try {
+      error = await authenticator
+        .getAuthHeadersAsync()
+        .catch((e: unknown) => e);
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect((error as Error).constructor).toBe(OAuth2ServerError);
+    expect((error as OAuth2ServerError).code).toBe("invalid_grant");
+    expect(mockClient.calls).toHaveLength(2);
+  });
+
+  test("a second exchangeCode sends the new code and replaces the session", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 3600 },
+      },
+      {
+        status: 200,
+        body: { access_token: "tok2", refresh_token: "ref2", expires_in: 3600 },
+      },
+    ];
+
+    await authenticator.exchangeCode("code-a");
+    await authenticator.exchangeCode("code-b");
+    const headers = await authenticator.getAuthHeadersAsync();
+
+    expect(mockClient.calls).toHaveLength(2);
+    expect(mockClient.calls[1]!.params.get("grant_type")).toBe(
+      "authorization_code",
+    );
+    expect(mockClient.calls[1]!.params.get("code")).toBe("code-b");
+    expect(headers["Authorization"]).toBe("Bearer tok2");
+  });
+
+  test("a second exchange without refresh_token drops the old refresh token", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+      },
+      { status: 200, body: { access_token: "tok2", expires_in: 1 } },
+      { status: 200, body: { access_token: "tok3", expires_in: 3600 } },
+    ];
+
+    await authenticator.exchangeCode("code-a");
+    await authenticator.exchangeCode("code-b");
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await authenticator.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(mockClient.calls[2]!.params.get("refresh_token")).toBe("");
+  });
+
+  test("a failed exchange keeps the previous session", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 3600 },
+      },
+      { status: 400, body: { error: "invalid_grant" } },
+    ];
+
+    await authenticator.exchangeCode("code-a");
+    const error = await authenticator
+      .exchangeCode("bad")
+      .catch((e: unknown) => e);
+    const headers = await authenticator.getAuthHeadersAsync();
+
+    expect((error as Error).constructor).toBe(OAuth2ServerError);
+    expect(headers["Authorization"]).toBe("Bearer tok1");
+    expect(mockClient.calls).toHaveLength(2);
   });
 
   test("authorize URL with existing query string uses ampersand separator", () => {

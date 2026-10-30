@@ -277,6 +277,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
   ]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#isUuid}}
+{{^isArray}}
+    '{{name}}',
+{{/isArray}}
+{{/isUuid}}
+{{/vars}}
+  ]);
+
 {{#vars}}
 {{#description}}
   /**
@@ -585,6 +600,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} === 'number' && !Number.isInteger(this.{{name}})) {
       throw new TypeError(`{{name}} must be an integer, got ${this.{{name}}}`);
     }
+    if (this.{{name}} != null && ((this.{{name}} as number) < -2147483648 || (this.{{name}} as number) > 2147483647)) {
+      throw new TypeError(`{{name}} is outside the 32-bit integer range, got ${this.{{name}}}`);
+    }
 {{/isInteger}}
 {{#isLong}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
@@ -691,6 +709,8 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(this.{{name}} as unknown as string)) {
         throw new TypeError(`{{name}} is not a canonical UUID: ${JSON.stringify(this.{{name}})}`);
       }
+      /* Input is case-insensitive; the canonical form is lowercase. */
+      this.{{name}} = (this.{{name}} as unknown as string).toLowerCase() as unknown as {{{dataType}}};
     }
 {{/isUuid}}
 {{#vendorExtensions.isTimeFormat}}

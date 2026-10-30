@@ -280,6 +280,49 @@ describe('ValueSerializer', () => {
     });
   });
 
+  describe('serializeStyled - Set values', () => {
+    test.each([
+      [true, ['red', 'blue']],
+      [false, 'red,blue'],
+    ])('form style with explode=%p expands a Set like an array', (explode, expected) => {
+      const value = new Set(['red', 'blue']);
+      expect(ValueSerializer.serializeStyled('labels', value, 'query', 'Set<string>', null, 'form', explode)).toEqual(
+        expected,
+      );
+      expect(
+        ValueSerializer.serializeStyled('labels', ['red', 'blue'], 'query', 'Array<string>', null, 'form', explode),
+      ).toEqual(expected);
+    });
+
+    test('simple style joins the Set elements', () => {
+      expect(ValueSerializer.serializeStyled('ids', new Set([1, 2]), 'header', 'Set<number>', null, 'simple', false)).toBe(
+        '1,2',
+      );
+    });
+  });
+
+  describe('serializeStyled - uuid values', () => {
+    test.each(['path', 'query', 'header'])('writes an uppercase uuid in lowercase in the %s', (location) => {
+      expect(
+        ValueSerializer.serializeStyled(
+          'id',
+          'E621E1F8-C36C-495A-93FC-0C247A3E6E5F',
+          location,
+          'UUID',
+          null,
+          location === 'query' ? 'form' : 'simple',
+          false,
+        ),
+      ).toBe('e621e1f8-c36c-495a-93fc-0c247a3e6e5f');
+    });
+
+    test('rejects a malformed uuid', () => {
+      expect(() => ValueSerializer.serializeStyled('id', 'not-a-uuid', 'path', 'UUID', null, 'simple', false)).toThrow(
+        new TypeError(`Parameter 'id' is not a canonical UUID: "not-a-uuid"`),
+      );
+    });
+  });
+
   describe('serializeStyled - simple style backward compatibility', () => {
     test('scalar returns stringified value', () => {
       expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, 'simple', false)).toBe('5');

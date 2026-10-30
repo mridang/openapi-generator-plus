@@ -303,13 +303,22 @@ export abstract class AbstractApiClient implements ApiClient {
         ) {
           const location = response.headers.get('location');
           if (location == null || location.length === 0) break;
+          /* An unusable Location (one the RFC 3986 resolver rejects, such as
+           * `http://[bad`) is treated exactly like a missing one: stop and
+           * return the 3xx untouched, body included. It is resolved before
+           * the body is cancelled for that reason. */
+          let nextParsed: URL;
+          try {
+            nextParsed = new URL(location, currentUrl);
+          } catch {
+            break;
+          }
+          const nextUrl = nextParsed.toString();
           /* The 3xx body is never read. Cancel it before anything below can
            * throw or replace `response`, so undici returns the connection to
            * the pool instead of holding it until the body is garbage
            * collected. */
           await AbstractApiClient.discardBody(response);
-          const nextUrl = new URL(location, currentUrl).toString();
-          const nextParsed = new URL(nextUrl);
           /* T-D3: a Location pointing at a non-HTTP(S) scheme
            * (file:, javascript:, data:, ...) must be refused loudly,
            * never silently surfaced as the 3xx response. Throw a typed
@@ -775,7 +784,14 @@ export abstract class AbstractApiClient implements ApiClient {
       .replace(/"/g, '\\"');
     let header = `form-data; name="${escapedName}"; filename="${escapedFilename}"`;
     if (!isAscii) {
-      header += `; filename*=UTF-8''${encodeURIComponent(filename)}`;
+      /* RFC 5987 ext-value: percent-encode every UTF-8 byte except the
+       * RFC 3986 unreserved set A-Z a-z 0-9 - . _ ~ (encodeURIComponent also
+       * keeps ! ' ( ) *, and ' is the ext-value delimiter). */
+      const encoded = encodeURIComponent(filename).replace(
+        /[!'()*]/g,
+        (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+      );
+      header += `; filename*=UTF-8''${encoded}`;
     }
     return header;
   }

@@ -22,6 +22,13 @@ export class ApiResponse {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "code" })
   code?: number;
   @Expose({ name: "type" })
@@ -40,6 +47,15 @@ export class ApiResponse {
       !Number.isInteger(this.code)
     ) {
       throw new TypeError(`code must be an integer, got ${this.code}`);
+    }
+    if (
+      this.code != null &&
+      ((this.code as number) < -2147483648 ||
+        (this.code as number) > 2147483647)
+    ) {
+      throw new TypeError(
+        `code is outside the 32-bit integer range, got ${this.code}`,
+      );
     }
     if (this.type != null && typeof this.type !== "string") {
       throw new TypeError(`type must be a string, got ${typeof this.type}`);

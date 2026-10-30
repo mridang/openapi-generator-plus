@@ -417,7 +417,7 @@ export class StoreApi extends BaseApi {
       "application/json",
       (json: unknown) =>
         ObjectSerializer.deserializeMap(json, (x: unknown) =>
-          ObjectSerializer.deserializeLeaf<number>(x, "integer"),
+          ObjectSerializer.deserializeLeaf<number>(x, "int32"),
         ),
       NO_AUTH,
     );
@@ -464,7 +464,7 @@ export class StoreApi extends BaseApi {
       (json: unknown) =>
         ObjectSerializer.deserializeArray(json, (x: unknown) =>
           ObjectSerializer.deserializeArray(x, (x: unknown) =>
-            ObjectSerializer.deserializeLeaf<number>(x, "integer"),
+            ObjectSerializer.deserializeLeaf<number>(x, "int32"),
           ),
         ),
       NO_AUTH,

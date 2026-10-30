@@ -300,6 +300,69 @@ describe('OpenIdConnectAuthenticator', () => {
       expect(mockClient.callCount).toBe(2);
     });
 
+    const tokenResponse = (accessToken: string): ApiHttpResponse => ({
+      statusCode: 200,
+      body: JSON.stringify({ access_token: accessToken, expires_in: 3600 }),
+      headers: { 'content-type': 'application/json' }
+    });
+
+    test('rediscovery after max-age expiry keeps the exchanged session', async () => {
+      mockClient.responses = [
+        discovery('https://auth.example.com/authorize-1', 'max-age=0'),
+        tokenResponse('session-token'),
+        discovery('https://auth.example.com/authorize-2', 'max-age=0'),
+        discovery('https://auth.example.com/authorize-3', 'max-age=0')
+      ];
+
+      await authenticator.exchangeCode('first-code');
+      const headers = await authenticator.getAuthHeadersAsync();
+      const url = await authenticator.buildAuthorizationUrl();
+
+      expect(headers['Authorization']).toBe('Bearer session-token');
+      expect(url).toContain('https://auth.example.com/authorize-3?');
+      expect(mockClient.callCount).toBe(4);
+    });
+
+    test('a failed rediscovery keeps the previous session and the next call retries', async () => {
+      mockClient.responses = [
+        discovery('https://auth.example.com/authorize-1', 'max-age=0'),
+        tokenResponse('session-token'),
+        { statusCode: 500, body: 'down', headers: { 'content-type': 'text/plain' } },
+        discovery('https://auth.example.com/authorize-2', 'max-age=0')
+      ];
+
+      await authenticator.exchangeCode('first-code');
+      const error = await authenticator.getAuthHeadersAsync().catch((e: unknown) => e);
+      const headers = await authenticator.getAuthHeadersAsync();
+
+      expect((error as Error).constructor).toBe(InternalServerError);
+      expect(headers['Authorization']).toBe('Bearer session-token');
+      expect(mockClient.callCount).toBe(4);
+    });
+
+    test('concurrent callers on a cold authenticator share one discovery request', async () => {
+      let open: () => void = () => undefined;
+      const gate = new Promise<void>((resolve) => {
+        open = resolve;
+      });
+      let discoveries = 0;
+      const gated: ApiClient = {
+        async sendRequest(): Promise<ApiHttpResponse> {
+          discoveries++;
+          await gate;
+          return discovery('https://auth.example.com/authorize-1');
+        }
+      };
+      authenticator.setApiClient(gated);
+
+      const pending = [1, 2, 3, 4, 5].map(() => authenticator.buildAuthorizationUrl());
+      open();
+      const urls = await Promise.all(pending);
+
+      expect(discoveries).toBe(1);
+      expect(urls.every((url) => url.startsWith('https://auth.example.com/authorize-1?'))).toBe(true);
+    });
+
     test.each([
       [86399, 1],
       [86401, 2]

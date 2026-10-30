@@ -103,8 +103,6 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
    * @returns a promise resolving to the authorization headers
    */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
-    let url: string;
-    let params: Record<string, string>;
     const extraHeaders: Record<string, string> = {};
     if (this.clientAuthMethod === ClientAuthMethod.Basic) {
       /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
@@ -128,31 +126,27 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
       );
       extraHeaders.Authorization = `Basic ${credentials}`;
     }
-    if (this.tokenManager.getRefreshToken()) {
-      url = this.refreshUrl;
-      params = {
-        grant_type: "refresh_token",
-        refresh_token: this.tokenManager.getRefreshToken()!,
-      };
-    } else {
-      url = this.tokenUrl;
-      params = {
-        grant_type: "password",
-        username: this.username,
-        password: this.password,
-      };
-      if (this.clientAuthMethod !== ClientAuthMethod.Basic) {
-        params.client_id = this.clientId;
-        params.client_secret = this.clientSecret;
-      }
-      if (this.scopes.length > 0) {
-        params.scope = this.scopes.join(" ");
-      }
+    /* Always hand the manager the password grant: once it holds a refresh
+     * token it sends the refresh grant to refreshUrl with the same client
+     * authentication (RFC 6749 section 6), and re-runs this grant against
+     * tokenUrl when the refresh is rejected. */
+    const params: Record<string, string> = {
+      grant_type: "password",
+      username: this.username,
+      password: this.password,
+    };
+    if (this.clientAuthMethod !== ClientAuthMethod.Basic) {
+      params.client_id = this.clientId;
+      params.client_secret = this.clientSecret;
+    }
+    if (this.scopes.length > 0) {
+      params.scope = this.scopes.join(" ");
     }
     const token = await this.tokenManager.getAccessToken(
-      url,
+      this.tokenUrl,
       params,
       extraHeaders,
+      this.refreshUrl,
     );
     return { Authorization: `Bearer ${token}` };
   }

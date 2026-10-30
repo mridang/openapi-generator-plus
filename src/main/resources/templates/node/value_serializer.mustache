@@ -29,6 +29,7 @@ export class ValueSerializer {
       if (location === 'query') return undefined;
       return '';
     }
+    value = ValueSerializer.normalize(value, schemaType, 'value');
 
     if (Array.isArray(value)) {
       const items = value.map((v) => ObjectSerializer.stringify(v));
@@ -98,6 +99,7 @@ export class ValueSerializer {
       if (location === 'query') return undefined;
       return '';
     }
+    value = ValueSerializer.normalize(value, schemaType, paramName);
 
     if (!style) {
       return ValueSerializer.serialize(
@@ -176,6 +178,38 @@ export class ValueSerializer {
           collectionFormat ?? undefined
         );
     }
+  }
+
+  /**
+   * Bring a parameter value into its wire shape before styling.
+   *
+   * A `uniqueItems` array arrives as a Set and is expanded exactly like an
+   * array (in the Set's iteration order). A `format: uuid` value (schema
+   * type `UUID`) must have the 8-4-4-4-12 hex shape in any letter case and
+   * is written lowercase (RFC 9562 section 4); anything else is rejected
+   * before the request is sent.
+   *
+   * @param value the parameter value
+   * @param schemaType the parameter's schema type
+   * @param paramName the parameter name, for the error message
+   * @returns the normalized value
+   * @throws TypeError if a uuid value is malformed
+   */
+  static normalize(value: unknown, schemaType: string, paramName: string): unknown {
+    const expanded = value instanceof Set ? [...value] : value;
+    if (!/\bUUID\b/.test(schemaType ?? '')) {
+      return expanded;
+    }
+    const canonical = (v: unknown): unknown => {
+      if (typeof v !== 'string') {
+        return v;
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
+        throw new TypeError(`Parameter '${paramName}' is not a canonical UUID: ${JSON.stringify(v)}`);
+      }
+      return v.toLowerCase();
+    };
+    return Array.isArray(expanded) ? expanded.map(canonical) : canonical(expanded);
   }
 
   /**

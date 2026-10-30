@@ -5,6 +5,8 @@ import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { Order, OrderStatusEnum, Category, PhotoMetadata, Swatch } from '../../src/models/index{{importFileExtension}}';
 import { InternalServerError, NotFoundError } from '../../src/errors/index{{importFileExtension}}';
+import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()
@@ -208,6 +210,60 @@ describe('StoreApi content-encoded query parameters', () => {
     const url = await captureSearch(new PhotoMetadata({ caption: 'a/b<\u00e9' }));
 
     expect(url).toContain('q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22');
+  });
+
+  let hits = 0;
+
+  async function captureRequest(call: (storeApi: StoreApi) => Promise<unknown>): Promise<string> {
+    let capturedUrl = '';
+    const server = http.createServer((req, res) => {
+      hits++;
+      capturedUrl = req.url ?? '';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(capturedUrl.startsWith('/store/search') ? '[]' : '{"id":1}');
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const addr = server.address() as { port: number };
+      await call(
+        new StoreApi(undefined, Configuration.builder().baseUrl(`http://127.0.0.1:${addr.port}`).build()),
+      );
+      return capturedUrl;
+    } finally {
+      server.close();
+    }
+  }
+
+  test('searchStore expands a Set parameter like an array', async () => {
+    const url = await captureRequest((s) => s.searchStore({ labels: new Set(['red', 'blue']) }));
+
+    expect(new URL(url, 'http://localhost').searchParams.getAll('labels').sort()).toEqual(['blue', 'red']);
+  });
+
+  test.each([
+    ['10:30:00.123456789', 'at=10%3A30%3A00.123'],
+    ['10:30:00', 'at=10%3A30%3A00'],
+  ])('searchStore sends the time %s as %s', async (time, expected) => {
+    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
+
+    expect(url).toContain(expected);
+    expect(url).not.toContain(`${expected}0`);
+  });
+
+  test('getOrderByTrackingId puts the lowercase uuid in the path', async () => {
+    const url = await captureRequest((s) => s.getOrderByTrackingId(uuid('E621E1F8-C36C-495A-93FC-0C247A3E6E5F')));
+
+    expect(url).toBe('/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f');
+  });
+
+  test('getOrderByTrackingId rejects a malformed uuid before sending a request', async () => {
+    hits = 0;
+    const call = captureRequest((s) => s.getOrderByTrackingId('not-a-uuid' as UUID));
+
+    await expect(call).rejects.toThrow(
+      new TypeError(`Parameter 'trackingId' is not a canonical UUID: "not-a-uuid"`),
+    );
+    expect(hits).toBe(0);
   });
 
   test('searchStore sends a date-time inside q in the canonical +00:00 form', async () => {

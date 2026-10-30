@@ -18,6 +18,12 @@ class MockApiClient implements ApiClient {
   lastBody: string | Buffer | null = null;
   responseBody = "";
   responseStatus = 200;
+  queued: Array<{ status: number; body: unknown }> = [];
+  calls: Array<{
+    url: string;
+    headers: Record<string, string>;
+    params: URLSearchParams;
+  }> = [];
 
   async sendRequest(
     method: string,
@@ -29,9 +35,15 @@ class MockApiClient implements ApiClient {
     this.lastUrl = url;
     this.lastHeaders = headers;
     this.lastBody = body;
+    this.calls.push({
+      url,
+      headers,
+      params: new URLSearchParams(String(body)),
+    });
+    const next = this.queued.shift();
     return {
-      statusCode: this.responseStatus,
-      body: this.responseBody,
+      statusCode: next?.status ?? this.responseStatus,
+      body: next === undefined ? this.responseBody : JSON.stringify(next.body),
       headers: { "content-type": "application/json" },
     };
   }
@@ -275,6 +287,101 @@ describe("OAuth2PasswordAuthenticator", () => {
       "https://auth.example.com/token",
       "https://auth.example.com/oauth/refresh",
     ]);
+  });
+
+  describe("refresh grant client authentication", () => {
+    const originalNow = Date.now;
+
+    async function twoCalls(
+      auth: OAuth2PasswordAuthenticator,
+    ): Promise<string> {
+      await auth.getAuthHeadersAsync();
+      Date.now = () => originalNow() + 120_000;
+      try {
+        return (await auth.getAuthHeadersAsync())["Authorization"];
+      } finally {
+        Date.now = originalNow;
+      }
+    }
+
+    function refreshing(method: ClientAuthMethod): OAuth2PasswordAuthenticator {
+      const auth = new OAuth2PasswordAuthenticator(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/token",
+        "testuser",
+        "testpass",
+        ["read"],
+        "https://auth.example.com/oauth/refresh",
+        method,
+      );
+      auth.setApiClient(mockClient);
+      return auth;
+    }
+
+    test("in body mode the refresh grant carries client_id and client_secret", async () => {
+      mockClient.queued = [
+        {
+          status: 200,
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        },
+        { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+      ];
+
+      const header = await twoCalls(refreshing(ClientAuthMethod.Body));
+
+      expect(header).toBe("Bearer tok2");
+      expect(mockClient.calls[1]!.url).toBe(
+        "https://auth.example.com/oauth/refresh",
+      );
+      expect(Object.fromEntries(mockClient.calls[1]!.params)).toEqual({
+        grant_type: "refresh_token",
+        refresh_token: "ref1",
+        client_id: "my-client-id",
+        client_secret: "my-client-secret",
+      });
+    });
+
+    test("in basic mode the refresh grant carries the Basic header and no client_id", async () => {
+      mockClient.queued = [
+        {
+          status: 200,
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        },
+        { status: 200, body: { access_token: "tok2", expires_in: 3600 } },
+      ];
+
+      await twoCalls(refreshing(ClientAuthMethod.Basic));
+
+      const refresh = mockClient.calls[1]!;
+      expect(refresh.headers["Authorization"]).toBe(
+        `Basic ${Buffer.from("my-client-id:my-client-secret").toString("base64")}`,
+      );
+      expect(refresh.params.get("grant_type")).toBe("refresh_token");
+      expect(refresh.params.has("client_id")).toBe(false);
+    });
+
+    test("a rejected refresh re-runs the password grant against the token URL", async () => {
+      mockClient.queued = [
+        {
+          status: 200,
+          body: { access_token: "tok1", refresh_token: "ref1", expires_in: 1 },
+        },
+        { status: 400, body: { error: "invalid_grant" } },
+        { status: 200, body: { access_token: "tok3", expires_in: 3600 } },
+      ];
+
+      const header = await twoCalls(refreshing(ClientAuthMethod.Body));
+
+      expect(header).toBe("Bearer tok3");
+      expect(mockClient.calls.map((call) => call.url)).toEqual([
+        "https://auth.example.com/token",
+        "https://auth.example.com/oauth/refresh",
+        "https://auth.example.com/token",
+      ]);
+      expect(mockClient.calls[2]!.params.get("grant_type")).toBe("password");
+    });
   });
 
   test("the redacted representation shows exactly the agreed non-secret fields", () => {

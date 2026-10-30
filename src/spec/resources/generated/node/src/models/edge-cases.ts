@@ -34,6 +34,13 @@ export class EdgeCases {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "freeFormAny" })
   freeFormAny?: unknown;
   @Expose({ name: "favoriteColor" })
