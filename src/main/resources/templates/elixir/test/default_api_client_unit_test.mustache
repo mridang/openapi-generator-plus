@@ -1177,5 +1177,32 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
       assert micros == 50
     end
   end
+
+  describe "multipart parts" do
+    test "primitives are plain text parts and only a map is an application/json part" do
+      body =
+        {{moduleName}}.DefaultApiClient.build_multipart_body(
+          [
+            {"flag", true},
+            {"count", 3},
+            {"at", ~U[2024-01-15 10:30:00Z]},
+            {"day", ~D[2024-01-15]},
+            {"kind", :sample},
+            {"item", %{"k" => "v"}}
+          ],
+          "b"
+        )
+
+      assert body ==
+               ~s(--b\r\nContent-Disposition: form-data; name="flag"\r\n\r\ntrue\r\n) <>
+                 ~s(--b\r\nContent-Disposition: form-data; name="count"\r\n\r\n3\r\n) <>
+                 ~s(--b\r\nContent-Disposition: form-data; name="at"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n) <>
+                 ~s(--b\r\nContent-Disposition: form-data; name="day"\r\n\r\n2024-01-15\r\n) <>
+                 ~s(--b\r\nContent-Disposition: form-data; name="kind"\r\n\r\nsample\r\n) <>
+                 ~s(--b\r\nContent-Disposition: form-data; name="item"\r\n) <>
+                 ~s(Content-Type: application/json\r\n\r\n{"k":"v"}\r\n) <>
+                 "--b--\r\n"
+    end
+  end
 end
 {{/generateTests}}

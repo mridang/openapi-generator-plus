@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -121,18 +122,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   """
   @spec build_authorization_url(t(), String.t() | nil) :: String.t()
   def build_authorization_url(%__MODULE__{} = self, state \\ nil) do
-    params = %{
-      "response_type" => "code",
-      "client_id" => self.client_id,
-      "redirect_uri" => self.redirect_uri
-    }
-
+    # A list, not a map: the parameters go on the wire in this fixed order.
     params =
-      if self.scopes != [],
-        do: Map.put(params, "scope", Enum.join(self.scopes, " ")),
-        else: params
-
-    params = if state, do: Map.put(params, "state", state), else: params
+      [
+        {"response_type", "code"},
+        {"client_id", self.client_id},
+        {"redirect_uri", self.redirect_uri}
+      ] ++
+        if(self.scopes != [], do: [{"scope", Enum.join(self.scopes, " ")}], else: []) ++
+        if(state in [nil, ""], do: [], else: [{"state", state}])
 
     # RFC 6749 §3.1: the authorization endpoint URI MAY already include
     # a query component. Use '&' as the separator when one is already
@@ -176,14 +174,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       "redirect_uri" => self.redirect_uri
     }
 
+    # Always POSTs this code (never answers from the cache or the refresh path)
+    # and replaces the session; a rejected code keeps the previous session.
     _token =
-      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.exchange(
         self.token_manager,
         self.token_url,
         params
       )
 
-    PetstoreClient.Auth.OAuth.OAuth2TokenManager.mark_exchanged(self.token_manager)
     self
   end
 

@@ -196,5 +196,20 @@ defmodule {{moduleName}}.Api.StoreApiTest do
 
     Agent.stop(name)
   end
+
+  # readOnly and writeOnly have no wire effect: the writeOnly password is sent
+  # and the readOnly id of the response is decoded.
+  test "create_account sends the writeOnly property and decodes the readOnly one" do
+    {:ok, name} = StubApiClient.start(~s({"id":7,"username":"u","password":"p"}))
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %{{moduleName}}.Models.Account{id: 7, username: "u", password: "p"}} =
+             {{moduleName}}.Api.StoreApi.create_account(api, %{{moduleName}}.Models.Account{username: "u", password: "p"})
+
+    assert Jason.decode!(StubApiClient.captured(name).body)["password"] == "p"
+
+    Agent.stop(name)
+  end
 end
 {{/generateTests}}

@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -184,14 +185,14 @@ defmodule PetstoreClient.DefaultApiClient do
     merged = Map.merge(opts.default_headers, headers)
 
     merged =
-      if opts.user_agent && !Map.has_key?(merged, "User-Agent") do
+      if opts.user_agent && !has_header?(merged, "User-Agent") do
         Map.put(merged, "User-Agent", opts.user_agent)
       else
         merged
       end
 
     merged =
-      if opts.inject_request_id && !Map.has_key?(merged, "X-Request-ID") do
+      if opts.inject_request_id && !has_header?(merged, "X-Request-ID") do
         Map.put(merged, "X-Request-ID", generate_uuid())
       else
         merged
@@ -1096,6 +1097,14 @@ defmodule PetstoreClient.DefaultApiClient do
     "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{value}\r\n"
   end
 
+  # A date, date-time, time or duration is a primitive: a plain text part in
+  # the canonical stringify form, like a boolean, number or enum, with no part
+  # Content-Type. Only an object/model/map is an application/json part.
+  defp multipart_part(name, %struct{} = value, boundary)
+       when struct in [DateTime, NaiveDateTime, Date, Time, Duration] do
+    multipart_text_part(name, value, boundary)
+  end
+
   defp multipart_part(name, value, boundary) when is_map(value) do
     safe = sanitize_multipart_field_name(name)
     json_str = PetstoreClient.ObjectSerializer.serialize(value)
@@ -1104,10 +1113,12 @@ defmodule PetstoreClient.DefaultApiClient do
       "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
   end
 
-  defp multipart_part(name, value, boundary) do
-    safe = sanitize_multipart_field_name(name)
+  defp multipart_part(name, value, boundary), do: multipart_text_part(name, value, boundary)
 
-    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{to_string(value)}\r\n"
+  defp multipart_text_part(name, value, boundary) do
+    safe = sanitize_multipart_field_name(name)
+    text = PetstoreClient.ObjectSerializer.stringify(value)
+    "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe}\"\r\n\r\n#{text}\r\n"
   end
 
   # Validate/escape a multipart form field name before
@@ -1235,6 +1246,14 @@ defmodule PetstoreClient.DefaultApiClient do
       String.ends_with?(media_type, "+xml") -> true
       true -> false
     end
+  end
+
+  # RFC 9110 section 5.1: header field names are case-insensitive, so a
+  # caller's `user-agent` or `x-request-id` (even with an empty value) counts
+  # as already set and is left exactly as written.
+  defp has_header?(headers, name) do
+    wanted = String.downcase(name, :ascii)
+    Enum.any?(Map.keys(headers), &(String.downcase(to_string(&1), :ascii) == wanted))
   end
 
   defp generate_uuid do

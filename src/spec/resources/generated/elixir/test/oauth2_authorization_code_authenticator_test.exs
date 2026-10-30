@@ -6,7 +6,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
     def new(responses) do
       {:ok, agent} =
-        Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil} end)
+        Agent.start_link(fn ->
+          %{responses: responses, last_url: nil, last_body: nil, requests: []}
+        end)
 
       %__MODULE__{agent: agent}
     end
@@ -14,13 +16,22 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
       Agent.get_and_update(agent, fn state ->
         [response | rest] = state.responses
-        new_state = %{state | responses: rest, last_url: url, last_body: body}
+
+        new_state = %{
+          state
+          | responses: rest,
+            last_url: url,
+            last_body: body,
+            requests: state.requests ++ [{url, body}]
+        }
+
         {response, new_state}
       end)
     end
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.requests)
   end
 
   defp create_authenticator do
@@ -124,6 +135,23 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
         )
 
       assert String.contains?(url, "state=csrf-state-123")
+    end
+
+    test "empty state is omitted" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth,
+          ""
+        )
+
+      refute String.contains?(url, "state")
+
+      assert url ==
+               PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+                 auth
+               )
     end
 
     test "exchanges code with correct grant type" do
@@ -288,6 +316,216 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
+    end
+
+    test "a rejected refresh raises OAuth2ServerError after exactly one refresh request" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+        end
+
+      assert error.code == "invalid_grant"
+      assert length(FakeApiClient.requests(fake_client)) == 2
+    end
+
+    test "a second exchange_code sends the new code" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok2",
+                "refresh_token" => "ref2",
+                "expires_in" => 3600
+              })
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "a")
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "b")
+
+      second = URI.decode_query(FakeApiClient.last_body(fake_client))
+      assert second["grant_type"] == "authorization_code"
+      assert second["code"] == "b"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok2"
+    end
+
+    test "a second exchange without refresh_token drops the old refresh token" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2"})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "a")
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "b")
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(auth.token_manager) == nil
+    end
+
+    test "a failed exchange keeps the previous session" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "a")
+
+      assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "bad")
+      end
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)[
+               "Authorization"
+             ] ==
+               "Bearer tok1"
+    end
+
+    test "token request bodies and the authorization URL are in the fixed order" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      assert PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+               auth,
+               "s"
+             ) ==
+               "https://auth.example.com/authorize?response_type=code&client_id=my-client-id" <>
+                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(auth, "C")
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+
+      assert [{_, exchange}, {_, refresh}] = FakeApiClient.requests(fake_client)
+
+      assert exchange ==
+               "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret" <>
+                 "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+
+      assert refresh ==
+               "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
     end
 
     # The exchange is recorded in the shared token manager, not in the struct, so

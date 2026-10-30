@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -117,8 +118,6 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do
-    refresh = PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager)
-
     extra_headers =
       case self.client_auth_method do
         :basic ->
@@ -133,62 +132,41 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
           %{}
       end
 
-    token =
-      if refresh do
-        refresh_params = %{
-          "grant_type" => "refresh_token",
-          "refresh_token" => refresh
-        }
+    base_params = %{
+      "grant_type" => "password",
+      "username" => self.username,
+      "password" => self.password
+    }
 
-        # A refresh request authenticates the client like the first grant: in
-        # the body, or by the Basic header already in extra_headers.
-        params =
-          if self.client_auth_method == :basic do
-            refresh_params
-          else
-            Map.merge(refresh_params, %{
-              "client_id" => self.client_id,
-              "client_secret" => self.client_secret
-            })
-          end
-
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          self.token_manager,
-          self.refresh_url,
-          params,
-          extra_headers
-        )
+    params =
+      if self.client_auth_method == :basic do
+        base_params
       else
-        base_params = %{
-          "grant_type" => "password",
-          "username" => self.username,
-          "password" => self.password
-        }
-
-        params =
-          if self.client_auth_method == :basic do
-            base_params
-          else
-            Map.merge(base_params, %{
-              "client_id" => self.client_id,
-              "client_secret" => self.client_secret
-            })
-          end
-
-        params =
-          if self.scopes != [] do
-            Map.put(params, "scope", Enum.join(self.scopes, " "))
-          else
-            params
-          end
-
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
-          self.token_manager,
-          self.token_url,
-          params,
-          extra_headers
-        )
+        Map.merge(base_params, %{
+          "client_id" => self.client_id,
+          "client_secret" => self.client_secret
+        })
       end
+
+    params =
+      if self.scopes != [] do
+        Map.put(params, "scope", Enum.join(self.scopes, " "))
+      else
+        params
+      end
+
+    # Once the manager holds a refresh token it refreshes at refresh_url,
+    # authenticating the client like this grant does (body credentials copied
+    # from these params, or the Basic header in extra_headers), and re-runs this
+    # password grant at token_url when the refresh is rejected.
+    token =
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        self.token_manager,
+        self.token_url,
+        params,
+        extra_headers,
+        refresh_url: self.refresh_url
+      )
 
     %{"Authorization" => "Bearer #{token}"}
   end

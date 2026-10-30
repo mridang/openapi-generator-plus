@@ -427,7 +427,14 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
+{{#isBinary}}
+    # A format:binary body is the caller's bytes, sent unchanged whichever
+    # declared content-type is selected; the tag keeps it out of the serializer.
+    request_body = {:raw_body, {{paramName}}}
+{{/isBinary}}
+{{^isBinary}}
     request_body = {{paramName}}
+{{/isBinary}}
 {{/bodyParam}}
 {{^bodyParam}}
     request_body = nil

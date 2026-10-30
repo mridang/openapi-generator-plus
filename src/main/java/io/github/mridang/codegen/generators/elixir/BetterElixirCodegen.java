@@ -778,7 +778,45 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                 .put(
                         "elixirTypespec",
                         (fragment, writer) ->
-                                writer.write(toModuleTypespec(fragment.execute(), moduleName)));
+                                writer.write(toModuleTypespec(fragment.execute(), moduleName)))
+                .put(
+                        "elixirComment",
+                        (fragment, writer) -> writer.write(toLineComment(fragment.execute())));
+    }
+
+    /** Widest comment line Credo's MaxLineLength (120) accepts, prefix included. */
+    private static final int COMMENT_WIDTH = 120;
+
+    /**
+     * Renders spec prose as a block of {@code #} line comments. The string-literal
+     * escaping the shared codegen applies (a quote or backslash preceded by a
+     * backslash) is reversed, each source line becomes its own comment line, and
+     * a line longer than Credo's 120-column limit is word-wrapped onto further
+     * comment lines.
+     */
+    static String toLineComment(@Nullable String text) {
+        if (text == null || text.isBlank()) {
+            return "#";
+        }
+        final String raw = text.replace("\\\"", "\"").replace("\\\\", "\\");
+        final List<String> out = new ArrayList<>();
+        for (final String line : raw.strip().split("\\r?\\n", -1)) {
+            final String trimmed = line.strip();
+            if (trimmed.isEmpty()) {
+                out.add("#");
+                continue;
+            }
+            final StringBuilder current = new StringBuilder("#");
+            for (final String word : trimmed.split("\\s+", -1)) {
+                if (current.length() > 1 && current.length() + 1 + word.length() > COMMENT_WIDTH) {
+                    out.add(current.toString());
+                    current.setLength(1);
+                }
+                current.append(' ').append(word);
+            }
+            out.add(current.toString());
+        }
+        return String.join("\n", out);
     }
 
     /**

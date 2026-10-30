@@ -1056,6 +1056,25 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "set_pet_preferences serialises the date-time form field in the canonical form" do
+    {:ok, name} = StubResponseApiClient.start(200, ~s({"code":200}), "application/json")
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+
+    options = %PetstoreClient.Api.Options.SetPetPreferencesOptions{
+      nickname: "rex",
+      reminder: ~U[2024-01-15 10:30:00Z]
+    }
+
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_preferences(api, 5, options)
+
+    captured = StubResponseApiClient.captured(name)
+    assert captured.body =~ "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"
+    refute captured.body =~ "%20"
+
+    Agent.stop(name)
+  end
+
   test "set_pet_avatar streams raw bytes with declared content type" do
     {:ok, name} = BodyCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
@@ -1119,6 +1138,32 @@ defmodule PetstoreClient.Api.PetApiTest do
     # The selector only swaps the header; the raw bytes are unchanged.
     assert png_captured.body == payload
     Agent.stop(png_name)
+  end
+
+  # A format:binary body is never re-encoded, even under the JSON selector,
+  # while a format:byte JSON body is still a base64 JSON string.
+  test "set_pet_avatar sends the raw bytes under the application/json selector" do
+    payload = <<0xFF, 0xD8, 0xFF, 0xE0>>
+
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.set_pet_avatar(api, 5, payload, content_type: "application/json")
+
+    captured = BodyCapturingApiClient.captured(name)
+    assert captured.body == payload
+    assert captured.headers["Content-Type"] == "application/json"
+    Agent.stop(name)
+
+    {:ok, thumb_name} = BodyCapturingApiClient.start()
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, 5, Base.encode64("hi"))
+
+    assert BodyCapturingApiClient.captured(thumb_name).body == ~s("aGk=")
+    Agent.stop(thumb_name)
   end
 
   # octet-stream-raw-body: uploadPetDocument declares TWO request content-types
@@ -1200,6 +1245,41 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(mp_name)
   end
 
+  # Primitive multipart fields (boolean, integer, date-time, enum) are plain
+  # text parts in the canonical stringify form, with no part Content-Type.
+  test "upload_pet_document sends primitive fields as plain text parts" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    options = %PetstoreClient.Api.Options.UploadPetDocumentOptions{
+      file: "doc",
+      is_primary: true,
+      page_count: 3,
+      taken_at: ~U[2024-01-15 10:30:00Z],
+      swatch: PetstoreClient.Models.Swatch.red()
+    }
+
+    _result = PetstoreClient.Api.PetApi.upload_pet_document(api, 5, options)
+
+    body =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        BodyCapturingApiClient.captured(name).body,
+        "b"
+      )
+
+    for {field, text} <- [
+          {"isPrimary", "true"},
+          {"pageCount", "3"},
+          {"takenAt", "2024-01-15T10:30:00.000+00:00"},
+          {"swatch", "red"}
+        ] do
+      assert body =~ "--b\r\nContent-Disposition: form-data; name=\"#{field}\"\r\n\r\n#{text}\r\n"
+    end
+
+    Agent.stop(name)
+  end
+
   # apiresult-rawbody-nullability: ApiResult.raw_body is typed String.t() (never
   # nil) because ApiHttpResponse.body is always populated. Even an empty 200 body
   # surfaces raw_body as a binary, not nil.
@@ -1225,7 +1305,10 @@ defmodule PetstoreClient.Api.PetApiTest do
                    PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
                      api,
                      "rex",
-                     %PetstoreClient.Api.Options.GetPetByNameOptions{category: nil}
+                     %PetstoreClient.Api.Options.GetPetByNameOptions{
+                       category: nil,
+                       x_correlation_id: "c-1"
+                     }
                    )
                  end
 
@@ -1244,7 +1327,10 @@ defmodule PetstoreClient.Api.PetApiTest do
                    PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
                      api,
                      "rex",
-                     %PetstoreClient.Api.Options.GetPetByNameOptions{category: ""}
+                     %PetstoreClient.Api.Options.GetPetByNameOptions{
+                       category: "",
+                       x_correlation_id: "c-1"
+                     }
                    )
                  end
 
@@ -1262,7 +1348,10 @@ defmodule PetstoreClient.Api.PetApiTest do
         PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
           api,
           "",
-          %PetstoreClient.Api.Options.GetPetByNameOptions{category: "dog"}
+          %PetstoreClient.Api.Options.GetPetByNameOptions{
+            category: "dog",
+            x_correlation_id: "c-1"
+          }
         )
       end
 
@@ -1280,7 +1369,7 @@ defmodule PetstoreClient.Api.PetApiTest do
       PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
         api,
         "rex",
-        %PetstoreClient.Api.Options.GetPetByNameOptions{category: "dog"}
+        %PetstoreClient.Api.Options.GetPetByNameOptions{category: "dog", x_correlation_id: "c-1"}
       )
 
     url = PathCapturingApiClient.captured_url(name)

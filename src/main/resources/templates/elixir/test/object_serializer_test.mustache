@@ -107,6 +107,24 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert DateTime.compare(decoded.taken_at, instant) == :eq
     end
 
+    test "a readOnly property is populated on decode" do
+      decoded = {{moduleName}}.ObjectSerializer.deserialize(~s({"id":7,"username":"u"}), "Account")
+
+      assert decoded.id == 7
+    end
+
+    test "a writeOnly property is written on encode" do
+      json = {{moduleName}}.ObjectSerializer.serialize(%{{moduleName}}.Models.Account{username: "u", password: "p"})
+
+      assert Jason.decode!(json)["password"] == "p"
+    end
+
+    test "a writeOnly property is kept on decode" do
+      decoded = {{moduleName}}.ObjectSerializer.deserialize(~s({"id":7,"username":"u","password":"p"}), "Account")
+
+      assert decoded.password == "p"
+    end
+
     test "multipart model part is serialized through the configured serializer with wire names" do
       # Cross-SDK parity regression: addPetPhotos sends a multipart/form-data
       # body whose `metadata` part is a PhotoMetadata MODEL. That part must go

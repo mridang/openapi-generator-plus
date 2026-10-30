@@ -316,6 +316,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   **Deprecated field** `{{name}}` — this property is deprecated.
 {{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
   See [{{description}}]({{url}})
@@ -335,6 +342,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   **Deprecated field** `{{name}}` — this property is deprecated.
 {{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
   See [{{description}}]({{url}})
@@ -474,6 +488,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   **Deprecated field** `{{name}}` — this property is deprecated.
 {{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
   See [{{description}}]({{url}})
@@ -493,6 +514,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   **Deprecated field** `{{name}}` — this property is deprecated.
 {{/deprecated}}{{/vars}}
+{{#vars}}{{#isReadOnly}}
+
+  **Read-only field** `{{name}}` — set by the server; it is sent and received like any other field.
+{{/isReadOnly}}{{#isWriteOnly}}
+
+  **Write-only field** `{{name}}` — never returned by the server; it is sent and received like any other field.
+{{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
   See [{{description}}]({{url}})

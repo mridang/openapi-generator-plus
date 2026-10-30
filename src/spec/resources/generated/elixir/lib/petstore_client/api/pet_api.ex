@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -2970,7 +2971,9 @@ defmodule PetstoreClient.Api.PetApi do
 
     query_params = %{}
     header_params = %{}
-    request_body = body
+    # A format:binary body is the caller's bytes, sent unchanged whichever
+    # declared content-type is selected; the tag keeps it out of the serializer.
+    request_body = {:raw_body, body}
     # multiple-declared-consumes: this operation declares more than one request
     # content-type (image/jpeg, image/png, application/json). The caller MAY select among the declared
     # types via the optional `:content_type` key in `opts`; when omitted it

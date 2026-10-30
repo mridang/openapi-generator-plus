@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -99,17 +100,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
   """
   @spec build_authorization_url(t(), String.t() | nil) :: String.t()
   def build_authorization_url(%__MODULE__{} = self, state \\ nil) do
-    params = %{
-      "response_type" => "token",
-      "client_id" => self.client_id
-    }
-
+    # A list, not a map: the parameters go on the wire in this fixed order.
     params =
-      if self.scopes != [],
-        do: Map.put(params, "scope", Enum.join(self.scopes, " ")),
-        else: params
-
-    params = if state, do: Map.put(params, "state", state), else: params
+      [{"response_type", "token"}, {"client_id", self.client_id}] ++
+        if(self.scopes != [], do: [{"scope", Enum.join(self.scopes, " ")}], else: []) ++
+        if(state in [nil, ""], do: [], else: [{"state", state}])
 
     # RFC 6749 §3.1: the authorization endpoint URI MAY already include
     # a query component. Use '&' as the separator when one is already
@@ -125,7 +120,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator do
   def host(%__MODULE__{} = self), do: self.host
 
   @impl PetstoreClient.Auth.Authenticator
-  def auth_headers(%__MODULE__{access_token: nil}) do
+  def auth_headers(%__MODULE__{access_token: token}) when token in [nil, ""] do
     raise "Must set the access token before making API requests"
   end
 
