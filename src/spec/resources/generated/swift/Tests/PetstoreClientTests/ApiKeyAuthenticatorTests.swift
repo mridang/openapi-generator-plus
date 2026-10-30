@@ -165,4 +165,54 @@ import Testing
       #expect(auth.cookieParams() == cookie, "cookies for \(location)")
     }
   }
+
+  // MARK: - Generated scheme wrappers
+
+  /* Each API-key securityScheme of the spec generates a wrapper that fixes
+   * the scheme's key name and location: the key is emitted there and only
+   * there, the empty key is still rejected eagerly with the scheme's key
+   * name in the message, and the repr names the wrapper and masks the key. */
+  @Test(arguments: [
+    ("ApiKeyHeader", "X-API-Key", ApiKeyLocation.header),
+    ("InternalApiKey", "X-Internal-Key", ApiKeyLocation.header),
+    ("ApiKeyQuery", "api_key", ApiKeyLocation.query),
+    ("SessionCookie", "SESSION_ID", ApiKeyLocation.cookie),
+  ])
+  func schemeWrapperEmitsItsKeyAtItsSpecLocation(
+    scheme: String, name: String, location: ApiKeyLocation
+  ) async throws {
+    let auth = try Self.schemeWrapper(scheme, apiKey: "wrapped-key")
+    #expect(await auth.authHeaders() == (location == .header ? [name: "wrapped-key"] : [:]))
+    #expect(auth.queryParams() == (location == .query ? [name: "wrapped-key"] : [:]))
+    #expect(auth.cookieParams() == (location == .cookie ? [name: "wrapped-key"] : [:]))
+    #expect(
+      String(describing: auth)
+        == "\(scheme)Authenticator(host: https://api.example.com, keyParamName: \(name), apiKey: ***, location: \(location))"
+    )
+  }
+
+  @Test(arguments: [
+    ("ApiKeyHeader", "X-API-Key"),
+    ("InternalApiKey", "X-Internal-Key"),
+    ("ApiKeyQuery", "api_key"),
+    ("SessionCookie", "SESSION_ID"),
+  ])
+  func schemeWrapperRejectsAnEmptyKeyEagerly(scheme: String, name: String) {
+    #expect(
+      throws: ConfigurationError.invalidArgument("API key value for '\(name)' must not be empty")
+    ) {
+      _ = try Self.schemeWrapper(scheme, apiKey: "")
+    }
+  }
+
+  private static func schemeWrapper(_ scheme: String, apiKey: String) throws -> ApiKeyAuthenticator
+  {
+    let host = "https://api.example.com"
+    switch scheme {
+    case "ApiKeyHeader": return try ApiKeyHeaderAuthenticator(host: host, apiKey: apiKey)
+    case "InternalApiKey": return try InternalApiKeyAuthenticator(host: host, apiKey: apiKey)
+    case "ApiKeyQuery": return try ApiKeyQueryAuthenticator(host: host, apiKey: apiKey)
+    default: return try SessionCookieAuthenticator(host: host, apiKey: apiKey)
+    }
+  }
 }

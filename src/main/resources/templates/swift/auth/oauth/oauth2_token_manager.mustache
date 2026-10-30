@@ -420,27 +420,31 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         )
     }
 
+    /// Longest lifetime a token response may set: one year. A larger
+    /// `expires_in` is clamped to it, so a huge or overflowing value from the
+    /// server never traps the integer conversion and never caches a token
+    /// for longer than a year.
+    static let maxExpiresInSeconds = 31_536_000
+
     /// Defensive parse of the OAuth2 `expires_in` field per RFC 6749 §5.1.
     ///
     /// Returns `0` (caller skips caching) when the value is missing,
     /// unparseable, or non-positive. Accepts integers, floors floats,
-    /// and parses digit strings (e.g. `"3600"` from Salesforce).
-    private static func parseExpiresIn(_ raw: Any?) -> Int {
+    /// and parses digit strings (e.g. `"3600"` from Salesforce). Any value
+    /// above ``maxExpiresInSeconds`` is clamped to it.
+    static func parseExpiresIn(_ raw: Any?) -> Int {
         guard let raw = raw else { return 0 }
         if let n = raw as? Int {
-            return n
+            return min(n, maxExpiresInSeconds)
         }
         if let n = raw as? Int64 {
-            return Int(n)
+            return Int(min(n, Int64(maxExpiresInSeconds)))
         }
         if let d = raw as? Double {
-            guard d.isFinite else { return 0 }
-            return Int(d.rounded(.down))
+            return clampedSeconds(d)
         }
         if let n = raw as? NSNumber {
-            let d = n.doubleValue
-            guard d.isFinite else { return 0 }
-            return Int(d.rounded(.down))
+            return clampedSeconds(n.doubleValue)
         }
         if let s = raw as? String {
             /* Plain decimal digits with an optional fraction only: Swift's
@@ -448,9 +452,22 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                whitespace, newlines included, is trimmed first. */
             let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmed.range(of: "^[0-9]+(\\.[0-9]*)?$", options: .regularExpression) != nil,
-                  let d = Double(trimmed), d.isFinite else { return 0 }
-            return Int(d.rounded(.down))
+                  let d = Double(trimmed) else { return 0 }
+            /* Digits only, so an infinite parse is a number too long for a
+               Double: clamp it like any other over-large lifetime. */
+            return d.isFinite ? clampedSeconds(d) : maxExpiresInSeconds
         }
         return 0
+    }
+
+    /// Floors a floating-point lifetime into whole seconds, clamped to
+    /// ``maxExpiresInSeconds``. A non-finite value is unparseable (`0`); an
+    /// over-large one is clamped before `Int(_:)`, which would trap on it.
+    private static func clampedSeconds(_ value: Double) -> Int {
+        guard value.isFinite else { return 0 }
+        if value >= Double(maxExpiresInSeconds) {
+            return maxExpiresInSeconds
+        }
+        return Int(value.rounded(.down))
     }
 }

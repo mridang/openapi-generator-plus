@@ -121,4 +121,37 @@ import Testing
       return
     }
   }
+
+  // MARK: - Generated scheme wrappers
+
+  /* Each HTTP basic securityScheme generates a wrapper that sends the same
+   * Basic header, validates eagerly and masks the password in its repr. */
+  @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+  func schemeWrapperSendsBasicHeaderAndMasksThePassword(scheme: String) async throws {
+    let auth = try Self.schemeWrapper(scheme, username: "alice", password: "s3cret")
+    #expect(try await auth.authHeaders() == ["Authorization": "Basic YWxpY2U6czNjcmV0"])
+    #expect(auth.queryParams().isEmpty)
+    #expect(auth.cookieParams().isEmpty)
+    #expect(
+      String(describing: auth)
+        == "\(scheme)Authenticator(host: https://api.example.com, username: alice, password: ***)")
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")
+    ) {
+      _ = try Self.schemeWrapper(scheme, username: "ali:ce", password: "s3cret")
+    }
+  }
+
+  private static func schemeWrapper(_ scheme: String, username: String, password: String) throws
+    -> BasicAuthenticator
+  {
+    let host = "https://api.example.com"
+    switch scheme {
+    case "AdminBasic":
+      return try AdminBasicAuthenticator(host: host, username: username, password: password)
+    default:
+      return try PetStoreBasicAuthenticator(host: host, username: username, password: password)
+    }
+  }
 }

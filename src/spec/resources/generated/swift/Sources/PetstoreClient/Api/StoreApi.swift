@@ -699,7 +699,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
   ///
   /// - Parameters:
-  ///   - q: JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
+  ///   - q: JSON-encoded query parameter (OAS `content`, not `schema`)
   ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order] {
     let result = try await searchStoreWithHTTPInfo(options: options)

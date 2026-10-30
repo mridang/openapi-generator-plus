@@ -515,6 +515,9 @@ import Testing
         ("{\"status\":\"lost\"}", "Order"),
         ("{\"shipDate\":\"not-a-date\"}", "Order"),
         ("{\"retryAfter\":\"PT1H\"}", "EdgeCases"),
+        ("{\"quantity\":7.5}", "Order"),
+        ("{\"quantity\":7.0}", "Order"),
+        ("{\"id\":1e2}", "Order"),
     ])
     func testWireShapeFailuresAreSerializationErrors(json: String, model: String) {
         let error = #expect(throws: SerializationError.self) {
@@ -526,6 +529,80 @@ import Testing
         }
         guard let error else { return }
         let _: any {{errorPrefix}}Error = error
+    }
+
+    // MARK: - Integer fields reject a fraction or an exponent
+
+    /* JSONDecoder on its own decodes 7.0 and 1e2 into an Int; the other SDKs
+       reject both, so the serializer does too, with a message naming why. */
+    @Test(arguments: ["7.0", "1e2", "1E2", "-3.0", "2.0e1"])
+    func testIntegerFieldRejectsIntegralFloatLiteral(literal: String) {
+        let error = #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"quantity\":\(literal)}", as: Order.self)
+        }
+        #expect(error?.message == "Failed to deserialize JSON: a number with a fraction or an exponent cannot be decoded into an integer field")
+        #expect(error?.cause is DecodingError)
+    }
+
+    @Test func testFractionalLiteralInInt64FieldIsRejected() {
+        let error = #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"id\":1.9}", as: Order.self)
+        }
+        #expect(error?.message == "Failed to deserialize JSON")
+    }
+
+    @Test func testIntegralFloatInIntegerMapValueIsRejected() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"a\":1,\"b\":7.0}", as: [String: Int].self)
+        }
+    }
+
+    @Test func testIntegralFloatInNestedIntegerArrayIsRejected() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("[[1,2],[3,4.0]]", as: [[Int64]].self)
+        }
+    }
+
+    @Test func testPlainIntegerLiteralsStillDecode() throws {
+        let order = try ObjectSerializer.deserialize("{\"id\":-0,\"quantity\":7}", as: Order.self)
+        #expect(order?.id == 0)
+        #expect(order?.quantity == 7)
+    }
+
+    @Test func testFractionAndExponentStillDecodeIntoFloatingFields() throws {
+        let values = try ObjectSerializer.deserialize("{\"a\":7.0,\"b\":1e2,\"c\":2.5}", as: [String: Double].self)
+        #expect(values == ["a": 7.0, "b": 100.0, "c": 2.5])
+    }
+
+    @Test func testNumberTextInsideStringIsNotInspected() throws {
+        let values = try ObjectSerializer.deserialize("{\"a\":\"7.0\",\"b\":3}", as: [String: AnyCodable].self)
+        #expect(values?["a"]?.value as? String == "7.0")
+    }
+
+    // MARK: - Duplicate object keys keep the last value
+
+    /* JSONDecoder keeps the first of two duplicate keys; the other SDKs keep
+       the last, so the serializer drops the earlier occurrences first. */
+    @Test func testDuplicateKeyKeepsTheLastValue() throws {
+        let order = try ObjectSerializer.deserialize("{\"id\":1,\"quantity\":3,\"id\":2}", as: Order.self)
+        #expect(order?.id == 2)
+        #expect(order?.quantity == 3)
+    }
+
+    @Test func testDuplicateKeyInNestedObjectKeepsTheLastValue() throws {
+        let values = try ObjectSerializer.deserialize(
+            "{\"outer\":{\"k\":\"first\",\"k\":\"last\"}}", as: [String: [String: String]].self)
+        #expect(values == ["outer": ["k": "last"]])
+    }
+
+    @Test func testEscapedDuplicateKeyCountsAsTheSameKey() throws {
+        let values = try ObjectSerializer.deserialize("{\"ab\":1,\"\\u0061b\":2}", as: [String: Int].self)
+        #expect(values == ["ab": 2])
+    }
+
+    @Test func testDuplicateKeyWithFirstValueOfWrongTypeDecodesTheLast() throws {
+        let order = try ObjectSerializer.deserialize("{\"quantity\":\"x\",\"quantity\":4}", as: Order.self)
+        #expect(order?.quantity == 4)
     }
 
     // MARK: - Gap AU-residual — missing discriminator field must throw

@@ -183,11 +183,16 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     return newDelegate
   }
 
+  /// Longest time a discovery document is cached: one year. A larger
+  /// `max-age` is clamped to it, matching the token `expires_in` ceiling.
+  static let maxDiscoveryAgeSeconds = 31_536_000
+
   /// Parse `Cache-Control: max-age=<seconds>` from response headers.
   ///
   /// Returns 86400 (RFC 8414 default) if the header is absent or does not
-  /// contain a `max-age` directive.
-  private static func parseMaxAge(_ headers: [String: String]) -> Int {
+  /// contain a `max-age` directive, and clamps a larger value to
+  /// ``maxDiscoveryAgeSeconds``.
+  static func parseMaxAge(_ headers: [String: String]) -> Int {
     let defaultMaxAge = 86400
     for (key, value) in headers where key.lowercased() == "cache-control" {
       guard
@@ -200,12 +205,16 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
       let range = NSRange(value.startIndex..., in: value)
       guard let match = regex.firstMatch(in: value, options: [], range: range),
         match.numberOfRanges >= 2,
-        let group = Range(match.range(at: 1), in: value),
-        let seconds = Int(value[group])
+        let group = Range(match.range(at: 1), in: value)
       else {
         return defaultMaxAge
       }
-      return seconds
+      /* The pattern matched digits only, so a failed Int parse means a
+         value too large for Int: clamp it like any other over-large age. */
+      guard let seconds = Int(value[group]) else {
+        return maxDiscoveryAgeSeconds
+      }
+      return min(seconds, maxDiscoveryAgeSeconds)
     }
     return defaultMaxAge
   }

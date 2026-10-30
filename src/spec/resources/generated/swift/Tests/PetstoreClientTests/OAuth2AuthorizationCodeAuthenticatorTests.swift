@@ -453,4 +453,22 @@ import Testing
     #expect(headers["Authorization"] == "Bearer tok1")
     #expect(auth.tokenManager.refreshToken == "ref1")
   }
+
+  // MARK: - Generated scheme wrapper
+
+  /* The authorization-code securityScheme's wrapper carries the spec's
+   * authorization, token and refresh URLs and scopes. */
+  @Test func schemeWrapperCarriesTheSpecUrlsAndScopes() throws {
+    let auth = UserAuthAuthorizationCodeAuthenticator(
+      host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
+      redirectUri: "https://app.example.com/cb")
+    #expect(
+      String(describing: auth)
+        == "UserAuthAuthorizationCodeAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/oauth/token, refreshURL: https://auth.example.com/oauth/refresh, redirectURI: https://app.example.com/cb, scopes: [\"pets:write\", \"pets:read\"], tokenExchanged: false)"
+    )
+    let url = try auth.buildAuthorizationURL(state: "s1")
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    let items = URLComponents(string: url)?.queryItems ?? []
+    #expect(items.first { $0.name == "scope" }?.value == "pets:write pets:read")
+  }
 }

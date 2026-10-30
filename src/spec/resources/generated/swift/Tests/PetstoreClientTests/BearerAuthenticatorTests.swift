@@ -107,4 +107,30 @@ import Testing
     let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
     #expect(await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
   }
+
+  // MARK: - Generated scheme wrappers
+
+  /* Each HTTP bearer securityScheme generates a wrapper that sends the same
+   * Bearer header, validates eagerly and masks the token in its repr. */
+  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
+  func schemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String) async throws {
+    let auth = try Self.schemeWrapper(scheme, token: "xyz")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
+    #expect(auth.queryParams().isEmpty)
+    #expect(auth.cookieParams().isEmpty)
+    #expect(
+      String(describing: auth)
+        == "\(scheme)Authenticator(host: https://api.example.com, token: ***)")
+    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+      _ = try Self.schemeWrapper(scheme, token: "")
+    }
+  }
+
+  private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {
+    let host = "https://api.example.com"
+    switch scheme {
+    case "PetStoreBearer": return try PetStoreBearerAuthenticator(host: host, token: token)
+    default: return try ServiceTokenAuthenticator(host: host, token: token)
+    }
+  }
 }

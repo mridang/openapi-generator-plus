@@ -31,7 +31,7 @@ public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLon
 @available(*, deprecated, message: "This schema is deprecated.")
 {{/isDeprecated}}
 {{#externalDocumentation}}
-/// See {{url}} {{description}}
+/// See {{{url}}} {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
 {{/externalDocumentation}}
 {{#vars}}
 {{#isEnum}}
@@ -60,10 +60,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     /// Example: {{{.}}}
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-    /// ## {{summary}}
-    /// {{description}}
+    /// ## {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
     /// ```json
-    /// {{value}}
+    /// {{{value}}}
     /// ```
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}

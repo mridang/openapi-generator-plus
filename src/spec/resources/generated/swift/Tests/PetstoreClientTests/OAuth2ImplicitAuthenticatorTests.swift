@@ -162,4 +162,21 @@ import Testing
         == "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
     )
   }
+
+  // MARK: - Generated scheme wrapper
+
+  /* The implicit securityScheme's wrapper carries the spec's authorization
+   * URL and scopes. */
+  @Test func schemeWrapperCarriesTheSpecAuthorizationUrlAndScopes() throws {
+    let auth = BrowserAuthImplicitAuthenticator(host: "https://api.example.com", clientId: "cid")
+    #expect(
+      String(describing: auth)
+        == "BrowserAuthImplicitAuthenticator(host: https://api.example.com, clientID: cid, authorizationURL: https://auth.example.com/authorize, scopes: [\"read\"], accessToken: nil)"
+    )
+    let url = try auth.buildAuthorizationURL(state: "s1")
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    let items = URLComponents(string: url)?.queryItems ?? []
+    #expect(items.first { $0.name == "scope" }?.value == "read")
+    #expect(items.first { $0.name == "client_id" }?.value == "cid")
+  }
 }

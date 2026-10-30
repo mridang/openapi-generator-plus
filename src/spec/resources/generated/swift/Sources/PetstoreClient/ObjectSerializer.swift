@@ -248,13 +248,281 @@ internal enum ObjectSerializer {
     {
       return nil
     }
+    /* Foundation's JSONDecoder differs from the other SDKs in two ways that
+       a pre-pass over the raw text corrects. It keeps the FIRST of two
+       duplicate object keys, so a document with duplicates is re-emitted
+       with only the last occurrence of each key (the other SDKs keep the
+       last). It also accepts an integral float literal such as 7.0 or
+       1e2 into an integer field, so a document carrying a fraction or an
+       exponent is decoded a second time with every such literal replaced
+       by 0.5: an integer slot then fails, which proves the original
+       literal reached one, and the payload is rejected. */
+    let bytes = [UInt8](stripped)
+    var parser = JsonShapeParser(bytes: bytes)
+    let shape = parser.parseDocument()
+    var payload = stripped
+    if let shape, parser.hasDuplicateKeys {
+      payload = Data(render(shape, from: bytes, probe: false))
+    }
+    let value: T
     do {
-      return try decoder.decode(type, from: stripped)
+      value = try decoder.decode(type, from: payload)
     } catch {
       throw SerializationError(
         message: "Failed to deserialize JSON",
         cause: error
       )
+    }
+    if let shape, parser.hasNonIntegralNumber {
+      do {
+        _ = try decoder.decode(type, from: Data(render(shape, from: bytes, probe: true)))
+      } catch {
+        throw SerializationError(
+          message:
+            "Failed to deserialize JSON: a number with a fraction or an exponent cannot be decoded into an integer field",
+          cause: error
+        )
+      }
+    }
+    return value
+  }
+
+  /// The shape of a JSON document as byte ranges of its original text, so
+  /// a rewrite re-emits every string and number exactly as received.
+  private enum JsonShape {
+    case scalar(Range<Int>)
+    case number(Range<Int>, integral: Bool)
+    case array([JsonShape])
+    case object([JsonMember])
+  }
+
+  /// One member of a JSON object: the decoded key, the key's raw text and
+  /// the value.
+  private struct JsonMember {
+    let key: String
+    let raw: Range<Int>
+    let value: JsonShape
+  }
+
+  /// Minimal JSON reader behind the Data `deserialize`. It returns
+  /// nil for text that is not a JSON document, in which case the original
+  /// bytes go to JSONDecoder unchanged and fail there with its own error.
+  private struct JsonShapeParser {
+    let bytes: [UInt8]
+    var index = 0
+    var hasDuplicateKeys = false
+    var hasNonIntegralNumber = false
+
+    init(bytes: [UInt8]) {
+      self.bytes = bytes
+    }
+
+    mutating func parseDocument() -> JsonShape? {
+      guard let shape = parseValue() else {
+        return nil
+      }
+      skipWhitespace()
+      return index == bytes.count ? shape : nil
+    }
+
+    private mutating func skipWhitespace() {
+      while index < bytes.count,
+        bytes[index] == 0x20 || bytes[index] == 0x09 || bytes[index] == 0x0A || bytes[index] == 0x0D
+      {
+        index += 1
+      }
+    }
+
+    private mutating func parseValue() -> JsonShape? {
+      skipWhitespace()
+      guard index < bytes.count else {
+        return nil
+      }
+      switch bytes[index] {
+      case 0x7B:
+        return parseObject()
+      case 0x5B:
+        return parseArray()
+      case 0x22:
+        return parseString().map { JsonShape.scalar($0) }
+      default:
+        return parseLiteral()
+      }
+    }
+
+    private mutating func parseString() -> Range<Int>? {
+      let start = index
+      index += 1
+      while index < bytes.count {
+        let byte = bytes[index]
+        if byte == 0x5C {
+          index += 2
+          continue
+        }
+        index += 1
+        if byte == 0x22 {
+          return start..<index
+        }
+      }
+      return nil
+    }
+
+    private mutating func parseLiteral() -> JsonShape? {
+      let start = index
+      while index < bytes.count {
+        let byte = bytes[index]
+        if byte == 0x2C || byte == 0x5D || byte == 0x7D || byte == 0x20
+          || byte == 0x09 || byte == 0x0A || byte == 0x0D
+        {
+          break
+        }
+        index += 1
+      }
+      guard index > start else {
+        return nil
+      }
+      let first = bytes[start]
+      guard first == 0x2D || (first >= 0x30 && first <= 0x39) else {
+        return .scalar(start..<index)
+      }
+      let integral = !bytes[start..<index].contains { $0 == 0x2E || $0 == 0x65 || $0 == 0x45 }
+      if !integral {
+        hasNonIntegralNumber = true
+      }
+      return .number(start..<index, integral: integral)
+    }
+
+    private mutating func parseArray() -> JsonShape? {
+      index += 1
+      var items: [JsonShape] = []
+      skipWhitespace()
+      if index < bytes.count, bytes[index] == 0x5D {
+        index += 1
+        return .array(items)
+      }
+      while true {
+        guard let item = parseValue() else {
+          return nil
+        }
+        items.append(item)
+        skipWhitespace()
+        guard index < bytes.count else {
+          return nil
+        }
+        if bytes[index] == 0x2C {
+          index += 1
+          continue
+        }
+        if bytes[index] == 0x5D {
+          index += 1
+          return .array(items)
+        }
+        return nil
+      }
+    }
+
+    private mutating func parseObject() -> JsonShape? {
+      index += 1
+      var members: [JsonMember] = []
+      var seen = Set<String>()
+      skipWhitespace()
+      if index < bytes.count, bytes[index] == 0x7D {
+        index += 1
+        return .object(members)
+      }
+      while true {
+        skipWhitespace()
+        guard index < bytes.count, bytes[index] == 0x22, let raw = parseString() else {
+          return nil
+        }
+        skipWhitespace()
+        guard index < bytes.count, bytes[index] == 0x3A else {
+          return nil
+        }
+        index += 1
+        guard let value = parseValue() else {
+          return nil
+        }
+        let key = decodeKey(raw)
+        if !seen.insert(key).inserted {
+          hasDuplicateKeys = true
+        }
+        members.append(JsonMember(key: key, raw: raw, value: value))
+        skipWhitespace()
+        guard index < bytes.count else {
+          return nil
+        }
+        if bytes[index] == 0x2C {
+          index += 1
+          continue
+        }
+        if bytes[index] == 0x7D {
+          index += 1
+          return .object(members)
+        }
+        return nil
+      }
+    }
+
+    /// Decodes a quoted key so `"a"` and `"a"` count as the same key.
+    private func decodeKey(_ raw: Range<Int>) -> String {
+      let text = bytes[raw]
+      if !text.contains(0x5C) {
+        return String(decoding: text.dropFirst().dropLast(), as: UTF8.self)
+      }
+      let decoded = try? JSONSerialization.jsonObject(with: Data(text), options: .fragmentsAllowed)
+      return (decoded as? String) ?? String(decoding: text, as: UTF8.self)
+    }
+  }
+
+  /// Re-emits a parsed document, keeping only the last occurrence of each
+  /// object key. With `probe`, every number carrying a fraction or an
+  /// exponent is written as 0.5.
+  private static func render(_ shape: JsonShape, from bytes: [UInt8], probe: Bool) -> [UInt8] {
+    var out: [UInt8] = []
+    out.reserveCapacity(bytes.count)
+    render(shape, from: bytes, probe: probe, into: &out)
+    return out
+  }
+
+  private static func render(
+    _ shape: JsonShape, from bytes: [UInt8], probe: Bool, into out: inout [UInt8]
+  ) {
+    switch shape {
+    case .scalar(let range):
+      out.append(contentsOf: bytes[range])
+    case .number(let range, let integral):
+      if probe && !integral {
+        out.append(contentsOf: Array("0.5".utf8))
+      } else {
+        out.append(contentsOf: bytes[range])
+      }
+    case .array(let items):
+      out.append(0x5B)
+      for (position, item) in items.enumerated() {
+        if position > 0 {
+          out.append(0x2C)
+        }
+        render(item, from: bytes, probe: probe, into: &out)
+      }
+      out.append(0x5D)
+    case .object(let members):
+      var lastPosition: [String: Int] = [:]
+      for (position, member) in members.enumerated() {
+        lastPosition[member.key] = position
+      }
+      out.append(0x7B)
+      var first = true
+      for (position, member) in members.enumerated() where lastPosition[member.key] == position {
+        if !first {
+          out.append(0x2C)
+        }
+        first = false
+        out.append(contentsOf: bytes[member.raw])
+        out.append(0x3A)
+        render(member.value, from: bytes, probe: probe, into: &out)
+      }
+      out.append(0x7D)
     }
   }
 

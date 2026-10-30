@@ -7,6 +7,9 @@
 
 import Foundation
 
+#if canImport(CoreFoundation)
+  import CoreFoundation
+#endif
 #if canImport(Security)
   import Security
 #endif
@@ -654,8 +657,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   }
 
   /// Parses the `charset=` parameter from a Content-Type header and
-  /// returns the matching `String.Encoding`. Falls back to UTF-8 if the
-  /// charset is missing, unrecognised, or unsupported.
+  /// returns the matching `String.Encoding`. A label outside the table
+  /// below is resolved through CoreFoundation's IANA charset registry, so
+  /// any charset the platform can convert decodes (iso-8859-15, koi8-r,
+  /// gb18030, big5, ...). Falls back to UTF-8 if the charset is missing,
+  /// unregistered, or unsupported.
   static func encodingForContentType(_ contentType: String?) -> String.Encoding {
     guard let charset = charsetLabel(contentType) else {
       return .utf8
@@ -678,14 +684,26 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     case "utf-32": return .utf32
     case "windows-1250": return .windowsCP1250
     case "windows-1251": return .windowsCP1251
-    case "windows-1252": return .windowsCP1252
+    case "windows-1252", "cp1252", "x-cp1252": return .windowsCP1252
     case "windows-1253": return .windowsCP1253
     case "windows-1254": return .windowsCP1254
     case "shift_jis", "shift-jis": return .shiftJIS
     case "euc-jp": return .japaneseEUC
     case "iso-2022-jp": return .iso2022JP
-    default: return .utf8
+    default: return registeredEncoding(charset) ?? .utf8
     }
+  }
+
+  /// Looks a charset label up in CoreFoundation's IANA registry, which is
+  /// present on Linux as well as on the Apple platforms. Returns nil for a
+  /// label the registry does not know.
+  static func registeredEncoding(_ label: String) -> String.Encoding? {
+    let name = unsafeBitCast(NSString(string: label), to: CFString.self)
+    let cfEncoding = CFStringConvertIANACharSetNameToEncoding(name)
+    guard cfEncoding != kCFStringEncodingInvalidId else {
+      return nil
+    }
+    return String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(cfEncoding)))
   }
 
   /// Determines whether the given content type represents text content

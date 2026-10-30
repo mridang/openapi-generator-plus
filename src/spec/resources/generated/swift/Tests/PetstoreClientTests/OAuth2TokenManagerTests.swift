@@ -641,6 +641,42 @@ import Testing
     #expect(second == "flt-tok")
   }
 
+  /* A huge expires_in, as a number or a digit string, is clamped to one
+     year: it used to trap the Int conversion and crash the process. */
+  @Test(arguments: [
+    ("1e20", 31_536_000),
+    ("\"1e20\"", 0),
+    ("\"100000000000000000000\"", 31_536_000),
+    ("\"\(String(repeating: "9", count: 400))\"", 31_536_000),
+    ("9223372036854775807", 31_536_000),
+    ("31536000", 31_536_000),
+    ("31535999.9", 31_535_999),
+    ("\"Infinity\"", 0),
+    ("3600", 3600),
+  ])
+  func testExpiresInIsClampedToOneYear(literal: String, seconds: Int) throws {
+    let json =
+      try JSONSerialization.jsonObject(with: Data("{\"expires_in\":\(literal)}".utf8))
+      as? [String: Any]
+    #expect(OAuth2TokenManager.parseExpiresIn(json?["expires_in"]) == seconds)
+  }
+
+  @Test func testHugeExpiresInCachesTheToken() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"huge1\",\"expires_in\":1e20}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"huge2\",\"expires_in\":3600}"))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+
+    #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "huge1")
+    #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "huge1")
+    #expect(client.requests.count == 1)
+  }
+
   @Test func testExpiresInNegativeSkipsCaching() async throws {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.

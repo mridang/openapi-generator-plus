@@ -11,16 +11,18 @@
    currently handle redirects directly" — and has no connectionProxyDictionary
    for the second, so the suite runs on the Apple platforms. The parts that do
    not need a stubbed redirect live in DefaultApiClientUnitTests, which runs
-   everywhere. */
+   everywhere, and so does DefaultApiClientTlsTests at the end of this file,
+   which needs the TLS mock rather than a stub. */
+import Foundation
+import Testing
+
+@testable import PetstoreClient
+
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 #if !os(Linux)
-  import Foundation
-  import Testing
-
-  #if canImport(FoundationNetworking)
-    import FoundationNetworking
-  #endif
-  @testable import PetstoreClient
-
   @Suite(.serialized) final class DefaultApiClientTests {
 
     // MARK: - Helpers
@@ -917,3 +919,29 @@
     override func stopLoading() {}
   }
 #endif
+
+/* With TLS verification on (the default, or set explicitly) a server whose
+   certificate the platform trust store does not know is refused: the request
+   fails as a NetworkError with status 0 before any HTTP response. The mock's
+   certificate is signed by the fixture CA, which no system trusts. */
+@Suite(.serialized) final class DefaultApiClientTlsTests {
+
+  init() async throws {
+    if chasmUrl.isEmpty {
+      try await setUpContainers()
+    }
+  }
+
+  @Test(arguments: [false, true])
+  func testVerifySslRejectsAnUntrustedServerCertificate(explicit: Bool) async throws {
+    let client = try DefaultApiClient(
+      transportOptions: explicit ? TransportOptionsBuilder().verifySsl(true).build() : nil)
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: chasmHttpsUrl + "/test/echo", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect(error?.underlyingError is URLError)
+    #expect(error?.responseBody == nil)
+  }
+}

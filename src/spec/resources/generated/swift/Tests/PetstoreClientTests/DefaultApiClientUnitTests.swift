@@ -592,6 +592,30 @@ import Testing
     #expect(enc == .windowsCP1252)
   }
 
+  /* Labels outside the hard-coded table resolve through the IANA charset
+     registry, so a body in any charset the platform converts decodes to
+     its text rather than to U+FFFD replacement characters. */
+  @Test(arguments: [
+    ("iso-8859-15", [UInt8]([0xA4]), "\u{20AC}"),
+    ("latin9", [UInt8]([0xA4]), "\u{20AC}"),
+    ("koi8-r", [UInt8]([0xC1]), "\u{430}"),
+    ("windows-1257", [UInt8]([0xC0]), "\u{104}"),
+    ("tis-620", [UInt8]([0xA1]), "\u{E01}"),
+    ("gb18030", [UInt8]([0xC4, 0xE3]), "\u{4F60}"),
+    ("big5", [UInt8]([0xA4, 0x40]), "\u{4E00}"),
+    ("cp1252", [UInt8]([0x80]), "\u{20AC}"),
+    ("x-cp1252", [UInt8]([0x80]), "\u{20AC}"),
+    ("\"ISO-8859-15\"", [UInt8]([0xA4]), "\u{20AC}"),
+  ])
+  func testRegisteredCharsetDecodesTheBody(label: String, bytes: [UInt8], text: String) {
+    #expect(
+      DefaultApiClient.decodeText(Data(bytes), contentType: "text/plain; charset=\(label)") == text)
+  }
+
+  @Test func testUnregisteredCharsetHasNoEncoding() {
+    #expect(DefaultApiClient.registeredEncoding("x-unknown-banana") == nil)
+  }
+
   @Test func testEncodingForContentTypeUsAscii() {
     let enc = DefaultApiClient.encodingForContentType("text/plain; charset=us-ascii")
     #expect(enc == .ascii)

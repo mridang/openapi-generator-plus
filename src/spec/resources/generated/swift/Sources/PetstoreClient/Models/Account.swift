@@ -8,7 +8,7 @@
 import Foundation
 
 /// Account is a model class generated from the OpenAPI schema.
-/// See https://example.com/docs/account Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
+/// See https://example.com/docs/account Account <docs> & "notes" it's here
 public struct Account: Codable, Sendable, Equatable, Hashable {
   /// - Note: This property is read-only; it is still sent and received.
   public var id: Int64?

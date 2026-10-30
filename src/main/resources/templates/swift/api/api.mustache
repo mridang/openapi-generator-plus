@@ -78,7 +78,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// - Parameters:
 {{#allParams}}
 {{#description}}
-    ///   - {{paramName}}: {{description}}
+    ///   - {{paramName}}: {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
 {{/description}}
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
@@ -100,10 +100,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#allParams}}
 {{#vendorExtensions.pluralExamples}}
     ///
-    /// ### `{{paramName}}` — {{summary}}
-    /// {{description}}
+    /// ### `{{paramName}}` — {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
+    /// {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
     /// ```json
-    /// {{value}}
+    /// {{{value}}}
     /// ```
 {{/vendorExtensions.pluralExamples}}
 {{/allParams}}

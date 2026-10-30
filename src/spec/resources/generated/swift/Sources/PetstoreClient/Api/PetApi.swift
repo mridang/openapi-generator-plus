@@ -1028,7 +1028,7 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - asOf: Summary date, sent as a matrix-style path segment
-  ///   - session: Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required
+  ///   - session: Session token: "a<b>" & it's required
   ///   - days: Extra dates to summarise
   ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
