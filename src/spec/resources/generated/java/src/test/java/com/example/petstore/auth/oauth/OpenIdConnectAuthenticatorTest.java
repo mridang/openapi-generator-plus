@@ -317,6 +317,7 @@ class OpenIdConnectAuthenticatorTest {
         "Cache-Control|max-age=3600|1",
         "Cache-Control|no-store|1",
         "Cache-Control|max-age=99999999999999999999|1",
+        "Cache-Control|max-age=9223372036854775807|1",
         "X-Other|max-age=0|1"
       })
   void discoveryIsCachedForTheCacheControlMaxAge(String header, String value, int expectedFetches) {

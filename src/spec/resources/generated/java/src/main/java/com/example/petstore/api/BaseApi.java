@@ -418,7 +418,7 @@ public abstract class BaseApi {
 
   /**
    * Returns true if the value is a valid RFC 6265 cookie name (token). Allowed chars: ALPHA / DIGIT
-   * / "!#$%&'*+-.^_`|~".
+   * / {@code "!#$%&'*+-.^_`|~"}.
    *
    * <p>Visible to generated API subclasses (different package) so that operation-level cookie
    * parameters can be validated with the exact same RFC 6265 rule the auth-provided cookie path

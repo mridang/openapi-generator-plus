@@ -437,6 +437,37 @@ class OAuth2TokenManagerTest {
                 "float expires_in must floor to a valid cached expiry");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource(delimiter = '|', value = {
+        "1e20|1",
+        "\"99999999999999999999\"|1",
+        "100000000000000000000|1",
+        "9223372036854775807|1",
+        "\"Infinity\"|2",
+        "\"1e400\"|2"
+    })
+    void expiresInBeyondTheCeilingIsClampedNotAnOverflow(String expiresIn, int expectedFetches) {
+        /* A server-supplied lifetime too large for Instant arithmetic is
+         * clamped to one year and cached; a non-numeric one stays stale.
+         * Neither escapes as an ArithmeticException or DateTimeException. */
+        AtomicInteger callCount = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            callCount.incrementAndGet();
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"huge\",\"expires_in\":" + expiresIn + "}", Map.of());
+        };
+
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        assertEquals("huge", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("huge", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(expectedFetches, callCount.get());
+    }
+
     @Test
     void expiresInNegativeSkipsCaching() {
         // D1: a negative expires_in (e.g. -1) must not produce a future expiry

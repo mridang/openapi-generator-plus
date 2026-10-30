@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 {{#model}}
 {{#isEnum}}
 {{#description}}
-/** {{{.}}} */
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
 {{/description}}
 {{^description}}
 /** {{classname}}. */
@@ -154,12 +154,12 @@ public enum {{classname}} {
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated
@@ -168,13 +168,13 @@ public enum {{classname}} {
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -182,7 +182,7 @@ public enum {{classname}} {
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -282,12 +282,12 @@ public class {{classname}} {
 {{#isDeprecated}}
 /**
 {{#description}}
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated
@@ -296,13 +296,13 @@ public class {{classname}} {
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -310,7 +310,7 @@ public class {{classname}} {
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -475,11 +475,11 @@ public class {{classname}} {
 {{#isDeprecated}}
 {{#description}}
 /**
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -487,7 +487,7 @@ public class {{classname}} {
 /**
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -497,13 +497,13 @@ public class {{classname}} {
 {{#description}}
 {{#externalDocumentation}}
 /**
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
-/** {{{.}}} */
+/** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
 {{/externalDocumentation}}
 {{/description}}
 {{^description}}
@@ -511,7 +511,7 @@ public class {{classname}} {
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -679,7 +679,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   {{/example}}
   {{#vendorExtensions.pluralExamples}}
    *
-   * <p>{{summary}}: {@code {{{value}}}}
+   * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}: {@code {{{value}}}}
   {{/vendorExtensions.pluralExamples}}
   {{#isReadOnly}}
    *

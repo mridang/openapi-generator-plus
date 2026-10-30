@@ -12,7 +12,7 @@ public final class GetPetSummaryOptions {
   /**
    * Creates an options instance with the required parameters.
    *
-   * @param session Session token: \"a<b>\" & it's required.
+   * @param session Session token: "a{@literal <}b{@literal >}" {@literal &} it's required.
    */
   public GetPetSummaryOptions(String session) {
     this.session = session;
@@ -21,7 +21,7 @@ public final class GetPetSummaryOptions {
   /**
    * Returns the {@code session} parameter.
    *
-   * <p>Session token: \"a<b>\" & it's required.
+   * <p>Session token: "a{@literal <}b{@literal >}" {@literal &} it's required.
    *
    * @return the {@code session} parameter
    */

@@ -57,7 +57,7 @@ public final class Servers {
   /**
    * Server 2: {@code https://{tenant}.example.com/api}
    *
-   * <p>Bob's "sandbox" & co: $5 #{x} a*{@literal /}b
+   * <p>Bob's "sandbox" {@literal &} co: $5 #{x} a*{@literal /}b
    */
   public static final ServerConfiguration SERVER_2 =
       new ServerConfiguration(

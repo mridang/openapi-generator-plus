@@ -465,7 +465,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Neutralises the angle brackets javadoc reads as HTML. An inline
+     * Neutralises the angle brackets and ampersands javadoc reads as HTML. An inline
      * {@code literal} tag is used rather than an HTML entity because the
      * formatting spec forbids entities in generated source, and because the
      * rendered text is then the prose the document actually wrote.
@@ -478,8 +478,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return "";
         }
         /* A literal comment terminator would end the doc comment early, so
-         * its slash is moved into an inline literal tag as well. */
-        return text.replace("<", "{@literal <}")
+         * its slash is moved into an inline literal tag as well. A bare
+         * ampersand is a bad HTML entity to doclint, so it is wrapped too;
+         * it goes first so the tags added below are not rewritten. */
+        return text.replace("&", "{@literal &}")
+                .replace("<", "{@literal <}")
                 .replace(">", "{@literal >}")
                 .replace("*/", "*{@literal /}");
     }

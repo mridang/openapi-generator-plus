@@ -141,11 +141,11 @@ public class PetApi extends BaseApi {
 
     /** Allowed values for the {@code region} server variable. */
     enum RegionalRegion {
-      /** The {@code us} value. */
+      /** The <code>us</code> value. */
       US("us"),
-      /** The {@code eu} value. */
+      /** The <code>eu</code> value. */
       EU("eu"),
-      /** The {@code ap} value. */
+      /** The <code>ap</code> value. */
       AP("ap");
 
       private final String value;
@@ -166,9 +166,9 @@ public class PetApi extends BaseApi {
 
     /** Allowed values for the {@code region} server variable. */
     enum MirrorRegion {
-      /** The {@code us} value. */
+      /** The <code>us</code> value. */
       US("us"),
-      /** The {@code eu} value. */
+      /** The <code>eu</code> value. */
       EU("eu");
 
       private final String value;
@@ -189,9 +189,9 @@ public class PetApi extends BaseApi {
 
     /** Allowed values for the {@code channel} server variable. */
     enum Channel {
-      /** The {@code a&b} value. */
+      /** The <code>a{@literal &}b</code> value. */
       A_B("a&b"),
-      /** The {@code it's} value. */
+      /** The <code>it's</code> value. */
       IT_S("it's");
 
       private final String value;
@@ -284,9 +284,9 @@ public class PetApi extends BaseApi {
 
     /** Allowed values for the {@code environment} server variable. */
     enum Environment {
-      /** The {@code staging} value. */
+      /** The <code>staging</code> value. */
       STAGING("staging"),
-      /** The {@code sandbox} value. */
+      /** The <code>sandbox</code> value. */
       SANDBOX("sandbox");
 
       private final String value;
@@ -307,9 +307,9 @@ public class PetApi extends BaseApi {
 
     /** Allowed values for the {@code version} server variable. */
     enum Version {
-      /** The {@code v2} value. */
+      /** The <code>v2</code> value. */
       V2("v2"),
-      /** The {@code v3} value. */
+      /** The <code>v3</code> value. */
       V3("v3");
 
       private final String value;
@@ -1421,8 +1421,8 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get a <plain> \"text\" summary & it's short Returns '''plain''' text for /pets/#{id} and <b> &
-   * \"c\" it's done
+   * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
+   * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
    *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
@@ -1435,8 +1435,8 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get a <plain> \"text\" summary & it's short Returns '''plain''' text for /pets/#{id} and <b> &
-   * \"c\" it's done
+   * Get a {@literal <}plain{@literal >} "text" summary {@literal &} it's short Returns '''plain'''
+   * text for /pets/#{id} and {@literal <}b{@literal >} {@literal &} "c" it's done
    *
    * @param petId (required)
    * @param asOf Summary date, sent as a matrix-style path segment (required)
@@ -1483,7 +1483,7 @@ public class PetApi extends BaseApi {
     }
     Map<String, String> headerParams = new HashMap<>();
     java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
-    if (options != null && options.session() != null) {
+    if (options.session() != null) {
       String sessionCookieValue =
           String.valueOf(
               ValueSerializer.serializeStyled(

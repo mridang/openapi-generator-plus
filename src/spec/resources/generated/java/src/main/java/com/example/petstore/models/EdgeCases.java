@@ -73,8 +73,8 @@ public class EdgeCases {
   public Color favoriteColor;
 
   /**
-   * Required permission is "user.grant.write" for {@literal <}admin{@literal >} & owner roles
-   * (don't skip it)
+   * Required permission is "user.grant.write" for {@literal <}admin{@literal >} {@literal &} owner
+   * roles (don't skip it)
    */
   @JsonProperty("permissionsNote")
   @Nullable

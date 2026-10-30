@@ -14,8 +14,8 @@ import javax.annotation.Nullable;
 /**
  * Account.
  *
- * @see <a href="https://example.com/docs/account">Account &lt;docs&gt; &amp; &quot;notes&quot;
- *     it&#39;s here</a>
+ * @see <a href="https://example.com/docs/account">Account {@literal <}docs{@literal >} {@literal &}
+ *     "notes" it's here</a>
  */
 public class Account {
 

@@ -57,7 +57,7 @@ public class {{classname}} extends BaseApi {
         /** Allowed values for the {@code {{name}}} server variable. */
         enum {{enumTypeName}} {
 {{#enumValues}}
-            /** The {@code {{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}} value. */
+            /** The <code>{{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}</code> value. */
             {{name}}("{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
 {{/enumValues}}
 
@@ -82,7 +82,7 @@ public class {{classname}} extends BaseApi {
 {{#variants}}
 
         /**
-         * {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
+         * {{#hasDescription}}{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
 {{#serverVariables}}
          *
          * @param {{camelName}} the {@code {{name}}} server variable
@@ -149,7 +149,7 @@ public class {{classname}} extends BaseApi {
 {{/-first}}{{/servers}}
 {{#vendorExtensions.op.optionsArgOptional}}
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
@@ -168,7 +168,7 @@ public class {{classname}} extends BaseApi {
     }
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
@@ -194,7 +194,7 @@ public class {{classname}} extends BaseApi {
 {{#vendorExtensions.hasMultipleConsumes}}
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Overload that selects the request content-type among the types this
      * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
@@ -216,7 +216,7 @@ public class {{classname}} extends BaseApi {
     }
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Overload that selects the request content-type among the types this
      * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
@@ -356,7 +356,7 @@ public class {{classname}} extends BaseApi {
 {{#hasCookieParams}}
         java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
 {{#cookieParams}}
-        if (options != null && options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             String {{paramName}}CookieValue = String.valueOf(
                     ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
             /* RFC 6265 — validate the operation cookie name and the assembled

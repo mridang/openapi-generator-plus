@@ -40,6 +40,12 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
       Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
   private static final long DEFAULT_MAX_AGE_SECONDS = 86400L;
 
+  /**
+   * Ceiling applied to a server-supplied max-age (one year), so an absurd lifetime cannot overflow
+   * the expiry arithmetic.
+   */
+  private static final long MAX_MAX_AGE_SECONDS = 31_536_000L;
+
   private final String host;
   private final String openIdConnectUrl;
   private final String clientId;
@@ -180,7 +186,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    *
    * @param headers the response headers
    * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if the header is absent or
-   *     does not contain a {@code max-age} directive
+   *     does not contain a {@code max-age} directive; a larger value is clamped to one year
    */
   private static long parseMaxAge(Map<String, String> headers) {
     for (Map.Entry<String, String> entry : headers.entrySet()) {
@@ -188,7 +194,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         Matcher matcher = MAX_AGE_PATTERN.matcher(entry.getValue());
         if (matcher.find()) {
           try {
-            return Long.parseLong(matcher.group(1));
+            return Math.min(Long.parseLong(matcher.group(1)), MAX_MAX_AGE_SECONDS);
           } catch (NumberFormatException ignored) {
             return DEFAULT_MAX_AGE_SECONDS;
           }
