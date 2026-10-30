@@ -11,6 +11,8 @@ import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.SerializationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
@@ -52,6 +54,10 @@ open class OpenIdConnectAuthenticator(
     @Volatile
     private var discoveryExpiry: Instant = Instant.EPOCH
 
+    /* Single-flight discovery: concurrent callers that find the document
+     * missing or stale wait here and re-check, so one GET serves them all. */
+    private val discoveryLock = Mutex()
+
     /**
      * Inject the shared API client used for discovery and token requests.
      *
@@ -72,6 +78,19 @@ open class OpenIdConnectAuthenticator(
      * @return the resolved authorization code authenticator
      */
     private suspend fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
+        val fresh = delegate
+        if (fresh != null && Instant.now().isBefore(discoveryExpiry)) {
+            return fresh
+        }
+        return discoveryLock.withLock { discoverLocked() }
+    }
+
+    /**
+     * Fetch the discovery document and install the delegate; runs under
+     * [discoveryLock]. A failed fetch leaves the previous delegate and its
+     * expiry untouched, so the error propagates and the next call retries.
+     */
+    private suspend fun discoverLocked(): OAuth2AuthorizationCodeAuthenticator {
         val cached = delegate
         if (cached != null && Instant.now().isBefore(discoveryExpiry)) {
             return cached
@@ -109,6 +128,9 @@ open class OpenIdConnectAuthenticator(
         val authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint")
         val tokenEndpoint = requireEndpoint(discovery, "token_endpoint")
 
+        /* Rediscovery refreshes the endpoints only: the replacement delegate is
+         * built around the previous delegate's token manager, so the exchanged
+         * session (tokens and the exchanged flag) survives it. */
         val resolved =
             OAuth2AuthorizationCodeAuthenticator(
                 host = host,
@@ -118,11 +140,10 @@ open class OpenIdConnectAuthenticator(
                 tokenUrl = tokenEndpoint,
                 redirectUri = redirectUri,
                 scopes = scopes,
+                refreshUrl = null,
+                tokenManager = cached?.tokenManager ?: OAuth2TokenManager(),
             )
         resolved.setApiClient(client)
-        /* Rediscovery rebuilds the delegate; carry the exchanged session over so
-         * a caller who already exchanged a code is not asked to do it again. */
-        cached?.let { resolved.adoptSession(it) }
         this.delegate = resolved
         this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved

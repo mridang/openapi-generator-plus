@@ -21,5 +21,5 @@ data class RequiredNullable(
      * The `note` property.
      */
     @SerialName("note")
-    val note: String,
+    val note: String?,
 )

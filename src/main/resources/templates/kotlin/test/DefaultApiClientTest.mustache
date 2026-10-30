@@ -195,6 +195,30 @@ class DefaultApiClientTest {
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
         }
+
+        @Test
+        @DisplayName("the timeout is one budget for every redirect hop")
+        fun timeoutCoversTheWholeRedirectChain() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient(TransportOptions.builder().timeout(1200L).followRedirects(true).build())
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkTimeoutException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/redirect/chain/1", emptyMap(), null)
+                }
+            }
+            assertEquals(0, ex.statusCode)
+        }
+
+        @Test
+        @DisplayName("a redirect chain inside the budget completes")
+        fun redirectChainInsideTheBudgetCompletes() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient(TransportOptions.builder().timeout(5000L).followRedirects(true).build())
+            val response = runBlocking {
+                client.sendRequest("GET", "$chasmUrl/test/redirect/chain/1", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+        }
     }
 
     @Nested
@@ -385,29 +409,47 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("resolves an empty Location to the base URL (RFC 3986)")
-        fun resolvesEmptyLocationToBaseUrl() {
-            var secondHopUrl: String? = null
+        @DisplayName("an empty Location behaves like a missing one: the 3xx is returned with its body")
+        fun emptyLocationReturnsTheRedirect() {
             var hopCount = 0
-            val engine = MockEngine { req ->
+            val engine = MockEngine { _ ->
                 hopCount++
-                if (hopCount == 1) {
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.Found,
-                        headers = headersOf("Location", ""),
-                    )
-                } else {
-                    secondHopUrl = req.url.toString()
-                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
-                }
+                respond(
+                    content = "{\"redirect\":\"empty\"}",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location" to listOf(""), "Content-Type" to listOf("application/json")),
+                )
             }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            runBlocking {
+            val response = runBlocking {
                 apiClient.sendRequest("GET", "https://h.example.com/v1/pets/1?x=1", emptyMap(), null)
             }
-            assertEquals("https://h.example.com/v1/pets/1?x=1", secondHopUrl)
+            assertEquals(302, response.statusCode)
+            assertEquals("{\"redirect\":\"empty\"}", response.body)
+            assertEquals(1, hopCount, "an empty Location must not be followed")
+        }
+
+        @Test
+        @DisplayName("a missing or unparseable Location returns the 3xx with its body")
+        fun unusableLocationReturnsTheRedirect() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val rows =
+                listOf(
+                    "/test/redirect/no-location" to "no-location",
+                    "/test/redirect/malformed-location" to "malformed",
+                )
+            for ((path, marker) in rows) {
+                val response = runBlocking {
+                    client.sendRequest("GET", "$chasmUrl$path", emptyMap(), null)
+                }
+                assertEquals(302, response.statusCode, path)
+                assertEquals("{\"redirect\":\"$marker\"}", response.body.filterNot { it.isWhitespace() }, path)
+            }
         }
     }
 

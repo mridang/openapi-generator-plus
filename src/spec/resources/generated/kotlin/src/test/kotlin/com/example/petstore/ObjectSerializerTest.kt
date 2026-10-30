@@ -275,6 +275,18 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("a uniqueItems array of scalars goes on the wire in ascending order")
+        fun scalarSetIsSortedOnTheWire() {
+            val pet =
+                com.example.petstore.models
+                    .Pet(name = "n", photoUrls = linkedSetOf("c", "a", "b"))
+            repeat(2) {
+                val json = serializer.serialize(pet)
+                assertTrue(json.contains("\"photoUrls\":[\"a\",\"b\",\"c\"]"), "got: $json")
+            }
+        }
+
+        @Test
         @DisplayName("omits an explicitly-nulled optional even when its default is non-null")
         fun omitsExplicitNullEvenWithNonNullDefault() {
             // label has a non-null schema default ("untitled"). Setting it to null
@@ -507,6 +519,41 @@ class ObjectSerializerTest {
     @DisplayName("StrictPrimitiveCoercionTests")
     inner class StrictPrimitiveCoercionTests {
         @Test
+        @DisplayName("integer model fields reject fractional, quoted, boolean and out-of-range values")
+        fun integerModelFieldsAreStrict() {
+            val rejected =
+                listOf(
+                    "{\"quantity\":3000000000}",
+                    "{\"quantity\":1.5}",
+                    "{\"quantity\":\"5\"}",
+                    "{\"quantity\":true}",
+                    "{\"id\":9223372036854775808}",
+                )
+            for (body in rejected) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.Order>(body)
+                }, body)
+            }
+            assertEquals(2147483647, serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":2147483647}")!!.quantity)
+            assertEquals(Long.MAX_VALUE, serializer.deserialize<com.example.petstore.models.Order>("{\"id\":9223372036854775807}")!!.id)
+        }
+
+        @Test
+        @DisplayName("integer container leaves reject fractional, quoted and out-of-range values")
+        fun integerContainerLeavesAreStrict() {
+            for (body in listOf("{\"a\":\"5\"}", "{\"a\":3000000000}", "{\"a\":1.5}")) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<Map<String, Int>>(body)
+                }, body)
+            }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<List<List<Int>>>("[[1.5]]")
+            }
+            assertEquals(mapOf("a" to 5), serializer.deserialize<Map<String, Int>>("{\"a\":5}"))
+            assertEquals(listOf(listOf(1, 2)), serializer.deserialize<List<List<Int>>>("[[1,2]]"))
+        }
+
+        @Test
         @DisplayName("quoted-scalar-into-numeric-field: {\"id\":\"42\"} on a Long field throws")
         fun quotedScalarIntoLongFieldThrows() {
             // Residual kotlinx gap: even with isLenient=false the parser would
@@ -678,6 +725,15 @@ class ObjectSerializerTest {
         @DisplayName("long returns string representation")
         fun longReturnsString() {
             assertEquals("9007199254740993", serializer.stringify(9007199254740993L))
+        }
+
+        @Test
+        @DisplayName("format time is HH:mm:ss, plus truncated .SSS when the millisecond part is non-zero")
+        fun timeIsPartialTimeWithTruncatedMillis() {
+            assertEquals("10:30:00", serializer.stringify(java.time.LocalTime.of(10, 30, 0)))
+            assertEquals("10:30:00.123", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 123_456_789)))
+            assertEquals("10:30:00.999", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 999_600_000)))
+            assertEquals("10:30:00", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 500_000)))
         }
     }
 
@@ -1007,6 +1063,52 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("FixtureModelRegressionTests")
     inner class FixtureModelRegressionTests {
+        @Test
+        @DisplayName("a required nullable property accepts null, rejects absence and is written as null")
+        fun requiredNullablePropertyKeepsItsKey() {
+            val decoded = serializer.deserialize<com.example.petstore.models.RequiredNullable>("{\"note\":null}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.note)
+            val missing =
+                assertThrowsExactly(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.RequiredNullable>("{}")
+                }
+            assertTrue(missing.message!!.contains("note"), missing.message)
+            assertEquals(
+                "{\"note\":null}",
+                serializer.serialize(
+                    com.example.petstore.models
+                        .RequiredNullable(note = null),
+                ),
+            )
+            assertEquals(
+                "{\"note\":\"n\"}",
+                serializer.serialize(
+                    com.example.petstore.models
+                        .RequiredNullable(note = "n"),
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
+        fun timePropertyRoundTrips() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789)),
+                )
+            assertEquals("{\"cutoff\":\"10:30:00.123\"}", json)
+            val whole =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0)),
+                )
+            assertEquals("{\"cutoff\":\"10:30:00\"}", whole)
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>(json)
+            assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), decoded!!.cutoff)
+        }
+
         @Test
         @DisplayName("integer-backed enum (Priority) round-trips as a JSON NUMBER, not a string")
         fun integerBackedEnumSerializesAsNumber() {

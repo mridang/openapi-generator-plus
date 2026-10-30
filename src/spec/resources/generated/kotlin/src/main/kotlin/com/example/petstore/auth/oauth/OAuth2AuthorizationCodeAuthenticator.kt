@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets
  * @param scopes requested scopes
  * @param refreshUrl refresh token endpoint URL (falls back to [tokenUrl] if null)
  */
-open class OAuth2AuthorizationCodeAuthenticator(
+open class OAuth2AuthorizationCodeAuthenticator internal constructor(
     private val host: String,
     private val clientId: String,
     private val clientSecret: String,
@@ -42,13 +42,34 @@ open class OAuth2AuthorizationCodeAuthenticator(
     private val tokenUrl: String,
     private val redirectUri: String,
     private val scopes: List<String>,
-    private val refreshUrl: String? = null,
+    private val refreshUrl: String?,
+    /* The session (tokens and the exchanged flag) lives in the token manager,
+     * so an authenticator rebuilt around the same manager (OIDC rediscovery)
+     * keeps it. */
+    internal val tokenManager: OAuth2TokenManager,
 ) : HttpAwareAuthenticator {
-    internal val tokenManager = OAuth2TokenManager()
-    private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
+    constructor(
+        host: String,
+        clientId: String,
+        clientSecret: String,
+        authorizationUrl: String,
+        tokenUrl: String,
+        redirectUri: String,
+        scopes: List<String>,
+        refreshUrl: String? = null,
+    ) : this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        redirectUri,
+        scopes,
+        refreshUrl,
+        OAuth2TokenManager(),
+    )
 
-    @Volatile
-    private var tokenExchanged: Boolean = false
+    private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
 
     /**
      * Inject the shared API client used for token exchange requests.
@@ -107,24 +128,13 @@ open class OAuth2AuthorizationCodeAuthenticator(
         // Always POST the new code: a cached token or a stored refresh token
         // from an earlier exchange must not stand in for this grant.
         tokenManager.exchange(tokenUrl, params)
-        tokenExchanged = true
-    }
-
-    /**
-     * Adopt the exchanged session (tokens and the exchanged flag) of a previous
-     * instance, so rebuilding the authenticator does not force a new code exchange.
-     *
-     * @param previous the authenticator whose session is carried over
-     */
-    internal fun adoptSession(previous: OAuth2AuthorizationCodeAuthenticator) {
-        tokenManager.copyStateFrom(previous.tokenManager)
-        tokenExchanged = previous.tokenExchanged
+        tokenManager.markExchanged()
     }
 
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
+        check(tokenManager.isExchanged()) { "Must call exchangeCode() before making API requests" }
         // RFC 6749 section 6: the client authenticates the refresh the same
         // way it authenticated the code exchange (section 3.2.1).
         val params =

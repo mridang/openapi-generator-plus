@@ -6,6 +6,8 @@ import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.ApiHttpResponse
 import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -404,5 +406,79 @@ class OpenIdConnectAuthenticatorTest {
 
         assertEquals("Bearer t1", headers["Authorization"])
         assertEquals(2, client.getCount)
+    }
+
+    @Test
+    fun rediscoveredEndpointsAreUsedWithTheSameSession() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("Cache-Control" to "max-age=0"))
+        client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
+        client.enqueue(discovery("https://auth.example.com/authorize-v2"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("code") }
+        val headers = runBlocking { auth.getAuthHeaders() }
+        val url = runBlocking { auth.buildAuthorizationUrl() }
+
+        assertEquals("Bearer t1", headers["Authorization"])
+        assertTrue(url.startsWith("https://auth.example.com/authorize-v2?"), url)
+        assertEquals(2, client.getCount)
+        assertEquals("GET", client.lastMethod, "no token POST for the still valid token")
+    }
+
+    @Test
+    fun failedRediscoveryKeepsTheOldDelegate() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=0"))
+        client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
+        client.enqueue("""{"error":"down"}""", statusCode = 500)
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("code") }
+        assertThrowsExactly({{invokerPackage}}.errors.InternalServerErrorException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer t1", headers["Authorization"])
+        assertEquals(3, client.getCount)
+    }
+
+    @Test
+    fun concurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var gets = 0
+        val client =
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean
+                ): ApiHttpResponse {
+                    gets++
+                    gate.await()
+                    return ApiHttpResponse(200, discovery("https://auth.example.com/authorize"), emptyMap())
+                }
+            }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val urls =
+            runBlocking {
+                val calls = (1..5).map { async { auth.buildAuthorizationUrl() } }
+                kotlinx.coroutines.yield()
+                gate.complete(Unit)
+                calls.awaitAll()
+            }
+
+        assertEquals(1, gets)
+        assertEquals(5, urls.size)
     }
 }

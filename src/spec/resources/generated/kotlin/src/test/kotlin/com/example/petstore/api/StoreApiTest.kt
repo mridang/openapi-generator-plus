@@ -11,6 +11,7 @@ package com.example.petstore.api
 
 import com.example.petstore.*
 import com.example.petstore.api.options.GetBySwatchOptions
+import com.example.petstore.api.options.SearchStoreOptions
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.*
 import io.ktor.client.HttpClient
@@ -216,6 +217,34 @@ class StoreApiTest {
                     runBlocking { api.deleteOrder(99999L) }
                 }
             assertEquals(404, exception.statusCode)
+        }
+
+        @Test
+        @DisplayName("searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
+        fun testSearchStoreSendsPartialTime() {
+            val captured = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    captured.add(request.url.encodedQuery)
+                    respond(
+                        content = "[]",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            runBlocking {
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0, 123_456_789)))
+                api.searchStore(SearchStoreOptions(at = java.time.LocalTime.of(10, 30, 0)))
+            }
+
+            assertEquals(listOf("at=10%3A30%3A00.123", "at=10%3A30%3A00"), captured)
         }
 
         @Test

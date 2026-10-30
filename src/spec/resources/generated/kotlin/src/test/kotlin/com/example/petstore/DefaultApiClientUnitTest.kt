@@ -206,6 +206,22 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("filename directive: per-code-point fallback and unreserved-only filename*")
+        fun filenameDirectiveTable() {
+            val rows =
+                listOf(
+                    "résumé*(1).pdf" to
+                        "filename=\"r_sum_*(1).pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf",
+                    "a\"b\\c.txt" to "filename=\"a\\\"b\\\\c.txt\"",
+                    "😀.png" to "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+                    "plain.txt" to "filename=\"plain.txt\"",
+                )
+            for ((input, expected) in rows) {
+                assertEquals(expected, buildFilenameDirective(input), "directive for $input")
+            }
+        }
+
+        @Test
         @DisplayName("CRLF/NUL in filename throws IllegalArgumentException")
         fun multipartFilenameCRLFRejected() {
             for (bad in listOf("a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\u0000b.pdf")) {
@@ -318,6 +334,50 @@ class DefaultApiClientUnitTest {
                 wire.contains("Content-Type: application/octet-stream"),
                 "raw-bytes part with no extension must default to application/octet-stream, got: $wire",
             )
+        }
+
+        @Test
+        @DisplayName("every part carries only Content-Disposition and Content-Type; field names are backslash-escaped")
+        fun partsCarryOnlyDispositionAndContentType() {
+            var bodyBytes: ByteArray? = null
+            var contentLength: Long? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                    contentLength = request.body.contentLength
+                })
+            val apiClient = DefaultApiClient(client)
+
+            val form: Map<String, Any?> =
+                linkedMapOf(
+                    "file.png" to byteArrayOf(0x01, 0x02),
+                    "text" to "value",
+                    "meta" to mapOf("k" to "v"),
+                    "a\"b\\c" to "q",
+                )
+            runBlocking {
+                apiClient.sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    form,
+                )
+            }
+
+            val wire = String(bodyBytes!!, Charsets.ISO_8859_1)
+            val blocks =
+                wire.split("\r\n--").map { it.substringAfter("\r\n") }.filter { it.contains("\r\n\r\n") }
+            assertEquals(4, blocks.size, "expected four parts in: $wire")
+            for (block in blocks) {
+                val names =
+                    block.substringBefore("\r\n\r\n").split("\r\n").map { it.substringBefore(':').lowercase() }
+                assertTrue(
+                    setOf("content-disposition", "content-type").containsAll(names),
+                    "part headers must be a subset of Content-Disposition/Content-Type, got $names",
+                )
+            }
+            assertTrue(wire.contains("Content-Disposition: form-data; name=\"a\\\"b\\\\c\"\r\n"), wire)
+            assertEquals(bodyBytes!!.size.toLong(), contentLength, "the request carries one Content-Length")
         }
 
         @Test
@@ -860,6 +920,104 @@ class DefaultApiClientUnitTest {
                 hopHeaders?.get("X-Trace"),
                 "non-sensitive headers must be preserved across the redirect",
             )
+        }
+
+        @Test
+        @DisplayName("the SDK's own Proxy-Authorization survives a cross-origin http hop; caller credentials do not")
+        fun proxyCredentialsSurviveCrossOriginRedirect() {
+            val hops = mutableListOf<io.ktor.http.Headers>()
+            val engine =
+                MockEngine { req ->
+                    hops.add(req.headers)
+                    if (hops.size == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "http://b.test/y"),
+                        )
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .proxy("http://user:pass@proxy.test:3128")
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://a.test/x", mapOf("Authorization" to "Bearer secret"), null)
+            }
+            assertEquals(2, hops.size)
+            assertEquals("Basic dXNlcjpwYXNz", hops[0]["Proxy-Authorization"])
+            assertEquals("Basic dXNlcjpwYXNz", hops[1]["Proxy-Authorization"])
+            assertNull(hops[1]["Authorization"], "caller Authorization must be stripped cross-origin")
+        }
+
+        @Test
+        @DisplayName("the SDK's own Proxy-Authorization is not re-added on a cross-origin https hop")
+        fun proxyCredentialsNotReaddedOnCrossOriginHttpsRedirect() {
+            val hops = mutableListOf<io.ktor.http.Headers>()
+            val engine =
+                MockEngine { req ->
+                    hops.add(req.headers)
+                    if (hops.size == 1) {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://b.test/y"),
+                        )
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .proxy("http://user:pass@proxy.test:3128")
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://a.test/x", emptyMap(), null)
+            }
+            assertEquals(2, hops.size)
+            assertNull(hops[1]["Proxy-Authorization"])
+        }
+
+        @Test
+        @DisplayName("the timeout is one end-to-end budget across redirect hops")
+        fun timeoutBudgetSpansRedirectHops() {
+            var hopCount = 0
+            val engine =
+                MockEngine { _ ->
+                    hopCount++
+                    kotlinx.coroutines.delay(400)
+                    if (hopCount < 4) {
+                        respond("", HttpStatusCode.Found, headersOf("Location", "http://localhost/hop/$hopCount"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .timeout(1000L)
+                    .build()
+            val httpClient =
+                HttpClient(engine) {
+                    followRedirects = false
+                    install(io.ktor.client.plugins.HttpTimeout)
+                }
+            val apiClient = DefaultApiClient(httpClient, transport)
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkTimeoutException::class.java) {
+                    runBlocking { apiClient.sendRequest("GET", "http://localhost/start", emptyMap(), null) }
+                }
+            assertEquals(0, ex.statusCode)
+            assertEquals(3, hopCount, "the third hop is cut off by the remaining budget, no fourth is sent")
         }
 
         @Test

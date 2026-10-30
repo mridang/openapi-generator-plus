@@ -208,18 +208,20 @@ class OAuth2TokenManager {
         this.tokenExpiryMs = null
     }
 
+    @Volatile
+    private var exchanged: Boolean = false
+
     /**
-     * Copy the cached access token, its expiry and the refresh token from
-     * [other]. Used when the owning authenticator is rebuilt (for example after
-     * OIDC rediscovery) so an exchanged session survives the rebuild.
-     *
-     * @param other the token manager whose session state is adopted
+     * Record that an authorization code was exchanged for this session. The
+     * flag lives here, next to the tokens, so an authenticator rebuilt around
+     * this manager (for example after OIDC rediscovery) keeps the session.
      */
-    internal fun copyStateFrom(other: OAuth2TokenManager) {
-        this.accessToken = other.accessToken
-        this.tokenExpiryMs = other.tokenExpiryMs
-        this.refreshToken = other.refreshToken
+    internal fun markExchanged() {
+        exchanged = true
     }
+
+    /** True once [markExchanged] was called for this session. */
+    internal fun isExchanged(): Boolean = exchanged
 
     /**
      * Get the refresh token, if one was returned by the token endpoint.

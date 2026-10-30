@@ -12,8 +12,8 @@ import com.example.petstore.errors.NetworkException
 import com.example.petstore.errors.NetworkTimeoutException
 import com.example.petstore.errors.OpenAPIException
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 
@@ -83,7 +83,8 @@ class DefaultApiClient internal constructor(
     /**
      * Create a client with a pre-configured Ktor [HttpClient].
      *
-     * Uses default [TransportOptions] for header injection settings.
+     * Uses default [TransportOptions] for header injection settings, without an
+     * end-to-end timeout budget: the supplied client owns its own timeouts.
      *
      * Internal test-only seam: a Ktor [HttpClient] is an internal transport
      * type and must not appear in the public API. Production callers construct
@@ -91,7 +92,7 @@ class DefaultApiClient internal constructor(
      *
      * @param httpClient the Ktor client to use
      */
-    internal constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().build())
+    internal constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().timeout(null).build())
 
     /**
      * Create a client configured from the given [TransportOptions].
@@ -156,9 +157,15 @@ class DefaultApiClient internal constructor(
             mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
         }
 
+        // `timeout` is one end-to-end budget for the whole call: every redirect
+        // hop and the body read draw from it. Each hop is sent with what is
+        // left, and a hop is never started once the budget is spent.
+        val budget = TimeoutBudget(transportOptions.timeout)
+
         var response =
             try {
                 httpClient.request(url) {
+                    budget.applyTo(this)
                     this.method = HttpMethod(method)
                     for ((key, value) in mergedHeaders) {
                         if (body == null && key.equals("Content-Type", ignoreCase = true)) {
@@ -172,8 +179,8 @@ class DefaultApiClient internal constructor(
                 throw transportFailure(e)
             }
 
-        // Redirects are ALWAYS handled manually so we can strip sensitive
-        // headers (Authorization, Cookie, Proxy-Authorization) on cross-origin
+        // Redirects are ALWAYS handled manually so we can strip caller-supplied
+        // sensitive headers (Authorization, Cookie, Proxy-Authorization) on cross-origin
         // hops AND preserve the original verb+body per RFC 7231. When
         // `maxRedirects` is null we cap at 20 hops to avoid pathological loops.
         // noRedirect=true (the OAuth2 token POST) means "do not follow
@@ -188,14 +195,19 @@ class DefaultApiClient internal constructor(
             var currentBody: Any? = body
 
             while (isRedirectStatus(response.status.value) && redirectsRemaining > 0) {
-                val location = response.headers[HttpHeaders.Location] ?: break
+                // An unusable Location (absent, empty, or one the RFC 3986
+                // resolver rejects) behaves exactly like a missing one: stop
+                // following and return the 3xx untouched. It is resolved BEFORE
+                // the redirect body is consumed so the returned response still
+                // carries its body.
+                val originalUri = java.net.URI(currentUrl)
+                val redirectUri =
+                    usableRedirectLocation(originalUri, response.headers[HttpHeaders.Location]) ?: break
                 try {
                     response.bodyAsBytes() // consume redirect body to release the connection
                 } catch (e: Exception) {
                     throw transportFailure(e)
                 }
-                val originalUri = java.net.URI(currentUrl)
-                val redirectUri = resolveRedirectLocation(originalUri, location)
                 // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
                 // data:, etc.). URI.resolve() preserves whatever scheme the
                 // server returned in Location, so a malicious or
@@ -223,6 +235,13 @@ class DefaultApiClient internal constructor(
                         redirectHeaders.keys
                             .filter { SENSITIVE_HEADER_NAMES.contains(it.lowercase()) }
                     keysToRemove.forEach { redirectHeaders.remove(it) }
+                    // The SDK's own proxy credentials authenticate to the proxy,
+                    // which is the same for every hop, so they are re-applied
+                    // after the strip. Not on an https target: there the header
+                    // would travel inside the TLS tunnel to an unrelated origin.
+                    if (proxyAuthHeader != null && !"https".equals(redirectUri.scheme, ignoreCase = true)) {
+                        redirectHeaders["Proxy-Authorization"] = proxyAuthHeader
+                    }
                 }
 
                 // Refuse to replay a request body across an HTTPS->HTTP
@@ -289,6 +308,7 @@ class DefaultApiClient internal constructor(
                 response =
                     try {
                         httpClient.request(currentUrl) {
+                            budget.applyTo(this)
                             this.method = HttpMethod(currentMethod)
                             for ((key, value) in redirectHeaders) {
                                 if (nextBody == null && key.equals("Content-Type", ignoreCase = true)) {
@@ -411,21 +431,17 @@ class DefaultApiClient internal constructor(
             body == null -> {}
             body is Map<*, *> -> {
                 val formFields = body as Map<String, Any?>
-                builder.setBody(
-                    MultiPartFormDataContent(
-                        formData {
-                            for ((fieldName, value) in formFields) {
-                                when (value) {
-                                    is List<*> ->
-                                        value.forEach { item ->
-                                            appendFormField(fieldName, item)
-                                        }
-                                    else -> appendFormField(fieldName, value)
-                                }
+                val parts = MultipartWriter()
+                for ((fieldName, value) in formFields) {
+                    when (value) {
+                        is List<*> ->
+                            value.forEach { item ->
+                                appendFormField(parts, fieldName, item)
                             }
-                        },
-                    ),
-                )
+                        else -> appendFormField(parts, fieldName, value)
+                    }
+                }
+                builder.setBody(parts.build())
             }
             body is ByteArray -> {
                 // A type:string format:binary request body (e.g. an upload
@@ -448,28 +464,26 @@ class DefaultApiClient internal constructor(
         }
     }
 
-    private fun FormBuilder.appendFormField(
+    private fun appendFormField(
+        parts: MultipartWriter,
         fieldName: String,
         value: Any?,
     ) {
         // Validate the field name on every branch (string, number,
-        // boolean, JSON, binary) before it lands in Content-Disposition. Ktor's
-        // FormBuilder.append interpolates the name directly, so CR/LF/NUL must
-        // be rejected even when the value is not a ByteArray.
+        // boolean, JSON, binary) before it lands in Content-Disposition, so
+        // CR/LF/NUL are rejected even when the value is not a ByteArray.
         validateMultipartFieldName(fieldName)
         when (value) {
             is ByteArray -> {
                 validateMultipartFilename(fieldName)
-                append(
+                // Best-effort per-part MIME sniffing from the filename extension.
+                // Servers that read per-part Content-Type (e.g. for image processing)
+                // need this rather than a blanket application/octet-stream.
+                parts.part(
                     fieldName,
+                    buildFilenameDirective(fieldName),
+                    contentTypeForFilename(fieldName).toString(),
                     value,
-                    Headers.build {
-                        // Best-effort per-part MIME sniffing from the filename extension.
-                        // Servers that read per-part Content-Type (e.g. for image processing)
-                        // need this rather than a blanket application/octet-stream.
-                        append(HttpHeaders.ContentType, contentTypeForFilename(fieldName).toString())
-                        append(HttpHeaders.ContentDisposition, buildFilenameDirective(fieldName))
-                    },
                 )
             }
             null -> {}
@@ -478,10 +492,10 @@ class DefaultApiClient internal constructor(
             // stringify form; only an object or model becomes a JSON part.
             is String, is Number, is Boolean, is Enum<*>, is java.time.temporal.TemporalAccessor,
             is java.time.Duration, is io.ktor.http.Url,
-            -> append(fieldName, objectSerializer.stringify(value))
+            -> parts.part(fieldName, null, null, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8))
             else ->
                 if (value::class.qualifiedName == "kotlin.uuid.Uuid") {
-                    append(fieldName, objectSerializer.stringify(value))
+                    parts.part(fieldName, null, null, objectSerializer.stringify(value).toByteArray(Charsets.UTF_8))
                 } else {
                     // Serialize the object part through the SDK's configured
                     // ObjectSerializer, NOT a bare Json instance: the configured
@@ -494,16 +508,11 @@ class DefaultApiClient internal constructor(
                     // A genuine serialization failure must surface, not produce
                     // invalid JSON.
                     val json = objectSerializer.serialize(value)
-                    append(
+                    parts.part(
                         fieldName,
-                        json,
-                        io.ktor.http.Headers.build {
-                            append(
-                                io.ktor.http.HttpHeaders.ContentType,
-                                io.ktor.http.ContentType.Application.Json
-                                    .toString(),
-                            )
-                        },
+                        null,
+                        ContentType.Application.Json.toString(),
+                        json.toByteArray(Charsets.UTF_8),
                     )
                 }
         }
@@ -517,6 +526,78 @@ class DefaultApiClient internal constructor(
     override fun close() {
         closed = true
         httpClient.close()
+    }
+}
+
+/**
+ * The end-to-end `timeout` of one [DefaultApiClient.sendRequest] call, measured
+ * on a monotonic clock from the start of the call. Each hop is armed with the
+ * remaining budget (connect, socket and request timers alike); once nothing is
+ * left, the next hop is refused with [NetworkTimeoutException] without being
+ * sent. A null timeout means no budget.
+ */
+internal class TimeoutBudget(
+    private val timeoutMillis: Long?,
+) {
+    private val deadline: Long? = timeoutMillis?.let { System.nanoTime() + it * 1_000_000L }
+
+    /** Arms [builder] with the remaining budget, or throws when it is spent. */
+    fun applyTo(builder: HttpRequestBuilder) {
+        val end = deadline ?: return
+        val remaining = (end - System.nanoTime()) / 1_000_000L
+        if (remaining <= 0) {
+            throw NetworkTimeoutException(
+                "Request timed out: the $timeoutMillis ms end-to-end timeout was spent before the next hop",
+                java.net.SocketTimeoutException("end-to-end timeout of $timeoutMillis ms exhausted"),
+            )
+        }
+        builder.timeout {
+            requestTimeoutMillis = remaining
+            connectTimeoutMillis = remaining
+            socketTimeoutMillis = remaining
+        }
+    }
+}
+
+/**
+ * Writes a `multipart/form-data` body (RFC 7578) part by part. Each part
+ * carries `Content-Disposition` and, for file and JSON parts, `Content-Type`,
+ * and nothing else: no `Content-Transfer-Encoding` and no per-part
+ * `Content-Length` (RFC 7578 section 4.7). The field name is written as
+ * `name="..."` with `\` and `"` backslash-escaped. The whole body is
+ * buffered so the request carries one `Content-Length`.
+ */
+internal class MultipartWriter {
+    private val boundary = "----" + generateRequestId().replace("-", "")
+    private val out = java.io.ByteArrayOutputStream()
+
+    /** Appends one part; [filenameDirective] and [contentType] are omitted when null. */
+    fun part(
+        name: String,
+        filenameDirective: String?,
+        contentType: String?,
+        content: ByteArray,
+    ) {
+        val escapedName = name.replace("\\", "\\\\").replace("\"", "\\\"")
+        val head = StringBuilder()
+        head.append("--").append(boundary).append("\r\n")
+        head.append("Content-Disposition: form-data; name=\"").append(escapedName).append('"')
+        if (filenameDirective != null) head.append("; ").append(filenameDirective)
+        head.append("\r\n")
+        if (contentType != null) head.append("Content-Type: ").append(contentType).append("\r\n")
+        head.append("\r\n")
+        out.write(head.toString().toByteArray(Charsets.UTF_8))
+        out.write(content)
+        out.write("\r\n".toByteArray(Charsets.UTF_8))
+    }
+
+    /** Closes the body and returns it as request content. */
+    fun build(): io.ktor.http.content.OutgoingContent {
+        out.write("--$boundary--\r\n".toByteArray(Charsets.UTF_8))
+        return io.ktor.http.content.ByteArrayContent(
+            out.toByteArray(),
+            ContentType.MultiPart.FormData.withParameter("boundary", boundary),
+        )
     }
 }
 
@@ -684,6 +765,25 @@ internal fun resolveRedirectLocation(
     return base.resolve(location)
 }
 
+/**
+ * Resolve a Location header for following, or null when it is unusable: absent,
+ * empty, or rejected by the reference resolver (`http://[bad`). The redirect
+ * loop treats null exactly like a missing Location and returns the 3xx as-is.
+ */
+internal fun usableRedirectLocation(
+    base: java.net.URI,
+    location: String?,
+): java.net.URI? {
+    if (location.isNullOrEmpty()) return null
+    return try {
+        resolveRedirectLocation(base, location)
+    } catch (_: IllegalArgumentException) {
+        null
+    } catch (_: java.net.URISyntaxException) {
+        null
+    }
+}
+
 /** True when [headers] holds [name] under any ASCII letter case (RFC 9110 section 5.1). */
 private fun hasHeader(
     headers: Map<String, String>,
@@ -806,7 +906,7 @@ internal fun validateMultipartFilename(filename: String?) {
  * For ASCII-only filenames emits `filename="..."` with quote/backslash escaping.
  * For non-ASCII filenames additionally emits an RFC 5987
  * `filename*=UTF-8''<percent-encoded>` parameter alongside an ASCII fallback
- * (non-ASCII bytes replaced with `_`).
+ * (each non-ASCII or control code point replaced with one `_`).
  */
 internal fun buildFilenameDirective(filename: String): String {
     val escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"")
@@ -814,13 +914,15 @@ internal fun buildFilenameDirective(filename: String): String {
     if (ascii) {
         return "filename=\"$escaped\""
     }
+    // One `_` per Unicode code point (not per UTF-16 unit), so a
+    // supplementary character such as an emoji becomes a single `_`.
     val fallback =
         buildString {
-            for (c in filename) {
-                if (c.code > 0x7F || c.code < 0x20 || c.code == 0x7F) {
+            filename.codePoints().forEach { cp ->
+                if (cp > 0x7F || cp < 0x20 || cp == 0x7F) {
                     append('_')
                 } else {
-                    append(c)
+                    appendCodePoint(cp)
                 }
             }
         }.replace("\\", "\\\\").replace("\"", "\\\"")
