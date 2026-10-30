@@ -99,6 +99,16 @@ func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator 
 // param {{paramName}}: {{#goLineComment}}{{{description}}}{{/goLineComment}}
 {{/description}}
 {{/allParams}}
+{{#vendorExtensions.op.signatureArgs}}
+{{#isOptions}}
+{{#vendorExtensions.op.hasOptionsParam}}
+// param options: Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.
+{{/vendorExtensions.op.hasOptionsParam}}
+{{^vendorExtensions.op.hasOptionsParam}}
+// param options: Options carrying an optional per-operation authenticator.
+{{/vendorExtensions.op.hasOptionsParam}}
+{{/isOptions}}
+{{/vendorExtensions.op.signatureArgs}}
 {{#allParams}}
 {{#vendorExtensions.pluralExamples}}
 // Example for `{{paramName}}` — {{{summary}}}: {{{value}}}
@@ -165,7 +175,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#queryParams}}
 {{#required}}
 {{#isString}}
-	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+	if options.{{nameInPascalCase}} == "" {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
@@ -174,7 +184,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#headerParams}}
 {{#required}}
 {{#isString}}
-	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+	if options.{{nameInPascalCase}} == "" {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
@@ -188,19 +198,19 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
     (e.g. a model value type) have no unset sentinel, so the nil-options guard
     above is the only check that applies. }}
 {{#isString}}
-	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+	if options.{{nameInPascalCase}} == "" {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
 {{^isString}}
 {{#isFile}}
-	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == nil {
+	if options.{{nameInPascalCase}} == nil {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isFile}}
 {{^isFile}}
 {{#isArray}}
-	if len(options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) == 0 {
+	if len(options.{{nameInPascalCase}}) == 0 {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isArray}}
@@ -211,7 +221,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#cookieParams}}
 {{#required}}
 {{#isString}}
-	if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} == "" {
+	if options.{{nameInPascalCase}} == "" {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
@@ -251,23 +261,23 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * caller omits the optional value, the key is omitted entirely (matching the
 	 * other optional query params above). An explicit empty value supplied by the
 	 * caller still flows through serializeStyled and emits the bare "key=". */
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 	}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		for k, v := range serializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		for k, v := range serializeDeepObject("{{baseName}}", options.{{nameInPascalCase}}) {
 			queryParams[k] = v
 		}
 	}
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+	if options != nil && options.{{nameInPascalCase}} != nil {
 		/* The same serializer as request bodies (no HTML escaping, canonical
 		 * date-times, wire names); a failure is returned as a
 		 * *SerializationError before any request is sent. */
-		jsonBytes, err := serialize(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		jsonBytes, err := serialize(options.{{nameInPascalCase}})
 		if err != nil {
 			return nil, err
 		}
@@ -278,11 +288,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#required}}
 	/* Required query param: the Options field is a non-pointer value, so it is
 	 * always present (validated above) and serialized directly. */
-	queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+	queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 {{/required}}
 {{^required}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
 	}
 {{/required}}
 {{/vendorExtensions.param.queryStyled}}
@@ -292,11 +302,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{#headerParams}}
 {{#required}}
 	/* Required header param: non-pointer Options field, always present. */
-	headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+	headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 {{/required}}
 {{^required}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+	if options != nil && options.{{nameInPascalCase}} != nil {
+		headerParams["{{baseName}}"] = fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 	}
 {{/required}}
 {{/headerParams}}
@@ -312,7 +322,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
 	 * how this function reports every other invalid-parameter condition. */
 	{
-		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
 		}
@@ -320,11 +330,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	}
 {{/required}}
 {{^required}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+	if options != nil && options.{{nameInPascalCase}} != nil {
 		/* Optional cookie param: same RFC 6265 validation as the required
 		 * branch above. Fail closed by returning an error so a CR/LF or
 		 * control-char value cannot be injected into the Cookie header. */
-		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+		cookieValue := fmt.Sprintf("%v", serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "{{baseName}}")
 		}
@@ -342,11 +352,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	if options != nil {
 {{#formParams}}
 {{#required}}
-		formBody["{{baseName}}"] = options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+		formBody["{{baseName}}"] = options.{{nameInPascalCase}}
 {{/required}}
 {{^required}}
-		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-			formBody["{{baseName}}"] = *options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+		if options.{{nameInPascalCase}} != nil {
+			formBody["{{baseName}}"] = *options.{{nameInPascalCase}}
 		}
 {{/required}}
 {{/formParams}}
@@ -409,7 +419,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	if requestContentTypeValue != "multipart/form-data" {
 {{#formParams}}
 {{#isFile}}
-		requestBody = options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
+		requestBody = options.{{nameInPascalCase}}
 {{/isFile}}
 {{/formParams}}
 	}

@@ -16,7 +16,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -202,7 +201,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// the cause, so errors.Is / errors.As still reach it.
 		return nil, newTransportError(fmt.Sprintf("request failed: %s", err.Error()), err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// A failure reading the body AFTER headers were received (connection reset,
 	// truncated chunked encoding, a timeout) is a transport failure like a
@@ -526,14 +525,14 @@ func decompressBody(contentEncoding string, raw []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 		return io.ReadAll(reader)
 	case "deflate":
 		reader, err := zlib.NewReader(bytes.NewReader(raw))
 		if err != nil {
 			return nil, err
 		}
-		defer reader.Close()
+		defer func() { _ = reader.Close() }()
 		return io.ReadAll(reader)
 	case "br":
 		return io.ReadAll(brotli.NewReader(bytes.NewReader(raw)))
@@ -786,7 +785,7 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 						return nil, "", err
 					}
 				} else {
-					jsonBytes, err := json.Marshal(item)
+					jsonBytes, err := serialize(item)
 					if err != nil {
 						return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
 					}
@@ -804,7 +803,7 @@ func buildTransportMultipartBody(formFields map[string]any) (*bytes.Buffer, stri
 				}
 			}
 		default:
-			jsonBytes, err := json.Marshal(v)
+			jsonBytes, err := serialize(v)
 			if err != nil {
 				return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
 			}

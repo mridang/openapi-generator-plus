@@ -180,6 +180,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[any], erro
 }
 
 // GetBySwatch Echoes a swatch supplied via path, query and header parameters.
+// param options: Options for query, header, form, and cookie parameters.
 func (a *StoreApi) GetBySwatch(pathSwatch Swatch, options *opts.GetBySwatchOptions) (*Category, error) {
 	result, err := a.GetBySwatchWithHTTPInfo(pathSwatch, options)
 	if err != nil {
@@ -972,6 +973,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(trackingId uuid.UUID) (*ApiR
 
 // GetStockItem Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
 // param asOf: Only consider stock as of this instant
+// param options: Options for query, header, form, and cookie parameters.
 func (a *StoreApi) GetStockItem(options *opts.GetStockItemOptions) (*StockItem, error) {
 	result, err := a.GetStockItemWithHTTPInfo(options)
 	if err != nil {
@@ -1546,6 +1548,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 
 // SearchStore Searches the store; exercises content-encoded, Set and time-of-day parameters.
 // param q: JSON-encoded query parameter (OAS `content`, not `schema`)
+// param options: Options for query, header, form, and cookie parameters.
 func (a *StoreApi) SearchStore(options *opts.SearchStoreOptions) (*[]Order, error) {
 	result, err := a.SearchStoreWithHTTPInfo(options)
 	if err != nil {

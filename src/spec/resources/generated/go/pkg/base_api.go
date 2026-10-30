@@ -11,7 +11,6 @@ package petstore
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -358,7 +357,7 @@ func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
 	 * any is not == nil), which would serialize to a literal JSON null and keep
 	 * the Content-Type. Treat it as no body so no entity or Content-Type goes on
 	 * the wire, like the other SDKs. */
-	if rv := reflect.ValueOf(body); (rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Map ||
+	if rv := reflect.ValueOf(body); (rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Map ||
 		rv.Kind() == reflect.Slice) && rv.IsNil() {
 		return nil, nil
 	}
@@ -438,7 +437,7 @@ func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
 // are scalars.
 func isFormComposite(value any) bool {
 	rv := reflect.ValueOf(value)
-	for rv.Kind() == reflect.Ptr || rv.Kind() == reflect.Interface {
+	for rv.Kind() == reflect.Pointer || rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
 			return false
 		}
@@ -503,7 +502,9 @@ func buildMultipartBody(formFields map[string]any, boundary string) ([]byte, err
 			return nil, err
 		}
 	}
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
 	return []byte(buf.String()), nil
 }
 
@@ -569,7 +570,7 @@ func isJSONObjectValue(value any) bool {
 		return false
 	}
 	rv := reflect.ValueOf(value)
-	for rv.Kind() == reflect.Ptr {
+	for rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return false
 		}
@@ -591,7 +592,9 @@ func isJSONObjectValue(value any) bool {
 // part to be treated as text/plain by content-type-dispatching servers, so the
 // part header is built manually here.
 func writeJSONMultipartPart(writer *multipart.Writer, name string, value any) error {
-	jsonBytes, err := json.Marshal(value)
+	/* serialize, not json.Marshal: a JSON part goes out with the same bytes as
+	 * a JSON request body (no HTML escaping of < > &). */
+	jsonBytes, err := serialize(value)
 	if err != nil {
 		return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
 	}

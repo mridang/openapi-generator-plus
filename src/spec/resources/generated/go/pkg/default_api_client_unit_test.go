@@ -263,7 +263,7 @@ func TestDefaultApiClient_SendsGetRequestAndReturnsResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+		_, _ = fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
 	}))
 	defer server.Close()
 
@@ -286,7 +286,7 @@ func TestDefaultApiClient_SendsPostWithJsonBody(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		fmt.Fprintf(w, `{"method":"%s","body":"%s"}`, r.Method, string(body))
+		_, _ = fmt.Fprintf(w, `{"method":"%s","body":"%s"}`, r.Method, string(body))
 	}))
 	defer server.Close()
 
@@ -313,7 +313,7 @@ func TestDefaultApiClient_ReturnsResponseHeaders(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Test-Header", "test-value")
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer server.Close()
 
@@ -341,7 +341,7 @@ func TestDefaultApiClient_ReturnsNon2xxStatusCode(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		w.Write([]byte("not found"))
+		_, _ = w.Write([]byte("not found"))
 	}))
 	defer server.Close()
 
@@ -363,7 +363,7 @@ func TestDefaultApiClient_SendsPutRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+		_, _ = fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
 	}))
 	defer server.Close()
 
@@ -385,7 +385,7 @@ func TestDefaultApiClient_SendsDeleteRequest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+		_, _ = fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
 	}))
 	defer server.Close()
 
@@ -407,7 +407,7 @@ func TestDefaultApiClient_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"format":"vendor"}`))
+		_, _ = w.Write([]byte(`{"format":"vendor"}`))
 	}))
 	defer server.Close()
 
@@ -430,7 +430,7 @@ func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
 		w.Header().Add("X-Custom-Value", "val1")
 		w.Header().Add("X-Custom-Value", "val2")
 		w.WriteHeader(200)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	}))
 	defer server.Close()
 

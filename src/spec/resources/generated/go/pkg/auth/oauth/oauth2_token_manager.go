@@ -350,10 +350,16 @@ func parseOAuth2ServerError(statusCode int, body string) *errors_pkg.OAuth2Serve
 	return errors_pkg.NewOAuth2ServerError(statusCode, "", "", "", body)
 }
 
+// maxExpiresInSeconds caps a server-supplied expires_in at one year. A larger
+// value would overflow time.Duration (int64 nanoseconds, about 292 years) and
+// wrap the expiry into the past, so every call would refetch the token.
+const maxExpiresInSeconds int64 = 31_536_000
+
 // parseExpiresIn performs a defensive parse of the OAuth2 "expires_in" field
 // (RFC 6749 §5.1). Returns 0 (caller skips caching) when the value is missing,
 // unparseable, or non-positive. Accepts integers, floors floats, and parses
-// digit strings (e.g. "3600" from Salesforce).
+// digit strings (e.g. "3600" from Salesforce). A value above one year is
+// clamped to maxExpiresInSeconds.
 func parseExpiresIn(raw json.RawMessage) int64 {
 	if len(raw) == 0 {
 		return 0
@@ -361,15 +367,12 @@ func parseExpiresIn(raw json.RawMessage) int64 {
 	// Try integer first.
 	var asInt int64
 	if err := json.Unmarshal(raw, &asInt); err == nil {
-		return asInt
+		return min(asInt, maxExpiresInSeconds)
 	}
-	// Try float (handles 3600.5).
+	// Try float (handles 3600.5, and 1e20 which no int64 holds).
 	var asFloat float64
 	if err := json.Unmarshal(raw, &asFloat); err == nil {
-		if math.IsNaN(asFloat) || math.IsInf(asFloat, 0) {
-			return 0
-		}
-		return int64(math.Floor(asFloat))
+		return clampExpiresIn(asFloat)
 	}
 	// Try string (handles "3600").
 	var asStr string
@@ -379,11 +382,21 @@ func parseExpiresIn(raw json.RawMessage) int64 {
 			return 0
 		}
 		if v, err := strconv.ParseFloat(trimmed, 64); err == nil {
-			if math.IsNaN(v) || math.IsInf(v, 0) {
-				return 0
-			}
-			return int64(math.Floor(v))
+			return clampExpiresIn(v)
 		}
 	}
 	return 0
+}
+
+// clampExpiresIn floors a float expires_in and caps it at maxExpiresInSeconds
+// before converting, since converting a float beyond the int64 range is
+// implementation-defined in Go. NaN and infinities count as unparseable.
+func clampExpiresIn(v float64) int64 {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0
+	}
+	if v >= float64(maxExpiresInSeconds) {
+		return maxExpiresInSeconds
+	}
+	return int64(math.Floor(v))
 }

@@ -177,6 +177,7 @@ func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authent
 
 // AddPet Add a new pet to the store
 // param pet: Create a new pet in the store
+// param options: Options carrying an optional per-operation authenticator.
 func (a *PetApi) AddPet(pet Pet, options *opts.AddPetOptions) (*Pet, error) {
 	result, err := a.AddPetWithHTTPInfo(pet, options)
 	if err != nil {
@@ -279,6 +280,7 @@ func (a *PetApi) AddPetWithHTTPInfo(pet Pet, options *opts.AddPetOptions) (*ApiR
 
 // AddPetPhotos Add photos to the pet's gallery
 // Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) AddPetPhotos(petId int64, options *opts.AddPetPhotosOptions) (*[]Photo, error) {
 	result, err := a.AddPetPhotosWithHTTPInfo(petId, options)
 	if err != nil {
@@ -393,6 +395,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *opts.AddPetPhoto
 }
 
 // AddPetTreatment Record a treatment for a pet
+// param options: Options carrying an optional per-operation authenticator.
 func (a *PetApi) AddPetTreatment(petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions) (*PetTreatment, error) {
 	result, err := a.AddPetTreatmentWithHTTPInfo(petId, petTreatment, options)
 	if err != nil {
@@ -504,6 +507,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(petId int64, petTreatment PetTreatm
 // DeletePet Deletes a pet
 // param petId: Pet id to delete
 // param apiKey: Session cookie used for authentication
+// param options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
 func (a *PetApi) DeletePet(petId int64, options *opts.DeletePetOptions) error {
 	result, err := a.DeletePetWithHTTPInfo(petId, options)
 	if err != nil {
@@ -793,6 +797,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(bornOn string) (*ApiResult[[]Pet], e
 // param filter: Filter criteria as key-value pairs
 // param bornAfter: Only return pets born on or after this date
 // param reportDate: Reference date for the report
+// param options: Options for query, header, form, and cookie parameters.
 // Example for `status` — Available only: available
 // Example for `status` — Sold pets: sold
 //
@@ -1459,6 +1464,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 }
 
 // GetPetByName Look up a pet by name (simple string path param + required query)
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) GetPetByName(name string, options *opts.GetPetByNameOptions) (*Pet, error) {
 	result, err := a.GetPetByNameWithHTTPInfo(name, options)
 	if err != nil {
@@ -1796,6 +1802,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 // param asOf: Summary date, sent as a matrix-style path segment
 // param session: Session token: \"a<b>\" & it's required
 // param days: Extra dates to summarise
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) GetPetSummary(petId int64, asOf string, options *opts.GetPetSummaryOptions) (*string, error) {
 	result, err := a.GetPetSummaryWithHTTPInfo(petId, asOf, options)
 	if err != nil {
@@ -1933,6 +1940,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *op
 // param revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
 // param criteria: Object-valued query parameter, form style exploded (the OAS default for query)
 // param fingerprint: Opaque bytes, base64 on the wire (OAS format byte)
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) GetPetTag(petId int64, tagName string, options *opts.GetPetTagOptions) (*Pet, error) {
 	result, err := a.GetPetTagWithHTTPInfo(petId, tagName, options)
 	if err != nil {
@@ -2334,6 +2342,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(petId int64, setPetAvatarThum
 
 // SetPetPreferences Update a pet's notification preferences
 // Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) SetPetPreferences(petId int64, options *opts.SetPetPreferencesOptions) (*ApiResponse, error) {
 	result, err := a.SetPetPreferencesWithHTTPInfo(petId, options)
 	if err != nil {
@@ -2565,6 +2574,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], e
 
 // UploadPetCertificate Upload the pet's adoption certificate
 // Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) UploadPetCertificate(petId int64, options *opts.UploadPetCertificateOptions) (*ApiResponse, error) {
 	result, err := a.UploadPetCertificateWithHTTPInfo(petId, options)
 	if err != nil {
@@ -2679,6 +2689,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *opts.Upl
 
 // UploadPetDocument Attach a vet document or health record
 // Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+// param options: Options for query, header, form, and cookie parameters.
 func (a *PetApi) UploadPetDocument(petId int64, options *opts.UploadPetDocumentOptions, requestContentType ...string) (*ApiResponse, error) {
 	result, err := a.UploadPetDocumentWithHTTPInfo(petId, options, requestContentType...)
 	if err != nil {

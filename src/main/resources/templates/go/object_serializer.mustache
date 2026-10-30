@@ -79,7 +79,41 @@ func serialize(object any) ([]byte, error) {
 			err,
 		)
 	}
-	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+	return unescapeLineSeparators(bytes.TrimRight(buf.Bytes(), "\n")), nil
+}
+
+// unescapeLineSeparators turns the \u2028 and \u2029 escapes that
+// encoding/json always writes (SetEscapeHTML(false) does not turn them off)
+// back into the literal characters, so the wire bytes match the other SDKs.
+// Outside a string JSON has no backslash, and inside one every backslash
+// starts an escape, so walking escape by escape never mistakes an escaped
+// backslash followed by "u2028" for the escape itself.
+func unescapeLineSeparators(data []byte) []byte {
+	if !bytes.Contains(data, []byte(`\u202`)) {
+		return data
+	}
+	out := make([]byte, 0, len(data))
+	for i := 0; i < len(data); i++ {
+		if data[i] != '\\' || i+1 >= len(data) {
+			out = append(out, data[i])
+			continue
+		}
+		if i+5 < len(data) && data[i+1] == 'u' {
+			switch string(data[i+2 : i+6]) {
+			case "2028":
+				out = append(out, "\u2028"...)
+				i += 5
+				continue
+			case "2029":
+				out = append(out, "\u2029"...)
+				i += 5
+				continue
+			}
+		}
+		out = append(out, data[i], data[i+1])
+		i++
+	}
+	return out
 }
 
 // isJSONNull reports whether data is exactly the JSON literal null, ignoring
@@ -239,7 +273,7 @@ func stringify(value any) string {
 	default:
 		/* Optional scalars arrive as pointers (*int64, *bool, *float64). %v
 		   would print the pointer address, so dereference and re-enter. */
-		if rv := reflect.ValueOf(v); rv.Kind() == reflect.Ptr {
+		if rv := reflect.ValueOf(v); rv.Kind() == reflect.Pointer {
 			if rv.IsNil() {
 				return ""
 			}

@@ -727,7 +727,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
-            param.put("name", goIdentifier(NamingConvention.PASCAL_CASE.apply(p.paramName)));
+            param.put("name", optionsFieldName(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
             // A parameter declared `deprecated: true` in the spec must carry that
@@ -1102,6 +1102,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     // operation has any required param that is carried on the Options
                     // object (path and body params are passed as plain arguments and
                     // are validated separately, so they are deliberately excluded).
+                    stampOptionsFieldNames(op);
                     final boolean hasRequiredOptionsParam =
                             anyRequiredOptionsParam(op);
                     op.vendorExtensions.put(
@@ -1153,6 +1154,49 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 .filter(Objects::nonNull)
                 .flatMap(List::stream)
                 .anyMatch(p -> p.required);
+    }
+
+    /**
+     * The exported Go field name of a parameter on its Options struct, for
+     * example {@code petId} becomes {@code PetId} and {@code 2ndPage} becomes
+     * {@code N2ndPage}. The Options file and the api template both read it, so
+     * the field a method dereferences is always the field the struct declares.
+     *
+     * @param paramName the parameter's codegen name
+     * @return the Options struct field name
+     */
+    static String optionsFieldName(String paramName) {
+        return goIdentifier(NamingConvention.PASCAL_CASE.apply(paramName));
+    }
+
+    /**
+     * Sets the native {@code nameInPascalCase} of every parameter of the
+     * operation to its Options struct field name, so the api template reads
+     * {@code nameInPascalCase} instead of re-deriving the name with a lambda.
+     * The per-location lists hold copies of the {@code allParams} entries, so
+     * each list is stamped.
+     *
+     * @param op the operation whose parameters to stamp
+     */
+    private static void stampOptionsFieldNames(CodegenOperation op) {
+        for (final List<CodegenParameter> params :
+                Arrays.asList(
+                        op.allParams,
+                        op.pathParams,
+                        op.queryParams,
+                        op.headerParams,
+                        op.formParams,
+                        op.cookieParams,
+                        op.bodyParams,
+                        op.requiredParams,
+                        op.optionalParams)) {
+            if (params == null) {
+                continue;
+            }
+            for (final CodegenParameter p : params) {
+                p.nameInPascalCase = optionsFieldName(p.paramName);
+            }
+        }
     }
 
     /**

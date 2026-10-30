@@ -106,7 +106,7 @@ var strictBase64 = regexp.MustCompile(`^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}
 // A payload that is not a JSON object is left to json.Unmarshal to reject.
 func checkBase64Fields(data []byte, target any) error {
 	rt := reflect.TypeOf(target)
-	for rt.Kind() == reflect.Ptr {
+	for rt.Kind() == reflect.Pointer {
 		rt = rt.Elem()
 	}
 	var raw map[string]json.RawMessage
@@ -137,7 +137,7 @@ func checkBase64Fields(data []byte, target any) error {
 // holdsBytes reports whether t is []byte, or a pointer, slice, array or map
 // whose elements eventually are.
 func holdsBytes(t reflect.Type) bool {
-	for t.Kind() == reflect.Ptr {
+	for t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
 	switch t.Kind() {

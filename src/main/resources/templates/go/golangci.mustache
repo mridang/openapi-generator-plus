@@ -1,1 +1,6 @@
 version: "2"
+linters:
+  exclusions:
+    # Every file carries the "Code generated ... DO NOT EDIT." marker, which
+    # golangci-lint skips by default; lint the generated sources too.
+    generated: disable

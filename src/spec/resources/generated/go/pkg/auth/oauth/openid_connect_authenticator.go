@@ -26,18 +26,23 @@ import (
 // for OIDC discovery documents (1 day).
 const defaultDiscoveryMaxAgeSeconds = 86400
 
+// maxDiscoveryMaxAgeSeconds caps a server-supplied max-age at one year. A
+// larger value would overflow time.Duration and wrap the expiry into the past.
+const maxDiscoveryMaxAgeSeconds = 31_536_000
+
 var maxAgePattern = regexp.MustCompile(`(?i)max-age=(\d+)`)
 
 // parseDiscoveryMaxAge extracts the `max-age=<seconds>` value from a
 // `Cache-Control` response header. Returns 86400 when the header is absent
-// or does not contain a `max-age` directive.
+// or does not contain a `max-age` directive. A larger value is clamped to one
+// year.
 func parseDiscoveryMaxAge(headers map[string]string) int {
 	for k, v := range headers {
 		if strings.EqualFold(k, "Cache-Control") {
 			match := maxAgePattern.FindStringSubmatch(v)
 			if len(match) >= 2 {
 				if seconds, err := strconv.Atoi(match[1]); err == nil {
-					return seconds
+					return min(seconds, maxDiscoveryMaxAgeSeconds)
 				}
 			}
 			return defaultDiscoveryMaxAgeSeconds

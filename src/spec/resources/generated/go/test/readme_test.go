@@ -49,3 +49,18 @@ func TestReadme_LintNoteNamesOnlyTheLintersTheConfigRuns(t *testing.T) {
 		}
 	}
 }
+
+// Every generated file carries the "Code generated" marker, which golangci-lint
+// skips unless the config turns that exclusion off, so the lint command the
+// README documents would otherwise check nothing.
+func TestReadme_LintCommandChecksTheGeneratedSources(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	if !strings.Contains(readme, "over the generated sources as well") {
+		t.Errorf("expected the README to say golangci-lint covers the generated sources")
+	}
+	config := readSourceFile(t, "../.golangci.yml")
+	if !strings.Contains(config, "    generated: disable\n") {
+		t.Errorf("expected .golangci.yml to set linters.exclusions.generated: disable, got %q", config)
+	}
+}

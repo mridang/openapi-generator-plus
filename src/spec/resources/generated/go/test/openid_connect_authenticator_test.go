@@ -398,6 +398,7 @@ func TestOpenIdConnect_DiscoveryIsReusedForTheCacheControlMaxAge(t *testing.T) {
 		{"no header keeps it for the default", "", 1},
 		{"max-age zero refetches", "max-age=0", 2},
 		{"directive is matched case-insensitively", "Max-Age=0", 2},
+		{"a max-age beyond time.Duration is clamped to a year", "max-age=9999999999", 1},
 	}
 	for _, tc := range cases {
 		client := &recordingTokenClient{responses: []fakeResponse{

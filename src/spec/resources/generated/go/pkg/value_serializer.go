@@ -212,7 +212,7 @@ func requirePathParam(paramName string, value any) error {
 	if !rv.IsValid() {
 		return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
 	}
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return fmt.Errorf("%w: path parameter '%s' must not be empty", ErrMissingRequiredParameter, paramName)
 		}
@@ -397,7 +397,7 @@ func toStringSlice(value any) ([]string, bool) {
 	rv := reflect.ValueOf(value)
 	// Dereference a pointer (e.g. *[]string for an optional array param). A nil
 	// pointer is not an array value, so report no slice.
-	if rv.Kind() == reflect.Ptr {
+	if rv.Kind() == reflect.Pointer {
 		if rv.IsNil() {
 			return nil, false
 		}

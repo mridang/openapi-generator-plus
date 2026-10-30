@@ -283,6 +283,50 @@ func TestPetApi_FindPetsByStatusOmitsKeyWhenUnset(t *testing.T) {
 	}
 }
 
+// The digit-leading query param 2ndPage is carried by the Options field
+// N2ndPage, and the method reads that same field when it builds the query.
+func TestPetApi_FindPetsByStatusSendsTheDigitLeadingParam(t *testing.T) {
+	t.Parallel()
+	var capturedQuery string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedQuery = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	page := int32(2)
+	if _, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{N2ndPage: &page}); err != nil {
+		t.Fatalf("FindPetsByStatus failed: %v", err)
+	}
+	if capturedQuery != "2ndPage=2" {
+		t.Errorf("expected the query 2ndPage=2, got %q", capturedQuery)
+	}
+}
+
+// A string-returning operation answered with text/plain hands the body back
+// verbatim, spaces included, instead of the zero value.
+func TestPetApi_GetPetSummaryReturnsTheTextPlainBodyVerbatim(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("hello world"))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	result, err := api.GetPetSummary(int64(1), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc"})
+	if err != nil {
+		t.Fatalf("GetPetSummary failed: %v", err)
+	}
+	if result == nil || *result != "hello world" {
+		t.Errorf("expected the text body %q, got %v", "hello world", result)
+	}
+}
+
 func TestPetApi_GetPetPassport(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
@@ -980,9 +1024,11 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 
 	isPrimary := true
 	takenAt := models.DateTime(time.Date(2020, 1, 2, 3, 4, 5, 123000000, time.UTC))
+	caption := "a<b>&c\u2028"
 	metadata := models.NewPhotoMetadata()
 	metadata.IsPrimary = &isPrimary
 	metadata.TakenAt = &takenAt
+	metadata.Caption = &caption
 
 	_, _ = api.AddPetPhotos(int64(1), &options.AddPetPhotosOptions{
 		Files:    []*os.File{f},
@@ -1006,6 +1052,12 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	}
 	if strings.Contains(metadataPartBody, "taken_at") {
 		t.Errorf("metadata part must not contain snake_case key \"taken_at\", got %q", metadataPartBody)
+	}
+
+	// The part carries the same bytes as a JSON request body: < > & and the
+	// line separator go out literally, not as unicode escapes.
+	if !strings.Contains(metadataPartBody, "\"caption\":\"a<b>&c\u2028\"") {
+		t.Errorf("expected the caption unescaped in the metadata part, got %q", metadataPartBody)
 	}
 
 	// The date-time value must serialise in the canonical wire form: a numeric
@@ -1473,6 +1525,39 @@ func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 		doc := declDoc(t, "../pkg/pet_api.go", name)
 		if !strings.HasPrefix(doc, name+" ") {
 			t.Errorf("expected %s to carry a doc comment starting with its name, got %q", name, doc)
+		}
+	}
+}
+
+// Spec prose reaches the doc comment as written: no HTML entity for a quote,
+// an apostrophe, an ampersand or an angle bracket.
+func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
+	t.Parallel()
+	doc := declDoc(t, "../pkg/pet_api.go", "GetPetSummary")
+	want := `param session: Session token: \"a<b>\" & it's required`
+	if !strings.Contains(doc, want) {
+		t.Errorf("expected the GetPetSummary doc to contain %q, got %q", want, doc)
+	}
+	for _, name := range []string{"#39;", "quot;", "amp;", "lt;", "gt;"} {
+		if entity := "&" + name; strings.Contains(doc, entity) {
+			t.Errorf("expected no %s in the GetPetSummary doc, got %q", entity, doc)
+		}
+	}
+}
+
+// Every operation that takes an options argument documents it; the authenticator
+// clause appears only where the Options struct carries an Auth field.
+func TestPetApi_OperationsDocumentTheirOptionsArgument(t *testing.T) {
+	t.Parallel()
+	cases := map[string]string{
+		"AddPet":        "param options: Options carrying an optional per-operation authenticator.",
+		"DeletePet":     "param options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.",
+		"GetPetSummary": "param options: Options for query, header, form, and cookie parameters.\n",
+	}
+	for name, want := range cases {
+		doc := declDoc(t, "../pkg/pet_api.go", name)
+		if !strings.Contains(doc, want) {
+			t.Errorf("expected the %s doc to contain %q, got %q", name, want, doc)
 		}
 	}
 }
