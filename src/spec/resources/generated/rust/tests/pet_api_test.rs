@@ -1410,3 +1410,26 @@ pub async fn add_pet_photos(";
         "add_pet_photos must document options without one"
     );
 }
+
+/// Operation summary, description and parameter prose reach the doc comment as
+/// written: no HTML entity, no leaked backslash-quote, and the angle brackets
+/// rustdoc reads as HTML tags are escaped so `cargo doc -D warnings` passes.
+#[test]
+fn test_operation_prose_is_raw_and_rustdoc_safe() {
+    let source = include_str!("../src/api/pet_api.rs");
+    let expected = "    /// Get a \\<plain\\> \"text\" summary & it's short\n    \
+/// Returns '''plain''' text for /pets/#{id} and \\<b\\> & \"c\" it's done\n";
+    assert!(
+        source.contains(expected),
+        "operation summary and notes must be raw prose"
+    );
+    assert!(
+        source.contains("    /// * `session`: Session token: \"a\\<b\\>\" & it's required\n"),
+        "parameter description must be raw prose"
+    );
+    let options = include_str!("../src/api/options/get_pet_summary_options.rs");
+    assert!(
+        options.contains("    /// Session token: \"a\\<b\\>\" & it's required\n"),
+        "options field description must be raw prose"
+    );
+}

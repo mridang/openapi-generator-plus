@@ -1,9 +1,7 @@
-use crate::models::*;
-
 /// Options for the get_pet_summary operation.
 #[derive(Debug, Clone)]
 pub struct GetPetSummaryOptions {
-    /// Session token: \"a<b>\" & it's required
+    /// Session token: "a\<b\>" & it's required
     pub session: String,
     /// Extra dates to summarise
     pub days: Option<Vec<chrono::NaiveDate>>,

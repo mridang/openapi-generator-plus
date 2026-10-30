@@ -48,7 +48,7 @@ impl {{serverTypeName}}{{enumTypeName}} {
 {{/variants}}
 {{#variants}}
 
-/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+/// {{#hasDescription}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
 #[derive(Debug, Clone)]
 pub struct {{serverTypeName}}{{variantName}} {
 {{#serverVariables}}
@@ -108,10 +108,10 @@ impl {{classname}} {
 {{#operation}}
 
 {{#summary}}
-    /// {{{summary}}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/summary}}
 {{#notes}}
-    /// {{{.}}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/notes}}
 {{#isDeprecated}}
     #[deprecated]
@@ -121,17 +121,17 @@ impl {{classname}} {
 {{/externalDocs}}
 {{#allParams}}
 {{#description}}
-    /// * `{{paramName}}`: {{description}}
+    /// * `{{paramName}}`: {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
 {{/description}}
 {{/allParams}}
 {{#vendorExtensions.op.signatureArgs}}
 {{#isOptions}}    /// * `options`: Options for query, header, form, and cookie parameters{{#hasAuthMethods}}, and an optional per-operation authenticator{{/hasAuthMethods}}.
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
-{{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{summary}}
-    /// {{description}}
+{{#allParams}}{{#vendorExtensions.pluralExamples}}    /// ### `{{paramName}}` — {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
     /// ```json
-    /// {{value}}
+    /// {{{value}}}
     /// ```
 {{/vendorExtensions.pluralExamples}}{{/allParams}}    pub async fn {{operationId}}(
         &self,

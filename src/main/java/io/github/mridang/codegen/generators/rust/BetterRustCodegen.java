@@ -976,13 +976,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return super.addMustacheLambdas()
                 .put(
                         "rustdoc",
-                        (fragment, writer) ->
-                                writer.write(
-                                        fragment.execute()
-                                                .replace("<", "\\<")
-                                                .replace(">", "\\>")
-                                                .replace("[", "\\[")
-                                                .replace("]", "\\]")))
+                        (fragment, writer) -> writer.write(escapeRustdoc(fragment.execute())))
                 .put(
                         "docLines",
                         (fragment, writer) ->
@@ -999,6 +993,20 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                                 .replace("\"", "\\\"")
                                                 .replace("\r", "\\r")
                                                 .replace("\n", "\\n")));
+    }
+
+    /**
+     * Escapes the characters rustdoc reads as markup in spec prose: angle
+     * brackets (HTML tags) and square brackets (intra-doc links).
+     *
+     * @param text the doc comment text
+     * @return the text with those characters backslash-escaped
+     */
+    static String escapeRustdoc(String text) {
+        return text.replace("<", "\\<")
+                .replace(">", "\\>")
+                .replace("[", "\\[")
+                .replace("]", "\\]");
     }
 
     /** {@inheritDoc} */
@@ -1232,7 +1240,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             // is left untouched (e.g. an allowEmptyValue string stays a string).
             param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
-                param.put("description", p.description);
+                // The options template renders without HTML escaping, so the
+                // raw spec prose only needs the rustdoc markdown escape.
+                final String prose =
+                        p.unescapedDescription != null ? p.unescapedDescription : p.description;
+                param.put("description", escapeRustdoc(prose));
             }
             params.add(param);
         }
@@ -1284,7 +1296,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 && (parameter.items.isModel
                         || parameter.items.isEnumRef
                         || (parameter.items.complexType != null
-                                && !parameter.items.complexType.isEmpty()));
+                                && !parameter.items.complexType.isEmpty()
+                                && !parameter.items.isDate
+                                && !parameter.items.isDateTime));
     }
 
     /** {@inheritDoc} */

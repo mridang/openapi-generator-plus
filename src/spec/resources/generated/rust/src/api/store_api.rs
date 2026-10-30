@@ -1396,7 +1396,7 @@ impl StoreApi {
     }
 
     /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
-    /// * `q`: JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
+    /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn search_store(
         &self,

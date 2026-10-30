@@ -150,10 +150,10 @@ pub struct {{classname}} {
     /// received like any other field.
 {{/isWriteOnly}}
 {{#vendorExtensions.pluralExamples}}
-    /// ## {{summary}}
-    /// {{description}}
+    /// ## {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
+    /// {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
     /// ```json
-    /// {{value}}
+    /// {{{value}}}
     /// ```
 {{/vendorExtensions.pluralExamples}}
 {{#deprecated}}

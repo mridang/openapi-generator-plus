@@ -1967,10 +1967,10 @@ impl PetApi {
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
-    /// Get a <plain> \"text\" summary & it's short
-    /// Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+    /// Get a \<plain\> "text" summary & it's short
+    /// Returns '''plain''' text for /pets/#{id} and \<b\> & "c" it's done
     /// * `as_of`: Summary date, sent as a matrix-style path segment
-    /// * `session`: Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required
+    /// * `session`: Session token: "a\<b\>" & it's required
     /// * `days`: Extra dates to summarise
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_summary(

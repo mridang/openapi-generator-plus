@@ -456,3 +456,13 @@ fn test_operations_without_a_content_type_selector_do_not_mention_one() {
     assert!(!source.contains("as request content-types"));
     assert!(!source.contains("_with_content_type"));
 }
+
+/// Parameter prose keeps its backticks as code spans instead of the HTML
+/// entity a double-brace tag would emit for each one.
+#[test]
+fn test_parameter_description_keeps_backticks() {
+    let source = include_str!("../src/api/store_api.rs");
+    assert!(source.contains(
+        "    /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)\n"
+    ));
+}

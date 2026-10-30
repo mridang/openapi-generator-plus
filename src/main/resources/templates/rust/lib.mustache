@@ -1,4 +1,4 @@
-//! {{#appName}}{{{.}}}{{/appName}}{{^appName}}{{packageName}}{{/appName}}
+//! {{#appName}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/appName}}{{^appName}}{{packageName}}{{/appName}}
 //!
 {{#appDescription}}
 //! {{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}
