@@ -978,6 +978,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                         "rustdoc",
                         (fragment, writer) -> writer.write(escapeRustdoc(fragment.execute())))
                 .put(
+                        "blockComment",
+                        (fragment, writer) -> writer.write(escapeBlockComment(fragment.execute())))
+                .put(
                         "docLines",
                         (fragment, writer) ->
                                 writer.write(
@@ -1007,6 +1010,23 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 .replace(">", "\\>")
                 .replace("[", "\\[")
                 .replace("]", "\\]");
+    }
+
+    /**
+     * Makes text safe inside a rust block comment. Rust block comments nest, so
+     * a comment opener (as in a wildcard media type) or closer in spec text would unbalance
+     * the comment; a backslash between the two characters neutralises each.
+     * Line breaks continue the comment with the usual leading {@code " * "}.
+     *
+     * @param text the comment text
+     * @return the text with comment delimiters neutralised
+     */
+    static String escapeBlockComment(String text) {
+        return text.strip()
+                .replace("*/", "*\\/")
+                .replace("/*", "/\\*")
+                .replaceAll("[ \\t]*\\r?\\n", "\n * ")
+                .replace("\n * \n", "\n *\n");
     }
 
     /** {@inheritDoc} */

@@ -1,13 +1,13 @@
 {{>api_info}}
 
-// Serde helper for round-tripping `chrono::Duration` as a
-// protobuf-JSON `google.protobuf.Duration` string (e.g. `3600s`, `1.5s`,
-// `3600.000000001s`). chrono's own serde impl encodes `Duration` as
-// integer milliseconds, not a string, so it cannot satisfy a
-// google.protobuf.Duration field. A protobuf-JSON API (any
-// google.protobuf.Duration field) rejects ISO-8601 durations like `PT1H`,
-// so this module hand-rolls the protobuf-JSON grammar against the stdlib
-// + chrono rather than adding an ISO-8601 crate.
+/* Serde helper for round-tripping `chrono::Duration` as a
+ * protobuf-JSON `google.protobuf.Duration` string (e.g. `3600s`, `1.5s`,
+ * `3600.000000001s`). chrono's own serde impl encodes `Duration` as
+ * integer milliseconds, not a string, so it cannot satisfy a
+ * google.protobuf.Duration field. A protobuf-JSON API (any
+ * google.protobuf.Duration field) rejects ISO-8601 durations like `PT1H`,
+ * so this module hand-rolls the protobuf-JSON grammar against the stdlib
+ * + chrono rather than adding an ISO-8601 crate. */
 
 use chrono::Duration;
 use serde::{Deserialize, Deserializer, Serializer, de};
@@ -25,9 +25,9 @@ const MAX_SECONDS: i64 = 315_576_000_000;
 /// that preserves every non-zero nanosecond). Negative durations carry a
 /// leading `-`.
 pub fn format(d: &Duration) -> String {
-    // Split into whole seconds and the sub-second remainder rather than
-    // multiplying the seconds by 1e9, which overflows an i64 for durations
-    // beyond ~292 years. chrono gives both parts the sign of the duration.
+    /* Split into whole seconds and the sub-second remainder rather than
+     * multiplying the seconds by 1e9, which overflows an i64 for durations
+     * beyond ~292 years. chrono gives both parts the sign of the duration. */
     let whole_secs = d.num_seconds();
     let sub_nanos = d.subsec_nanos();
     let sign = if whole_secs < 0 || sub_nanos < 0 { "-" } else { "" };
@@ -89,12 +89,12 @@ fn parse_message(s: &str) -> Result<Duration, String> {
             .parse()
             .map_err(|_| format!("protobuf-JSON duration: bad fraction in {s:?}"))?
     };
-    // google.protobuf.Duration spans +-315,576,000,000 seconds. chrono's
-    // Duration reaches far beyond that, so the whole seconds and the
-    // sub-second part are added separately rather than folded into a single
-    // nanosecond count (which overflows an i64 past ~292 years). Bounding the
-    // seconds first keeps both constructors and the addition within chrono's
-    // range, so none of them can panic.
+    /* google.protobuf.Duration spans +-315,576,000,000 seconds. chrono's
+     * Duration reaches far beyond that, so the whole seconds and the
+     * sub-second part are added separately rather than folded into a single
+     * nanosecond count (which overflows an i64 past ~292 years). Bounding the
+     * seconds first keeps both constructors and the addition within chrono's
+     * range, so none of them can panic. */
     if secs > MAX_SECONDS {
         return Err(format!("protobuf-JSON duration: out of range in {s:?}"));
     }

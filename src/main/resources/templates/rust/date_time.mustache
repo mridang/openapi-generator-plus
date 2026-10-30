@@ -1,12 +1,12 @@
 {{>api_info}}
 
-// SDK-owned `format: date-time` value. A newtype over chrono's fixed-offset
-// date-time that owns its own `Serialize`/`Deserialize`, so the canonical wire
-// form is produced in EVERY position the type appears (struct fields,
-// `Option`, `Vec`, `HashSet`, map values, oneOf/anyOf variants and top-level
-// JSON bodies) without any per-field `serde(with = ...)` attribute. chrono's own
-// serde impl cannot be used: it writes a UTC value with the `Z` designator and
-// a variable-width fraction.
+/* SDK-owned `format: date-time` value. A newtype over chrono's fixed-offset
+ * date-time that owns its own `Serialize`/`Deserialize`, so the canonical wire
+ * form is produced in EVERY position the type appears (struct fields,
+ * `Option`, `Vec`, `HashSet`, map values, oneOf/anyOf variants and top-level
+ * JSON bodies) without any per-field `serde(with = ...)` attribute. chrono's own
+ * serde impl cannot be used: it writes a UTC value with the `Z` designator and
+ * a variable-width fraction. */
 
 use std::fmt;
 use std::ops::Deref;
@@ -282,7 +282,7 @@ mod tests {
         expect_canonical(&parsed["sorted"]["a"]);
         assert!(!json.contains('Z'), "no Z designator anywhere: {json}");
 
-        // Top-level bodies (a `Vec<DateTime>` or map response/request).
+        /* Top-level bodies (a `Vec<DateTime>` or map response/request). */
         let list = Vec::from([value]);
         let body = crate::object_serializer::serialize(&list).expect("serialize failed");
         assert_eq!(body, format!("[\"{CANONICAL}\"]"));
@@ -290,7 +290,7 @@ mod tests {
             .expect("serialize failed");
         assert_eq!(map_body, r#"{"k":"2024-01-01T12:30:45.000+00:00"}"#);
 
-        // Absent optionals decode to `None` without any `default` attribute.
+        /* Absent optionals decode to `None` without any `default` attribute. */
         let restored: Fields = serde_json::from_str(
             r#"{"required":"2024-01-01T12:30:45Z","list":[],"set":[],"by_name":{},"sorted":{}}"#,
         )

@@ -175,9 +175,9 @@ impl TransportOptionsBuilder {
             ca_cert_path: None,
             proxy: None,
             proxy_error: None,
-            // Default 10-second end-to-end timeout (10_000 ms). Callers can
-            // override it via `TransportOptionsBuilder::timeout`, which takes
-            // `None` for no timeout; `Some(0)` is a zero-millisecond deadline.
+            /* Default 10-second end-to-end timeout (10_000 ms). Callers can
+             * override it via `TransportOptionsBuilder::timeout`, which takes
+             * `None` for no timeout; `Some(0)` is a zero-millisecond deadline. */
             timeout: Some(10_000),
             follow_redirects: true,
             max_redirects: None,

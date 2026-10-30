@@ -126,9 +126,9 @@ fn default_{{name}}() -> Option<{{{dataType}}}> {
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 {{/hasDefaultedOptionalVars}}
 {{#isUnevaluatedPropertiesFalse}}
-// OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-// `deny_unknown_fields` makes serde return an error containing the unknown
-// field name when deserializing, surfacing strict-mode violations.
+/* OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+ * `deny_unknown_fields` makes serde return an error containing the unknown
+ * field name when deserializing, surfacing strict-mode violations. */
 #[serde(deny_unknown_fields)]
 {{/isUnevaluatedPropertiesFalse}}
 pub struct {{classname}} {
@@ -160,10 +160,10 @@ pub struct {{classname}} {
     #[deprecated(note = "This property is deprecated.")]
 {{/deprecated}}
 {{#isDiscriminator}}
-    // Discriminator field — always present on the wire so the parent
-    // untagged enum can dispatch. Initialised by `new()` to the
-    // mapping value; left as a plain (non-Option) field so callers
-    // can read it without unwrapping.
+    /* Discriminator field — always present on the wire so the parent
+     * untagged enum can dispatch. Initialised by `new()` to the
+     * mapping value; left as a plain (non-Option) field so callers
+     * can read it without unwrapping. */
     #[serde(rename = "{{baseName}}")]
     pub {{name}}: {{{dataType}}},
 {{/isDiscriminator}}
@@ -216,7 +216,7 @@ impl {{classname}} {
         Self {
 {{#requiredVars}}
 {{#isDiscriminator}}
-            // Auto-set discriminator from oneOf mapping.
+            /* Auto-set discriminator from oneOf mapping. */
             {{name}}: {{{defaultValue}}}.to_string(),
 {{/isDiscriminator}}
 {{^isDiscriminator}}
@@ -225,17 +225,17 @@ impl {{classname}} {
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isDiscriminator}}
-            // Auto-set discriminator from oneOf mapping.
+            /* Auto-set discriminator from oneOf mapping. */
             {{name}}: {{{defaultValue}}}.to_string(),
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#defaultValue}}
 {{#isEnum}}
-            // Optional enum field with a schema default: seed it with the
-            // DECLARED default variant so a default-constructed value
-            // serializes the schema default (e.g. `"mode":"medium"`), matching
-            // the other SDKs. The schema default may not be the first variant,
-            // so the declared variant is used rather than `Default::default()`.
+            /* Optional enum field with a schema default: seed it with the
+             * DECLARED default variant so a default-constructed value
+             * serializes the schema default (e.g. `"mode":"medium"`), matching
+             * the other SDKs. The schema default may not be the first variant,
+             * so the declared variant is used rather than `Default::default()`. */
 {{/isEnum}}
             {{name}}: Some({{{defaultValue}}}),
 {{/defaultValue}}
@@ -252,19 +252,19 @@ impl {{classname}} {
 }
 {{#hasDefaultedOptionalVars}}
 
-// Hand-written `Default` impl (the derive is suppressed above) so that
-// `{{classname}}::default()` agrees with `{{classname}}::new()` on the
-// schema-default fields. The derived impl would set every optional field to
-// `None`, silently dropping the schema defaults `new()` seeds (and that the
-// other SDKs emit on the wire). Required fields fall back to their own
-// `Default` (matching what the derive would have produced); optional fields
-// with a schema `default` are seeded with that declared default.
+/* Hand-written `Default` impl (the derive is suppressed above) so that
+ * `{{classname}}::default()` agrees with `{{classname}}::new()` on the
+ * schema-default fields. The derived impl would set every optional field to
+ * `None`, silently dropping the schema defaults `new()` seeds (and that the
+ * other SDKs emit on the wire). Required fields fall back to their own
+ * `Default` (matching what the derive would have produced); optional fields
+ * with a schema `default` are seeded with that declared default. */
 impl Default for {{classname}} {
     fn default() -> Self {
         Self {
 {{#requiredVars}}
 {{#isDiscriminator}}
-            // Auto-set discriminator from oneOf mapping.
+            /* Auto-set discriminator from oneOf mapping. */
             {{name}}: {{{defaultValue}}}.to_string(),
 {{/isDiscriminator}}
 {{^isDiscriminator}}
@@ -273,14 +273,14 @@ impl Default for {{classname}} {
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isDiscriminator}}
-            // Auto-set discriminator from oneOf mapping.
+            /* Auto-set discriminator from oneOf mapping. */
             {{name}}: {{{defaultValue}}}.to_string(),
 {{/isDiscriminator}}
 {{^isDiscriminator}}
 {{#defaultValue}}
-            // Optional field with a schema default: seed the declared default
-            // so `default()` matches `new()` (and the wire output of the other
-            // SDKs) rather than emitting `None`.
+            /* Optional field with a schema default: seed the declared default
+             * so `default()` matches `new()` (and the wire output of the other
+             * SDKs) rather than emitting `None`. */
             {{name}}: Some({{{defaultValue}}}),
 {{/defaultValue}}
 {{^defaultValue}}
@@ -310,19 +310,19 @@ impl Default for {{classname}} {
 #[deprecated(note = "This schema is deprecated.")]
 {{/isDeprecated}}
 {{#discriminator}}
-// Discriminated oneOf — variant structs carry the discriminator
-// field themselves (initialised by their `new()`), so we use
-// `untagged` for `Serialize` and let each variant's own rename'd
-// field reach the wire. This keeps the discriminator a real struct
-// field callable code can read.
-//
-// For `Deserialize` we hand-roll dispatch on the discriminator
-// property rather than relying on serde's untagged "try every
-// variant" fall-through: untagged would silently accept an unknown
-// discriminator value because the inner structs carry the
-// discriminator as a plain `String` (so any value parses). Instead
-// we read the discriminator field, match against the spec's
-// declared mapping, and return an `Err` on unknown values.
+/* Discriminated oneOf — variant structs carry the discriminator
+ * field themselves (initialised by their `new()`), so we use
+ * `untagged` for `Serialize` and let each variant's own rename'd
+ * field reach the wire. This keeps the discriminator a real struct
+ * field callable code can read.
+ *
+ * For `Deserialize` we hand-roll dispatch on the discriminator
+ * property rather than relying on serde's untagged "try every
+ * variant" fall-through: untagged would silently accept an unknown
+ * discriminator value because the inner structs carry the
+ * discriminator as a plain `String` (so any value parses). Instead
+ * we read the discriminator field, match against the spec's
+ * declared mapping, and return an `Err` on unknown values. */
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(untagged)]
 pub enum {{classname}} {

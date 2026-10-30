@@ -13,37 +13,37 @@ pub mod api_result;
 pub mod auth;
 pub mod client;
 pub mod configuration;
-// SDK-owned `format: date-time` newtype. Owns its `Serialize`/`Deserialize`, so the
-// canonical wire form (`+00:00` offset, fixed three-digit millisecond fraction) is
-// produced in every position a date-time appears.
+/* SDK-owned `format: date-time` newtype. Owns its `Serialize`/`Deserialize`, so the
+ * canonical wire form (`+00:00` offset, fixed three-digit millisecond fraction) is
+ * produced in every position a date-time appears. */
 pub mod date_time;
-// Internal transport implementation. The public seam is the `ApiClient` trait
-// (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
-// free functions traffic in `reqwest` types and must not leak into the public
-// API, so the module itself is crate-private.
+/* Internal transport implementation. The public seam is the `ApiClient` trait
+ * (re-exported below) plus `DefaultApiClient` (re-exported below); the module's
+ * free functions traffic in `reqwest` types and must not leak into the public
+ * API, so the module itself is crate-private. */
 pub(crate) mod default_api_client;
 pub mod errors;
-// Internal content-negotiation helper used by `base_api`; not part of the
-// public surface.
+/* Internal content-negotiation helper used by `base_api`; not part of the
+ * public surface. */
 pub(crate) mod header_selector;
-// SDK-owned public wrapper for free-form ("any") JSON values. Keeps the inner
-// `serde_json::Value` private so serde_json never leaks into the public API.
+/* SDK-owned public wrapper for free-form ("any") JSON values. Keeps the inner
+ * `serde_json::Value` private so serde_json never leaks into the public API. */
 pub mod json_value;
 pub mod models;
-// Serde helper that (de)serialises `format: duration` fields as protobuf-JSON
-// `google.protobuf.Duration` strings ("<seconds>s", e.g. "3600s").
+/* Serde helper that (de)serialises `format: duration` fields as protobuf-JSON
+ * `google.protobuf.Duration` strings ("<seconds>s", e.g. "3600s"). */
 pub mod proto_duration;
-// Internal (de)serialization helpers used by the generated API modules. These
-// traffic in `serde_json` types and must not appear in the public API.
+/* Internal (de)serialization helpers used by the generated API modules. These
+ * traffic in `serde_json` types and must not appear in the public API. */
 pub(crate) mod object_serializer;
 pub mod server_configuration;
 pub mod servers;
-// Internal W3C trace-context propagation helper used by `base_api`.
+/* Internal W3C trace-context propagation helper used by `base_api`. */
 pub(crate) mod trace_context_util;
 pub mod transport_options;
 pub mod utils;
-// Internal parameter-style serialization helpers used by the generated API
-// modules; `SerializedValue` and friends are an implementation detail.
+/* Internal parameter-style serialization helpers used by the generated API
+ * modules; `SerializedValue` and friends are an implementation detail. */
 pub(crate) mod value_serializer;
 
 pub use api_client::ApiClient;
@@ -53,8 +53,8 @@ pub use auth::Authenticator;
 pub use client::Client;
 pub use configuration::{Configuration, ConfigurationBuilder};
 pub use default_api_client::DefaultApiClient;
-// The whole SDK error tree, from the root trait down to the OAuth2 and
-// configuration errors, is declared in `errors` and re-exported here.
+/* The whole SDK error tree, from the root trait down to the OAuth2 and
+ * configuration errors, is declared in `errors` and re-exported here. */
 pub use errors::*;
 pub use json_value::JsonValue;
 pub use server_configuration::{ServerConfiguration, ServerVariable};

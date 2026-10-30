@@ -313,6 +313,38 @@ fn test_generated_models_have_no_null_example_doc() {
     );
 }
 
+/// Generated library source uses block comments and `///`/`//!` doc comments
+/// only, never a `//` line comment, matching the other SDKs and the comment
+/// style SKILLS.md documents.
+#[test]
+fn test_generated_source_has_no_line_comments() {
+    fn walk(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+        for entry in std::fs::read_dir(dir).expect("failed to read source directory") {
+            let path = entry.expect("failed to read directory entry").path();
+            if path.is_dir() {
+                walk(&path, files);
+            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                files.push(path);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+    assert!(!files.is_empty(), "expected generated source files to scan");
+
+    let mut violations = Vec::new();
+    for path in &files {
+        let contents = std::fs::read_to_string(path).expect("failed to read source file");
+        for (index, line) in contents.lines().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") && !trimmed.starts_with("///") && !trimmed.starts_with("//!") {
+                violations.push(format!("{}:{}", path.display(), index + 1));
+            }
+        }
+    }
+    assert!(violations.is_empty(), "line comments found: {:?}", violations);
+}
+
 #[test]
 fn test_metadata_declared_property_wins_over_a_colliding_additional_property() {
     let mut metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-15T10:30:00Z"}"#)

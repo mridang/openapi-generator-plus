@@ -148,9 +148,9 @@ impl {{classname}} {
 {{/vendorExtensions.op.signatureArgs}}
         ).await?;
 {{#returnType}}
-        // convenience-empty-body-handling: a body-returning operation that
-        // receives no decodable body must surface the SDK's typed ApiError
-        // (not a silent null / zero value), matching the other SDKs.
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
         let status_code = result.status_code();
         let raw_body = result.raw_body().to_string();
         let headers = result.headers().clone();
@@ -183,14 +183,14 @@ impl {{classname}} {
 {{/isOptions}}{{#isServer}}        server: Option<&dyn {{{dataType}}}>,
 {{/isServer}}{{/vendorExtensions.op.signatureArgs}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
-        // The public {{operationId}}_with_http_info entry point always sends the
-        // first declared request content-type, {{vendorExtensions.op.effectiveConsumes}}. The shared
-        // implementation below takes the resolved Content-Type as an argument
+        /* The public {{operationId}}_with_http_info entry point always sends the
+         * first declared request content-type, {{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}. The shared
+         * implementation below takes the resolved Content-Type as an argument
 {{#consumes.1}}
-        // so the {{operationId}}_with_content_type variant can override it.
+         * so the {{operationId}}_with_content_type variant can override it. */
 {{/consumes.1}}
 {{^consumes.1}}
-        // and this operation declares no alternative to select.
+         * and this operation declares no alternative to select. */
 {{/consumes.1}}
         self.{{operationId}}_invoke(
 {{#vendorExtensions.op.signatureArgs}}
@@ -253,10 +253,10 @@ impl {{classname}} {
         request_content_type: &str,
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#consumes.1}}
-        // Reject an unrecognised request content-type client-side so a typo
-        // never rides the wire as an undeclared Content-Type (matching
-        // java/elixir and the other SDKs). The default entry point always
-        // passes a declared type, so only an explicit bad selector trips this.
+        /* Reject an unrecognised request content-type client-side so a typo
+         * never rides the wire as an undeclared Content-Type (matching
+         * java/elixir and the other SDKs). The default entry point always
+         * passes a declared type, so only an explicit bad selector trips this. */
         const DECLARED_CONSUMES: &[&str] = &[{{#consumes}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/consumes}}];
         if !DECLARED_CONSUMES.contains(&request_content_type) {
             return Err(Box::new(
@@ -268,9 +268,9 @@ impl {{classname}} {
         }
 {{/consumes.1}}
 {{#hasAuthMethods}}
-        // Per-operation auth is folded into the Options struct: source the
-        // authenticator from `options.auth` when present, otherwise pass None so
-        // the base client falls back to the Configuration credentials.
+        /* Per-operation auth is folded into the Options struct: source the
+         * authenticator from `options.auth` when present, otherwise pass None so
+         * the base client falls back to the Configuration credentials. */
         let auth: Option<&dyn Authenticator> = options.and_then(|o| o.auth.as_deref());
 {{/hasAuthMethods}}
 {{#pathParams}}
@@ -280,8 +280,8 @@ impl {{classname}} {
         if {{paramName}}.is_empty() {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}"))));
         }
-        // A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
-        // URL parser would collapse it and silently re-route the request.
+        /* A `.` or `..` segment is path navigation (RFC 3986 section 5.2.4): the
+         * URL parser would collapse it and silently re-route the request. */
         if {{paramName}} == "." || {{paramName}} == ".." {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Path parameter '{}' must not be '.' or '..'", "{{baseName}}"))));
         }
@@ -306,10 +306,10 @@ impl {{classname}} {
             "<%style%>",
             <%isExplode%>,
         ) {
-            // `serialize_styled` already percent-encodes path segments (preserving
-            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
-            // serializer output directly — re-encoding here would double-encode
-            // (a space would become %2520, a slash %252F).
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
             path = path.replace("{<%baseName%>}", &v);
         }
 <%={{ }}=%>
@@ -329,8 +329,8 @@ impl {{classname}} {
 {{#queryParams}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 {{#required}}
-        // Required query parameter (allowEmptyValue): a missing Options is a
-        // programming error and is rejected up front.
+        /* Required query parameter (allowEmptyValue): a missing Options is a
+         * programming error and is rejected up front. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
@@ -392,7 +392,7 @@ impl {{classname}} {
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.param.queryDeepObject}}
 {{#required}}
-        // Required deepObject query parameter: a missing Options is rejected.
+        /* Required deepObject query parameter: a missing Options is rejected. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
@@ -412,7 +412,7 @@ impl {{classname}} {
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
 {{#required}}
-        // Required content query parameter: a missing Options is rejected.
+        /* Required content query parameter: a missing Options is rejected. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
@@ -428,15 +428,15 @@ impl {{classname}} {
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryStyled}}
 {{#required}}
-        // Required query parameter: the caller must supply it via Options. A
-        // missing Options is a programming error and is rejected up front,
-        // matching the required-param validation the other SDKs perform.
+        /* Required query parameter: the caller must supply it via Options. A
+         * missing Options is a programming error and is rejected up front,
+         * matching the required-param validation the other SDKs perform. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isString}}
-        // A required string must not be empty: an empty string is not a present
-        // value for a required parameter, so reject it like the other SDKs.
+        /* A required string must not be empty: an empty string is not a present
+         * value for a required parameter, so reject it like the other SDKs. */
         if opts.{{paramName}}.is_empty() {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
         }
@@ -502,12 +502,12 @@ impl {{classname}} {
         let mut header_params: HashMap<String, String> = HashMap::new();
 {{#headerParams}}
 {{#required}}
-        // Required header parameter: a missing Options is a programming error.
+        /* Required header parameter: a missing Options is a programming error. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isString}}
-        // A required string must not be empty: reject it like the other SDKs.
+        /* A required string must not be empty: reject it like the other SDKs. */
         if opts.{{paramName}}.is_empty() {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
         }
@@ -554,12 +554,12 @@ impl {{classname}} {
         let mut cookie_parts: Vec<String> = Vec::new();
 {{#cookieParams}}
 {{#required}}
-        // Required cookie parameter: a missing Options is a programming error.
+        /* Required cookie parameter: a missing Options is a programming error. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
 {{#isString}}
-        // A required string must not be empty: reject it like the other SDKs.
+        /* A required string must not be empty: reject it like the other SDKs. */
         if opts.{{paramName}}.is_empty() {
             return Err(Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}"))));
         }
@@ -574,14 +574,14 @@ impl {{classname}} {
             "{{style}}",
             {{isExplode}},
         ) {
-            // header-injection guard: an operation cookie value is interpolated
-            // raw into the Cookie request header (RFC 6265 forbids percent-
-            // encoding it), so a CR/LF/control-char value would otherwise split
-            // the header and inject arbitrary ones. Reject anything outside the
-            // RFC 6265 cookie-octet set, failing closed with
-            // crate::errors::configuration_error::ConfigurationError::InvalidArgument — the same RFC 6265 rejection
-            // the auth-cookie path performs in BaseApi.
-            // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+            /* header-injection guard: an operation cookie value is interpolated
+             * raw into the Cookie request header (RFC 6265 forbids percent-
+             * encoding it), so a CR/LF/control-char value would otherwise split
+             * the header and inject arbitrary ones. Reject anything outside the
+             * RFC 6265 cookie-octet set, failing closed with
+             * crate::errors::configuration_error::ConfigurationError::InvalidArgument — the same RFC 6265 rejection
+             * the auth-cookie path performs in BaseApi.
+             * cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E. */
             let cookie_value_valid = v.chars().all(|c| {
                 let o = c as u32;
                 o == 0x21
@@ -612,13 +612,13 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    // header-injection guard: see the required-branch comment
-                    // above. The serialized value is interpolated raw into the
-                    // Cookie header (no percent-encoding per RFC 6265), so a
-                    // CR/LF/control-char value is rejected here, failing closed
-                    // with crate::errors::configuration_error::ConfigurationError::InvalidArgument and mirroring
-                    // the auth-cookie RFC 6265 check in BaseApi.
-                    // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+                    /* header-injection guard: see the required-branch comment
+                     * above. The serialized value is interpolated raw into the
+                     * Cookie header (no percent-encoding per RFC 6265), so a
+                     * CR/LF/control-char value is rejected here, failing closed
+                     * with crate::errors::configuration_error::ConfigurationError::InvalidArgument and mirroring
+                     * the auth-cookie RFC 6265 check in BaseApi.
+                     * cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E. */
                     let cookie_value_valid = v.chars().all(|c| {
                         let o = c as u32;
                         o == 0x21
@@ -646,22 +646,22 @@ impl {{classname}} {
 
 {{#hasFormParams}}
 {{#isMultipart}}
-        // multipart/form-data. Each form param is mapped to a MultipartValue so
-        // the API client's serialize_multipart_body owns the wire format:
-        //   - file params (Vec<u8>)      -> Bytes (one file part; its part
-        //     Content-Type is derived from the field-name extension, falling
-        //     back to application/octet-stream);
-        //   - arrays of files           -> List(Bytes ...) (repeated parts);
-        //   - text arrays               -> List(Text ...) (repeated parts);
-        //   - objects / scalars         -> Text;
-        //   - absent optional fields    -> omitted entirely.
-        // Field names are emitted as UTF-8 by the client (non-ASCII preserved).
+        /* multipart/form-data. Each form param is mapped to a MultipartValue so
+         * the API client's serialize_multipart_body owns the wire format:
+         *   - file params (Vec<u8>)      -> Bytes (one file part; its part
+         *     Content-Type is derived from the field-name extension, falling
+         *     back to application/octet-stream);
+         *   - arrays of files           -> List(Bytes ...) (repeated parts);
+         *   - text arrays               -> List(Text ...) (repeated parts);
+         *   - objects / scalars         -> Text;
+         *   - absent optional fields    -> omitted entirely.
+         * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
         let mut multipart: HashMap<String, MultipartValue> = HashMap::new();
 {{#vendorExtensions.op.requiredMultipartBody}}
-        // Required multipart request body: the parts come from the Options
-        // struct, so a missing Options would emit a body-less request. Reject it
-        // up front (matching the required path/query/header param validation)
-        // instead of silently sending an empty body.
+        /* Required multipart request body: the parts come from the Options
+         * struct, so a missing Options would emit a body-less request. Reject it
+         * up front (matching the required path/query/header param validation)
+         * instead of silently sending an empty body. */
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{vendorExtensions.op.firstRequiredFormParam}}")))
         })?;
@@ -723,21 +723,21 @@ impl {{classname}} {
         }
 {{/vendorExtensions.op.requiredMultipartBody}}
 {{#consumes.1}}
-        // multi-content-type-multipart-or-raw: this operation also declares a
-        // non-multipart binary request content-type (e.g.
-        // application/octet-stream). When the caller selected that type the
-        // multipart envelope built above is wrong — the server expects the raw
-        // bytes of the single binary part with the chosen Content-Type, exactly
-        // as the dedicated set_*-style raw-binary path sends them. Only forward
-        // the multipart map when multipart/form-data is the resolved type;
-        // otherwise discard it and stream the file part's raw octets so the
-        // request body is NOT wrapped in a multipart boundary.
+        /* multi-content-type-multipart-or-raw: this operation also declares a
+         * non-multipart binary request content-type (e.g.
+         * application/octet-stream). When the caller selected that type the
+         * multipart envelope built above is wrong — the server expects the raw
+         * bytes of the single binary part with the chosen Content-Type, exactly
+         * as the dedicated set_*-style raw-binary path sends them. Only forward
+         * the multipart map when multipart/form-data is the resolved type;
+         * otherwise discard it and stream the file part's raw octets so the
+         * request body is NOT wrapped in a multipart boundary. */
         let mut request_body: Option<Vec<u8>> = None;
         let mut multipart: Option<HashMap<String, MultipartValue>> = Some(multipart);
         if request_content_type != "multipart/form-data" {
-            // A non-multipart binary content-type was selected: stream the single
-            // required file part as the raw body and drop the multipart map so the
-            // bytes are sent verbatim with the chosen Content-Type.
+            /* A non-multipart binary content-type was selected: stream the single
+             * required file part as the raw body and drop the multipart map so the
+             * bytes are sent verbatim with the chosen Content-Type. */
 {{#formParams}}
 {{#required}}
 {{^isArray}}
@@ -756,10 +756,10 @@ impl {{classname}} {
 {{/consumes.1}}
 {{/isMultipart}}
 {{^isMultipart}}
-        // application/x-www-form-urlencoded. The body is an ordered list of
-        // [key, value] pairs (spec-declaration order). Array values are emitted
-        // as repeated keys by serialize_body; null/absent optional fields are
-        // omitted entirely; spaces are encoded as `+`.
+        /* application/x-www-form-urlencoded. The body is an ordered list of
+         * [key, value] pairs (spec-declaration order). Array values are emitted
+         * as repeated keys by serialize_body; null/absent optional fields are
+         * omitted entirely; spaces are encoded as `+`. */
         let mut form_pairs: Vec<(String, serde_json::Value)> = Vec::new();
         if let Some(opts) = options {
 {{#formParams}}
@@ -786,35 +786,35 @@ impl {{classname}} {
 {{#bodyParam}}
 {{#isBinary}}
 {{^required}}
-        // Optional binary (`type: string, format: binary`) request body. The
-        // parameter is `Option<Vec<u8>>` (raw bytes); when present we stream the
-        // bytes UNCHANGED — no JSON / base64 / byte-array re-encoding — so the
-        // declared Content-Type ({{vendorExtensions.op.effectiveConsumes}}) carries
-        // the exact octets. When `None` we send no body and invoke_api drops the
-        // Content-Type. (serialize_body passes image/* and
-        // application/octet-stream bodies through verbatim.)
+        /* Optional binary (`type: string, format: binary`) request body. The
+         * parameter is `Option<Vec<u8>>` (raw bytes); when present we stream the
+         * bytes UNCHANGED — no JSON / base64 / byte-array re-encoding — so the
+         * declared Content-Type ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) carries
+         * the exact octets. When `None` we send no body and invoke_api drops the
+         * Content-Type. (serialize_body passes image/\* and
+         * application/octet-stream bodies through verbatim.) */
         let request_body = {{paramName}};
         let multipart: Option<HashMap<String, MultipartValue>> = None;
 {{/required}}
 {{#required}}
-        // Binary (`type: string, format: binary`) request body. The parameter is
-        // `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
-        // it would emit a byte array like `[255,216,...]` and base64 would
-        // re-encode it, either of which corrupts the payload. The raw octets are
-        // handed straight to invoke_api with the declared Content-Type
-        // ({{vendorExtensions.op.effectiveConsumes}}) preserved; serialize_body
-        // passes image/* and application/octet-stream bodies through verbatim.
+        /* Binary (`type: string, format: binary`) request body. The parameter is
+         * `Vec<u8>` (raw bytes) and must be streamed UNCHANGED — JSON-serializing
+         * it would emit a byte array like `[255,216,...]` and base64 would
+         * re-encode it, either of which corrupts the payload. The raw octets are
+         * handed straight to invoke_api with the declared Content-Type
+         * ({{#lambda.blockComment}}{{{vendorExtensions.op.effectiveConsumes}}}{{/lambda.blockComment}}) preserved; serialize_body
+         * passes image/\* and application/octet-stream bodies through verbatim. */
         let request_body = Some({{paramName}});
         let multipart: Option<HashMap<String, MultipartValue>> = None;
 {{/required}}
 {{/isBinary}}
 {{^isBinary}}
 {{^required}}
-        // Optional (not-`required`) request body. The parameter is
-        // `Option<{{{dataType}}}>`; when the caller passes `None` we send NO
-        // body at all (and invoke_api drops the Content-Type) rather than
-        // serializing a literal JSON `null`, which a strict server may reject or
-        // treat differently from an absent body.
+        /* Optional (not-`required`) request body. The parameter is
+         * `Option<{{{dataType}}}>`; when the caller passes `None` we send NO
+         * body at all (and invoke_api drops the Content-Type) rather than
+         * serializing a literal JSON `null`, which a strict server may reject or
+         * treat differently from an absent body. */
         let mut request_body: Option<Vec<u8>> = None;
         if let Some(body) = &{{paramName}} {
             request_body = Some(object_serializer::serialize(body)?.into_bytes());
@@ -844,23 +844,23 @@ impl {{classname}} {
             content_type: request_content_type,
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
 {{#hasAuthMethods}}
-            // Secured operation: pass the resolved per-call authenticator (or
-            // None for no override, which lets BaseApi fall back to the
-            // client-level authenticator).
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
             auth,
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
 {{#vendorExtensions.op.securityNone}}
-            // security-none suppression: this operation is declared
-            // `security: []` (explicitly unauthenticated). Pass the no-auth
-            // sentinel — NOT None — so BaseApi suppresses auth entirely rather
-            // than falling back to the client-level authenticator, which would
-            // leak the client credential on reflect-style endpoints.
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
             auth: Some(crate::api::base_api::no_auth_sentinel()),
 {{/vendorExtensions.op.securityNone}}
 {{^vendorExtensions.op.securityNone}}
-            // This operation inherits the global security requirement; pass
-            // None so BaseApi falls back to the client-level authenticator.
+            /* This operation inherits the global security requirement; pass
+             * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
 {{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}

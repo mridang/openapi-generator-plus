@@ -28,7 +28,7 @@ impl fmt::Display for OAuth2AuthorizationCodeError {
     }
 }
 
-// A caller mistake, not an API failure: like `ConfigurationError` it is a
-// plain `std::error::Error` and deliberately not part of the SDK error
-// hierarchy rooted at `{{errorPrefix}}Error`.
+/* A caller mistake, not an API failure: like `ConfigurationError` it is a
+ * plain `std::error::Error` and deliberately not part of the SDK error
+ * hierarchy rooted at `{{errorPrefix}}Error`. */
 impl std::error::Error for OAuth2AuthorizationCodeError {}

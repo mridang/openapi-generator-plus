@@ -673,10 +673,10 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
     }
 }
 
-// These tests live in-crate (rather than under tests/) because
-// `object_serializer` is a crate-private module (an internal (de)serialization
-// detail, not part of the public API), so they would otherwise be unable to
-// reach the module from the external integration-test crate.
+/* These tests live in-crate (rather than under tests/) because
+ * `object_serializer` is a crate-private module (an internal (de)serialization
+ * detail, not part of the public API), so they would otherwise be unable to
+ * reach the module from the external integration-test crate. */
 #[cfg(test)]
 mod tests {
     use super::{self as object_serializer, QueryValue, SerializationError};
@@ -808,7 +808,7 @@ mod tests {
     }
 
 {{#generateTests}}
-    // -- skip_serializing_if = "Option::is_none" on all optional model fields --
+    /* -- skip_serializing_if = "Option::is_none" on all optional model fields -- */
 
     #[test]
     fn test_optional_none_fields_skipped_on_serialize() {
@@ -819,15 +819,15 @@ mod tests {
         /* The exact shape depends on Category's required fields, but `name`
          * must not appear when it is None. */
         if !json.contains("\"name\"") || json.contains("\"name\":null") {
-            // pass -- either omitted entirely or never present
+            /* pass -- either omitted entirely or never present */
         } else {
-            // If name shows up at all, it must be a real value, not null.
+            /* If name shows up at all, it must be a real value, not null. */
             assert!(!json.contains("\"name\":null"),
                 "optional None fields must be skipped, got: {}", json);
         }
     }
 
-    // -- Unknown fields tolerated on deserialize (no deny_unknown_fields) --
+    /* -- Unknown fields tolerated on deserialize (no deny_unknown_fields) -- */
 
     #[test]
     fn test_unknown_fields_tolerated_on_deserialize() {
@@ -841,7 +841,7 @@ mod tests {
         assert_eq!(cat.name, Some("Cats".to_string()));
     }
 
-    // -- BOM tolerance: a leading UTF-8 BOM must be stripped before parse --
+    /* -- BOM tolerance: a leading UTF-8 BOM must be stripped before parse -- */
 
     #[test]
     fn test_deserialize_tolerates_leading_utf8_bom() {
@@ -857,13 +857,13 @@ mod tests {
         assert_eq!(cat.name, Some("Dogs".to_string()));
     }
 
-    // -- required, non-nullable fields must HARD-FAIL --
-    //
-    // A required field that is non-`Option` is generated without
-    // `#[serde(default)]`, so serde's derived `Deserialize` returns an
-    // error (surfaced as the SDK's SerializationError) when the field is
-    // either ABSENT or explicitly NULL in the input JSON. A partial object
-    // is never silently constructed. Pet requires `name` and `photoUrls`.
+    /* -- required, non-nullable fields must HARD-FAIL --
+     *
+     * A required field that is non-`Option` is generated without
+     * `#[serde(default)]`, so serde's derived `Deserialize` returns an
+     * error (surfaced as the SDK's SerializationError) when the field is
+     * either ABSENT or explicitly NULL in the input JSON. A partial object
+     * is never silently constructed. Pet requires `name` and `photoUrls`. */
 
     #[test]
     fn test_deserialize_missing_required_field_raises() {
@@ -1165,7 +1165,7 @@ mod tests {
         assert!(serialized.contains("2024-01-01"), "date should be preserved: {serialized}");
     }
 
-    // NonAsciiSerializationTests
+    /* NonAsciiSerializationTests */
 
     #[test]
     fn test_non_ascii_accented_character_not_escaped() {
@@ -1188,7 +1188,7 @@ mod tests {
         assert!(serialized.contains("\\t"), "tab should be escaped as \\t: {serialized}");
     }
 
-    // DeserializationErrorWrappingTests
+    /* DeserializationErrorWrappingTests */
 
     #[test]
     fn test_deserialization_truncated_json_returns_serialization_error() {
@@ -1214,11 +1214,11 @@ mod tests {
         assert!(err.cause().is_some(), "error should have a cause");
     }
 
-    // UuidSerializationTests
-    // `format: uuid` maps to `uuid::Uuid` rather than raw `String`.
-    // The `uuid` crate's `serde` feature provides transparent (de)serialization
-    // to/from the RFC-4122 string form, so derived `Serialize`/`Deserialize`
-    // impls on generated models containing a Uuid field "just work".
+    /* UuidSerializationTests
+     * `format: uuid` maps to `uuid::Uuid` rather than raw `String`.
+     * The `uuid` crate's `serde` feature provides transparent (de)serialization
+     * to/from the RFC-4122 string form, so derived `Serialize`/`Deserialize`
+     * impls on generated models containing a Uuid field "just work". */
 
     #[test]
     fn test_uuid_serializes_as_rfc4122_string() {
@@ -1286,12 +1286,12 @@ mod tests {
         assert_eq!(restored.expect("Some"), original);
     }
 
-    // ── canonical serde behaviours (cross-SDK) ──
+    /* ── canonical serde behaviours (cross-SDK) ── */
 
-    // A non-finite float (NaN, ±Infinity) must reject on ENCODE with a
-    // SerializationError. serde_json silently encodes such a value as JSON
-    // `null` (RFC 8259 §6 has no NaN/Infinity token); the FiniteFloatCheck
-    // pre-flight walk surfaces it, at the top level and nested in a struct.
+    /* A non-finite float (NaN, ±Infinity) must reject on ENCODE with a
+     * SerializationError. serde_json silently encodes such a value as JSON
+     * `null` (RFC 8259 §6 has no NaN/Infinity token); the FiniteFloatCheck
+     * pre-flight walk surfaces it, at the top level and nested in a struct. */
     #[test]
     fn test_serialize_non_finite_float_is_error() {
         #[derive(serde::Serialize)]
@@ -1301,11 +1301,11 @@ mod tests {
         assert!(object_serializer::serialize(&Holder { weight: f64::NAN }).is_err());
         assert!(object_serializer::serialize(&Holder { weight: f64::INFINITY }).is_err());
         assert!(object_serializer::serialize(&f64::NEG_INFINITY).is_err());
-        // A finite float still serializes cleanly.
+        /* A finite float still serializes cleanly. */
         assert!(object_serializer::serialize(&Holder { weight: 1.5 }).is_ok());
     }
 
-    // serialize of a None option emits the literal JSON null.
+    /* serialize of a None option emits the literal JSON null. */
     #[test]
     fn test_serialize_none_emits_null() {
         let json = object_serializer::serialize(&Option::<i32>::None)
@@ -1313,14 +1313,14 @@ mod tests {
         assert_eq!(json, "null");
     }
 
-    // format:byte is base64-decoded by serde on the model field, not in this
-    // module, so the invalid-base64-throws case does not apply to the Rust SDK.
+    /* format:byte is base64-decoded by serde on the model field, not in this
+     * module, so the invalid-base64-throws case does not apply to the Rust SDK. */
 
-    // Rust pins the same 1000-deep JSON nesting cap as the other eleven SDKs
-    // (MAX_JSON_DEPTH), enforced by the byte-scan with serde_json's own ~128-deep
-    // recursion limit disabled. A payload nested between serde's default limit
-    // and the cap (e.g. 500) must now DECODE (it was rejected before the cap was
-    // added), while one deeper than the cap is rejected as a SerializationError.
+    /* Rust pins the same 1000-deep JSON nesting cap as the other eleven SDKs
+     * (MAX_JSON_DEPTH), enforced by the byte-scan with serde_json's own ~128-deep
+     * recursion limit disabled. A payload nested between serde's default limit
+     * and the cap (e.g. 500) must now DECODE (it was rejected before the cap was
+     * added), while one deeper than the cap is rejected as a SerializationError. */
     #[test]
     fn test_json_nesting_depth_cap_matches_other_sdks() {
         let shallow = format!("{}{}", "[".repeat(50), "]".repeat(50));
@@ -1328,8 +1328,8 @@ mod tests {
             object_serializer::deserialize(shallow.as_bytes());
         assert!(ok.is_ok(), "a shallow payload must decode");
 
-        // 500 is past serde_json's built-in ~128 limit but within the 1000 cap:
-        // it must decode, proving the cap (not serde's default) is the authority.
+        /* 500 is past serde_json's built-in ~128 limit but within the 1000 cap:
+         * it must decode, proving the cap (not serde's default) is the authority. */
         let mid = format!("{}{}", "[".repeat(500), "]".repeat(500));
         let mid_ok: Result<Option<serde_json::Value>, _> =
             object_serializer::deserialize(mid.as_bytes());
@@ -1361,9 +1361,9 @@ mod tests {
         );
     }
 
-    // A subtype constructed via `new()` (without the discriminator)
-    // must still emit it on serialize because `new()` initialises food_type
-    // to its oneOf mapping value ("dry"/"wet").
+    /* A subtype constructed via `new()` (without the discriminator)
+     * must still emit it on serialize because `new()` initialises food_type
+     * to its oneOf mapping value ("dry"/"wet"). */
 
     #[test]
     fn test_dry_subtype_auto_emits_discriminator() {
@@ -1386,8 +1386,8 @@ mod tests {
         );
     }
 
-    // A repeated key resolves to its last value, as in the other SDKs, rather
-    // than failing with serde's "duplicate field" error.
+    /* A repeated key resolves to its last value, as in the other SDKs, rather
+     * than failing with serde's "duplicate field" error. */
     #[test]
     fn test_deserialize_duplicate_key_keeps_the_last_value() {
         let payload = br#"{"id":1,"name":"first","id":2}"#;
@@ -1405,10 +1405,10 @@ mod tests {
         assert!(result.is_err(), "trailing content must still be rejected");
     }
 
-    // A discriminator-tagged payload deserialized against the parent PetFood
-    // oneOf enum must resolve to the concrete DryFood variant via PetFood's
-    // custom Deserialize routing on foodType="dry", not fall through to a
-    // silent untagged match.
+    /* A discriminator-tagged payload deserialized against the parent PetFood
+     * oneOf enum must resolve to the concrete DryFood variant via PetFood's
+     * custom Deserialize routing on foodType="dry", not fall through to a
+     * silent untagged match. */
     #[test]
     fn test_deserialize_parent_routes_to_subtype() {
         let payload = br#"{"foodType":"dry","weightKg":2.5}"#;
@@ -1420,12 +1420,12 @@ mod tests {
         }
     }
 
-    // JSON `null` on a required, non-nullable field must HARD-FAIL
-    // deserialization. The payload `{"name": null, "photoUrls": ["u"]}` sets
-    // the required `name` (a plain `String`, not `Option<String>`) to JSON
-    // null. serde's derived `Deserialize` rejects the null because the field is
-    // non-Option, surfacing the SDK's SerializationError rather than silently
-    // constructing a Pet with an empty/partial `name`.
+    /* JSON `null` on a required, non-nullable field must HARD-FAIL
+     * deserialization. The payload `{"name": null, "photoUrls": ["u"]}` sets
+     * the required `name` (a plain `String`, not `Option<String>`) to JSON
+     * null. serde's derived `Deserialize` rejects the null because the field is
+     * non-Option, surfacing the SDK's SerializationError rather than silently
+     * constructing a Pet with an empty/partial `name`. */
     #[test]
     fn test_null_on_required_field_rejected() {
         let payload = br#"{"name":null,"photoUrls":["u"]}"#;
@@ -1437,9 +1437,9 @@ mod tests {
         );
     }
 
-    // A discriminator value the spec does not list, or an empty one, must
-    // HARD-FAIL as a SerializationError that names the problem, never dispatch
-    // to a variant whose fields happen to fit.
+    /* A discriminator value the spec does not list, or an empty one, must
+     * HARD-FAIL as a SerializationError that names the problem, never dispatch
+     * to a variant whose fields happen to fit. */
     #[test]
     fn test_unknown_and_empty_discriminator_rejected() {
         let unknown: Result<Option<PetFood>, SerializationError> =
@@ -1470,11 +1470,11 @@ mod tests {
         );
     }
 
-    // A discriminated oneOf payload that omits the discriminator property must
-    // HARD-FAIL, not wrap the raw object in a union container. The payload
-    // `{"weightKg": 5.0}` omits `foodType`; PetFood's hand-rolled Deserialize
-    // reads the discriminator field and returns an Err when it is absent
-    // (rather than serde-untagged's "try every variant" fall-through).
+    /* A discriminated oneOf payload that omits the discriminator property must
+     * HARD-FAIL, not wrap the raw object in a union container. The payload
+     * `{"weightKg": 5.0}` omits `foodType`; PetFood's hand-rolled Deserialize
+     * reads the discriminator field and returns an Err when it is absent
+     * (rather than serde-untagged's "try every variant" fall-through). */
     #[test]
     fn test_missing_discriminator_rejected() {
         let payload = br#"{"weightKg":5.0}"#;
