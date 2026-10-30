@@ -45,6 +45,62 @@ class DefaultApiClientTest {
     }
 
     @Nested
+    @DisplayName("TLS verification enforced")
+    inner class TlsVerificationEnforced {
+
+        /**
+         * Reaches the mock server through Squid by its IP address on the proxy
+         * network, which the fixture certificate does not carry (it names
+         * chasm, localhost, host.docker.internal and 127.0.0.1). The CIO engine
+         * checks the certificate against the reverse-resolved host name, so the
+         * resolved address of host.docker.internal would pass as that name; the
+         * proxy-network address has no reverse entry here.
+         */
+        private fun mismatchUrl(): String = "${ChasmContainer.getInternalHttpsAddressUrl()}/test/echo"
+
+        private fun causes(ex: Throwable): List<Throwable> = generateSequence(ex) { it.cause }.toList()
+
+        @Test
+        @DisplayName("the default transport rejects a certificate from an untrusted CA")
+        fun defaultTransportRejectsUntrustedCa() {
+            val client = DefaultApiClient(TransportOptions.builder().build())
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+                }
+            }
+            assertEquals(0, ex.statusCode)
+            assertTrue(
+                causes(ex).any { it is java.security.cert.CertPathBuilderException },
+                "the certificate chain must be rejected, got ${causes(ex)}",
+            )
+        }
+
+        @Test
+        @DisplayName("verifySsl=true rejects an address the certificate does not name")
+        fun verifySslTrueRejectsHostnameMismatch() {
+            val transport = TransportOptions.builder()
+                .proxy(SquidContainer.getProxyUrl())
+                .verifySsl(true)
+                .caCertPath(caCertPath)
+                .build()
+            val client = DefaultApiClient(transport)
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking { client.sendRequest("GET", mismatchUrl(), emptyMap(), null) }
+            }
+            assertEquals(0, ex.statusCode)
+            val address = java.net.URI(mismatchUrl()).host
+            assertTrue(
+                causes(ex).any {
+                    it is io.ktor.network.tls.TLSException &&
+                        it.message.orEmpty().startsWith("No server host: $address in the server certificate")
+                },
+                "the host name check must reject $address, got ${causes(ex)}",
+            )
+        }
+    }
+
+    @Nested
     @DisplayName("custom CA bundle")
     inner class CustomCaBundle {
 

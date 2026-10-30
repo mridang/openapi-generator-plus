@@ -33,6 +33,21 @@ private data class ContextualStrict(
     val ts: OffsetDateTime,
 )
 
+// File-scoped fixture: a model that nests the additionalProperties model
+// Metadata as a property, a list element and a map value. Internal (public in
+// bytecode) so the serializer can read its properties reflectively.
+@Serializable
+internal data class MetadataHolder(
+    @SerialName("label")
+    val label: String? = null,
+    @SerialName("meta")
+    val meta: com.example.petstore.models.Metadata? = null,
+    @SerialName("metas")
+    val metas: List<com.example.petstore.models.Metadata>? = null,
+    @SerialName("byKey")
+    val byKey: Map<String, com.example.petstore.models.Metadata>? = null,
+)
+
 class ObjectSerializerTest {
     private val serializer = ObjectSerializer()
 
@@ -549,6 +564,16 @@ class ObjectSerializerTest {
             assertThrowsExactly(SerializationException::class.java) {
                 serializer.deserialize<List<List<Int>>>("[[1.5]]")
             }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":true}")
+            }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"matrix\":[[\"1\"]]}")
+            }
+            assertEquals(
+                listOf(listOf(1)),
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"matrix\":[[1]]}")!!.matrix,
+            )
             assertEquals(mapOf("a" to 5), serializer.deserialize<Map<String, Int>>("{\"a\":5}"))
             assertEquals(listOf(listOf(1, 2)), serializer.deserialize<List<List<Int>>>("[[1,2]]"))
         }
@@ -1313,6 +1338,53 @@ class ObjectSerializerTest {
             assertFalse(
                 reserialized.contains("\"additionalProperties\""),
                 "extras must NOT nest under an additionalProperties key, got: $reserialized",
+            )
+        }
+
+        @Test
+        @DisplayName("additionalProperties are captured on a model nested as a property, list element and map value")
+        fun nestedAdditionalPropertiesAreCaptured() {
+            val decoded =
+                serializer.deserialize<MetadataHolder>(
+                    "{\"label\":\"x\",\"meta\":{\"region\":\"emea\"}," +
+                        "\"metas\":[{\"tier\":\"gold\"},{\"tier\":\"blue\"}]," +
+                        "\"byKey\":{\"k\":{\"zone\":\"z1\"}}}",
+                )!!
+            assertEquals(mapOf<String, Any?>("region" to "emea"), decoded.meta!!.additionalProperties)
+            assertEquals(mapOf<String, Any?>("tier" to "gold"), decoded.metas!![0].additionalProperties)
+            assertEquals(mapOf<String, Any?>("tier" to "blue"), decoded.metas[1].additionalProperties)
+            assertEquals(mapOf<String, Any?>("zone" to "z1"), decoded.byKey!!["k"]!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("additionalProperties are captured on the elements of a list and map response")
+        fun containerElementAdditionalPropertiesAreCaptured() {
+            val list = serializer.deserialize<List<com.example.petstore.models.Metadata>>("[{\"tier\":\"gold\"}]")!!
+            assertEquals(mapOf<String, Any?>("tier" to "gold"), list[0].additionalProperties)
+            val map = serializer.deserialize<Map<String, com.example.petstore.models.Metadata>>("{\"k\":{\"zone\":\"z1\"}}")!!
+            assertEquals(mapOf<String, Any?>("zone" to "z1"), map["k"]!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("additionalProperties of a nested model are re-emitted on serialize")
+        fun nestedAdditionalPropertiesAreSerialized() {
+            val meta =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["region"] = "emea" }
+            val element =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["tier"] = "gold" }
+            val keyed =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["zone"] = "z1" }
+            val holder = MetadataHolder(label = "x", meta = meta, metas = listOf(element), byKey = mapOf("k" to keyed))
+            assertEquals(
+                "{\"label\":\"x\",\"meta\":{\"region\":\"emea\"},\"metas\":[{\"tier\":\"gold\"}]," +
+                    "\"byKey\":{\"k\":{\"zone\":\"z1\"}}}",
+                serializer.serialize(holder),
             )
         }
 

@@ -162,7 +162,7 @@ enum class {{classname}}(val value: String) {
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated("This schema is deprecated.")
@@ -173,7 +173,7 @@ enum class {{classname}}(val value: String) {
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -185,7 +185,7 @@ enum class {{classname}}(val value: String) {
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -404,7 +404,7 @@ class {{classname}}(
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated("This schema is deprecated.")
@@ -415,7 +415,7 @@ class {{classname}}(
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -427,7 +427,7 @@ class {{classname}}(
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -584,7 +584,7 @@ class {{classname}}(
  *
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -592,7 +592,7 @@ class {{classname}}(
 /**
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -604,7 +604,7 @@ class {{classname}}(
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -616,7 +616,7 @@ class {{classname}}(
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -650,7 +650,7 @@ class {{classname}}(
   {{/isWriteOnly}}
   {{#vendorExtensions.pluralExamples}}
    *
-   * Example "{{summary}}" — {{description}}; value: {{value}}
+   * Example "{{{summary}}}" — {{{description}}}; value: {{{value}}}
   {{/vendorExtensions.pluralExamples}}
   {{#deprecated}}
    *

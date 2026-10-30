@@ -493,23 +493,94 @@ internal class ObjectSerializer(
      * entries into [encoded] as top-level JSON members. Reads the map
      * reflectively because the property is @Transient and thus invisible to the
      * serializer. Declared object members already present in [encoded] are never
-     * overwritten. Returns [encoded] unchanged when the model has no such map or
-     * [encoded] is not a JSON object.
+     * overwritten. The walk descends into every declared property, list element
+     * and map value, so a model nested inside another model, a list or a map
+     * re-emits its extras too. Sets are left as encoded. Returns [encoded]
+     * unchanged where the value carries no such map.
      */
     private fun mergeAdditionalProperties(
         encoded: JsonElement,
-        model: Any,
-    ): JsonElement {
-        if (encoded !is JsonObject) return encoded
-        val extras = readAdditionalProperties(model) ?: return encoded
-        if (extras.isEmpty()) return encoded
-        val merged = LinkedHashMap<String, JsonElement>(encoded)
-        for ((key, value) in extras) {
-            if (!merged.containsKey(key)) {
-                merged[key] = toJsonElementStatic(value)
+        value: Any?,
+    ): JsonElement =
+        when {
+            value == null || isLeafValue(value) -> encoded
+            value is Map<*, *> ->
+                if (encoded is JsonObject) {
+                    JsonObject(encoded.mapValues { (key, child) -> mergeAdditionalProperties(child, value[key]) })
+                } else {
+                    encoded
+                }
+            value is List<*> ->
+                if (encoded is JsonArray && encoded.size == value.size) {
+                    JsonArray(encoded.mapIndexed { i, child -> mergeAdditionalProperties(child, value[i]) })
+                } else {
+                    encoded
+                }
+            encoded is JsonObject -> {
+                val model = unwrapInstance(value)
+                val merged = LinkedHashMap<String, JsonElement>(encoded)
+                modelDescriptor(model)?.let { descriptor ->
+                    forEachModelElement(model, descriptor) { name, child ->
+                        merged[name]?.let { merged[name] = mergeAdditionalProperties(it, child) }
+                    }
+                }
+                readAdditionalProperties(model)?.forEach { (key, extra) ->
+                    if (!merged.containsKey(key)) merged[key] = toJsonElementStatic(extra)
+                }
+                JsonObject(merged)
             }
+            else -> encoded
         }
-        return JsonObject(merged)
+
+    /** True for a value that can never carry an `additionalProperties` map. */
+    private fun isLeafValue(value: Any): Boolean =
+        value is String ||
+            value is Number ||
+            value is Boolean ||
+            value is Char ||
+            value is Enum<*> ||
+            value is ByteArray ||
+            value is Set<*> ||
+            value is TemporalAccessor
+
+    /** The variant behind a oneOf/anyOf wrapper, or [value] itself. */
+    private fun unwrapInstance(value: Any): Any =
+        try {
+            value::class.java.getMethod("getActualInstance").invoke(value) ?: value
+        } catch (_: NoSuchMethodException) {
+            value
+        }
+
+    /** The descriptor of a generated model class, or null for anything else. */
+    private fun modelDescriptor(model: Any): kotlinx.serialization.descriptors.SerialDescriptor? =
+        try {
+            serializer(model::class.java)
+                .descriptor
+                .takeIf { it.kind == kotlinx.serialization.descriptors.StructureKind.CLASS }
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
+     * Calls [action] with the wire name and current value of each declared
+     * property of [model]. A generated model is a data class whose primary
+     * constructor lists its properties in descriptor order, so element `i` is
+     * read through `component(i + 1)`; an element without one is skipped.
+     */
+    private inline fun forEachModelElement(
+        model: Any,
+        descriptor: kotlinx.serialization.descriptors.SerialDescriptor,
+        action: (String, Any?) -> Unit,
+    ) {
+        for (i in 0 until descriptor.elementsCount) {
+            val child =
+                try {
+                    model::class.java.getMethod("component${i + 1}").invoke(model)
+                } catch (_: ReflectiveOperationException) {
+                    continue
+                }
+            action(descriptor.getElementName(i), child)
+        }
     }
 
     /**
@@ -660,27 +731,54 @@ internal class ObjectSerializer(
         model: Any,
         rawJson: String,
     ) {
-        val target = readAdditionalPropertiesMutable(model) ?: return
         val root =
             try {
                 json.parseToJsonElement(rawJson)
             } catch (_: Exception) {
                 return
             }
-        if (root !is JsonObject) return
-        val declared: Set<String> =
-            try {
-                serializer(model::class.java).descriptor.let { descriptor ->
-                    (0 until descriptor.elementsCount)
-                        .map { descriptor.getElementName(it) }
-                        .toSet()
+        captureAdditionalProperties(model, root)
+    }
+
+    /**
+     * Fills the `additionalProperties` map of [value] from the undeclared keys of
+     * [element], then descends into every declared property, list element and
+     * map value, so a model nested inside another model, a list or a map keeps
+     * its extras too. Sets are skipped: filling a member's map would change its
+     * hash after it was inserted.
+     */
+    private fun captureAdditionalProperties(
+        value: Any?,
+        element: JsonElement,
+    ) {
+        when {
+            value == null || isLeafValue(value) -> return
+            value is Map<*, *> ->
+                if (element is JsonObject) {
+                    for ((key, child) in value) {
+                        element[key.toString()]?.let { captureAdditionalProperties(child, it) }
+                    }
                 }
-            } catch (_: Exception) {
-                emptySet()
-            }
-        for ((key, value) in root) {
-            if (key !in declared) {
-                target[key] = fromJsonElement(value)
+            value is List<*> ->
+                if (element is JsonArray && element.size == value.size) {
+                    value.forEachIndexed { i, child -> captureAdditionalProperties(child, element[i]) }
+                }
+            element is JsonObject -> {
+                val model = unwrapInstance(value)
+                val descriptor = modelDescriptor(model)
+                readAdditionalPropertiesMutable(model)?.let { target ->
+                    val declared =
+                        descriptor?.let { d -> (0 until d.elementsCount).map { d.getElementName(it) }.toSet() }
+                            ?: emptySet()
+                    for ((key, raw) in element) {
+                        if (key !in declared) target[key] = fromJsonElement(raw)
+                    }
+                }
+                if (descriptor != null) {
+                    forEachModelElement(model, descriptor) { name, child ->
+                        element[name]?.let { captureAdditionalProperties(child, it) }
+                    }
+                }
             }
         }
     }

@@ -99,7 +99,7 @@ kotlin {
             }
         }
         val jvmTest by getting {
-            kotlin.srcDirs("src/test/kotlin")
+            kotlin.srcDirs("src/test/kotlin", "src/spec/kotlin")
             dependencies {
                 // Spelled as an explicit coordinate rather than kotlin("test-junit5")
                 // so .openapi-generator/DEV-DEPENDENCIES can be checked against this
@@ -130,7 +130,7 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = false
-    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin"))
+    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin", "src/spec/kotlin"))
     config.setFrom(files("detekt.yml"))
 }
 

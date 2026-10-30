@@ -627,8 +627,9 @@ internal fun supportedEncodings(): String =
 /**
  * Decodes a response body according to its `Content-Encoding` header
  * (`gzip`, `x-gzip` and `deflate`; `br`/`zstd` when their optional libraries are
- * present; any other value is returned unchanged). Throws [java.io.IOException]
- * when the body is not valid for the declared encoding. br/zstd are reached
+ * present). An empty body, an empty value and `identity` are returned unchanged;
+ * any other value raises [java.io.IOException], as does a body that is not valid
+ * for the declared encoding. br/zstd are reached
  * through reflection so the optional libraries can be `compileOnly` — an absent
  * library raises [java.io.IOException] rather than returning the body still
  * encoded (the codec is never advertised, so only a non-conformant server sends it).

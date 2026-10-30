@@ -1380,6 +1380,19 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("decodeContentEncoding passes identity and an empty value through and raises on any other value")
+        fun decodeContentEncodingPassesOnlyIdentityThrough() {
+            val body = "payload".toByteArray()
+            assertArrayEquals(body, decodeContentEncoding(body, "identity"))
+            assertArrayEquals(body, decodeContentEncoding(body, " "))
+            val ex =
+                assertThrowsExactly(java.io.IOException::class.java) {
+                    decodeContentEncoding(body, "compress")
+                }
+            assertEquals("Unsupported Content-Encoding 'compress'", ex.message)
+        }
+
+        @Test
         @DisplayName("Gap AL: empty body declared gzip passes through as empty, never raises")
         fun emptyGzipBodyPassesThroughAsEmpty() {
             // A zero-byte body still advertising `Content-Encoding: gzip` has

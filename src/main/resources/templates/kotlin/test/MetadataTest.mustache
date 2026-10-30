@@ -131,6 +131,25 @@ class MetadataTest {
     }
 
     @Test
+    @DisplayName("build.gradle.kts compiles, runs and lints the hand-written spec directory")
+    fun testSpecDirectoryIsCompiledRunAndLinted() {
+        assertTrue(java.io.File("src/spec/kotlin").isDirectory, "src/spec/kotlin must exist")
+        val manifest = java.io.File("build.gradle.kts").readText()
+        val testSources = Regex("""val jvmTest by getting \{\s*kotlin\.srcDirs\(([^)]*)\)""").find(manifest)
+        assertNotNull(testSources, "build.gradle.kts must declare the jvmTest source directories")
+        assertEquals(
+            listOf("\"src/test/kotlin\"", "\"src/spec/kotlin\""),
+            testSources!!.groupValues[1].split(",").map { it.trim() },
+        )
+        val lintSources = Regex("""detekt \{[^}]*source\.setFrom\(files\(([^)]*)\)\)""").find(manifest)
+        assertNotNull(lintSources, "build.gradle.kts must declare the detekt sources")
+        assertTrue(
+            lintSources!!.groupValues[1].split(",").map { it.trim() }.contains("\"src/spec/kotlin\""),
+            "detekt must lint src/spec/kotlin, got ${lintSources.groupValues[1]}",
+        )
+    }
+
+    @Test
     @DisplayName("dev-dependency-drift: build.gradle.kts declares every dependency the generated tests need")
     fun testDeclaredDevDependenciesAreInTheProjectManifest() {
         // A generated test may import a package that only the generator knows
@@ -178,5 +197,19 @@ class MetadataTest {
             "no generated model may carry a false `Example: null` doc line, found in: " +
                 offenders.joinToString(", ") { it.name },
         )
+    }
+
+    @Test
+    @DisplayName("generated sources carry spec prose raw, never HTML-escaped")
+    fun testNoHtmlEntitiesInGeneratedSources() {
+        val sourceDir = java.io.File("src/main/kotlin")
+        assertTrue(sourceDir.isDirectory, "generated source directory must exist")
+        val entity = Regex("&(?:[A-Za-z]+|#[0-9]+|#[xX][0-9A-Fa-f]+);")
+        val offenders =
+            sourceDir.walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .flatMap { file -> file.readLines().filter { entity.containsMatchIn(it) }.map { "${file.name}: ${it.trim()}" } }
+                .toList()
+        assertEquals(emptyList<String>(), offenders)
     }
 }
