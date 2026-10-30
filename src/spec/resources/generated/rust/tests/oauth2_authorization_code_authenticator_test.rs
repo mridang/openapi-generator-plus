@@ -456,3 +456,135 @@ fn test_scheme_wrapper_requests_the_scopes_declared_by_the_spec() {
         url
     );
 }
+
+/// RFC 6749 §6: the refresh grant authenticates the client like the code
+/// exchange did, and a rejected refresh surfaces once, after exactly one
+/// refresh request.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_carries_the_client_credentials_and_a_rejection_is_sent_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.exchange_code("code-a")
+        .await
+        .expect("exchange succeeds");
+
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("the refresh is rejected");
+
+    assert!(
+        err.downcast_ref::<petstore::OAuth2ServerError>().is_some(),
+        "got: {}",
+        err
+    );
+    assert_eq!(2, client.urls().len(), "{:?}", client.urls());
+    assert_eq!(
+        Some(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+                .to_string()
+        ),
+        client.last_body()
+    );
+}
+
+/// A second exchange always sends the new code, even while the first
+/// exchange's token is still valid, and its token replaces the old one.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_second_exchange_code_sends_the_new_code() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("code-a")
+        .await
+        .expect("first exchange succeeds");
+    auth.exchange_code("code-b")
+        .await
+        .expect("second exchange succeeds");
+    let headers = auth.try_auth_headers().await.expect("headers");
+
+    let body = client.last_body().expect("should have body");
+    assert!(
+        body.starts_with("grant_type=authorization_code&code=code-b&"),
+        "{}",
+        body
+    );
+    assert_eq!(
+        Some(&"Bearer tok2".to_string()),
+        headers.get("Authorization")
+    );
+    assert_eq!(2, client.urls().len());
+}
+
+/// An exchange whose response carries no refresh token leaves none behind:
+/// once its token expires the refresh is sent with an empty refresh token,
+/// never the previous session's.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_second_exchange_without_refresh_token_drops_the_old_one() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":1}"#, 200);
+    client.enqueue(r#"{"access_token":"tok3","expires_in":3600}"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("code-a")
+        .await
+        .expect("first exchange succeeds");
+    auth.exchange_code("code-b")
+        .await
+        .expect("second exchange succeeds");
+    let _ = auth.try_auth_headers().await;
+
+    let body = client.last_body().expect("should have body");
+    assert!(
+        body.starts_with("grant_type=refresh_token&refresh_token=&"),
+        "{}",
+        body
+    );
+}
+
+/// A rejected code leaves the previous session in place.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_failed_exchange_keeps_the_previous_session() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("code-a")
+        .await
+        .expect("first exchange succeeds");
+    auth.exchange_code("bad")
+        .await
+        .expect_err("the bad code is rejected");
+    let headers = auth
+        .try_auth_headers()
+        .await
+        .expect("the old session still works");
+
+    assert_eq!(
+        Some(&"Bearer tok1".to_string()),
+        headers.get("Authorization")
+    );
+    assert_eq!(2, client.urls().len());
+}

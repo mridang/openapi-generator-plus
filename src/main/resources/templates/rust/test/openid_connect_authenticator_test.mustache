@@ -123,7 +123,13 @@ impl ApiClient for FakeApiClient {
             responses.remove(0)
         };
         let gated = method == "POST" && self.gate_posts.load(Ordering::SeqCst);
+        let is_get = method == "GET";
         Box::pin(async move {
+            /* A discovery GET yields once, as a real network call would, so
+             * concurrent callers can interleave with it. */
+            if is_get {
+                tokio::task::yield_now().await;
+            }
             if gated {
                 self.post_entered.store(true, Ordering::SeqCst);
                 while !self.post_released.load(Ordering::SeqCst) {
@@ -546,6 +552,71 @@ async fn test_cancelled_code_exchange_keeps_the_delegate() {
     }
 
     auth.build_authorization_url("").await.expect("the delegate must survive a dropped call");
+    assert_eq!(1, client.get_count());
+}
+
+const REDISCOVERY: &str = r#"{"authorization_endpoint":"https://auth.example.com/authorize-v2","token_endpoint":"https://auth.example.com/token"}"#;
+
+/// Rediscovery after the document's max-age refreshes the endpoints only: the
+/// exchanged session survives, its still-valid token is reused without a token
+/// request, and the new document's endpoints are used.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_rediscovery_after_max_age_keeps_the_exchanged_session() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=0");
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    client.enqueue_cached(REDISCOVERY, "max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("oidc-code").await.expect("the exchange succeeds");
+    let headers = auth.try_auth_headers().await.expect("the session survives rediscovery");
+    let url = auth.build_authorization_url("").await.expect("should succeed");
+
+    assert_eq!(Some(&"Bearer oidc-tok".to_string()), headers.get("Authorization"));
+    assert_eq!(2, client.get_count());
+    assert_eq!(Some("GET".to_string()), client.last_method());
+    assert!(url.starts_with("https://auth.example.com/authorize-v2?"), "{}", url);
+}
+
+/// A failed rediscovery surfaces its typed error and keeps the old delegate;
+/// the next call rediscovers and still has the same session.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_failed_rediscovery_keeps_the_old_delegate() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=0");
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    client.enqueue(r#"{"error":"down"}"#, 500);
+    client.enqueue_cached(DISCOVERY, "max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("oidc-code").await.expect("the exchange succeeds");
+    let err = auth.try_auth_headers().await.expect_err("the rediscovery fails");
+    let headers = auth.try_auth_headers().await.expect("the retry succeeds");
+
+    assert!(err.downcast_ref::<InternalServerError>().is_some(), "got: {}", err);
+    assert_eq!(Some(&"Bearer oidc-tok".to_string()), headers.get("Authorization"));
+    assert_eq!(3, client.get_count());
+}
+
+/// Concurrent calls on a cold authenticator share one discovery request.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_concurrent_cold_calls_issue_one_discovery_request() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let (a, b, c) = tokio::join!(
+        auth.build_authorization_url("a"),
+        auth.build_authorization_url("b"),
+        auth.build_authorization_url("c")
+    );
+
+    for url in [a, b, c] {
+        assert!(url.expect("should succeed").starts_with("https://auth.example.com/authorize?"));
+    }
     assert_eq!(1, client.get_count());
 }
 

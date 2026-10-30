@@ -10,9 +10,21 @@
 pub struct Metadata {
     #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
     pub created_at: Option<crate::date_time::DateTime>,
-    /// Additional properties not defined in the schema.
-    #[serde(flatten)]
+    /// Additional properties not defined in the schema. An entry whose key is
+    /// the wire name of a declared property is not written: the declared
+    /// property wins and the key appears once.
+    #[serde(flatten, serialize_with = "serialize_additional_properties")]
     pub additional_properties: std::collections::HashMap<String, crate::json_value::JsonValue>,
+}
+
+/// Writes the additional properties of [`Metadata`] without the keys its
+/// declared properties already carry.
+fn serialize_additional_properties<S: serde::Serializer>(
+    value: &std::collections::HashMap<String, crate::json_value::JsonValue>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    const DECLARED: &[&str] = &["createdAt"];
+    crate::object_serializer::serialize_extras(value, DECLARED, serializer)
 }
 
 impl Metadata {

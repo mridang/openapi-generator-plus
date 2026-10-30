@@ -1135,3 +1135,141 @@ async fn test_token_body_percent_encodes_everything_but_the_unreserved_set() {
         form_pairs(&client.requests()[0].1)
     );
 }
+
+/// The internal refresh goes to the refresh URL when one is given; the
+/// fallback to the original grant goes to the token URL.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_goes_to_the_refresh_url_and_the_fallback_to_the_token_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    client.enqueue(r#"{"access_token":"fresh","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+    let no_headers = HashMap::new();
+
+    for _ in 0..2 {
+        manager
+            .get_access_token_with_refresh_url(
+                "https://auth.example.com/token",
+                Some("https://auth.example.com/refresh"),
+                &params,
+                &no_headers,
+            )
+            .await
+            .unwrap();
+    }
+
+    let urls: Vec<String> = client.requests().into_iter().map(|(url, _)| url).collect();
+    assert_eq!(
+        vec![
+            "https://auth.example.com/token".to_string(),
+            "https://auth.example.com/refresh".to_string(),
+            "https://auth.example.com/token".to_string()
+        ],
+        urls
+    );
+}
+
+/// Params that already are a refresh grant are POSTed once: no internal
+/// refresh attempt and no duplicate fallback.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_refresh_grant_params_are_sent_exactly_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"old","refresh_token":"ref1","expires_in":1}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    manager
+        .get_access_token(
+            "https://auth.example.com/token",
+            &authorization_code_params(),
+        )
+        .await
+        .unwrap();
+    let mut refresh = HashMap::new();
+    refresh.insert("grant_type".to_string(), "refresh_token".to_string());
+    refresh.insert("refresh_token".to_string(), "ref1".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &refresh)
+        .await
+        .expect_err("the rejected refresh surfaces");
+
+    assert!(
+        err.downcast_ref::<OAuth2ServerError>().is_some(),
+        "got: {}",
+        err
+    );
+    assert_eq!(2, client.requests().len());
+}
+
+/// `exchange` always POSTs, even with a valid cached token, replaces the whole
+/// session with the response, and marks the session exchanged.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_exchange_bypasses_the_cache_and_replaces_the_session() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"one","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"two"}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+    let no_headers = HashMap::new();
+    assert!(!manager.is_exchanged());
+
+    manager
+        .exchange("https://auth.example.com/token", &params, &no_headers)
+        .await
+        .unwrap();
+    let token = manager
+        .exchange("https://auth.example.com/token", &params, &no_headers)
+        .await
+        .unwrap();
+
+    assert_eq!("two", token);
+    assert_eq!("", manager.refresh_token().await);
+    assert!(manager.is_exchanged());
+    assert_eq!(2, client.requests().len());
+}
+
+/// A failed `exchange` restores the previous session.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_failed_exchange_restores_the_previous_session() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"one","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let params = authorization_code_params();
+    let no_headers = HashMap::new();
+
+    manager
+        .exchange("https://auth.example.com/token", &params, &no_headers)
+        .await
+        .unwrap();
+    manager
+        .exchange("https://auth.example.com/token", &params, &no_headers)
+        .await
+        .expect_err("the second exchange is rejected");
+    let token = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .unwrap();
+
+    assert_eq!("one", token);
+    assert_eq!("ref1", manager.refresh_token().await);
+    assert_eq!(2, client.requests().len());
+}

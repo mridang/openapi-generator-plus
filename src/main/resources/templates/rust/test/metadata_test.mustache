@@ -312,3 +312,17 @@ fn test_generated_models_have_no_null_example_doc() {
         "expected at least one generated model source file to scan"
     );
 }
+
+#[test]
+fn test_metadata_declared_property_wins_over_a_colliding_additional_property() {
+    let mut metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-15T10:30:00Z"}"#)
+        .expect("failed to deserialize Metadata");
+    metadata.additional_properties.insert(
+        "createdAt".to_string(),
+        {{packageName}}::JsonValue::new(serde_json::Value::String("x".to_string())),
+    );
+
+    let data = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
+
+    assert_eq!(data, r#"{"createdAt":"2024-01-15T10:30:00.000+00:00"}"#);
+}

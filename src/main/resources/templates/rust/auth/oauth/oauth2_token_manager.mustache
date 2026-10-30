@@ -1,6 +1,7 @@
 {{>api_info}}
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
@@ -33,8 +34,13 @@ pub struct OAuth2TokenManager {
     /* Token state is protected by a tokio Mutex held across the network
      * call to provide single-flight refresh semantics. */
     inner: Mutex<TokenManagerInner>,
+    /* Set once an authorization code has been exchanged. It lives here, with
+     * the tokens, so it survives anything that rebuilds the authenticator
+     * around this manager (OIDC rediscovery). */
+    exchanged: AtomicBool,
 }
 
+#[derive(Clone)]
 struct TokenManagerInner {
     access_token: String,
     refresh_token: String,
@@ -60,7 +66,18 @@ impl OAuth2TokenManager {
                 refresh_token: String::new(),
                 token_expiry: None,
             }),
+            exchanged: AtomicBool::new(false),
         }
+    }
+
+    /// Records that an authorization code has been exchanged for this session.
+    pub fn mark_exchanged(&self) {
+        self.exchanged.store(true, Ordering::SeqCst);
+    }
+
+    /// Returns `true` once an authorization code has been exchanged.
+    pub fn is_exchanged(&self) -> bool {
+        self.exchanged.load(Ordering::SeqCst)
     }
 
     /// Injects the shared API client for making token requests.
@@ -96,6 +113,28 @@ impl OAuth2TokenManager {
     pub async fn get_access_token_with_headers(
         &self,
         token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.get_access_token_with_refresh_url(token_url, None, params, extra_headers)
+            .await
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// When a refresh token is held and `params` is not itself a
+    /// `refresh_token` grant, the refresh is POSTed to `refresh_url` (default
+    /// `token_url`) carrying `grant_type`, `refresh_token` and the
+    /// `client_id`/`client_secret` found in `params`, with the same
+    /// `extra_headers`, so the client authenticates the refresh exactly as it
+    /// authenticated the original grant (RFC 6749 §6, §3.2.1). If the refresh
+    /// fails, `params` is POSTed to `token_url`, re-running the original
+    /// grant. When `params` already is a `refresh_token` grant it is POSTed
+    /// once, with no internal refresh attempt and no fallback.
+    pub async fn get_access_token_with_refresh_url(
+        &self,
+        token_url: &str,
+        refresh_url: Option<&str>,
         params: &HashMap<String, String>,
         extra_headers: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
@@ -141,7 +180,9 @@ impl OAuth2TokenManager {
         /* If we have a refresh token, try the refresh_token grant first.
          * On failure (4xx/5xx or transport error) fall back to re-running
          * the original grant. */
-        if !current_refresh_token.is_empty() {
+        let is_refresh_grant =
+            params.get("grant_type").map(String::as_str) == Some("refresh_token");
+        if !current_refresh_token.is_empty() && !is_refresh_grant {
             let mut refresh_params: HashMap<String, String> = HashMap::new();
             refresh_params.insert("grant_type".to_string(), "refresh_token".to_string());
             refresh_params.insert("refresh_token".to_string(), current_refresh_token);
@@ -154,7 +195,7 @@ impl OAuth2TokenManager {
             if let Ok(token) = Self::fetch_token_locked(
                 &mut inner,
                 client.clone(),
-                token_url,
+                refresh_url.unwrap_or(token_url),
                 &refresh_params,
                 extra_headers,
             )
@@ -165,6 +206,50 @@ impl OAuth2TokenManager {
         }
 
         Self::fetch_token_locked(&mut inner, client, token_url, params, extra_headers).await
+    }
+
+    /// Exchanges an authorization code: POSTs `params` verbatim to `token_url`
+    /// (no cached token, no refresh attempt) and replaces the session with
+    /// exactly what the response carries, so a response without a
+    /// `refresh_token` leaves none and one without `expires_in` leaves no
+    /// expiry. On success the session is marked exchanged; on any failure the
+    /// previous session is restored and the error returned, so a rejected
+    /// code does not sign the user out.
+    pub async fn exchange(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let mut inner = self.inner.lock().await;
+        let client = self
+            .api_client
+            .read()
+            .unwrap()
+            .as_ref()
+            .ok_or_else(|| {
+                Box::new(ConfigurationError::InvalidState(
+                    "ApiClient has not been injected. \
+                     Ensure the {{clientClassName}} constructor calls set_api_client \
+                     on HttpAwareAuthenticator before making API requests"
+                        .to_string(),
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?
+            .clone();
+        let previous = inner.clone();
+        inner.access_token = String::new();
+        inner.refresh_token = String::new();
+        inner.token_expiry = None;
+        match Self::fetch_token_locked(&mut inner, client, token_url, params, extra_headers).await {
+            Ok(token) => {
+                self.mark_exchanged();
+                Ok(token)
+            }
+            Err(e) => {
+                *inner = previous;
+                Err(e)
+            }
+        }
     }
 
     /// Performs the token exchange while the caller already holds the

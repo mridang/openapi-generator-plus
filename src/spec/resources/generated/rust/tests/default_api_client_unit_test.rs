@@ -259,6 +259,33 @@ async fn test_no_user_agent_is_omitted_when_cleared() {
     assert_eq!(None, head_header(&head, "user-agent"), "{}", head);
 }
 
+/// The allowReserved encoder hands the transport `[`/`]` as `%5B`/`%5D` and a
+/// literal `'`; the WHATWG URL parser behind reqwest then rewrites the `'` to
+/// `%27`. That rewrite is the documented FORCED difference of this SDK, pinned
+/// here so it cannot drift.
+#[tokio::test]
+async fn test_allow_reserved_query_reaches_the_wire_with_the_apostrophe_rewritten() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+
+    client
+        .send_request(
+            "GET",
+            &format!("{}/echo?revision=v1.0/beta:rc1%5Bx%5D'y", base_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert!(
+        head.starts_with("GET /echo?revision=v1.0/beta:rc1%5Bx%5D%27y "),
+        "{}",
+        head
+    );
+}
+
 #[tokio::test]
 async fn test_default_api_client_injects_custom_user_agent() {
     let base_url = start_echo_server();

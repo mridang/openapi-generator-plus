@@ -1062,6 +1062,66 @@ async fn test_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
     );
 }
 
+/// `revision` is `allowReserved`: the query-legal reserved characters stay
+/// literal, but a `#` is percent-encoded so it cannot start a fragment and cut
+/// the rest of the query off the wire.
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_allow_reserved_encodes_the_fragment_delimiter() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new()
+        .revision("v1.0/beta:rc1#frag".to_string())
+        .filter("blue".to_string());
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("revision=v1.0/beta:rc1%23frag"),
+        "got request line: {}",
+        request_line
+    );
+}
+
+/// `fingerprint` (query) and `X-Fingerprint` (header) are `format: byte`: the
+/// bytes go on the wire as padded standard-alphabet base64, never as a serde
+/// number array.
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_byte_params_are_base64() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new()
+        .fingerprint(b"hi".to_vec())
+        .x_fingerprint(b"hi".to_vec());
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("fingerprint=aGk%3D"),
+        "got request line: {}",
+        request_line
+    );
+    let header = request
+        .lines()
+        .find(|line| line.to_lowercase().starts_with("x-fingerprint:"))
+        .map(|line| line["x-fingerprint:".len()..].trim().to_string());
+    assert_eq!(Some("aGk=".to_string()), header, "{}", request);
+}
+
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new().fingerprint(vec![0xFB, 0xFF]);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("fingerprint=%2B%2F8%3D"),
+        "got request line: {}",
+        request_line
+    );
+}
+
 #[tokio::test]
 async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(

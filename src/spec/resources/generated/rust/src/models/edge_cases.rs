@@ -52,7 +52,12 @@ pub struct EdgeCases {
     pub last_error: Option<Error>,
     #[serde(rename = "outcome", skip_serializing_if = "Option::is_none")]
     pub outcome: Option<ModelResult>,
-    #[serde(rename = "cutoff", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "cutoff",
+        skip_serializing_if = "Option::is_none",
+        default,
+        with = "crate::object_serializer::naive_time::option"
+    )]
     pub cutoff: Option<chrono::NaiveTime>,
 }
 

@@ -637,6 +637,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        /* format: time routes through the object_serializer::naive_time adapter
+         * so a body writes HH:mm:ss(.SSS), the same text as a parameter. */
+        property.vendorExtensions.put("isTime", "time".equals(property.dataFormat));
+        /* format: uri stays a String but is decoded through
+         * object_serializer::absolute_uri, which rejects relative references. */
+        property.vendorExtensions.put("isUri", "uri".equals(property.dataFormat));
         // A property referencing a model renamed by toModelName (prelude clash)
         // still carries the raw schema name; point it at the renamed type.
         final String complex = property.complexType;

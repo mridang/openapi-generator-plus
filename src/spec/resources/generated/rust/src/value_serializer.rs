@@ -51,16 +51,22 @@ fn encode_path_array_item(s: &str) -> String {
     encode_path_segment(s)
 }
 
-/// Percent-encodes a query value while leaving RFC 3986 reserved characters
-/// literal (OAS `allowReserved: true`).
+/// Percent-encodes a query value while leaving the RFC 3986 query-legal reserved
+/// characters literal (OAS `allowReserved: true`).
 ///
 /// This is the reserved-preserving variant of the query encoder used by
-/// `base_api::build_query_string` (the `urlencoding` crate). Everything that is
-/// not RFC 3986 reserved or unreserved — spaces, control characters, non-ASCII —
-/// is still percent-encoded (space stays `%20`, exactly as `urlencoding::encode`
-/// emits it), so the result is always a valid URL query segment. Only the
-/// reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` is restored after
-/// `urlencoding::encode` over-encodes it.
+/// `base_api::build_query_string` (the `urlencoding` crate). Only the reserved
+/// characters RFC 3986 section 3.4 permits inside a query component,
+/// `: / ? @ ! $ & ' ( ) * + , ; =`, are restored after `urlencoding::encode`
+/// over-encodes them. `#` (the fragment delimiter, which would truncate the
+/// query), `[` and `]` (not allowed in a query) stay percent-encoded as `%23`,
+/// `%5B` and `%5D`, as does everything else that is not unreserved: spaces
+/// (`%20`), control characters and non-ASCII.
+///
+/// The string returned here is the contract. The transport's URL parser (the
+/// WHATWG-conformant `url` crate behind reqwest) then rewrites a literal `'`
+/// to `%27`; that is a documented, value-preserving exception that the SDK
+/// does not try to defeat.
 ///
 /// `~` is left untouched: the `urlencoding` crate treats it as RFC 3986
 /// unreserved and never encodes it, so no restore is needed (unlike Java's
@@ -71,9 +77,6 @@ pub fn encode_query_allowing_reserved(s: &str) -> String {
         .replace("%3A", ":")
         .replace("%2F", "/")
         .replace("%3F", "?")
-        .replace("%23", "#")
-        .replace("%5B", "[")
-        .replace("%5D", "]")
         .replace("%40", "@")
         .replace("%21", "!")
         .replace("%24", "$")
@@ -1441,5 +1444,15 @@ mod tests {
         // Space is not reserved, so it is still percent-encoded, while the
         // reserved `:` between the words stays literal.
         assert_eq!(super::encode_query_allowing_reserved("a b:c"), "a%20b:c");
+    }
+
+    #[test]
+    fn test_encode_query_allowing_reserved_keeps_only_the_query_legal_reserved_set() {
+        // `#` would start the fragment and `[`/`]` are not legal in a query, so
+        // they are percent-encoded; the rest of the reserved set stays literal.
+        assert_eq!(
+            super::encode_query_allowing_reserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u"),
+            "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u"
+        );
     }
 }

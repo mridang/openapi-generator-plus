@@ -33,6 +33,9 @@ pub struct OpenIdConnectAuthenticator {
      * all see the one delegate that holds the exchanged tokens. */
     delegate: Mutex<Option<Arc<OAuth2AuthorizationCodeAuthenticator>>>,
     discovery_expiry: Mutex<Option<Instant>>,
+    /* Held across the discovery fetch so concurrent callers share one GET
+     * (single-flight); the expiry is re-checked once it is acquired. */
+    discovery_lock: tokio::sync::Mutex<()>,
 }
 
 const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
@@ -89,6 +92,7 @@ impl OpenIdConnectAuthenticator {
             api_client: Mutex::new(None),
             delegate: Mutex::new(None),
             discovery_expiry: Mutex::new(None),
+            discovery_lock: tokio::sync::Mutex::new(()),
         }
     }
 
@@ -131,29 +135,43 @@ impl OpenIdConnectAuthenticator {
         })
     }
 
+    /// Returns `true` while a resolved delegate is present and its discovery
+    /// document has not expired.
+    fn delegate_is_fresh(&self) -> bool {
+        let delegate_guard = self.delegate.lock().unwrap();
+        let expiry_guard = self.discovery_expiry.lock().unwrap();
+        delegate_guard.is_some() && expiry_guard.is_none_or(|e| Instant::now() < e)
+    }
+
     /// Lazily resolves the delegate by fetching the OIDC discovery document
     /// using the injected API client. Stores the injected delegate in the
     /// mutex for reuse. Honors the `Cache-Control: max-age=<seconds>` header
     /// from the discovery response; falls back to the RFC 8414 recommended
     /// default of 86400 seconds when absent.
+    ///
+    /// Rediscovery refreshes the endpoints only: the replacement delegate is
+    /// built around the previous delegate's token manager, so the exchanged
+    /// session survives. A failed rediscovery leaves the previous delegate and
+    /// its expiry untouched and returns the error; the next call retries.
     async fn resolve_delegate(
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        /* Fast path: delegate already resolved and not yet expired. */
-        {
-            let delegate_guard = self.delegate.lock().unwrap();
-            let expiry_guard = self.discovery_expiry.lock().unwrap();
-            if delegate_guard.is_some() {
-                if let Some(expiry) = *expiry_guard {
-                    if Instant::now() < expiry {
-                        return Ok(());
-                    }
-                } else {
-                    return Ok(());
-                }
-            }
+        if self.delegate_is_fresh() {
+            return Ok(());
         }
+        let _discovery = self.discovery_lock.lock().await;
+        /* Another caller may have finished discovery while this one waited. */
+        if self.delegate_is_fresh() {
+            return Ok(());
+        }
+        self.discover().await
+    }
 
+    /// Fetches the discovery document and installs a delegate for it. The
+    /// caller holds `discovery_lock`.
+    async fn discover(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = {
             let client_guard = self.api_client.lock().unwrap();
             client_guard
@@ -214,16 +232,30 @@ impl OpenIdConnectAuthenticator {
         let authorization_endpoint = endpoint("authorization_endpoint")?;
         let token_endpoint = endpoint("token_endpoint")?;
 
-        let mut delegate = OAuth2AuthorizationCodeAuthenticator::new(
-            &self.host,
-            &self.client_id,
-            &self.client_secret,
-            &authorization_endpoint,
-            &token_endpoint,
-            &self.redirect_uri,
-            self.scopes.clone(),
-            "",
-        );
+        let previous = self.delegate.lock().unwrap().clone();
+        let mut delegate = match previous {
+            Some(previous) => OAuth2AuthorizationCodeAuthenticator::with_token_manager(
+                &self.host,
+                &self.client_id,
+                &self.client_secret,
+                &authorization_endpoint,
+                &token_endpoint,
+                &self.redirect_uri,
+                self.scopes.clone(),
+                "",
+                previous.token_manager(),
+            ),
+            None => OAuth2AuthorizationCodeAuthenticator::new(
+                &self.host,
+                &self.client_id,
+                &self.client_secret,
+                &authorization_endpoint,
+                &token_endpoint,
+                &self.redirect_uri,
+                self.scopes.clone(),
+                "",
+            ),
+        };
 
         /* Inject the API client into the delegate's token manager. */
         delegate.set_api_client(client);
@@ -233,11 +265,6 @@ impl OpenIdConnectAuthenticator {
 
         let mut delegate_guard = self.delegate.lock().unwrap();
         let mut expiry_guard = self.discovery_expiry.lock().unwrap();
-        /* A concurrent call may have installed a live delegate while this one
-         * was fetching discovery; keep it so its exchanged tokens survive. */
-        if delegate_guard.is_some() && expiry_guard.is_none_or(|e| Instant::now() < e) {
-            return Ok(());
-        }
         *delegate_guard = Some(Arc::new(delegate));
         *expiry_guard = Some(new_expiry);
         Ok(())

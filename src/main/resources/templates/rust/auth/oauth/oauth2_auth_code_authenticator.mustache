@@ -5,7 +5,7 @@ use std::error::Error;
 use std::future::Future;
 use std::pin::Pin;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
@@ -33,10 +33,9 @@ pub struct OAuth2AuthorizationCodeAuthenticator {
     refresh_url: String,
     redirect_uri: String,
     scopes: Vec<String>,
-    token_manager: OAuth2TokenManager,
-    /* Interior mutability so `exchange_code` takes `&self`, matching the
-     * `&self` + Mutex pattern used by OpenIdConnectAuthenticator. */
-    token_exchanged: Mutex<bool>,
+    /* Shared so OIDC rediscovery can build a replacement authenticator
+     * around the same session (tokens and the exchanged flag). */
+    token_manager: Arc<OAuth2TokenManager>,
 }
 
 impl OAuth2AuthorizationCodeAuthenticator {
@@ -58,6 +57,32 @@ impl OAuth2AuthorizationCodeAuthenticator {
         scopes: Vec<String>,
         refresh_url: &str,
     ) -> Self {
+        Self::with_token_manager(
+            host,
+            client_id,
+            client_secret,
+            authorization_url,
+            token_url,
+            redirect_uri,
+            scopes,
+            refresh_url,
+            Arc::new(OAuth2TokenManager::new()),
+        )
+    }
+
+    /// Creates an authenticator that keeps its session in an existing token
+    /// manager, so rebuilding it with new endpoints keeps the user signed in.
+    pub(crate) fn with_token_manager(
+        host: &str,
+        client_id: &str,
+        client_secret: &str,
+        authorization_url: &str,
+        token_url: &str,
+        redirect_uri: &str,
+        scopes: Vec<String>,
+        refresh_url: &str,
+        token_manager: Arc<OAuth2TokenManager>,
+    ) -> Self {
         let effective_refresh_url = if refresh_url.is_empty() {
             token_url.to_string()
         } else {
@@ -73,9 +98,13 @@ impl OAuth2AuthorizationCodeAuthenticator {
             refresh_url: effective_refresh_url,
             redirect_uri: redirect_uri.to_string(),
             scopes,
-            token_manager: OAuth2TokenManager::new(),
-            token_exchanged: Mutex::new(false),
+            token_manager,
         }
+    }
+
+    /// Returns the token manager holding this authenticator's session.
+    pub(crate) fn token_manager(&self) -> Arc<OAuth2TokenManager> {
+        Arc::clone(&self.token_manager)
     }
 
     /// Builds the authorization URL to redirect the user to.
@@ -124,10 +153,12 @@ impl OAuth2AuthorizationCodeAuthenticator {
         params.insert("client_secret".to_string(), self.client_secret.clone());
         params.insert("redirect_uri".to_string(), self.redirect_uri.clone());
 
+        /* Always a fresh authorization_code POST that replaces the session:
+         * never served from the token cache or the refresh path, and a
+         * failure leaves the previous session in place. */
         self.token_manager
-            .get_access_token(&self.token_url, &params)
+            .exchange(&self.token_url, &params, &HashMap::new())
             .await?;
-        *self.token_exchanged.lock().unwrap() = true;
         Ok(())
     }
 }
@@ -186,8 +217,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         >,
     > {
         Box::pin(async move {
-            let token_exchanged = *self.token_exchanged.lock().unwrap();
-            if !token_exchanged {
+            if !self.token_manager.is_exchanged() {
                 return Err(Box::new(OAuth2AuthorizationCodeError::CodeNotExchanged)
                     as Box<dyn Error + Send + Sync>);
             }
@@ -198,6 +228,10 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
                 "refresh_token".to_string(),
                 self.token_manager.refresh_token().await,
             );
+            /* RFC 6749 §6: the refresh is authenticated like the code
+             * exchange was (§3.2.1). */
+            params.insert("client_id".to_string(), self.client_id.clone());
+            params.insert("client_secret".to_string(), self.client_secret.clone());
 
             let token = self
                 .token_manager

@@ -448,14 +448,6 @@ fn deserialize_last_duplicate_wins<T: DeserializeOwned>(
     serde_json::from_value(tree).map(Some).map_err(to_error)
 }
 
-/// Converts a single scalar value to its string representation.
-///
-/// This is the canonical type-conversion method used by all parameter
-/// encoding helpers (`to_path_value`, `to_query_value`, etc.) and by
-/// `value_serializer` for transport formatting.
-///
-/// Booleans produce lowercase `"true"`/`"false"`, null produces the empty
-/// string, and strings pass through unquoted.
 /// Flattens a model or map into the `name -> value` table a deepObject query
 /// parameter is built from: one entry per present property, each stringified.
 pub fn to_deep_object_map<T: Serialize>(
@@ -475,7 +467,198 @@ pub fn to_deep_object_map<T: Serialize>(
     }
 }
 
-pub fn stringify<T: Serialize>(value: &T) -> String {
+/// Formats a `format: time` value as an RFC 3339 partial-time: `HH:mm:ss`, plus
+/// `.SSS` only when the millisecond part is non-zero. Sub-millisecond digits are
+/// truncated, never rounded, so `10:30:00.9996` is written `10:30:00.999`.
+pub fn format_time(value: &chrono::NaiveTime) -> String {
+    use chrono::Timelike as _;
+    let millis = (value.nanosecond() % 1_000_000_000) / 1_000_000;
+    if millis == 0 {
+        value.format("%H:%M:%S").to_string()
+    } else {
+        format!("{}.{:03}", value.format("%H:%M:%S"), millis)
+    }
+}
+
+/// Serde adapter for `format: time` model fields: writes [`format_time`] and
+/// reads `HH:mm:ss` with an optional fraction.
+pub mod naive_time {
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S: Serializer>(
+        value: &chrono::NaiveTime,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&super::format_time(value))
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<chrono::NaiveTime, D::Error> {
+        let text = String::deserialize(deserializer)?;
+        chrono::NaiveTime::parse_from_str(&text, "%H:%M:%S%.f").map_err(serde::de::Error::custom)
+    }
+
+    /// The same adapter for an optional field.
+    pub mod option {
+        use serde::{Deserialize, Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(
+            value: &Option<chrono::NaiveTime>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match value {
+                Some(time) => super::serialize(time, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<chrono::NaiveTime>, D::Error> {
+            match Option::<String>::deserialize(deserializer)? {
+                Some(text) => chrono::NaiveTime::parse_from_str(&text, "%H:%M:%S%.f")
+                    .map(Some)
+                    .map_err(serde::de::Error::custom),
+                None => Ok(None),
+            }
+        }
+    }
+}
+
+/// Serde adapter for `uniqueItems` arrays: the set is written in ascending
+/// natural order when every member is a scalar (numbers numerically, strings
+/// and enum wire values by Unicode code point, `false` before `true`), so the
+/// bytes are identical on every run whatever the set's hash order. A set of
+/// objects keeps the set's own (unspecified) order.
+pub mod sorted_set {
+    use serde::{Serialize, Serializer};
+
+    fn ordered<T: Serialize>(
+        members: impl Iterator<Item = T>,
+    ) -> Result<Vec<serde_json::Value>, serde_json::Error> {
+        let mut values = members
+            .map(serde_json::to_value)
+            .collect::<Result<Vec<_>, _>>()?;
+        let all_numbers = values.iter().all(serde_json::Value::is_number);
+        let all_strings = values.iter().all(serde_json::Value::is_string);
+        let all_bools = values.iter().all(serde_json::Value::is_boolean);
+        if all_numbers {
+            values.sort_by(|a, b| {
+                let (x, y) = (a.as_f64().unwrap_or(0.0), b.as_f64().unwrap_or(0.0));
+                x.total_cmp(&y)
+            });
+        } else if all_strings {
+            values.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
+        } else if all_bools {
+            values.sort_by_key(|v| v.as_bool());
+        }
+        Ok(values)
+    }
+
+    pub fn serialize<'a, C, T, S>(set: &'a C, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        &'a C: IntoIterator<Item = &'a T>,
+        T: Serialize + 'a,
+        S: Serializer,
+    {
+        ordered(set.into_iter())
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
+    }
+
+    /// The same adapter for an optional field.
+    pub fn option<'a, C, T, S>(set: &'a Option<C>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        &'a C: IntoIterator<Item = &'a T>,
+        T: Serialize + 'a,
+        S: Serializer,
+    {
+        match set {
+            Some(members) => serialize(members, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+}
+
+/// Decode check for `format: uri` fields: the text must be an absolute RFC 3986
+/// URI (a scheme, then `:`, with no whitespace or control characters anywhere).
+/// Any scheme is accepted (`https:`, `ftp:`, `mailto:`, `urn:`); a relative
+/// reference or an empty string is a decode error. The accepted text is kept
+/// byte for byte, so encoding writes back exactly what was decoded.
+pub mod absolute_uri {
+    use serde::{Deserialize, Deserializer};
+
+    /// Returns `true` when `text` is an absolute URI per RFC 3986 section 3.
+    pub fn is_absolute(text: &str) -> bool {
+        let Some((scheme, _)) = text.split_once(':') else {
+            return false;
+        };
+        let mut chars = scheme.chars();
+        chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+            && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+            && !text.chars().any(|c| c.is_whitespace() || c.is_control())
+    }
+
+    fn check<E: serde::de::Error>(text: String) -> Result<String, E> {
+        if is_absolute(&text) {
+            Ok(text)
+        } else {
+            Err(E::custom(format!("'{text}' is not an absolute URI")))
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<String, D::Error> {
+        check(String::deserialize(deserializer)?)
+    }
+
+    /// The same check for an optional field.
+    pub fn option<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<String>, D::Error> {
+        Option::<String>::deserialize(deserializer)?
+            .map(check)
+            .transpose()
+    }
+}
+
+/// Writes a model's additional properties, leaving out every key that is the
+/// wire name of one of its `declared` properties: the declared value wins and
+/// no key is ever written twice.
+pub fn serialize_extras<V: Serialize, S: serde::Serializer>(
+    extras: &std::collections::HashMap<String, V>,
+    declared: &[&str],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.collect_map(
+        extras
+            .iter()
+            .filter(|(key, _)| !declared.contains(&key.as_str())),
+    )
+}
+
+/// Returns the wire text of the parameter types whose form is not their serde
+/// form: `format: byte` (`Vec<u8>`) is padded standard-alphabet base64 rather
+/// than a number array, and `format: time` is [`format_time`].
+fn scalar_override<T: 'static>(value: &T) -> Option<String> {
+    use base64::Engine as _;
+    let any = value as &dyn std::any::Any;
+    if let Some(bytes) = any.downcast_ref::<Vec<u8>>() {
+        return Some(base64::engine::general_purpose::STANDARD.encode(bytes));
+    }
+    any.downcast_ref::<chrono::NaiveTime>().map(format_time)
+}
+
+/// Converts a single scalar value to its string representation.
+///
+/// This is the canonical type-conversion method used by all parameter
+/// encoding helpers (`to_path_value`, `to_query_value`, etc.) and by
+/// `value_serializer` for transport formatting.
+///
+/// Booleans produce lowercase `"true"`/`"false"`, null produces the empty
+/// string, and strings pass through unquoted.
+pub fn stringify<T: Serialize + 'static>(value: &T) -> String {
+    if let Some(text) = scalar_override(value) {
+        return text;
+    }
     match serde_json::to_value(value) {
         Ok(serde_json::Value::String(s)) => s,
         Ok(serde_json::Value::Bool(b)) => b.to_string(),
@@ -494,7 +677,7 @@ pub fn stringify<T: Serialize>(value: &T) -> String {
 /// RFC 3339 instant. This is a plain stringify with no date-shape heuristic —
 /// an earlier version truncated ANY RFC-3339-shaped string to its date part,
 /// which silently corrupted a genuine date-time path value to date-only.
-pub fn to_path_value<T: Serialize>(value: &T) -> String {
+pub fn to_path_value<T: Serialize + 'static>(value: &T) -> String {
     stringify(value)
 }
 
@@ -509,7 +692,10 @@ pub enum QueryValue {
 /// Converts a value to a representation suitable for use as a query parameter.
 /// For collections, joins using the specified collection format delimiter.
 /// Returns `QueryValue::Multi` for the "multi" format, `QueryValue::Single` otherwise.
-pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> QueryValue {
+pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str) -> QueryValue {
+    if let Some(text) = scalar_override(value) {
+        return QueryValue::Single(text);
+    }
     let json_value = match serde_json::to_value(value) {
         Ok(v) => v,
         Err(_) => return QueryValue::Single(String::new()),
@@ -533,7 +719,10 @@ pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> Query
 }
 
 /// Converts a value to a string suitable for use as an HTTP header value.
-pub fn to_header_value<T: Serialize>(value: &T) -> String {
+pub fn to_header_value<T: Serialize + 'static>(value: &T) -> String {
+    if let Some(text) = scalar_override(value) {
+        return text;
+    }
     let json_value = match serde_json::to_value(value) {
         Ok(v) => v,
         Err(_) => return String::new(),
@@ -558,12 +747,12 @@ pub fn to_header_value<T: Serialize>(value: &T) -> String {
 
 /// Converts a value to a string suitable for use as an HTTP cookie value.
 /// Cookie values follow the same encoding rules as header values.
-pub fn to_cookie_value<T: Serialize>(value: &T) -> String {
+pub fn to_cookie_value<T: Serialize + 'static>(value: &T) -> String {
     to_header_value(value)
 }
 
 /// Converts a value to a representation suitable for use as a form parameter.
-pub fn to_form_value<T: Serialize>(value: &T) -> String {
+pub fn to_form_value<T: Serialize + 'static>(value: &T) -> String {
     stringify(value)
 }
 
@@ -587,6 +776,7 @@ mod tests {
     /* Model-typed cases below are fixture-spec specific and are emitted only
      * for the generator's own golden suite, never for a real client SDK. */
     use crate::models::Category;
+    use crate::models::EdgeCases;
     use crate::models::Pet;
     use crate::models::{DryFood, PetFood, WetFood};
 
@@ -1045,6 +1235,23 @@ mod tests {
     }
 
     #[test]
+    fn test_stringify_bytes_is_padded_standard_base64() {
+        assert_eq!(object_serializer::stringify(&b"hi".to_vec()), "aGk=");
+        assert_eq!(object_serializer::stringify(&vec![0xFBu8, 0xFF]), "+/8=");
+        assert_eq!(object_serializer::to_header_value(&b"hi".to_vec()), "aGk=");
+    }
+
+    #[test]
+    fn test_stringify_time_is_partial_time_truncated_to_milliseconds() {
+        let whole = chrono::NaiveTime::from_hms_opt(10, 30, 0).unwrap();
+        assert_eq!(object_serializer::stringify(&whole), "10:30:00");
+        let nanos = chrono::NaiveTime::from_hms_nano_opt(10, 30, 0, 123_456_789).unwrap();
+        assert_eq!(object_serializer::stringify(&nanos), "10:30:00.123");
+        let almost = chrono::NaiveTime::from_hms_micro_opt(10, 30, 0, 999_600).unwrap();
+        assert_eq!(object_serializer::stringify(&almost), "10:30:00.999");
+    }
+
+    #[test]
     fn test_date_only_string_preserved() {
         let json_value = serde_json::json!("2024-01-01");
         let serialized = object_serializer::serialize(&json_value).expect("serialize failed");
@@ -1395,6 +1602,82 @@ mod tests {
         assert!(
             result.is_err(),
             "PetFood missing the `foodType` discriminator must be rejected"
+        );
+    }
+
+    #[test]
+    fn test_uri_property_accepts_any_absolute_uri_and_rejects_relative_references() {
+        for uri in [
+            "urn:isbn:0451450523",
+            "mailto:a@b.com",
+            "ftp://x.org/f",
+            "https://example.com/items/1",
+        ] {
+            let payload =
+                String::from(r#"{"name":"n","photoUrls":[],"homepageUrl":""#) + uri + r#""}"#;
+            let pet: Pet = object_serializer::deserialize(payload.as_bytes())
+                .unwrap_or_else(|e| panic!("{} must decode: {}", uri, e))
+                .expect("expected Some");
+            assert_eq!(pet.homepage_url.as_deref(), Some(uri));
+            let json = object_serializer::serialize(&pet).expect("serialization failed");
+            assert!(
+                json.contains(&format!(r#""homepageUrl":"{}""#, uri)),
+                "got: {}",
+                json
+            );
+        }
+        for bad in ["/relative", "not a uri", ""] {
+            let payload =
+                String::from(r#"{"name":"n","photoUrls":[],"homepageUrl":""#) + bad + r#""}"#;
+            let result: Result<Option<Pet>, SerializationError> =
+                object_serializer::deserialize(payload.as_bytes());
+            assert!(result.is_err(), "{:?} must be rejected", bad);
+        }
+        let reference: Pet = object_serializer::deserialize(
+            br#"{"name":"n","photoUrls":[],"thumbnailRef":"/assets/thumb-1.png"}"#,
+        )
+        .expect("a uri-reference keeps relative references")
+        .expect("expected Some");
+        assert_eq!(
+            reference.thumbnail_ref.as_deref(),
+            Some("/assets/thumb-1.png")
+        );
+    }
+
+    #[test]
+    fn test_unique_items_array_is_written_in_ascending_order() {
+        for _ in 0..2 {
+            let urls: std::collections::HashSet<String> =
+                ["c", "a", "b"].iter().map(|u| u.to_string()).collect();
+            let json = object_serializer::serialize(&Pet::new("n".to_string(), urls))
+                .expect("serialization failed");
+            assert!(
+                json.contains(r#""photoUrls":["a","b","c"]"#),
+                "got: {}",
+                json
+            );
+        }
+    }
+
+    #[test]
+    fn test_time_property_is_partial_time_and_round_trips() {
+        let mut edge = EdgeCases {
+            cutoff: chrono::NaiveTime::from_hms_nano_opt(10, 30, 0, 123_456_789),
+            ..Default::default()
+        };
+        let json = object_serializer::serialize(&edge).expect("serialization failed");
+        assert!(json.contains(r#""cutoff":"10:30:00.123""#), "got: {}", json);
+
+        edge.cutoff = chrono::NaiveTime::from_hms_opt(10, 30, 0);
+        let json = object_serializer::serialize(&edge).expect("serialization failed");
+        assert!(json.contains(r#""cutoff":"10:30:00""#), "got: {}", json);
+
+        let decoded: EdgeCases = object_serializer::deserialize(br#"{"cutoff":"10:30:00.123"}"#)
+            .expect("decode failed")
+            .expect("expected Some");
+        assert_eq!(
+            decoded.cutoff,
+            chrono::NaiveTime::from_hms_milli_opt(10, 30, 0, 123)
         );
     }
 }

@@ -33,7 +33,10 @@ pub struct PetWithOwner {
     pub name: String,
     #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
     pub category: Option<Category>,
-    #[serde(rename = "photoUrls")]
+    #[serde(
+        rename = "photoUrls",
+        serialize_with = "crate::object_serializer::sorted_set::serialize"
+    )]
     pub photo_urls: std::collections::HashSet<String>,
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
@@ -45,7 +48,12 @@ pub struct PetWithOwner {
     pub location: Option<Vec<crate::json_value::JsonValue>>,
     /// Absolute URL to the pet's public profile page
     /// Example: `https://example.com/pets/fido`
-    #[serde(rename = "homepageUrl", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "homepageUrl",
+        skip_serializing_if = "Option::is_none",
+        default,
+        deserialize_with = "crate::object_serializer::absolute_uri::option"
+    )]
     pub homepage_url: Option<String>,
     /// Optionally-relative thumbnail location
     /// Example: `/assets/thumb-fido.png`
