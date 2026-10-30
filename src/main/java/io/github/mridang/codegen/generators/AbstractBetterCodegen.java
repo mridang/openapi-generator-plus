@@ -4839,11 +4839,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 && !typeNames.contains(fromDescription)) {
             return fromDescription;
         }
-        String name = "Server" + index;
-        while (earlier.contains(name) || typeNames.contains(name)) {
-            name = name + index;
+        final StringBuilder name = new StringBuilder("Server").append(index);
+        while (earlier.contains(name.toString()) || typeNames.contains(name.toString())) {
+            name.append(index);
         }
-        return name;
+        return name.toString();
     }
 
     /**

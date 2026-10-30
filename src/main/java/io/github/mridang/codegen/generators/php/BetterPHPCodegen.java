@@ -432,6 +432,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return cleaned;
     }
 
+    /**
+     * The composer name used when no packageName is configured.
+     *
+     * @param invokerPackage the PHP root namespace
+     * @return {@code openapi/<namespace in lower case>}
+     */
+    private static String defaultComposerName(String invokerPackage) {
+        return "openapi/" + invokerPackage.toLowerCase(java.util.Locale.ROOT);
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
@@ -444,7 +454,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String composerName =
                 packageNameProp != null && isNotBlank(packageNameProp.toString())
                         ? packageNameProp.toString()
-                        : "openapi/" + invokerPackage.toLowerCase(java.util.Locale.ROOT);
+                        : defaultComposerName(invokerPackage);
         final String composerPackage = composerName.substring(composerName.indexOf('/') + 1);
         additionalProperties.put(
                 "userAgentDefault", composerPackage + "/" + packageVersion + " (php)");
