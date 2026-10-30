@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -18,7 +18,9 @@ class StockItem(BaseModel):
     """
 
     priority: Priority = Field(alias="priority")
-    availability: Optional[Availability] = Field(default=None, alias="availability")
+    availability: Optional[Availability] = Field(
+        default=on - hold, alias="availability"
+    )
     matrix: Optional[List[List[StrictInt]]] = Field(
         default=None,
         alias="matrix",

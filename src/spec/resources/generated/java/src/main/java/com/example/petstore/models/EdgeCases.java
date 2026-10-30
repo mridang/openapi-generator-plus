@@ -70,10 +70,10 @@ public class EdgeCases {
   @Nullable
   public OffsetDateTime expiresAt;
 
-  /** The {@code _2fa} property. */
+  /** The {@code n2fa} property. */
   @JsonProperty("2fa")
   @Nullable
-  public Boolean _2fa;
+  public Boolean n2fa;
 
   /** The {@code separator} property. */
   @JsonProperty("separator")
@@ -136,7 +136,7 @@ public class EdgeCases {
         && java.util.Objects.equals(this._return, other._return)
         && java.util.Objects.equals(this.retryAfter, other.retryAfter)
         && java.util.Objects.equals(this.expiresAt, other.expiresAt)
-        && java.util.Objects.equals(this._2fa, other._2fa)
+        && java.util.Objects.equals(this.n2fa, other.n2fa)
         && java.util.Objects.equals(this.separator, other.separator)
         && java.util.Objects.equals(this._null, other._null)
         && java.util.Objects.equals(this._true, other._true)
@@ -159,7 +159,7 @@ public class EdgeCases {
         _return,
         retryAfter,
         expiresAt,
-        _2fa,
+        n2fa,
         separator,
         _null,
         _true,
@@ -183,7 +183,7 @@ public class EdgeCases {
     sb.append(", _return=").append(_return);
     sb.append(", retryAfter=").append(retryAfter);
     sb.append(", expiresAt=").append(expiresAt);
-    sb.append(", _2fa=").append(_2fa);
+    sb.append(", n2fa=").append(n2fa);
     sb.append(", separator=").append(separator);
     sb.append(", _null=").append(_null);
     sb.append(", _true=").append(_true);

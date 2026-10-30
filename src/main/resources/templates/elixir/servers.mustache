@@ -17,21 +17,21 @@ defmodule {{moduleName}}.Servers do
   """
 
 {{#serverConfigs}}
-  @doc """
-  Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+  @doc ~S"""
+  Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
 
-  {{serverDescription}}{{/serverDescription}}
+  {{{serverDescription}}}{{/serverDescription}}
   """
   @spec server_{{serverIndex}}() :: {{moduleName}}.ServerConfiguration.t()
   def server_{{serverIndex}} do
     %{{moduleName}}.ServerConfiguration{
-      url_template: "{{{serverUrl}}}",
-      description: {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
+      url_template: {{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
+      description: {{#serverDescription}}{{#lambda.quotedLiteral}}{{{serverDescription}}}{{/lambda.quotedLiteral}}{{/serverDescription}}{{^serverDescription}}nil{{/serverDescription}},
       variables: {{#hasVariables}}%{
 {{#serverVariables}}        "{{{varName}}}" => %{{moduleName}}.ServerVariable{
-          default_value: "{{{varDefault}}}",
-          description: {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
-          enum_values: {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+          default_value: {{#lambda.quotedLiteral}}{{{varDefault}}}{{/lambda.quotedLiteral}},
+          description: {{#varDescription}}{{#lambda.quotedLiteral}}{{{varDescription}}}{{/lambda.quotedLiteral}}{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
+          enum_values: {{#hasEnumValues}}[{{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}}{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
         }{{^-last}},{{/-last}}
 {{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}%{}{{/hasVariables}}
     }

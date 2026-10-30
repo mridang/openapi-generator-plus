@@ -1324,7 +1324,7 @@ describe {{moduleName}}::Api::PetApi do
       end
       regional = url_sent_to(
         {{moduleName}}::Api::GetMultiServerPetInfoServerRegional.new(
-          region: {{moduleName}}::Api::GetMultiServerPetInfoServerRegion::EU
+          region: {{moduleName}}::Api::GetMultiServerPetInfoServerRegionalRegion::EU
         )
       ) { |api, server| api.get_multi_server_pet_info(7, server: server) }
 

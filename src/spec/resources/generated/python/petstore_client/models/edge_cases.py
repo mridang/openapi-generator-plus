@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -37,6 +37,14 @@ class EdgeCases(BaseModel):
     expires_at: Optional[OffsetDateTime] = Field(
         default=None, alias="expiresAt", description="Absolute expiry instant"
     )
+    n2fa: Optional[StrictBool] = Field(default=None, alias="2fa")
+    separator: Optional[Separator] = Field(default=None, alias="separator")
+    null: Optional[StrictStr] = Field(default=None, alias="null")
+    true_: Optional[StrictBool] = Field(default=None, alias="true")
+    false_: Optional[StrictBool] = Field(default=None, alias="false")
+    last_error: Optional[Error] = Field(default=None, alias="lastError")
+    outcome: Optional[Result] = Field(default=None, alias="outcome")
+    cutoff: Optional[datetime.time] = Field(default=None, alias="cutoff")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -52,5 +60,9 @@ class EdgeCases(BaseModel):
 from petstore_client._duration import ProtobufDuration
 from petstore_client._types import OffsetDateTime
 from petstore_client.models.color import Color
+from petstore_client.models.error import Error
+from petstore_client.models.result import Result
+from petstore_client.models.separator import Separator
+import datetime
 
 EdgeCases.model_rebuild(raise_errors=False)

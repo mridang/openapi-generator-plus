@@ -11,10 +11,10 @@ pub enum Separator {
     /// Represents the value " ".
     #[default]
     #[serde(rename = " ")]
-    Empty,
+    SPACE1,
     /// Represents the value "@@".
     #[serde(rename = "@@")]
-    Empty2,
+    VALUE00400040,
     /// Represents the value "a-b".
     #[serde(rename = "a-b")]
     AB,
@@ -27,8 +27,8 @@ impl Separator {
     /// Returns all allowed values of Separator.
     pub fn all_values() -> Vec<Separator> {
         vec![
-            Separator::Empty,
-            Separator::Empty2,
+            Separator::SPACE1,
+            Separator::VALUE00400040,
             Separator::AB,
             Separator::AB2,
         ]

@@ -1052,7 +1052,7 @@ void main() {
         );
         expect(
           GetMultiServerPetInfoServerRegional(
-            GetMultiServerPetInfoServerRegion.EU,
+            GetMultiServerPetInfoServerRegionalRegion.EU,
           ).getUrl(),
           equals('https://eu.example.com/v1'),
         );

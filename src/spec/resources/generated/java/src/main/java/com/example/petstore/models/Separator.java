@@ -17,7 +17,7 @@ public enum Separator {
   /** The {@code "a-b"} value. */
   A_B("a-b"),
   /** The {@code "a_b"} value. */
-  A_B2("a_b");
+  A_B_2("a_b");
 
   private final String value;
 

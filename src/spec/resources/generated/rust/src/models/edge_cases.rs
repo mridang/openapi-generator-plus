@@ -39,7 +39,7 @@ pub struct EdgeCases {
     #[serde(rename = "expiresAt", skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<crate::date_time::DateTime>,
     #[serde(rename = "2fa", skip_serializing_if = "Option::is_none")]
-    pub _2fa: Option<bool>,
+    pub n2fa: Option<bool>,
     #[serde(rename = "separator", skip_serializing_if = "Option::is_none")]
     pub separator: Option<Separator>,
     #[serde(rename = "null", skip_serializing_if = "Option::is_none")]
@@ -70,7 +70,7 @@ impl EdgeCases {
             r#return: None,
             retry_after: None,
             expires_at: None,
-            _2fa: None,
+            n2fa: None,
             separator: None,
             null: None,
             r#true: None,

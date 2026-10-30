@@ -41,9 +41,9 @@ class {{classname}} : BaseApi {
 {{#serverVariables}}
 {{#hasEnumValues}}
 
-        enum class {{pascalName}}(val value: String) {
+        enum class {{enumTypeName}}(val value: String) {
 {{#enumValues}}
-            {{name}}("{{{valueLiteral}}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+            {{name}}({{{literal}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
 {{/enumValues}}
         }
 {{/hasEnumValues}}
@@ -55,7 +55,7 @@ class {{classname}} : BaseApi {
         /** {{#lambda.kdoc}}{{{description}}}{{/lambda.kdoc}} */
 {{/hasDescription}}
 {{#hasVariables}}
-        data class {{variantName}}({{#serverVariables}}val {{camelName}}: {{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}} {
+        data class {{variantName}}({{#serverVariables}}val {{camelName}}: {{#hasEnumValues}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}} {
 
             override fun getUrl(): String {
                 var url = "{{#lambda.kotlinString}}{{{url}}}{{/lambda.kotlinString}}"

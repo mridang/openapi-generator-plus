@@ -18,8 +18,8 @@ public enum Availability {
   ON_HOLD("on-hold"),
   /** The {@code "o'clock"} value. */
   OCLOCK("o'clock"),
-  /** The {@code "a\b"} value. */
-  A_B("a\b"),
+  /** The {@code "a\\b"} value. */
+  A_B("a\\b"),
   /** The {@code "$eq"} value. */
   EQ("$eq"),
   /** The {@code "#{x}"} value. */

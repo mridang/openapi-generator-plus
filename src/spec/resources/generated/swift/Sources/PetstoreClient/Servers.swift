@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -54,9 +54,25 @@ public enum Servers {
     ]
   )
 
+  /// Server 2: `https://{tenant}.example.com/api`
+  ///
+  /// Bob&#39;s &quot;sandbox&quot; &amp; co: $5 #{x} a*/b
+  public static let server2 = ServerConfiguration(
+    urlTemplate: "https://{tenant}.example.com/api",
+    description: "Bob's \"sandbox\" & co: $5 #{x} a*/b",
+    variables: [
+      "tenant": ServerVariable(
+        defaultValue: "o'neil",
+        description: "Tenant's \"id\"",
+        enumValues: ["o'neil", "a&b"]
+      )
+    ]
+  )
+
   /// All server configurations in declaration order.
   public static let all: [ServerConfiguration] = [
     server0,
     server1,
+    server2,
   ]
 }

@@ -30,7 +30,7 @@ enum class Separator(
     A_B("a-b"),
 
     @SerialName("a_b")
-    A_B2("a_b"),
+    A_B_2("a_b"),
     ;
 
     companion object {

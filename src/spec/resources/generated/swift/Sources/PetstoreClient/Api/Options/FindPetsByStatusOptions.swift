@@ -9,16 +9,18 @@ public struct FindPetsByStatusOptions: Sendable {
   public let filter: [String: String]?
   /// Only return pets born on or after this date
   public let bornAfter: String?
+  public let n2ndPage: Int?
   /// Reference date for the report
   public let reportDate: String?
 
   public init(
     status: String? = nil, filter: [String: String]? = nil, bornAfter: String? = nil,
-    reportDate: String? = nil
+    n2ndPage: Int? = nil, reportDate: String? = nil
   ) {
     self.status = status
     self.filter = filter
     self.bornAfter = bornAfter
+    self.n2ndPage = n2ndPage
     self.reportDate = reportDate
   }
 }

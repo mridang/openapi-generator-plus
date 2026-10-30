@@ -9,8 +9,8 @@
  * String enum whose values sanitise to an empty or colliding identifier
  */
 export enum Separator {
-  SPACE_1 = " ",
-  VALUE_0040_0040 = "@@",
+  SPACE1 = " ",
+  VALUE00400040 = "@@",
   AB = "a-b",
   AB2 = "a_b",
 }

@@ -1611,8 +1611,8 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 			"templated variant",
 			func(api *{{packageName}}.PetApi) error {
 				_, err := api.GetStagingPetInfo(1, {{packageName}}.GetStagingPetInfoServerStagingServer{
-					Environment: {{packageName}}.GetStagingPetInfoServerStagingServerEnvironmentSANDBOX,
-					Version:     {{packageName}}.GetStagingPetInfoServerStagingServerVersionV3,
+					Environment: {{packageName}}.GetStagingPetInfoServerEnvironmentSANDBOX,
+					Version:     {{packageName}}.GetStagingPetInfoServerVersionV3,
 				})
 				return err
 			},
@@ -1641,7 +1641,7 @@ func TestBaseApi_OperationServerVariantsResolveTheirOwnUrls(t *testing.T) {
 			func(api *{{packageName}}.PetApi) error {
 				_, err := api.GetMultiServerPetInfo(1, {{packageName}}.GetMultiServerPetInfoServerMirror{
 					Region:  {{packageName}}.GetMultiServerPetInfoServerMirrorRegionEU,
-					Channel: {{packageName}}.GetMultiServerPetInfoServerMirrorChannelAB,
+					Channel: {{packageName}}.GetMultiServerPetInfoServerChannelAB,
 				})
 				return err
 			},

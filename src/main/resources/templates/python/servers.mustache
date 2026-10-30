@@ -22,13 +22,13 @@ from {{packageName}}.server_configuration import ServerConfiguration{{#hasAnySer
 
 {{#serverConfigs}}
 SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
-    url_template='{{{serverUrl}}}',
-    {{#serverDescription}}description='{{{serverDescription}}}',{{/serverDescription}}{{^serverDescription}}description=None,{{/serverDescription}}
+    url_template={{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
+    {{#serverDescription}}description={{#lambda.quotedLiteral}}{{{serverDescription}}}{{/lambda.quotedLiteral}},{{/serverDescription}}{{^serverDescription}}description=None,{{/serverDescription}}
     {{#hasVariables}}variables={
 {{#serverVariables}}        '{{varName}}': ServerVariable(
-            default_value='{{{varDefault}}}',
-            {{#varDescription}}description='{{{varDescription}}}',{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
-            {{#hasEnumValues}}enum_values=({{#varEnumValues}}'{{{.}}}',{{^-last}} {{/-last}}{{/varEnumValues}}),{{/hasEnumValues}}{{^hasEnumValues}}enum_values=(),{{/hasEnumValues}}
+            default_value={{#lambda.quotedLiteral}}{{{varDefault}}}{{/lambda.quotedLiteral}},
+            {{#varDescription}}description={{#lambda.quotedLiteral}}{{{varDescription}}}{{/lambda.quotedLiteral}},{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
+            {{#hasEnumValues}}enum_values=({{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}},{{^-last}} {{/-last}}{{/varEnumValues}}),{{/hasEnumValues}}{{^hasEnumValues}}enum_values=(),{{/hasEnumValues}}
         ),
 {{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
 )

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic import StrictInt, StrictStr
-from typing import List, Optional, Set
+from typing import Any, List, Optional, Set
 from enum import Enum
 
 
@@ -74,6 +75,25 @@ class Pet(BaseModel):
         alias="weightKg",
         description="Pet weight in kilograms (decimal precision)",
     )
+    # Example: 'rex'
+    nickname: Optional[StrictStr] = Field(
+        default=None,
+        alias="nickname",
+        min_length=2,
+        max_length=8,
+        pattern="/^(?!admin)[a-z']+$/",
+    )
+
+    @field_validator("nickname")
+    def nickname_validate_regular_expression(cls, value: Any) -> Any:
+        """Validates the regular expression"""
+        if value is None:
+            return value
+        if not re.match(r"/^(?!admin)[a-z']+$/", value):
+            raise ValueError(
+                r"must validate the regular expression /^(?!admin)[a-z']+$/"
+            )
+        return value
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

@@ -927,7 +927,7 @@ defmodule PetstoreClient.Api.PetApiTest do
              "https://primary.example.com/v1/pet/5/multi"
 
     regional = %PetstoreClient.Api.GetMultiServerPetInfoServer.Regional{
-      region: PetstoreClient.Api.GetMultiServerPetInfoServer.Region.eu()
+      region: PetstoreClient.Api.GetMultiServerPetInfoServer.RegionalRegion.eu()
     }
 
     assert {:ok, _result} =

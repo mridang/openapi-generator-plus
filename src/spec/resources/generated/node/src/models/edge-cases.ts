@@ -102,7 +102,7 @@ export class EdgeCases {
   )
   expiresAt?: Date;
   @Expose({ name: "2fa" })
-  _2fa?: boolean;
+  n2fa?: boolean;
   @Expose({ name: "separator" })
   separator?: Separator;
   @Expose({ name: "null" })
@@ -176,8 +176,8 @@ export class EdgeCases {
         );
       }
     }
-    if (this._2fa != null && typeof this._2fa !== "boolean") {
-      throw new TypeError(`_2fa must be a boolean, got ${typeof this._2fa}`);
+    if (this.n2fa != null && typeof this.n2fa !== "boolean") {
+      throw new TypeError(`n2fa must be a boolean, got ${typeof this.n2fa}`);
     }
     if (this.null != null && typeof this.null !== "string") {
       throw new TypeError(`null must be a string, got ${typeof this.null}`);
@@ -328,7 +328,7 @@ export class EdgeCases {
     ) {
       return false;
     }
-    if (!EdgeCases.__deepEquals(this._2fa, (other as EdgeCases)._2fa)) {
+    if (!EdgeCases.__deepEquals(this.n2fa, (other as EdgeCases).n2fa)) {
       return false;
     }
     if (

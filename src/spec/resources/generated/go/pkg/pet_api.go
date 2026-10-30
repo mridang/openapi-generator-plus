@@ -40,7 +40,7 @@ type GetMultiServerPetInfoServer interface {
 	GetUrl() string
 }
 
-// GetMultiServerPetInfoServerRegionalRegion represents valid values for the region server variable of the Regional variant.
+// GetMultiServerPetInfoServerRegionalRegion represents valid values for the region server variable.
 type GetMultiServerPetInfoServerRegionalRegion string
 
 const (
@@ -49,7 +49,7 @@ const (
 	GetMultiServerPetInfoServerRegionalRegionAP GetMultiServerPetInfoServerRegionalRegion = "ap"
 )
 
-// GetMultiServerPetInfoServerMirrorRegion represents valid values for the region server variable of the Mirror variant.
+// GetMultiServerPetInfoServerMirrorRegion represents valid values for the region server variable.
 type GetMultiServerPetInfoServerMirrorRegion string
 
 const (
@@ -57,12 +57,12 @@ const (
 	GetMultiServerPetInfoServerMirrorRegionEU GetMultiServerPetInfoServerMirrorRegion = "eu"
 )
 
-// GetMultiServerPetInfoServerMirrorChannel represents valid values for the channel server variable of the Mirror variant.
-type GetMultiServerPetInfoServerMirrorChannel string
+// GetMultiServerPetInfoServerChannel represents valid values for the channel server variable.
+type GetMultiServerPetInfoServerChannel string
 
 const (
-	GetMultiServerPetInfoServerMirrorChannelAB  GetMultiServerPetInfoServerMirrorChannel = "a&b"
-	GetMultiServerPetInfoServerMirrorChannelITS GetMultiServerPetInfoServerMirrorChannel = "it's"
+	GetMultiServerPetInfoServerChannelAB  GetMultiServerPetInfoServerChannel = "a&b"
+	GetMultiServerPetInfoServerChannelITS GetMultiServerPetInfoServerChannel = "it's"
 )
 
 // GetMultiServerPetInfoServerPrimary is a server variant for GetMultiServerPetInfoServer.
@@ -93,7 +93,7 @@ func (s GetMultiServerPetInfoServerRegional) GetUrl() string {
 // Mirror
 type GetMultiServerPetInfoServerMirror struct {
 	Region  GetMultiServerPetInfoServerMirrorRegion
-	Channel GetMultiServerPetInfoServerMirrorChannel
+	Channel GetMultiServerPetInfoServerChannel
 }
 
 // GetUrl returns the server URL.
@@ -127,27 +127,27 @@ type GetStagingPetInfoServer interface {
 	GetUrl() string
 }
 
-// GetStagingPetInfoServerStagingServerEnvironment represents valid values for the environment server variable of the StagingServer variant.
-type GetStagingPetInfoServerStagingServerEnvironment string
+// GetStagingPetInfoServerEnvironment represents valid values for the environment server variable.
+type GetStagingPetInfoServerEnvironment string
 
 const (
-	GetStagingPetInfoServerStagingServerEnvironmentSTAGING GetStagingPetInfoServerStagingServerEnvironment = "staging"
-	GetStagingPetInfoServerStagingServerEnvironmentSANDBOX GetStagingPetInfoServerStagingServerEnvironment = "sandbox"
+	GetStagingPetInfoServerEnvironmentSTAGING GetStagingPetInfoServerEnvironment = "staging"
+	GetStagingPetInfoServerEnvironmentSANDBOX GetStagingPetInfoServerEnvironment = "sandbox"
 )
 
-// GetStagingPetInfoServerStagingServerVersion represents valid values for the version server variable of the StagingServer variant.
-type GetStagingPetInfoServerStagingServerVersion string
+// GetStagingPetInfoServerVersion represents valid values for the version server variable.
+type GetStagingPetInfoServerVersion string
 
 const (
-	GetStagingPetInfoServerStagingServerVersionV2 GetStagingPetInfoServerStagingServerVersion = "v2"
-	GetStagingPetInfoServerStagingServerVersionV3 GetStagingPetInfoServerStagingServerVersion = "v3"
+	GetStagingPetInfoServerVersionV2 GetStagingPetInfoServerVersion = "v2"
+	GetStagingPetInfoServerVersionV3 GetStagingPetInfoServerVersion = "v3"
 )
 
 // GetStagingPetInfoServerStagingServer is a server variant for GetStagingPetInfoServer.
 // Staging server
 type GetStagingPetInfoServerStagingServer struct {
-	Environment GetStagingPetInfoServerStagingServerEnvironment
-	Version     GetStagingPetInfoServerStagingServerVersion
+	Environment GetStagingPetInfoServerEnvironment
+	Version     GetStagingPetInfoServerVersion
 }
 
 // GetUrl returns the server URL.

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from pydantic import AwareDatetime, StrictInt
 
+from petstore_client.models.account import Account
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.department import Department
@@ -28,6 +29,7 @@ from ..auth.authenticator import Authenticator
 from ..errors import ApiException
 from .options.get_by_swatch_options import GetBySwatchOptions
 from .options.get_stock_item_options import GetStockItemOptions
+from .options.search_store_options import SearchStoreOptions
 
 
 class StoreApi(BaseApi):
@@ -42,6 +44,63 @@ class StoreApi(BaseApi):
         authenticator: Optional[Authenticator] = None,
     ):
         super().__init__(api_client, config, authenticator)
+
+    async def create_account(
+        self,
+        account: Account,
+    ) -> Account:
+        """Create an account
+        :param account:  (required)
+
+        :return: Account
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.create_account_with_http_info(account)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for create_account but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def create_account_with_http_info(
+        self,
+        account: Account,
+    ) -> "ApiResult[Account]":
+        """Create an account (with HTTP info)
+        :param account:  (required)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if account is None:
+            raise ValueError(
+                "Missing the required parameter 'account' when calling StoreApi.create_account"
+            )
+
+        path = "/store/account"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = account
+
+        return await self._invoke_api_for_result(
+            "POST",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Account",
+            NO_AUTH,
+        )
 
     async def delete_order(
         self,
@@ -495,6 +554,77 @@ class StoreApi(BaseApi):
             None,
         )
 
+    async def get_order_by_tracking_id(
+        self,
+        tracking_id: uuid.UUID,
+    ) -> Order:
+        """Find purchase order by tracking id
+        :param tracking_id:  (required)
+
+        :return: Order
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_order_by_tracking_id_with_http_info(tracking_id)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_order_by_tracking_id but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_order_by_tracking_id_with_http_info(
+        self,
+        tracking_id: uuid.UUID,
+    ) -> "ApiResult[Order]":
+        """Find purchase order by tracking id (with HTTP info)
+        :param tracking_id:  (required)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if tracking_id is None or tracking_id == "":
+            raise ValueError(
+                "Missing the required parameter 'tracking_id' when calling StoreApi.get_order_by_tracking_id"
+            )
+
+        path = "/store/order/by-tracking/{trackingId}"
+        path = path.replace(
+            "{" + "trackingId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "trackingId",
+                    tracking_id,
+                    "path",
+                    "uuid.UUID",
+                    None,
+                    "simple",
+                    False,
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "Order",
+            NO_AUTH,
+        )
+
     async def get_stock_item(
         self,
         options: Optional[GetStockItemOptions] = None,
@@ -796,4 +926,92 @@ class StoreApi(BaseApi):
             "application/json",
             "Order",
             None,
+        )
+
+    async def search_store(
+        self,
+        options: Optional[SearchStoreOptions] = None,
+    ) -> List[Order]:
+        """Searches the store; exercises content-encoded, Set and time-of-day parameters.
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: List[Order]
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.search_store_with_http_info(options)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for search_store but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def search_store_with_http_info(
+        self,
+        options: Optional[SearchStoreOptions] = None,
+    ) -> "ApiResult[List[Order]]":
+        """Searches the store; exercises content-encoded, Set and time-of-day parameters. (with HTTP info)
+        :param options: options for query, header, form, and cookie parameters
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/search"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.q is not None:
+            import json
+
+            query_params["q"] = json.dumps(options.q)
+        if options is not None and options.labels is not None:
+            query_params["labels"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "labels",
+                    options.labels,
+                    "query",
+                    "Set[StrictStr]",
+                    "multi",
+                    "form",
+                    True,
+                ),
+                False,
+            )
+        if options is not None and options.at is not None:
+            query_params["at"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "at", options.at, "query", "datetime.time", None, "form", True
+                ),
+                False,
+            )
+        header_params: Dict[str, str] = {}
+        if options is not None and options.x_filter is not None:
+            header_params["X-Filter"] = str(
+                ValueSerializer.serialize_styled(
+                    "X-Filter",
+                    options.x_filter,
+                    "header",
+                    "Dict[str, StrictStr]",
+                    None,
+                    "",
+                    False,
+                )
+            )
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "List[Order]",
+            NO_AUTH,
         )

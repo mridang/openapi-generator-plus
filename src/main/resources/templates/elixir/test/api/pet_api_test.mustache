@@ -858,7 +858,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
              "https://primary.example.com/v1/pet/5/multi"
 
     regional = %{{moduleName}}.Api.GetMultiServerPetInfoServer.Regional{
-      region: {{moduleName}}.Api.GetMultiServerPetInfoServer.Region.eu()
+      region: {{moduleName}}.Api.GetMultiServerPetInfoServer.RegionalRegion.eu()
     }
 
     assert {:ok, _result} =

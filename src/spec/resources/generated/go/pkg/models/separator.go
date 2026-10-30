@@ -18,10 +18,10 @@ import (
 type Separator string
 
 const (
-	/* SeparatorEMPTY represents the value " ". */
-	SeparatorEMPTY Separator = " "
-	/* SeparatorEMPTY2 represents the value "@@". */
-	SeparatorEMPTY2 Separator = "@@"
+	/* SeparatorSPACE1 represents the value " ". */
+	SeparatorSPACE1 Separator = " "
+	/* SeparatorVALUE00400040 represents the value "@@". */
+	SeparatorVALUE00400040 Separator = "@@"
 	/* SeparatorAB represents the value "a-b". */
 	SeparatorAB Separator = "a-b"
 	/* SeparatorAB2 represents the value "a_b". */
@@ -31,8 +31,8 @@ const (
 // AllSeparatorValues returns all allowed values of Separator.
 func AllSeparatorValues() []Separator {
 	return []Separator{
-		SeparatorEMPTY,
-		SeparatorEMPTY2,
+		SeparatorSPACE1,
+		SeparatorVALUE00400040,
 		SeparatorAB,
 		SeparatorAB2,
 	}

@@ -33,10 +33,10 @@ export abstract class {{serverTypeName}} {
 }
 {{#serverEnums}}
 
-export enum {{serverTypeName}}{{pascalName}} {
-{{#members}}
-  {{memberName}} = {{{memberLiteral}}},
-{{/members}}
+export enum {{serverTypeName}}{{typeName}} {
+{{#enumValues}}
+  {{name}} = {{{literal}}},
+{{/enumValues}}
 }
 {{/serverEnums}}
 {{#variants}}
@@ -47,9 +47,9 @@ export enum {{serverTypeName}}{{pascalName}} {
 {{/hasDescription}}
 export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#serverVariables}}
-  readonly {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}};
+  readonly {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}};
 {{/serverVariables}}
-  constructor({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+  constructor({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
     super();
 {{#serverVariables}}
     this.{{camelName}} = {{camelName}};

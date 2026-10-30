@@ -1325,7 +1325,7 @@ class PetApiTest {
         @DisplayName("each server of a multi-server operation resolves to its own URL")
         fun testMultiServerVariantUrls() {
             assertEquals("https://primary.example.com/v1", PetApi.GetMultiServerPetInfoServer.Primary.getUrl())
-            for (region in PetApi.GetMultiServerPetInfoServer.Region.entries) {
+            for (region in PetApi.GetMultiServerPetInfoServer.RegionalRegion.entries) {
                 assertEquals(
                     "https://${region.value}.example.com/v1",
                     PetApi.GetMultiServerPetInfoServer.Regional(region).getUrl(),
@@ -1334,7 +1334,7 @@ class PetApiTest {
 
             val urls = mutableListOf<String>()
             val api = apiRecordingUrls(urls)
-            val eu = PetApi.GetMultiServerPetInfoServer.Regional(PetApi.GetMultiServerPetInfoServer.Region.EU)
+            val eu = PetApi.GetMultiServerPetInfoServer.Regional(PetApi.GetMultiServerPetInfoServer.RegionalRegion.EU)
             runBlocking { api.getMultiServerPetInfo(7L, eu) }
 
             assertEquals(1, urls.size)

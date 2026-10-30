@@ -48,10 +48,15 @@ export abstract class GetMultiServerPetInfoServer {
   abstract getUrl(): string;
 }
 
-export enum GetMultiServerPetInfoServerRegion {
+export enum GetMultiServerPetInfoServerRegionalRegion {
   US = "us",
   EU = "eu",
   AP = "ap",
+}
+
+export enum GetMultiServerPetInfoServerMirrorRegion {
+  US = "us",
+  EU = "eu",
 }
 
 export enum GetMultiServerPetInfoServerChannel {
@@ -73,8 +78,8 @@ export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoSer
  * Regional
  */
 export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
-  readonly region: GetMultiServerPetInfoServerRegion;
-  constructor(region: GetMultiServerPetInfoServerRegion) {
+  readonly region: GetMultiServerPetInfoServerRegionalRegion;
+  constructor(region: GetMultiServerPetInfoServerRegionalRegion) {
     super();
     this.region = region;
   }
@@ -92,10 +97,10 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
  * Mirror
  */
 export class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
-  readonly region: GetMultiServerPetInfoServerRegion;
+  readonly region: GetMultiServerPetInfoServerMirrorRegion;
   readonly channel: GetMultiServerPetInfoServerChannel;
   constructor(
-    region: GetMultiServerPetInfoServerRegion,
+    region: GetMultiServerPetInfoServerMirrorRegion,
     channel: GetMultiServerPetInfoServerChannel,
   ) {
     super();
@@ -628,7 +633,7 @@ export class PetApi extends BaseApi {
    * @example Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @param options.bornAfter Only return pets born on or after this date (optional)
-   * @param options._2ndPage  (optional)
+   * @param options.n2ndPage  (optional)
    * @param options.reportDate Reference date for the report (optional)
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call
@@ -692,11 +697,11 @@ export class PetApi extends BaseApi {
         false,
       );
     }
-    if (options?._2ndPage != null) {
+    if (options?.n2ndPage != null) {
       queryParams["2ndPage"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
           "2ndPage",
-          options._2ndPage,
+          options.n2ndPage,
           "query",
           "number",
           null,

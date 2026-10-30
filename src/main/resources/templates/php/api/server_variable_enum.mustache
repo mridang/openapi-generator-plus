@@ -5,9 +5,9 @@ namespace {{apiPackage}};
 /**
  * Allowed values of the {{name}} server variable of {{serverTypeName}}.
  */
-enum {{serverTypeName}}{{pascalName}}: string
+enum {{serverTypeName}}{{enumTypeName}}: string
 {
 {{#enumValues}}
-    case {{name}} = '{{value}}';
+    case {{name}} = {{{literal}}};
 {{/enumValues}}
 }

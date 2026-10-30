@@ -78,7 +78,7 @@ Lint/InterpolationCheck:
   Enabled: false
 
 # Parameter names are the API's own names (`q`, a digit-leading name mapped to
-# `_2nd_page`), so the keyword a caller passes matches the spec in all twelve
+# `n2nd_page`), so the keyword a caller passes matches the spec in all twelve
 # SDKs instead of a Ruby-only rename.
 Naming/MethodParameterName:
   Enabled: false

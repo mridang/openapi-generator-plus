@@ -21,8 +21,8 @@ enum Availability: string
     case AVAILABLE = 'Available';
     case SOLD = 'Sold';
     case ON_HOLD = 'on-hold';
-    case OCLOCK = 'oclock';
-    case A_B = 'a\b';
+    case OCLOCK = 'o\'clock';
+    case A_B = 'a\\b';
     case EQ = '$eq';
     case X = '#{x}';
 }

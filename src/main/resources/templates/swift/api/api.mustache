@@ -13,9 +13,9 @@ public protocol {{serverTypeName}} {
 {{#serverVariables}}{{#hasEnumValues}}
 
 /// Valid values for the {{name}} server variable in {{serverTypeName}}.
-public enum {{serverTypeName}}{{pascalName}}: String {
+public enum {{serverTypeName}}{{enumTypeName}}: String {
 {{#enumValues}}
-    case {{name}} = "{{value}}"
+    case {{name}} = {{{literal}}}
 {{/enumValues}}
 }
 {{/hasEnumValues}}{{/serverVariables}}
@@ -25,10 +25,10 @@ public enum {{serverTypeName}}{{pascalName}}: String {
 /// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
 public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 {{#serverVariables}}
-    public let {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}
+    public let {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}
 {{/serverVariables}}
 
-    public init({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+    public init({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
 {{#serverVariables}}
         self.{{camelName}} = {{camelName}}
 {{/serverVariables}}
@@ -52,10 +52,10 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
 
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
-/// {{.}}
+/// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-/// See {{url}} {{description}}
+/// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
 {{/tagExternalDocs}}
 public final class {{classname}}: BaseApi, @unchecked Sendable {
     /// Creates a new `{{classname}}`.
@@ -65,13 +65,13 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#operation}}
 
 {{#summary}}
-    /// {{{summary}}}
+    /// {{#lambda.singleLine}}{{{summary}}}{{/lambda.singleLine}}
 {{/summary}}
 {{#notes}}
-    /// {{{.}}}
+    /// {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
 {{/notes}}
 {{#externalDocs}}
-    /// See {{url}} {{description}}
+    /// See {{{url}}} {{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}
 {{/externalDocs}}
 {{#vendorExtensions.op.signatureArgs.0}}
     ///

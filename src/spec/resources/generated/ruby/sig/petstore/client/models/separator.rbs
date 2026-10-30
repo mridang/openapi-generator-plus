@@ -1,9 +1,9 @@
 module Petstore::Client::Models
   class Separator
-    EMPTY: String
-    EMPTY2: String
+    SPACE_1: String
+    VALUE_0040_0040: String
     A_B: String
-    A_B2: String
+    A_B_2: String
     VALUES: Array[String]
     def self.all_vars: () -> Array[String]
     def self.validate!: (String?) -> String?

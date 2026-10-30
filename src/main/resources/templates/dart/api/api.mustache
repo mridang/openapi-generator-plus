@@ -25,29 +25,29 @@ abstract class {{serverTypeName}} {
   String getUrl();
 }
 {{#variants}}
-{{#serverVariables}}{{#dartEmitEnum}}
+{{#serverVariables}}{{#hasEnumValues}}
 
 /// Valid values for the {{name}} server variable in {{serverTypeName}}.
-enum {{serverTypeName}}{{pascalName}} {
+enum {{serverTypeName}}{{enumTypeName}} {
 {{#enumValues}}
-  {{{name}}}('{{#lambda.dartString}}{{{value}}}{{/lambda.dartString}}'),
+  {{{name}}}({{{literal}}}),
 {{/enumValues}}
   ;
 
   final String value;
-  const {{serverTypeName}}{{pascalName}}(this.value);
+  const {{serverTypeName}}{{enumTypeName}}(this.value);
 }
-{{/dartEmitEnum}}{{/serverVariables}}
+{{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
 {{#variants}}
 
 /// {{#hasDescription}}{{#lambda.dartDocLines}}{{{description}}}{{/lambda.dartDocLines}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
 class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#serverVariables}}
-  final {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} _{{camelName}};
+  final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} _{{camelName}};
 {{/serverVariables}}
 
-  {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}){{#serverVariables}}{{#-first}} : {{/-first}}_{{camelName}} = {{camelName}}{{^-last}},
+  {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}){{#serverVariables}}{{#-first}} : {{/-first}}_{{camelName}} = {{camelName}}{{^-last}},
         {{/-last}}{{/serverVariables}};
 
   @override

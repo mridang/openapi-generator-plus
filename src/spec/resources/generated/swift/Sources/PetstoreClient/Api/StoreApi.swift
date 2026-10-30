@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -15,6 +15,47 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
   ) {
     super.init(apiClient: apiClient, config: config, authenticator: authenticator)
+  }
+
+  /// Create an account
+  ///
+  /// - Parameters:
+  public func createAccount(account: Account) async throws -> Account {
+    let result = try await createAccountWithHTTPInfo(account: account)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for createAccount but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the createAccount operation and returns the full API result.
+  public func createAccountWithHTTPInfo(account: Account) async throws -> ApiResult<Account> {
+
+    let path = "/store/account"
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = account
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Account",
+      auth: BaseApi.noAuthSentinel
+    )
+
+    return try await invokeAPIForResult(params, as: Account.self)
   }
 
   /// Delete purchase order by ID
@@ -359,6 +400,54 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Order.self)
   }
 
+  /// Find purchase order by tracking id
+  ///
+  /// - Parameters:
+  public func getOrderByTrackingId(trackingId: UUID) async throws -> Order {
+    let result = try await getOrderByTrackingIdWithHTTPInfo(trackingId: trackingId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getOrderByTrackingId but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getOrderByTrackingId operation and returns the full API result.
+  public func getOrderByTrackingIdWithHTTPInfo(trackingId: UUID) async throws -> ApiResult<Order> {
+    try ValueSerializer.requirePathParam(
+      "trackingId", trackingId, operation: "StoreApi.getOrderByTrackingId")
+
+    var path = "/store/order/by-tracking/{trackingId}"
+    path = path.replacingOccurrences(
+      of: "{" + "trackingId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("trackingId", value: trackingId, location: "path", schemaType: "UUID", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "Order",
+      auth: BaseApi.noAuthSentinel
+    )
+
+    return try await invokeAPIForResult(params, as: Order.self)
+  }
+
   /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
   ///
   /// - Parameters:
@@ -605,5 +694,75 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: Order.self)
+  }
+
+  /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
+  ///
+  /// - Parameters:
+  ///   - q: JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  public func searchStore(options: SearchStoreOptions? = nil) async throws -> [Order] {
+    let result = try await searchStoreWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for searchStore but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the searchStore operation and returns the full API result.
+  public func searchStoreWithHTTPInfo(options: SearchStoreOptions? = nil) async throws -> ApiResult<
+    [Order]
+  > {
+
+    let path = "/store/search"
+
+    var queryParams: [String: Any?] = [:]
+    if let options = options, let val = options.q {
+      // Serialize through ObjectSerializer so a Date-bearing content param
+      // emits RFC 3339 via the shared date-strategy encoder, matching every
+      // other serialization path (a bare JSONEncoder would default to
+      // .deferredToDate and emit epoch-seconds doubles instead).
+      if let json = try? ObjectSerializer.serialize(val) {
+        queryParams["q"] = json
+      }
+    }
+    if let options = options, let val = options.labels {
+      queryParams["labels"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "labels", value: val, location: "query", schemaType: "[String]",
+          collectionFormat: "multi", style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.at {
+      queryParams["at"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "at", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    var headerParams: [String: String] = [:]
+    if let options = options, let val = options.xFilter {
+      headerParams["X-Filter"] =
+        "\(ValueSerializer.serializeStyled("X-Filter", value: val, location: "header", schemaType: "[String: String]", collectionFormat: "", style: "", explode: false) ?? "")"
+    }
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "[Order]",
+      auth: BaseApi.noAuthSentinel
+    )
+
+    return try await invokeAPIForResult(params, as: [Order].self)
   }
 }

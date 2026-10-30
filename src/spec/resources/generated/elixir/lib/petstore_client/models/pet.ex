@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -26,7 +26,8 @@ defmodule PetstoreClient.Models.Pet do
           thumbnail_ref: String.t() | nil,
           link_template: String.t() | nil,
           owner_email: String.t() | nil,
-          weight_kg: float() | nil
+          weight_kg: float() | nil,
+          nickname: String.t() | nil
         }
 
   @enforce_keys [
@@ -45,7 +46,8 @@ defmodule PetstoreClient.Models.Pet do
     :thumbnail_ref,
     :link_template,
     :owner_email,
-    :weight_kg
+    :weight_kg,
+    :nickname
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -63,7 +65,8 @@ defmodule PetstoreClient.Models.Pet do
       thumbnail_ref: "thumbnailRef",
       link_template: "linkTemplate",
       owner_email: "ownerEmail",
-      weight_kg: "weightKg"
+      weight_kg: "weightKg",
+      nickname: "nickname"
     }
   end
 
@@ -105,7 +108,8 @@ defmodule PetstoreClient.Models.Pet do
       thumbnail_ref: "String.t()",
       link_template: "String.t()",
       owner_email: "String.t()",
-      weight_kg: "float()"
+      weight_kg: "float()",
+      nickname: "String.t()"
     }
   end
 end

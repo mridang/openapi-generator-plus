@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -22,6 +22,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
   public var petId: Int64?
   /// Example: 7
   public var quantity: Int?
+  public var trackingId: UUID?
   public var shipDate: Date?
   /// Order Status
   /// Example: approved
@@ -32,6 +33,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     case id = "id"
     case petId = "petId"
     case quantity = "quantity"
+    case trackingId = "trackingId"
     case shipDate = "shipDate"
     case status = "status"
     case complete = "complete"
@@ -39,12 +41,14 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
 
   /// Creates a new Order instance.
   public init(
-    id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
-    status: OrderStatusEnum? = OrderStatusEnum(rawValue: "placed"), complete: Bool? = nil
+    id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, trackingId: UUID? = nil,
+    shipDate: Date? = nil, status: OrderStatusEnum? = OrderStatusEnum(rawValue: "placed"),
+    complete: Bool? = nil
   ) {
     self.id = id
     self.petId = petId
     self.quantity = quantity
+    self.trackingId = trackingId
     self.shipDate = shipDate
     self.status = status
     self.complete = complete
@@ -65,6 +69,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
     self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
     self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+    self.trackingId = try container.decodeIfPresent(UUID.self, forKey: .trackingId)
     self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
     self.status =
       container.contains(.status)
@@ -83,6 +88,7 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(id, forKey: .id)
     try container.encodeIfPresent(petId, forKey: .petId)
     try container.encodeIfPresent(quantity, forKey: .quantity)
+    try container.encodeIfPresent(trackingId, forKey: .trackingId)
     try container.encodeIfPresent(shipDate, forKey: .shipDate)
     try container.encodeIfPresent(status, forKey: .status)
     try container.encodeIfPresent(complete, forKey: .complete)

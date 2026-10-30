@@ -12,7 +12,7 @@ import {
   GetExternalPetInfoServer,
   GetExternalPetInfoServerServer0,
   GetMultiServerPetInfoServerPrimary,
-  GetMultiServerPetInfoServerRegion,
+  GetMultiServerPetInfoServerRegionalRegion,
   GetMultiServerPetInfoServerRegional,
   GetStagingPetInfoServerEnvironment,
   GetStagingPetInfoServerStagingServer,
@@ -1196,7 +1196,7 @@ describe("PetApi against a recording client", () => {
     );
     expect(
       new GetMultiServerPetInfoServerRegional(
-        GetMultiServerPetInfoServerRegion.EU,
+        GetMultiServerPetInfoServerRegionalRegion.EU,
       ).getUrl(),
     ).toBe("https://eu.example.com/v1");
     expect(
@@ -1241,7 +1241,7 @@ describe("PetApi against a recording client", () => {
     ],
     [
       new GetMultiServerPetInfoServerRegional(
-        GetMultiServerPetInfoServerRegion.AP,
+        GetMultiServerPetInfoServerRegionalRegion.AP,
       ),
       "https://ap.example.com/v1/",
     ],

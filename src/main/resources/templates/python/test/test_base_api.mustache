@@ -1094,7 +1094,7 @@ class TestOperationServerVariants:
     def test_multi_server_operation_offers_each_server(self) -> None:
         from {{packageName}}.api.pet_api import (
             GetMultiServerPetInfoServerPrimary,
-            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegionalRegion,
             GetMultiServerPetInfoServerRegional,
         )
 
@@ -1104,7 +1104,7 @@ class TestOperationServerVariants:
         )
         assert (
             GetMultiServerPetInfoServerRegional(
-                GetMultiServerPetInfoServerRegion.EU
+                GetMultiServerPetInfoServerRegionalRegion.EU
             ).get_url()
             == "https://eu.example.com/v1"
         )
@@ -1133,7 +1133,7 @@ class TestOperationServerVariants:
         self,
     ) -> None:
         from {{packageName}}.api.pet_api import (
-            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegionalRegion,
             GetMultiServerPetInfoServerRegional,
         )
 
@@ -1143,7 +1143,7 @@ class TestOperationServerVariants:
         await api.get_multi_server_pet_info(
             7,
             server=GetMultiServerPetInfoServerRegional(
-                GetMultiServerPetInfoServerRegion.AP
+                GetMultiServerPetInfoServerRegionalRegion.AP
             ),
         )
 

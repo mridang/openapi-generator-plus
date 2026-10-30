@@ -15,16 +15,16 @@ module Petstore::Client
       # @deprecated This parameter is deprecated.
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs
       # @param born_after [Date] Only return pets born on or after this date
-      # @param _2nd_page [Integer]
+      # @param n2nd_page [Integer]
       # @param report_date [Date] Reference date for the report
       class FindPetsByStatusOptions
-        attr_reader :status, :filter, :born_after, :_2nd_page, :report_date
+        attr_reader :status, :filter, :born_after, :n2nd_page, :report_date
 
-        def initialize(status: nil, filter: nil, born_after: nil, _2nd_page: nil, report_date: nil)
+        def initialize(status: nil, filter: nil, born_after: nil, n2nd_page: nil, report_date: nil)
           @status = status
           @filter = filter
           @born_after = born_after
-          @_2nd_page = _2nd_page
+          @n2nd_page = n2nd_page
           @report_date = report_date
           freeze
         end

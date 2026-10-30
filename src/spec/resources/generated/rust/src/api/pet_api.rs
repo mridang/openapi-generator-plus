@@ -46,18 +46,34 @@ pub trait GetMultiServerPetInfoServer {
 
 /// Valid values for the region server variable in GetMultiServerPetInfoServer.
 #[derive(Debug, Clone)]
-pub enum GetMultiServerPetInfoServerRegion {
+pub enum GetMultiServerPetInfoServerRegionalRegion {
     US,
     EU,
     AP,
 }
 
-impl GetMultiServerPetInfoServerRegion {
+impl GetMultiServerPetInfoServerRegionalRegion {
     pub fn as_str(&self) -> &str {
         match self {
             Self::US => "us",
             Self::EU => "eu",
             Self::AP => "ap",
+        }
+    }
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+#[derive(Debug, Clone)]
+pub enum GetMultiServerPetInfoServerMirrorRegion {
+    US,
+    EU,
+}
+
+impl GetMultiServerPetInfoServerMirrorRegion {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::US => "us",
+            Self::EU => "eu",
         }
     }
 }
@@ -91,7 +107,7 @@ impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerPrimary {
 /// Regional
 #[derive(Debug, Clone)]
 pub struct GetMultiServerPetInfoServerRegional {
-    pub region: GetMultiServerPetInfoServerRegion,
+    pub region: GetMultiServerPetInfoServerRegionalRegion,
 }
 
 impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
@@ -107,7 +123,7 @@ impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
 /// Mirror
 #[derive(Debug, Clone)]
 pub struct GetMultiServerPetInfoServerMirror {
-    pub region: GetMultiServerPetInfoServerRegion,
+    pub region: GetMultiServerPetInfoServerMirrorRegion,
     pub channel: GetMultiServerPetInfoServerChannel,
 }
 
@@ -1011,7 +1027,7 @@ impl PetApi {
             }
         }
         if let Some(opts) = options {
-            if let Some(ref val) = opts._2nd_page {
+            if let Some(ref val) = opts.n2nd_page {
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "2ndPage",
                     Some(&object_serializer::stringify(val)),

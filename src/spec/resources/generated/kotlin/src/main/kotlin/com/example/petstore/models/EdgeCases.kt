@@ -78,11 +78,11 @@ data class EdgeCases(
     @Contextual
     val expiresAt: OffsetDateTime? = null,
     /**
-     * The `_2fa` property.
+     * The `n2fa` property.
      */
     @SerialName("2fa")
     @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
-    val _2fa: Boolean? = null,
+    val n2fa: Boolean? = null,
     /**
      * The `separator` property.
      */

@@ -220,7 +220,7 @@ All API methods are asynchronous; call them with `try await`.
 Models are generated as Swift structs in the `Models` directory.
 
 ```swift
-let model = ApiResponse(/* properties */)
+let model = Account(/* properties */)
 ```
 
 ## Binary / File Uploads

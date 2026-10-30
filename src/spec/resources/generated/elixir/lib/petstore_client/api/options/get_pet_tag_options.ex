@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -14,11 +14,23 @@ defmodule PetstoreClient.Api.Options.GetPetTagOptions do
           colors: list(String.t()) | nil,
           sizes: list(String.t()) | nil,
           filter: String.t() | nil,
-          revision: String.t() | nil
+          revision: String.t() | nil,
+          criteria: PetstoreClient.Models.PetCriteria.t() | nil,
+          criteria_csv: PetstoreClient.Models.PetCriteria.t() | nil,
+          criteria_deep: PetstoreClient.Models.PetCriteria.t() | nil,
+          fingerprint: binary() | nil,
+          x_criteria: PetstoreClient.Models.PetCriteria.t() | nil,
+          x_fingerprint: binary() | nil
         }
 
   defstruct colors: nil,
             sizes: nil,
             filter: nil,
-            revision: nil
+            revision: nil,
+            criteria: nil,
+            criteria_csv: nil,
+            criteria_deep: nil,
+            fingerprint: nil,
+            x_criteria: nil,
+            x_fingerprint: nil
 end

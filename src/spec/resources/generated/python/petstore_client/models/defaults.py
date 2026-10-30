@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -31,6 +31,14 @@ class Defaults(BaseModel):
         default=DefaultsModeEnum.MEDIUM, alias="mode"
     )
     label: Optional[StrictStr] = Field(default="untitled", alias="label")
+    greeting: Optional[StrictStr] = Field(
+        default='it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b', alias="greeting"
+    )
+    swatch: Optional[Swatch] = Field(default=None, alias="swatch")
+    ratio: Optional[JsonNumber] = Field(default=1.5, alias="ratio")
+    scale: Optional[LaxFloat] = Field(default=0.25, alias="scale")
+    weight: Optional[LaxFloat] = Field(default=2, alias="weight")
+    ceiling: Optional[StrictInt] = Field(default=9000000000, alias="ceiling")
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs
@@ -42,5 +50,9 @@ class Defaults(BaseModel):
         protected_namespaces=(),
     )
 
+
+from petstore_client._types import JsonNumber
+from petstore_client._types import LaxFloat
+from petstore_client.models.swatch import Swatch
 
 Defaults.model_rebuild(raise_errors=False)

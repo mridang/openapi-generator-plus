@@ -1229,7 +1229,7 @@ test('a multi server operation uses the chosen server and the configured base ur
         $api->getMultiServerPetInfo(
             7,
             new \PetstoreClient\Api\GetMultiServerPetInfoServerRegional(
-                \PetstoreClient\Api\GetMultiServerPetInfoServerRegion::EU
+                \PetstoreClient\Api\GetMultiServerPetInfoServerRegionalRegion::EU
             )
         );
     } catch (\Throwable) {

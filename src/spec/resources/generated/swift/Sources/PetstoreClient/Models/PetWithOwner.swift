@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -40,6 +40,8 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
   /// Pet weight in kilograms (decimal precision)
   /// Example: 12.345
   public var weightKg: Double?
+  /// Example: rex
+  public var nickname: String?
   public var ownerName: String
 
   enum CodingKeys: String, CodingKey {
@@ -55,6 +57,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     case linkTemplate = "linkTemplate"
     case ownerEmail = "ownerEmail"
     case weightKg = "weightKg"
+    case nickname = "nickname"
     case ownerName = "ownerName"
   }
 
@@ -63,7 +66,8 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil,
     category: Category? = nil, tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil,
     location: [AnyCodable]? = nil, homepageUrl: String? = nil, thumbnailRef: String? = nil,
-    linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil
+    linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil,
+    nickname: String? = nil
   ) {
     self.name = name
     self.photoUrls = photoUrls
@@ -78,6 +82,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     self.linkTemplate = linkTemplate
     self.ownerEmail = ownerEmail
     self.weightKg = weightKg
+    self.nickname = nickname
   }
 
   /// Decodes this instance from the given decoder.
@@ -104,6 +109,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
     self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
     self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+    self.nickname = try container.decodeIfPresent(String.self, forKey: .nickname)
     self.ownerName = try container.decode(String.self, forKey: .ownerName)
   }
 
@@ -126,6 +132,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(linkTemplate, forKey: .linkTemplate)
     try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
     try container.encodeIfPresent(weightKg, forKey: .weightKg)
+    try container.encodeIfPresent(nickname, forKey: .nickname)
     try container.encode(ownerName, forKey: .ownerName)
   }
 }

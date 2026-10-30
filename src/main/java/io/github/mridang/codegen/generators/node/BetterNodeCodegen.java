@@ -605,71 +605,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * Collapses the per-variant server variable enums of each operation into
-     * one TypeScript enum per variable name ({@code serverEnums} on the type
-     * definition), so two variants declaring the same variable do not emit
-     * two enums with the same name. The members are the union of the values
-     * in declaration order, and each member name is a valid identifier.
-     */
-    @SuppressWarnings("unchecked")
-    private static void mergeServerEnums(Map<String, Object> operations) {
-        final Object defs = operations.get("serverTypeDefs");
-        if (!(defs instanceof List<?>)) {
-            return;
-        }
-        final List<?> typeDefs = (List<?>) defs;
-        for (final Object def : typeDefs) {
-            final Map<String, Object> typeDef = (Map<String, Object>) def;
-            final Map<String, Map<String, Map<String, String>>> byName =
-                    new java.util.LinkedHashMap<>();
-            for (final Object variant : (List<Object>) typeDef.getOrDefault("variants", List.of())) {
-                final Object vars = ((Map<String, Object>) variant).get("serverVariables");
-                if (!(vars instanceof List<?>)) {
-                    continue;
-                }
-                final List<?> serverVariables = (List<?>) vars;
-                for (final Object var : serverVariables) {
-                    final Map<String, Object> varMap = (Map<String, Object>) var;
-                    final Object enumValues = varMap.get("enumValues");
-                    if (!Boolean.TRUE.equals(varMap.get("hasEnumValues"))
-                            || !(enumValues instanceof List<?>)) {
-                        continue;
-                    }
-                    final Map<String, Map<String, String>> members =
-                            byName.computeIfAbsent(
-                                    String.valueOf(varMap.get("pascalName")),
-                                    k -> new java.util.LinkedHashMap<>());
-                    for (final Object ev : (List<?>) enumValues) {
-                        final String value = String.valueOf(((Map<String, String>) ev).get("value"));
-                        if (members.containsKey(value)) {
-                            continue;
-                        }
-                        String memberName =
-                                NamingConvention.UPPER_SNAKE_CASE.apply(
-                                        value.replaceAll("[^A-Za-z0-9]+", "_"));
-                        memberName = memberName.replaceAll("^_+|_+$", "");
-                        if (memberName.isEmpty() || Character.isDigit(memberName.charAt(0))) {
-                            memberName = "V_" + memberName;
-                        }
-                        final Map<String, String> member = new HashMap<>();
-                        member.put("memberName", memberName);
-                        member.put("memberLiteral", toStringLiteral(value));
-                        members.put(value, member);
-                    }
-                }
-            }
-            final List<Map<String, Object>> serverEnums = new ArrayList<>();
-            for (final Map.Entry<String, Map<String, Map<String, String>>> merged : byName.entrySet()) {
-                final Map<String, Object> out = new HashMap<>();
-                out.put("pascalName", merged.getKey());
-                out.put("members", new ArrayList<>(merged.getValue().values()));
-                serverEnums.add(out);
-            }
-            typeDef.put("serverEnums", serverEnums);
-        }
-    }
-
-    /**
      * Records the branded scalar types ({@code UUID}, {@code URI},
      * {@code Email}, {@code Decimal}) that an API class's positional
      * parameters use, as {@code brandImports}, so the API file imports them
@@ -828,7 +763,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             if (classname != null) {
                 operations.put("classFilename", getFilenameCasing().apply(classname));
             }
-            mergeServerEnums(operations);
             collectBrandImports(operations, objs);
 
             @SuppressWarnings("unchecked")

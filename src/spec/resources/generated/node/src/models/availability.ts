@@ -13,7 +13,7 @@ export enum Availability {
   Sold = "Sold",
   OnHold = "on-hold",
   Oclock = "o'clock",
-  AB = "a\b",
+  AB = "a\\b",
   Eq = "$eq",
   X = "#{x}",
 }

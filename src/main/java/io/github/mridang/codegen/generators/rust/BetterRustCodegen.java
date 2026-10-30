@@ -862,12 +862,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * Rewrites per-operation server-variable enum member names into valid Rust
-     * identifiers. The shared naming only upper-snake-cases the raw value, so a
-     * value containing an ampersand or an apostrophe would otherwise produce a
-     * variant name that does not compile. Characters outside
-     * {@code [A-Za-z0-9_]} are dropped (an underscore between them would trip
-     * {@code non_camel_case_types}) and a leading digit gets a {@code V} prefix.
+     * Rewrites the shared upper-snake server-variable enum constant names
+     * ({@code A_B}) into Rust enum variant names by dropping the underscores,
+     * which would trip {@code non_camel_case_types}. Names, values and types
+     * are otherwise the shared ones (one enum per variable per variant).
      *
      * @param serverTypeDefs the {@code serverTypeDefs} list built by the base class
      */
@@ -882,10 +880,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             if (!(variants instanceof List)) {
                 continue;
             }
-            // The enum type is named per operation and variable, not per variant,
-            // so it is declared once (on its first use) holding the union of the
-            // values every variant allows.
-            final Map<String, List<Map<String, String>>> declared = new HashMap<>();
             for (final Object variant : (List<Object>) variants) {
                 final Object vars =
                         variant instanceof Map
@@ -895,37 +889,15 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     continue;
                 }
                 for (final Object serverVar : (List<Object>) vars) {
-                    if (!(serverVar instanceof Map)) {
-                        continue;
-                    }
-                    final Map<String, Object> varMap = (Map<String, Object>) serverVar;
-                    final Object values = varMap.get("enumValues");
+                    final Object values =
+                            serverVar instanceof Map
+                                    ? ((Map<String, Object>) serverVar).get("enumValues")
+                                    : null;
                     if (!(values instanceof List)) {
                         continue;
                     }
-                    final List<Map<String, String>> enumValues =
-                            (List<Map<String, String>>) values;
-                    for (final Map<String, String> ev : enumValues) {
-                        String name =
-                                String.valueOf(ev.get("name")).replaceAll("[^A-Za-z0-9_]+", "");
-                        if (name.isEmpty() || Character.isDigit(name.charAt(0))) {
-                            name = "V" + name;
-                        }
-                        ev.put("name", name);
-                    }
-                    final String key = String.valueOf(varMap.get("pascalName"));
-                    final List<Map<String, String>> first = declared.get(key);
-                    if (first == null) {
-                        declared.put(key, enumValues);
-                        varMap.put("declareEnum", true);
-                    } else {
-                        varMap.put("declareEnum", false);
-                        for (final Map<String, String> ev : enumValues) {
-                            if (first.stream()
-                                    .noneMatch(f -> Objects.equals(f.get("value"), ev.get("value")))) {
-                                first.add(ev);
-                            }
-                        }
+                    for (final Map<String, String> ev : (List<Map<String, String>>) values) {
+                        ev.put("name", String.valueOf(ev.get("name")).replace("_", ""));
                     }
                 }
             }
@@ -954,15 +926,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public String toEnumVarName(String value, String datatype) {
         final String name = super.toEnumVarName(value, datatype);
         return name.isEmpty() ? "Empty" : name;
-    }
-
-    /**
-     * A backslash in a string enum value must be doubled inside the Rust string
-     * literal; otherwise {@code a\b} becomes an unknown character escape.
-     */
-    @Override
-    protected List<String[]> getEnumStringEscapes() {
-        return List.<String[]>of(new String[] {"\\\\", "\\\\\\\\"});
     }
 
     /** {@inheritDoc} */

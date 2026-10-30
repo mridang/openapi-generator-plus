@@ -34,10 +34,16 @@ module Petstore::Client
     end
 
     # Valid values for region in GetMultiServerPetInfoServer.
-    module GetMultiServerPetInfoServerRegion
+    module GetMultiServerPetInfoServerRegionalRegion
       US = 'us'
       EU = 'eu'
       AP = 'ap'
+    end
+
+    # Valid values for region in GetMultiServerPetInfoServer.
+    module GetMultiServerPetInfoServerMirrorRegion
+      US = 'us'
+      EU = 'eu'
     end
 
     # Valid values for channel in GetMultiServerPetInfoServer.
@@ -57,7 +63,7 @@ module Petstore::Client
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
       def initialize(region:)
         super()
-        allowed = [GetMultiServerPetInfoServerRegion::US, GetMultiServerPetInfoServerRegion::EU, GetMultiServerPetInfoServerRegion::AP]
+        allowed = [GetMultiServerPetInfoServerRegionalRegion::US, GetMultiServerPetInfoServerRegionalRegion::EU, GetMultiServerPetInfoServerRegionalRegion::AP]
         raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
 
         @region = region
@@ -73,7 +79,7 @@ module Petstore::Client
     class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
       def initialize(region:, channel:)
         super()
-        allowed = [GetMultiServerPetInfoServerRegion::US, GetMultiServerPetInfoServerRegion::EU]
+        allowed = [GetMultiServerPetInfoServerMirrorRegion::US, GetMultiServerPetInfoServerMirrorRegion::EU]
         raise ArgumentError, format("Invalid value '%<value>s' for server variable 'region'. Allowed values: %<allowed>s", value: region, allowed: allowed) unless allowed.include?(region)
 
         @region = region
@@ -518,10 +524,10 @@ module Petstore::Client
               false
             )
         end
-        unless options.nil? || options._2nd_page.nil?
+        unless options.nil? || options.n2nd_page.nil?
           query_params['2ndPage'] =
             ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
-              ::Petstore::Client::ValueSerializer.serialize_styled('2ndPage', options._2nd_page, :query, 'Integer', nil, 'form', true),
+              ::Petstore::Client::ValueSerializer.serialize_styled('2ndPage', options.n2nd_page, :query, 'Integer', nil, 'form', true),
               false
             )
         end

@@ -26,8 +26,8 @@ const (
 	AvailabilityOnHold Availability = "on-hold"
 	/* AvailabilityOclock represents the value "o'clock". */
 	AvailabilityOclock Availability = "o'clock"
-	/* AvailabilityAB represents the value "a\b". */
-	AvailabilityAB Availability = "a\b"
+	/* AvailabilityAB represents the value "a\\b". */
+	AvailabilityAB Availability = "a\\b"
 	/* AvailabilityEq represents the value "$eq". */
 	AvailabilityEq Availability = "$eq"
 	/* AvailabilityX represents the value "#{x}". */

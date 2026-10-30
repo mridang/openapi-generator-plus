@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -15,6 +15,7 @@ defmodule PetstoreClient.Models.Order do
           id: integer() | nil,
           pet_id: integer() | nil,
           quantity: integer() | nil,
+          tracking_id: String.t() | nil,
           ship_date: DateTime.t() | nil,
           complete: boolean() | nil,
           status: :placed | :approved | :delivered | nil
@@ -24,6 +25,7 @@ defmodule PetstoreClient.Models.Order do
     :id,
     :pet_id,
     :quantity,
+    :tracking_id,
     :ship_date,
     :complete,
     status: :placed
@@ -36,6 +38,7 @@ defmodule PetstoreClient.Models.Order do
       id: "id",
       pet_id: "petId",
       quantity: "quantity",
+      tracking_id: "trackingId",
       ship_date: "shipDate",
       complete: "complete",
       status: "status"
@@ -70,6 +73,7 @@ defmodule PetstoreClient.Models.Order do
       id: "integer()",
       pet_id: "integer()",
       quantity: "integer()",
+      tracking_id: "UUID",
       ship_date: "DateTime.t()",
       complete: "boolean()",
       status: "Enum<placed,approved,delivered>"

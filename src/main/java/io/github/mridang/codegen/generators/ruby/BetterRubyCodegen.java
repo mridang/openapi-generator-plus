@@ -635,7 +635,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         if (operations == null) {
             return objs;
         }
-        mergeServerVariableEnums(operations);
         final List<CodegenOperation> ops =
                 (List<CodegenOperation>) operations.get("operation");
         if (ops == null) {
@@ -874,51 +873,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
-     * Ruby has one constant module per server variable per operation, so
-     * when two variants share a variable name (Regional and Mirror both
-     * have {@code region}) the module is emitted once, on the first
-     * occurrence, holding the union of the variants' values. Each variant
-     * still validates against its own values. Cannot be standardized
-     * because the module-per-variable shape is Ruby's.
-     */
-    @SuppressWarnings("unchecked")
-    private static void mergeServerVariableEnums(Map<String, Object> operations) {
-        final Object defs = operations.get("serverTypeDefs");
-        if (!(defs instanceof List)) {
-            return;
-        }
-        for (final Map<String, Object> typeDef : (List<Map<String, Object>>) defs) {
-            final Map<String, List<Map<String, String>>> union = new HashMap<>();
-            final Object variants = typeDef.get("variants");
-            if (!(variants instanceof List)) {
-                continue;
-            }
-            for (final Map<String, Object> variant : (List<Map<String, Object>>) variants) {
-                final Object vars = variant.get("serverVariables");
-                if (!(vars instanceof List)) {
-                    continue;
-                }
-                for (final Map<String, Object> serverVar : (List<Map<String, Object>>) vars) {
-                    final Object values = serverVar.get("enumValues");
-                    if (!Boolean.TRUE.equals(serverVar.get("hasEnumValues")) || !(values instanceof List)) {
-                        continue;
-                    }
-                    final String name = String.valueOf(serverVar.get("name"));
-                    final boolean first = !union.containsKey(name);
-                    final List<Map<String, String>> merged = union.computeIfAbsent(name, k -> new ArrayList<>());
-                    for (final Map<String, String> value : (List<Map<String, String>>) values) {
-                        if (merged.stream().noneMatch(m -> Objects.equals(m.get("value"), value.get("value")))) {
-                            merged.add(value);
-                        }
-                    }
-                    serverVar.put("rubyEmitEnumModule", first);
-                    serverVar.put("rubyEnumModuleValues", merged);
-                }
-            }
-        }
-    }
-
-    /**
      * Escapes text for a Ruby single-quoted string literal, where only a
      * backslash and the single quote itself are escape sequences. Cannot be
      * standardized because the other languages quote differently.
@@ -972,17 +926,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
-     * Emits a string enum value as a single-quoted Ruby literal with the
-     * quote and backslash escaped, so a value such as {@code o'clock} keeps
-     * its apostrophe instead of being stripped. Cannot be standardized
-     * because the other languages quote differently.
+     * A single-quoted Ruby literal interprets only {@code \\} and {@code \'},
+     * so control characters stay raw in enum literals ({@code \n} would be a
+     * literal backslash-n).
      */
     @Override
-    public String toEnumValue(String value, String datatype) {
-        if (isNumericEnumDatatype(datatype)) {
-            return value;
-        }
-        return "'" + escapeSingleQuoted(value) + "'";
+    protected boolean escapesEnumControlCharacters() {
+        return false;
     }
 
     private void fixEnumRefDefault(CodegenProperty prop, CodegenModel model) {

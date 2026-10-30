@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -31,7 +31,8 @@ class Order(BaseModel):
     # Example: 198772
     pet_id: Optional[StrictInt] = Field(default=None, alias="petId")
     # Example: 7
-    quantity: Optional[StrictInt] = Field(default=None, alias="quantity")
+    quantity: Optional[StrictInt] = Field(default=None, alias="quantity", ge=1, le=100)
+    tracking_id: Optional[uuid.UUID] = Field(default=None, alias="trackingId")
     ship_date: Optional[OffsetDateTime] = Field(default=None, alias="shipDate")
     # Example: 'approved'
     status: Optional[OrderStatusEnum] = Field(
@@ -51,5 +52,6 @@ class Order(BaseModel):
 
 
 from petstore_client._types import OffsetDateTime
+import uuid
 
 Order.model_rebuild(raise_errors=False)

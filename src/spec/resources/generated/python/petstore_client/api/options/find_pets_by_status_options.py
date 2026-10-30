@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from pydantic import StrictInt
 from pydantic import StrictStr
 from typing import Optional, Dict
 
@@ -21,4 +22,5 @@ class FindPetsByStatusOptions:
     status: Optional[StrictStr] = None
     filter: Optional[Dict[str, StrictStr]] = None
     born_after: Optional[date] = None
+    n2nd_page: Optional[StrictInt] = None
     report_date: Optional[date] = None

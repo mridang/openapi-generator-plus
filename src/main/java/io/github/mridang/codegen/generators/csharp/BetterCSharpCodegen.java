@@ -169,23 +169,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return false;
     }
 
-    /**
-     * A digit-leading name gets the letter {@code n} prefixed before
-     * casing ({@code 2fa} becomes {@code N2fa}) instead of an
-     * underscore, which CA1707 rejects. The wire name is kept by
-     * {@code baseName}.
-     */
-    @Override
-    public String toVarName(String name) {
-        return super.toVarName(digitLeading(name) ? "n" + name : name);
-    }
-
-    /** Same digit-leading rule as {@link #toVarName(String)}. */
-    @Override
-    public String toParamName(String name) {
-        return super.toParamName(digitLeading(name) ? "n" + name : name);
-    }
-
     /** Returns the generated model type names of every component schema. */
     private Set<String> componentModelNames() {
         final Set<String> names = new HashSet<>();
@@ -197,38 +180,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
         }
         return names;
-    }
-
-    private boolean digitLeading(String name) {
-        final String sanitized = sanitizeName(name);
-        return !sanitized.isEmpty() && Character.isDigit(sanitized.charAt(0));
-    }
-
-    /**
-     * Gives every string enum member a legal public identifier: a value
-     * that cleans to nothing becomes {@code SPACE_<length>} (whitespace
-     * only) or {@code VALUE_<hex code points>}, and a digit-leading
-     * member gets the letter {@code N} rather than an underscore.
-     */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        final String name = super.toEnumVarName(value, datatype);
-        if (value.isEmpty()) {
-            return name;
-        }
-        if (name.isEmpty()) {
-            if (value.trim().isEmpty()) {
-                return getEnumCasing().apply("SPACE_" + value.length());
-            }
-            final StringBuilder hex = new StringBuilder("VALUE");
-            value.codePoints()
-                    .forEach(cp -> hex.append('_').append(String.format(Locale.ROOT, "%04X", cp)));
-            return getEnumCasing().apply(hex.toString());
-        }
-        if (name.length() > 1 && name.charAt(0) == '_' && Character.isDigit(name.charAt(1))) {
-            return "N" + name.substring(1);
-        }
-        return name;
     }
 
     /** {@inheritDoc} */
@@ -350,61 +301,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
         }
         return out.toString();
-    }
-
-    /**
-     * Makes the per-operation server types compile when variants share a
-     * variable name or an enum value is not an identifier: a variable
-     * named in two or more variants of one operation gets one enum type
-     * per variant ({@code <Variant><Var>}), and enum member names are
-     * reduced to C# identifier characters.
-     */
-    @Override
-    @SuppressWarnings("unchecked")
-    public org.openapitools.codegen.model.OperationsMap postProcessOperationsWithModels(
-            org.openapitools.codegen.model.OperationsMap objs, List<ModelMap> allModels) {
-        final org.openapitools.codegen.model.OperationsMap processed =
-                super.postProcessOperationsWithModels(objs, allModels);
-        final Map<String, Object> operations = (Map<String, Object>) processed.get("operations");
-        if (operations == null) {
-            return processed;
-        }
-        final List<Map<String, Object>> typeDefs =
-                (List<Map<String, Object>>) operations.get("serverTypeDefs");
-        if (typeDefs == null) {
-            return processed;
-        }
-        for (final Map<String, Object> typeDef : typeDefs) {
-            final List<Map<String, Object>> variants =
-                    (List<Map<String, Object>>) typeDef.getOrDefault("variants", List.of());
-            final Map<String, Integer> counts = new HashMap<>();
-            for (final Map<String, Object> variant : variants) {
-                for (final Map<String, Object> sv :
-                        (List<Map<String, Object>>) variant.getOrDefault("serverVariables", List.of())) {
-                    counts.merge((String) sv.get("name"), 1, Integer::sum);
-                }
-            }
-            for (final Map<String, Object> variant : variants) {
-                for (final Map<String, Object> sv :
-                        (List<Map<String, Object>>) variant.getOrDefault("serverVariables", List.of())) {
-                    final String pascal = (String) sv.get("pascalName");
-                    sv.put(
-                            "enumTypeName",
-                            counts.getOrDefault((String) sv.get("name"), 0) > 1
-                                    ? variant.get("variantName") + pascal
-                                    : pascal);
-                    for (final Map<String, String> ev :
-                            (List<Map<String, String>>) sv.getOrDefault("enumValues", List.of())) {
-                        String ident = String.valueOf(ev.getOrDefault("name", "")).replaceAll("[^A-Za-z0-9_]", "_");
-                        if (ident.isEmpty() || Character.isDigit(ident.charAt(0))) {
-                            ident = "_" + ident;
-                        }
-                        ev.put("name", ident);
-                    }
-                }
-            }
-        }
-        return processed;
     }
 
     /**
@@ -805,14 +701,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 "byte", "sbyte", "float", "double", "decimal");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * The template supplies the quotes (see {@link #toEnumValue}), so the
+     * quote is escaped here, unconditionally and after the shared backslash
+     * doubling, instead of by {@code quoteEnumValue}.
+     */
     @Override
     protected List<String[]> getEnumStringEscapes() {
-        return List.of(
-                new String[]{"\n", "\\\\n"},
-                new String[]{"\t", "\\\\t"},
-                new String[]{"\r", "\\\\r"},
-                new String[]{"(?<!\\\\)\"", "\\\\\""});
+        return List.<String[]>of(new String[]{"\"", "\\\\\""});
+    }
+
+    /** The quote is already escaped by the table, so only wrap the value. */
+    @Override
+    protected String toServerEnumLiteral(String value) {
+        return "\"" + escapeEnumStringValue(value) + "\"";
     }
 
     /**

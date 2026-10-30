@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -14,11 +14,13 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
           nickname: String.t(),
           tags: list(String.t()) | nil,
           note: String.t() | nil,
-          renewal_date: Date.t() | nil
+          renewal_date: Date.t() | nil,
+          reminder: DateTime.t() | nil
         }
 
   defstruct nickname: nil,
             tags: nil,
             note: nil,
-            renewal_date: nil
+            renewal_date: nil,
+            reminder: nil
 end

@@ -333,7 +333,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "goIdentPart",
                 (Mustache.Lambda)
                         (fragment, writer) ->
-                                writer.write(fragment.execute().replaceAll("[^A-Za-z0-9_]", "")));
+                                writer.write(fragment.execute().replaceAll("[^A-Za-z0-9]", "")));
 
         additionalProperties.put(
                 "goStringLiteral",
@@ -647,20 +647,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             return;
         }
         super.fixEnumDefaultValue(prop, model);
-    }
-
-    /**
-     * Keeps a property whose wire name starts with a digit ({@code 2fa})
-     * exported: the shared escape prefixes an underscore, which Go treats as
-     * unexported, so the field gets the {@code N} prefix instead.
-     */
-    @Override
-    public String toVarName(String name) {
-        final String var = super.toVarName(name);
-        if (var.matches("_\\d.*")) {
-            return "N" + var.substring(1);
-        }
-        return var;
     }
 
     /**

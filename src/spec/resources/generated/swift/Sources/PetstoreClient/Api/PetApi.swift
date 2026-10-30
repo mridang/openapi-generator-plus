@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -31,10 +31,22 @@ public protocol GetMultiServerPetInfoServer {
 }
 
 /// Valid values for the region server variable in GetMultiServerPetInfoServer.
-public enum GetMultiServerPetInfoServerRegion: String {
+public enum GetMultiServerPetInfoServerRegionalRegion: String {
   case US = "us"
   case EU = "eu"
   case AP = "ap"
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+public enum GetMultiServerPetInfoServerMirrorRegion: String {
+  case US = "us"
+  case EU = "eu"
+}
+
+/// Valid values for the channel server variable in GetMultiServerPetInfoServer.
+public enum GetMultiServerPetInfoServerChannel: String {
+  case A_B = "a&b"
+  case IT_S = "it's"
 }
 
 /// Primary
@@ -50,15 +62,35 @@ public struct GetMultiServerPetInfoServerPrimary: GetMultiServerPetInfoServer {
 
 /// Regional
 public struct GetMultiServerPetInfoServerRegional: GetMultiServerPetInfoServer {
-  public let region: GetMultiServerPetInfoServerRegion
+  public let region: GetMultiServerPetInfoServerRegionalRegion
 
-  public init(region: GetMultiServerPetInfoServerRegion) {
+  public init(region: GetMultiServerPetInfoServerRegionalRegion) {
     self.region = region
   }
 
   public func getUrl() -> String {
     var url = "https://{region}.example.com/v1"
     url = url.replacingOccurrences(of: "{" + "region" + "}", with: region.rawValue)
+    return url
+  }
+}
+
+/// Mirror
+public struct GetMultiServerPetInfoServerMirror: GetMultiServerPetInfoServer {
+  public let region: GetMultiServerPetInfoServerMirrorRegion
+  public let channel: GetMultiServerPetInfoServerChannel
+
+  public init(
+    region: GetMultiServerPetInfoServerMirrorRegion, channel: GetMultiServerPetInfoServerChannel
+  ) {
+    self.region = region
+    self.channel = channel
+  }
+
+  public func getUrl() -> String {
+    var url = "https://{region}.mirror.example.com/{channel}/v1"
+    url = url.replacingOccurrences(of: "{" + "region" + "}", with: region.rawValue)
+    url = url.replacingOccurrences(of: "{" + "channel" + "}", with: channel.rawValue)
     return url
   }
 }
@@ -119,8 +151,8 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 }
 
 /// PetApi provides methods for the Pet API group.
-/// Everything about your Pets
-/// See https://example.com/docs/pets Find out more about pets
+/// Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
+/// See https://example.com/docs/pets Find out more about pets (it's */ here) on two lines
 public final class PetApi: BaseApi, @unchecked Sendable {
   /// Creates a new `PetApi`.
   public override init(
@@ -515,6 +547,12 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           "bornAfter", value: val, location: "query", schemaType: "String", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
+    if let options = options, let val = options.n2ndPage {
+      queryParams["2ndPage"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "2ndPage", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
 
     var headerParams: [String: String] = [:]
     if let options = options, let val = options.reportDate {
@@ -843,6 +881,10 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       throw ConfigurationError.invalidArgument(
         "Missing the required parameter 'category' when calling PetApi.getPetByName")
     }
+    guard !options.xCorrelationId.isEmpty else {
+      throw ConfigurationError.invalidArgument(
+        "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName")
+    }
 
     var path = "/pet/byName/{name}"
     path = path.replacingOccurrences(
@@ -860,7 +902,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           style: "form", explode: true), allowReserved: false)
     }
 
-    let headerParams: [String: String] = [:]
+    var headerParams: [String: String] = [:]
+    headerParams["X-Correlation-Id"] =
+      "\(ValueSerializer.serializeStyled("X-Correlation-Id", value: options.xCorrelationId, location: "header", schemaType: "String", collectionFormat: "", style: "simple", explode: false) ?? "")"
 
     let requestBody: Any? = nil
     let params = InvokeAPIParams(
@@ -978,10 +1022,58 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Data.self)
   }
 
+  /// Get a plain-text summary of the pet
+  ///
+  /// - Parameters:
+  public func getPetSummary(petId: Int64) async throws -> String {
+    let result = try await getPetSummaryWithHTTPInfo(petId: petId)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getPetSummary but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getPetSummary operation and returns the full API result.
+  public func getPetSummaryWithHTTPInfo(petId: Int64) async throws -> ApiResult<String> {
+
+    var path = "/pet/{petId}/summary"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: [String: Any?] = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["text/plain"],
+      contentType: "application/json",
+      returnType: "String",
+      auth: nil
+    )
+
+    return try await invokeAPIForResult(params, as: String.self)
+  }
+
   /// Get a tag for a pet
   ///
   /// - Parameters:
   ///   - revision: Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
+  ///   - criteria: Object-valued query parameter, form style exploded (the OAS default for query)
+  ///   - fingerprint: Opaque bytes, base64 on the wire (OAS format byte)
   ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
   public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> Pet
@@ -1041,8 +1133,41 @@ public final class PetApi: BaseApi, @unchecked Sendable {
           "revision", value: val, location: "query", schemaType: "String", collectionFormat: "",
           style: "form", explode: true), allowReserved: true)
     }
+    if let options = options, let val = options.criteria {
+      queryParams["criteria"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteria", value: val, location: "query", schemaType: "PetCriteria",
+          collectionFormat: "", style: "form", explode: true), allowReserved: false)
+    }
+    if let options = options, let val = options.criteriaCsv {
+      queryParams["criteriaCsv"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteriaCsv", value: val, location: "query", schemaType: "PetCriteria",
+          collectionFormat: "", style: "form", explode: false), allowReserved: false)
+    }
+    if let options = options, let val = options.criteriaDeep {
+      if let dict = (val as Any) as? [String: Any] {
+        for (k, v) in ValueSerializer.serializeDeepObject("criteriaDeep", value: dict) {
+          queryParams[k] = v
+        }
+      }
+    }
+    if let options = options, let val = options.fingerprint {
+      queryParams["fingerprint"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "fingerprint", value: val, location: "query", schemaType: "Data", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
 
-    let headerParams: [String: String] = [:]
+    var headerParams: [String: String] = [:]
+    if let options = options, let val = options.xCriteria {
+      headerParams["X-Criteria"] =
+        "\(ValueSerializer.serializeStyled("X-Criteria", value: val, location: "header", schemaType: "PetCriteria", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    }
+    if let options = options, let val = options.xFingerprint {
+      headerParams["X-Fingerprint"] =
+        "\(ValueSerializer.serializeStyled("X-Fingerprint", value: val, location: "header", schemaType: "Data", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    }
 
     let requestBody: Any? = nil
     let params = InvokeAPIParams(
@@ -1280,6 +1405,9 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     if let val = options.renewalDate {
       formBody["renewalDate"] = val
     }
+    if let val = options.reminder {
+      formBody["reminder"] = val
+    }
 
     let requestBody: Any? = formBody
     let params = InvokeAPIParams(
@@ -1455,6 +1583,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     }
     if let val = options.notes {
       formBody["notes"] = val
+    }
+    if let val = options.isPrimary {
+      formBody["isPrimary"] = val
+    }
+    if let val = options.pageCount {
+      formBody["pageCount"] = val
+    }
+    if let val = options.takenAt {
+      formBody["takenAt"] = val
+    }
+    if let val = options.swatch {
+      formBody["swatch"] = val
     }
 
     /* This operation declares more than one request content-type. The

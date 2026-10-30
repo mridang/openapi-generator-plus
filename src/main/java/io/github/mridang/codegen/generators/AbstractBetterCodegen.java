@@ -1930,6 +1930,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * pre-escaped for string-literal use (a quote becomes {@code \"}); wrapping a
      * doc comment's description in this lambda reverses that escaping so the
      * comment prose reads naturally.
+     *
+     * <p>Also registers {@code quotedLiteral}, which renders raw spec text as
+     * this language's complete quoted string literal with the same escaping
+     * as a string enum constant ({@link #toServerEnumLiteral}), for templates
+     * that have no language-specific string lambda, and {@code singleLine},
+     * which folds a multi-line text onto one line for a line comment, and
+     * {@code doubleQuoted}, a JSON/TOML basic string (see
+     * {@link #toDoubleQuotedLiteral}) for manifests.
      */
     @Override
     protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
@@ -1937,7 +1945,39 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 .put(
                         "unescapeDocComment",
                         (fragment, writer) ->
-                                writer.write(unescapeDocComment(fragment.execute())));
+                                writer.write(unescapeDocComment(fragment.execute())))
+                .put(
+                        "quotedLiteral",
+                        (fragment, writer) ->
+                                writer.write(toServerEnumLiteral(fragment.execute())))
+                .put(
+                        "doubleQuoted",
+                        (fragment, writer) ->
+                                writer.write(toDoubleQuotedLiteral(fragment.execute())))
+                .put(
+                        "singleLine",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .replaceAll("\\s*[\\r\\n]+\\s*", " ")
+                                                .trim()));
+    }
+
+    /**
+     * Renders text as a double-quoted JSON or TOML basic string: backslash,
+     * quote and CR/LF/TAB escaped, whatever the SDK language.
+     *
+     * @param text the raw text
+     * @return the quoted literal
+     */
+    static String toDoubleQuotedLiteral(String text) {
+        return "\""
+                + text.replace("\\", "\\\\")
+                        .replace("\"", "\\\"")
+                        .replace("\r", "\\r")
+                        .replace("\n", "\\n")
+                        .replace("\t", "\\t")
+                + "\"";
     }
 
     /** Reverses string-literal escaping for doc-comment prose. */
@@ -2231,12 +2271,31 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     @Override
     public String toVarName(String name) {
-        name = sanitizeName(name);
+        name = digitLeadingFallback(sanitizeName(name));
         name = applyVarNameCasing(name);
-        if (shouldEscapeReservedVarName(name) || name.matches("^\\d.*")) {
+        if (shouldEscapeReservedVarName(name)) {
             name = escapeReservedWord(name);
         }
         return name;
+    }
+
+    /**
+     * Prefixes a digit-leading sanitised identifier with the letter
+     * {@code n} so it becomes a legal public identifier in every
+     * language once cased ({@code 2fa} becomes {@code n2fa}, PascalCase
+     * {@code N2fa}). A punctuation prefix or suffix is not legal or not
+     * public everywhere (an underscore is private in Dart, unexported in
+     * Go, rejected by pydantic and CA1707), so the digit case never goes
+     * through {@link #escapeReservedWord}. The wire name is kept by the
+     * property's {@code baseName}.
+     *
+     * @param sanitized the output of {@link #sanitizeName}
+     * @return the name, prefixed with {@code n} when it starts with a digit
+     */
+    protected static String digitLeadingFallback(String sanitized) {
+        return !sanitized.isEmpty() && Character.isDigit(sanitized.charAt(0))
+                ? "n" + sanitized
+                : sanitized;
     }
 
     /**
@@ -2269,9 +2328,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     public String toParamName(String name) {
         final NamingConvention paramCasing = getParamCasing();
         if (paramCasing != null) {
-            final String sanitized = sanitizeName(name);
+            final String sanitized = digitLeadingFallback(sanitizeName(name));
             final String cased = paramCasing.apply(sanitized);
-            if (isReservedWord(cased) || cased.matches("^\\d.*")) {
+            if (isReservedWord(cased)) {
                 return escapeReservedWord(cased);
             }
             return cased;
@@ -2397,11 +2456,88 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final String cased = getEnumCasing().apply(sanitized);
         final String cleaned =
                 cased.replaceFirst("^_", "").replaceFirst("_$", "");
-        if (cleaned.matches("\\d.*")) {
-            return "_" + cleaned;
+        if (cleaned.replace("_", "").isEmpty()) {
+            return getEnumCasing().apply(emptyIdentifierFallback(value));
+        }
+        if (Character.isDigit(cleaned.charAt(0))) {
+            // A letter, not an underscore: see digitLeadingFallback.
+            return getEnumCasing().apply("n") + cleaned;
         }
         // Reserved-word escape after casing
         return isReservedWord(cleaned) ? escapeReservedWord(cleaned) : cleaned;
+    }
+
+    /**
+     * Returns the deterministic stand-in for a value whose sanitised
+     * identifier is empty: {@code SPACE_<length>} for a whitespace-only
+     * value, otherwise {@code VALUE_} followed by the upper-hex code
+     * points joined by {@code _} ({@code @@} gives
+     * {@code VALUE_0040_0040}). The caller applies its casing.
+     *
+     * @param value the raw (non-empty) value
+     * @return the uncased fallback identifier
+     */
+    protected static String emptyIdentifierFallback(String value) {
+        if (value.isBlank()) {
+            return "SPACE_" + value.length();
+        }
+        final StringBuilder hex = new StringBuilder("VALUE");
+        value.codePoints()
+                .forEach(cp -> hex.append('_').append(String.format(Locale.ROOT, "%04X", cp)));
+        return hex.toString();
+    }
+
+    /**
+     * Gives every constant of one enum a distinct name: a later constant
+     * whose name equals an earlier one gets a {@code _2}, {@code _3}
+     * suffix in declaration order ({@code 2}, {@code 3} for a name
+     * without underscores), so {@code a-b} and {@code a_b} do not
+     * declare the same constant twice. Wire values are untouched. Runs
+     * before the upstream pass so that pass finds nothing to rename.
+     */
+    @Override
+    protected void postProcessEnumVars(List<Map<String, Object>> enumVars) {
+        dedupeEnumNames(enumVars, "name");
+        super.postProcessEnumVars(enumVars);
+    }
+
+    /**
+     * Renames, in declaration order, every entry whose {@code key} value
+     * repeats an earlier entry's, appending {@code _<n>} (or {@code <n>}
+     * when the name has no underscore) with the smallest {@code n >= 2}
+     * that is still free.
+     *
+     * @param entries the enum entries, mutated in place
+     * @param key the map key holding the constant name
+     */
+    @SuppressWarnings("unchecked")
+    protected static void dedupeEnumNames(List<? extends Map<String, ?>> entries, String key) {
+        final Set<String> taken = new HashSet<>();
+        for (final Map<String, ?> entry : entries) {
+            final Object current = entry.get(key);
+            if (current != null) {
+                taken.add(String.valueOf(current));
+            }
+        }
+        final Set<String> seen = new HashSet<>();
+        for (final Map<String, ?> entry : entries) {
+            final Object current = entry.get(key);
+            if (current == null) {
+                continue;
+            }
+            final String name = String.valueOf(current);
+            if (seen.add(name)) {
+                continue;
+            }
+            final String separator = name.contains("_") ? "_" : "";
+            String unique = name;
+            for (int n = 2; taken.contains(unique); n++) {
+                unique = name + separator + n;
+            }
+            taken.add(unique);
+            seen.add(unique);
+            ((Map<String, Object>) entry).put(key, unique);
+        }
     }
 
     /**
@@ -2562,6 +2698,19 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Returns whether {@link #escapeEnumStringValue} rewrites CR, LF and TAB
+     * as {@code \r}, {@code \n}, {@code \t}. Defaults to {@code true}. Ruby
+     * and PHP return {@code false}: their single-quoted literals interpret
+     * only {@code \\} and the quote, so {@code \n} would be a literal
+     * backslash-n while a raw newline is legal.
+     *
+     * @return whether control characters are escaped in enum literals
+     */
+    protected boolean escapesEnumControlCharacters() {
+        return true;
+    }
+
+    /**
      * Escapes control characters and special sequences in a string enum value
      * before quoting. Applies each pair from {@link #getEnumStringEscapes()} in
      * order via {@link String#replaceAll}. Default is a no-op when no escapes
@@ -2571,6 +2720,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * @return the escaped value
      */
     protected String escapeEnumStringValue(String value) {
+        // (1) the backslash first, so no later escape is doubled; (2) the
+        // quote character is escaped by quoteEnumValue; (3) control
+        // characters, except where the literal form keeps them raw; (4) the
+        // language's own rules (interpolation sigils) from the table.
+        value = value.replace("\\", "\\\\");
+        if (escapesEnumControlCharacters()) {
+            value = value.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t");
+        }
         for (final String[] escape : getEnumStringEscapes()) {
             value = value.replaceAll(escape[0], escape[1]);
         }
@@ -3892,13 +4049,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * {@link #shouldEscapeQuotationMark()}.
      */
     protected final String quoteEnumValue(String value) {
+        // Always escaped, never stripped: stripping changes the wire value
+        // (o'clock would be sent as oclock). shouldEscapeQuotationMark only
+        // governs escapeQuotationMark for other text.
         final char q = getQuoteChar();
-        final String qs = String.valueOf(q);
-        final String cleaned =
-                shouldEscapeQuotationMark()
-                        ? value.replace(qs, "\\" + q)
-                        : value.replace(qs, "");
-        return q + cleaned + q;
+        return q + value.replace(String.valueOf(q), "\\" + q) + q;
     }
 
     /**
@@ -4535,9 +4690,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * {@code serverTypeDefs} and {@code hasServerTypeDefs}
      * in the operations map so templates can generate typesafe
      * server selection types with variant names and variables.
+     *
+     * <p>Naming is computed once here so every language gets legal, unique
+     * names. A variant is named after its description in PascalCase, or
+     * {@code Server<index>} when that is empty, does not start with a
+     * letter, or repeats an earlier variant's name or a variable's type
+     * name. A variable enum keeps the plain {@code enumTypeName}
+     * ({@code Region}) when its variable name occurs in one variant of the
+     * operation; when it occurs in two or more, each variant's enum is
+     * {@code <VariantName><Var>} ({@code MirrorRegion}), because the value
+     * sets may differ and are never merged. Each enum is also listed once
+     * in {@code serverEnums}. Enum constant names are legal upper-snake
+     * identifiers ({@code a&b} is {@code A_B}, {@code it's} is
+     * {@code IT_S}), unique within the enum; {@code literal} is the
+     * value as this language's quoted string literal.
      */
     @SuppressWarnings("unchecked")
-    private static void enrichOperationServers(
+    void enrichOperationServers(
             List<CodegenOperation> ops, Map<String, Object> operations) {
         final List<Map<String, Object>> serverTypeDefs = new ArrayList<>();
         for (final CodegenOperation op : ops) {
@@ -4548,17 +4717,28 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             typeDef.put("operationId", op.operationId);
             typeDef.put("serverTypeName", NamingConvention.PASCAL_CASE.apply(op.operationId) + "Server");
 
+            final Map<String, Integer> enumVarUses = new HashMap<>();
+            final Set<String> plainTypeNames = new HashSet<>();
+            for (final CodegenServer server : op.servers) {
+                for (final CodegenServerVariable v :
+                        Optional.ofNullable(server.variables).orElse(List.of())) {
+                    if (v.enumValues != null && !v.enumValues.isEmpty()) {
+                        enumVarUses.merge(v.name, 1, Integer::sum);
+                        plainTypeNames.add(NamingConvention.PASCAL_CASE.apply(v.name));
+                    }
+                }
+            }
+
             final List<Map<String, Object>> variants = new ArrayList<>();
+            final List<Map<String, Object>> serverEnums = new ArrayList<>();
+            final Set<String> variantNames = new HashSet<>();
             for (int i = 0; i < op.servers.size(); i++) {
                 final CodegenServer server = op.servers.get(i);
                 final Map<String, Object> variant = new HashMap<>();
 
-                final int serverIndex = i;
                 final String variantName =
-                        Optional.ofNullable(server.description)
-                                .filter(d -> !d.isBlank())
-                                .map(d -> NamingConvention.PASCAL_CASE.apply(d.replaceAll("[^a-zA-Z0-9]+", "_").trim()))
-                                .orElse("Server" + serverIndex);
+                        serverVariantName(server.description, i, variantNames, plainTypeNames);
+                variantNames.add(variantName);
                 variant.put("variantName", variantName);
                 variant.put("variantNameLower", NamingConvention.CAMEL_CASE.apply(variantName));
                 variant.put("url", server.url);
@@ -4578,9 +4758,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     final List<Map<String, Object>> vars = new ArrayList<>();
                     for (final CodegenServerVariable v : server.variables) {
                         final Map<String, Object> varMap = new HashMap<>();
+                        final String pascalName = NamingConvention.PASCAL_CASE.apply(v.name);
                         varMap.put("name", v.name);
                         varMap.put("camelName", NamingConvention.CAMEL_CASE.apply(v.name));
-                        varMap.put("pascalName", NamingConvention.PASCAL_CASE.apply(v.name));
+                        varMap.put("pascalName", pascalName);
                         varMap.put("snakeName", NamingConvention.SNAKE_CASE.apply(v.name));
                         varMap.put("defaultValue", v.defaultValue);
                         final boolean hasEnum =
@@ -4589,21 +4770,31 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                         .isPresent();
                         varMap.put("hasEnumValues", hasEnum);
                         if (hasEnum) {
+                            final String enumTypeName =
+                                    enumVarUses.getOrDefault(v.name, 0) > 1
+                                            ? variantName + pascalName
+                                            : pascalName;
+                            varMap.put("enumTypeName", enumTypeName);
                             final List<Map<String, String>> enumVals = new ArrayList<>();
                             for (final String e : v.enumValues) {
                                 final Map<String, String> ev = new HashMap<>();
-                                final String evName =
-                                        NamingConvention.UPPER_SNAKE_CASE.apply(
-                                                e.replace(".", "_"));
-                                ev.put("name", evName);
+                                ev.put("name", serverEnumConstantName(e));
                                 ev.put("value", e);
-                                // Precomputed lowercase form so templates can use
-                                // {{nameLowercase}} instead of invoking
-                                // {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}.
-                                ev.put("nameLowercase", evName.toLowerCase(java.util.Locale.ROOT));
+                                ev.put("literal", toServerEnumLiteral(e));
                                 enumVals.add(ev);
                             }
+                            dedupeEnumNames(enumVals, "name");
+                            // Precomputed lowercase form so templates can use
+                            // {{nameLowercase}} instead of invoking
+                            // {{#lambda.lowercase}}{{name}}{{/lambda.lowercase}}.
+                            for (final Map<String, String> ev : enumVals) {
+                                ev.put("nameLowercase", String.valueOf(ev.get("name")).toLowerCase(Locale.ROOT));
+                            }
                             varMap.put("enumValues", enumVals);
+                            final Map<String, Object> serverEnum = new HashMap<>(varMap);
+                            serverEnum.put("typeName", enumTypeName);
+                            serverEnum.put("variantName", variantName);
+                            serverEnums.add(serverEnum);
                         }
                         vars.add(varMap);
                     }
@@ -4612,12 +4803,80 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 variants.add(variant);
             }
             typeDef.put("variants", variants);
+            typeDef.put("serverEnums", serverEnums);
+            typeDef.put("hasServerEnums", !serverEnums.isEmpty());
             typeDef.put("multipleVariants", variants.size() > 1);
             serverTypeDefs.add(typeDef);
         }
 
         operations.put("serverTypeDefs", serverTypeDefs);
         operations.put("hasServerTypeDefs", !serverTypeDefs.isEmpty());
+    }
+
+    /**
+     * Names a server variant: the PascalCase of its description, falling
+     * back to {@code Server<index>} when that is empty, does not start with
+     * a letter, or equals an earlier variant's name or an enum type name of
+     * the operation; the index is appended again while the fallback still
+     * collides.
+     *
+     * @param description the server description, may be {@code null}
+     * @param index the server's position in the operation's list
+     * @param earlier the names of the earlier variants
+     * @param typeNames the plain enum type names of the operation
+     * @return a legal, unique variant name
+     */
+    static String serverVariantName(
+            @Nullable String description, int index, Set<String> earlier, Set<String> typeNames) {
+        final String fromDescription =
+                description == null || description.isBlank()
+                        ? ""
+                        : NamingConvention.PASCAL_CASE.apply(
+                                description.replaceAll("[^a-zA-Z0-9]+", "_").trim());
+        if (!fromDescription.isEmpty()
+                && Character.isLetter(fromDescription.charAt(0))
+                && !earlier.contains(fromDescription)
+                && !typeNames.contains(fromDescription)) {
+            return fromDescription;
+        }
+        String name = "Server" + index;
+        while (earlier.contains(name) || typeNames.contains(name)) {
+            name = name + index;
+        }
+        return name;
+    }
+
+    /**
+     * Turns a server variable enum value into a legal upper-snake constant
+     * name: every run of characters outside {@code [A-Za-z0-9]} becomes one
+     * underscore ({@code a&b} is {@code A_B}, {@code it's} {@code IT_S}), a
+     * value with no letter or digit takes {@link #emptyIdentifierFallback},
+     * and a name that starts with a number gets the letter {@code N}.
+     *
+     * @param value the raw enum value
+     * @return the constant name (not yet unique within its enum)
+     */
+    static String serverEnumConstantName(String value) {
+        final String cleaned =
+                value.replaceAll("[^A-Za-z0-9]+", "_").replaceAll("^_+|_+$", "");
+        if (cleaned.isEmpty()) {
+            return value.isEmpty() ? "EMPTY" : emptyIdentifierFallback(value);
+        }
+        final String name = NamingConvention.UPPER_SNAKE_CASE.apply(cleaned);
+        return Character.isDigit(name.charAt(0)) ? "N" + name : name;
+    }
+
+    /**
+     * Returns a server variable enum value as this language's quoted string
+     * literal, with the same escaping as a string enum constant (see
+     * {@link #escapeEnumStringValue} and {@link #quoteEnumValue}), so a
+     * template can emit {@code {{{literal}}}} without any further escaping.
+     *
+     * @param value the raw enum value
+     * @return the quoted literal
+     */
+    protected String toServerEnumLiteral(String value) {
+        return quoteEnumValue(escapeEnumStringValue(value));
     }
 
     /**

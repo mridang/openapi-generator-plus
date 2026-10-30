@@ -18,11 +18,11 @@ namespace PetstoreClient\Api;
  */
 final class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer
 {
-    private readonly GetMultiServerPetInfoServerRegion $region;
+    private readonly GetMultiServerPetInfoServerMirrorRegion $region;
     private readonly GetMultiServerPetInfoServerChannel $channel;
 
     public function __construct(
-        GetMultiServerPetInfoServerRegion $region,
+        GetMultiServerPetInfoServerMirrorRegion $region,
         GetMultiServerPetInfoServerChannel $channel,
     ) {
         $this->region = $region;

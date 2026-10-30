@@ -10,17 +10,17 @@ end
 
 {{#variants}}
 {{#serverVariables}}{{#hasEnumValues}}
-defmodule {{moduleName}}.Api.{{serverTypeName}}.{{pascalName}} do
+defmodule {{moduleName}}.Api.{{serverTypeName}}.{{enumTypeName}} do
   @moduledoc "Valid values for {{name}} in {{serverTypeName}}."
 {{#enumValues}}
-  def {{nameLowercase}}, do: "{{value}}"
+  def {{nameLowercase}}, do: {{{literal}}}
 {{/enumValues}}
 end
 {{/hasEnumValues}}{{/serverVariables}}
 
 defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
   {{#hasDescription}}
-  @moduledoc "{{{description}}}"
+  @moduledoc {{#lambda.quotedLiteral}}{{{description}}}{{/lambda.quotedLiteral}}
   {{/hasDescription}}
   {{^hasDescription}}
   @moduledoc "{{variantName}} server variant."
@@ -45,7 +45,7 @@ defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
   {{#hasEnumValues}}
     # Like the global ServerConfiguration, refuse a value outside the variable's
     # enum: it would otherwise be spliced into the request host unchecked.
-    allowed_{{snakeName}} = [{{#enumValues}}"{{value}}"{{^-last}}, {{/-last}}{{/enumValues}}]
+    allowed_{{snakeName}} = [{{#enumValues}}{{{literal}}}{{^-last}}, {{/-last}}{{/enumValues}}]
 
     if server.{{snakeName}} not in allowed_{{snakeName}} do
       raise ArgumentError,
@@ -68,15 +68,15 @@ end
 {{/serverTypeDefs}}
 
 defmodule {{moduleName}}.Api.{{classname}} do
-  @moduledoc """
+  @moduledoc ~S"""
   {{classname}} provides functions for the {{baseName}} API group.
   {{#tagDescription}}
 
-  {{{.}}}
+  {{#lambda.singleLine}}{{{.}}}{{/lambda.singleLine}}
   {{/tagDescription}}
   {{#tagExternalDocs}}
 
-  See [{{{description}}}]({{url}})
+  See [{{#lambda.singleLine}}{{{description}}}{{/lambda.singleLine}}]({{{url}}})
   {{/tagExternalDocs}}
   """
 

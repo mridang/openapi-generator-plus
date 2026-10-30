@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -21,7 +21,7 @@ defmodule PetstoreClient.Servers do
       url = PetstoreClient.Servers.server_1() |> PetstoreClient.ServerConfiguration.url(%{"environment" => "staging"})
   """
 
-  @doc """
+  @doc ~S"""
   Server 0: /api/v3
 
   Relative URL (no variables)
@@ -35,7 +35,7 @@ defmodule PetstoreClient.Servers do
     }
   end
 
-  @doc """
+  @doc ~S"""
   Server 1: https://{environment}.example.com/api/{version}
 
   Main API server with variables
@@ -60,6 +60,26 @@ defmodule PetstoreClient.Servers do
     }
   end
 
+  @doc ~S"""
+  Server 2: https://{tenant}.example.com/api
+
+  Bob's "sandbox" & co: $5 #{x} a*/b
+  """
+  @spec server_2() :: PetstoreClient.ServerConfiguration.t()
+  def server_2 do
+    %PetstoreClient.ServerConfiguration{
+      url_template: "https://{tenant}.example.com/api",
+      description: "Bob's \"sandbox\" & co: $5 \#{x} a*/b",
+      variables: %{
+        "tenant" => %PetstoreClient.ServerVariable{
+          default_value: "o'neil",
+          description: "Tenant's \"id\"",
+          enum_values: ["o'neil", "a&b"]
+        }
+      }
+    }
+  end
+
   @doc """
   All server configurations in declaration order.
   """
@@ -67,7 +87,8 @@ defmodule PetstoreClient.Servers do
   def all do
     [
       server_0(),
-      server_1()
+      server_1(),
+      server_2()
     ]
   end
 end

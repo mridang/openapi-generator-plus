@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -105,6 +105,10 @@ internal enum ValueSerializer {
       )
     }
   }
+
+  /// A `format: uuid` path parameter is a `UUID`, which is never empty, so
+  /// there is nothing to reject; the overload keeps the call sites uniform.
+  static func requirePathParam(_ paramName: String, _ value: UUID, operation: String) throws {}
 
   /// Serialize a value with OAS 3.0 parameter style formatting.
   ///

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -11,8 +11,10 @@ defmodule PetstoreClient.Api.Options.GetPetByNameOptions do
   """
 
   @type t :: %__MODULE__{
-          category: String.t()
+          category: String.t(),
+          x_correlation_id: String.t()
         }
 
-  defstruct category: nil
+  defstruct category: nil,
+            x_correlation_id: nil
 end

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -21,7 +21,15 @@ defmodule PetstoreClient.Models.EdgeCases do
           class: String.t() | nil,
           return: String.t() | nil,
           retry_after: Duration.t() | nil,
-          expires_at: DateTime.t() | nil
+          expires_at: DateTime.t() | nil,
+          n2fa: boolean() | nil,
+          separator: PetstoreClient.Models.Separator.t() | nil,
+          null: String.t() | nil,
+          _true: boolean() | nil,
+          _false: boolean() | nil,
+          last_error: PetstoreClient.Models.Error.t() | nil,
+          outcome: PetstoreClient.Models.Result.t() | nil,
+          cutoff: Time.t() | nil
         }
 
   defstruct [
@@ -34,7 +42,15 @@ defmodule PetstoreClient.Models.EdgeCases do
     :class,
     :return,
     :retry_after,
-    :expires_at
+    :expires_at,
+    :n2fa,
+    :separator,
+    :null,
+    :_true,
+    :_false,
+    :last_error,
+    :outcome,
+    :cutoff
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -50,7 +66,15 @@ defmodule PetstoreClient.Models.EdgeCases do
       class: "class",
       return: "return",
       retry_after: "retryAfter",
-      expires_at: "expiresAt"
+      expires_at: "expiresAt",
+      n2fa: "2fa",
+      separator: "separator",
+      null: "null",
+      _true: "true",
+      _false: "false",
+      last_error: "lastError",
+      outcome: "outcome",
+      cutoff: "cutoff"
     }
   end
 
@@ -88,7 +112,15 @@ defmodule PetstoreClient.Models.EdgeCases do
       class: "String.t()",
       return: "String.t()",
       retry_after: "Duration.t()",
-      expires_at: "DateTime.t()"
+      expires_at: "DateTime.t()",
+      n2fa: "boolean()",
+      separator: "Separator",
+      null: "String.t()",
+      _true: "boolean()",
+      _false: "boolean()",
+      last_error: "Error",
+      outcome: "Result",
+      cutoff: "Time.t()"
     }
   end
 end

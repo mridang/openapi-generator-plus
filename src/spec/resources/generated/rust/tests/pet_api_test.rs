@@ -1250,7 +1250,7 @@ fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
     );
     assert_eq!(
         GetMultiServerPetInfoServerRegional {
-            region: GetMultiServerPetInfoServerRegion::EU
+            region: GetMultiServerPetInfoServerRegionalRegion::EU
         }
         .get_url(),
         "https://eu.example.com/v1"
@@ -1284,7 +1284,7 @@ async fn test_pet_api_operation_server_is_the_host_of_the_request() {
     };
     let _ = api.get_staging_pet_info(7, Some(&staging)).await;
     let regional = GetMultiServerPetInfoServerRegional {
-        region: GetMultiServerPetInfoServerRegion::AP,
+        region: GetMultiServerPetInfoServerRegionalRegion::AP,
     };
     let _ = api.get_multi_server_pet_info(7, Some(&regional)).await;
     let _ = api

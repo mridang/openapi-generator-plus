@@ -16,8 +16,8 @@ enum Availability {
   /// Represents the value 'on-hold'.
   onHold('on-hold'),
 
-  /// Represents the value 'oclock'.
-  oclock('oclock'),
+  /// Represents the value 'o\'clock'.
+  oclock('o\'clock'),
 
   /// Represents the value 'a\\b'.
   ab('a\\b'),

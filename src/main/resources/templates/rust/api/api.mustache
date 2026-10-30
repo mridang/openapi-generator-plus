@@ -25,26 +25,26 @@ pub trait {{serverTypeName}} {
     fn get_url(&self) -> String;
 }
 {{#variants}}
-{{#serverVariables}}{{#declareEnum}}
+{{#serverVariables}}{{#hasEnumValues}}
 
 /// Valid values for the {{name}} server variable in {{serverTypeName}}.
 #[derive(Debug, Clone)]
-pub enum {{serverTypeName}}{{pascalName}} {
+pub enum {{serverTypeName}}{{enumTypeName}} {
 {{#enumValues}}
     {{name}},
 {{/enumValues}}
 }
 
-impl {{serverTypeName}}{{pascalName}} {
+impl {{serverTypeName}}{{enumTypeName}} {
     pub fn as_str(&self) -> &str {
         match self {
 {{#enumValues}}
-            Self::{{name}} => "{{#lambda.rustString}}{{{value}}}{{/lambda.rustString}}",
+            Self::{{name}} => {{{literal}}},
 {{/enumValues}}
         }
     }
 }
-{{/declareEnum}}{{/serverVariables}}
+{{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
 {{#variants}}
 
@@ -52,7 +52,7 @@ impl {{serverTypeName}}{{pascalName}} {
 #[derive(Debug, Clone)]
 pub struct {{serverTypeName}}{{variantName}} {
 {{#serverVariables}}
-    pub {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}},
+    pub {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}},
 {{/serverVariables}}
 }
 

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -68,10 +68,20 @@ class GetMultiServerPetInfoServer(ABC):
         ...
 
 
-class GetMultiServerPetInfoServerRegion(str, Enum):
+class GetMultiServerPetInfoServerRegionalRegion(str, Enum):
     US = "us"
     EU = "eu"
     AP = "ap"
+
+
+class GetMultiServerPetInfoServerMirrorRegion(str, Enum):
+    US = "us"
+    EU = "eu"
+
+
+class GetMultiServerPetInfoServerChannel(str, Enum):
+    A_B = "a&b"
+    IT_S = "it's"
 
 
 class GetMultiServerPetInfoServerPrimary(GetMultiServerPetInfoServer):
@@ -88,12 +98,30 @@ class GetMultiServerPetInfoServerPrimary(GetMultiServerPetInfoServer):
 class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
     """Regional"""
 
-    def __init__(self, region: GetMultiServerPetInfoServerRegion) -> None:
+    def __init__(self, region: GetMultiServerPetInfoServerRegionalRegion) -> None:
         self._region = region
 
     def get_url(self) -> str:
         url = "https://{region}.example.com/v1"
         url = url.replace("{" + "region" + "}", self._region.value)
+        return url
+
+
+class GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServer):
+    """Mirror"""
+
+    def __init__(
+        self,
+        region: GetMultiServerPetInfoServerMirrorRegion,
+        channel: GetMultiServerPetInfoServerChannel,
+    ) -> None:
+        self._region = region
+        self._channel = channel
+
+    def get_url(self) -> str:
+        url = "https://{region}.mirror.example.com/{channel}/v1"
+        url = url.replace("{" + "region" + "}", self._region.value)
+        url = url.replace("{" + "channel" + "}", self._channel.value)
         return url
 
 
@@ -156,10 +184,12 @@ class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
 
 class PetApi(BaseApi):
     """PetApi provides methods for the pet API group.
-    Everything about your Pets
+        Everything about your Pets
+    (globs like /pets/* and /pets/**/ and an id of #{petId})
 
-    .. seealso::
-        `Find out more about pets <https://example.com/docs/pets>`_
+        .. seealso::
+            `Find out more about pets (it's */ here)
+    on two lines <https://example.com/docs/pets>`_
     """
 
     def __init__(
@@ -702,6 +732,19 @@ class PetApi(BaseApi):
                 ),
                 False,
             )
+        if options is not None and options.n2nd_page is not None:
+            query_params["2ndPage"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "2ndPage",
+                    options.n2nd_page,
+                    "query",
+                    "StrictInt",
+                    None,
+                    "form",
+                    True,
+                ),
+                False,
+            )
         header_params: Dict[str, str] = {}
         if options is not None and options.report_date is not None:
             header_params["Report-Date"] = str(
@@ -1141,6 +1184,15 @@ class PetApi(BaseApi):
                 "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
             )
 
+        if (
+            options is None
+            or options.x_correlation_id is None
+            or options.x_correlation_id == ""
+        ):
+            raise ValueError(
+                "Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name"
+            )
+
         path = "/pet/byName/{name}"
         path = path.replace(
             "{" + "name" + "}",
@@ -1165,6 +1217,18 @@ class PetApi(BaseApi):
                 False,
             )
         header_params: Dict[str, str] = {}
+        if options is not None and options.x_correlation_id is not None:
+            header_params["X-Correlation-Id"] = str(
+                ValueSerializer.serialize_styled(
+                    "X-Correlation-Id",
+                    options.x_correlation_id,
+                    "header",
+                    "StrictStr",
+                    None,
+                    "simple",
+                    False,
+                )
+            )
         body = None
 
         return await self._invoke_api_for_result(
@@ -1330,6 +1394,71 @@ class PetApi(BaseApi):
             None,
         )
 
+    async def get_pet_summary(
+        self,
+        pet_id: StrictInt,
+    ) -> StrictStr:
+        """Get a plain-text summary of the pet
+        :param pet_id:  (required)
+
+        :return: StrictStr
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_pet_summary_with_http_info(pet_id)
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_pet_summary but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_pet_summary_with_http_info(
+        self,
+        pet_id: StrictInt,
+    ) -> "ApiResult[StrictStr]":
+        """Get a plain-text summary of the pet (with HTTP info)
+        :param pet_id:  (required)
+
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError(
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
+            )
+
+        path = "/pet/{petId}/summary"
+        path = path.replace(
+            "{" + "petId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "petId", pet_id, "path", "StrictInt", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["text/plain"],
+            "application/json",
+            "StrictStr",
+            None,
+        )
+
     async def get_pet_tag(
         self,
         pet_id: StrictInt,
@@ -1447,7 +1576,76 @@ class PetApi(BaseApi):
                 ),
                 True,
             )
+        if options is not None and options.criteria is not None:
+            query_params["criteria"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "criteria",
+                    options.criteria,
+                    "query",
+                    "PetCriteria",
+                    None,
+                    "form",
+                    True,
+                ),
+                False,
+            )
+        if options is not None and options.criteria_csv is not None:
+            query_params["criteriaCsv"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "criteriaCsv",
+                    options.criteria_csv,
+                    "query",
+                    "PetCriteria",
+                    None,
+                    "form",
+                    False,
+                ),
+                False,
+            )
+        if options is not None and options.criteria_deep is not None:
+            query_params.update(
+                ValueSerializer.serialize_deep_object(
+                    "criteriaDeep", options.criteria_deep
+                )
+            )
+        if options is not None and options.fingerprint is not None:
+            query_params["fingerprint"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "fingerprint",
+                    options.fingerprint,
+                    "query",
+                    "bytes",
+                    None,
+                    "form",
+                    True,
+                ),
+                False,
+            )
         header_params: Dict[str, str] = {}
+        if options is not None and options.x_criteria is not None:
+            header_params["X-Criteria"] = str(
+                ValueSerializer.serialize_styled(
+                    "X-Criteria",
+                    options.x_criteria,
+                    "header",
+                    "PetCriteria",
+                    None,
+                    "simple",
+                    False,
+                )
+            )
+        if options is not None and options.x_fingerprint is not None:
+            header_params["X-Fingerprint"] = str(
+                ValueSerializer.serialize_styled(
+                    "X-Fingerprint",
+                    options.x_fingerprint,
+                    "header",
+                    "bytes",
+                    None,
+                    "simple",
+                    False,
+                )
+            )
         body = None
 
         return await self._invoke_api_for_result(
@@ -1756,6 +1954,8 @@ class PetApi(BaseApi):
             body["note"] = options.note
         if options is not None and options.renewal_date is not None:
             body["renewalDate"] = options.renewal_date
+        if options is not None and options.reminder is not None:
+            body["reminder"] = options.reminder
 
         return await self._invoke_api_for_result(
             "POST",
@@ -1996,6 +2196,14 @@ class PetApi(BaseApi):
             body["documentType"] = options.document_type
         if options is not None and options.notes is not None:
             body["notes"] = options.notes
+        if options is not None and options.is_primary is not None:
+            body["isPrimary"] = options.is_primary
+        if options is not None and options.page_count is not None:
+            body["pageCount"] = options.page_count
+        if options is not None and options.taken_at is not None:
+            body["takenAt"] = options.taken_at
+        if options is not None and options.swatch is not None:
+            body["swatch"] = options.swatch
         # This operation declares more than one request content type. The
         # optional request_content_type selector overrides the Content-Type
         # header; when omitted it defaults to the first declared type. An

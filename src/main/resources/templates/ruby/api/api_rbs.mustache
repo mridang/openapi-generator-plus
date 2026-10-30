@@ -6,13 +6,13 @@ module {{moduleName}}
       def url: () -> String
     end
 {{#variants}}
-{{#serverVariables}}{{#rubyEmitEnumModule}}
-    module {{serverTypeName}}{{pascalName}}
-{{#rubyEnumModuleValues}}
+{{#serverVariables}}{{#hasEnumValues}}
+    module {{serverTypeName}}{{enumTypeName}}
+{{#enumValues}}
       {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}: String
-{{/rubyEnumModuleValues}}
+{{/enumValues}}
     end
-{{/rubyEmitEnumModule}}{{/serverVariables}}
+{{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
 {{#variants}}
     class {{serverTypeName}}{{variantName}} < {{serverTypeName}}

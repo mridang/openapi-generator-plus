@@ -39,9 +39,9 @@ class {{serverTypeName}}(ABC):
 {{#variants}}
 {{#serverVariables}}{{#hasEnumValues}}
 
-class {{serverTypeName}}{{pascalName}}(str, Enum):
+class {{serverTypeName}}{{enumTypeName}}(str, Enum):
 {{#enumValues}}
-    {{name}} = '{{value}}'
+    {{name}} = {{{literal}}}
 {{/enumValues}}
 {{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
@@ -52,7 +52,7 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
     """{{{description}}}"""
 {{/hasDescription}}
 
-    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
+    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
 {{#serverVariables}}
         self._{{snakeName}} = {{snakeName}}
 {{/serverVariables}}

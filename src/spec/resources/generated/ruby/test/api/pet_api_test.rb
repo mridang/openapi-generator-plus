@@ -1322,7 +1322,7 @@ describe Petstore::Client::Api::PetApi do
       end
       regional = url_sent_to(
         Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(
-          region: Petstore::Client::Api::GetMultiServerPetInfoServerRegion::EU
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::EU
         )
       ) { |api, server| api.get_multi_server_pet_info(7, server: server) }
 

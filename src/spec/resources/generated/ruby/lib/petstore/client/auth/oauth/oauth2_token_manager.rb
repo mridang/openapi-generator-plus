@@ -225,9 +225,11 @@ module Petstore::Client
         end
 
         def require_api_client
-          @api_client || raise('ApiClient has not been injected. ' \
-                               'Ensure the Petstore constructor calls api_client= ' \
-                               'on HttpAwareAuthenticator before making API requests.')
+          @api_client || raise(
+            'ApiClient has not been injected. ' \
+            'Ensure the Petstore constructor calls api_client= ' \
+            'on HttpAwareAuthenticator before making API requests.'
+          )
         end
 
         def apply_token_response(parsed)

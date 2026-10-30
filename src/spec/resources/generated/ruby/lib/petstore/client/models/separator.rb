@@ -19,13 +19,13 @@ module Petstore::Client
   module Models
     # String enum whose values sanitise to an empty or colliding identifier
     class Separator
-      EMPTY = ' '
-      EMPTY2 = '@@'
+      SPACE_1 = ' '
+      VALUE_0040_0040 = '@@'
       A_B = 'a-b'
-      A_B2 = 'a_b'
+      A_B_2 = 'a_b'
 
       # Frozen set of all allowed values, used for validation.
-      VALUES = [EMPTY, EMPTY2, A_B, A_B2].freeze
+      VALUES = [SPACE_1, VALUE_0040_0040, A_B, A_B_2].freeze
 
       def self.all_vars
         VALUES

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -14,7 +14,7 @@ defmodule PetstoreClient.Models.Availability do
   """
 
   @typedoc "One of the allowed enum atoms for Availability."
-  @type t :: :available | :sold | :on_hold
+  @type t :: :available | :sold | :on_hold | :oclock | :a_b | :eq | :x
   @doc "Enum value `available`"
   def available, do: :available
 
@@ -24,10 +24,22 @@ defmodule PetstoreClient.Models.Availability do
   @doc "Enum value `on_hold`"
   def on_hold, do: :on_hold
 
+  @doc "Enum value `oclock`"
+  def oclock, do: :oclock
+
+  @doc "Enum value `a_b`"
+  def a_b, do: :a_b
+
+  @doc "Enum value `eq`"
+  def eq, do: :eq
+
+  @doc "Enum value `x`"
+  def x, do: :x
+
   @doc "All allowed values as atoms."
   @spec all_values() :: [t(), ...]
   def all_values do
-    [available(), sold(), on_hold()]
+    [available(), sold(), on_hold(), oclock(), a_b(), eq(), x()]
   end
 
   @doc "Map an atom to its wire string value."
@@ -35,6 +47,10 @@ defmodule PetstoreClient.Models.Availability do
   def value(:available), do: "Available"
   def value(:sold), do: "Sold"
   def value(:on_hold), do: "on-hold"
+  def value(:oclock), do: "o'clock"
+  def value(:a_b), do: "a\\b"
+  def value(:eq), do: "$eq"
+  def value(:x), do: "\#{x}"
 
   @doc """
   Map a wire value back to its atom — the inverse of `value/1`.
@@ -49,5 +65,9 @@ defmodule PetstoreClient.Models.Availability do
   def from_value("Available"), do: :available
   def from_value("Sold"), do: :sold
   def from_value("on-hold"), do: :on_hold
+  def from_value("o'clock"), do: :oclock
+  def from_value("a\\b"), do: :a_b
+  def from_value("$eq"), do: :eq
+  def from_value("\#{x}"), do: :x
   def from_value(value), do: {:error, value}
 end

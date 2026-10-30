@@ -820,46 +820,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return false;
     }
 
-    /** {@inheritDoc} */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        if (!value.isEmpty() && value.trim().isEmpty()) {
-            return "SPACE_" + value.length();
-        }
-        final String name = super.toEnumVarName(value, datatype);
-        if (name.isEmpty() || "_".equals(name)) {
-            /* Nothing of the value survives sanitising (e.g. "@@"): spell the
-             * code points so the case name is legal and stable. */
-            final StringBuilder sb = new StringBuilder("VALUE");
-            value.codePoints().forEach(cp ->
-                    sb.append(String.format(java.util.Locale.ROOT, "_%04X", cp)));
-            return sb.toString();
-        }
-        if (name.matches("_\\d.*")) {
-            return "N" + name.substring(1);
-        }
-        return name;
-    }
-
     /**
-     * A digit-leading name gets the letter {@code n} in front before casing
-     * instead of the reserved-word suffix, because a PHP identifier cannot
-     * start with a digit whatever follows it.
+     * A single-quoted PHP literal interprets only {@code \\} and {@code \'},
+     * so control characters stay raw in enum literals.
      */
     @Override
-    public String toVarName(String name) {
-        return super.toVarName(digitLeadingFallback(name));
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    public String toParamName(String name) {
-        return super.toParamName(digitLeadingFallback(name));
-    }
-
-    private String digitLeadingFallback(String name) {
-        final String sanitized = sanitizeName(name);
-        return sanitized.matches("^\\d.*") ? "n" + sanitized : name;
+    protected boolean escapesEnumControlCharacters() {
+        return false;
     }
 
     /** {@inheritDoc} */
@@ -1491,13 +1458,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 final Map<String, Object> phpCase = new HashMap<>(ev);
                                 phpCase.put("name",
                                         toPhpEnumCaseName(String.valueOf(ev.get("name"))));
-                                phpCase.put("value",
-                                        escapePhpSingleQuoted(String.valueOf(ev.get("value"))));
                                 phpCases.add(phpCase);
                             }
                             ctx.put("enumValues", phpCases);
                             writePhpClassFile(apiFileFolder(),
-                                    serverTypeName + var.get("pascalName"),
+                                    serverTypeName + var.get("enumTypeName"),
                                     "api/server_variable_enum.mustache", ctx);
                         }
                     }

@@ -18,3 +18,4 @@ from .upload_pet_document_options import (
 )
 from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions
 from .get_stock_item_options import GetStockItemOptions as GetStockItemOptions
+from .search_store_options import SearchStoreOptions as SearchStoreOptions

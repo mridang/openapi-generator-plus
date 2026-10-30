@@ -9,7 +9,7 @@ public final class FindPetsByStatusOptions {
   @Deprecated @Nullable private String status;
   @Nullable private Map<String, String> filter;
   @Nullable private LocalDate bornAfter;
-  @Nullable private Integer _2ndPage;
+  @Nullable private Integer n2ndPage;
   @Nullable private LocalDate reportDate;
 
   /** Creates an options instance with the required parameters. */
@@ -97,11 +97,11 @@ public final class FindPetsByStatusOptions {
   /**
    * Sets the {@code 2ndPage} parameter.
    *
-   * @param _2ndPage the {@code 2ndPage} parameter
+   * @param n2ndPage the {@code 2ndPage} parameter
    * @return this options instance for chaining
    */
-  public FindPetsByStatusOptions _2ndPage(Integer _2ndPage) {
-    this._2ndPage = _2ndPage;
+  public FindPetsByStatusOptions n2ndPage(Integer n2ndPage) {
+    this.n2ndPage = n2ndPage;
     return this;
   }
 
@@ -111,8 +111,8 @@ public final class FindPetsByStatusOptions {
    * @return the {@code 2ndPage} parameter, or {@code null} if unset
    */
   @Nullable
-  public Integer _2ndPage() {
-    return _2ndPage;
+  public Integer n2ndPage() {
+    return n2ndPage;
   }
 
   /**

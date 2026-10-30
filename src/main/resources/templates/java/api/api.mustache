@@ -54,7 +54,7 @@ public class {{classname}} extends BaseApi {
 {{#hasEnumValues}}
 
         /** Allowed values for the {@code {{name}}} server variable. */
-        enum {{pascalName}} {
+        enum {{enumTypeName}} {
 {{#enumValues}}
             /** The {@code {{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}} value. */
             {{name}}("{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
@@ -62,7 +62,7 @@ public class {{classname}} extends BaseApi {
 
             private final String value;
 
-            {{pascalName}}(String value) {
+            {{enumTypeName}}(String value) {
                 this.value = value;
             }
 
@@ -87,7 +87,7 @@ public class {{classname}} extends BaseApi {
          * @param {{camelName}} the {@code {{name}}} server variable
 {{/serverVariables}}
          */
-        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
+        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
 
             @Override
             public String getUrl() {

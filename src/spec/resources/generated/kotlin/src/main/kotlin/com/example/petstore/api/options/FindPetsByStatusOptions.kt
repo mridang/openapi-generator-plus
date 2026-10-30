@@ -18,7 +18,7 @@ class FindPetsByStatusOptions(
     val filter: Map<String, String>? = null,
     /** Only return pets born on or after this date */
     val bornAfter: LocalDate? = null,
-    val _2ndPage: Int? = null,
+    val n2ndPage: Int? = null,
     /** Reference date for the report */
     val reportDate: LocalDate? = null,
 )

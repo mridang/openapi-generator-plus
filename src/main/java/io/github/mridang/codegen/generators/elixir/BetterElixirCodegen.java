@@ -179,6 +179,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return NamingConvention.SNAKE_CASE;
     }
 
+    /**
+     * Neutralises the hash-brace interpolation opener of an Elixir string
+     * literal (after the shared backslash doubling), so a value such as
+     * hash-brace-x-brace stays the four characters it is on the wire.
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"#\\{", "\\\\#{"});
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getFilenameCasing() {
@@ -481,7 +491,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             if (resolved.getEnum() != null && !resolved.getEnum().isEmpty()) {
                 return ":\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
             } else if (ModelUtils.isStringSchema(resolved)) {
-                return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+                // The shared literal escape, so #{ cannot interpolate and the
+                // default is exactly the spec string.
+                return quoteEnumValue(escapeEnumStringValue(String.valueOf(resolved.getDefault())));
             } else if (ModelUtils.isBooleanSchema(resolved)) {
                 return resolved.getDefault().toString();
             } else if (ModelUtils.isIntegerSchema(resolved)

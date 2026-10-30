@@ -766,8 +766,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 return Boolean.parseBoolean(unaliased.getDefault().toString()) ? "True" : "False";
             }
             if (ModelUtils.isStringSchema(unaliased)) {
-                String val = unaliased.getDefault().toString();
-                return "'" + val.replace("'", "\\'") + "'";
+                // Same literal escaping as a string enum constant: backslash,
+                // quote and control characters, so the default evaluates to
+                // exactly the spec string.
+                return quoteEnumValue(escapeEnumStringValue(unaliased.getDefault().toString()));
             }
             return unaliased.getDefault().toString();
         }
@@ -942,7 +944,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // Only an inline enum's reference ({@code ModeEnum.MEDIUM}) is
+        // qualified; a number default such as 1.5 also contains a dot.
         if (prop.defaultValue != null
+                && prop.isEnum
                 && prop.defaultValue.contains(".")
                 && !prop.defaultValue.startsWith("'")
                 && !prop.defaultValue.startsWith(model.classname)) {

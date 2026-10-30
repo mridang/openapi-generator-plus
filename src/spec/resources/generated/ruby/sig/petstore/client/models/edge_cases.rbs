@@ -14,7 +14,7 @@ module Petstore::Client::Models
     attr_reader _return: String?
     attr_reader retry_after: ISO8601::Duration?
     attr_reader expires_at: Time?
-    attr_reader _2fa: bool?
+    attr_reader n2fa: bool?
     attr_reader separator: Separator?
     attr_reader null: String?
     attr_reader _true: bool?

@@ -17,15 +17,15 @@ module {{moduleName}}
     end
 {{#variants}}
 {{#serverVariables}}
-{{#rubyEmitEnumModule}}
+{{#hasEnumValues}}
 
     # Valid values for {{name}} in {{serverTypeName}}.
-    module {{serverTypeName}}{{pascalName}}
-{{#rubyEnumModuleValues}}
-      {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}} = '{{#lambda.rubyQuoted}}{{{value}}}{{/lambda.rubyQuoted}}'
-{{/rubyEnumModuleValues}}
+    module {{serverTypeName}}{{enumTypeName}}
+{{#enumValues}}
+      {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}} = {{{literal}}}
+{{/enumValues}}
     end
-{{/rubyEmitEnumModule}}
+{{/hasEnumValues}}
 {{/serverVariables}}
 {{/variants}}
 {{#variants}}
@@ -42,7 +42,7 @@ module {{moduleName}}
         super()
 {{#serverVariables}}
 {{#hasEnumValues}}
-        allowed = [{{#enumValues}}{{serverTypeName}}{{pascalName}}::{{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}{{^-last}}, {{/-last}}{{/enumValues}}]
+        allowed = [{{#enumValues}}{{serverTypeName}}{{enumTypeName}}::{{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}{{^-last}}, {{/-last}}{{/enumValues}}]
         unless allowed.include?({{snakeName}})
           raise ArgumentError, format("Invalid value '%<value>s' for server variable '{{name}}'. Allowed values: %<allowed>s", value: {{snakeName}}, allowed: allowed)
         end

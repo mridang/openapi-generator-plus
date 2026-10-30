@@ -3,7 +3,7 @@
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
+import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegionalRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
 import type { AddPetOptions, UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
@@ -1051,7 +1051,7 @@ describe('PetApi against a recording client', () => {
   test('the generated operation-server variants resolve the URLs the spec declares', () => {
     expect(new GetExternalPetInfoServerServer0().getUrl()).toBe('https://external-api.example.com/v1');
     expect(new GetMultiServerPetInfoServerPrimary().getUrl()).toBe('https://primary.example.com/v1');
-    expect(new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.EU).getUrl()).toBe(
+    expect(new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.EU).getUrl()).toBe(
       'https://eu.example.com/v1',
     );
     expect(
@@ -1084,7 +1084,7 @@ describe('PetApi against a recording client', () => {
 
   test.each([
     [new GetMultiServerPetInfoServerPrimary(), 'https://primary.example.com/v1/'],
-    [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.AP), 'https://ap.example.com/v1/'],
+    [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP), 'https://ap.example.com/v1/'],
   ])('getMultiServerPetInfo sends the request to the chosen one of several servers', async (server, prefix) => {
     await recordingApi.getMultiServerPetInfo(1, server);
 

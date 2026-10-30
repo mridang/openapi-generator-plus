@@ -16,8 +16,9 @@ namespace PetstoreClient\Api;
 /**
  * Allowed values of the region server variable of GetMultiServerPetInfoServer.
  */
-enum GetMultiServerPetInfoServerRegion: string
+enum GetMultiServerPetInfoServerRegionalRegion: string
 {
     case US = 'us';
     case EU = 'eu';
+    case AP = 'ap';
 }

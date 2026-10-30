@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -13,10 +13,18 @@ defmodule PetstoreClient.Api.Options.UploadPetDocumentOptions do
   @type t :: %__MODULE__{
           file: binary(),
           document_type: String.t() | nil,
-          notes: String.t() | nil
+          notes: String.t() | nil,
+          is_primary: boolean() | nil,
+          page_count: integer() | nil,
+          taken_at: DateTime.t() | nil,
+          swatch: PetstoreClient.Models.Swatch.t() | nil
         }
 
   defstruct file: nil,
             document_type: nil,
-            notes: nil
+            notes: nil,
+            is_primary: nil,
+            page_count: nil,
+            taken_at: nil,
+            swatch: nil
 end

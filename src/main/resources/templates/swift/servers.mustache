@@ -24,13 +24,13 @@ public enum Servers {
     ///
     /// {{serverDescription}}{{/serverDescription}}
     public static let server{{serverIndex}} = ServerConfiguration(
-        urlTemplate: "{{{serverUrl}}}",
-        description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
+        urlTemplate: {{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
+        description: {{#lambda.quotedLiteral}}{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}{{/lambda.quotedLiteral}},
         variables: {{#hasVariables}}[
 {{#serverVariables}}            "{{{varName}}}": ServerVariable(
-                defaultValue: "{{{varDefault}}}",
-                description: "{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
-                enumValues: {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+                defaultValue: {{#lambda.quotedLiteral}}{{{varDefault}}}{{/lambda.quotedLiteral}},
+                description: {{#lambda.quotedLiteral}}{{#varDescription}}{{{varDescription}}}{{/varDescription}}{{/lambda.quotedLiteral}},
+                enumValues: {{#hasEnumValues}}[{{#varEnumValues}}{{#lambda.quotedLiteral}}{{{.}}}{{/lambda.quotedLiteral}}{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
             ){{^-last}},{{/-last}}
 {{/serverVariables}}        ]{{/hasVariables}}{{^hasVariables}}[:]{{/hasVariables}}
     )

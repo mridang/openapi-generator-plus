@@ -60,7 +60,7 @@ class PetApi : BaseApi {
     sealed interface GetMultiServerPetInfoServer {
         fun getUrl(): String
 
-        enum class Region(
+        enum class RegionalRegion(
             val value: String,
         ) {
             US("us"),
@@ -89,7 +89,7 @@ class PetApi : BaseApi {
 
         /** Regional */
         data class Regional(
-            val region: Region,
+            val region: RegionalRegion,
         ) : GetMultiServerPetInfoServer {
             override fun getUrl(): String {
                 var url = "https://{region}.example.com/v1"
@@ -533,10 +533,10 @@ class PetApi : BaseApi {
                     false,
                 )
         }
-        if (options?._2ndPage != null) {
+        if (options?.n2ndPage != null) {
             queryParams["2ndPage"] =
                 ValueSerializer.maybeAllowReserved(
-                    ValueSerializer.serializeStyled("2ndPage", options!!._2ndPage, "query", "Int", null, "form", true),
+                    ValueSerializer.serializeStyled("2ndPage", options!!.n2ndPage, "query", "Int", null, "form", true),
                     false,
                 )
         }

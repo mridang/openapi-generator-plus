@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -26,6 +26,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
           link_template: String.t() | nil,
           owner_email: String.t() | nil,
           weight_kg: float() | nil,
+          nickname: String.t() | nil,
           owner_name: String.t()
         }
 
@@ -47,6 +48,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
     :link_template,
     :owner_email,
     :weight_kg,
+    :nickname,
     :owner_name
   ]
 
@@ -66,6 +68,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
       link_template: "linkTemplate",
       owner_email: "ownerEmail",
       weight_kg: "weightKg",
+      nickname: "nickname",
       owner_name: "ownerName"
     }
   end
@@ -110,6 +113,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
       link_template: "String.t()",
       owner_email: "String.t()",
       weight_kg: "float()",
+      nickname: "String.t()",
       owner_name: "String.t()"
     }
   end

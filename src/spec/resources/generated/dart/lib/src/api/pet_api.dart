@@ -54,13 +54,22 @@ abstract class GetMultiServerPetInfoServer {
 }
 
 /// Valid values for the region server variable in GetMultiServerPetInfoServer.
-enum GetMultiServerPetInfoServerRegion {
+enum GetMultiServerPetInfoServerRegionalRegion {
   US('us'),
   EU('eu'),
   AP('ap');
 
   final String value;
-  const GetMultiServerPetInfoServerRegion(this.value);
+  const GetMultiServerPetInfoServerRegionalRegion(this.value);
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+enum GetMultiServerPetInfoServerMirrorRegion {
+  US('us'),
+  EU('eu');
+
+  final String value;
+  const GetMultiServerPetInfoServerMirrorRegion(this.value);
 }
 
 /// Valid values for the channel server variable in GetMultiServerPetInfoServer.
@@ -85,10 +94,11 @@ class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
 
 /// Regional
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
-  final GetMultiServerPetInfoServerRegion _region;
+  final GetMultiServerPetInfoServerRegionalRegion _region;
 
-  GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
-    : _region = region;
+  GetMultiServerPetInfoServerRegional(
+    GetMultiServerPetInfoServerRegionalRegion region,
+  ) : _region = region;
 
   @override
   String getUrl() {
@@ -105,11 +115,11 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
 
 /// Mirror
 class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
-  final GetMultiServerPetInfoServerRegion _region;
+  final GetMultiServerPetInfoServerMirrorRegion _region;
   final GetMultiServerPetInfoServerChannel _channel;
 
   GetMultiServerPetInfoServerMirror(
-    GetMultiServerPetInfoServerRegion region,
+    GetMultiServerPetInfoServerMirrorRegion region,
     GetMultiServerPetInfoServerChannel channel,
   ) : _region = region,
       _channel = channel;

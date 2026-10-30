@@ -187,29 +187,13 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Gives an enum value whose sanitised name is empty (a value made only of
-     * whitespace or symbols, such as {@code " "} or {@code "@@"}) a legal,
-     * deterministic constant name: whitespace-only values become
-     * {@code SPACE_<length>}, anything else {@code VALUE_<hex code points>}.
+     * Escapes the {@code $} template sigil of a Kotlin string literal; the
+     * backslash, the quote and the control characters are escaped by the
+     * shared enum literal escape.
      */
     @Override
-    public String toEnumVarName(String value, String datatype) {
-        final String name = super.toEnumVarName(value, datatype);
-        if (!name.isEmpty()) {
-            return name;
-        }
-        if (value.isBlank()) {
-            return "SPACE_" + value.length();
-        }
-        final StringBuilder sb = new StringBuilder("VALUE");
-        value.codePoints().forEach(cp -> sb.append(String.format("_%04X", cp)));
-        return sb.toString();
-    }
-
-    /** String enum values become Kotlin string literals, so escape them as such. */
-    @Override
-    protected String escapeEnumStringValue(String value) {
-        return escapeKotlinString(value);
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"\\$", "\\\\\\$"});
     }
 
     /**
@@ -319,77 +303,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                 .put(
                         "kdoc",
                         (fragment, writer) -> writer.write(escapeKdoc(fragment.execute())));
-    }
-
-    /**
-     * Makes the operation-server enum types compile: a variable whose enum
-     * type name repeats one an earlier variant of the same operation already
-     * declared is qualified with its variant name (the second {@code region}
-     * becomes {@code MirrorRegion}), and each enum constant name is reduced to
-     * a legal identifier while the wire value is kept verbatim.
-     */
-    @Override
-    @SuppressWarnings("unchecked")
-    public org.openapitools.codegen.model.OperationsMap postProcessOperationsWithModels(
-            org.openapitools.codegen.model.OperationsMap objs, List<ModelMap> allModels) {
-        final org.openapitools.codegen.model.OperationsMap result =
-                super.postProcessOperationsWithModels(objs, allModels);
-        final Object ops = result.get("operations");
-        if (!(ops instanceof Map)) {
-            return result;
-        }
-        final Object defs = ((Map<String, Object>) ops).get("serverTypeDefs");
-        if (!(defs instanceof List)) {
-            return result;
-        }
-        for (final Map<String, Object> typeDef : (List<Map<String, Object>>) defs) {
-            final Set<String> seenTypes = new HashSet<>();
-            final Object variants = typeDef.get("variants");
-            if (!(variants instanceof List)) {
-                continue;
-            }
-            for (final Map<String, Object> variant : (List<Map<String, Object>>) variants) {
-                final Object vars = variant.get("serverVariables");
-                if (!(vars instanceof List)) {
-                    continue;
-                }
-                for (final Map<String, Object> var : (List<Map<String, Object>>) vars) {
-                    if (!Boolean.TRUE.equals(var.get("hasEnumValues"))) {
-                        continue;
-                    }
-                    String typeName = String.valueOf(var.get("pascalName"));
-                    if (!seenTypes.add(typeName)) {
-                        typeName = variant.get("variantName") + typeName;
-                        seenTypes.add(typeName);
-                    }
-                    var.put("pascalName", typeName);
-                    final Set<String> seenNames = new HashSet<>();
-                    final Object enumValues = var.get("enumValues");
-                    if (!(enumValues instanceof List)) {
-                        continue;
-                    }
-                    for (final Map<String, String> ev : (List<Map<String, String>>) enumValues) {
-                        String name =
-                                String.valueOf(ev.get("name"))
-                                        .replaceAll("[^A-Za-z0-9_]+", "_")
-                                        .replaceAll("^_+|_+$", "");
-                        if (name.isEmpty()) {
-                            name = "VALUE";
-                        } else if (Character.isDigit(name.charAt(0))) {
-                            name = "N" + name;
-                        }
-                        String unique = name;
-                        int n = 2;
-                        while (!seenNames.add(unique)) {
-                            unique = name + "_" + n++;
-                        }
-                        ev.put("name", unique);
-                        ev.put("valueLiteral", escapeKotlinString(ev.get("value")));
-                    }
-                }
-            }
-        }
-        return result;
     }
 
     /** {@inheritDoc} */

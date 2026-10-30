@@ -874,12 +874,12 @@ public class PetApi extends BaseApi {
                   "bornAfter", options.bornAfter(), "query", "LocalDate", null, "form", true),
               false));
     }
-    if (options != null && options._2ndPage() != null) {
+    if (options != null && options.n2ndPage() != null) {
       queryParams.put(
           "2ndPage",
           ValueSerializer.maybeAllowReserved(
               ValueSerializer.serializeStyled(
-                  "2ndPage", options._2ndPage(), "query", "Integer", null, "form", true),
+                  "2ndPage", options.n2ndPage(), "query", "Integer", null, "form", true),
               false));
     }
     Map<String, String> headerParams = new HashMap<>();

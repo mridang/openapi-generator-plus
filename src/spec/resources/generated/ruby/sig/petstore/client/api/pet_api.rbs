@@ -11,10 +11,15 @@ module Petstore::Client
       def url: () -> String
     end
 
-    module GetMultiServerPetInfoServerRegion
+    module GetMultiServerPetInfoServerRegionalRegion
       US: String
       EU: String
       AP: String
+    end
+
+    module GetMultiServerPetInfoServerMirrorRegion
+      US: String
+      EU: String
     end
 
     module GetMultiServerPetInfoServerChannel

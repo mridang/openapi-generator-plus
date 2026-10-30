@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -39,7 +39,7 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Primary do
   end
 end
 
-defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Region do
+defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.RegionalRegion do
   @moduledoc "Valid values for region in GetMultiServerPetInfoServer."
   def us, do: "us"
   def eu, do: "eu"
@@ -70,6 +70,56 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Regional do
 
     "https://{region}.example.com/v1"
     |> String.replace("{" <> "region" <> "}", to_string(server.region))
+  end
+end
+
+defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.MirrorRegion do
+  @moduledoc "Valid values for region in GetMultiServerPetInfoServer."
+  def us, do: "us"
+  def eu, do: "eu"
+end
+
+defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Channel do
+  @moduledoc "Valid values for channel in GetMultiServerPetInfoServer."
+  def a_b, do: "a&b"
+  def it_s, do: "it's"
+end
+
+defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Mirror do
+  @moduledoc "Mirror"
+
+  @behaviour PetstoreClient.Api.GetMultiServerPetInfoServer
+
+  defstruct [:region, :channel]
+
+  @type t :: %__MODULE__{
+          region: String.t(),
+          channel: String.t()
+        }
+
+  @impl true
+  def url(%__MODULE__{} = server) do
+    # Like the global ServerConfiguration, refuse a value outside the variable's
+    # enum: it would otherwise be spliced into the request host unchecked.
+    allowed_region = ["us", "eu"]
+
+    if server.region not in allowed_region do
+      raise ArgumentError,
+            "Invalid value '#{server.region}' for server variable 'region'. Allowed values: #{inspect(allowed_region)}"
+    end
+
+    # Like the global ServerConfiguration, refuse a value outside the variable's
+    # enum: it would otherwise be spliced into the request host unchecked.
+    allowed_channel = ["a&b", "it's"]
+
+    if server.channel not in allowed_channel do
+      raise ArgumentError,
+            "Invalid value '#{server.channel}' for server variable 'channel'. Allowed values: #{inspect(allowed_channel)}"
+    end
+
+    "https://{region}.mirror.example.com/{channel}/v1"
+    |> String.replace("{" <> "region" <> "}", to_string(server.region))
+    |> String.replace("{" <> "channel" <> "}", to_string(server.channel))
   end
 end
 
@@ -147,12 +197,12 @@ defmodule PetstoreClient.Api.GetStagingPetInfoServer.StagingServer do
 end
 
 defmodule PetstoreClient.Api.PetApi do
-  @moduledoc """
+  @moduledoc ~S"""
   PetApi provides functions for the Pet API group.
 
-  Everything about your Pets
+  Everything about your Pets (globs like /pets/* and /pets/**/ and an id of #{petId})
 
-  See [Find out more about pets](https://example.com/docs/pets)
+  See [Find out more about pets (it's */ here) on two lines](https://example.com/docs/pets)
   """
 
   @type t :: %__MODULE__{
@@ -1123,6 +1173,28 @@ defmodule PetstoreClient.Api.PetApi do
         query_params
       end
 
+    query_params =
+      if not is_nil(options) and not is_nil(options.n2nd_page) and options.n2nd_page != [] do
+        Map.put(
+          query_params,
+          "2ndPage",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "2ndPage",
+              options.n2nd_page,
+              :query,
+              "integer()",
+              nil,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
     header_params = %{}
 
     header_params =
@@ -1880,6 +1952,11 @@ defmodule PetstoreClient.Api.PetApi do
             "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
+    if is_nil(options) or is_nil(options.x_correlation_id) or options.x_correlation_id == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'x_correlation_id' when calling PetApi.get_pet_by_name"
+    end
+
     path = "/pet/byName/{name}"
 
     path =
@@ -1923,6 +2000,27 @@ defmodule PetstoreClient.Api.PetApi do
       end
 
     header_params = %{}
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.x_correlation_id) do
+        Map.put(
+          header_params,
+          "X-Correlation-Id",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "X-Correlation-Id",
+            options.x_correlation_id,
+            :header,
+            "String.t()",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -2182,6 +2280,114 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
+  Get a plain-text summary of the pet
+
+  ## Parameters
+    * `pet_id` - integer()
+
+    * `opts` - Keyword list.
+
+  ## Returns
+
+    * `{:ok, String.t()}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_pet_summary(t(), integer(), keyword()) ::
+          {:ok, String.t()} | {:error, Exception.t()}
+  def get_pet_summary(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_summary_with_http_info(api, pet_id, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for get_pet_summary but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_pet_summary`. Raises on error.
+  """
+  @spec get_pet_summary!(t(), integer(), keyword()) ::
+          String.t()
+  def get_pet_summary!(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_summary(api, pet_id, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_pet_summary` but returns the full `ApiResult`.
+  """
+  @spec get_pet_summary_with_http_info(t(), integer(), keyword()) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  def get_pet_summary_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    # `opts` carries only the keys this operation reads: `:server` when it
+    # declares operation-level servers and `:content_type` when it declares more
+    # than one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [])
+
+    # Operation inherits the global security requirement; pass nil so BaseApi
+    # falls back to the client-level authenticator.
+    auth = nil
+
+    if is_nil(pet_id) do
+      raise ArgumentError,
+            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
+    end
+
+    path = "/pet/{petId}/summary"
+
+    path =
+      String.replace(
+        path,
+        "{petId}",
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "petId",
+          pet_id,
+          :path,
+          "integer()",
+          nil,
+          "simple",
+          false
+        )
+        |> to_string()
+      )
+
+    query_params = %{}
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["text/plain"],
+      "application/json",
+      "String.t()",
+      auth
+    )
+  end
+
+  @doc """
   Get a tag for a pet
 
   ## Parameters
@@ -2414,7 +2620,127 @@ defmodule PetstoreClient.Api.PetApi do
         query_params
       end
 
+    query_params =
+      if not is_nil(options) and not is_nil(options.criteria) and options.criteria != [] do
+        Map.put(
+          query_params,
+          "criteria",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "criteria",
+              options.criteria,
+              :query,
+              "PetCriteria",
+              nil,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.criteria_csv) do
+        Map.put(
+          query_params,
+          "criteriaCsv",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "criteriaCsv",
+              options.criteria_csv,
+              :query,
+              "PetCriteria",
+              nil,
+              "form",
+              false
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and options.criteria_deep do
+        Map.merge(
+          query_params,
+          PetstoreClient.ValueSerializer.serialize_deep_object(
+            "criteriaDeep",
+            options.criteria_deep
+          )
+        )
+      else
+        query_params
+      end
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.fingerprint) and options.fingerprint != [] do
+        Map.put(
+          query_params,
+          "fingerprint",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "fingerprint",
+              options.fingerprint,
+              :query,
+              "binary()",
+              nil,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
     header_params = %{}
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.x_criteria) do
+        Map.put(
+          header_params,
+          "X-Criteria",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "X-Criteria",
+            options.x_criteria,
+            :header,
+            "PetCriteria",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
+    header_params =
+      if not is_nil(options) and not is_nil(options.x_fingerprint) do
+        Map.put(
+          header_params,
+          "X-Fingerprint",
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "X-Fingerprint",
+            options.x_fingerprint,
+            :header,
+            "binary()",
+            nil,
+            "simple",
+            false
+          )
+          |> to_string()
+        )
+      else
+        header_params
+      end
+
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -2951,6 +3277,11 @@ defmodule PetstoreClient.Api.PetApi do
         do: Map.put(request_body, "renewalDate", options.renewal_date),
         else: request_body
 
+    request_body =
+      if not is_nil(options) and not is_nil(options.reminder),
+        do: Map.put(request_body, "reminder", options.reminder),
+        else: request_body
+
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
       :POST,
@@ -3339,6 +3670,26 @@ defmodule PetstoreClient.Api.PetApi do
     request_body =
       if not is_nil(options) and not is_nil(options.notes),
         do: Map.put(request_body, "notes", options.notes),
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.is_primary),
+        do: Map.put(request_body, "isPrimary", options.is_primary),
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.page_count),
+        do: Map.put(request_body, "pageCount", options.page_count),
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.taken_at),
+        do: Map.put(request_body, "takenAt", options.taken_at),
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.swatch),
+        do: Map.put(request_body, "swatch", options.swatch),
         else: request_body
 
     # multiple-declared-consumes: this operation declares more than one request

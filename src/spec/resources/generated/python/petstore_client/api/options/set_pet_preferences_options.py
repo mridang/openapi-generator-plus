@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from pydantic import AwareDatetime
 from pydantic import StrictStr
 from typing import Optional, List
 
@@ -21,3 +22,4 @@ class SetPetPreferencesOptions:
     tags: Optional[List[StrictStr]] = None
     note: Optional[StrictStr] = None
     renewal_date: Optional[date] = None
+    reminder: Optional[AwareDatetime] = None

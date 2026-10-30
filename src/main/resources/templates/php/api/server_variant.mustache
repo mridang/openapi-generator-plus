@@ -11,12 +11,12 @@ final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
 {
 {{#hasVariables}}
 {{#serverVariables}}
-    private readonly {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
+    private readonly {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
 {{/serverVariables}}
 
     public function __construct(
 {{#serverVariables}}
-        {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}},
+        {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}},
 {{/serverVariables}}
     ) {
 {{#serverVariables}}

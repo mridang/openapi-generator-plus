@@ -21,5 +21,5 @@ enum Separator: string
     case SPACE_1 = ' ';
     case VALUE_0040_0040 = '@@';
     case A_B = 'a-b';
-    case A_B2 = 'a_b';
+    case A_B_2 = 'a_b';
 }

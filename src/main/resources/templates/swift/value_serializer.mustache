@@ -98,6 +98,10 @@ internal enum ValueSerializer {
         }
     }
 
+    /// A `format: uuid` path parameter is a `UUID`, which is never empty, so
+    /// there is nothing to reject; the overload keeps the call sites uniform.
+    static func requirePathParam(_ paramName: String, _ value: UUID, operation: String) throws {}
+
     /// Serialize a value with OAS 3.0 parameter style formatting.
     ///
     /// Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited

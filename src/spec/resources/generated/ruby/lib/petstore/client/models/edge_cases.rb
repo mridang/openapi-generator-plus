@@ -31,7 +31,7 @@ module Petstore::Client
         _return: 'return',
         retry_after: 'retryAfter',
         expires_at: 'expiresAt',
-        _2fa: '2fa',
+        n2fa: '2fa',
         separator: 'separator',
         null: 'null',
         _true: 'true',
@@ -56,7 +56,7 @@ module Petstore::Client
         _return: 'String',
         retry_after: 'ISO8601::Duration',
         expires_at: 'Time',
-        _2fa: 'Boolean',
+        n2fa: 'Boolean',
         separator: 'Separator',
         null: 'String',
         _true: 'Boolean',
@@ -101,7 +101,7 @@ module Petstore::Client
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant
       attribute :expires_at, Types::Any.optional.meta(omittable: true)
-      attribute :_2fa, Types::Any.optional.meta(omittable: true)
+      attribute :n2fa, Types::Any.optional.meta(omittable: true)
       attribute :separator, Types::Any.optional.meta(omittable: true)
       attribute :null, Types::Any.optional.meta(omittable: true)
       attribute :_true, Types::Any.optional.meta(omittable: true)
