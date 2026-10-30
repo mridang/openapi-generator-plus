@@ -419,7 +419,7 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// Performs the getOrderByTrackingId operation and returns the full API result.
   public func getOrderByTrackingIdWithHTTPInfo(trackingId: UUID) async throws -> ApiResult<Order> {
     try ValueSerializer.requirePathParam(
-      "trackingId", trackingId, operation: "StoreApi.getOrderByTrackingId")
+      "trackingId", trackingId, style: "simple", operation: "StoreApi.getOrderByTrackingId")
 
     var path = "/store/order/by-tracking/{trackingId}"
     path = path.replacingOccurrences(
@@ -723,10 +723,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
 
     var queryParams: [String: Any?] = [:]
     if let options = options, let val = options.q {
-      // Serialize through ObjectSerializer so a Date-bearing content param
-      // emits RFC 3339 via the shared date-strategy encoder, matching every
-      // other serialization path (a bare JSONEncoder would default to
-      // .deferredToDate and emit epoch-seconds doubles instead).
+      /* Serialize through ObjectSerializer so a Date-bearing content param
+       * emits RFC 3339 via the shared date-strategy encoder, matching every
+       * other serialization path (a bare JSONEncoder would default to
+       * .deferredToDate and emit epoch-seconds doubles instead). */
       if let json = try? ObjectSerializer.serialize(val) {
         queryParams["q"] = json
       }

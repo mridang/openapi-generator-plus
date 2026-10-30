@@ -312,6 +312,61 @@ final class PetApiTests {
             "the selected content-type must override the header, got: \(pngClient.lastHeaders["Content-Type"] ?? "nil")")
     }
 
+    /* A format: binary body is sent verbatim under the JSON selector too:
+     * the selector only changes the header, never the bytes. */
+    @Test func testSetPetAvatarSendsRawBytesUnderTheJsonSelector() async throws {
+        let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
+        let client = MockApiClient()
+        client.responseStatusCode = 200
+        client.responseBody = ""
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config)
+
+        try? await api.setPetAvatar(petId: 1, body: imageData, requestContentType: "application/json")
+
+        #expect(client.lastBody == imageData)
+        #expect(client.lastHeaders["Content-Type"] == "application/json")
+    }
+
+    /* A format: byte JSON body is still base64 encoded: the raw-body rule
+     * applies to format: binary only. */
+    @Test func testSetPetAvatarThumbnailStillSendsBase64Json() async throws {
+        let client = MockApiClient()
+        client.responseStatusCode = 200
+        client.responseBody = ""
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config)
+
+        let thumbnail = SetPetAvatarThumbnailRequest(Data([0xFF, 0xD8, 0xFF, 0xE0]))
+        try? await api.setPetAvatarThumbnail(petId: 1, setPetAvatarThumbnailRequest: thumbnail)
+
+        #expect(String(data: client.lastBody ?? Data(), encoding: .utf8) == "\"/9j/4A==\"")
+    }
+
+    /* The typed multipart fields of uploadPetDocument are plain text parts
+     * in their canonical stringify form, with no part Content-Type. */
+    @Test func testUploadPetDocumentSendsPrimitiveFieldsAsTextParts() async throws {
+        let client = MockApiClient()
+        client.responseStatusCode = 200
+        client.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"success\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config)
+        let takenAt = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+
+        _ = try await api.uploadPetDocument(
+            petId: 1,
+            options: UploadPetDocumentOptions(
+                file: Data("doc".utf8), isPrimary: true, pageCount: 3, takenAt: takenAt, swatch: .red)
+        )
+
+        let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.contains("name=\"isPrimary\"\r\n\r\ntrue\r\n"))
+        #expect(body.contains("name=\"pageCount\"\r\n\r\n3\r\n"))
+        #expect(body.contains("name=\"takenAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n"))
+        #expect(body.contains("name=\"swatch\"\r\n\r\nred\r\n"))
+        #expect(!body.contains("application/json"))
+    }
+
     /* octet-stream-raw-body: uploadPetDocument (POST /pet/{petId}/documents)
      * declares two request content-types — multipart/form-data and
      * application/octet-stream. Selecting application/octet-stream must send
@@ -748,6 +803,23 @@ final class PetApiTests {
         #expect(!body.contains("%20"), "space must not encode as %20, got: \(body)")
     }
 
+    /* A date-time form field is sent in the canonical stringify form. */
+    @Test func testSetPetPreferencesEncodesDateTimeFieldCanonically() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let reminder = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+
+        _ = try await api.setPetPreferences(
+            petId: 1, options: SetPetPreferencesOptions(nickname: "a b", reminder: reminder))
+
+        let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.split(separator: "&").contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"))
+        #expect(!body.contains("%20"))
+    }
+
     // required-nested-param-validation: a missing (empty) REQUIRED path, query,
     // header, form or cookie param must be rejected before the request goes
     // out with ConfigurationError.invalidArgument. getPetByName.name is a
@@ -764,7 +836,8 @@ final class PetApiTests {
         let api = PetApi(apiClient: mockClient, config: config)
 
         let error = await #expect(throws: ConfigurationError.self) {
-            _ = try await api.getPetByName(name: name, options: GetPetByNameOptions(category: category))
+            _ = try await api.getPetByName(
+                name: name, options: GetPetByNameOptions(category: category, xCorrelationId: "c-1"))
         }
         guard case .invalidArgument(let message)? = error else {
             Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
@@ -811,9 +884,48 @@ final class PetApiTests {
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
 
-        let result = try await api.getPetByName(name: "Fido", options: GetPetByNameOptions(category: "dog"))
+        let result = try await api.getPetByName(
+            name: "Fido", options: GetPetByNameOptions(category: "dog", xCorrelationId: "c-1"))
         #expect(result != nil)
         #expect(mockClient.lastURL.contains("category=dog"))
+    }
+
+    /* A simple-style path value of exactly "." or ".." would be resolved as a
+       dot segment and reroute the request, so it is rejected before dispatch. */
+    @Test(arguments: [".", ".."])
+    func testDotSegmentPathParamIsRejected(name: String) async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await api.getPetByName(
+                name: name, options: GetPetByNameOptions(category: "dog", xCorrelationId: "c-1"))
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(message == "Path parameter 'name' must not be '.' or '..'")
+        #expect(mockClient.lastURL.isEmpty, "transport must not be called for a dot-segment path value")
+    }
+
+    /* Dots inside a longer value are not a dot segment and are sent as is. */
+    @Test func testPathParamContainingDotsIsSent() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":1,\"name\":\"x\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetByName(
+            name: "a..b", options: GetPetByNameOptions(category: "dog", xCorrelationId: "c-1"))
+
+        #expect(mockClient.lastURL.hasPrefix("https://example.com/pet/byName/a..b?"))
     }
 
     // query-allow-empty-omitted: findPetsByStatus.status is an optional query

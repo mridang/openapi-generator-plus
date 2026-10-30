@@ -9,8 +9,10 @@ import Foundation
 
 /// Account is a model class generated from the OpenAPI schema.
 public struct Account: Codable, Sendable, Equatable, Hashable {
+  /// - Note: This property is read-only; it is still sent and received.
   public var id: Int64?
   public var username: String
+  /// - Note: This property is write-only; it is still sent and received.
   public var password: String?
 
   enum CodingKeys: String, CodingKey {

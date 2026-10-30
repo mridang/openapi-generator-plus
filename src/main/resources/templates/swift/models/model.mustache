@@ -66,6 +66,12 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     /// {{value}}
     /// ```
 {{/vendorExtensions.pluralExamples}}
+{{#isReadOnly}}
+    /// - Note: This property is read-only; it is still sent and received.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// - Note: This property is write-only; it is still sent and received.
+{{/isWriteOnly}}
 {{#deprecated}}
     @available(*, deprecated, message: "This property is deprecated.")
 {{/deprecated}}

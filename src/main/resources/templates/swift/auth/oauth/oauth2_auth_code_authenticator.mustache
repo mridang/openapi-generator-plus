@@ -22,13 +22,10 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
     private let redirectURI: String
     private let scopes: [String]
     let tokenManager: OAuth2TokenManager
-    /* exchangeCode runs on the callback thread while authHeaders runs on
-       request threads, so the flag is guarded by a lock. */
-    private let stateLock = NSLock()
-    private var storedTokenExchanged: Bool = false
+    /* The exchanged flag lives in the token manager, which sets it under its
+       own lock once an explicit exchange succeeds. */
     private var tokenExchanged: Bool {
-        get { stateLock.withLock { storedTokenExchanged } }
-        set { stateLock.withLock { storedTokenExchanged = newValue } }
+        tokenManager.exchanged
     }
 
     /// Creates a new authorization code authenticator.
@@ -114,8 +111,10 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
             "client_secret": clientSecret,
             "redirect_uri": redirectURI
         ]
-        _ = try await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
-        tokenExchanged = true
+        /* Always POST the authorization_code grant and replace the session:
+         * never a cached token or the stored refresh token. A failed exchange
+         * keeps the previous session. */
+        try await tokenManager.exchange(tokenURL: tokenURL, params: params)
     }
 
     /// Returns the Bearer authentication header with a valid access token,
@@ -128,9 +127,14 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
             throw OAuth2AuthorizationCodeError.codeNotExchanged
         }
 
+        /* RFC 6749 section 6: the refresh grant is authenticated the same way
+         * as the code exchange. The manager posts a refresh grant exactly
+         * once, so a rejected refresh surfaces as OAuth2ServerError. */
         let params: [String: String] = [
             "grant_type": "refresh_token",
             "refresh_token": tokenManager.refreshToken,
+            "client_id": clientID,
+            "client_secret": clientSecret,
         ]
 
         let accessToken = try await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)

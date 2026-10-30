@@ -273,4 +273,114 @@ import Testing
     #expect(!dumped.contains("testpass"), "dump leaked the secret: \(dumped)")
     #expect(Mirror(reflecting: auth).children.isEmpty)
   }
+
+  /* The token body is emitted in the fixed cross-SDK parameter order. */
+  @Test func testPasswordGrantBodyUsesFixedParameterOrder() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      bodyString
+        == "grant_type=password&username=testuser&password=testpass&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+    )
+  }
+
+  /* RFC 6749 section 6: in body mode the refresh grant carries the client
+   * credentials, like the password grant did. */
+  @Test func testRefreshInBodyModeCarriesClientCredentials() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    let headers = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(client.lastURL == "https://auth.example.com/refresh")
+    #expect(
+      bodyString
+        == "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+    )
+    #expect(headers["Authorization"] == "Bearer tok2")
+  }
+
+  /* In Basic mode the refresh grant carries the Basic header and no client
+   * credentials in the body. */
+  @Test func testRefreshInBasicModeCarriesTheBasicHeaderOnly() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      clientAuthMethod: .basic
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    let expected = "Basic " + Data("my-client-id:my-client-secret".utf8).base64EncodedString()
+    #expect(bodyString == "grant_type=refresh_token&refresh_token=ref1")
+    #expect(client.lastHeaders["Authorization"] == expected)
+  }
+
+  /* A rejected refresh re-runs the password grant at the token URL and
+   * returns its token. */
+  @Test func testRejectedRefreshRerunsThePasswordGrant() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    let headers = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      client.urls == [
+        "https://auth.example.com/token", "https://auth.example.com/refresh",
+        "https://auth.example.com/token",
+      ])
+    #expect(bodyString.hasPrefix("grant_type=password&"))
+    #expect(headers["Authorization"] == "Bearer tok3")
+  }
 }

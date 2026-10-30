@@ -175,6 +175,24 @@ import Testing
         }
     }
 
+    @Test func testReadOnlyPropertyIsDecoded() throws {
+        let decoded = try ObjectSerializer.deserialize("{\"id\":7,\"username\":\"u\"}", as: Account.self)
+        #expect(decoded?.id == 7)
+    }
+
+    @Test func testWriteOnlyPropertyIsSerialized() throws {
+        let json = try ObjectSerializer.serialize(Account(username: "u", password: "p"))
+        let data = json.data(using: .utf8)!
+        let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        #expect(parsed?["password"] as? String == "p")
+    }
+
+    @Test func testWriteOnlyPropertyIsDecoded() throws {
+        let json = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
+        let decoded = try ObjectSerializer.deserialize(json, as: Account.self)
+        #expect(decoded?.password == "p")
+    }
+
     // optional-enum-default-omitted: an optional enum field carrying a schema
     // `default` must be initialised to that default case (not nil), so a
     // default-constructed model serialises the default value onto the wire —

@@ -842,4 +842,126 @@ import Testing
         #expect(tokens.allSatisfy { $0 == "tok2" }, "all callers should observe the refreshed token")
         #expect(client.callCount == 2, "invalidate + concurrent callers must produce one refetch, got \(client.callCount)")
     }
+
+    /* A stored refresh token is redeemed at refreshURL; the fallback grant
+     * goes to tokenURL. */
+    @Test func testRefreshGoesToRefreshUrlAndFallbackToTokenUrl() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok3\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+        let refreshURL = "https://auth.example.com/refresh"
+
+        _ = try await manager.getAccessToken(
+            tokenURL: tokenURL, params: authorizationCodeGrant, refreshURL: refreshURL)
+        let token = try await manager.getAccessToken(
+            tokenURL: tokenURL, params: authorizationCodeGrant, refreshURL: refreshURL)
+
+        #expect(token == "tok3")
+        #expect(client.requests.map { $0.url } == [tokenURL, refreshURL, tokenURL])
+    }
+
+    /* Params that already are a refresh grant are posted exactly once: no
+     * internal refresh attempt and no duplicate fallback. */
+    @Test func testRefreshGrantParamsArePostedExactlyOnce() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"unexpected\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+        await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: tokenURL, params: ["grant_type": "refresh_token", "refresh_token": "ref1"])
+        }
+
+        #expect(client.requests.count == 2)
+        #expect(client.requests[1].body == "grant_type=refresh_token&refresh_token=ref1")
+    }
+
+    /* The token body is emitted in the fixed cross-SDK key order, then any
+     * other key sorted. */
+    @Test func testTokenBodyUsesFixedKeyOrder() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        _ = try await manager.getAccessToken(
+            tokenURL: "https://auth.example.com/token",
+            params: [
+                "zeta": "z", "scope": "s", "redirect_uri": "r", "client_secret": "cs", "client_id": "ci",
+                "password": "p", "username": "u", "refresh_token": "rt", "code": "c", "alpha": "a",
+                "grant_type": "g",
+            ])
+
+        #expect(
+            client.requests[0].body
+                == "grant_type=g&code=c&refresh_token=rt&username=u&password=p&client_id=ci&client_secret=cs&redirect_uri=r&scope=s&alpha=a&zeta=z"
+        )
+    }
+
+    /* exchange posts its params even while a cached token is still valid. */
+    @Test func testExchangeBypassesTheCachedToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok2")
+        #expect(client.requests.count == 2)
+        #expect(manager.exchanged)
+    }
+
+    /* exchange never redeems the stored refresh token. */
+    @Test func testExchangeBypassesTheRefreshToken() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(formFields(client.requests[1].body) == authorizationCodeGrant)
+        #expect(manager.refreshToken == "")
+    }
+
+    /* A failed exchange restores the previous session and rethrows. */
+    @Test func testFailedExchangeRestoresThePreviousSession() async throws {
+        let client = MockApiClient()
+        client.responses.append(
+            makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let tokenURL = "https://auth.example.com/token"
+
+        try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        await #expect(throws: OAuth2ServerError.self) {
+            try await manager.exchange(tokenURL: tokenURL, params: authorizationCodeGrant)
+        }
+        let token = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+
+        #expect(token == "tok1")
+        #expect(manager.refreshToken == "ref1")
+        #expect(client.requests.count == 2)
+    }
 }

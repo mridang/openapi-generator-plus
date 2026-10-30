@@ -876,7 +876,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
     -> ApiResult<Pet>
   {
-    try ValueSerializer.requirePathParam("name", name, operation: "PetApi.getPetByName")
+    try ValueSerializer.requirePathParam(
+      "name", name, style: "simple", operation: "PetApi.getPetByName")
     guard !options.category.isEmpty else {
       throw ConfigurationError.invalidArgument(
         "Missing the required parameter 'category' when calling PetApi.getPetByName")
@@ -1094,7 +1095,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   public func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions? = nil)
     async throws -> ApiResult<Pet>
   {
-    try ValueSerializer.requirePathParam("tagName", tagName, operation: "PetApi.getPetTag")
+    try ValueSerializer.requirePathParam(
+      "tagName", tagName, style: "label", operation: "PetApi.getPetTag")
 
     var path = "/pet/{petId}/tag/{tagName}"
     path = path.replacingOccurrences(
@@ -1299,7 +1301,8 @@ public final class PetApi: BaseApi, @unchecked Sendable {
       accepts: [],
       contentType: effectiveRequestContentType,
       returnType: "",
-      auth: nil
+      auth: nil,
+      rawBody: true
     )
 
     return try await invokeAPIForEmptyResult(params)

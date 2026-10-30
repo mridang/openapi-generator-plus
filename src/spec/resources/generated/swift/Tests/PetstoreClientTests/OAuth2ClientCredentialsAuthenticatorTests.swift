@@ -83,6 +83,22 @@ import Testing
     #expect(bodyString.contains("client_secret=my-client-secret"))
   }
 
+  @Test func testTokenBodyUsesFixedParameterOrder() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      bodyString
+        == "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+    )
+  }
+
   @Test func testSendsScopes() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))

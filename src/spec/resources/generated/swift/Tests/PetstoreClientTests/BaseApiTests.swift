@@ -444,6 +444,19 @@ import Testing
     #expect(str == "q=a+b+c")
   }
 
+  @Test func testFormUrlencodedRejectsNestedObject() {
+    let params: [String: Any] = ["location": ["lat": 1.5]]
+    var message: String?
+    do {
+      _ = try BaseApi.serializeBody(params, contentType: "application/x-www-form-urlencoded")
+    } catch let error as SerializationError {
+      message = error.message
+    } catch {
+      message = nil
+    }
+    #expect(message == "form-urlencoded field location must be a scalar or array of scalars")
+  }
+
   @Test func testFormUrlencodedEncodesLiteralPlusAsPercent2B() {
     let params: [String: Any] = ["q": "a+b"]
     let result = try? BaseApi.serializeBody(
@@ -1160,4 +1173,43 @@ import Testing
       Issue.record("expected SerializationError, got \(error)")
     }
   }
+
+  /* Every primitive is a plain text part in its canonical stringify form
+   * with no part Content-Type; only a model is an application/json part. */
+  @Test func testMultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
+    let parser = ISO8601DateFormatter()
+    let instant = parser.date(from: "2024-01-15T10:30:00Z")!
+    let formParts: [String: Any] = [
+      "flag": true,
+      "count": Int64(3),
+      "at": instant,
+      "tint": MultipartEnumFixture.crimson,
+      "meta": MultipartModelPartFixture(isEnabled: true, recordedAt: instant),
+    ]
+    let body = try BaseApi.buildMultipartBody(formParts, boundary: "BOUNDARY")
+    let bodyStr = String(data: body, encoding: .utf8) ?? ""
+
+    #expect(bodyStr.contains("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n"))
+    #expect(bodyStr.contains("Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n"))
+    #expect(
+      bodyStr.contains(
+        "Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n"))
+    #expect(
+      bodyStr.contains("Content-Disposition: form-data; name=\"tint\"\r\n\r\ncrimson-red\r\n"))
+    #expect(
+      bodyStr.contains(
+        "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{"))
+    #expect(bodyStr.components(separatedBy: "Content-Type:").count == 2)
+  }
+}
+
+/// A string enum standing in for a generated enum in the multipart tests.
+private enum MultipartEnumFixture: String, Codable {
+  case crimson = "crimson-red"
+}
+
+/// A Codable struct standing in for a generated model in the multipart tests.
+private struct MultipartModelPartFixture: Codable {
+  let isEnabled: Bool
+  let recordedAt: Date
 }

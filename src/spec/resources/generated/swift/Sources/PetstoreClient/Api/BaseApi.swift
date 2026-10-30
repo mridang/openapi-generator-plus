@@ -86,6 +86,10 @@ public class BaseApi: @unchecked Sendable {
     let contentType: String
     let returnType: String
     let auth: Authenticator?
+    /// True when the operation's body parameter is `format: binary`: the
+    /// caller's bytes are sent unchanged under whichever declared
+    /// Content-Type was selected, never re-encoded as JSON.
+    var rawBody: Bool = false
   }
 
   /// Invoke an API operation and return the raw response, handling URL
@@ -201,7 +205,8 @@ public class BaseApi: @unchecked Sendable {
       headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
       serializedBody = try Self.buildMultipartBody(formFields, boundary: boundary)
     } else {
-      serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
+      serializedBody = try Self.serializeBody(
+        params.body, contentType: params.contentType, rawBody: params.rawBody)
     }
 
     if serializedBody == nil {
@@ -372,9 +377,23 @@ public class BaseApi: @unchecked Sendable {
   /// - Parameters:
   ///   - body: The request body (model object or nil).
   ///   - contentType: The request content type.
+  ///   - rawBody: True for a `format: binary` body parameter, whose bytes
+  ///     are sent verbatim whatever the selected content type (including
+  ///     `application/json`).
   /// - Returns: The encoded body bytes, or nil when there is no body to send.
-  static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
+  static func serializeBody(_ body: Any?, contentType: String, rawBody: Bool = false) throws
+    -> Data?
+  {
     guard let body = body else { return nil }
+
+    if rawBody {
+      if let data = body as? Data {
+        return data
+      }
+      if let str = body as? String {
+        return Data(str.utf8)
+      }
+    }
 
     if contentType == "multipart/form-data" {
       return nil
@@ -406,8 +425,27 @@ public class BaseApi: @unchecked Sendable {
           let pct = s.addingPercentEncoding(withAllowedCharacters: formSafe) ?? s
           return pct.replacingOccurrences(of: "%20", with: "+")
         }
+        /* A model, map or array of objects has no defined encoding in a
+         * form body (the generator does not surface the OAS encoding
+         * style/explode), so it is rejected instead of emitting the
+         * value's Swift description. */
+        func isFormScalar(_ value: Any) -> Bool {
+          let mirror = Mirror(reflecting: value)
+          if mirror.displayStyle == .optional {
+            /* A nil element is skipped by the encoder below. */
+            guard let wrapped = mirror.children.first?.value else { return true }
+            return isFormScalar(wrapped)
+          }
+          return value is String || isMultipartPrimitive(value) || value is Decimal
+        }
         var parts: [String] = []
         for (rawKey, rawValue) in params {
+          let elements: [Any] = (rawValue as? [Any]) ?? [rawValue]
+          if !elements.allSatisfy({ isFormScalar($0) }) {
+            throw SerializationError(
+              message: "form-urlencoded field \(rawKey) must be a scalar or array of scalars"
+            )
+          }
           let key = formEncode(rawKey)
           /* Array values are emitted as repeated keys
            * (`tags=a&tags=b`), never bracketed or joined, matching
@@ -473,15 +511,15 @@ public class BaseApi: @unchecked Sendable {
       body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
       body.append(data)
       body.append(Data("\r\n".utf8))
-    } else if value is String || value is Bool || value is any BinaryInteger
-      || value is any BinaryFloatingPoint
-    {
-      /* Every integer and floating-point width is a plain text part, not
-         just Int and Double: an int64/int32/float field must not be sent
-         as an application/json model part. */
+    } else if value is String || isMultipartPrimitive(value) {
+      /* Every primitive (string, boolean, any integer or floating-point
+         width, date-time, uuid, enum) is a plain text part with no part
+         Content-Type, its body the canonical stringify form; only models
+         and maps become application/json parts. */
+      let text = ObjectSerializer.stringify(value)
       body.append(
         Data(
-          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n"
+          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(text)\r\n"
             .utf8))
     } else {
       /* Model objects -- serialize to JSON */
@@ -497,6 +535,14 @@ public class BaseApi: @unchecked Sendable {
               .utf8))
       }
     }
+  }
+
+  /// Whether a non-string multipart value is a primitive that is written as
+  /// a plain text part: a boolean, any integer or floating-point width, a
+  /// date-time, a uuid, or an enum.
+  static func isMultipartPrimitive(_ value: Any) -> Bool {
+    return value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint
+      || value is Date || value is UUID || value is any RawRepresentable
   }
 
   /// Validates and escapes a value destined for a quoted multipart header.

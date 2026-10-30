@@ -136,7 +136,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
-        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
+        try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, style: "{{style}}", operation: "{{classname}}.{{operationId}}")
 {{/isString}}
 {{#isDate}}
         try ValueSerializer.requirePathParam("{{paramName}}", {{paramName}}, operation: "{{classname}}.{{operationId}}")
@@ -268,10 +268,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            // Serialize through ObjectSerializer so a Date-bearing content param
-            // emits RFC 3339 via the shared date-strategy encoder, matching every
-            // other serialization path (a bare JSONEncoder would default to
-            // .deferredToDate and emit epoch-seconds doubles instead).
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
             if let json = try? ObjectSerializer.serialize(val) {
                 queryParams["{{baseName}}"] = json
             }
@@ -293,10 +293,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            // Serialize through ObjectSerializer so a Date-bearing content param
-            // emits RFC 3339 via the shared date-strategy encoder, matching every
-            // other serialization path (a bare JSONEncoder would default to
-            // .deferredToDate and emit epoch-seconds doubles instead).
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
             if let json = try? ObjectSerializer.serialize(val) {
                 queryParams["{{baseName}}"] = json
             }
@@ -319,10 +319,10 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
-            // Serialize through ObjectSerializer so a Date-bearing content param
-            // emits RFC 3339 via the shared date-strategy encoder, matching every
-            // other serialization path (a bare JSONEncoder would default to
-            // .deferredToDate and emit epoch-seconds doubles instead).
+            /* Serialize through ObjectSerializer so a Date-bearing content param
+             * emits RFC 3339 via the shared date-strategy encoder, matching every
+             * other serialization path (a bare JSONEncoder would default to
+             * .deferredToDate and emit epoch-seconds doubles instead). */
             if let json = try? ObjectSerializer.serialize(val) {
                 queryParams["{{baseName}}"] = json
             }
@@ -492,7 +492,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
             accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             contentType: {{#consumes}}{{#-last}}{{^-first}}effectiveRequestContentType{{/-first}}{{#-first}}"{{vendorExtensions.op.effectiveConsumes}}"{{/-first}}{{/-last}}{{/consumes}}{{^consumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes}},
             returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
-            auth: {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}
+            auth: {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}options?.auth{{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}BaseApi.noAuthSentinel{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#bodyParam}}{{#isBinary}},{{/isBinary}}{{/bodyParam}}
+{{#bodyParam}}
+{{#isBinary}}
+            rawBody: true
+{{/isBinary}}
+{{/bodyParam}}
         )
 
 {{#returnType}}

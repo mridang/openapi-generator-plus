@@ -246,10 +246,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         for (k, v) in headers {
             merged[k] = v
         }
-        if merged["User-Agent"] == nil, let ua = transportOptions.userAgent {
+        /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+         * header in any case wins and nothing is injected beside it. */
+        func hasHeader(_ name: String) -> Bool {
+            merged.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+        }
+        if !hasHeader("User-Agent"), let ua = transportOptions.userAgent {
             merged["User-Agent"] = ua
         }
-        if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
+        if !hasHeader("X-Request-ID") && transportOptions.injectRequestID {
             merged["X-Request-ID"] = UUID().uuidString.lowercased()
         }
         /*
@@ -474,10 +479,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             body.append(Data(crlf.utf8))
         } else if let text = value as? String {
             body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
-        } else if value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint {
-            /* Printed as the Swift value, so a Bool is `true`/`false` (bridging
-               it to NSNumber would print 1/0). */
-            body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(value)\(crlf)".utf8))
+        } else if BaseApi.isMultipartPrimitive(value) {
+            /* Every primitive (boolean, number, date-time, uuid, enum) is a
+               plain text part with no part Content-Type, its body the
+               canonical stringify form (`true`, `3`,
+               `2024-01-15T10:30:00.000+00:00`, the enum wire value). */
+            let text = ObjectSerializer.stringify(value)
+            body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
         } else {
             /* Model objects (Codable structs) -- serialize through the SDK's
              * shared, date-strategy-configured encoder rather than

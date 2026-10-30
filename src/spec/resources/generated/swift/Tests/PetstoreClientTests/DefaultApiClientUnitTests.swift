@@ -44,6 +44,48 @@ import Testing
     #expect(capturedUA == "MyApp/1.0")
   }
 
+  @Test func testLowercaseCallerHeadersSuppressInjection() async throws {
+    let transport = TransportOptionsBuilder()
+      .userAgent("sdk-default/1.0")
+      .injectRequestID(true)
+      .defaultHeader(name: "user-agent", value: "MyApp")
+      .defaultHeader(name: "x-request-id", value: "abc")
+      .build()
+    var capturedRequest: URLRequest?
+    let client = makeClient(transport: transport) { req in
+      capturedRequest = req
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com", headers: [:], body: nil)
+    let fields = capturedRequest?.allHTTPHeaderFields ?? [:]
+    let agents = fields.filter { $0.key.caseInsensitiveCompare("User-Agent") == .orderedSame }
+    let ids = fields.filter { $0.key.caseInsensitiveCompare("X-Request-ID") == .orderedSame }
+    #expect(Array(agents.values) == ["MyApp"])
+    #expect(Array(ids.values) == ["abc"])
+  }
+
+  /* allowReserved: the encoder keeps the reserved set literal, but
+     Foundation's URL rewrites [ and ] to %5B and %5D (FORCED); the value
+     still percent-decodes to the input. */
+  @Test func testAllowReservedQueryKeepsReservedCharactersOnTheWire() async throws {
+    let value = ":/?@!$()*+,;~'[]"
+    let query = BaseApi.buildQueryString([
+      "revision": ValueSerializer.AllowReservedValue(value: value)
+    ])
+    var capturedRequest: URLRequest?
+    let client = makeClient { req in
+      capturedRequest = req
+      return (self.body(), 200, [:])
+    }
+    _ = try await client.sendRequest(
+      method: "GET", url: "https://example.com/test/echo?\(query)", headers: [:], body: nil)
+    let sent = capturedRequest?.url?.absoluteString ?? ""
+    let sentValue = String(sent.split(separator: "=", maxSplits: 1).last ?? "")
+    #expect(sentValue == ":/?@!$()*+,;~'%5B%5D")
+    #expect(sentValue.removingPercentEncoding == value)
+  }
+
   @Test func testInjectsDefaultUserAgentWhenNotExplicitlySet() async throws {
     var capturedUA: String?
     let client = makeClient { req in
@@ -300,6 +342,34 @@ import Testing
     #expect(
       body.range(of: Data([0xC3, 0xA9])) != nil,
       "expected UTF-8 bytes for é in the multipart body")
+  }
+
+  /* Every primitive is a plain text part in its canonical stringify form
+   * with no part Content-Type; only a model is an application/json part. */
+  @Test func testMultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
+    let parser = ISO8601DateFormatter()
+    let instant = parser.date(from: "2024-01-15T10:30:00Z")!
+    let formParts: [String: Any] = [
+      "flag": true,
+      "count": Int64(3),
+      "at": instant,
+      "tint": MultipartEnumFixture.crimson,
+      "meta": MultipartModelPartFixture(isEnabled: true, recordedAt: instant),
+    ]
+    let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+    let bodyStr = String(data: body, encoding: .utf8) ?? ""
+
+    #expect(bodyStr.contains("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n"))
+    #expect(bodyStr.contains("Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n"))
+    #expect(
+      bodyStr.contains(
+        "Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n"))
+    #expect(
+      bodyStr.contains("Content-Disposition: form-data; name=\"tint\"\r\n\r\ncrimson-red\r\n"))
+    #expect(
+      bodyStr.contains(
+        "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{"))
+    #expect(bodyStr.components(separatedBy: "Content-Type:").count == 2)
   }
 
   // MARK: - Per-part MIME sniffing (Gap J)
@@ -1057,6 +1127,11 @@ import Testing
 private struct MultipartModelPartFixture: Codable {
   let isEnabled: Bool
   let recordedAt: Date
+}
+
+/// A string enum standing in for a generated enum in the multipart tests.
+private enum MultipartEnumFixture: String, Codable {
+  case crimson = "crimson-red"
 }
 
 // MARK: - URL Protocol stub for unit tests

@@ -6,7 +6,7 @@ import Foundation
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 ///
-/// Concurrent calls to ``getAccessToken(tokenURL:params:extraHeaders:)`` are
+/// Concurrent calls to ``getAccessToken(tokenURL:params:extraHeaders:refreshURL:)`` are
 /// coalesced into a single in-flight refresh ``Task``. If N callers race on an
 /// expired token, exactly one HTTP request is sent to the token endpoint and all
 /// callers await the same result. This avoids the thundering-herd pattern that
@@ -28,6 +28,8 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// previous `.distantPast` sentinel made every no-expiry token look stale,
     /// so it was refetched on every request.
     private var tokenExpiry: Date?
+    /// Set once an explicit ``exchange(tokenURL:params:extraHeaders:)`` succeeds.
+    private var _exchanged: Bool = false
     /// In-flight refresh task, if any. While non-nil, concurrent callers await
     /// its result instead of starting another refresh.
     private var inflightRefresh: Task<String, Error>?
@@ -57,7 +59,22 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// Concurrent callers that arrive while a refresh is in flight all await the
     /// same ``Task``, so the token endpoint is hit exactly once per refresh
     /// regardless of caller concurrency.
-    public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
+    ///
+    /// - Parameters:
+    ///   - tokenURL: The endpoint the original grant (`params`) is posted to.
+    ///   - params: The grant parameters. When `grant_type` is
+    ///     `refresh_token` they are posted exactly once, with no internal
+    ///     refresh attempt and no fallback.
+    ///   - extraHeaders: Headers sent with every token request (for example
+    ///     the Basic client-authentication header).
+    ///   - refreshURL: The endpoint a stored refresh token is redeemed at;
+    ///     `nil` uses `tokenURL`.
+    public func getAccessToken(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:],
+        refreshURL: String? = nil
+    ) async throws -> String {
         /* Fast path under the lock: return the cached token if still fresh, or
          * piggy-back on an already-running refresh task. NSLock's lock()/unlock()
          * are unavailable in async contexts under Swift 6 strict concurrency, so
@@ -90,6 +107,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             let task = Task<String, Error> { [self] in
                 try await performRefresh(
                     tokenURL: tokenURL,
+                    refreshURL: refreshURL ?? tokenURL,
                     params: params,
                     extraHeaders: extraHeaders,
                     currentRefreshToken: currentRefreshToken
@@ -110,11 +128,17 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
     }
 
-    /// Performs the actual token fetch (refresh first if a refresh token is
-    /// available, falling back to the original grant on failure). Always clears
+    /// Performs the actual token fetch. When a refresh token is stored and
+    /// `params` is not itself a refresh grant, the refresh token is redeemed
+    /// at `refreshURL` first, authenticated the same way as the original grant
+    /// (RFC 6749 section 6 and 3.2.1: `client_id`/`client_secret` copied from
+    /// `params` and the same `extraHeaders`); on any failure other than
+    /// cancellation the original grant is re-run at `tokenURL`. A refresh
+    /// grant in `params` is posted exactly once. Always clears
     /// ``inflightRefresh`` before returning so the next call is unblocked.
     private func performRefresh(
         tokenURL: String,
+        refreshURL: String,
         params: [String: String],
         extraHeaders: [String: String],
         currentRefreshToken: String
@@ -123,7 +147,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             lock.withLock { inflightRefresh = nil }
         }
 
-        if !currentRefreshToken.isEmpty {
+        if !currentRefreshToken.isEmpty && params["grant_type"] != "refresh_token" {
             var refreshParams: [String: String] = [
                 "grant_type": "refresh_token",
                 "refresh_token": currentRefreshToken,
@@ -135,19 +159,52 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 refreshParams["client_secret"] = clientSecret
             }
             do {
-                try await fetchToken(tokenURL: tokenURL, params: refreshParams, extraHeaders: extraHeaders)
-                let refreshed: String = lock.withLock { accessToken }
-                if !refreshed.isEmpty {
-                    return refreshed
+                let result = try await requestToken(
+                    tokenURL: refreshURL, params: refreshParams, extraHeaders: extraHeaders)
+                return lock.withLock {
+                    apply(result)
+                    return accessToken
                 }
+            } catch let cancellation as CancellationError {
+                throw cancellation
             } catch {
                 /* Refresh failed (e.g. refresh token revoked or expired).
                  * Fall back to re-running the original grant below. */
             }
         }
 
-        try await fetchToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-        return lock.withLock { accessToken }
+        let result = try await requestToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        return lock.withLock {
+            apply(result)
+            return accessToken
+        }
+    }
+
+    /// Posts `params` verbatim to `tokenURL` and replaces the whole session
+    /// with the response: no cached token is returned and no stored refresh
+    /// token is redeemed. A response without `refresh_token` leaves no refresh
+    /// token and one without `expires_in` leaves no expiry. On success the
+    /// session is marked exchanged; on any failure the previous session is
+    /// kept unchanged and the error is rethrown, so a mistyped authorization
+    /// code does not log the user out.
+    public func exchange(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:]
+    ) async throws {
+        let result = try await requestToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
+        lock.withLock {
+            self.accessToken = result.accessToken
+            self._refreshToken = result.refreshToken ?? ""
+            self.tokenExpiry = result.hasExpiresIn ? Self.expiry(for: result.expiresIn) : nil
+            self._exchanged = true
+        }
+    }
+
+    /// Whether ``exchange(tokenURL:params:extraHeaders:)`` has completed
+    /// successfully at least once.
+    public var exchanged: Bool {
+        lock.withLock { _exchanged }
     }
 
     /// Manually sets an access token, bypassing the token endpoint.
@@ -161,7 +218,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     }
 
     /// Invalidates the cached access token so that the next call to
-    /// ``getAccessToken(tokenURL:params:extraHeaders:)`` fetches a fresh
+    /// ``getAccessToken(tokenURL:params:extraHeaders:refreshURL:)`` fetches a fresh
     /// token from the token endpoint. Intended for tests and recovery flows.
     public func invalidateAccessToken() {
         lock.withLock {
@@ -170,7 +227,50 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
     }
 
-    private func fetchToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws {
+    /// The fields of a successful token response.
+    private struct TokenResult {
+        let accessToken: String
+        let refreshToken: String?
+        let hasExpiresIn: Bool
+        let expiresIn: Int
+    }
+
+    /// Merges a grant response into the cached session (caller holds `lock`):
+    /// a missing `refresh_token` keeps the stored one and a missing
+    /// `expires_in` keeps the known expiry.
+    private func apply(_ result: TokenResult) {
+        self.accessToken = result.accessToken
+        if let refreshToken = result.refreshToken {
+            self._refreshToken = refreshToken
+        }
+        if result.hasExpiresIn {
+            self.tokenExpiry = Self.expiry(for: result.expiresIn)
+        }
+        /* No expires_in in the response: leave the prior tokenExpiry
+         * untouched (as every other SDK does) rather than overwriting it
+         * with the "never expires" nil sentinel. On a refresh whose
+         * response omits expires_in this keeps the previous expiry in
+         * force, so a stale token is refetched instead of cached forever. */
+    }
+
+    /// RFC 6749 section 5.1 says expires_in is a JSON number, but real-world
+    /// providers (Salesforce, some Apigee deployments) send a quoted string
+    /// and others send a JSON float. On anything unparseable or non-positive,
+    /// the token is marked immediately stale so the next call refetches
+    /// (preferable to caching forever).
+    private static func expiry(for expiresIn: Int) -> Date {
+        if expiresIn > 0 {
+            let bufferSecs = min(expiresIn, 30)
+            return Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
+        }
+        return Date()
+    }
+
+    private func requestToken(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String] = [:]
+    ) async throws -> TokenResult {
         let client: ApiClient = try lock.withLock {
             guard let client = apiClient else {
                 throw ConfigurationError.invalidState(
@@ -195,7 +295,18 @@ public final class OAuth2TokenManager: @unchecked Sendable {
          * (Salesforce, GitHub) interpret `%20` and `+` differently in
          * form-urlencoded bodies. */
         let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-        let body = params.map { entry -> String in
+        /* Dictionary iteration order is seeded per process, so the body is
+         * emitted in the fixed cross-SDK key order, then any other key sorted. */
+        let priority = [
+            "grant_type", "code", "refresh_token", "username", "password",
+            "client_id", "client_secret", "redirect_uri", "scope"
+        ]
+        let ordered = params.sorted { lhs, rhs in
+            let li = priority.firstIndex(of: lhs.key) ?? priority.count
+            let ri = priority.firstIndex(of: rhs.key) ?? priority.count
+            return li != ri ? li < ri : lhs.key < rhs.key
+        }
+        let body = ordered.map { entry -> String in
             let key = (entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key)
                 .replacingOccurrences(of: "%20", with: "+")
             let value = (entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value)
@@ -273,30 +384,13 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
-        lock.withLock {
-            self.accessToken = accessTokenValue
-            if let refreshToken = parsed.refreshToken, !refreshToken.isEmpty {
-                self._refreshToken = refreshToken
-            }
-            if hasExpiresIn {
-                /* RFC 6749 §5.1 says expires_in is a JSON number, but real-world
-                 * providers (Salesforce, some Apigee deployments) send a quoted
-                 * string and others send a JSON float. On anything unparseable
-                 * or non-positive, mark the token as immediately stale so the
-                 * next call refetches (preferable to caching forever). */
-                if expiresIn > 0 {
-                    let bufferSecs = min(expiresIn, 30)
-                    self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
-                } else {
-                    self.tokenExpiry = Date()
-                }
-            }
-            /* No expires_in in the response: leave the prior tokenExpiry
-             * untouched (as every other SDK does) rather than overwriting it
-             * with the "never expires" nil sentinel. On a refresh whose
-             * response omits expires_in this keeps the previous expiry in
-             * force, so a stale token is refetched instead of cached forever. */
-        }
+        let refreshTokenValue = parsed.refreshToken.flatMap { $0.isEmpty ? nil : $0 }
+        return TokenResult(
+            accessToken: accessTokenValue,
+            refreshToken: refreshTokenValue,
+            hasExpiresIn: hasExpiresIn,
+            expiresIn: expiresIn
+        )
     }
 
     /// Parse an RFC 6749 §5.2 OAuth2 error response body into a typed

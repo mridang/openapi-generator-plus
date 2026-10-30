@@ -72,6 +72,13 @@ internal enum ValueSerializer {
   /// and unwrapped when the query string is assembled.
   ///
   /// The wrapped value is a `String`, or a `[String]` for exploded parameters.
+  ///
+  /// The encoder output is the contract: every reserved character stays
+  /// literal in the query string this SDK builds. Foundation's `URL` and
+  /// `URLComponents` then rewrite `[` and `]` to `%5B` and `%5D` (and
+  /// `URLComponents.percentEncodedQuery` traps on them), so those two bytes
+  /// differ on the wire. The server percent-decodes them back to the same
+  /// value; the SDK itself never re-encodes them.
   struct AllowReservedValue {
     let value: Any
   }
@@ -97,18 +104,32 @@ internal enum ValueSerializer {
   /// `/resource//details`, which most servers route to 404 instead of
   /// surfacing the bug at the call site.
   ///
-  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when `value` is empty.
-  static func requirePathParam(_ paramName: String, _ value: String, operation: String) throws {
+  /// A simple-style value of exactly `.` or `..` is rejected as well: RFC 3986
+  /// section 5.2.4 treats those segments as path navigation, so the request
+  /// would be routed to a different resource (matrix and label styles prefix
+  /// their value, so they can never form a dot segment).
+  ///
+  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when `value` is empty,
+  ///   or is `.` or `..` in the simple style.
+  static func requirePathParam(
+    _ paramName: String, _ value: String, style: String = "simple", operation: String
+  ) throws {
     if value.isEmpty {
       throw ConfigurationError.invalidArgument(
         "Missing the required parameter '\(paramName)' when calling \(operation)"
       )
     }
+    if (style.isEmpty || style == "simple") && (value == "." || value == "..") {
+      throw ConfigurationError.invalidArgument(
+        "Path parameter '\(paramName)' must not be '.' or '..'")
+    }
   }
 
   /// A `format: uuid` path parameter is a `UUID`, which is never empty, so
   /// there is nothing to reject; the overload keeps the call sites uniform.
-  static func requirePathParam(_ paramName: String, _ value: UUID, operation: String) throws {}
+  static func requirePathParam(
+    _ paramName: String, _ value: UUID, style: String = "simple", operation: String
+  ) throws {}
 
   /// Serialize a value with OAS 3.0 parameter style formatting.
   ///

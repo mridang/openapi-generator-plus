@@ -65,8 +65,6 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
 
   /// Returns the Bearer authentication header with a valid access token.
   override public func authHeaders() async throws -> [String: String] {
-    var params: [String: String]
-    var url: String
     var extraHeaders: [String: String] = [:]
     if clientAuthMethod == .basic {
       /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
@@ -87,27 +85,21 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
       extraHeaders["Authorization"] = "Basic \(credentials)"
     }
 
-    let refreshToken = tokenManager.refreshToken
-    if !refreshToken.isEmpty {
-      params = [
-        "grant_type": "refresh_token",
-        "refresh_token": refreshToken,
-      ]
-      url = refreshURL
-    } else {
-      params = [
-        "grant_type": "password",
-        "username": username,
-        "password": password,
-      ]
-      if clientAuthMethod != .basic {
-        params["client_id"] = clientID
-        params["client_secret"] = clientSecret
-      }
-      if !scopes.isEmpty {
-        params["scope"] = scopes.joined(separator: " ")
-      }
-      url = tokenURL
+    /* Always hand the manager the password grant: when it holds a
+     * refresh token it redeems that at refreshURL first, authenticated the
+     * same way as this grant (RFC 6749 section 6), and re-runs this grant
+     * at tokenURL if the refresh is rejected. */
+    var params: [String: String] = [
+      "grant_type": "password",
+      "username": username,
+      "password": password,
+    ]
+    if clientAuthMethod != .basic {
+      params["client_id"] = clientID
+      params["client_secret"] = clientSecret
+    }
+    if !scopes.isEmpty {
+      params["scope"] = scopes.joined(separator: " ")
     }
 
     /* Do NOT swallow the token-fetch error: a failed password-grant
@@ -115,7 +107,7 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
      * an empty header map that would send the API request
      * unauthenticated. */
     let accessToken = try await tokenManager.getAccessToken(
-      tokenURL: url, params: params, extraHeaders: extraHeaders)
+      tokenURL: tokenURL, params: params, extraHeaders: extraHeaders, refreshURL: refreshURL)
     return ["Authorization": "Bearer \(accessToken)"]
   }
 }

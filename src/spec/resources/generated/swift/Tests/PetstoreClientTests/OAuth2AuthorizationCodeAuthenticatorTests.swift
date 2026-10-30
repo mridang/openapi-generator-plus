@@ -316,4 +316,141 @@ import Testing
     #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
     #expect(Mirror(reflecting: auth).children.isEmpty)
   }
+
+  /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
+  @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+    let auth = createAuthenticator()
+
+    let url = try auth.buildAuthorizationURL(state: "s")
+
+    #expect(
+      url
+        == "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https://app.example.com/callback&scope=read%20write&state=s"
+    )
+  }
+
+  /* The code exchange body is emitted in the fixed cross-SDK order. */
+  @Test func testCodeExchangeBodyUsesFixedParameterOrder() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("C")
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      bodyString
+        == "grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+    )
+  }
+
+  /* RFC 6749 section 6: the refresh grant authenticates the client the
+   * same way the code exchange did. */
+  @Test func testRefreshBodyCarriesClientCredentials() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("auth-code-xyz")
+    _ = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      bodyString
+        == "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+    )
+  }
+
+  /* A rejected refresh surfaces once as OAuth2ServerError: exactly one
+   * refresh POST, no duplicate fallback. */
+  @Test func testRejectedRefreshSurfacesServerErrorAfterOneRefreshPost() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"unexpected\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("auth-code-xyz")
+    let error = await #expect(throws: OAuth2ServerError.self) {
+      _ = try await auth.authHeaders()
+    }
+
+    #expect(error?.code == "invalid_grant")
+    #expect(client.urls.count == 2)
+  }
+
+  /* A second exchangeCode always posts the new code and replaces the
+   * session, even while the first token is still valid. */
+  @Test func testSecondExchangeCodeSendsTheNewCode() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok2\",\"refresh_token\":\"ref2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("a")
+    try await auth.exchangeCode("b")
+    let headers = try await auth.authHeaders()
+
+    let fields = (String(data: client.lastBody!, encoding: .utf8) ?? "").split(separator: "&")
+    #expect(client.urls.count == 2)
+    #expect(fields.contains("grant_type=authorization_code"))
+    #expect(fields.contains("code=b"))
+    #expect(headers["Authorization"] == "Bearer tok2")
+  }
+
+  /* A second exchange whose response has no refresh_token leaves no
+   * refresh token behind. */
+  @Test func testSecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("a")
+    try await auth.exchangeCode("b")
+
+    #expect(auth.tokenManager.refreshToken == "")
+  }
+
+  /* A failed exchange keeps the previous session. */
+  @Test func testFailedExchangeKeepsThePreviousSession() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_grant\"}", statusCode: 400))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    try await auth.exchangeCode("a")
+    await #expect(throws: OAuth2ServerError.self) {
+      try await auth.exchangeCode("bad")
+    }
+    let headers = try await auth.authHeaders()
+
+    #expect(client.urls.count == 2)
+    #expect(headers["Authorization"] == "Bearer tok1")
+    #expect(auth.tokenManager.refreshToken == "ref1")
+  }
 }

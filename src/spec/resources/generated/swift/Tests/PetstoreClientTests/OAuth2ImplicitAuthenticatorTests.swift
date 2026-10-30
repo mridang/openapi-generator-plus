@@ -150,4 +150,16 @@ import Testing
     #expect(!dumped.contains("implicit-tok"), "dump leaked the secret: \(dumped)")
     #expect(Mirror(reflecting: auth).children.isEmpty)
   }
+
+  /* The authorize URL parameters are emitted in the fixed cross-SDK order. */
+  @Test func testAuthorizationUrlUsesFixedParameterOrder() throws {
+    let auth = createAuthenticator()
+
+    let url = try auth.buildAuthorizationURL(state: "s")
+
+    #expect(
+      url
+        == "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
+    )
+  }
 }

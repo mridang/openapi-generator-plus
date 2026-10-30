@@ -56,7 +56,7 @@ public enum Servers {
 
   /// Server 2: `https://{tenant}.example.com/api`
   ///
-  /// Bob&#39;s &quot;sandbox&quot; &amp; co: $5 #{x} a*/b
+  /// Bob's "sandbox" & co: $5 #{x} a*/b
   public static let server2 = ServerConfiguration(
     urlTemplate: "https://{tenant}.example.com/api",
     description: "Bob's \"sandbox\" & co: $5 #{x} a*/b",

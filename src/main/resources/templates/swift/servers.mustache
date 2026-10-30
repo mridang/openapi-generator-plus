@@ -22,7 +22,7 @@ public enum Servers {
 {{#serverConfigs}}
     /// Server {{serverIndex}}: `{{serverUrl}}`{{#serverDescription}}
     ///
-    /// {{serverDescription}}{{/serverDescription}}
+    /// {{#lambda.singleLine}}{{{serverDescription}}}{{/lambda.singleLine}}{{/serverDescription}}
     public static let server{{serverIndex}} = ServerConfiguration(
         urlTemplate: {{#lambda.quotedLiteral}}{{{serverUrl}}}{{/lambda.quotedLiteral}},
         description: {{#lambda.quotedLiteral}}{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}{{/lambda.quotedLiteral}},
