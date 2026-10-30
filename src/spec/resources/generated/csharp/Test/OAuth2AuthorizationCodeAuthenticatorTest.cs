@@ -80,11 +80,11 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         Uri url = auth.BuildAuthorizationUrl();
 
         string urlStr = url.ToString();
-        Assert.Contains("response_type=code", urlStr);
-        Assert.Contains("client_id=my-client-id", urlStr);
-        Assert.Contains("redirect_uri=", urlStr);
+        Assert.Contains("response_type=code", urlStr, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", urlStr, StringComparison.Ordinal);
+        Assert.Contains("redirect_uri=", urlStr, StringComparison.Ordinal);
         Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
-        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
 
         Uri url = auth.BuildAuthorizationUrl("csrf-state-123");
 
-        Assert.Contains("state=csrf-state-123", url.ToString());
+        Assert.Contains("state=csrf-state-123", url.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,10 +122,18 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         await auth.ExchangeCodeAsync("auth-code-xyz");
 
         Assert.NotNull(client.LastBody);
-        Assert.Contains("grant_type=authorization_code", client.LastBody!);
-        Assert.Contains("code=auth-code-xyz", client.LastBody!);
-        Assert.Contains("client_id=my-client-id", client.LastBody!);
-        Assert.Contains("client_secret=my-client-secret", client.LastBody!);
+        Assert.Contains(
+            "grant_type=authorization_code",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("code=auth-code-xyz", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains(
+            "client_secret=my-client-secret",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -174,8 +182,8 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         // GetAuthHeadersAsync triggers a refresh since token is expired
         Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("refresh_token=ref1", client.LastBody!);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
         Assert.Equal("Bearer tok2", headers["Authorization"]);
     }
 
@@ -222,13 +230,13 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             new Uri("https://x.auth0.com/authorize?audience=api"),
             new Uri("https://x.auth0.com/oauth/token"),
             new Uri("https://app.example.com/callback"),
-            new[] { "read" }
+            ["read"]
         );
 
         string url = auth.BuildAuthorizationUrl().ToString();
 
-        Assert.Contains("audience=api", url);
-        Assert.Contains("response_type=code", url);
+        Assert.Contains("audience=api", url, StringComparison.Ordinal);
+        Assert.Contains("response_type=code", url, StringComparison.Ordinal);
         Assert.Equal(1, url.Split('?').Length - 1);
     }
 
@@ -264,7 +272,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
 
         string url = auth.BuildAuthorizationUrl().ToString();
 
-        Assert.Contains(expected, url);
+        Assert.Contains(expected, url, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -286,7 +294,11 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
 
         string url = auth.BuildAuthorizationUrl().OriginalString;
 
-        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=code&", url);
+        Assert.StartsWith(
+            "https://Auth.Example.com:443/authorize?response_type=code&",
+            url,
+            StringComparison.Ordinal
+        );
     }
 
     /// <summary>
@@ -309,8 +321,8 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         await auth.ExchangeCodeAsync("auth-code-xyz");
 
         Assert.NotNull(client.LastBody);
-        Assert.Contains(expected, client.LastBody!);
-        Assert.DoesNotContain(expected + "%2F", client.LastBody!);
+        Assert.Contains(expected, client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain(expected + "%2F", client.LastBody!, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -322,8 +334,8 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -350,7 +362,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             new Uri("https://auth.example.com/authorize"),
             new Uri("https://auth.example.com/token"),
             new Uri("https://app.example.com/callback"),
-            new[] { "a~b", "c*d" }
+            ["a~b", "c*d"]
         );
 
         string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
@@ -410,7 +422,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -426,7 +438,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]

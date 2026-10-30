@@ -39,7 +39,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         // Chasm echo envelope: presence of "method" field confirms a JSON response body.
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -219,7 +219,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     // -- Request timeout --
@@ -394,7 +394,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         // Chasm follows the redirect to /test/echo, whose envelope contains "method".
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -635,7 +635,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -650,7 +650,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     [Fact(Skip = "zstd is not supported by the platform: .NET has no built-in zstd decoder")]
@@ -665,7 +665,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     /*
@@ -813,7 +813,10 @@ public class DefaultApiClientTest
         )
         {
             var path = request.RequestUri!.AbsolutePath;
-            var remaining = int.Parse(path.Substring(path.LastIndexOf('/') + 1));
+            var remaining = int.Parse(
+                path.AsSpan(path.LastIndexOf('/') + 1),
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             if (remaining <= 0)
             {
                 return Task.FromResult(

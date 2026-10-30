@@ -55,7 +55,7 @@ public class ApiKeyAuthenticatorTest
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "X-API-Key", "", ApiKeyLocation.Header));
-        Assert.Contains("must not be empty", ex.Message);
+        Assert.Contains("must not be empty", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public class ApiKeyAuthenticatorTest
     {
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "api_key", "abc\r\n", ApiKeyLocation.Query));
-        Assert.Contains("forbidden control", ex.Message);
+        Assert.Contains("forbidden control", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -111,8 +111,8 @@ public class ApiKeyAuthenticatorTest
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.Header);
         string repr = auth.ToString();
-        Assert.DoesNotContain("abc123", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("abc123", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]

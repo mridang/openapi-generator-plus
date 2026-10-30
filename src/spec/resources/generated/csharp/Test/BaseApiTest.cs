@@ -540,7 +540,7 @@ public class BaseApiTest
             ["application/json"],
             "application/json"
         );
-        Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString());
+        Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -557,7 +557,7 @@ public class BaseApiTest
             ["application/json"],
             "application/json"
         );
-        Assert.Contains("active=true", client.CapturedUrl!.ToString());
+        Assert.Contains("active=true", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -574,8 +574,12 @@ public class BaseApiTest
             ["application/json"],
             "application/json"
         );
-        Assert.Contains("limit=10", client.CapturedUrl!.ToString());
-        Assert.DoesNotContain("limit=10.0", client.CapturedUrl!.ToString());
+        Assert.Contains("limit=10", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "limit=10.0",
+            client.CapturedUrl!.ToString(),
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -592,7 +596,7 @@ public class BaseApiTest
             ["application/json"],
             "application/json"
         );
-        Assert.DoesNotContain("?", client.CapturedUrl!.ToString());
+        Assert.DoesNotContain("?", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -625,13 +629,13 @@ public class BaseApiTest
         {
             await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
         }
-        catch (Exception)
+        catch (OpenAPIException)
         {
             // Response deserialization may fail; we only care about the captured URL
         }
         // An optional allowEmptyValue param that the caller omits must NOT emit a
         // spurious empty key on the wire; the key is sent only when a value is supplied.
-        Assert.DoesNotContain("status=", client.CapturedUrl!.ToString());
+        Assert.DoesNotContain("status=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -644,11 +648,11 @@ public class BaseApiTest
         {
             await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
         }
-        catch (Exception)
+        catch (OpenAPIException)
         {
             // Response deserialization may fail; we only care about the captured URL
         }
-        Assert.Contains("status=", client.CapturedUrl!.ToString());
+        Assert.Contains("status=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -713,7 +717,7 @@ public class BaseApiTest
             "text/plain"
         );
         Assert.NotNull(client.CapturedBody);
-        Assert.Contains("hello world", client.CapturedBody.ToString()!);
+        Assert.Contains("hello world", client.CapturedBody.ToString()!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -731,7 +735,7 @@ public class BaseApiTest
             "application/x-www-form-urlencoded"
         );
         Assert.NotNull(client.CapturedBody);
-        Assert.Contains("name=alice", client.CapturedBody.ToString()!);
+        Assert.Contains("name=alice", client.CapturedBody.ToString()!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -784,7 +788,7 @@ public class BaseApiTest
         Assert.NotNull(client.CapturedBody);
         string wire = client.CapturedBody.ToString()!;
         Assert.Equal("full+name=Ada+Lovelace", wire);
-        Assert.DoesNotContain("%20", wire);
+        Assert.DoesNotContain("%20", wire, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1094,7 +1098,7 @@ public class BaseApiTest
             "Content-Type must be sent when body is {}"
         );
         Assert.NotNull(client.CapturedBody);
-        Assert.Contains("{}", client.CapturedBody!.ToString()!);
+        Assert.Contains("{}", client.CapturedBody!.ToString()!, StringComparison.Ordinal);
     }
 
     // Gap #29 — proxy authentication propagation. The Squid fixture's
@@ -1118,7 +1122,7 @@ public class BaseApiTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1234,7 +1238,7 @@ public class BaseApiTest
             // getInventory is security:[]; the captured request is what matters.
             await api.GetInventoryAsync();
         }
-        catch (Exception)
+        catch (OpenAPIException)
         {
             // The captured request is asserted regardless of the response shape.
         }
@@ -1251,7 +1255,7 @@ public class BaseApiTest
             client.CapturedHeaders.ContainsKey("Cookie"),
             "security:[] operation must NOT carry the client auth cookie"
         );
-        Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString());
+        Assert.DoesNotContain("api_key=", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
     }
 
     // INHERITED GLOBAL SECURITY (guard against over-suppression on inherited
@@ -1277,7 +1281,7 @@ public class BaseApiTest
             // per-call override the client authenticator must be applied.
             await api.GetPetByIdAsync(42L);
         }
-        catch (Exception)
+        catch (OpenAPIException)
         {
             // The {} response body does not deserialize to a Pet; the request
             // is already captured by the time deserialization fails.
@@ -1314,7 +1318,7 @@ public class BaseApiTest
         {
             await api.AddPetAsync(pet);
         }
-        catch (Exception)
+        catch (OpenAPIException)
         {
             // Captured request is asserted regardless of response shape.
         }

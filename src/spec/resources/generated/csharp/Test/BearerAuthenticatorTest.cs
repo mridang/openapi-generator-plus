@@ -68,7 +68,7 @@ public class BearerAuthenticatorTest
         var ex = Assert.Throws<ArgumentException>(() =>
             new BearerAuthenticator("https://api.example.com", "")
         );
-        Assert.Contains("Bearer token must not be empty", ex.Message);
+        Assert.Contains("Bearer token must not be empty", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -88,8 +88,8 @@ public class BearerAuthenticatorTest
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
         string repr = auth.ToString();
-        Assert.DoesNotContain("Token=xyz", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("Token=xyz", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -13,6 +13,8 @@ namespace Test;
 
 public class ServerVariableTest
 {
+    private static readonly string[] ExpectedEnumValues = ["v2", "v3"];
+
     [Fact]
     public void ExposesDefaultValueDescriptionAndEnum()
     {
@@ -20,7 +22,7 @@ public class ServerVariableTest
 
         Assert.Equal("v3", variable.DefaultValue);
         Assert.Equal("API version", variable.Description);
-        Assert.Equal(new[] { "v2", "v3" }, variable.EnumValues);
+        Assert.Equal(ExpectedEnumValues, variable.EnumValues);
     }
 
     [Fact]

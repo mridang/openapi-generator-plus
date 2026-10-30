@@ -101,7 +101,7 @@ public class PetApiTest
         await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = null });
 
         string url = client.CapturedUrl!.AbsoluteUri;
-        Assert.DoesNotContain("status=", url);
+        Assert.DoesNotContain("status=", url, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class PetApiTest
         await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
 
         string url = client.CapturedUrl!.AbsoluteUri;
-        Assert.Contains("status=", url);
+        Assert.Contains("status=", url, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class PetApiTest
 
         Assert.NotNull(result);
         // The omitted optional 'status' key must be absent from the wire.
-        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri);
+        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -290,7 +290,7 @@ public class PetApiTest
                 new DeletePetOptions { Auth = _auth, ApiKey = "abc\r\nInjected: yes" }
             )
         );
-        Assert.Contains("RFC 6265", ex.Message);
+        Assert.Contains("RFC 6265", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -920,13 +920,13 @@ public class PetApiTest
         // canonicalisation and are the reliable regression signal.
         string url = client.CapturedUrl!.AbsoluteUri;
         // '/' inside the value is always kept as %2F by .NET Uri.
-        Assert.Contains("b%2Fc", url);
+        Assert.Contains("b%2Fc", url, StringComparison.Ordinal);
         // matrix style on petId -> ";petId=7".
-        Assert.Contains(";petId=7", url);
+        Assert.Contains(";petId=7", url, StringComparison.Ordinal);
         // The double-encoded artifacts (the old api-template bug) must NOT appear.
-        Assert.DoesNotContain("%2520", url);
-        Assert.DoesNotContain("%252F", url);
-        Assert.DoesNotContain("%253D", url);
+        Assert.DoesNotContain("%2520", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("%252F", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("%253D", url, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -956,16 +956,16 @@ public class PetApiTest
         string url = client.CapturedUrl!.AbsoluteUri;
         // pipeDelimited colors -> "blue|black"; the '|' is percent-encoded as
         // %7C by .NET Uri building. Both element values survive verbatim.
-        Assert.Contains("colors=blue%7Cblack", url);
+        Assert.Contains("colors=blue%7Cblack", url, StringComparison.Ordinal);
         // spaceDelimited sizes -> "S M"; the space is percent-encoded as %20.
-        Assert.Contains("sizes=S%20M", url);
+        Assert.Contains("sizes=S%20M", url, StringComparison.Ordinal);
         // The individual element values must each be present in the query.
-        Assert.Contains("blue", url);
-        Assert.Contains("black", url);
+        Assert.Contains("blue", url, StringComparison.Ordinal);
+        Assert.Contains("black", url, StringComparison.Ordinal);
         // The .NET collection debug blob (the cross-language Wave D bug) must
         // NOT appear: no leaked List type name, and no key with no value joined.
-        Assert.DoesNotContain("System.Collections", url);
-        Assert.DoesNotContain("List%601", url);
+        Assert.DoesNotContain("System.Collections", url, StringComparison.Ordinal);
+        Assert.DoesNotContain("List%601", url, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -1092,7 +1092,11 @@ public class PetApiTest
             mockApi.GetPetByIdAsync(1L)
         );
         Assert.Equal(200, ex.StatusCode);
-        Assert.Contains("Expected a response body for GetPetById but received none", ex.Message);
+        Assert.Contains(
+            "Expected a response body for GetPetById but received none",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1107,7 +1111,11 @@ public class PetApiTest
             mockApi.GetPetByIdAsync(1L)
         );
         Assert.Equal(200, ex.StatusCode);
-        Assert.Contains("Expected a response body for GetPetById but received none", ex.Message);
+        Assert.Contains(
+            "Expected a response body for GetPetById but received none",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1121,7 +1129,8 @@ public class PetApiTest
         Assert.Equal(200, ex.StatusCode);
         Assert.Contains(
             "Expected a response body for FindPetsByStatus but received none",
-            ex.Message
+            ex.Message,
+            StringComparison.Ordinal
         );
     }
 
@@ -1269,7 +1278,10 @@ public class PetApiTest
 
         // The exact bytes survive verbatim — no multipart boundary, no base64.
         using var captured = new MemoryStream();
-        ((Stream)octetClient.CapturedBody!).CopyTo(captured);
+        await ((Stream)octetClient.CapturedBody!).CopyToAsync(
+            captured,
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(rawBytes, captured.ToArray());
 
         // (2) Over-correction guard: the default selection (multipart/form-data)
@@ -1328,8 +1340,8 @@ public class PetApiTest
         Assert.NotNull(client.CapturedBody);
         string wire = client.CapturedBody!.ToString()!;
         Assert.Equal("nickname=a+b&tags=x&tags=y", wire);
-        Assert.DoesNotContain("note", wire);
-        Assert.DoesNotContain("%20", wire);
+        Assert.DoesNotContain("note", wire, StringComparison.Ordinal);
+        Assert.DoesNotContain("%20", wire, StringComparison.Ordinal);
     }
 
     private sealed class DateWireCapturingApiClient : IApiClient
@@ -1383,8 +1395,16 @@ public class PetApiTest
                 }
             );
 
-            Assert.Contains("bornAfter=2024-01-01", client.CapturedUrl!.Query);
-            Assert.DoesNotContain("bornAfter=2024-01-01T", client.CapturedUrl.Query);
+            Assert.Contains(
+                "bornAfter=2024-01-01",
+                client.CapturedUrl!.Query,
+                StringComparison.Ordinal
+            );
+            Assert.DoesNotContain(
+                "bornAfter=2024-01-01T",
+                client.CapturedUrl.Query,
+                StringComparison.Ordinal
+            );
             Assert.Equal("2024-01-01", client.CapturedHeaders["Report-Date"]);
         }
         finally
@@ -1425,9 +1445,9 @@ public class PetApiTest
             );
 
             string wire = client.CapturedBody!.ToString()!;
-            Assert.Contains("renewalDate=2024-01-01", wire);
-            Assert.DoesNotContain("renewalDate=2024-01-01T", wire);
-            Assert.DoesNotContain("renewalDate=2024-01-01%", wire);
+            Assert.Contains("renewalDate=2024-01-01", wire, StringComparison.Ordinal);
+            Assert.DoesNotContain("renewalDate=2024-01-01T", wire, StringComparison.Ordinal);
+            Assert.DoesNotContain("renewalDate=2024-01-01%", wire, StringComparison.Ordinal);
         }
         finally
         {
@@ -1455,8 +1475,12 @@ public class PetApiTest
         );
 
         string wire = client.CapturedBody!.ToString()!;
-        Assert.Contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00", wire);
-        Assert.DoesNotContain("%20", wire);
+        Assert.Contains(
+            "reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00",
+            wire,
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain("%20", wire, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1493,7 +1517,11 @@ public class PetApiTest
 
             await api.FindPetsBornOnAsync(new DateOnly(2024, 1, 1));
 
-            Assert.EndsWith("/pet/born-on/2024-01-01", client.CapturedUrl!.AbsolutePath);
+            Assert.EndsWith(
+                "/pet/born-on/2024-01-01",
+                client.CapturedUrl!.AbsolutePath,
+                StringComparison.Ordinal
+            );
         }
         finally
         {

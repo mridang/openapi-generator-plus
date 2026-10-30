@@ -87,10 +87,10 @@ public class OpenIdConnectAuthenticatorTest
         Uri url = await auth.BuildAuthorizationUrlAsync("my-state");
 
         string urlStr = url.ToString();
-        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
-        Assert.Contains("response_type=code", urlStr);
-        Assert.Contains("client_id=my-client-id", urlStr);
-        Assert.Contains("state=my-state", urlStr);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr, StringComparison.Ordinal);
+        Assert.Contains("response_type=code", urlStr, StringComparison.Ordinal);
+        Assert.Contains("client_id=my-client-id", urlStr, StringComparison.Ordinal);
+        Assert.Contains("state=my-state", urlStr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -148,8 +148,12 @@ public class OpenIdConnectAuthenticatorTest
 
         await auth.ExchangeCodeAsync("oidc-code");
 
-        Assert.Contains("grant_type=authorization_code", client.LastBody!);
-        Assert.Contains("code=oidc-code", client.LastBody!);
+        Assert.Contains(
+            "grant_type=authorization_code",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("code=oidc-code", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -197,7 +201,11 @@ public class OpenIdConnectAuthenticatorTest
         var ex = await Assert.ThrowsAsync<SerializationException>(() =>
             auth.BuildAuthorizationUrlAsync()
         );
-        Assert.Contains("OIDC discovery document is missing 'authorization_endpoint'", ex.Message);
+        Assert.Contains(
+            "OIDC discovery document is missing 'authorization_endpoint'",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -315,8 +323,8 @@ public class OpenIdConnectAuthenticatorTest
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -334,6 +342,8 @@ public class OpenIdConnectAuthenticatorTest
     [InlineData("max-age=0", 2)]
     [InlineData("public, max-age=3600", 1)]
     [InlineData("no-store", 1)]
+    [InlineData("max-age=9000000000000000000", 1)]
+    [InlineData("max-age=99999999999999999999", 1)]
     public async Task DiscoveryIsReusedOnlyWhileItsMaxAgeHolds(
         string cacheControl,
         int expectedFetches
@@ -342,7 +352,9 @@ public class OpenIdConnectAuthenticatorTest
         /* A max-age of zero expires the cached document at once, so the second
            call fetches it again. A positive max-age, or a header with no
            max-age directive (which falls back to the 24 hour default), reuses
-           the cached document. */
+           the cached document. A max-age beyond the one year ceiling, even one
+           past the range of a long, is clamped rather than overflowing the
+           expiry arithmetic. */
         var client = new CacheControlApiClient(cacheControl);
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);

@@ -18,7 +18,8 @@ public class StrictTag : IEquatable<StrictTag>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above is rejected at deserialization time. */
     private Dictionary<string, object>? _unknownProperties;
 
     [JsonExtensionData]

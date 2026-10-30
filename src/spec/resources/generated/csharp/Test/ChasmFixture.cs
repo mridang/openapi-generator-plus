@@ -101,7 +101,7 @@ public class ChasmFixture : IAsyncLifetime
     {
         await _squid.DisposeAsync();
         await _chasm.DisposeAsync();
-        await _network.DeleteAsync();
+        await _network.DisposeAsync();
         GC.SuppressFinalize(this);
     }
 }

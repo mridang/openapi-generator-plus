@@ -378,6 +378,57 @@ public class OAuth2TokenManagerTest
         Assert.Equal("flt-tok", second);
     }
 
+    [Theory]
+    [InlineData("1e20")]
+    [InlineData("9000000000000000000")]
+    [InlineData("\"99999999999999999999\"")]
+    public async Task ExpiresInBeyondTheCeilingIsClampedAndCached(string expiresIn)
+    {
+        // A server-supplied lifetime past what DateTimeOffset can add must be
+        // clamped to one year, not throw; the token is then served from cache.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"huge\",\"expires_in\":" + expiresIn + "}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("huge", first);
+        Assert.Equal("huge", second);
+    }
+
+    [Theory]
+    [InlineData("\"Infinity\"")]
+    [InlineData("\"NaN\"")]
+    [InlineData("\"1e400\"")]
+    [InlineData("1e400")]
+    public async Task ExpiresInNonFiniteSkipsCaching(string expiresIn)
+    {
+        // A non-finite lifetime, or one that overflows a double, carries no
+        // expiry: the token is stale and the next call refetches. It never
+        // escapes as a runtime exception.
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"inf1\",\"expires_in\":" + expiresIn + "}");
+        client.Enqueue("{\"access_token\":\"inf2\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        string first = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters);
+
+        Assert.Equal("inf1", first);
+        Assert.Equal("inf2", second);
+    }
+
     [Fact]
     public async Task ExpiresInNegativeSkipsCaching()
     {

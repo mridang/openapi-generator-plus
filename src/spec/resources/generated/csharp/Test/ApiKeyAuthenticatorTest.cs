@@ -89,7 +89,7 @@ public class ApiKeyAuthenticatorTest
                 ApiKeyLocation.Header
             )
         );
-        Assert.Contains("must not be empty", ex.Message);
+        Assert.Contains("must not be empty", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public class ApiKeyAuthenticatorTest
                 ApiKeyLocation.Query
             )
         );
-        Assert.Contains("forbidden control", ex.Message);
+        Assert.Contains("forbidden control", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -175,8 +175,8 @@ public class ApiKeyAuthenticatorTest
             ApiKeyLocation.Header
         );
         string repr = auth.ToString();
-        Assert.DoesNotContain("abc123", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("abc123", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]

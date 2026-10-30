@@ -254,7 +254,7 @@ public class StoreApiTest
             Swatch.Red,
             new GetBySwatchOptions { QuerySwatch = Swatch.Green, PreferredSwatch = Swatch.Blue });
 
-        Assert.EndsWith("/store/by-swatch/red", client.Url!.AbsolutePath);
+        Assert.EndsWith("/store/by-swatch/red", client.Url!.AbsolutePath, StringComparison.Ordinal);
         Assert.Equal("?querySwatch=green", client.Url.Query);
         Assert.Equal("blue", client.Headers["Preferred-Swatch"]);
     }
@@ -267,7 +267,7 @@ public class StoreApiTest
 
         await api.GetBySwatchAsync(Swatch.Blue);
 
-        Assert.EndsWith("/store/by-swatch/blue", client.Url!.AbsolutePath);
+        Assert.EndsWith("/store/by-swatch/blue", client.Url!.AbsolutePath, StringComparison.Ordinal);
         Assert.Equal("", client.Url.Query);
         Assert.False(client.Headers.ContainsKey("Preferred-Swatch"));
     }

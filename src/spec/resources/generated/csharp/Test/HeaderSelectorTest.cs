@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Test;
 
-public class HeaderSelectorTest
+public static class HeaderSelectorTest
 {
     public class IsJsonMimeTests
     {

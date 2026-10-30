@@ -10,7 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-/// <seealso href="https://example.com/docs/account">Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here</seealso>
+/// <seealso href="https://example.com/docs/account"><![CDATA[Account <docs> & "notes" it's here]]></seealso>
 public class Account : IEquatable<Account>
 {
     /// <summary>

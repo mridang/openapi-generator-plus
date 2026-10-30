@@ -21,6 +21,12 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const int ExpirySafetyMarginSeconds = 60;
 
+    /// <summary>
+    /// Ceiling applied to a server-supplied <c>expires_in</c>, in seconds (one
+    /// year), so an absurd lifetime cannot overflow the expiry arithmetic.
+    /// </summary>
+    private const long MaxExpiresInSeconds = 31_536_000L;
+
     private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
@@ -454,15 +460,11 @@ public sealed class OAuth2TokenManager
             case JsonValueKind.Number:
                 if (element.TryGetInt64(out long asInt))
                 {
-                    return asInt;
+                    return Math.Min(asInt, MaxExpiresInSeconds);
                 }
                 if (element.TryGetDouble(out double asDouble))
                 {
-                    if (double.IsNaN(asDouble) || double.IsInfinity(asDouble))
-                    {
-                        return 0L;
-                    }
-                    return (long)Math.Floor(asDouble);
+                    return ClampExpiresIn(asDouble);
                 }
                 return 0L;
             case JsonValueKind.String:
@@ -480,11 +482,7 @@ public sealed class OAuth2TokenManager
                     )
                 )
                 {
-                    if (double.IsNaN(parsed) || double.IsInfinity(parsed))
-                    {
-                        return 0L;
-                    }
-                    return (long)Math.Floor(parsed);
+                    return ClampExpiresIn(parsed);
                 }
                 return 0L;
             case JsonValueKind.Undefined:
@@ -496,6 +494,20 @@ public sealed class OAuth2TokenManager
             default:
                 return 0L;
         }
+    }
+
+    /// <summary>
+    /// Floors a fractional <c>expires_in</c> and caps it at
+    /// <see cref="MaxExpiresInSeconds"/>. NaN and infinity carry no lifetime,
+    /// so they give <c>0</c> (the token is treated as stale).
+    /// </summary>
+    private static long ClampExpiresIn(double seconds)
+    {
+        if (double.IsNaN(seconds) || double.IsInfinity(seconds))
+        {
+            return 0L;
+        }
+        return seconds >= MaxExpiresInSeconds ? MaxExpiresInSeconds : (long)Math.Floor(seconds);
     }
 
     /// <summary>Gets the refresh token returned by the token endpoint, if any.</summary>

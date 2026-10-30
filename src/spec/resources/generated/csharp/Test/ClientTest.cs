@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Test;
 
-public class ClientTest : IDisposable
+public sealed class ClientTest : IDisposable
 {
     private readonly BearerAuthenticator _authenticator = new("/api/v3", "test-token");
 
@@ -176,19 +176,23 @@ public class ClientTest : IDisposable
     {
         Assert.DoesNotContain(
             "secret-key",
-            new ApiKeyHeaderAuthenticator(Host, "secret-key").ToString()
+            new ApiKeyHeaderAuthenticator(Host, "secret-key").ToString(),
+            StringComparison.Ordinal
         );
         Assert.DoesNotContain(
             "secret-key",
-            new InternalApiKeyAuthenticator(Host, "secret-key").ToString()
+            new InternalApiKeyAuthenticator(Host, "secret-key").ToString(),
+            StringComparison.Ordinal
         );
         Assert.DoesNotContain(
             "secret-key",
-            new ApiKeyQueryAuthenticator(Host, "secret-key").ToString()
+            new ApiKeyQueryAuthenticator(Host, "secret-key").ToString(),
+            StringComparison.Ordinal
         );
         Assert.DoesNotContain(
             "secret-key",
-            new SessionCookieAuthenticator(Host, "secret-key").ToString()
+            new SessionCookieAuthenticator(Host, "secret-key").ToString(),
+            StringComparison.Ordinal
         );
         Assert.Contains(
             "KeyParamName=SESSION_ID, ApiKey=***, Location=Cookie",

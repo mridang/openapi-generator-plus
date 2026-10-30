@@ -72,7 +72,7 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.NotNull(client.LastBody);
-        Assert.Contains("grant_type=password", client.LastBody!);
+        Assert.Contains("grant_type=password", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -86,8 +86,8 @@ public class OAuth2PasswordAuthenticatorTest
 
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("username=testuser", client.LastBody!);
-        Assert.Contains("password=testpass", client.LastBody!);
+        Assert.Contains("username=testuser", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("password=testpass", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -101,8 +101,12 @@ public class OAuth2PasswordAuthenticatorTest
 
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("client_id=my-client-id", client.LastBody!);
-        Assert.Contains("client_secret=my-client-secret", client.LastBody!);
+        Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains(
+            "client_secret=my-client-secret",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -134,8 +138,8 @@ public class OAuth2PasswordAuthenticatorTest
         // Second call should use refresh_token grant since token is expired
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
-        Assert.Contains("refresh_token=ref1", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -162,7 +166,7 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -191,7 +195,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "testuser",
             "testpass",
-            new[] { "read" },
+            ["read"],
             null,
             ClientAuthMethod.Basic
         );
@@ -201,7 +205,7 @@ public class OAuth2PasswordAuthenticatorTest
 
         Assert.True(client.LastHeaders.TryGetValue("Authorization", out var authHeader));
         Assert.NotNull(authHeader);
-        Assert.StartsWith("Basic ", authHeader);
+        Assert.StartsWith("Basic ", authHeader, StringComparison.Ordinal);
         string decoded = System.Text.Encoding.UTF8.GetString(
             Convert.FromBase64String(authHeader!.Substring("Basic ".Length))
         );
@@ -219,9 +223,9 @@ public class OAuth2PasswordAuthenticatorTest
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.DoesNotContain("testpass", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.DoesNotContain("testpass", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -264,7 +268,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "user~*!'()",
             "pass~*!'()",
-            new[] { "a~b", "c*d" }
+            ["a~b", "c*d"]
         );
         auth.SetApiClient(client);
 
@@ -290,7 +294,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "testuser",
             "testpass",
-            new[] { "read" },
+            ["read"],
             null,
             ClientAuthMethod.Basic
         );
@@ -317,7 +321,7 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]

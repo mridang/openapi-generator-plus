@@ -86,7 +86,7 @@ namespace {{packageName}}.Models;
 {{/description}}
 /// <remarks>Deprecated.</remarks>
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 [Obsolete("This schema is deprecated.")]
 {{/isDeprecated}}
@@ -97,7 +97,7 @@ namespace {{packageName}}.Models;
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 {{/isDeprecated}}
 {{#discriminator}}
@@ -187,7 +187,7 @@ namespace {{packageName}}.Models;
 {{/description}}
 /// <remarks>Deprecated.</remarks>
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 [Obsolete("This schema is deprecated.")]
 {{/isDeprecated}}
@@ -198,7 +198,7 @@ namespace {{packageName}}.Models;
 /// </summary>
 {{/description}}
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 {{/isDeprecated}}
 [JsonConverter(typeof({{classname}}Converter))]
@@ -323,7 +323,7 @@ namespace {{packageName}}.Models;
 [Obsolete("This schema is deprecated.")]
 {{/isDeprecated}}
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
@@ -506,9 +506,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 
-    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-    // Any JSON key not declared above is captured here so the JsonExtensionData
-    // setter can throw, surfacing unknown-key errors during deserialization.
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+     * Any JSON key not declared above is captured here so the JsonExtensionData
+     * setter can throw, surfacing unknown-key errors during deserialization. */
     private Dictionary<string, object>? _unknownProperties;
 
     [JsonExtensionData]
@@ -580,7 +580,7 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 [Obsolete("This schema is deprecated.")]
 {{/isDeprecated}}
 {{#externalDocumentation}}
-/// <seealso href="{{url}}">{{description}}</seealso>
+/// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
 public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
@@ -676,7 +676,8 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 
-    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above is rejected at deserialization time. */
     private Dictionary<string, object>? _unknownProperties;
 
     [JsonExtensionData]

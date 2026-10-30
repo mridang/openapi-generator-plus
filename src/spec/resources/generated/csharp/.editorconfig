@@ -80,3 +80,11 @@ dotnet_diagnostic.CA1716.severity = none
 
 [Test/**.cs]
 dotnet_diagnostic.CS0618.severity = none
+# xunit discovers only public test classes, nested ones included, and a fixture
+# must be as visible as the test class that takes it, so test code cannot meet
+# these two rules.
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1515.severity = none
+# xunit's own analyzer (xUnit1030) forbids ConfigureAwait(false) in a test, as
+# it would let the test leave the runner's synchronization context.
+dotnet_diagnostic.CA2007.severity = none

@@ -31,7 +31,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("GET", response.Body);
+        Assert.Contains("GET", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("POST", response.Body);
-        Assert.Contains("key", response.Body);
+        Assert.Contains("POST", response.Body, StringComparison.Ordinal);
+        Assert.Contains("key", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("PUT", response.Body);
+        Assert.Contains("PUT", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("DELETE", response.Body);
+        Assert.Contains("DELETE", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("vendor", response.Body);
+        Assert.Contains("vendor", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -460,8 +460,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: image/png", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("Content-Type: image/png", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -488,8 +488,12 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: application/octet-stream", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -520,10 +524,14 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("name=\"file\"", wireText);
-        Assert.Contains("filename=\"file\"", wireText);
-        Assert.Contains("Content-Type: application/octet-stream", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("name=\"file\"", wireText, StringComparison.Ordinal);
+        Assert.Contains("filename=\"file\"", wireText, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -550,8 +558,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: application/pdf", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("Content-Type: application/pdf", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -580,7 +588,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.Contains("Content-Type: image/png", wireText);
+        Assert.Contains("Content-Type: image/png", wireText, StringComparison.Ordinal);
         Assert.Matches(
             "Content-Disposition: form-data; name=\"avatar.png\"; [^\r\n]*\r\nContent-Type: image/png\r\n\r\n",
             wireText
@@ -614,7 +622,7 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireBytes);
         string wireText = Encoding.UTF8.GetString(wireBytes!);
-        Assert.Contains("名前.png", wireText);
+        Assert.Contains("名前.png", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -663,9 +671,9 @@ public class DefaultApiClientUnitTest
     public void MultipartFilenameNonAsciiEmitsRFC5987()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("日本.pdf");
-        Assert.Contains("filename*=UTF-8''", directive);
-        Assert.Contains("%E6%97%A5%E6%9C%AC", directive);
-        Assert.StartsWith("filename=\"", directive);
+        Assert.Contains("filename*=UTF-8''", directive, StringComparison.Ordinal);
+        Assert.Contains("%E6%97%A5%E6%9C%AC", directive, StringComparison.Ordinal);
+        Assert.StartsWith("filename=\"", directive, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -673,7 +681,7 @@ public class DefaultApiClientUnitTest
     {
         string directive = DefaultApiClient.BuildFilenameDirective("file.png");
         Assert.Equal("filename=\"file.png\"", directive);
-        Assert.DoesNotContain("filename*=", directive);
+        Assert.DoesNotContain("filename*=", directive, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1018,9 +1026,17 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(2, handler.Requests.Count);
-        Assert.Contains("hello-upload", Encoding.UTF8.GetString(handler.Bodies[1]));
+        Assert.Contains(
+            "hello-upload",
+            Encoding.UTF8.GetString(handler.Bodies[1]),
+            StringComparison.Ordinal
+        );
         Assert.Equal(handler.Bodies[0], handler.Bodies[1]);
-        Assert.StartsWith("multipart/form-data; boundary=", handler.ContentTypes[1]);
+        Assert.StartsWith(
+            "multipart/form-data; boundary=",
+            handler.ContentTypes[1],
+            StringComparison.Ordinal
+        );
         Assert.Equal(handler.ContentTypes[0], handler.ContentTypes[1]);
     }
 
@@ -1732,25 +1748,26 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireText);
         // Wire (camelCase) keys from [JsonPropertyName], never snake_case.
-        Assert.Contains("\"isEnabled\":true", wireText);
-        Assert.Contains("\"recordedAt\":", wireText);
-        Assert.DoesNotContain("is_enabled", wireText);
-        Assert.DoesNotContain("recorded_at", wireText);
+        Assert.Contains("\"isEnabled\":true", wireText, StringComparison.Ordinal);
+        Assert.Contains("\"recordedAt\":", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("is_enabled", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("recorded_at", wireText, StringComparison.Ordinal);
         // The JSON part carries the bare declared type, no charset suffix.
-        Assert.Contains("Content-Type: application/json", wireText);
-        Assert.DoesNotContain("charset", wireText);
+        Assert.Contains("Content-Type: application/json", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("charset", wireText, StringComparison.Ordinal);
         // Content-Disposition leads the part headers, as in the other SDKs.
         Assert.Contains(
             "Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n",
-            wireText
+            wireText,
+            StringComparison.Ordinal
         );
         // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
-        Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
+        Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText, StringComparison.Ordinal);
         // Null-omission from the configured options: the unset "caption" and
         // "location" fields are dropped rather than emitted as null — proof the
         // SDK JsonSerializerOptions are applied, not the bare default.
-        Assert.DoesNotContain("\"caption\"", wireText);
-        Assert.DoesNotContain("\"location\"", wireText);
+        Assert.DoesNotContain("\"caption\"", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"location\"", wireText, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -82,7 +82,11 @@ public class ComposedSchemaTest
         );
         Assert.NotNull(ex.InnerException);
         Assert.IsType<System.Text.Json.JsonException>(ex.InnerException);
-        Assert.Contains("must be a string, got " + kind, ex.InnerException!.Message);
+        Assert.Contains(
+            "must be a string, got " + kind,
+            ex.InnerException!.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -97,7 +101,7 @@ public class ComposedSchemaTest
             _serializer.Deserialize<PetFood>(json)
         );
         Assert.NotNull(ex.InnerException);
-        Assert.Contains("raw", ex.InnerException!.Message);
+        Assert.Contains("raw", ex.InnerException!.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,8 +111,8 @@ public class ComposedSchemaTest
         var result = _serializer.Deserialize<PetFood>(json);
 
         var serialized = _serializer.Serialize(result!);
-        Assert.Contains("dry", serialized);
-        Assert.Contains("2.5", serialized);
+        Assert.Contains("dry", serialized, StringComparison.Ordinal);
+        Assert.Contains("2.5", serialized, StringComparison.Ordinal);
     }
 
     // -- anyOf without discriminator: PetTreatment --
@@ -167,10 +171,10 @@ public class ComposedSchemaTest
 
         // Re-serialize: the co-satisfied data round-trips with no silent drop.
         var serialized = _serializer.Serialize(result);
-        Assert.Contains("\"drugName\":\"Amoxicillin\"", serialized);
-        Assert.Contains("\"dosage\":\"250mg\"", serialized);
-        Assert.Contains("\"procedureName\":\"Spay\"", serialized);
-        Assert.Contains("\"durationMinutes\":45", serialized);
+        Assert.Contains("\"drugName\":\"Amoxicillin\"", serialized, StringComparison.Ordinal);
+        Assert.Contains("\"dosage\":\"250mg\"", serialized, StringComparison.Ordinal);
+        Assert.Contains("\"procedureName\":\"Spay\"", serialized, StringComparison.Ordinal);
+        Assert.Contains("\"durationMinutes\":45", serialized, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -195,8 +199,8 @@ public class ComposedSchemaTest
         var serialized = _serializer.Serialize(combined);
 
         // Surgery is the later-declared member, so its `notes` wins the collision.
-        Assert.Contains("from-surgery", serialized);
-        Assert.DoesNotContain("from-medication", serialized);
+        Assert.Contains("from-surgery", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain("from-medication", serialized, StringComparison.Ordinal);
         // `notes` appears exactly once — no duplicate key.
         Assert.Equal(2, serialized.Split("\"notes\"").Length);
     }
@@ -254,7 +258,7 @@ public class ComposedSchemaTest
         var scalarRequest = new SetPetAvatarThumbnailRequest(scalarBytes);
         var scalarJson = _serializer.Serialize(scalarRequest);
         Assert.Equal("\"AQIDBA==\"", scalarJson);
-        Assert.DoesNotContain("[", scalarJson);
+        Assert.DoesNotContain("[", scalarJson, StringComparison.Ordinal);
 
         var decodedScalar = _serializer.Deserialize<SetPetAvatarThumbnailRequest>(scalarJson);
         Assert.NotNull(decodedScalar);
@@ -305,8 +309,8 @@ public class ComposedSchemaTest
         var result = _serializer.Deserialize<PetWithOwner>(json);
 
         var serialized = _serializer.Serialize(result!);
-        Assert.Contains("Fido", serialized);
-        Assert.Contains("John Doe", serialized);
+        Assert.Contains("Fido", serialized, StringComparison.Ordinal);
+        Assert.Contains("John Doe", serialized, StringComparison.Ordinal);
     }
 
     [Fact]

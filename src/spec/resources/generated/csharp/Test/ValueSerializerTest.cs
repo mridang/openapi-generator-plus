@@ -1083,7 +1083,7 @@ public enum TestHue
     Green,
 }
 
-internal sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
+public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
 {
     public override TestHue Read(
         ref System.Text.Json.Utf8JsonReader reader,

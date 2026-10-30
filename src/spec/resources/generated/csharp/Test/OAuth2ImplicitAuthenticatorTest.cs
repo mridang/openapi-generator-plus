@@ -47,8 +47,8 @@ public class OAuth2ImplicitAuthenticatorTest
         Uri url = auth.BuildAuthorizationUrl();
 
         string urlStr = url.ToString();
-        Assert.Contains("response_type=token", urlStr);
-        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
+        Assert.Contains("response_type=token", urlStr, StringComparison.Ordinal);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -63,7 +63,11 @@ public class OAuth2ImplicitAuthenticatorTest
 
         string url = auth.BuildAuthorizationUrl().OriginalString;
 
-        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=token&", url);
+        Assert.StartsWith(
+            "https://Auth.Example.com:443/authorize?response_type=token&",
+            url,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -73,7 +77,7 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Uri url = auth.BuildAuthorizationUrl();
 
-        Assert.Contains("client_id=my-client-id", url.ToString());
+        Assert.Contains("client_id=my-client-id", url.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -93,7 +97,7 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Uri url = auth.BuildAuthorizationUrl("my-state");
 
-        Assert.Contains("state=my-state", url.ToString());
+        Assert.Contains("state=my-state", url.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -134,7 +138,11 @@ public class OAuth2ImplicitAuthenticatorTest
         var auth = CreateAuthenticator();
 
         var ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
-        Assert.Contains("Must set the access token before making API requests", ex.Message);
+        Assert.Contains(
+            "Must set the access token before making API requests",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -155,8 +163,8 @@ public class OAuth2ImplicitAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetAccessToken("implicit-tok");
         string repr = auth.ToString();
-        Assert.DoesNotContain("implicit-tok", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("implicit-tok", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -180,7 +188,7 @@ public class OAuth2ImplicitAuthenticatorTest
             "https://api.example.com",
             "id~*!'()",
             new Uri("https://auth.example.com/authorize"),
-            new[] { "a~b", "c*d" }
+            ["a~b", "c*d"]
         );
 
         string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
