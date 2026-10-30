@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -440,5 +441,50 @@ func TestStoreApi_GetStockItemSendsTheAsOfInstantAsDateTime(t *testing.T) {
 	}
 	if want := "asOf=2024-01-02T03%3A04%3A05.000%2B00%3A00"; query != want {
 		t.Errorf("expected query %q, got %q", want, query)
+	}
+}
+
+// A content-encoded query value goes through the body serializer: compact
+// JSON with '/', '<' and non-ASCII left unescaped, then percent-encoded.
+func TestStoreApi_SearchStoreSerializesTheContentQueryLikeABody(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := jsonStoreServer(`[]`, func(r *http.Request) {
+		query = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	caption := "a/b<\u00e9"
+	if _, err := api.SearchStore(&options.SearchStoreOptions{Q: &models.PhotoMetadata{Caption: &caption}}); err != nil {
+		t.Fatalf("SearchStore failed: %v", err)
+	}
+	if want := "q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D"; query != want {
+		t.Errorf("expected query %q, got %q", want, query)
+	}
+}
+
+// A content-encoded query value that cannot be serialized is a
+// *SerializationError and no request is sent.
+func TestStoreApi_SearchStoreRejectsAnUnserializableContentQuery(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := jsonStoreServer(`[]`, func(_ *http.Request) {
+		requests++
+	})
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+	lat := math.NaN()
+	_, err := api.SearchStore(&options.SearchStoreOptions{
+		Q: &models.PhotoMetadata{Location: &models.PhotoMetadataLocation{Lat: &lat}},
+	})
+
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request, got %d", requests)
 	}
 }

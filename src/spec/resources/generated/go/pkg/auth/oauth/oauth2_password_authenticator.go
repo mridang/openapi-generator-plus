@@ -95,8 +95,6 @@ func (a *OAuth2PasswordAuthenticator) SetApiClient(client auth.ApiClient) {
 // a failed token request surfaces as the real OAuth error instead of an
 // unauthenticated request that fails later as a confusing 401.
 func (a *OAuth2PasswordAuthenticator) AuthHeadersOrError() (map[string]string, error) {
-	var params map[string]string
-	var tokenURL string
 	var extraHeaders map[string]string
 	if a.clientAuthMethod == ClientAuthMethodBasic {
 		// RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
@@ -107,29 +105,24 @@ func (a *OAuth2PasswordAuthenticator) AuthHeadersOrError() (map[string]string, e
 		extraHeaders = map[string]string{"Authorization": "Basic " + credentials}
 	}
 
-	if refreshToken := a.tokenManager.RefreshToken(); refreshToken != "" {
-		params = map[string]string{
-			"grant_type":    "refresh_token",
-			"refresh_token": refreshToken,
-		}
-		tokenURL = a.refreshURL
-	} else {
-		params = map[string]string{
-			"grant_type": "password",
-			"username":   a.username,
-			"password":   a.password,
-		}
-		if a.clientAuthMethod != ClientAuthMethodBasic {
-			params["client_id"] = a.clientID
-			params["client_secret"] = a.clientSecret
-		}
-		if len(a.scopes) > 0 {
-			params["scope"] = strings.Join(a.scopes, " ")
-		}
-		tokenURL = a.tokenURL
+	/* Always hand the manager the password grant: with a refresh token held
+	 * it refreshes at refreshURL with the same client authentication (the
+	 * body credentials or the Basic header) and falls back to this grant at
+	 * tokenURL when the refresh is rejected (RFC 6749 §6). */
+	params := map[string]string{
+		"grant_type": "password",
+		"username":   a.username,
+		"password":   a.password,
+	}
+	if a.clientAuthMethod != ClientAuthMethodBasic {
+		params["client_id"] = a.clientID
+		params["client_secret"] = a.clientSecret
+	}
+	if len(a.scopes) > 0 {
+		params["scope"] = strings.Join(a.scopes, " ")
 	}
 
-	token, err := a.tokenManager.GetAccessTokenWithHeaders(tokenURL, params, extraHeaders)
+	token, err := a.tokenManager.GetAccessTokenWithRefresh(a.tokenURL, a.refreshURL, params, extraHeaders)
 	if err != nil {
 		return nil, err
 	}

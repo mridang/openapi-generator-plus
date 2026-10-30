@@ -111,6 +111,7 @@ type invokeApiParams struct {
 	contentType  string            // request content type
 	returnType   string            // return type for deserialization (empty for void)
 	auth         Authenticator     // optional authenticator for operation-specific auth
+	rawBody      bool              // body is a format:binary value sent verbatim under any contentType
 }
 
 // invokeApiForResult invokes an API operation and returns the full response,
@@ -246,7 +247,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		}
 	} else {
 		var err error
-		serializedBody, err = serializeBody(params.body, params.contentType)
+		serializedBody, err = serializeBody(params.body, params.contentType, params.rawBody)
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize request body: %w", err)
 		}
@@ -336,7 +337,11 @@ func encodeQueryValue(value string, allowReserved bool) string {
 // serializeBody serializes a request body according to the request content type.
 //
 // Returns the serialized bytes, or nil when there is no body to send.
-func serializeBody(body any, contentType string) ([]byte, error) {
+//
+// rawBody marks a format:binary request body: its bytes go on the wire
+// unchanged under whichever declared Content-Type was selected, including
+// application/json, and never through the JSON serializer.
+func serializeBody(body any, contentType string, rawBody bool) ([]byte, error) {
 	if body == nil {
 		return nil, nil
 	}
@@ -355,7 +360,7 @@ func serializeBody(body any, contentType string) ([]byte, error) {
 		return nil, nil
 	}
 
-	if strings.HasPrefix(contentType, "image/") || contentType == "application/octet-stream" {
+	if rawBody || strings.HasPrefix(contentType, "image/") || contentType == "application/octet-stream" {
 		if data, ok := body.([]byte); ok {
 			return data, nil
 		}
@@ -537,18 +542,20 @@ func writeMultipartField(writer *multipart.Writer, name string, value any) error
 	default:
 		/* Object/model/map form values are serialised as JSON, so the part must
 		 * advertise Content-Type: application/json (matching the other SDKs).
-		 * Scalars keep the plain text-field encoding. */
+		 * Every primitive (bool, number, date-time, enum, uuid) is a plain text
+		 * part carrying the same stringify form as a query or form-urlencoded
+		 * value: true, 3, 2024-01-15T10:30:00.000+00:00, red. */
 		if isJSONObjectValue(v) {
 			return writeJSONMultipartPart(writer, name, v)
 		}
-		return writer.WriteField(name, fmt.Sprintf("%v", v))
+		return writer.WriteField(name, stringify(v))
 	}
 }
 
 // isJSONObjectValue reports whether a multipart form value should be emitted as
 // a JSON part (with Content-Type: application/json) rather than a plain text
 // field — i.e. it is a struct, map, or pointer to one (an object/model), as
-// opposed to a scalar.
+// opposed to a scalar. A date-time struct (time.Time, DateTime) is a scalar.
 func isJSONObjectValue(value any) bool {
 	if value == nil {
 		return false
@@ -561,8 +568,10 @@ func isJSONObjectValue(value any) bool {
 		rv = rv.Elem()
 	}
 	switch rv.Kind() {
-	case reflect.Struct, reflect.Map:
+	case reflect.Map:
 		return true
+	case reflect.Struct:
+		return !isTemporalScalar(rv)
 	default:
 		return false
 	}

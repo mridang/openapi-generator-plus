@@ -137,6 +137,9 @@ func (o Pet) MarshalJSON() ([]byte, error) {
 func (o *Pet) UnmarshalJSON(data []byte) error {
 	type Alias Pet
 	aux := &Alias{}
+	if err := checkAbsoluteURIField(data, "homepageUrl"); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "name", "category", "photoUrls", "tags", "status", "location", "homepageUrl", "thumbnailRef", "linkTemplate", "ownerEmail", "weightKg", "nickname"), aux); err != nil {
 		return err
 	}

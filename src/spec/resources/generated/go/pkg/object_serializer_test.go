@@ -608,6 +608,28 @@ func TestStringify_OptionalScalarPointers(t *testing.T) {
 	}
 }
 
+// A format:byte value stringifies to padded, standard-alphabet base64, also
+// behind a pointer, and is never a list of byte values.
+func TestStringify_BytesAreStandardBase64(t *testing.T) {
+	t.Parallel()
+	hi := []byte("hi")
+	cases := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"bytes", []byte("hi"), "aGk="},
+		{"pointer to bytes", &hi, "aGk="},
+		{"standard alphabet", []byte{0xFB, 0xFF}, "+/8="},
+		{"empty", []byte{}, ""},
+	}
+	for _, tc := range cases {
+		if got := stringify(tc.value); got != tc.want {
+			t.Errorf("%s: stringify = %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 func TestStringify_NilScalarPointers(t *testing.T) {
 	t.Parallel()
 	var i64 *int64
@@ -1706,8 +1728,77 @@ func TestIsJSONNull(t *testing.T) {
 	}
 }
 
-// format:byte is base64-decoded by encoding/json, not in the serializer, so the
-// invalid-base64-throws case does not apply to the Go SDK.
+// A format:byte field accepts only strict RFC 4648 base64 (standard alphabet,
+// padded, no whitespace); anything else is a *SerializationError at decode
+// time, in a scalar, an array and a map field alike.
+func TestDeserialize_StrictBase64ForByteFields(t *testing.T) {
+	t.Parallel()
+	rejected := []string{"dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!"}
+	for _, value := range rejected {
+		for _, wire := range []string{
+			`{"thumbnail":"` + value + `"}`,
+			`{"scans":["dGVzdA==","` + value + `"]}`,
+		} {
+			var passport models.PetPassport
+			err := deserialize([]byte(wire), &passport)
+			var serErr *SerializationError
+			if !errors.As(err, &serErr) {
+				t.Errorf("%s: expected *SerializationError, got %T: %v", wire, err, err)
+			}
+		}
+		var vault models.BinaryVault
+		err := deserialize([]byte(`{"labels":{"a":"`+value+`"}}`), &vault)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("labels %q: expected *SerializationError, got %T: %v", value, err, err)
+		}
+	}
+
+	var passport models.PetPassport
+	if err := deserialize([]byte(`{"thumbnail":"dGVzdA=="}`), &passport); err != nil {
+		t.Fatalf("expected strict base64 to decode, got %v", err)
+	}
+	if passport.Thumbnail == nil || string(*passport.Thumbnail) != "test" {
+		t.Errorf("expected thumbnail %q, got %v", "test", passport.Thumbnail)
+	}
+}
+
+// A format:uri field accepts any absolute URI, whatever its scheme, and keeps
+// its text byte-for-byte; a relative reference, free text or an empty string
+// is a *SerializationError. A format:uri-reference field stays a plain string.
+func TestDeserialize_FormatUriAcceptsOnlyAbsoluteUris(t *testing.T) {
+	t.Parallel()
+	for _, value := range []string{
+		"urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1",
+	} {
+		var pet models.Pet
+		wire := `{"name":"x","photoUrls":[],"homepageUrl":"` + value + `"}`
+		if err := deserialize([]byte(wire), &pet); err != nil {
+			t.Errorf("%q: expected an absolute URI to decode, got %v", value, err)
+			continue
+		}
+		out, err := serialize(pet)
+		if err != nil {
+			t.Fatalf("%q: serialize failed: %v", value, err)
+		}
+		if !strings.Contains(string(out), `"homepageUrl":"`+value+`"`) {
+			t.Errorf("%q: expected the text to round-trip unchanged, got %s", value, out)
+		}
+	}
+	for _, value := range []string{"/relative", "not a uri", ""} {
+		var pet models.Pet
+		wire := `{"name":"x","photoUrls":[],"homepageUrl":"` + value + `"}`
+		err := deserialize([]byte(wire), &pet)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", value, err, err)
+		}
+	}
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}`), &pet); err != nil {
+		t.Errorf("expected a relative uri-reference to decode, got %v", err)
+	}
+}
 
 // A payload within the 1000-deep nesting cap decodes; one past it is rejected as
 // a *SerializationError (the jsonMaxDepth pre-flight guard).

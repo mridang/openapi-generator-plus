@@ -268,10 +268,48 @@ func newTransportError(msg string, err error) error {
 // ErrClientClosed.
 func (c *DefaultApiClient) Close() error {
 	c.closed.Store(true)
-	if transport, ok := c.httpClient.Transport.(*http.Transport); ok {
+	switch transport := c.httpClient.Transport.(type) {
+	case *locationGuardTransport:
+		transport.inner.CloseIdleConnections()
+	case *http.Transport:
 		transport.CloseIdleConnections()
 	}
 	return nil
+}
+
+// locationGuardTransport makes an unusable Location behave like a missing one.
+//
+// net/http parses the Location of a 301, 302, 303, 307 or 308 before
+// CheckRedirect runs and fails the whole call with a *url.Error, and no
+// response, when it cannot. Every SDK instead returns such a 3xx untouched,
+// as it does a 3xx without Location. The guard moves a Location the request
+// URL cannot resolve to the non-canonical "location" key: net/http looks it up
+// canonically and so sees none, while the response keeps the header (headers
+// reach callers lowercased) and its body.
+type locationGuardTransport struct {
+	inner *http.Transport
+}
+
+// RoundTrip sends the request on the inner transport and hides an
+// unresolvable redirect Location from the redirect loop.
+func (t *locationGuardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := t.inner.RoundTrip(req)
+	if err != nil || resp == nil {
+		return resp, err
+	}
+	switch resp.StatusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther,
+		http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		locations := resp.Header.Values("Location")
+		if len(locations) == 0 {
+			break
+		}
+		if _, perr := req.URL.Parse(locations[0]); perr != nil {
+			resp.Header.Del("Location")
+			resp.Header[strings.ToLower("Location")] = locations
+		}
+	}
+	return resp, nil
 }
 
 func buildHTTPClient(opts *TransportOptions) *http.Client {
@@ -312,7 +350,7 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 	}
 
 	client := &http.Client{
-		Transport: transport,
+		Transport: &locationGuardTransport{inner: transport},
 	}
 
 	if opts.Timeout() != nil {

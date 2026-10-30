@@ -10,7 +10,6 @@
 package petstore
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -1568,7 +1567,13 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(options *opts.SearchStoreOptions) (*A
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Q != nil {
-		jsonBytes, _ := json.Marshal(options.Q)
+		/* The same serializer as request bodies (no HTML escaping, canonical
+		 * date-times, wire names); a failure is returned as a
+		 * *SerializationError before any request is sent. */
+		jsonBytes, err := serialize(options.Q)
+		if err != nil {
+			return nil, err
+		}
 		queryParams["q"] = string(jsonBytes)
 	}
 	if options != nil && options.Labels != nil {

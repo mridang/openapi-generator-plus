@@ -2,9 +2,6 @@
 package {{packageName}}
 
 import (
-{{#hasJsonImport}}
-	"encoding/json"
-{{/hasJsonImport}}
 	"fmt"
 {{#hasOsImport}}
 	"os"
@@ -267,7 +264,13 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		jsonBytes, _ := json.Marshal(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		/* The same serializer as request bodies (no HTML escaping, canonical
+		 * date-times, wire names); a failure is returned as a
+		 * *SerializationError before any request is sent. */
+		jsonBytes, err := serialize(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		if err != nil {
+			return nil, err
+		}
 		queryParams["{{baseName}}"] = string(jsonBytes)
 	}
 {{/vendorExtensions.param.queryContent}}
@@ -368,7 +371,8 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 	 * Content-Type (matching java/elixir and the other SDKs), rather than being
 	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
-	 * supply a body the selected content-type accepts. The declared types are,
+	 * supply a body the selected content-type accepts; a binary body is sent
+	 * byte-for-byte under any selected type, application/json included. The declared types are,
 	 * in order:
 {{#consumes}}
 	 *   - {{{mediaType}}}
@@ -421,6 +425,13 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#vendorExtensions.op.signa
 		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
 		contentType:  {{#vendorExtensions.hasMultipleConsumes}}requestContentTypeValue{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}"{{vendorExtensions.op.effectiveConsumes}}"{{/vendorExtensions.hasMultipleConsumes}},
 		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
+{{^hasFormParams}}
+{{#bodyParam}}
+{{#isBinary}}
+		rawBody:      true,
+{{/isBinary}}
+{{/bodyParam}}
+{{/hasFormParams}}
 		{{! An operation declared `security: []` has no auth
 		    methods. It must pass the noAuth sentinel (not nil) so base_api applies
 		    NO authentication instead of falling back to the client-level

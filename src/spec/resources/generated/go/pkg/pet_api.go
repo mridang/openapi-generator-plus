@@ -2192,7 +2192,8 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 	 * Content-Type (matching java/elixir and the other SDKs), rather than being
 	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
-	 * supply a body the selected content-type accepts. The declared types are,
+	 * supply a body the selected content-type accepts; a binary body is sent
+	 * byte-for-byte under any selected type, application/json included. The declared types are,
 	 * in order:
 	 *   - image/jpeg
 	 *   - image/png
@@ -2228,6 +2229,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(petId int64, body *os.File, requestCon
 		accepts:      []string{},
 		contentType:  requestContentTypeValue,
 		returnType:   "",
+		rawBody:      true,
 		auth:         nil,
 	})
 	if err != nil {
@@ -2711,7 +2713,8 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *opts.Upload
 	 * Content-Type (matching java/elixir and the other SDKs), rather than being
 	 * silently dropped in favour of the first type.
 	 * NOTE: this only changes the Content-Type header — the caller must still
-	 * supply a body the selected content-type accepts. The declared types are,
+	 * supply a body the selected content-type accepts; a binary body is sent
+	 * byte-for-byte under any selected type, application/json included. The declared types are,
 	 * in order:
 	 *   - multipart/form-data
 	 *   - application/octet-stream

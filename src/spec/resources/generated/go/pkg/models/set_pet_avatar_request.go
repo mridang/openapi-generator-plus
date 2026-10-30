@@ -59,6 +59,9 @@ func (o SetPetAvatarRequest) MarshalJSON() ([]byte, error) {
 func (o *SetPetAvatarRequest) UnmarshalJSON(data []byte) error {
 	type Alias SetPetAvatarRequest
 	aux := &Alias{}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(dropMiscasedKeys(data, "data", "mimeType"), aux); err != nil {
 		return err
 	}

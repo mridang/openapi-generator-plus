@@ -335,6 +335,43 @@ func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 	}
 }
 
+// An unusable Location (unparseable, or absent) stops the redirect loop: the
+// 3xx itself comes back with its status and body, never a transport error.
+func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		path     string
+		body     string
+		location string
+	}{
+		{"/test/redirect/malformed-location", `{"redirect":"malformed"}`, "http://[bad"},
+		{"/test/redirect/no-location", `{"redirect":"no-location"}`, ""},
+	}
+	for _, followRedirects := range []bool{true, false} {
+		transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(followRedirects).Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		client := NewDefaultApiClient(transport)
+		for _, tc := range cases {
+			resp, err := client.SendRequest("GET", chasmHTTPURL+tc.path, map[string]string{}, nil)
+			if err != nil {
+				t.Errorf("%s (follow=%v): expected the 302, got %v", tc.path, followRedirects, err)
+				continue
+			}
+			if resp.StatusCode != 302 {
+				t.Errorf("%s (follow=%v): expected status 302, got %d", tc.path, followRedirects, resp.StatusCode)
+			}
+			if strings.ReplaceAll(resp.Body, " ", "") != tc.body {
+				t.Errorf("%s (follow=%v): expected body %s, got %q", tc.path, followRedirects, tc.body, resp.Body)
+			}
+			if got := resp.Headers["location"]; got != tc.location {
+				t.Errorf("%s (follow=%v): expected the Location %q kept, got %q", tc.path, followRedirects, tc.location, got)
+			}
+		}
+	}
+}
+
 func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().

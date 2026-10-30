@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"strings"
 	"sync/atomic"
 
@@ -100,16 +99,18 @@ func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClien
 //
 // The state parameter is optional and used for CSRF protection.
 func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state string) string {
-	params := url.Values{
-		"response_type": {"code"},
-		"client_id":     {a.clientID},
-		"redirect_uri":  {a.redirectURI},
+	/* One fixed parameter order shared by every SDK: response_type,
+	 * client_id, redirect_uri, scope, state. */
+	params := [][2]string{
+		{"response_type", "code"},
+		{"client_id", a.clientID},
+		{"redirect_uri", a.redirectURI},
 	}
 	if len(a.scopes) > 0 {
-		params.Set("scope", strings.Join(a.scopes, " "))
+		params = append(params, [2]string{"scope", strings.Join(a.scopes, " ")})
 	}
 	if state != "" {
-		params.Set("state", state)
+		params = append(params, [2]string{"state", state})
 	}
 	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
 	// a query component. Use '&' as the separator when one is already
@@ -118,9 +119,9 @@ func (a *OAuth2AuthorizationCodeAuthenticator) BuildAuthorizationURL(state strin
 	if strings.Contains(a.authorizationURL, "?") {
 		separator = "&"
 	}
-	// url.Values.Encode emits '+' for a space; RFC 3986 requires %20 in a query
+	// url.QueryEscape emits '+' for a space; RFC 3986 requires %20 in a query
 	// component (a strict server reads '+' as a literal plus), matching the other SDKs.
-	return a.authorizationURL + separator + strings.ReplaceAll(params.Encode(), "+", "%20")
+	return a.authorizationURL + separator + strings.ReplaceAll(encodeOrderedQuery(params), "+", "%20")
 }
 
 // ErrAuthCodeEmpty is returned by ExchangeCode when the supplied authorization
@@ -142,8 +143,9 @@ func (a *OAuth2AuthorizationCodeAuthenticator) ExchangeCode(code string) error {
 		"client_secret": a.clientSecret,
 		"redirect_uri":  a.redirectURI,
 	}
-	_, err := a.tokenManager.GetAccessToken(a.tokenURL, params)
-	if err != nil {
+	/* Exchange always POSTs this code and replaces the session; the caching
+	 * GetAccessToken would return the previous token or refresh it instead. */
+	if err := a.tokenManager.Exchange(a.tokenURL, params); err != nil {
 		return err
 	}
 	a.tokenExchanged.Store(true)
@@ -167,9 +169,14 @@ func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeadersOrError() (map[string]
 	params := map[string]string{
 		"grant_type":    "refresh_token",
 		"refresh_token": a.tokenManager.RefreshToken(),
+		"client_id":     a.clientID,
+		"client_secret": a.clientSecret,
 	}
 
-	token, err := a.tokenManager.GetAccessToken(a.refreshURL, params)
+	/* RFC 6749 §6: the refresh authenticates the client the way the code
+	 * exchange did. The params are already a refresh_token grant, so the
+	 * manager sends exactly one POST to refreshURL. */
+	token, err := a.tokenManager.GetAccessTokenWithRefresh(a.tokenURL, a.refreshURL, params, nil)
 	if err != nil {
 		return nil, err
 	}

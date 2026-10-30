@@ -685,6 +685,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getModelContextFlags() {
         return Map.of(
                 "type:uuid.UUID", "hasUuidImport",
+                "type:[]byte", "hasByteFields",
                 "oneOfAnyOf", "hasFmtImport",
                 "isEnum", "hasFmtImport",
                 "hasInlineEnum", "hasFmtImport",
@@ -700,8 +701,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 "type:os.File", "hasOsImport",
                 "type:uuid.UUID", "hasUuidImport",
                 "servers", "hasStringsImport",
-                "cookieParams", "hasStringsImport",
-                "queryContent", "hasJsonImport");
+                "cookieParams", "hasStringsImport");
     }
 
     /** {@inheritDoc} */

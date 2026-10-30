@@ -230,3 +230,14 @@ func TestOAuth2Implicit_AuthorizeUrlPercentEncodesReservedPunctuation(t *testing
 		}
 	}
 }
+
+// The authorize URL carries its parameters in the one order every SDK shares.
+func TestOAuth2Implicit_AuthorizeUrlUsesTheSharedParameterOrder(t *testing.T) {
+	t.Parallel()
+	url := createImplicitAuthenticator().BuildAuthorizationURL("s")
+
+	want := "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
+	if url != want {
+		t.Errorf("expected %q, got %q", want, url)
+	}
+}

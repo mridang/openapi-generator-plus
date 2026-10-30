@@ -927,7 +927,7 @@ func (c *recordingTokenClient) requestCount() int {
 }
 
 // The refresh grant carries the cached refresh token and the client credentials
-// from the original grant, and nothing else of it: the sorted form body pins the
+// from the original grant, and nothing else of it: the ordered form body pins the
 // exact parameter set.
 func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(t *testing.T) {
 	t.Parallel()
@@ -957,7 +957,7 @@ func TestOAuth2TokenManager_RefreshGrantCarriesRefreshTokenAndClientCredentials(
 	if client.requestCount() != 2 {
 		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
 	}
-	want := "client_id=cid&client_secret=sec&grant_type=refresh_token&refresh_token=old_refresh"
+	want := "grant_type=refresh_token&refresh_token=old_refresh&client_id=cid&client_secret=sec"
 	if got := client.requests[1].body; got != want {
 		t.Errorf("expected refresh body %q, got %q", want, got)
 	}
@@ -996,7 +996,7 @@ func TestOAuth2TokenManager_RejectedRefreshFallsBackToTheOriginalGrant(t *testin
 	if got := client.requests[1].body; !strings.Contains(got, "grant_type=refresh_token") {
 		t.Errorf("expected the second request to be the refresh grant, got %q", got)
 	}
-	want := "client_id=cid&client_secret=sec&grant_type=client_credentials"
+	want := "grant_type=client_credentials&client_id=cid&client_secret=sec"
 	if got := client.requests[2].body; got != want {
 		t.Errorf("expected the original grant body %q, got %q", want, got)
 	}
@@ -1051,5 +1051,157 @@ func TestOAuth2TokenManager_RefreshWithoutExpiresInKeepsTheExistingExpiry(t *tes
 	}
 	if got := client.requests[2].body; !strings.Contains(got, "refresh_token=r1") {
 		t.Errorf("expected the third request to refresh with the cached token, got %q", got)
+	}
+}
+
+// The refresh goes to the refresh URL with the same extra headers as the
+// original grant, which still goes to the token URL.
+func TestOAuth2TokenManager_RefreshGoesToTheRefreshUrlWithTheSameHeaders(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"a2","expires_in":3600}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "password", "username": "u", "password": "p"}
+	headers := map[string]string{"Authorization": "Basic Y2lkOnNlYw=="}
+	for i := 0; i < 2; i++ {
+		if _, err := manager.GetAccessTokenWithRefresh(
+			"https://auth.example.com/token", "https://auth.example.com/refresh", params, headers); err != nil {
+			t.Fatalf("call %d: unexpected error: %v", i+1, err)
+		}
+	}
+
+	if got := client.requests[0].url; got != "https://auth.example.com/token" {
+		t.Errorf("expected the grant at the token URL, got %q", got)
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh at the refresh URL, got %q", got)
+	}
+	if got := client.requests[1].headers["Authorization"]; got != "Basic Y2lkOnNlYw==" {
+		t.Errorf("expected the refresh to carry the extra header, got %q", got)
+	}
+	if got, want := client.requests[1].body, "grant_type=refresh_token&refresh_token=r1"; got != want {
+		t.Errorf("expected refresh body %q, got %q", want, got)
+	}
+}
+
+// Params that already are a refresh_token grant are sent once, to the refresh
+// URL; a rejection is returned without a second, identical POST.
+func TestOAuth2TokenManager_RefreshGrantParamsSendExactlyOnePost(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":1}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	if err := manager.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "c"}); err != nil {
+		t.Fatalf("unexpected error on the exchange: %v", err)
+	}
+	refresh := map[string]string{"grant_type": "refresh_token", "refresh_token": "r1"}
+	_, err := manager.GetAccessTokenWithRefresh(
+		"https://auth.example.com/token", "https://auth.example.com/refresh", refresh, nil)
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 400 {
+		t.Fatalf("expected *OAuth2ServerError with status 400, got %T: %v", err, err)
+	}
+	if client.requestCount() != 2 {
+		t.Fatalf("expected exactly one refresh POST, got %d requests", client.requestCount())
+	}
+	if got := client.requests[1].url; got != "https://auth.example.com/refresh" {
+		t.Errorf("expected the refresh at the refresh URL, got %q", got)
+	}
+}
+
+// Keys outside the shared order follow it, sorted, so every body is
+// deterministic.
+func TestOAuth2TokenManager_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{
+		"resource": "r", "scope": "a b", "audience": "x", "client_secret": "s",
+		"client_id": "c", "password": "p", "username": "u", "grant_type": "password",
+	}
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "grant_type=password&username=u&password=p&client_id=c&client_secret=s&scope=a+b&audience=x&resource=r"
+	if got := client.requests[0].body; got != want {
+		t.Errorf("expected body %q, got %q", want, got)
+	}
+}
+
+// Exchange always POSTs, even with a valid cached token and a refresh token
+// held, and replaces the session with exactly what the response carries.
+func TestOAuth2TokenManager_ExchangeBypassesTheCacheAndTheRefresh(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"a2"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	if err := manager.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "one"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := manager.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "two"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got, want := client.requests[1].body, "grant_type=authorization_code&code=two"; got != want {
+		t.Errorf("expected the second exchange body %q, got %q", want, got)
+	}
+	if got := manager.RefreshToken(); got != "" {
+		t.Errorf("expected no refresh token after a response without one, got %q", got)
+	}
+	token, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code"})
+	if err != nil || token != "a2" {
+		t.Errorf("expected the exchanged token a2 from the cache, got %q, %v", token, err)
+	}
+	if client.requestCount() != 2 {
+		t.Errorf("expected no request beyond the two exchanges, got %d", client.requestCount())
+	}
+}
+
+// A failed Exchange restores the previous access token, refresh token and
+// expiry, and returns the error.
+func TestOAuth2TokenManager_FailedExchangeRestoresThePreviousSession(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","refresh_token":"r1","expires_in":3600}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	if err := manager.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "one"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err := manager.Exchange("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code", "code": "bad"})
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if got := manager.RefreshToken(); got != "r1" {
+		t.Errorf("expected the refresh token to be restored, got %q", got)
+	}
+	token, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{"grant_type": "authorization_code"})
+	if err != nil || token != "a1" {
+		t.Errorf("expected the restored token a1 from the cache, got %q, %v", token, err)
+	}
+	if client.requestCount() != 2 {
+		t.Errorf("expected no request beyond the two exchanges, got %d", client.requestCount())
 	}
 }

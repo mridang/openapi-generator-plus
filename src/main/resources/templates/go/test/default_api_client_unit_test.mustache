@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 	pkgerrors "{{packageName}}/pkg/errors"
+	"{{packageName}}/pkg/models"
 	"bytes"
 	"compress/flate"
 	"compress/zlib"
@@ -1314,6 +1315,70 @@ func TestBuildMultipartBody_PreservesNonASCIIFieldName(t *testing.T) {
 	}
 }
 
+// multipartSampleShade is a named string kind, the shape a generated string
+// enum takes.
+type multipartSampleShade string
+
+// multipartSampleObject is a struct value, the shape a generated model takes.
+type multipartSampleObject struct {
+	Label string `json:"label"`
+}
+
+// Every primitive multipart value is a text part carrying its stringify form
+// and no part Content-Type; only an object is a JSON part, with exactly
+// Content-Type: application/json.
+func TestBuildMultipartBody_PrimitivesAreTextPartsAndObjectsAreJsonParts(t *testing.T) {
+	t.Parallel()
+	boundary := "test-boundary-scalars"
+	moment := models.DateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC))
+	body, err := buildMultipartBody(map[string]any{
+		"flag":   true,
+		"count":  int64(3),
+		"moment": moment,
+		"shade":  multipartSampleShade("red"),
+		"meta":   multipartSampleObject{Label: "x"},
+	}, boundary)
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+
+	want := map[string]string{
+		"flag":   "true",
+		"count":  "3",
+		"moment": "2024-01-15T10:30:00.000+00:00",
+		"shade":  "red",
+		"meta":   `{"label":"x"}`,
+	}
+	mr := multipart.NewReader(strings.NewReader(string(body)), boundary)
+	seen := 0
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading multipart part failed: %v", err)
+		}
+		seen++
+		name := part.FormName()
+		content, _ := io.ReadAll(part)
+		if got := string(content); got != want[name] {
+			t.Errorf("part %q: expected body %q, got %q", name, want[name], got)
+		}
+		contentType, hasContentType := part.Header["Content-Type"]
+		if name == "meta" {
+			if !hasContentType || len(contentType) != 1 || contentType[0] != "application/json" {
+				t.Errorf("part %q: expected exactly Content-Type application/json, got %v", name, contentType)
+			}
+		} else if hasContentType {
+			t.Errorf("part %q: expected no part Content-Type, got %v", name, contentType)
+		}
+	}
+	if seen != len(want) {
+		t.Errorf("expected %d parts, got %d", len(want), seen)
+	}
+}
+
 // multipart-file-part-contenttype: a file part's Content-Type is derived from
 // the filename extension, falling back to application/octet-stream for unknown
 // or absent extensions.
@@ -1349,10 +1414,11 @@ func TestBuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	transport, ok := buildHTTPClient(opts).Transport.(*http.Transport)
+	guard, ok := buildHTTPClient(opts).Transport.(*locationGuardTransport)
 	if !ok {
-		t.Fatal("expected an *http.Transport")
+		t.Fatal("expected the Location guard around the *http.Transport")
 	}
+	transport := guard.inner
 	if transport.IdleConnTimeout != 90*time.Second {
 		t.Errorf("expected IdleConnTimeout 90s, got %v", transport.IdleConnTimeout)
 	}

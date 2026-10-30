@@ -3,6 +3,7 @@ package {{packageName}}
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -219,6 +220,10 @@ func stringify(value any) string {
 			return ""
 		}
 		return *v
+	case []byte:
+		/* A format:byte value is standard-alphabet, padded RFC 4648 base64 on
+		 * the wire, the same text its JSON body form carries. */
+		return base64.StdEncoding.EncodeToString(v)
 	case int:
 		return fmt.Sprintf("%d", v)
 	case int32:
@@ -242,6 +247,12 @@ func stringify(value any) string {
 		}
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+// isTemporalScalar reports whether a struct value is a date-time (time.Time or
+// a type defined on it, such as DateTime), which is written as a scalar.
+func isTemporalScalar(rv reflect.Value) bool {
+	return rv.Kind() == reflect.Struct && rv.Type().ConvertibleTo(reflect.TypeOf(time.Time{}))
 }
 
 // toPathValue converts a value to a string suitable for use as a URL path parameter.

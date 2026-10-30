@@ -56,6 +56,9 @@ func (o PetPassport) MarshalJSON() ([]byte, error) {
 func (o *PetPassport) UnmarshalJSON(data []byte) error {
 	type Alias PetPassport
 	aux := &Alias{}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(dropMiscasedKeys(data, "pet", "thumbnail", "scans", "issuedAt", "biometricChip"), aux); err != nil {
 		return err
 	}

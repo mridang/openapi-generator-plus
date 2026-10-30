@@ -499,6 +499,57 @@ func TestPetApi_SetPetAvatarHonoursSelectedRequestContentType(t *testing.T) {
 	}
 }
 
+// A format:binary body sent with the application/json selector still goes on
+// the wire as the caller's exact bytes: the selector changes only the
+// Content-Type header, never routes the bytes through the JSON serializer.
+func TestPetApi_SetPetAvatarSendsBinaryBytesVerbatimUnderTheJsonSelector(t *testing.T) {
+	t.Parallel()
+	payload := []byte{0xFF, 0xD8, 0xFF, 0xE0}
+
+	var capturedBody []byte
+	var capturedContentType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		capturedBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	f := newTempFile(t, string(payload))
+
+	if err := api.SetPetAvatar(int64(1), f, "application/json"); err != nil {
+		t.Fatalf("SetPetAvatar (application/json selector) failed: %v", err)
+	}
+	if !bytes.Equal(capturedBody, payload) {
+		t.Errorf("expected raw body bytes %v, got %v (string %q)", payload, capturedBody, string(capturedBody))
+	}
+	if capturedContentType != "application/json" {
+		t.Errorf("expected Content-Type application/json, got %q", capturedContentType)
+	}
+}
+
+// A format:byte JSON body is still serialized: its bytes travel as a base64
+// JSON string, so the verbatim rule for binary bodies cannot leak into it.
+func TestPetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
+	t.Parallel()
+	var capturedBody []byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	thumbnail := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0xFF, 0xD8, 0xFF, 0xE0})
+	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
+		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
+	}
+	if got, want := string(capturedBody), `"/9j/4A=="`; got != want {
+		t.Errorf("expected body %s, got %s", want, got)
+	}
+}
+
 func TestPetApi_GetPetAvatar(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
@@ -563,6 +614,61 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result")
+	}
+}
+
+// The typed multipart scalars of uploadPetDocument are text parts carrying the
+// stringify form, with no part Content-Type: true, 3, the canonical date-time
+// and the enum's wire value.
+func TestPetApi_UploadPetDocumentSendsTypedScalarsAsTextParts(t *testing.T) {
+	t.Parallel()
+	parts := map[string]string{}
+	partTypes := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+		if err == nil {
+			mr := multipart.NewReader(r.Body, params["boundary"])
+			for {
+				part, perr := mr.NextPart()
+				if perr != nil {
+					break
+				}
+				body, _ := io.ReadAll(part)
+				parts[part.FormName()] = string(body)
+				partTypes[part.FormName()] = part.Header.Get("Content-Type")
+			}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	isPrimary := true
+	pageCount := int64(3)
+	takenAt := models.DateTime(time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC))
+	swatch := models.SwatchRed
+	_, _ = api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{
+		File:      newTempFile(t, "document-content"),
+		IsPrimary: &isPrimary,
+		PageCount: &pageCount,
+		TakenAt:   &takenAt,
+		Swatch:    &swatch,
+	})
+
+	for name, want := range map[string]string{
+		"isPrimary": "true",
+		"pageCount": "3",
+		"takenAt":   "2024-01-15T10:30:00.000+00:00",
+		"swatch":    "red",
+	} {
+		if got := parts[name]; got != want {
+			t.Errorf("part %q: expected %q, got %q", name, want, got)
+		}
+		if got := partTypes[name]; got != "" {
+			t.Errorf("part %q: expected no part Content-Type, got %q", name, got)
+		}
 	}
 }
 
@@ -687,6 +793,44 @@ func TestPetApi_GetPetPhoto(t *testing.T) {
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result from GetPetPhoto")
+	}
+}
+
+// A format:byte query and header parameter is base64 (standard alphabet, with
+// padding) before the normal query and header encoding.
+func TestPetApi_GetPetTagSendsByteParametersAsBase64(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		value      []byte
+		wantQuery  string
+		wantHeader string
+	}{
+		{"padded", []byte("hi"), "fingerprint=aGk%3D", "aGk="},
+		{"standard alphabet", []byte{0xFB, 0xFF}, "fingerprint=%2B%2F8%3D", "+/8="},
+	}
+	for _, tc := range cases {
+		var query, header string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query = r.URL.RawQuery
+			header = r.Header.Get("X-Fingerprint")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{}`))
+		}))
+		api := newPetApiForMock(t, server)
+		value := tc.value
+		_, _ = api.GetPetTag(int64(5), "cute", &options.GetPetTagOptions{
+			Fingerprint:  &value,
+			XFingerprint: &value,
+		})
+		server.Close()
+		if query != tc.wantQuery {
+			t.Errorf("%s: expected query %q, got %q", tc.name, tc.wantQuery, query)
+		}
+		if header != tc.wantHeader {
+			t.Errorf("%s: expected X-Fingerprint %q, got %q", tc.name, tc.wantHeader, header)
+		}
 	}
 }
 
