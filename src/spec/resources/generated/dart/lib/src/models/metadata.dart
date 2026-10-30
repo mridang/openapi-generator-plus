@@ -42,7 +42,12 @@ class Metadata {
     if (createdAt != null) {
       json['createdAt'] = formatDateTimeOffset(createdAt!);
     }
-    json.addAll(additionalProperties);
+    /* A declared property is authoritative: an additionalProperties entry
+     * whose key equals a declared wire name is dropped, so no key is written
+     * twice and the typed value wins. */
+    for (final entry in additionalProperties.entries) {
+      json.putIfAbsent(entry.key, () => entry.value);
+    }
     return json;
   }
 

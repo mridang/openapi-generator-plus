@@ -654,20 +654,20 @@ class {{classname}} {
     list. A `date` (format:date) leaf is already a String so it passes through
     via the plain toList(). }}
 {{#isDateTime}}
-    json['{{baseName}}'] = {{name}}.map((e) => formatDateTimeOffset(e)).toList();
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => formatDateTimeOffset(e)));
 {{/isDateTime}}
 {{#isUuid}}
-    json['{{baseName}}'] = {{name}}.map((e) => e.toString()).toList();
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => e.toString()));
 {{/isUuid}}
 {{#vendorExtensions.isDuration}}
-    json['{{baseName}}'] = {{name}}.map((e) => formatProtobufDuration(e)).toList();
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => formatProtobufDuration(e)));
 {{/vendorExtensions.isDuration}}
 {{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
-    json['{{baseName}}'] = {{name}}.toList();
+    json['{{baseName}}'] = wireList({{name}}, {{name}});
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-    json['{{baseName}}'] = {{name}}.map((e) => e.toJson()).toList();
+    json['{{baseName}}'] = wireList({{name}}, {{name}}.map((e) => e.toJson()));
 {{/isPrimitiveType}}
 {{/isByteArray}}
 {{/items}}
@@ -743,20 +743,20 @@ class {{classname}} {
     so each leaf is projected to its wire form. A `date` leaf is already a
     String and passes through the plain toList(). }}
 {{#isDateTime}}
-      json['{{baseName}}'] = {{name}}?.map((e) => formatDateTimeOffset(e)).toList();
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => formatDateTimeOffset(e)));
 {{/isDateTime}}
 {{#isUuid}}
-      json['{{baseName}}'] = {{name}}?.map((e) => e.toString()).toList();
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => e.toString()));
 {{/isUuid}}
 {{#vendorExtensions.isDuration}}
-      json['{{baseName}}'] = {{name}}?.map((e) => formatProtobufDuration(e)).toList();
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => formatProtobufDuration(e)));
 {{/vendorExtensions.isDuration}}
 {{^isDateTime}}{{^isUuid}}{{^vendorExtensions.isDuration}}
-      json['{{baseName}}'] = {{name}}?.toList();
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}});
 {{/vendorExtensions.isDuration}}{{/isUuid}}{{/isDateTime}}
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
-      json['{{baseName}}'] = {{name}}?.map((e) => e.toJson()).toList();
+      json['{{baseName}}'] = wireListOrNull({{name}}, {{name}}?.map((e) => e.toJson()));
 {{/isPrimitiveType}}
 {{/isByteArray}}
 {{/items}}
@@ -817,7 +817,12 @@ class {{classname}} {
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-    json.addAll(additionalProperties);
+    /* A declared property is authoritative: an additionalProperties entry
+     * whose key equals a declared wire name is dropped, so no key is written
+     * twice and the typed value wins. */
+    for (final entry in additionalProperties.entries) {
+      json.putIfAbsent(entry.key, () => entry.value);
+    }
 {{/isAdditionalPropertiesTrue}}
     return json;
   }

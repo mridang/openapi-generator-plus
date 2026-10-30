@@ -1941,5 +1941,51 @@ void main() {
       }
     });
   });
+
+  group('Proxy credentials across redirects', () {
+    /* The stub is the forward proxy: it sees every hop as an absolute-URI
+     * request, so a cross-origin redirect needs no second host. */
+    test('keep the proxy Proxy-Authorization and drop the caller Authorization',
+        () async {
+      final second = <String, String?>{};
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      proxy.listen((request) {
+        if (request.headers.value('host') == 'a.test') {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'http://b.test/y')
+            ..close();
+          return;
+        }
+        second['host'] = request.headers.value('host');
+        second['proxy-authorization'] =
+            request.headers.value('proxy-authorization');
+        second['authorization'] = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .proxy('http://user:pass@127.0.0.1:${proxy.port}')
+            .followRedirects(true)
+            .build();
+        final resp = await DefaultApiClient(transportOptions: transport)
+            .sendRequest(
+          'GET',
+          'http://a.test/x',
+          {'Authorization': 'Bearer caller-secret'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(second['host'], equals('b.test'));
+        expect(second['proxy-authorization'], equals('Basic dXNlcjpwYXNz'));
+        expect(second['authorization'], isNull);
+      } finally {
+        await proxy.close();
+      }
+    });
+  });
 }
 {{/generateTests}}

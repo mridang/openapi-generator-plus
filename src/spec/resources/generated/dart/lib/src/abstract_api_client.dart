@@ -254,13 +254,26 @@ abstract class AbstractApiClient implements ApiClient {
         var currentHeaders = Map<String, String>.from(merged);
         while (hops < maxRedirects &&
             _isRedirectStatus(streamedResponse.statusCode)) {
+          /* A missing, empty or unparseable Location is not a usable
+           * redirect: stop and return the 3xx untouched (status, headers and
+           * body), exactly like a missing Location. The Location is resolved
+           * BEFORE the body is drained so a break leaves the body readable. */
+          final location = streamedResponse.headers['location'];
+          if (location == null || location.isEmpty) break;
+          final Uri nextUri;
+          try {
+            nextUri = currentUri.resolve(location);
+          } on FormatException {
+            break;
+          }
+          if ((nextUri.scheme == 'http' || nextUri.scheme == 'https') &&
+              nextUri.host.isEmpty) {
+            break;
+          }
           /* Drain any unread body to release the connection, within what is
            * left of the end-to-end timeout so a stalled redirect body cannot
            * hang the call. */
           await _drainWithin(streamedResponse.stream, clock);
-          final location = streamedResponse.headers['location'];
-          if (location == null || location.isEmpty) break;
-          final nextUri = currentUri.resolve(location);
           if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
             /* A `Location:` pointing at a non-http(s) scheme (`file:`,
              * `javascript:`, `data:`, ...) is a redirect-target smuggling
@@ -334,6 +347,18 @@ abstract class AbstractApiClient implements ApiClient {
             }
             redirectHeaders[k] = v;
           });
+          /* The SDK's own Proxy-Authorization authenticates to the proxy,
+           * which is the same for every hop, so it is re-applied after the
+           * cross-origin strip (which removes only caller credentials). On a
+           * cross-origin hop to an https target it is NOT re-added: there it
+           * would travel inside the tunnel to an unrelated origin. */
+          if (proxyAuth != null &&
+              !(crossOrigin && nextUri.scheme.toLowerCase() == 'https')) {
+            redirectHeaders.removeWhere(
+              (k, _) => k.toLowerCase() == 'proxy-authorization',
+            );
+            redirectHeaders['Proxy-Authorization'] = proxyAuth;
+          }
           final next = http.Request(nextMethod, nextUri);
           next.headers.addAll(redirectHeaders);
           next.followRedirects = false;

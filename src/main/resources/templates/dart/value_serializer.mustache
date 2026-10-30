@@ -400,8 +400,10 @@ List<String>? _toStringList(Object? value) {
   /* A `format: byte` value is one base64 scalar, never a list of octets. */
   if (value is Uint8List) return null;
   if (value is List<String>) return value;
-  if (value is List) {
-    return value.map((item) => stringify(item)).toList();
+  /* A `uniqueItems` array arrives as a Set; it expands exactly like a
+   * List, in the Set's iteration order. */
+  if (value is List || value is Set) {
+    return (value as Iterable<Object?>).map((item) => stringify(item)).toList();
   }
   return null;
 }

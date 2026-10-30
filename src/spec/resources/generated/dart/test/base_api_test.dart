@@ -11,6 +11,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:petstore_client/src/api/base_api.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -39,6 +40,7 @@ class _BaseApiAuth implements Authenticator {
 
 class _CapturingApiClient implements ApiClient {
   String capturedUrl = '';
+  String capturedBody = '';
 
   @override
   Future<ApiHttpResponse> sendRequest(
@@ -49,6 +51,7 @@ class _CapturingApiClient implements ApiClient {
     bool noRedirect = false,
   }) async {
     capturedUrl = url;
+    capturedBody = body is List<int> ? utf8.decode(body) : '';
     return const ApiHttpResponse(
       statusCode: 200,
       body: '{}',
@@ -1275,6 +1278,115 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+
+    test('form date-time field uses the canonical stringify form', () async {
+      final client = _CapturingApiClient();
+      final api = PetApi(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+      );
+
+      await api.setPetPreferences(
+        1,
+        SetPetPreferencesOptions(
+          nickname: 'a b',
+          reminder: DateTime.utc(2024, 1, 15, 10, 30),
+        ),
+      );
+
+      expect(
+        client.capturedBody,
+        contains('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00'),
+      );
+      expect(client.capturedBody, isNot(contains('%20')));
+    });
+
+    test('form body rejects a nested object field', () async {
+      final api = BaseApi(
+        apiClient: _CapturingApiClient(),
+        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+      );
+
+      await expectLater(
+        api.invokeApi(
+          method: 'POST',
+          path: '/form',
+          body: <String, Object?>{
+            'location': {'lat': 1.5},
+          },
+          contentType: 'application/x-www-form-urlencoded',
+        ),
+        throwsA(
+          isA<SerializationException>().having(
+            (e) => e.message,
+            'message',
+            'form-urlencoded field location must be a scalar or array of scalars',
+          ),
+        ),
+      );
+    });
+
+    /* Query and form components keep exactly A-Za-z0-9-._~ literal; a space
+     * is %20 in a query and + in a form body. */
+    test('query value keeps only the unreserved set literal', () async {
+      final client = _CapturingApiClient();
+      final api = PetApi(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+      );
+
+      try {
+        await api.getPetByName(
+          'n',
+          const GetPetByNameOptions(
+            category: "a~b*c!d'e(f)g h",
+            xCorrelationId: 'c',
+          ),
+        );
+      } on SerializationException {
+        /* The capturing client answers `{}`, which is not a full model; only
+         * the request URL matters here. */
+      }
+
+      expect(
+        client.capturedUrl,
+        contains('?category=a~b%2Ac%21d%27e%28f%29g%20h'),
+      );
+    });
+
+    test('form value keeps only the unreserved set literal', () async {
+      final client = _CapturingApiClient();
+      final api = PetApi(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+      );
+
+      await api.setPetPreferences(
+        1,
+        const SetPetPreferencesOptions(nickname: "a~b*c!d'e(f)g h"),
+      );
+
+      expect(
+        client.capturedBody,
+        contains('nickname=a~b%2Ac%21d%27e%28f%29g+h'),
+      );
+    });
+
+    test('query key keeps only the unreserved set literal', () async {
+      final client = _CapturingApiClient();
+      final api = BaseApi(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+      );
+
+      await api.invokeApi(
+        method: 'GET',
+        path: '/q',
+        queryParams: <String, Object?>{'k~*': 'v'},
+      );
+
+      expect(client.capturedUrl, endsWith('/q?k~%2A=v'));
     });
 
     /* date-only-serialization (Case 14): `format: date` parameters are typed

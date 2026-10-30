@@ -189,16 +189,16 @@ class PetWithOwner {
       json['category'] = category?.toJson();
     }
 
-    json['photoUrls'] = photoUrls.toList();
+    json['photoUrls'] = wireList(photoUrls, photoUrls);
 
     if (tags != null) {
-      json['tags'] = tags?.map((e) => e.toJson()).toList();
+      json['tags'] = wireListOrNull(tags, tags?.map((e) => e.toJson()));
     }
     if (status != null) {
       json['status'] = status?.toJson();
     }
     if (location != null) {
-      json['location'] = location?.toList();
+      json['location'] = wireListOrNull(location, location);
     }
     if (homepageUrl != null) {
       json['homepageUrl'] = homepageUrl;

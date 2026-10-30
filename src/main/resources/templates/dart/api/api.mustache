@@ -490,6 +490,11 @@ class {{classname}} extends BaseApi {
       contentType: '{{vendorExtensions.op.effectiveConsumes}}',
 {{/vendorExtensions.op.hasMultipleConsumes}}
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
+{{#bodyParam}}
+{{#isBinary}}
+      rawBody: true,
+{{/isBinary}}
+{{/bodyParam}}
       {{! security-none suppression: an operation without auth methods is }}
       {{! declared `security: []` and must NOT inherit the client-level }}
       {{! authenticator. Pass the `noAuth` sentinel (not `null`, which means }}

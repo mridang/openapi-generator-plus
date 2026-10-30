@@ -69,7 +69,7 @@ class Defaults {
     this.mode = DefaultsModeEnum.medium,
     this.label = 'untitled',
     this.greeting = 'it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b',
-    this.swatch = 'green',
+    this.swatch = Swatch.green,
     this.ratio = 1.5,
     this.scale = 0.25,
     this.weight = 2,
@@ -115,7 +115,7 @@ class Defaults {
           ? (json['swatch'] != null
                 ? Swatch.fromJson(json['swatch'] as String)
                 : null)
-          : 'green',
+          : Swatch.green,
 
       /* Cross-cutting `default-applies-only-when-absent`: a schema `default`
          fills in only when the key is OMITTED from the payload. An explicit

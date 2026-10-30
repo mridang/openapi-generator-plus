@@ -259,6 +259,48 @@ void main() {
       }
     });
 
+    /* A format:binary body goes out verbatim under any selected content type,
+     * including application/json; a format:byte JSON body stays base64. */
+    test('setPetAvatar sends the bytes verbatim under the JSON selector', () async {
+      final bodies = <List<int>>[];
+      final types = <String?>[];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        types.add(request.headers.contentType?.mimeType);
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        bodies.add(builder.takeBytes());
+        request.response
+          ..statusCode = 204
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.setPetAvatar(
+          1,
+          Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+          'application/json',
+        );
+        await api.setPetAvatarThumbnail(
+          1,
+          SetPetAvatarThumbnailRequest.value(Uint8List.fromList(<int>[1, 2, 3])),
+        );
+
+        expect(bodies[0], equals([0xFF, 0xD8, 0xFF, 0xE0]));
+        expect(types[0], equals('application/json'));
+        expect(String.fromCharCodes(bodies[1]), equals('"AQID"'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
@@ -306,6 +348,59 @@ void main() {
         ),
       );
       expect(result, isNotNull);
+    });
+
+    /* A primitive multipart value is a text part with no part Content-Type
+     * carrying the canonical stringify form; only objects are JSON parts. */
+    test('uploadPetDocument sends primitive fields as canonical text parts', () async {
+      String body = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        final builder = BytesBuilder();
+        await for (final chunk in request) {
+          builder.add(chunk);
+        }
+        body = String.fromCharCodes(builder.takeBytes());
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType('application', 'json')
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.uploadPetDocument(
+          1,
+          UploadPetDocumentOptions(
+            file: Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]),
+            isPrimary: true,
+            pageCount: 3,
+            takenAt: DateTime.utc(2024, 1, 15, 10, 30),
+            swatch: Swatch.red,
+          ),
+        );
+
+        for (final part in [
+          ('isPrimary', 'true'),
+          ('pageCount', '3'),
+          ('takenAt', '2024-01-15T10:30:00.000+00:00'),
+          ('swatch', 'red'),
+        ]) {
+          expect(
+              body,
+              contains('Content-Disposition: form-data; name="${part.$1}"'
+                  '\r\n\r\n${part.$2}\r\n'),
+              reason: '${part.$1} must be a text part, got: $body');
+        }
+        expect(body, isNot(contains('application/json')));
+      } finally {
+        await server.close();
+      }
     });
 
     /* octet-stream-raw-body (multi-content-type binary selection): the

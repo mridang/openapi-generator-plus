@@ -69,6 +69,8 @@ class BaseApi {
   ///   - [contentType]: request content type
   ///   - [returnType]: return type for deserialization (empty for void)
   ///   - [auth]: optional authenticator for operation-specific auth
+  ///   - [rawBody]: true when the body parameter is `format: binary`; its
+  ///     bytes are then sent unchanged under any selected content type
   Future<ApiHttpResponse> invokeApi({
     required String method,
     required String path,
@@ -79,6 +81,7 @@ class BaseApi {
     String contentType = '',
     String returnType = '',
     Authenticator? auth,
+    bool rawBody = false,
   }) async {
     var requestUrl = path;
     if (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://')) {
@@ -162,7 +165,7 @@ class BaseApi {
       headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
       serializedBody = _buildMultipartBody(body, boundary);
     } else {
-      serializedBody = _serializeBody(body, contentType);
+      serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
     }
     if (serializedBody == null) {
       headers.remove('Content-Type');
@@ -207,6 +210,7 @@ class BaseApi {
     String contentType = '',
     String returnType = '',
     Authenticator? auth,
+    bool rawBody = false,
     T Function(String body)? deserialize,
   }) async {
     final response = await invokeApi(
@@ -219,6 +223,7 @@ class BaseApi {
       contentType: contentType,
       returnType: returnType,
       auth: auth,
+      rawBody: rawBody,
     );
 
     T? data;
@@ -314,10 +319,11 @@ class BaseApi {
   /// Encodes a form field key or value.
   ///
   /// `application/x-www-form-urlencoded` requires a space to be encoded as `+`
-  /// (WHATWG URL / HTML form-encoding), not `%20`. Dart's
-  /// `Uri.encodeQueryComponent` implements exactly this form-encoding (space
-  /// becomes `+`, literal `+` becomes `%2B`).
-  String _encodeFormComponent(String s) => Uri.encodeQueryComponent(s);
+  /// (WHATWG URL / HTML form-encoding), not `%20`; a literal `+` is `%2B`.
+  /// Only the RFC 3986 unreserved set `A-Za-z0-9-._~` stays literal, so
+  /// `! ' ( ) *` are percent-encoded like in every other SDK.
+  String _encodeFormComponent(String s) =>
+      encodeRfc3986QueryComponent(s, spaceToPlus: true);
 
   /// Builds the query string from [queryParams], omitting null values.
   String _buildQueryString(Map<String, Object?> queryParams) {
@@ -337,7 +343,7 @@ class BaseApi {
         allowReserved = true;
       }
 
-      final encodedKey = Uri.encodeQueryComponent(key).replaceAll('+', '%20');
+      final encodedKey = encodeRfc3986QueryComponent(key);
       if (value is List<String>) {
         for (final item in value) {
           parts.add('$encodedKey=${_encodeQueryValue(item, allowReserved)}');
@@ -354,14 +360,13 @@ class BaseApi {
 
   /// Encodes a query-parameter value, preserving RFC 3986 reserved
   /// characters when the parameter declared `allowReserved: true` and
-  /// otherwise percent-encoding with a `%20` space. `Uri.encodeQueryComponent`
-  /// emits `+` for a space (form-encoding), but RFC 3986 requires `%20` in a
-  /// query component (a strict server reads `+` as a literal plus), so the
-  /// space is normalised. A literal `+` is already `%2B`. Matches the other SDKs.
+  /// otherwise keeping only the RFC 3986 unreserved set literal with a `%20`
+  /// space (a strict server reads `+` as a literal plus). A literal `+` is
+  /// `%2B`. Matches the other SDKs.
   String _encodeQueryValue(String value, bool allowReserved) {
     return allowReserved
         ? encodeQueryAllowingReserved(value)
-        : Uri.encodeQueryComponent(value).replaceAll('+', '%20');
+        : encodeRfc3986QueryComponent(value);
   }
 
   /// Serialize the request body based on content type.
@@ -372,8 +377,18 @@ class BaseApi {
   /// content types are JSON-serialized. multipart/form-data bodies are
   /// assembled separately by [_buildMultipartBody], so this returns null for
   /// them.
-  Uint8List? _serializeBody(Object? body, String contentType) {
+  ///
+  /// When [rawBody] is true the operation's body parameter is `format:
+  /// binary`, so caller-supplied bytes go out verbatim whatever content type
+  /// was selected (including `application/json`); the selector only changes
+  /// the Content-Type header and the bytes are never JSON-encoded.
+  Uint8List? _serializeBody(Object? body, String contentType, {bool rawBody = false}) {
     if (body == null) return null;
+
+    if (rawBody) {
+      if (body is Uint8List) return body;
+      if (body is List<int>) return Uint8List.fromList(body);
+    }
 
     if (contentType == 'multipart/form-data') {
       return null;
@@ -397,14 +412,16 @@ class BaseApi {
           /* A null field is dropped entirely rather than emitted as `key=`. */
           if (value == null) continue;
           final encodedKey = _encodeFormComponent(entry.key);
-          if (value is List) {
+          if (value is List && value is! Uint8List) {
             /* Array values emit a REPEATED key (`tags=a&tags=b`), never a
              * single `tags=[a, b]` from List.toString(). */
             for (final item in value) {
               if (item == null) continue;
+              _requireFormScalar(entry.key, item as Object);
               parts.add('$encodedKey=${_encodeFormComponent(stringify(item))}');
             }
           } else {
+            _requireFormScalar(entry.key, value);
             parts.add('$encodedKey=${_encodeFormComponent(stringify(value))}');
           }
         }
@@ -414,6 +431,31 @@ class BaseApi {
 
     return Uint8List.fromList(utf8.encode(serialize(body)));
   }
+
+  /// Throws a [SerializationException] unless [value] is a scalar.
+  ///
+  /// The generator defines no encoding (OAS `style`/`explode`) for an object,
+  /// map or nested array inside an `application/x-www-form-urlencoded` body,
+  /// so such a value is rejected instead of sending its `toString()`.
+  void _requireFormScalar(String name, Object value) {
+    if (!_isScalar(value)) {
+      throw SerializationException(
+          'form-urlencoded field $name must be a scalar or array of scalars');
+    }
+  }
+
+  /// Reports whether [value] is a primitive that [stringify] renders in its
+  /// canonical text form (string, number, boolean, date-time, duration,
+  /// `format: byte` bytes, uuid or enum), as opposed to a map or model.
+  bool _isScalar(Object value) =>
+      value is String ||
+      value is num ||
+      value is bool ||
+      value is DateTime ||
+      value is Duration ||
+      value is Uint8List ||
+      value is UuidValue ||
+      value is Enum;
 
   /// Build a multipart/form-data request body from a map of form fields.
   ///
@@ -478,9 +520,12 @@ class BaseApi {
       ));
       parts.add(value);
       parts.add(utf8.encode('\r\n'));
-    } else if (value is String || value is num || value is bool) {
+    } else if (value != null && _isScalar(value)) {
+      /* A primitive (string, number, boolean, date-time, duration, uuid,
+       * enum) is a text part with no part Content-Type, carrying the
+       * canonical [stringify] form; only maps and models are JSON parts. */
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n$value\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$safeName"\r\n\r\n${stringify(value)}\r\n',
       ));
     } else if (value is Map) {
       final json = jsonEncode(value);

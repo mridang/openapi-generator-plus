@@ -56,6 +56,20 @@ void main() {
   });
 
   group('Metadata model', () {
+    test('a declared property wins over a colliding additional property', () {
+      final metadata = Metadata(
+        createdAt: DateTime.utc(2024, 1, 15, 10, 30),
+        additionalProperties: const {'createdAt': 'x', 'extra': 1},
+      );
+
+      final json = jsonEncode(metadata.toJson());
+
+      expect(
+        json,
+        equals('{"createdAt":"2024-01-15T10:30:00.000+00:00","extra":1}'),
+      );
+    });
+
     test('serialize empty metadata', () {
       final obj = <String, dynamic>{};
 

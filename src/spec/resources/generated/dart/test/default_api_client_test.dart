@@ -296,6 +296,71 @@ void main() {
       expect(resp.statusCode, equals(302));
     });
 
+    /* A missing or unparseable Location is not a usable redirect: the 3xx
+     * comes back untouched, body included, never a parse or network error. */
+    for (final row in [
+      ('no-location', 'no-location'),
+      ('malformed-location', 'malformed'),
+    ]) {
+      test('a 302 with a ${row.$1} Location is returned as the 3xx', () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/redirect/${row.$1}',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(302));
+        expect(jsonDecode(resp.body), equals({'redirect': row.$2}));
+      });
+    }
+
+    /* TransportOptions.proxy is the only proxy source: a client built with
+     * default options ignores an ambient proxy pointing at a dead address.
+     * A running Dart process cannot change its own environment, so the
+     * client runs in a child process started with that environment. */
+    test('ignores ambient proxy environment variables', () async {
+      final dir = await Directory.systemTemp.createTemp('ambient-proxy');
+      try {
+        final script = File('${dir.path}/probe.dart');
+        await script.writeAsString('''
+import 'package:petstore_client/petstore_client.dart';
+
+Future<void> main(List<String> args) async {
+  final resp = await DefaultApiClient()
+      .sendRequest('GET', args.first, <String, String>{}, null);
+  print(resp.statusCode);
+}
+''');
+        final packages = File(
+          '${Directory.current.path}/.dart_tool/package_config.json',
+        );
+        const deadProxy = 'http://127.0.0.1:1';
+        final result = await Process.run(
+          Platform.resolvedExecutable,
+          [
+            '--packages=${packages.path}',
+            script.path,
+            '$chasmHttpUrl/test/echo',
+          ],
+          environment: {
+            'http_proxy': deadProxy,
+            'https_proxy': deadProxy,
+            'HTTP_PROXY': deadProxy,
+            'HTTPS_PROXY': deadProxy,
+            'ALL_PROXY': deadProxy,
+          },
+        );
+        expect(result.exitCode, equals(0), reason: '${result.stderr}');
+        expect((result.stdout as String).trim(), equals('200'));
+      } finally {
+        await dir.delete(recursive: true);
+      }
+    });
+
     test('303 switches to GET and drops body (Gap T3)', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)

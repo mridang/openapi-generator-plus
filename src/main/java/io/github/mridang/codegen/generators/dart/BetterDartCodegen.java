@@ -685,9 +685,43 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             for (final CodegenProperty prop : model.vars) {
                 setDefaultEnumVarName(prop);
+                resolveEnumRefDefault(prop);
             }
         }
         return result;
+    }
+
+    /**
+     * A property that is a {@code $ref} to a top-level enum carries the
+     * referenced schema's {@code default} as a bare wire literal ({@code
+     * 'green'}), which is not assignable to the typed enum field and is not a
+     * constant the {@code const} constructor can use. Rewrite it to the
+     * declared enum member ({@code Swatch.green}), named exactly as the
+     * enum's own declaration names it. A default that matches none of the
+     * enum's values is dropped, since no member could represent it.
+     */
+    @SuppressWarnings("rawtypes")
+    private void resolveEnumRefDefault(CodegenProperty property) {
+        if (!property.isEnumRef || property.defaultValue == null || this.openAPI == null) {
+            return;
+        }
+        final String enumName =
+                property.complexType != null ? property.complexType : property.dataType;
+        final Map<String, Schema> schemas =
+                openAPI.getComponents() == null ? null : openAPI.getComponents().getSchemas();
+        final Schema referenced = schemas == null ? null : schemas.get(enumName);
+        final String wanted = unquote(property.defaultValue);
+        if (referenced != null && referenced.getEnum() != null) {
+            for (final Object value : referenced.getEnum()) {
+                if (value != null && String.valueOf(value).equals(wanted)) {
+                    final String datatype = property.isInteger || property.isLong ? "int" : "String";
+                    property.defaultValue =
+                            property.dataType + "." + toEnumVarName(String.valueOf(value), datatype);
+                    return;
+                }
+            }
+        }
+        property.defaultValue = null;
     }
 
     /**

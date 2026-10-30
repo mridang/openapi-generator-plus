@@ -445,6 +445,13 @@ void main() {
     // Models constructed without any of their optional fields must omit those
     // keys from the toJson() map entirely (no `"id": null` slots). Required
     // fields and explicit defaults must still appear.
+    test('a uniqueItems array of strings serializes sorted', () {
+      final pet = Pet(name: 'n', photoUrls: <String>{'c', 'a', 'b'});
+      for (var run = 0; run < 2; run++) {
+        expect(serialize(pet), contains('"photoUrls":["a","b","c"]'));
+      }
+    });
+
     test('toJson omits optional fields left null', () {
       final pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
       final json = pet.toJson();

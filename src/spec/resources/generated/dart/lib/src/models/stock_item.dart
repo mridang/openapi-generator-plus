@@ -57,7 +57,7 @@ class StockItem {
       json['availability'] = availability?.toJson();
     }
     if (matrix != null) {
-      json['matrix'] = matrix?.toList();
+      json['matrix'] = wireListOrNull(matrix, matrix);
     }
     return json;
   }

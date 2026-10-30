@@ -292,6 +292,22 @@ void main() {
       expect(result, equals('blue'));
     });
 
+    test('serializeStyled form Set explode repeats each element', () {
+      final result = serializeStyled(
+          'color', <String>{'red', 'green'}, 'query', 'array', '', 'form', true);
+      expect(result, equals(['red', 'green']));
+    });
+
+    test('serializeStyled form Set no explode joins with commas', () {
+      final result = serializeStyled(
+          'color', <String>{'red', 'green'}, 'query', 'array', '', 'form', false);
+      expect(result, equals('red,green'));
+    });
+
+    test('serializeValue expands a Set like a List', () {
+      expect(serializeValue(<int>{1, 2}, 'query', 'array', 'csv'), equals('1,2'));
+    });
+
     test('serializeStyled form array explode', () {
       final result = serializeStyled(
           'color', ['red', 'green'], 'query', 'array', '', 'form', true);

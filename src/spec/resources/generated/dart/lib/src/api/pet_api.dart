@@ -1931,6 +1931,7 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: requestContentType ?? 'image/jpeg',
       returnType: '',
+      rawBody: true,
       auth: null,
     );
   }
