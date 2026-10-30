@@ -344,6 +344,22 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun hugeMaxAgeIsClampedAndTheDocumentStaysCached() {
+        for (maxAge in listOf("9223372036854775807", "18446744073709551615")) {
+            val client = FakeApiClient()
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=$maxAge"))
+
+            val auth = createAuthenticator()
+            auth.setApiClient(client)
+
+            val urls = runBlocking { listOf(auth.buildAuthorizationUrl(), auth.buildAuthorizationUrl()) }
+
+            assertTrue(urls.all { it.startsWith("https://auth.example.com/authorize?") }, maxAge)
+            assertEquals(1, client.getCount, maxAge)
+        }
+    }
+
+    @Test
     fun unparseableMaxAgeFallsBackToTheOneDayDefault() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=soon"))

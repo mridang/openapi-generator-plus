@@ -34,6 +34,10 @@ class OAuth2TokenManager {
          *  so that we refresh slightly before the token actually expires,
          *  avoiding a race against the server clock. */
         const val EXPIRY_SAFETY_MARGIN_MS: Long = 60_000L
+
+        /** Longest token lifetime honoured (one year), so a huge `expires_in`
+         *  cannot overflow the millisecond expiry arithmetic. */
+        const val MAX_EXPIRES_IN_SECONDS: Long = 31_536_000L
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -305,7 +309,7 @@ class OAuth2TokenManager {
              * parse digit strings; on anything unparseable or non-positive,
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
-            val expiresIn = parseExpiresIn(expiresInElement)
+            val expiresIn = minOf(parseExpiresIn(expiresInElement), MAX_EXPIRES_IN_SECONDS)
             this.tokenExpiryMs =
                 if (expiresIn > 0L) {
                     val bufferSecs = minOf(expiresIn, 30L)

@@ -404,6 +404,43 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    fun hugeExpiresInIsClampedAndTheTokenStaysCached() {
+        for (expiresIn in listOf("1e20", "9223372036854775807", "\"99999999999999999999\"")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"big1","expires_in":$expiresIn}""")
+            client.enqueue("""{"access_token":"big2","expires_in":3600}""")
+
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val params = mapOf("grant_type" to "client_credentials")
+            val tokenUrl = "https://auth.example.com/token"
+
+            val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+            val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+            assertEquals("big1", first, expiresIn)
+            assertEquals("big1", second, "expires_in $expiresIn must be clamped and cached, not overflow")
+        }
+    }
+
+    @Test
+    fun nonFiniteExpiresInMarksTheTokenStale() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")
+        client.enqueue("""{"access_token":"inf2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        assertEquals("inf1", runBlocking { manager.getAccessToken(tokenUrl, params) })
+        assertEquals("inf2", runBlocking { manager.getAccessToken(tokenUrl, params) })
+    }
+
+    @Test
     fun expiresInNegativeSkipsCaching() {
         // D1: a negative expires_in (e.g. -1) must mark the token as
         // immediately stale so the very next call refetches.

@@ -17,6 +17,9 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import java.time.Instant
 
+/** Longest discovery cache lifetime honoured (one year). */
+private const val MAX_DISCOVERY_MAX_AGE_SECONDS: Long = 31_536_000L
+
 /**
  * Authenticator for OpenID Connect.
  *
@@ -174,7 +177,8 @@ open class OpenIdConnectAuthenticator(
      * Parse `Cache-Control: max-age=<seconds>` from response headers.
      *
      * @param headers the response headers
-     * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if
+     * @return the parsed max-age in seconds, at most one year so a huge value
+     *   cannot overflow the expiry instant, or 86400 (RFC 8414 default) if
      *   the header is absent or does not contain a `max-age` directive
      */
     private fun parseMaxAge(headers: Map<String, String>): Long {
@@ -186,7 +190,10 @@ open class OpenIdConnectAuthenticator(
         val match =
             Regex("max-age=(\\d+)", RegexOption.IGNORE_CASE).find(cacheControl)
                 ?: return 86400L
-        return match.groupValues[1].toLongOrNull() ?: 86400L
+        return match.groupValues[1]
+            .toBigInteger()
+            .min(MAX_DISCOVERY_MAX_AGE_SECONDS.toBigInteger())
+            .toLong()
     }
 
     /**
