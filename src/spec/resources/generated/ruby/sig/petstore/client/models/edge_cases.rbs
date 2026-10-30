@@ -8,11 +8,11 @@ module Petstore::Client::Models
     attr_reader free_form_any: untyped?
     attr_reader favorite_color: Color?
     attr_reader permissions_note: String?
-    attr_reader _and: bool?
-    attr_reader _or: bool?
-    attr_reader _not: bool?
+    attr_reader and: bool?
+    attr_reader or: bool?
+    attr_reader not: bool?
     attr_reader _class: String?
-    attr_reader _return: String?
+    attr_reader return: String?
     attr_reader retry_after: ISO8601::Duration?
     attr_reader expires_at: Time?
     attr_reader n2fa: bool?

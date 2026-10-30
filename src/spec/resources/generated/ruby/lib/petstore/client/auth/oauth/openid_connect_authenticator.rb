@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -51,6 +51,9 @@ module Petstore::Client
 
         # RFC 8414 recommended default max-age for OIDC discovery documents.
         DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86_400
+
+        # Ceiling (one year, in seconds) for a server-supplied max-age.
+        MAX_DISCOVERY_MAX_AGE_SECONDS = 31_536_000
 
         # Inject the shared API client for making discovery and token requests.
         #
@@ -171,7 +174,7 @@ module Petstore::Client
         # Parse `Cache-Control: max-age=<seconds>` from response headers.
         #
         # @param headers [Hash{String => String}] response headers
-        # @return [Integer] the parsed max-age in seconds, or 86400 if absent
+        # @return [Integer] the parsed max-age in seconds (at most one year), or 86400 if absent
         def parse_max_age(headers)
           return DEFAULT_DISCOVERY_MAX_AGE_SECONDS if headers.nil?
 
@@ -179,7 +182,7 @@ module Petstore::Client
           return DEFAULT_DISCOVERY_MAX_AGE_SECONDS unless cache_control
 
           match = cache_control[1].match(/max-age=(\d+)/i)
-          match ? match[1].to_i : DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+          match ? [match[1].to_i, MAX_DISCOVERY_MAX_AGE_SECONDS].min : DEFAULT_DISCOVERY_MAX_AGE_SECONDS
         end
       end
     end

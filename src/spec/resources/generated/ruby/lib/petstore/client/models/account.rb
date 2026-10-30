@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -18,7 +18,7 @@ module Petstore::Client
   # Model classes generated from OpenAPI schemas.
   module Models
     # Model class for Account.
-    # @see https://example.com/docs/account Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
+    # @see https://example.com/docs/account Account <docs> & "notes" it's here
     class Account < Dry::Struct
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {

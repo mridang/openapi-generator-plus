@@ -31,7 +31,7 @@ module {{moduleName}}
 {{#variants}}
 
 {{#hasDescription}}
-    # {{{description}}}
+    # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/hasDescription}}
 {{^hasDescription}}
     # {{variantName}} server variant.
@@ -78,7 +78,7 @@ module {{moduleName}}
     # {{#lambda.rubyComment}}{{{tagDescription}}}{{/lambda.rubyComment}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
-    # @see {{url}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+    # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
       def initialize(api_client = nil, config = ::{{moduleName}}::Configuration.default_configuration, authenticator = nil)
@@ -86,24 +86,24 @@ module {{moduleName}}
       end
     {{#operation}}
 
-      # {{{summary}}}
+      # {{#lambda.rubyDocComment}}{{{summary}}}{{/lambda.rubyDocComment}}
 {{#notes}}
-      # {{{notes}}}
+      # {{#lambda.rubyDocComment}}{{{notes}}}{{/lambda.rubyDocComment}}
 {{/notes}}
 {{#pathParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{{summary}}}
-      # {{{description}}}
-      # Example: {{value}}
+      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
+      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
-      # {{{summary}}}
-      # {{{description}}}
-      # Example: {{value}}
+      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
+      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.signatureArgs}}
@@ -120,7 +120,7 @@ module {{moduleName}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-      # @see {{url}} {{{description}}}
+      # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/externalDocs}}
       def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#returnType}}

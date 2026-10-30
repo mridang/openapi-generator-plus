@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -24,11 +24,11 @@ module Petstore::Client
         free_form_any: 'freeFormAny',
         favorite_color: 'favoriteColor',
         permissions_note: 'permissionsNote',
-        _and: 'and',
-        _or: 'or',
-        _not: 'not',
+        and: 'and',
+        or: 'or',
+        not: 'not',
         _class: 'class',
-        _return: 'return',
+        return: 'return',
         retry_after: 'retryAfter',
         expires_at: 'expiresAt',
         n2fa: '2fa',
@@ -51,11 +51,11 @@ module Petstore::Client
         free_form_any: 'Object',
         favorite_color: 'Color',
         permissions_note: 'String',
-        _and: 'Boolean',
-        _or: 'Boolean',
-        _not: 'Boolean',
+        and: 'Boolean',
+        or: 'Boolean',
+        not: 'Boolean',
         _class: 'String',
-        _return: 'String',
+        return: 'String',
         retry_after: 'ISO8601::Duration',
         expires_at: 'Time',
         n2fa: 'Boolean',
@@ -101,13 +101,13 @@ module Petstore::Client
 
       attribute :free_form_any, Types::Any.optional.meta(omittable: true)
       attribute :favorite_color, Types::Any.optional.meta(omittable: true)
-      # Required permission is "user.grant.write" for <admin> & owner roles (don\'t skip it)
+      # Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
       attribute :permissions_note, Types::Any.optional.meta(omittable: true)
-      attribute :_and, Types::Any.optional.meta(omittable: true)
-      attribute :_or, Types::Any.optional.meta(omittable: true)
-      attribute :_not, Types::Any.optional.meta(omittable: true)
+      attribute :and, Types::Any.optional.meta(omittable: true)
+      attribute :or, Types::Any.optional.meta(omittable: true)
+      attribute :not, Types::Any.optional.meta(omittable: true)
       attribute :_class, Types::Any.optional.meta(omittable: true)
-      attribute :_return, Types::Any.optional.meta(omittable: true)
+      attribute :return, Types::Any.optional.meta(omittable: true)
       # Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant

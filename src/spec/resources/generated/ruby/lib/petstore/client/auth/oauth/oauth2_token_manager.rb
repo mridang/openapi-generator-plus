@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -25,6 +25,11 @@ module Petstore::Client
         # we refresh slightly before the token actually expires, avoiding a
         # race against the server clock.
         EXPIRY_SAFETY_MARGIN_S = 60
+
+        # Ceiling (one year, in seconds) for a server-supplied expires_in, so
+        # a huge lifetime is cached for a year instead of breaking the
+        # expiry arithmetic.
+        MAX_EXPIRES_IN_S = 31_536_000
 
         # The refresh token last issued by the authorization server.
         #
@@ -279,6 +284,10 @@ module Petstore::Client
         end
 
         def parse_expires_in(raw)
+          [parse_raw_expires_in(raw), MAX_EXPIRES_IN_S].min
+        end
+
+        def parse_raw_expires_in(raw)
           case raw
           when Integer
             raw
@@ -292,7 +301,9 @@ module Petstore::Client
 
             # Plain decimal digits with an optional fraction only: Float()
             # would also accept hex ("0x10"), exponents and underscores.
-            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.to_f.floor : 0
+            # The integer part is read exactly, so a digit string too long
+            # for a Float is clamped rather than overflowing to Infinity.
+            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.split('.').first.to_i : 0
           else
             0
           end

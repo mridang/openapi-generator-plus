@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -372,6 +372,17 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     auth.build_authorization_url
     auth.build_authorization_url
     _(discovery_requests(client).length).must_equal 1
+  end
+
+  it 'clamps a huge Cache-Control max-age to one year' do
+    huge = discovery_response.merge(headers: { 'cache-control' => "max-age=#{'9' * 400}" })
+    client = FakeOidcClient.new([huge])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 1
+    _(auth.instance_variable_get(:@discovery_expiry)).must_be :<=, Time.now + 31_536_000
   end
 
   it 'rediscovers on every call when max-age is zero' do

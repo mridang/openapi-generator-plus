@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -212,7 +212,7 @@ module Petstore::Client
         )
       end
 
-      # Add photos to the pet\'s gallery
+      # Add photos to the pet's gallery
       # Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
       # @param pet_id [Integer]
       # @param options [AddPetPhotosOptions] options for query, header, form, and cookie parameters
@@ -644,8 +644,8 @@ module Petstore::Client
         )
       end
 
-      # Get the pet\'s profile photo
-      # Returns the raw image bytes of the pet\'s current avatar.
+      # Get the pet's profile photo
+      # Returns the raw image bytes of the pet's current avatar.
       # @param pet_id [Integer]
       # @return [StringIO]
       # @raise [ApiError] if fails to make API call
@@ -691,7 +691,7 @@ module Petstore::Client
         )
       end
 
-      # Get the pet\'s avatar thumbnail as base64
+      # Get the pet's avatar thumbnail as base64
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
       # @return [String]
@@ -877,8 +877,8 @@ module Petstore::Client
         )
       end
 
-      # Get the pet\'s passport
-      # Returns a single JSON document combining the pet\'s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+      # Get the pet's passport
+      # Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
@@ -978,8 +978,8 @@ module Petstore::Client
         )
       end
 
-      # Get a <plain> "text" summary & it\'s short
-      # Returns \'\'\'plain\'\'\' text for /pets/#{id} and <b> & "c" it\'s done
+      # Get a <plain> "text" summary & it's short
+      # Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
       # @param pet_id [Integer]
       # @param as_of [Date] Summary date, sent as a matrix-style path segment
       # @param options [GetPetSummaryOptions] options for query, header, form, and cookie parameters
@@ -1224,7 +1224,7 @@ module Petstore::Client
         )
       end
 
-      # Set the pet\'s profile photo
+      # Set the pet's profile photo
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
@@ -1291,7 +1291,7 @@ module Petstore::Client
         )
       end
 
-      # Set the pet\'s avatar thumbnail as base64
+      # Set the pet's avatar thumbnail as base64
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
@@ -1336,7 +1336,7 @@ module Petstore::Client
         )
       end
 
-      # Update a pet\'s notification preferences
+      # Update a pet's notification preferences
       # Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
       # @param pet_id [Integer]
       # @param options [SetPetPreferencesOptions] options for query, header, form, and cookie parameters
@@ -1458,7 +1458,7 @@ module Petstore::Client
         )
       end
 
-      # Upload the pet\'s adoption certificate
+      # Upload the pet's adoption certificate
       # Attaches a single adoption certificate document. No metadata fields are required alongside the file.
       # @param pet_id [Integer]
       # @param options [UploadPetCertificateOptions] options for query, header, form, and cookie parameters

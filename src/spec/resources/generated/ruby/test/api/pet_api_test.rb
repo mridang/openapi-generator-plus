@@ -540,6 +540,21 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#get_pet_summary doc comments' do
+    it 'shows the summary, description and parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
+      _(source).must_include(%q(# Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done))
+    end
+
+    it 'shows the options parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::Options::GetPetSummaryOptions.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# @param session [String] Session token: "a<b>" & it's required))
+    end
+  end
+
   describe 'per-operation server variables' do
     it 'resolves the URL from enum values' do
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(

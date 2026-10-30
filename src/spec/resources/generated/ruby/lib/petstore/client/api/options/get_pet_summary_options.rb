@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -11,7 +11,7 @@ module Petstore::Client
   module Api
     module Options
       # Options for the get_pet_summary operation.
-      # @param session [String] Session token: "a<b>" & it\'s required
+      # @param session [String] Session token: "a<b>" & it's required
       # @param days [Array<Date>] Extra dates to summarise
       class GetPetSummaryOptions
         attr_reader :session, :days

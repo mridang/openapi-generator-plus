@@ -369,6 +369,17 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(discovery_requests(client).length).must_equal 1
   end
 
+  it 'clamps a huge Cache-Control max-age to one year' do
+    huge = discovery_response.merge(headers: { 'cache-control' => "max-age=#{'9' * 400}" })
+    client = FakeOidcClient.new([huge])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 1
+    _(auth.instance_variable_get(:@discovery_expiry)).must_be :<=, Time.now + 31_536_000
+  end
+
   it 'rediscovers on every call when max-age is zero' do
     no_cache = discovery_response.merge(headers: { 'cache-control' => 'max-age=0' })
     client = FakeOidcClient.new([no_cache, no_cache])

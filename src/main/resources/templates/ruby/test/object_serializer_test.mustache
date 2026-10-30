@@ -541,6 +541,29 @@ describe {{moduleName}}::ObjectSerializer do
       _(from_null.retries).must_equal(7)
     end
 
+    # A keyword that Ruby accepts as a method name stays plain (`and`,
+    # `return`); only `class`, which would shadow Object#class, and the
+    # literals keep the underscore. The wire keys are unchanged either way.
+    it 'keeps plain keyword property names and the wire keys of EdgeCases' do
+      json = '{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true}'
+      edge = {{moduleName}}::ObjectSerializer.deserialize(json, 'EdgeCases')
+      _(edge.and).must_equal(true)
+      _(edge.or).must_equal(false)
+      _(edge.not).must_equal(true)
+      _(edge.return).must_equal('r')
+      _(edge._class).must_equal('c')
+      _(edge.null).must_equal('n')
+      _(edge._true).must_equal(true)
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(edge))).must_equal(JSON.parse(json))
+    end
+
+    # Spec prose in a model's externalDocs reaches the comment as written:
+    # no HTML entity and no literal escape.
+    it 'documents the Account externalDocs description verbatim' do
+      path = String(Object.const_source_location({{moduleName}}::Models::Account.name)&.first)
+      _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
+    end
+
     # Self-referential model (TreeNode has a `child` of its own type). A
     # nested payload must decode every level into a typed TreeNode, with the
     # absent innermost `child` left nil rather than wrapped in an empty model.

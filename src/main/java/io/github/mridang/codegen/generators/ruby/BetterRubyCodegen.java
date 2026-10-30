@@ -824,15 +824,43 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
-     * Overrides the base class because Ruby uses heredoc markers
-     * ({@code =begin}/{@code =end}) and string interpolation
-     * instead of block comments. Cannot be standardized because
-     * other languages use block comments (handled by the base
-     * class).
+     * Overrides the base class because Ruby's block comment is the
+     * {@code =begin}/{@code =end} pair. An interpolation sequence (a hash
+     * followed by an opening brace) is left as written: the templates put
+     * spec text only in line comments and single-quoted literals, where it
+     * does not interpolate. Cannot be standardized because other languages
+     * use C-style block comments (handled by the base class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
-        return input.replace("=end", "=_end").replace("=begin", "=_begin").replace("#{", "\\#{");
+        return input.replace("=end", "=_end").replace("=begin", "=_begin");
+    }
+
+    /**
+     * Keywords that stay plain as a model property name: {@code obj.and},
+     * {@code obj.return} and a {@code attribute :and} reader are legal Ruby
+     * and RBS, so only names that clash ({@code class} is Object#class) or
+     * are literals keep the underscore prefix. Parameters still escape every
+     * keyword, see {@link #toParamName}. Cannot be standardized because the
+     * reserved set is Ruby-specific.
+     */
+    private static final Set<String> PLAIN_PROPERTY_KEYWORDS = Set.of("and", "or", "not", "return");
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return !PLAIN_PROPERTY_KEYWORDS.contains(name) && super.shouldEscapeReservedVarName(name);
+    }
+
+    /**
+     * A parameter becomes a keyword argument and a local variable, where a
+     * keyword such as {@code and} cannot be read back, so every reserved
+     * word is escaped here, including the ones a property keeps plain.
+     */
+    @Override
+    public String toParamName(String name) {
+        final String paramName = super.toParamName(name);
+        return isReservedWord(paramName) ? escapeReservedWord(paramName) : paramName;
     }
 
     /**
@@ -869,7 +897,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         (fragment, writer) -> writer.write(escapeSingleQuoted(fragment.execute())))
                 .put(
                         "rubyComment",
-                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim()));
+                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim()))
+                .put(
+                        "rubyDocComment",
+                        (fragment, writer) -> writer.write(unescapeSingleQuoted(fragment.execute())));
+    }
+
+    /**
+     * Reverses {@link #escapeSingleQuoted} for text that {@link #escapeText}
+     * prepared for a literal but that lands in a line comment, where an
+     * escaped quote would show its backslash. Cannot be standardized because the
+     * other languages quote differently.
+     */
+    static String unescapeSingleQuoted(String input) {
+        final StringBuilder sb = new StringBuilder(input.length());
+        for (int i = 0; i < input.length(); i++) {
+            final char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length()) {
+                final char next = input.charAt(i + 1);
+                if (next == '\'' || next == '\\') {
+                    sb.append(next);
+                    i++;
+                    continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     /**

@@ -18,7 +18,7 @@ module {{moduleName}}
   #     url = ::{{moduleName}}::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
 {{#serverConfigs}}
-    # Server {{serverIndex}}: +{{serverUrl}}+{{#serverDescription}}
+    # Server {{serverIndex}}: +{{{serverUrl}}}+{{#serverDescription}}
     #
     # {{#lambda.rubyComment}}{{{serverDescription}}}{{/lambda.rubyComment}}{{/serverDescription}}
     SERVER_{{serverIndex}} = ServerConfiguration.new(

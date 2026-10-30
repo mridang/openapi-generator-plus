@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -101,7 +101,7 @@ module Petstore::Client
       # @deprecated This property is deprecated.
       attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
       attribute :location, Types::Any.optional.meta(omittable: true)
-      # Absolute URL to the pet\'s public profile page
+      # Absolute URL to the pet's public profile page
       # @example https://example.com/pets/fido
       attribute :homepage_url, Types::Any.optional.meta(omittable: true)
       # Optionally-relative thumbnail location
@@ -110,7 +110,7 @@ module Petstore::Client
       # RFC 6570 template for related-resource links
       # @example https://example.com/pets/{id}/photos{?size}
       attribute :link_template, Types::Any.optional.meta(omittable: true)
-      # Contact email for the pet\'s owner
+      # Contact email for the pet's owner
       # @example owner@example.com
       attribute :owner_email, Types::Any.optional.meta(omittable: true)
       # Pet weight in kilograms (decimal precision)

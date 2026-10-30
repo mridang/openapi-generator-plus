@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -431,6 +431,22 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'first'
       _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
       _(client.call_count).must_equal 2
+    end
+  end
+
+  [1e20, 10**30, '9' * 400].each do |raw|
+    it "expires_in #{raw.to_s[0, 12]} is clamped to one year instead of overflowing" do
+      client = FakeTokenClient.new([
+                                     { status: 200, body: { 'access_token' => 'huge', 'expires_in' => raw } }
+                                   ])
+      manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+      manager.api_client = client
+
+      params = { 'grant_type' => 'client_credentials' }
+      _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'huge'
+      _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'huge'
+      _(client.call_count).must_equal 1
+      _(manager.instance_variable_get(:@token_expiry)).must_be :<=, Time.now.to_f + 31_536_000
     end
   end
 

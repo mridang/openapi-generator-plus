@@ -15,7 +15,7 @@ module {{moduleName}}
 {{#models}}
 {{#model}}
 {{#isEnum}}
-    # {{#description}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
+    # {{#description}}{{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
     class {{classname}}{{#allowableValues}}{{#enumVars}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 
@@ -43,7 +43,7 @@ module {{moduleName}}
 {{#oneOf}}
 {{#-first}}
 {{#description}}
-    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+    # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
 {{/description}}
 {{^description}}
     # Union type for {{classname}}.
@@ -52,7 +52,7 @@ module {{moduleName}}
     # @deprecated This schema is deprecated.
 {{/isDeprecated}}
 {{#externalDocumentation}}
-    # @see {{url}} {{description}}
+    # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/externalDocumentation}}
     module {{classname}}
       class << self
@@ -207,7 +207,7 @@ module {{moduleName}}
 {{#anyOf}}
 {{#-first}}
 {{#description}}
-    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+    # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
 {{/description}}
 {{^description}}
     # Union type for {{classname}}.
@@ -216,7 +216,7 @@ module {{moduleName}}
     # @deprecated This schema is deprecated.
 {{/isDeprecated}}
 {{#externalDocumentation}}
-    # @see {{url}} {{description}}
+    # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/externalDocumentation}}
     module {{classname}}
       # Composite returned by {{classname}}.build when an anyOf payload
@@ -326,7 +326,7 @@ module {{moduleName}}
 {{^anyOf}}
 {{#hasVars}}
     {{#description}}
-    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+    # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
     {{/description}}
     {{^description}}
     # Model class for {{classname}}.
@@ -335,7 +335,7 @@ module {{moduleName}}
     # @deprecated This schema is deprecated.
     {{/isDeprecated}}
     {{#externalDocumentation}}
-    # @see {{url}} {{description}}
+    # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
     {{/externalDocumentation}}
     class {{classname}} < {{#parent}}{{#lambda.stripGenerics}}{{{.}}}{{/lambda.stripGenerics}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
       # Attribute mapping from ruby-style variable name to JSON key.
@@ -450,15 +450,15 @@ module {{moduleName}}
 {{/isUnevaluatedPropertiesFalse}}
       {{#vars}}
       {{#description}}
-      # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+      # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
       {{/description}}
       {{#example}}
-      # @example {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+      # @example {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
       {{/example}}
       {{#vendorExtensions.pluralExamples}}
-      # {{summary}}
-      # {{description}}
-      # Example: {{value}}
+      # {{#lambda.rubyComment}}{{{summary}}}{{/lambda.rubyComment}}
+      # {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
+      # Example: {{#lambda.rubyComment}}{{{value}}}{{/lambda.rubyComment}}
       {{/vendorExtensions.pluralExamples}}
       {{#deprecated}}
       # @deprecated This property is deprecated.
@@ -490,7 +490,7 @@ module {{moduleName}}
 {{/hasVars}}
 {{^hasVars}}
     {{#description}}
-    # {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+    # {{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}
     {{/description}}
     {{^description}}
     # Model class for {{classname}}.
@@ -499,7 +499,7 @@ module {{moduleName}}
     # @deprecated This schema is deprecated.
     {{/isDeprecated}}
     {{#externalDocumentation}}
-    # @see {{url}} {{description}}
+    # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
     {{/externalDocumentation}}
     class {{classname}} < {{#parent}}{{#lambda.stripGenerics}}{{{.}}}{{/lambda.stripGenerics}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
       ATTRIBUTE_MAP = {}.freeze

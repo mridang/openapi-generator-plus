@@ -19,7 +19,7 @@ module {{moduleName}}
       # back to the Configuration credentials.
 {{/hasAuthField}}
 {{#params}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{{description}}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#isDeprecated}}
       # @deprecated This parameter is deprecated.
 {{/isDeprecated}}

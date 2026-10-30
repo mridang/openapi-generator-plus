@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it\'s $USD and #{x}.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -76,7 +76,7 @@ module Petstore::Client
       attribute :seal, Types::Any.optional.meta(omittable: true)
       # A list of byte arrays; equality compares element contents.
       attribute :shards, Types::Any.optional.meta(omittable: true)
-      # A map of byte arrays; equality compares each value\'s contents.
+      # A map of byte arrays; equality compares each value's contents.
       attribute :labels, Types::Any.optional.meta(omittable: true)
     end
   end
