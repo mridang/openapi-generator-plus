@@ -1402,7 +1402,7 @@ class PetApi(BaseApi):
         options: GetPetSummaryOptions,
     ) -> StrictStr:
         """Get a <plain> \"text\" summary & it's short
-        Returns '_'_'plain'_'_' text for /pets/#{id} and <b> & \"c\" it's done
+        Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
         :param as_of: Summary date, sent as a matrix-style path segment (required)
         :param options: options for query, header, form, and cookie parameters
@@ -1432,7 +1432,7 @@ class PetApi(BaseApi):
         options: GetPetSummaryOptions,
     ) -> "ApiResult[StrictStr]":
         """Get a <plain> \"text\" summary & it's short (with HTTP info)
-        Returns '_'_'plain'_'_' text for /pets/#{id} and <b> & \"c\" it's done
+        Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
         :param as_of: Summary date, sent as a matrix-style path segment (required)
         :param options: options for query, header, form, and cookie parameters

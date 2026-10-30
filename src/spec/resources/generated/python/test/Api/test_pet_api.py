@@ -937,6 +937,33 @@ class TestPetApiErrorHandling:
             ]
             assert lines == [":param options: " + expected], method.__name__
 
+    @pytest.mark.parametrize(
+        "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
+    )
+    def test_operation_prose_reaches_the_docstring_verbatim(self, method: Any) -> None:
+        import inspect
+
+        doc = inspect.getdoc(method)
+        assert doc is not None
+        lines = doc.splitlines()
+        assert (
+            "Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done"
+            in lines
+        )
+
+    @pytest.mark.parametrize(
+        "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
+    )
+    def test_path_parameter_doc_carries_the_required_label(self, method: Any) -> None:
+        import inspect
+
+        doc = inspect.getdoc(method)
+        assert doc is not None
+        lines = [line for line in doc.splitlines() if line.startswith(":param as_of:")]
+        assert lines == [
+            ":param as_of: Summary date, sent as a matrix-style path segment (required)"
+        ]
+
     async def test_inherited_security_op_applies_client_authenticator(self) -> None:
         # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
         # own, so it inherits the global requirement. This generator strips the

@@ -18,6 +18,7 @@ from pydantic import (
     HttpUrl,
     PlainSerializer,
     PlainValidator,
+    SecretStr,
     Strict,
     TypeAdapter,
 )
@@ -182,4 +183,18 @@ Base64Bytes = Annotated[
     bytes,
     PlainValidator(_decode_base64),
     PlainSerializer(_encode_base64, return_type=str, when_used="json"),
+]
+
+# `format: password` model fields. The value stays a pydantic `SecretStr` in
+# memory, so repr/str keep masking it, but bare `SecretStr` serializes via
+# model_dump_json as the literal `"**********"`, which would send the mask
+# instead of the password. This JSON-only PlainSerializer writes the real value,
+# as every other SDK does.
+PasswordStr = Annotated[
+    SecretStr,
+    PlainSerializer(
+        lambda value: value.get_secret_value(),
+        return_type=str,
+        when_used="json",
+    ),
 ]

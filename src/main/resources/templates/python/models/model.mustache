@@ -40,7 +40,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{#externalDocumentation}}
 
     .. seealso::
-        `{{description}} <{{url}}>`_
+        `{{{description}}} <{{{url}}}>`_
 {{/externalDocumentation}}
     """
 
@@ -194,7 +194,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{#externalDocumentation}}
 
     .. seealso::
-        `{{description}} <{{url}}>`_
+        `{{{description}}} <{{{url}}}>`_
 {{/externalDocumentation}}
     """
 
@@ -351,7 +351,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
 {{#externalDocumentation}}
 
     .. seealso::
-        `{{description}} <{{url}}>`_
+        `{{{description}}} <{{{url}}}>`_
 {{/externalDocumentation}}
     """
 
@@ -360,9 +360,9 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # Example: {{{.}}}
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-    # {{summary}}
-    # {{description}}
-    # >>> {{value}}
+    # {{{summary}}}
+    # {{{description}}}
+    # >>> {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{#deprecated}}
     # .. deprecated:: This property is deprecated.

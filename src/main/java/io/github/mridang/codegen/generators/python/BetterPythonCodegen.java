@@ -188,6 +188,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // `<pkg>.models.OffsetDateTime`. Its real import
                                 // comes from getPropertyTypeImportMap.
                                 "OffsetDateTime",
+                                // PasswordStr (format: password) is the
+                                // `<pkg>._types` SecretStr alias that writes the
+                                // real value on the JSON wire; its import comes
+                                // from getPropertyTypeImportMap.
+                                "PasswordStr",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -763,15 +768,19 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
-     * Overrides the base class because Python uses triple-quote
-     * docstrings instead of block comments. Breaks triple-quote
-     * sequences to prevent accidental docstring closure. Cannot
-     * be standardized because other languages use block comments
-     * (handled by the base class).
+     * Keeps spec prose verbatim. Python has no block comments, so the base
+     * class's comment-close rule does not apply, and every docstring the
+     * templates emit is double-quoted while escapeText already turns each
+     * double quote into an escaped one, so no prose sequence can close a
+     * docstring early. A triple single quote is therefore harmless and must
+     * not be rewritten.
+     *
+     * @param input the escaped prose
+     * @return the prose unchanged
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
-        return input.replace("'''", "'_'_'");
+        return input;
     }
 
     /**
@@ -851,8 +860,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
      *       the type from {@code HttpUrl} back to {@code str} — these may
      *       be relative or contain RFC 6570 placeholders.</li>
      *   <li>{@code format: email} → {@code EmailStr} (Item 2).</li>
-     *   <li>{@code format: password} → {@code SecretStr} (Item 3) — redacts
-     *       in {@code __repr__}/{@code __str__}.</li>
+     *   <li>{@code format: password} → the {@code <pkg>._types}
+     *       {@code PasswordStr} alias (Item 3): a {@code SecretStr} that redacts
+     *       in {@code __repr__}/{@code __str__} but writes the real value on
+     *       the JSON wire.</li>
      *   <li>{@code format: ipv4} → stdlib {@code ipaddress.IPv4Address}
      *       (Item 4).</li>
      *   <li>{@code format: ipv6} → stdlib {@code ipaddress.IPv6Address}
@@ -902,8 +913,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 property.datatypeWithEnum = "EmailStr";
                 break;
             case "password":
-                property.dataType = "SecretStr";
-                property.datatypeWithEnum = "SecretStr";
+                property.dataType = "PasswordStr";
+                property.datatypeWithEnum = "PasswordStr";
                 break;
             case "ipv4":
                 property.dataType = "IPv4Address";
@@ -1086,6 +1097,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Base64Bytes (format: byte) is the `<pkg>._types` alias that keeps raw
         // bytes in memory and base64 only on the wire; it replaces pydantic's.
         map.put("Base64Bytes", "from " + packageName + "._types import Base64Bytes");
+        // PasswordStr (format: password) is the `<pkg>._types` SecretStr alias
+        // whose JSON serializer writes the real value instead of the mask.
+        map.put("PasswordStr", "from " + packageName + "._types import PasswordStr");
         return map;
     }
 

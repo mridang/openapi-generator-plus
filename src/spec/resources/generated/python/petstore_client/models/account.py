@@ -17,14 +17,14 @@ class Account(BaseModel):
     Account
 
     .. seealso::
-        `Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here <https://example.com/docs/account>`_
+        `Account <docs> & "notes" it's here <https://example.com/docs/account>`_
     """
 
     id: Optional[StrictInt] = Field(
         default=None, alias="id", json_schema_extra={"readOnly": True}
     )
     username: StrictStr = Field(alias="username")
-    password: Optional[SecretStr] = Field(
+    password: Optional[PasswordStr] = Field(
         default=None, alias="password", json_schema_extra={"writeOnly": True}
     )
 
@@ -39,6 +39,6 @@ class Account(BaseModel):
     )
 
 
-from pydantic import SecretStr
+from petstore_client._types import PasswordStr
 
 Account.model_rebuild(raise_errors=False)

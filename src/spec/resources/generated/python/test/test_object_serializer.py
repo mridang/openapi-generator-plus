@@ -3,7 +3,7 @@ import warnings
 from typing import Any
 from decimal import Decimal
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 from petstore_client.errors import OpenAPIException
 from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
@@ -1596,3 +1596,62 @@ class TestIntegerFieldBoundaries:
 
         assert order.id == big
         assert json.loads(ObjectSerializer().serialize(order))["id"] == big
+
+
+class TestPasswordFormatSendsTheRealValue:
+    def test_serialize_writes_the_password_not_the_mask(self) -> None:
+        from petstore_client.models.account import Account
+
+        out = ObjectSerializer().serialize(
+            Account(username="u", password=SecretStr("p"))
+        )
+
+        assert out == '{"username":"u","password":"p"}'
+
+    def test_repr_still_masks_the_password(self) -> None:
+        from petstore_client.models.account import Account
+
+        assert "'p'" not in repr(Account(username="u", password=SecretStr("p")))
+
+    def test_decode_keeps_the_password(self) -> None:
+        from petstore_client.models.account import Account
+
+        account = ObjectSerializer().deserialize(
+            '{"id":7,"username":"u","password":"p"}', Account
+        )
+
+        assert account is not None
+        assert account.password is not None
+        assert account.password.get_secret_value() == "p"
+
+
+class TestPatternIsTheSpecRegex:
+    def test_matching_value_is_accepted_on_construction(self) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        assert EdgeCases(slug="12/ab").slug == "12/ab"
+
+    def test_matching_value_is_accepted_on_decode(self) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        decoded = ObjectSerializer().deserialize('{"slug":"12/ab"}', EdgeCases)
+
+        assert decoded is not None
+        assert decoded.slug == "12/ab"
+
+    def test_non_matching_value_is_rejected(self) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        with pytest.raises(ValidationError):
+            EdgeCases(slug="ab/12")
+
+
+class TestModelDocProseIsRaw:
+    def test_external_docs_description_has_no_html_entities(self) -> None:
+        from petstore_client.models.account import Account
+
+        assert Account.__doc__ is not None
+        assert (
+            '`Account <docs> & "notes" it\'s here <https://example.com/docs/account>`_'
+            in Account.__doc__
+        )
