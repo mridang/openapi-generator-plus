@@ -1124,6 +1124,112 @@ void main() {
     });
   });
 
+  group('format: date parameters', () {
+    /* Dart has no date-only type, so a `format: date` value is a DateTime.
+     * A matrix-style date path param and each item of a date-array query
+     * param must still go out as YYYY-MM-DD, never as a full date-time. */
+    test(
+      'getPetSummary sends the date path param and date array as dates',
+      () async {
+        String? capturedPath;
+        String? capturedQuery;
+        String? capturedCookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedPath = request.uri.path;
+          capturedQuery = request.uri.query;
+          capturedCookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('hello')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.getPetSummary(
+            1,
+            DateTime.utc(2024, 1, 15),
+            GetPetSummaryOptions(
+              session: 'abc',
+              days: [DateTime.utc(2024, 1, 15), DateTime.utc(2024, 2, 1)],
+            ),
+          );
+
+          expect(result, equals('hello'));
+          expect(capturedPath, equals('/pet/1/summary/;asOf=2024-01-15'));
+          expect(capturedQuery, equals('days=2024-01-15&days=2024-02-01'));
+          expect(capturedCookie, equals('session=abc'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+  });
+
+  group('operation doc comments', () {
+    final source = File(
+      '${Directory.current.path}/lib/src/api/pet_api.dart',
+    ).readAsStringSync();
+
+    /* The `options` argument is documented on every operation that takes
+     * it: the authenticator clause appears only where the Options class
+     * carries one, and an auth-only Options says just that. */
+    test('document the options argument by what it carries', () {
+      expect(
+        source,
+        contains(
+          '  /// `options` options carrying an optional per-call authenticator\n'
+          '  Future<Pet> addPet(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          '  /// `options` options for query, header, form, and cookie parameters, '
+          'plus an optional per-call authenticator\n'
+          '  Future<void> deletePet(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          '  /// `days` Extra dates to summarise\n'
+          '  /// `options` options for query, header, form, and cookie parameters\n'
+          '  Future<String> getPetSummary(',
+        ),
+      );
+    });
+
+    /* Spec prose reaches the doc comment as written: no HTML entity and no
+     * string-literal backslash before a quote. */
+    test('render spec prose verbatim', () {
+      expect(
+        source,
+        contains("  /// Get a <plain> \"text\" summary & it's short\n"),
+      );
+      expect(
+        source,
+        contains("  /// `session` Session token: \"a<b>\" & it's required\n"),
+      );
+      final docLines = source
+          .split('\n')
+          .where((line) => line.trimLeft().startsWith('///'));
+      for (final line in docLines) {
+        expect(
+          line,
+          isNot(matches(RegExp(r'&(#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z]+);'))),
+        );
+        expect(line, isNot(contains(r'\"')));
+      }
+    });
+  });
+
   group('operation-level server variants', () {
     test('the fixed external variant resolves its URL', () {
       expect(

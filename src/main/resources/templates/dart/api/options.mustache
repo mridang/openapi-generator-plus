@@ -14,7 +14,7 @@ import '{{authImport}}';
 class {{className}} {
 {{#params}}
 {{#description}}
-  /// {{{.}}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/description}}
 {{#deprecated}}
   @Deprecated('This parameter is deprecated.')

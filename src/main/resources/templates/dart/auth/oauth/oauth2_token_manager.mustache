@@ -18,6 +18,16 @@ class OAuth2TokenManager {
   /// before the token actually expires, avoiding a race against the server clock.
   static const Duration _expirySafetyMargin = Duration(seconds: 60);
 
+  /// Ceiling applied to a parsed `expires_in` (one year, the same in every
+  /// SDK), so a huge server-supplied lifetime caches the token for at most a
+  /// year instead of overflowing the expiry arithmetic.
+  static const int _maxExpiresInSeconds = 31536000;
+
+  /// The only accepted textual `expires_in`: ASCII digits with an optional
+  /// fraction. Hex, exponents, signs, suffixes, NaN and Infinity are
+  /// unusable and mark the token stale.
+  static final RegExp _expiresInPattern = RegExp(r'^[0-9]+(\.[0-9]+)?$');
+
   ApiClient? _apiClient;
   String _accessToken = '';
   String _refreshToken = '';
@@ -287,33 +297,41 @@ class OAuth2TokenManager {
   }
 
   /// Defensive parse of the `expires_in` field per RFC 6749 §5.1.
-  /// Returns `0` (caller skips caching) when missing, unparseable, or
-  /// non-positive. Accepts integers, floors floats, and parses digit
-  /// strings (e.g. `"3600"` from Salesforce).
+  /// Returns `0` (the token is treated as stale) when unparseable, non-finite
+  /// or non-positive. Accepts integers, floors floats, parses digit strings
+  /// (e.g. `"3600"` from Salesforce) and clamps every result to one year.
   int _parseExpiresIn(Object? raw) {
     if (raw == null) {
       return 0;
     }
     if (raw is int) {
-      return raw;
+      return raw > _maxExpiresInSeconds ? _maxExpiresInSeconds : raw;
     }
     if (raw is double) {
-      if (raw.isNaN || raw.isInfinite) {
-        return 0;
-      }
-      return raw.floor();
+      return _clampSeconds(raw);
     }
     if (raw is String) {
       final trimmed = raw.trim();
-      if (trimmed.isEmpty) {
+      if (!_expiresInPattern.hasMatch(trimmed)) {
         return 0;
       }
-      final parsed = double.tryParse(trimmed);
-      if (parsed == null || parsed.isNaN || parsed.isInfinite) {
-        return 0;
-      }
-      return parsed.floor();
+      final parsed = double.parse(trimmed);
+      /* A digit run too long for a double parses to Infinity; it is still a
+       * well-formed lifetime, so it saturates to the ceiling. */
+      return parsed.isInfinite ? _maxExpiresInSeconds : _clampSeconds(parsed);
     }
     return 0;
+  }
+
+  /// Floors a finite [seconds] value and clamps it to the one-year ceiling
+  /// before it is converted to an int; NaN and Infinity give `0`.
+  static int _clampSeconds(double seconds) {
+    if (seconds.isNaN || seconds.isInfinite) {
+      return 0;
+    }
+    if (seconds >= _maxExpiresInSeconds) {
+      return _maxExpiresInSeconds;
+    }
+    return seconds.floor();
   }
 }

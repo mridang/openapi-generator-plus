@@ -428,6 +428,12 @@ String stringifyDate(DateTime value) {
   return '$y-$m-$d';
 }
 
+/// Formats every element of a list of `format: date` values as YYYY-MM-DD
+/// (see [stringifyDate]), so an array of dates goes out as dates rather than
+/// full date-times. Returns null for a null list.
+List<String>? stringifyDates(List<DateTime>? values) =>
+    values?.map(stringifyDate).toList();
+
 Object? _serializeNil(String location) {
   if (location == 'query') return null;
   return '';

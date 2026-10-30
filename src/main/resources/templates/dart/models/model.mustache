@@ -129,7 +129,7 @@ enum {{classname}} {
 /// {{classname}} is a model class generated from the OpenAPI schema.
 {{/description}}
 {{#externalDocumentation}}
-/// See <{{url}}> {{description}}
+/// See <{{{url}}}> {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
 {{/externalDocumentation}}
 {{#isDeprecated}}
 @Deprecated('This schema is deprecated.')
@@ -236,10 +236,10 @@ class {{classname}} {
   /// Example: `{{{.}}}`
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-  /// ## {{summary}}
-  /// {{description}}
+  /// ## {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
+  /// {{#lambda.dartDocLines}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.dartDocLines}}
   /// ```json
-  /// {{value}}
+  /// {{#lambda.dartDocLines}}{{{value}}}{{/lambda.dartDocLines}}
   /// ```
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}

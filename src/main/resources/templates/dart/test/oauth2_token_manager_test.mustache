@@ -357,6 +357,67 @@ void main() {
       expect(client.requestCount, equals(2));
     });
 
+    /* A lifetime beyond the one-year ceiling is clamped before the expiry
+     * arithmetic: the token is cached (one request for two calls) instead of
+     * the Duration overflowing into a past expiry or a thrown error. */
+    for (final lifetime in <String>[
+      '1e20',
+      '9223372036854775807',
+      '"${'9' * 400}"',
+      '"31536001"',
+    ]) {
+      final label = lifetime.length > 24 ? 'a 400-digit string' : lifetime;
+      test('expires_in $label is clamped to one year and cached', () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"huge1","expires_in":$lifetime}');
+        client.enqueue('{"access_token":"huge2","expires_in":3600}');
+
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
+
+        expect(first, equals('huge1'));
+        expect(second, equals('huge1'));
+        expect(client.requestCount, equals(1));
+      });
+    }
+
+    /* A textual expires_in must be ASCII digits with an optional fraction.
+     * Anything else (hex, exponent, sign, suffix, Infinity, a trailing dot)
+     * is unusable, so the token is stale and the next call refetches. */
+    for (final lifetime in <String>[
+      '"0x10"',
+      '"1e3"',
+      '"+3600"',
+      '"3600s"',
+      '"Infinity"',
+      '"3600."',
+    ]) {
+      test('expires_in $lifetime is rejected and the token is stale', () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"bad1","expires_in":$lifetime}');
+        client.enqueue('{"access_token":"bad2","expires_in":3600}');
+
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        final first = await manager.getAccessToken(tokenUrl, params);
+        final second = await manager.getAccessToken(tokenUrl, params);
+
+        expect(first, equals('bad1'));
+        expect(second, equals('bad2'));
+        expect(client.requestCount, equals(2));
+      });
+    }
+
     /* Gap 3.2: ANY 3xx on the token endpoint must be refused outright
      * instead of replaying `client_id` / `client_secret` to a redirected
      * host. RFC 6749 §3.2 forbids redirects at the token endpoint, so

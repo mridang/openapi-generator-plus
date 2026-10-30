@@ -2114,6 +2114,68 @@ void main() {
     });
   });
 
+  /* An implicit and an explicit default port are the same origin, so the
+   * caller's credentials survive that redirect; a different port is a
+   * different origin and strips them. The stub is a forward proxy, so every
+   * hop reaches it as an absolute-URI request and no listener has to bind
+   * port 80. */
+  group('Redirect origin with an explicit default port', () {
+    for (final hop in <List<Object>>[
+      ['http://a.test/x', 'http://a.test:80/y', true],
+      ['http://a.test:80/x', 'http://a.test/y', true],
+      ['http://a.test/x', 'http://A.TEST/y', true],
+      ['http://a.test/x', 'http://a.test:8080/y', false],
+      ['http://a.test:80/x', 'http://a.test:8080/y', false],
+    ]) {
+      final from = hop[0] as String;
+      final to = hop[1] as String;
+      final keeps = hop[2] as bool;
+      test(
+        '$from to $to ${keeps ? 'keeps' : 'strips'} Authorization',
+        () async {
+          final second = <String, String?>{};
+          final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          proxy.listen((request) {
+            if (request.uri.path == '/x') {
+              request.response
+                ..statusCode = 302
+                ..headers.set('Location', to)
+                ..close();
+              return;
+            }
+            second['path'] = request.uri.path;
+            second['authorization'] = request.headers.value('authorization');
+            second['cookie'] = request.headers.value('cookie');
+            request.response
+              ..statusCode = 200
+              ..close();
+          });
+
+          try {
+            final transport = TransportOptionsBuilder()
+                .proxy('http://127.0.0.1:${proxy.port}')
+                .followRedirects(true)
+                .build();
+            final resp = await DefaultApiClient(transportOptions: transport)
+                .sendRequest('GET', from, {
+                  'Authorization': 'Bearer caller-secret',
+                  'Cookie': 'session=abc',
+                }, null);
+            expect(resp.statusCode, equals(200));
+            expect(second['path'], equals('/y'));
+            expect(
+              second['authorization'],
+              keeps ? equals('Bearer caller-secret') : isNull,
+            );
+            expect(second['cookie'], keeps ? equals('session=abc') : isNull);
+          } finally {
+            await proxy.close();
+          }
+        },
+      );
+    }
+  });
+
   group('Proxy credentials across redirects', () {
     /* The stub is the forward proxy: it sees every hop as an absolute-URI
      * request, so a cross-origin redirect needs no second host. */

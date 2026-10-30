@@ -29,7 +29,6 @@ class StoreApi extends BaseApi {
   StoreApi({super.apiClient, super.config, super.authenticator});
 
   /// Create an account
-
   Future<Account> createAccount(Account account) async {
     final result = await createAccountWithHttpInfo(account);
     final data = result.data;
@@ -76,7 +75,6 @@ class StoreApi extends BaseApi {
 
   /// Delete purchase order by ID
   /// `orderId` ID of the order to delete
-
   Future<void> deleteOrder(int orderId) async {
     await deleteOrderWithHttpInfo(orderId);
   }
@@ -127,7 +125,7 @@ class StoreApi extends BaseApi {
   }
 
   /// Echoes a swatch supplied via path, query and header parameters.
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<Category> getBySwatch(
     Swatch pathSwatch,
     GetBySwatchOptions? options,
@@ -219,7 +217,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a model exercising schema defaults on deserialize.
-
   Future<Defaults> getDefaults() async {
     final result = await getDefaultsWithHttpInfo();
     final data = result.data;
@@ -265,7 +262,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a department (mutual-recursion codegen fixture).
-
   Future<Department> getDepartment() async {
     final result = await getDepartmentWithHttpInfo();
     final data = result.data;
@@ -312,7 +308,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns categories grouped into an array of string-keyed maps.
-
   Future<List<Map<String, Category>>> getGroupedCategories() async {
     final result = await getGroupedCategoriesWithHttpInfo();
     final data = result.data;
@@ -368,7 +363,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns pet inventories by status
-
   Future<Map<String, int>> getInventory() async {
     final result = await getInventoryWithHttpInfo();
     final data = result.data;
@@ -413,7 +407,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a matrix as an array of integer arrays.
-
   Future<List<List<int>>> getMatrix() async {
     final result = await getMatrixWithHttpInfo();
     final data = result.data;
@@ -465,7 +458,6 @@ class StoreApi extends BaseApi {
 
   /// Find purchase order by ID
   /// `orderId` ID of order to return
-
   Future<Order> getOrderById(int orderId) async {
     final result = await getOrderByIdWithHttpInfo(orderId);
     final data = result.data;
@@ -533,7 +525,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Find purchase order by tracking id
-
   Future<Order> getOrderByTrackingId(UuidValue trackingId) async {
     final result = await getOrderByTrackingIdWithHttpInfo(trackingId);
     final data = result.data;
@@ -605,7 +596,7 @@ class StoreApi extends BaseApi {
 
   /// Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
   /// `asOf` Only consider stock as of this instant
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<StockItem> getStockItem(GetStockItemOptions? options) async {
     final result = await getStockItemWithHttpInfo(options);
     final data = result.data;
@@ -667,7 +658,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a bare enum (value-type response codegen fixture).
-
   Future<Swatch> getSwatch() async {
     final result = await getSwatchWithHttpInfo();
     final data = result.data;
@@ -713,7 +703,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns swatches grouped as an array of string-keyed enum maps.
-
   Future<List<Map<String, Swatch>>> getSwatchGroups() async {
     final result = await getSwatchGroupsWithHttpInfo();
     final data = result.data;
@@ -766,7 +755,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns timestamps grouped as an array of string-keyed maps.
-
   Future<List<Map<String, DateTime>>> getTimestampGroups() async {
     final result = await getTimestampGroupsWithHttpInfo();
     final data = result.data;
@@ -819,7 +807,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Returns a self-referential tree (recursive-type codegen fixture)
-
   Future<TreeNode> getTree() async {
     final result = await getTreeWithHttpInfo();
     final data = result.data;
@@ -865,7 +852,6 @@ class StoreApi extends BaseApi {
   }
 
   /// Place an order for a pet
-
   Future<Order> placeOrder(Order? order) async {
     final result = await placeOrderWithHttpInfo(order);
     final data = result.data;
@@ -911,8 +897,8 @@ class StoreApi extends BaseApi {
   }
 
   /// Searches the store; exercises content-encoded, Set and time-of-day parameters.
-  /// `q` JSON-encoded query parameter (OAS &#x60;content&#x60;, not &#x60;schema&#x60;)
-
+  /// `q` JSON-encoded query parameter (OAS `content`, not `schema`)
+  /// `options` options for query, header, form, and cookie parameters
   Future<List<Order>> searchStore(SearchStoreOptions? options) async {
     final result = await searchStoreWithHttpInfo(options);
     final data = result.data;
