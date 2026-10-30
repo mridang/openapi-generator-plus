@@ -226,6 +226,23 @@ defmodule {{moduleName}}.Api.PetApiTest do
     refute no_options =~ "`options`"
   end
 
+  test "operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
+    [summary] = function_docs(:get_pet_summary)
+
+    assert summary =~ ~S(Get a <plain> "text" summary & it's short)
+    assert summary =~ ~S(Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done)
+    refute summary =~ "&#"
+    refute summary =~ "&quot;"
+    refute summary =~ "&amp;"
+  end
+
+  test "model external-docs prose reaches the module docs verbatim" do
+    {:docs_v1, _anno, _lang, _format, %{"en" => moduledoc}, _metadata, _docs} =
+      Code.fetch_docs({{moduleName}}.Models.Account)
+
+    assert moduledoc =~ ~S|See [Account <docs> & "notes" it's here](https://example.com/docs/account)|
+  end
+
   # An operation reads only the opts keys it supports; any other key is an
   # error instead of being silently dropped (a `:server` on an operation without
   # servers would otherwise go to the default server, a misspelt `:content_type`

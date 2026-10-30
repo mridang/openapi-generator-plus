@@ -56,6 +56,22 @@ defmodule PetstoreClient.Models.Defaults do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "retries",
+      "mode",
+      "label",
+      "greeting",
+      "swatch",
+      "ratio",
+      "scale",
+      "weight",
+      "ceiling"
+    ]
+  end
+
   @doc """
   JSON keys of the required, non-nullable properties.
 
@@ -76,7 +92,7 @@ defmodule PetstoreClient.Models.Defaults do
   def openapi_types do
     %{
       retries: "integer()",
-      mode: "Enum<low,medium,high>",
+      mode: "Enum<low=low,medium=medium,high=high>",
       label: "String.t()",
       greeting: "String.t()",
       swatch: "Swatch",

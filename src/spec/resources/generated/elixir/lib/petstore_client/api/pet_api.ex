@@ -2283,7 +2283,7 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Get a <plain> \"text\" summary & it's short
 
-  Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+  Returns '''plain''' text for /pets/\#{id} and <b> & \"c\" it's done
 
   ## Parameters
     * `pet_id` - integer()

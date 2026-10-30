@@ -41,7 +41,7 @@ defmodule {{moduleName}}.MixProject do
 
   defp package do
     [
-      description: {{#lambda.quotedLiteral}}{{#appDescription}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Elixir SDK{{/appDescription}}{{/lambda.quotedLiteral}},
+      description: {{#lambda.quotedLiteral}}{{#appDescription}}{{#lambda.elixirRawText}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirRawText}}{{/appDescription}}{{^appDescription}}{{appNameBase}} Elixir SDK{{/appDescription}}{{/lambda.quotedLiteral}},
       licenses: ["{{licenseId}}"]
     ]
   end

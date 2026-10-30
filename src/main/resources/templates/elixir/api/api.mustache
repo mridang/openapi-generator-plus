@@ -125,18 +125,18 @@ defmodule {{moduleName}}.Api.{{classname}} do
     * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
   {{#vendorExtensions.pluralExamples}}
 
-  ### `{{paramName}}` example — {{{summary}}}
+  ### `{{paramName}}` example — {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
   {{/vendorExtensions.pluralExamples}}
   {{/pathParams}}
   {{#bodyParam}}
     * `{{paramName}}` - {{{dataType}}}{{#description}} - {{{.}}}{{/description}}
   {{#vendorExtensions.pluralExamples}}
 
-  ### `{{paramName}}` example — {{{summary}}}
+  ### `{{paramName}}` example — {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
   {{/vendorExtensions.pluralExamples}}
   {{/bodyParam}}
   {{#vendorExtensions.op.signatureArgsNoServer}}{{#isOptions}}
@@ -152,7 +152,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 
   ## See also
 
-    * [{{{description}}}]({{url}})
+    * [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
   {{/externalDocs}}
 
   """

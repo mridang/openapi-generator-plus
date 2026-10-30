@@ -91,6 +91,33 @@ defmodule PetstoreClient.Models.EdgeCases do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "freeFormAny",
+      "favoriteColor",
+      "permissionsNote",
+      "and",
+      "or",
+      "not",
+      "class",
+      "return",
+      "retryAfter",
+      "expiresAt",
+      "2fa",
+      "separator",
+      "null",
+      "true",
+      "false",
+      "lastError",
+      "outcome",
+      "cutoff",
+      "phase",
+      "slug"
+    ]
+  end
+
   @doc """
   JSON keys of the required, non-nullable properties.
 
@@ -128,7 +155,7 @@ defmodule PetstoreClient.Models.EdgeCases do
       last_error: "Error",
       outcome: "Result",
       cutoff: "Time.t()",
-      phase: "Enum<in_stock,on_hold,out_of_stock>",
+      phase: "Enum<in_stock=In-Stock,on_hold=on-hold,out_of_stock=OUT_OF_STOCK>",
       slug: "String.t()"
     }
   end

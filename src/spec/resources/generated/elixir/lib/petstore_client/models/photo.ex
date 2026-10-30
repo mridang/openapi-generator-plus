@@ -43,6 +43,17 @@ defmodule PetstoreClient.Models.Photo do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "id",
+      "caption",
+      "isPrimary",
+      "url"
+    ]
+  end
+
   @doc """
   JSON keys of the required, non-nullable properties.
 

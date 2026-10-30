@@ -14,7 +14,7 @@ defmodule PetstoreClient.Models.Account do
 
   **Write-only field** `password` — never returned by the server; it is sent and received like any other field.
 
-  See [Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here](https://example.com/docs/account)
+  See [Account <docs> & "notes" it's here](https://example.com/docs/account)
   """
 
   @type t :: %__MODULE__{
@@ -46,6 +46,16 @@ defmodule PetstoreClient.Models.Account do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "id",
+      "username",
+      "password"
+    ]
   end
 
   @doc """

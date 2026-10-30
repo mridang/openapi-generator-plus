@@ -77,6 +77,26 @@ defmodule PetstoreClient.Models.Pet do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "id",
+      "name",
+      "category",
+      "photoUrls",
+      "tags",
+      "status",
+      "location",
+      "homepageUrl",
+      "thumbnailRef",
+      "linkTemplate",
+      "ownerEmail",
+      "weightKg",
+      "nickname"
+    ]
+  end
+
   @doc """
   JSON keys of the required, non-nullable properties.
 
@@ -103,7 +123,7 @@ defmodule PetstoreClient.Models.Pet do
       category: "Category",
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
-      status: "Enum<available,pending,sold>",
+      status: "Enum<available=available,pending=pending,sold=sold>",
       location: "[any()]",
       homepage_url: "String.t()",
       thumbnail_ref: "String.t()",

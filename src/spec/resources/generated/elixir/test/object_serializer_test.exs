@@ -547,6 +547,40 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(pet))["status"] == "sold"
     end
 
+    test "a model's keys are written in schema declaration order" do
+      order = %PetstoreClient.Models.Order{
+        id: 1,
+        pet_id: 2,
+        quantity: 3,
+        ship_date: ~U[2024-01-15 10:30:00.000Z],
+        status: :approved,
+        complete: true
+      }
+
+      assert PetstoreClient.ObjectSerializer.serialize(order) ==
+               ~s({"id":1,"petId":2,"quantity":3,"shipDate":"2024-01-15T10:30:00.000+00:00","status":"approved","complete":true})
+    end
+
+    test "nested models and list elements keep declaration order" do
+      order = %PetstoreClient.Models.Order{id: 1, quantity: 3, complete: true}
+
+      assert PetstoreClient.ObjectSerializer.serialize([order]) ==
+               ~s([{"id":1,"quantity":3,"status":"placed","complete":true}])
+
+      pet = %PetstoreClient.Models.Pet{
+        id: 4,
+        name: "n",
+        category: %PetstoreClient.Models.Category{id: 1, name: "c"},
+        photo_urls: ["u"]
+      }
+
+      assert PetstoreClient.ObjectSerializer.serialize(pet) ==
+               ~s({"id":4,"name":"n","category":{"id":1,"name":"c"},"photoUrls":["u"]})
+
+      assert PetstoreClient.Models.Order.json_key_order() ==
+               ["id", "petId", "quantity", "trackingId", "shipDate", "status", "complete"]
+    end
+
     test "handles nil" do
       json = PetstoreClient.ObjectSerializer.serialize(nil)
       assert json == "null"
@@ -560,6 +594,41 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert data["id"] == 0
       assert Map.has_key?(data, "name"), "serialized JSON should include name field"
       assert data["name"] == ""
+    end
+  end
+
+  describe "inline enum with non-identifier wire values (EdgeCases.phase)" do
+    test "each wire value decodes to a distinct member atom and re-encodes unchanged" do
+      for {wire, member} <- [
+            {"In-Stock", :in_stock},
+            {"on-hold", :on_hold},
+            {"OUT_OF_STOCK", :out_of_stock}
+          ] do
+        decoded =
+          PetstoreClient.ObjectSerializer.deserialize(
+            Jason.encode!(%{"phase" => wire}),
+            "EdgeCases"
+          )
+
+        assert decoded.phase == member
+        assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(decoded))["phase"] == wire
+      end
+    end
+
+    test "the member name is not accepted as a wire value" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(~s({"phase":"on_hold"}), "EdgeCases")
+        end
+
+      assert err.message ==
+               ~s(Unknown enum value "on_hold"; allowed values: ["In-Stock", "on-hold", "OUT_OF_STOCK"])
+    end
+
+    test "a member atom set by the caller is sent as its wire value" do
+      edge = %PetstoreClient.Models.EdgeCases{phase: :on_hold}
+
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))["phase"] == "on-hold"
     end
   end
 

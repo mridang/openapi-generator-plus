@@ -139,13 +139,53 @@ defmodule {{moduleName}}.ObjectSerializer do
   """
   @spec serialize(term()) :: String.t()
   def serialize(object) do
-    sanitized = sanitize_for_serialization(object)
+    sanitized = object |> sanitize_for_serialization() |> in_declaration_order(object)
 
     case Jason.encode(sanitized) do
       {:ok, json} -> json
       {:error, reason} -> raise {{moduleName}}.Errors.SerializationError, message: "Failed to serialize: #{inspect(reason)}"
     end
   end
+
+  # A model's JSON object is written with its keys in schema declaration order
+  # (the model's `json_key_order/0`), then any captured additional properties,
+  # so the same value always serializes to the same bytes as in the other SDKs.
+  # A plain map would be written in Erlang term order instead (alphabetical up
+  # to 32 keys, hash order above). The sanitized tree is walked alongside the
+  # original value so nested models, lists and oneOf wrappers are ordered too.
+  defp in_declaration_order(sanitized, %{__struct__: module} = struct) when is_map(sanitized) do
+    cond do
+      function_exported?(module, :json_key_order, 0) ->
+        attrs = module.json_key_map()
+        order = module.json_key_order()
+
+        declared =
+          for key <- order, Map.has_key?(sanitized, key) do
+            {key, in_declaration_order(Map.fetch!(sanitized, key), Map.get(struct, Map.get(attrs, key)))}
+          end
+
+        extras = for {key, value} <- sanitized, key not in order, do: {key, value}
+        Jason.OrderedObject.new(declared ++ extras)
+
+      Map.has_key?(struct, :actual_instance) ->
+        in_declaration_order(sanitized, struct.actual_instance)
+
+      true ->
+        sanitized
+    end
+  end
+
+  defp in_declaration_order(sanitized, original)
+       when is_list(sanitized) and is_list(original) and length(sanitized) == length(original) do
+    Enum.zip_with(sanitized, original, &in_declaration_order/2)
+  end
+
+  defp in_declaration_order(sanitized, original)
+       when is_map(sanitized) and is_map(original) and not is_struct(original) do
+    Map.new(sanitized, fn {key, value} -> {key, in_declaration_order(value, Map.get(original, key))} end)
+  end
+
+  defp in_declaration_order(sanitized, _original), do: sanitized
 
   @doc """
   Deserialize a JSON string to an object of the specified type.
@@ -488,18 +528,29 @@ defmodule {{moduleName}}.ObjectSerializer do
     Map.new(value, fn {k, v} -> {k, sanitize_field_value(v, sub_type)} end)
   end
 
-  # Inline property enum: the atom name is the wire value, so an atom outside
-  # the declared values is spec drift and must not reach the wire as typed.
-  # Mirrors the deserialize side in convert_to_type/2.
+  # Inline property enum: the field carries the member atom (or its wire
+  # string), and the declared wire value is what reaches the wire, so
+  # `:on_hold` is sent as "on-hold". Anything outside the declared members is
+  # spec drift and must not reach the wire as typed. Mirrors the deserialize
+  # side in convert_to_type/2.
   defp sanitize_field_value(value, "Enum<" <> rest) when is_atom(value) or is_binary(value) do
-    allowed = rest |> String.trim_trailing(">") |> String.split(",", trim: true)
+    members = parse_inline_enum(rest)
     str = to_string(value)
 
-    if str in allowed do
-      str
-    else
-      raise {{moduleName}}.Errors.SerializationError,
-            message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
+    found =
+      if is_binary(value) do
+        Enum.find(members, fn {_name, wire} -> wire == value end) ||
+          Enum.find(members, fn {name, _wire} -> name == str end)
+      else
+        Enum.find(members, fn {name, _wire} -> name == str end)
+      end
+
+    case found do
+      {_name, wire} ->
+        wire
+
+      nil ->
+        raise_unknown_inline_enum(str, members)
     end
   end
 
@@ -507,8 +558,7 @@ defmodule {{moduleName}}.ObjectSerializer do
   # lowercased constant, which is NOT necessarily the wire value (e.g.
   # `:great_dane` -> "GreatDane"). The enum module's `value/1` is the only
   # function that knows the true wire mapping, so route the atom through it.
-  # Inline property enums ("Enum<a,b,c>") keep atom-name == wire value and
-  # fall through to the catch-all below.
+  # Inline property enums ("Enum<name=wire,...>") are handled above.
   defp sanitize_field_value(value, type)
        when is_atom(value) and is_binary(type) and value not in [nil, true, false] do
     module = resolve_model_module(type)
@@ -744,27 +794,31 @@ defmodule {{moduleName}}.ObjectSerializer do
 
   def convert_to_type(data, "%{String.t() => " <> _rest), do: raise_not_a_map(data)
 
-  # Inline property enum: the model's openapi_types map carries the allowed
-  # wire values as an "Enum<a,b,c>" sentinel. An out-of-schema wire value is
-  # spec drift; raise a SerializationError instead of silently passing the raw
-  # string through as an invalid typed value (the struct's @type declares these
-  # as atoms). This matches the throwing behaviour of the standalone-enum-module
-  # path in atomize_enum/2. A valid value is returned as its atom form,
-  # consistent with the struct's declared type.
+  # Inline property enum: the model's openapi_types map carries each member as
+  # "name=wire" inside an "Enum<...>" sentinel, the wire value percent-encoded
+  # (a number is written "#<n>"). The wire value is matched exactly (so
+  # "In-Stock" and "on-hold" decode) and returned as the member atom, consistent
+  # with the struct's declared type. An out-of-schema wire value is spec drift;
+  # raise a SerializationError instead of silently passing the raw string
+  # through as an invalid typed value. This matches the throwing behaviour of
+  # the standalone-enum-module path in atomize_enum/2.
   def convert_to_type(data, "Enum<" <> rest) do
-    allowed =
-      rest
-      |> String.trim_trailing(">")
-      |> String.split(",", trim: true)
+    members = parse_inline_enum(rest)
 
-    str = to_string(data)
+    found =
+      if is_atom(data) do
+        name = Atom.to_string(data)
+        Enum.find(members, fn {member, _wire} -> member == name end)
+      else
+        Enum.find(members, fn {_member, wire} -> wire == data end)
+      end
 
-    if str in allowed do
-      String.to_atom(str)
-    else
-      raise {{moduleName}}.Errors.SerializationError,
-            message:
-              "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
+    case found do
+      {name, _wire} ->
+        String.to_atom(name)
+
+      nil ->
+        raise_unknown_inline_enum(to_string(data), members)
     end
   end
 
@@ -785,6 +839,36 @@ defmodule {{moduleName}}.ObjectSerializer do
         data
     end
   end
+
+  @spec raise_unknown_inline_enum(String.t(), [{String.t(), term()}]) :: no_return()
+  defp raise_unknown_inline_enum(str, members) do
+    allowed = Enum.map(members, fn {_name, wire} -> wire end)
+
+    raise {{moduleName}}.Errors.SerializationError,
+          message: "Unknown enum value #{inspect(str)}; allowed values: #{inspect(allowed)}"
+  end
+
+  # Parses the body of an inline-enum sentinel ("name=wire,...>") into
+  # `{name, wire_value}` pairs in declaration order.
+  @spec parse_inline_enum(String.t()) :: [{String.t(), String.t() | number()}]
+  defp parse_inline_enum(rest) do
+    rest
+    |> String.trim_trailing(">")
+    |> String.split(",", trim: true)
+    |> Enum.map(fn member ->
+      [name, token] = String.split(member, "=", parts: 2)
+      {name, decode_inline_enum_token(token)}
+    end)
+  end
+
+  defp decode_inline_enum_token("#" <> number) do
+    case Integer.parse(number) do
+      {int, ""} -> int
+      _ -> number |> Float.parse() |> elem(0)
+    end
+  end
+
+  defp decode_inline_enum_token(token), do: URI.decode(token)
 
   # Format a DateTime as YYYY-MM-DDTHH:MM:SS.mmm±HH:MM: the sub-second part is
   # always exactly three digits (truncated, never rounded) and the offset is

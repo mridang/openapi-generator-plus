@@ -308,9 +308,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{{.}}}
 {{#vars}}{{#vendorExtensions.pluralExamples}}
 
-  ## {{summary}}
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
 {{/vendorExtensions.pluralExamples}}{{/vars}}
 {{#vars}}{{#deprecated}}
 
@@ -325,7 +325,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
-  See [{{description}}]({{url}})
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
   {{/externalDocumentation}}
   """
   {{/description}}
@@ -334,9 +334,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   Model for {{classname}}.
 {{#vars}}{{#vendorExtensions.pluralExamples}}
 
-  ## {{summary}}
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
 {{/vendorExtensions.pluralExamples}}{{/vars}}
 {{#vars}}{{#deprecated}}
 
@@ -351,7 +351,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
-  See [{{description}}]({{url}})
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
   {{/externalDocumentation}}
   """
   {{/description}}
@@ -404,6 +404,16 @@ defmodule {{moduleName}}.Models.{{classname}} do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
   end
 
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+  {{#allVars}}
+      "{{{baseName}}}"{{^-last}},{{/-last}}
+  {{/allVars}}
+    ]
+  end
+
   @doc """
   JSON keys of the required, non-nullable properties.
 
@@ -431,7 +441,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_types do
     %{
   {{#vars}}
-      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
+      {{name}}: "{{#isEnum}}Enum<{{#allowableValues}}{{#enumVars}}{{nameLowercase}}={{#lambda.elixirEnumWire}}{{{value}}}{{/lambda.elixirEnumWire}}{{^-last}},{{/-last}}{{/enumVars}}{{/allowableValues}}>{{/isEnum}}{{^isEnum}}{{#isByteArray}}ByteArray{{/isByteArray}}{{^isByteArray}}{{#isUuid}}UUID{{/isUuid}}{{^isUuid}}{{{dataType}}}{{/isUuid}}{{/isByteArray}}{{/isEnum}}"{{^-last}},{{/-last}}
   {{/vars}}
     }
   end
@@ -480,9 +490,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{{.}}}
 {{#vars}}{{#vendorExtensions.pluralExamples}}
 
-  ## {{summary}}
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
 {{/vendorExtensions.pluralExamples}}{{/vars}}
 {{#vars}}{{#deprecated}}
 
@@ -497,7 +507,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
-  See [{{description}}]({{url}})
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
   {{/externalDocumentation}}
   """
   {{/description}}
@@ -506,9 +516,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
   Model for {{classname}}.
 {{#vars}}{{#vendorExtensions.pluralExamples}}
 
-  ## {{summary}}
+  ## {{#lambda.elixirHeredoc}}{{{summary}}}{{/lambda.elixirHeredoc}}
 
-      {{value}}
+      {{#lambda.elixirHeredoc}}{{{value}}}{{/lambda.elixirHeredoc}}
 {{/vendorExtensions.pluralExamples}}{{/vars}}
 {{#vars}}{{#deprecated}}
 
@@ -523,7 +533,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/isWriteOnly}}{{/vars}}
   {{#externalDocumentation}}
 
-  See [{{description}}]({{url}})
+  See [{{#lambda.elixirHeredoc}}{{{description}}}{{/lambda.elixirHeredoc}}]({{{url}}})
   {{/externalDocumentation}}
   """
   {{/description}}
@@ -539,6 +549,10 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @doc "Inverse mapping from JSON key to Elixir field name."
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map, do: %{}
+
+  @doc "JSON keys in schema declaration order (none for this schema)."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order, do: []
 
   @doc "JSON keys of required, non-nullable properties (none for this schema)."
   @spec required_fields() :: [String.t()]
