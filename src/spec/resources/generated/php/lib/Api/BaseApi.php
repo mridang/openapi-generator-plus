@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -87,6 +86,11 @@ class BaseApi
      *                                            literal. Empty by default, so
      *                                            omitting it encodes every value as
      *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -101,7 +105,8 @@ class BaseApi
         ?string $contentType,
         ?string $returnType,
         ?Authenticator $auth = null,
-        array $allowReservedKeys = []
+        array $allowReservedKeys = [],
+        bool $rawBody = false
     ): ApiResult {
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $url = $path;
@@ -173,7 +178,7 @@ class BaseApi
         }
         TraceContextUtil::injectTraceContext($headers);
 
-        $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
+        $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
         if ($serializedBody === null) {
             /* No body means no entity: never announce a Content-Type for it. */
             foreach (array_keys($headers) as $name) {
@@ -203,7 +208,7 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
-            if ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
+            if ($isNonJson && self::isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it
                  * back unchanged. Base64-decoding it would corrupt any text
@@ -254,6 +259,11 @@ class BaseApi
      *                                            literal. Empty by default, so
      *                                            omitting it encodes every value as
      *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
      *
      * @return mixed Deserialized response or null
      * @throws ApiException
@@ -268,7 +278,8 @@ class BaseApi
         ?string $contentType,
         ?string $returnType,
         ?Authenticator $auth = null,
-        array $allowReservedKeys = []
+        array $allowReservedKeys = [],
+        bool $rawBody = false
     ): mixed {
         return $this->invokeApiForResult(
             $method,
@@ -280,7 +291,8 @@ class BaseApi
             $contentType,
             $returnType,
             $auth,
-            $allowReservedKeys
+            $allowReservedKeys,
+            $rawBody
         )->data;
     }
 
@@ -289,7 +301,7 @@ class BaseApi
      * decoded string (the same rule the transport uses), as opposed to a
      * binary body it base64-encodes.
      */
-    private function isTextMediaType(string $mediaType): bool
+    private static function isTextMediaType(string $mediaType): bool
     {
         $mediaType = strtolower($mediaType);
         return str_starts_with($mediaType, 'text/')
@@ -334,7 +346,7 @@ class BaseApi
              * encoded normally. When the key is absent from the set the value
              * encoder is the default one, so encoding is byte-identical. */
             $encodeValue = isset($allowReservedKeys[$k])
-                ? ValueSerializer::encodeQueryAllowingReserved(...)
+                ? static fn (string $s): string => ValueSerializer::encodeQueryAllowingReserved($s)
                 : $encode;
             if (is_array($v)) {
                 foreach ($v as $vv) {
@@ -342,7 +354,7 @@ class BaseApi
                         continue;
                     }
                     $qs .= $key;
-                    $qs .= '=' . $encodeValue($this->queryValueText($vv));
+                    $qs .= '=' . $encodeValue(self::queryValueText($vv));
                     $qs .= '&';
                 }
             } else {
@@ -357,7 +369,7 @@ class BaseApi
                     continue;
                 }
                 $qs .= $key;
-                $qs .= '=' . $encodeValue($this->queryValueText($v));
+                $qs .= '=' . $encodeValue(self::queryValueText($v));
                 $qs .= '&';
             }
         }
@@ -371,9 +383,9 @@ class BaseApi
      * form (so a date-time is RFC 3339 and an enum is its bare value, never a
      * JSON-encoded object or a quoted string); anything else is JSON-encoded.
      */
-    private function queryValueText(mixed $value): string
+    private static function queryValueText(mixed $value): string
     {
-        if ($this->isFormScalar($value)) {
+        if (self::isFormScalar($value)) {
             return ObjectSerializer::stringify($value);
         }
 
@@ -384,7 +396,7 @@ class BaseApi
      * Whether a value has a canonical {@see ObjectSerializer::stringify} text
      * form: a scalar, date-time, duration, UUID or backed enum.
      */
-    private function isFormScalar(mixed $value): bool
+    private static function isFormScalar(mixed $value): bool
     {
         return is_scalar($value)
             || $value instanceof \DateTimeInterface
@@ -399,10 +411,16 @@ class BaseApi
      * @param mixed       $body        Request body
      * @param string|null $contentType Content type
      * @param bool        $isMultipart Whether the request is multipart
+     * @param bool        $rawBody     Whether the body is a `format: binary` value
      *
      * @return mixed Serialized body
      */
-    private function serializeBody(mixed $body, ?string $contentType, bool $isMultipart): mixed
+    private function serializeBody(
+        mixed $body,
+        ?string $contentType,
+        bool $isMultipart,
+        bool $rawBody = false
+    ): mixed
     {
         if ($body === null) {
             return null;
@@ -412,7 +430,14 @@ class BaseApi
             return $body;
         }
 
-        if (str_starts_with($contentType ?? '', 'image/') || $contentType === 'application/octet-stream') {
+        /* A `format: binary` body is never routed through the JSON serializer,
+         * whatever declared Content-Type the caller selected: the selector
+         * only changes the header, the bytes are the caller's. */
+        if (
+            $rawBody
+            || str_starts_with($contentType ?? '', 'image/')
+            || $contentType === 'application/octet-stream'
+        ) {
             /* A type:string format:binary body (e.g. a single-binary-body upload's image/jpeg
              * upload) must go on the wire as the RAW bytes under its DECLARED
              * Content-Type — never JSON-encoded, base64'd, or wrapped. When the
@@ -461,7 +486,7 @@ class BaseApi
             foreach ($body as $name => $value) {
                 $values = is_array($value) && array_is_list($value) ? $value : [$value];
                 foreach ($values as $element) {
-                    if ($element !== null && !$this->isFormScalar($element)) {
+                    if ($element !== null && !self::isFormScalar($element)) {
                         /* A model, map or nested array has no defined form
                          * encoding without an OAS encoding block; failing here
                          * keeps a JSON blob or a language repr off the wire. */

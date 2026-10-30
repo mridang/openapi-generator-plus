@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -98,7 +97,7 @@ test('api key is masked in var_dump and print_r output', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -127,7 +126,7 @@ test('debug output keeps the non secret fields and masks only the key', function
 
 test('every generated api key wrapper emits its key at exactly one location and masks it', function (): void {
     $wrappers = 0;
-    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
             continue;

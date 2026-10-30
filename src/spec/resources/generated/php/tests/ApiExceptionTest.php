@@ -13,6 +13,7 @@ test('exposes status code, message, body, headers and error body', function (): 
         'not found',
         ['content-type' => 'application/json'],
         '{"id":7,"name":"missing"}',
+        null,
     );
 
     expect($ex->getStatusCode())->toBe(404);
@@ -29,6 +30,7 @@ test('null headers and body mark transport-no-response', function (): void {
     $ex = new ApiException(
         0,
         'connection reset',
+        null,
         null,
     );
 

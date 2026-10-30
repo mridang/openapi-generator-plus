@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -47,7 +46,8 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null {
+    ): string|array|null
+    {
         if ($value === null) {
             if ($location === 'query') {
                 return null;
@@ -66,7 +66,7 @@ final class ValueSerializer
             ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
                 ? $v->format('Y-m-d')
                 : ObjectSerializer::stringify($v)
-            : ObjectSerializer::stringify(...);
+            : [ObjectSerializer::class, 'stringify'];
 
         if (is_array($value)) {
             if ($location === 'query') {
@@ -111,7 +111,7 @@ final class ValueSerializer
     public static function formatDateOnly(mixed $value): mixed
     {
         if (is_array($value)) {
-            return array_map(self::formatDateOnly(...), $value);
+            return array_map(static fn (mixed $item): mixed => self::formatDateOnly($item), $value);
         }
 
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
@@ -145,15 +145,17 @@ final class ValueSerializer
     }
 
     /**
-     * Percent-encodes a query value while leaving RFC 3986 reserved characters
-     * literal (OAS `allowReserved: true`).
+     * Percent-encodes a query value while leaving literal the reserved
+     * characters RFC 3986 section 3.4 permits in a query (OAS
+     * `allowReserved: true`).
      *
-     * Everything that is not RFC 3986 reserved or unreserved — spaces (encoded
-     * as `%20`, never `+`), control characters, non-ASCII — is still
-     * percent-encoded, so the result is always a valid URL query segment. Only
-     * the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` is restored to
-     * literal after rawurlencode() over-encodes it. rawurlencode() already
-     * leaves the RFC 3986 unreserved `~` literal, so it needs no restoring.
+     * Only `: / ? @ ! $ & ' ( ) * + , ; =` are restored to literal after
+     * rawurlencode() over-encodes them. `#` (which every URL parser takes as
+     * the fragment delimiter, silently truncating the query), `[` and `]` (not
+     * legal in a query) stay percent-encoded, as do spaces (`%20`, never
+     * `+`), control characters and non-ASCII, so the result is always a valid
+     * URL query segment. rawurlencode() already leaves the RFC 3986
+     * unreserved `~` literal, so it needs no restoring.
      *
      * @param string $value the raw value to encode
      * @return string the encoded value with reserved characters preserved
@@ -165,8 +167,7 @@ final class ValueSerializer
         }
 
         return strtr(rawurlencode($value), [
-            '%3A' => ':', '%2F' => '/', '%3F' => '?', '%23' => '#',
-            '%5B' => '[', '%5D' => ']', '%40' => '@', '%21' => '!',
+            '%3A' => ':', '%2F' => '/', '%3F' => '?', '%40' => '@', '%21' => '!',
             '%24' => '$', '%26' => '&', '%27' => "'", '%28' => '(',
             '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
             '%3B' => ';', '%3D' => '=',
@@ -211,7 +212,7 @@ final class ValueSerializer
         }
         if (
             $location === 'path'
-            && (in_array($style, [null, '', 'simple'], true))
+            && ($style === null || $style === '' || $style === 'simple')
             && ($value === '.' || $value === '..')
         ) {
             /* A dot segment would be collapsed by URL resolution and silently
@@ -237,7 +238,7 @@ final class ValueSerializer
             ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
                 ? $v->format('Y-m-d')
                 : ObjectSerializer::stringify($v)
-            : ObjectSerializer::stringify(...);
+            : [ObjectSerializer::class, 'stringify'];
 
         /* Whether the incoming value is a multi-valued collection drives the
          * branching below: only arrays/objects explode into repeated params or

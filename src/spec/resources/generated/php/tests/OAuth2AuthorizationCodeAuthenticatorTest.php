@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -15,6 +14,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\ApiHttpResponse;
 use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+use PetstoreClient\Errors\OAuth2ServerException;
 
 function makeOAuth2AuthCodeMockClient(
     string $accessToken = 'test-token',
@@ -301,7 +301,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(OAuth2AuthorizationCodeAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(OAuth2AuthorizationCodeAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -409,4 +409,164 @@ test('debug output keeps the non secret fields and masks the secret', function (
     expect($printR)->toContain('[tokenUrl] => https://auth.example.com/token');
     expect($printR)->toContain('[refreshUrl] => https://auth.example.com/refresh');
     expect($printR)->toContain('[redirectUri] => https://app.example.com/callback');
+});
+
+test('auth code refresh carries the client credentials', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        [],
+        'https://auth.example.com/refresh'
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer access2');
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[1]['body'])->toBe(
+        'grant_type=refresh_token&refresh_token=refresh1&client_id=my-client-id&client_secret=my-client-secret'
+    );
+});
+
+test('auth code rejected refresh surfaces the server error after one refresh request', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('auth-code-123');
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(OAuth2ServerException::class, 'Token request failed with status 400: invalid_grant');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('second exchange code sends the new code', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token2',
+        'refresh_token' => 'refresh2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('a');
+    $authenticator->exchangeCode('b');
+
+    expect($client->capturedRequests)->toHaveCount(2);
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('grant_type=authorization_code');
+    expect($client->capturedRequests[1]['body'] ?? '')->toContain('code=b');
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer token2']);
+});
+
+test('second exchange without a refresh token drops the old refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token2',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token3',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('a');
+    $authenticator->exchangeCode('b');
+    $authenticator->getAuthHeaders();
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=refresh_token');
+    expect($client->capturedRequests[2]['body'] ?? '')->not->toContain('refresh1');
+});
+
+test('failed exchange keeps the previous session', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'token1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('a');
+
+    expect(fn () => $authenticator->exchangeCode('bad'))->toThrow(OAuth2ServerException::class);
+    expect($authenticator->getAuthHeaders())->toBe(['Authorization' => 'Bearer token1']);
+    expect($client->capturedRequests)->toHaveCount(2);
 });

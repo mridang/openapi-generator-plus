@@ -1429,3 +1429,115 @@ test('deserialize PetFood rejects a malformed discriminator with SerializationEx
     'empty value' => ['{"foodType":"","weightKg":2.5}'],
     'non string value' => ['{"foodType":42,"weightKg":1.0}'],
 ]);
+
+// -- format: byte parameters are standard base64 on the wire --
+
+test('encode base64 param encodes strings and each list element', function (mixed $value, mixed $expected): void {
+    expect(ObjectSerializer::encodeBase64Param($value))->toBe($expected);
+})->with([
+    'ascii' => ['hi', 'aGk='],
+    'standard alphabet' => ["\xFB\xFF", '+/8='],
+    'list' => [['hi', "\xFB\xFF"], ['aGk=', '+/8=']],
+    'null stays null' => [null, null],
+]);
+
+// -- date-time decode accepts only RFC 3339 with an offset --
+
+test('date-time decode rejects text that is not RFC 3339 with an offset', function (string $json): void {
+    expect(fn () => ObjectSerializer::deserialize('{"shipDate":' . $json . '}', Order::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect(fn () => ObjectSerializer::deserialize($json, 'DateTime'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'no offset' => ['"2024-01-01T10:00:00"'],
+    'us layout' => ['"01/02/2024 10:00"'],
+    'free text' => ['"tomorrow"'],
+    'time only' => ['"10:00"'],
+    'epoch number' => ['1700000000'],
+    'epoch text' => ['"1700000000"'],
+    'impossible calendar date' => ['"2024-02-30T10:00:00Z"'],
+]);
+
+test('date-time decode accepts RFC 3339 with any fraction length', function (string $text, string $expected): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"shipDate":"' . $text . '"}', Order::class);
+    expect($order->shipDate?->format('Y-m-d\TH:i:s.uP'))->toBe($expected);
+    $value = ObjectSerializer::deserialize('"' . $text . '"', 'DateTime');
+    expect($value)->toBeInstanceOf(\DateTime::class);
+    assert($value instanceof \DateTime);
+    expect($value->format('Y-m-d\TH:i:s.uP'))->toBe($expected);
+})->with([
+    'zulu without fraction' => ['2024-01-01T10:00:00Z', '2024-01-01T10:00:00.000000+00:00'],
+    'nanosecond fraction' => ['2024-01-01T10:00:00.123456789+05:30', '2024-01-01T10:00:00.123456+05:30'],
+]);
+
+test('offset-less date-time is rejected whatever the host time zone', function (string $zone): void {
+    $previous = date_default_timezone_get();
+    date_default_timezone_set($zone);
+    try {
+        expect(fn () => ObjectSerializer::deserialize('{"shipDate":"2024-01-01T10:00:00"}', Order::class))
+            ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    } finally {
+        date_default_timezone_set($previous);
+    }
+})->with(['UTC', 'Asia/Kolkata']);
+
+// -- format: byte decode is strict RFC 4648 --
+
+test('byte field decode rejects base64 that is not strict RFC 4648', function (string $value): void {
+    $json = (string) json_encode(['thumbnail' => $value]);
+    expect(fn () => ObjectSerializer::deserialize($json, PetPassport::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+    expect(fn () => ObjectSerializer::deserialize((string) json_encode($value), 'byte'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'unpadded' => ['dGVzdA'],
+    'embedded space' => ['dGVz dA=='],
+    'embedded newline' => ["dGVz\ndA=="],
+    'url safe alphabet' => ['-_8='],
+    'not base64' => ['!!!!'],
+]);
+
+test('byte list element decode rejects base64 that is not strict RFC 4648', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"scans":["dGVzdA==","dGVzdA"]}', PetPassport::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('byte field decode accepts strict base64', function (): void {
+    /** @var PetPassport $passport */
+    $passport = ObjectSerializer::deserialize('{"thumbnail":"dGVzdA=="}', PetPassport::class);
+    expect($passport->getThumbnailAsBytes())->toBe('test');
+    expect(ObjectSerializer::deserialize('"dGVzdA=="', 'byte'))->toBe('test');
+});
+
+// -- format: uri is an absolute RFC 3986 URI, re-emitted verbatim --
+
+test('uri field decode accepts any absolute uri and re-emits it verbatim', function (string $uri): void {
+    $json = (string) json_encode(['name' => 'n', 'photoUrls' => [], 'homepageUrl' => $uri], JSON_UNESCAPED_SLASHES);
+    /** @var Pet $item */
+    $item = ObjectSerializer::deserialize($json, Pet::class);
+    expect($item->homepageUrl?->toRawString())->toBe($uri);
+    expect(ObjectSerializer::serialize($item))->toContain('"homepageUrl":"' . $uri . '"');
+})->with([
+    'urn' => ['urn:isbn:0451450523'],
+    'mailto' => ['mailto:a@b.com'],
+    'ftp' => ['ftp://x.org/f'],
+    'https' => ['https://example.com/items/1'],
+]);
+
+test('uri field decode rejects relative and malformed text', function (string $uri): void {
+    $json = (string) json_encode(['name' => 'n', 'photoUrls' => [], 'homepageUrl' => $uri]);
+    expect(fn () => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'relative' => ['/relative'],
+    'spaces' => ['not a uri'],
+    'empty' => [''],
+]);
+
+test('uri-reference field still accepts a relative reference', function (): void {
+    $json = '{"name":"n","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}';
+    /** @var Pet $item */
+    $item = ObjectSerializer::deserialize($json, Pet::class);
+    expect($item->thumbnailRef)->toBe('/assets/thumb.png');
+});

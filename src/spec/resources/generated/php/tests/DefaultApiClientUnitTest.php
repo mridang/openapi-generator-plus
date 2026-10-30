@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
@@ -169,7 +170,7 @@ test('injects custom user agent', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->userAgent('MyApp/1.0')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -210,7 +211,7 @@ test('injects request id', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -234,7 +235,7 @@ test('does not inject request id when disabled', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(false)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -256,7 +257,7 @@ test('does not override caller request id', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -291,7 +292,7 @@ test('generates unique request ids', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->injectRequestId(true)
         ->build();
 
@@ -318,7 +319,7 @@ test('unit includes transport default headers', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->defaultHeader('X-Custom', 'custom-value')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -340,7 +341,7 @@ test('caller headers override defaults', function (): void {
         }
     );
 
-    $transport = new TransportOptionsBuilder()
+    $transport = (new TransportOptionsBuilder())
         ->defaultHeader('Accept', 'text/plain')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -626,7 +627,7 @@ test('decodes iso 8859 1 error body to utf 8', function (): void {
 test('proxy with basic auth is accepted by builder', function (): void {
     // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
     // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
-    $opts = new TransportOptionsBuilder()
+    $opts = (new TransportOptionsBuilder())
         ->proxy('http://user:secret@proxy.example.com:8080')
         ->build();
 
@@ -707,7 +708,7 @@ test('cross origin redirect strips api key header', function (): void {
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     /* MockHttpClient records request options on its responses. We use a
      * closure form so we can capture the headers sent on hop 2. */
-    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -746,7 +747,7 @@ test('cross origin redirect strips authorization and cookie', function (): void 
     $capturedHeaders = [];
     $hop2 = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
+    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -1417,3 +1418,53 @@ test('decompresses a valid stream whose content is falsy', function (string $pay
     'empty deflate' => ['', 'deflate'],
     'zero deflate' => ['0', 'deflate'],
 ]);
+
+test('multipart primitive parts are plain text and only models are json', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        [
+            'flag' => true,
+            'total' => 3,
+            'at' => new \DateTime('2024-01-15T10:30:00Z'),
+            'choice' => ApiKeyLocation::QUERY,
+            'id' => \Symfony\Component\Uid\Uuid::fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+            'model' => new MultipartModelPart(isEnabled: true),
+        ]
+    );
+
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"total\"\r\n\r\n3\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"choice\"\r\n\r\nquery\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"id\"\r\n\r\ne621e1f8-c36c-495a-93fc-0c247a3e6e5f\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n");
+    expect($capturedBody)->not->toContain('Content-Transfer-Encoding');
+    expect(substr_count($capturedBody, 'Content-Type:'))->toBe(1);
+});
+
+test('keeps an allowReserved query value byte for byte', function (): void {
+    $capturedUrl = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url) use (&$capturedUrl): MockResponse {
+            $capturedUrl = $url;
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $client = new StubbedDefaultApiClient($mockClient);
+    $query = 'revision=' . \PetstoreClient\ValueSerializer::encodeQueryAllowingReserved("v1.0/beta:rc1[x]'y");
+
+    $client->sendRequest('GET', 'http://example.com/echo?' . $query, [], null);
+
+    expect($capturedUrl)->toBe("http://example.com/echo?revision=v1.0/beta:rc1%5Bx%5D'y");
+});

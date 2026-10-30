@@ -155,7 +155,13 @@ class Psr18ApiClient extends AbstractApiClient
             $values = is_array($value) ? $value : [$value];
             foreach ($values as $v) {
                 $out .= '--' . $boundary . $crlf;
-                if (is_object($v) && !($v instanceof \SplFileObject)) {
+                /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
+                 * text part in its stringify form with no part Content-Type; only
+                 * a model or map is an application/json part. */
+                if (ObjectSerializer::isPrimitiveValue($v)) {
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
+                    $out .= ObjectSerializer::stringify($v) . $crlf;
+                } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf;
                     $out .= 'Content-Type: application/json' . $crlf . $crlf;
                     $out .= ObjectSerializer::serialize($v) . $crlf;
@@ -184,9 +190,6 @@ class Psr18ApiClient extends AbstractApiClient
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
-                } elseif (is_scalar($v)) {
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
-                    $out .= ObjectSerializer::stringify($v) . $crlf;
                 } else {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
                     $out .= $crlf;

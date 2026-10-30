@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -148,7 +147,7 @@ class DefaultApiClient extends AbstractApiClient
      * of {@see Psr18ApiClient} never sends; both headers are dropped so the two
      * transports put the same bytes on the wire.
      */
-    private function plainFormPart(string $value): TextPart
+    private static function plainFormPart(string $value): TextPart
     {
         return new class ($value) extends TextPart {
             public function getPreparedHeaders(): Headers
@@ -156,6 +155,37 @@ class DefaultApiClient extends AbstractApiClient
                 $headers = parent::getPreparedHeaders();
                 $headers->remove('Content-Type');
                 $headers->remove('Content-Transfer-Encoding');
+
+                return $headers;
+            }
+        };
+    }
+
+    /**
+     * Builds a JSON form field part for a model or map value.
+     *
+     * The part carries exactly Content-Disposition then
+     * `Content-Type: application/json`, like the in-memory encoder of
+     * {@see Psr18ApiClient}. Symfony's DataPart would put Content-Type first
+     * and add a Content-Transfer-Encoding of 8bit.
+     */
+    private static function jsonFormPart(string $json): DataPart
+    {
+        return new class ($json) extends DataPart {
+            public function __construct(string $json)
+            {
+                parent::__construct($json, null, 'application/json');
+            }
+
+            public function getPreparedHeaders(): Headers
+            {
+                $prepared = parent::getPreparedHeaders();
+                $headers = new Headers();
+                $disposition = $prepared->get('Content-Disposition');
+                if ($disposition !== null) {
+                    $headers->add($disposition);
+                }
+                $headers->addTextHeader('Content-Type', 'application/json');
 
                 return $headers;
             }
@@ -192,12 +222,13 @@ class DefaultApiClient extends AbstractApiClient
                 $values = is_array($value) ? $value : [$value];
                 $parts = [];
                 foreach ($values as $v) {
-                    if (is_object($v) && !($v instanceof \SplFileObject)) {
-                        $parts[] = new DataPart(
-                            ObjectSerializer::serialize($v),
-                            null,
-                            'application/json'
-                        );
+                    /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
+                     * text part in its stringify form with no part Content-Type; only
+                     * a model or map is an application/json part. */
+                    if (ObjectSerializer::isPrimitiveValue($v)) {
+                        $parts[] = self::plainFormPart(ObjectSerializer::stringify($v));
+                    } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
+                        $parts[] = self::jsonFormPart(ObjectSerializer::serialize($v));
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
@@ -246,10 +277,8 @@ class DefaultApiClient extends AbstractApiClient
                         } finally {
                             fclose($v);
                         }
-                    } elseif (is_scalar($v)) {
-                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
                     } else {
-                        $parts[] = $this->plainFormPart('');
+                        $parts[] = self::plainFormPart('');
                     }
                 }
                 $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;
@@ -275,7 +304,7 @@ class DefaultApiClient extends AbstractApiClient
                  * empty body so Symfony emits Content-Length: 0 (the base
                  * class already injected the header); GET/HEAD send nothing. */
                 $upperMethod = strtoupper($method);
-                if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
+                if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
                     $options['body'] = '';
                 }
             }

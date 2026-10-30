@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -43,6 +42,7 @@ class PetApi extends BaseApi
      * Add a new pet to the store
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @param AddPetOptions|null $options Options carrying an optional per-operation authenticator
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPet(\PetstoreClient\Models\Pet $pet, ?AddPetOptions $options = null): \PetstoreClient\Models\Pet
@@ -99,7 +99,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             $auth,
             $allowReservedKeys
         );
@@ -195,6 +195,7 @@ class PetApi extends BaseApi
     /**
      * Record a treatment for a pet
      * @param AddPetTreatmentOptions|null $options Options carrying an optional per-operation authenticator
+     * @return \PetstoreClient\Models\PetTreatment
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatment(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): \PetstoreClient\Models\PetTreatment
@@ -269,7 +270,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetTreatment::class,
+            '\PetstoreClient\Models\PetTreatment',
             $auth,
             $allowReservedKeys
         );
@@ -329,7 +330,7 @@ class PetApi extends BaseApi
         $allowReservedKeys = [];
         $headerParams = [];
         $cookieParts = [];
-        if ($options instanceof \PetstoreClient\Api\Options\DeletePetOptions && $options->apiKey !== null) {
+        if ($options !== null && $options->apiKey !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('api_key', $options->apiKey, 'cookie', 'string', null, 'form', true);
             /* RFC 6265 cookie-value: reject CR/LF/control chars and other
@@ -368,6 +369,7 @@ class PetApi extends BaseApi
     /**
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function downloadPetDocument(int $petId, int $documentId): string
@@ -598,13 +600,13 @@ class PetApi extends BaseApi
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'status=' appears on the wire. */
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->status !== null) {
+        if ($options !== null && $options->status !== null) {
             $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->filter !== null) {
+        if ($options !== null && $options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->bornAfter instanceof \DateTime) {
+        if ($options !== null && $options->bornAfter !== null) {
             $queryParams['bornAfter'] = ValueSerializer::serializeStyled(
                 'bornAfter',
                 $options->bornAfter,
@@ -615,7 +617,7 @@ class PetApi extends BaseApi
                 true,
             );
         }
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->n2ndPage !== null) {
+        if ($options !== null && $options->n2ndPage !== null) {
             $queryParams['2ndPage'] = ValueSerializer::serializeStyled(
                 '2ndPage',
                 $options->n2ndPage,
@@ -627,7 +629,7 @@ class PetApi extends BaseApi
             );
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\FindPetsByStatusOptions && $options->reportDate instanceof \DateTime) {
+        if ($options !== null && $options->reportDate !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'Report-Date',
@@ -662,6 +664,7 @@ class PetApi extends BaseApi
 
     /**
      * Get external pet info
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null): \PetstoreClient\Models\Pet
@@ -737,7 +740,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -748,6 +751,7 @@ class PetApi extends BaseApi
 
     /**
      * Get multi-server pet info
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): \PetstoreClient\Models\Pet
@@ -823,7 +827,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -835,6 +839,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet's profile photo
      * Returns the raw image bytes of the pet's current avatar.
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetAvatar(int $petId): string
@@ -916,6 +921,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet's avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetAvatarThumbnail(int $petId): string
@@ -1000,6 +1006,7 @@ class PetApi extends BaseApi
      * @param int $petId ID of pet to return
      * @example 1 Small breed ID
      * @example 42 Large breed ID
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      * @deprecated This operation is deprecated.
      */
@@ -1078,7 +1085,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1090,6 +1097,7 @@ class PetApi extends BaseApi
     /**
      * Look up a pet by name (simple string path param + required query)
      * @param GetPetByNameOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetByName(string $name, GetPetByNameOptions $options): \PetstoreClient\Models\Pet
@@ -1184,7 +1192,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1196,6 +1204,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet's passport
      * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+     * @return \PetstoreClient\Models\PetPassport
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetPassport(int $petId): \PetstoreClient\Models\PetPassport
@@ -1265,7 +1274,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\PetPassport::class,
+            '\PetstoreClient\Models\PetPassport',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1277,6 +1286,7 @@ class PetApi extends BaseApi
     /**
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetPhoto(int $petId, int $photoId): string
@@ -1376,6 +1386,7 @@ class PetApi extends BaseApi
 
     /**
      * Get a plain-text summary of the pet
+     * @return string
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetSummary(int $petId): string
@@ -1457,6 +1468,7 @@ class PetApi extends BaseApi
     /**
      * Get a tag for a pet
      * @param GetPetTagOptions|null $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getPetTag(int $petId, string $tagName, ?GetPetTagOptions $options = null): \PetstoreClient\Models\Pet
@@ -1538,23 +1550,23 @@ class PetApi extends BaseApi
          * unchanged. */
         $allowReservedKeys = [];
         $allowReservedKeys['revision'] = true;
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->colors !== null) {
+        if ($options !== null && $options->colors !== null) {
             $queryParams['colors'] = ValueSerializer::serializeStyled(
                 'colors',
                 $options->colors,
                 'query',
-                \Ds\Vector::class,
+                '\Ds\Vector',
                 'pipes',
                 'pipeDelimited',
                 false,
             );
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->sizes !== null) {
+        if ($options !== null && $options->sizes !== null) {
             $queryParams['sizes'] = ValueSerializer::serializeStyled(
                 'sizes',
                 $options->sizes,
                 'query',
-                \Ds\Vector::class,
+                '\Ds\Vector',
                 'ssv',
                 'spaceDelimited',
                 false,
@@ -1564,10 +1576,10 @@ class PetApi extends BaseApi
          * tolerates an empty value IF the key is sent, not that the key must
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious 'filter=' appears on the wire. */
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->filter !== null) {
+        if ($options !== null && $options->filter !== null) {
             $queryParams['filter'] = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->revision !== null) {
+        if ($options !== null && $options->revision !== null) {
             $queryParams['revision'] = ValueSerializer::serializeStyled(
                 'revision',
                 $options->revision,
@@ -1578,7 +1590,7 @@ class PetApi extends BaseApi
                 true,
             );
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteria instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteria !== null) {
             $queryParams['criteria'] = ValueSerializer::serializeStyled(
                 'criteria',
                 $options->criteria,
@@ -1589,7 +1601,7 @@ class PetApi extends BaseApi
                 true,
             );
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaCsv instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteriaCsv !== null) {
             $queryParams['criteriaCsv'] = ValueSerializer::serializeStyled(
                 'criteriaCsv',
                 $options->criteriaCsv,
@@ -1600,13 +1612,13 @@ class PetApi extends BaseApi
                 false,
             );
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->criteriaDeep instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->criteriaDeep !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('criteriaDeep', $options->criteriaDeep));
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->fingerprint !== null) {
+        if ($options !== null && $options->fingerprint !== null) {
             $queryParams['fingerprint'] = ValueSerializer::serializeStyled(
                 'fingerprint',
-                $options->fingerprint,
+                \PetstoreClient\ObjectSerializer::encodeBase64Param($options->fingerprint),
                 'query',
                 'string',
                 null,
@@ -1615,7 +1627,7 @@ class PetApi extends BaseApi
             );
         }
         $headerParams = [];
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->xCriteria instanceof \PetstoreClient\Models\PetCriteria) {
+        if ($options !== null && $options->xCriteria !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Criteria',
@@ -1628,11 +1640,11 @@ class PetApi extends BaseApi
             );
             $headerParams['X-Criteria'] = $headerValue;
         }
-        if ($options instanceof \PetstoreClient\Api\Options\GetPetTagOptions && $options->xFingerprint !== null) {
+        if ($options !== null && $options->xFingerprint !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Fingerprint',
-                $options->xFingerprint,
+                \PetstoreClient\ObjectSerializer::encodeBase64Param($options->xFingerprint),
                 'header',
                 'string',
                 null,
@@ -1652,7 +1664,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1663,6 +1675,7 @@ class PetApi extends BaseApi
 
     /**
      * Get staging pet info
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null): \PetstoreClient\Models\Pet
@@ -1738,7 +1751,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1819,7 +1832,8 @@ class PetApi extends BaseApi
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
-            $allowReservedKeys
+            $allowReservedKeys,
+            rawBody: true
         );
         return $result;
     }
@@ -1893,6 +1907,7 @@ class PetApi extends BaseApi
      * Update a pet's notification preferences
      * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
      * @param SetPetPreferencesOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function setPetPreferences(int $petId, SetPetPreferencesOptions $options): \PetstoreClient\Models\ApiResponse
@@ -1963,10 +1978,10 @@ class PetApi extends BaseApi
         if ($options->note !== null) {
             $requestBody['note'] = $options->note;
         }
-        if ($options->renewalDate instanceof \DateTime) {
+        if ($options->renewalDate !== null) {
             $requestBody['renewalDate'] = ValueSerializer::formatDateOnly($options->renewalDate);
         }
-        if ($options->reminder instanceof \DateTime) {
+        if ($options->reminder !== null) {
             $requestBody['reminder'] = $options->reminder;
         }
 
@@ -1979,7 +1994,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/x-www-form-urlencoded',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1992,6 +2007,7 @@ class PetApi extends BaseApi
      * Update an existing pet
      * @param int $petId ID of pet to update
      * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
+     * @return \PetstoreClient\Models\Pet
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet): \PetstoreClient\Models\Pet
@@ -2063,7 +2079,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            \PetstoreClient\Models\Pet::class,
+            '\PetstoreClient\Models\Pet',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -2076,6 +2092,7 @@ class PetApi extends BaseApi
      * Upload the pet's adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options): \PetstoreClient\Models\ApiResponse
@@ -2147,7 +2164,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -2161,6 +2178,7 @@ class PetApi extends BaseApi
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
      * @param string|null $contentType Optional request Content-Type; one of the declared types, defaulting to the first (multipart/form-data)
+     * @return \PetstoreClient\Models\ApiResponse
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options, ?string $contentType = null): \PetstoreClient\Models\ApiResponse
@@ -2235,10 +2253,10 @@ class PetApi extends BaseApi
         if ($options->pageCount !== null) {
             $requestBody['pageCount'] = $options->pageCount;
         }
-        if ($options->takenAt instanceof \DateTime) {
+        if ($options->takenAt !== null) {
             $requestBody['takenAt'] = $options->takenAt;
         }
-        if ($options->swatch instanceof \PetstoreClient\Models\Swatch) {
+        if ($options->swatch !== null) {
             $requestBody['swatch'] = $options->swatch;
         }
 
@@ -2261,7 +2279,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             $contentType ?? 'multipart/form-data',
-            \PetstoreClient\Models\ApiResponse::class,
+            '\PetstoreClient\Models\ApiResponse',
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,

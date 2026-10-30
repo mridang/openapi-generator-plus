@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -70,29 +69,45 @@ final class OAuth2TokenManager
         $this->apiClient = $apiClient;
     }
 
+    /** @var bool Whether an authorization code has been exchanged into this session. */
+    private bool $exchanged = false;
+
     /**
      * Get a valid access token, fetching or refreshing as necessary.
      *
-     * @param string               $tokenUrl the OAuth2 token endpoint URL
-     * @param array<string, string> $params   the token request parameters (grant_type, client_id, etc.)
+     * When a refresh token is held and the given grant is not itself a
+     * refresh, the manager first POSTs a refresh_token grant to $refreshUrl
+     * (default $tokenUrl). RFC 6749 section 6 requires a client that
+     * authenticated at the token endpoint to authenticate the refresh the
+     * same way (section 3.2.1), so the refresh carries the client_id and
+     * client_secret found in $params (BODY client authentication) and the
+     * same $extraHeaders (BASIC client authentication). If that refresh
+     * fails, the original grant is re-run against $tokenUrl. When $params
+     * is already a refresh_token grant it is POSTed exactly once to
+     * $tokenUrl and a failure propagates; there is no second attempt.
+     *
+     * @param string                $tokenUrl     the OAuth2 token endpoint URL
+     * @param array<string, string> $params       the token request parameters (grant_type, client_id, etc.)
+     * @param array<string, string> $extraHeaders additional HTTP headers (e.g. for HTTP Basic client auth)
+     * @param string|null           $refreshUrl   the endpoint for the internal refresh (defaults to $tokenUrl)
      * @return string a valid access token
      *
      * @throws \LogicException if no API client has been injected
      * @throws OpenAPIException if the token fetch fails
      */
-    /**
-     * @param string                $tokenUrl     the token endpoint URL
-     * @param array<string, string> $params       the request body parameters
-     * @param array<string, string> $extraHeaders additional HTTP headers (e.g. for HTTP Basic client auth)
-     */
-    public function getAccessToken(string $tokenUrl, array $params, array $extraHeaders = []): string
-    {
+    public function getAccessToken(
+        string $tokenUrl,
+        array $params,
+        array $extraHeaders = [],
+        ?string $refreshUrl = null
+    ): string {
         $stillFresh = $this->tokenExpiry === null
             || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S);
         if ($this->accessToken !== null && $stillFresh) {
             return $this->accessToken;
         }
-        if ($this->refreshToken !== null && $this->refreshToken !== '') {
+        $isRefreshGrant = ($params['grant_type'] ?? null) === 'refresh_token';
+        if (!$isRefreshGrant && $this->refreshToken !== null && $this->refreshToken !== '') {
             $refreshParams = [
                 'grant_type' => 'refresh_token',
                 'refresh_token' => $this->refreshToken,
@@ -104,7 +119,7 @@ final class OAuth2TokenManager
                 $refreshParams['client_secret'] = $params['client_secret'];
             }
             try {
-                $this->fetchToken($tokenUrl, $refreshParams, $extraHeaders);
+                $this->fetchToken($refreshUrl ?? $tokenUrl, $refreshParams, $extraHeaders);
                 if ($this->accessToken !== null) {
                     return $this->accessToken;
                 }
@@ -121,6 +136,56 @@ final class OAuth2TokenManager
         }
 
         return $this->accessToken;
+    }
+
+    /**
+     * Exchange a grant (an authorization code) for a new session.
+     *
+     * Always POSTs $params verbatim to $tokenUrl: the cached token and the
+     * stored refresh token are never consulted. On success the session holds
+     * exactly what the response carried (no refresh_token in the response
+     * leaves no refresh token, no expires_in leaves no expiry) and is marked
+     * exchanged. On any failure the previous session is restored and the
+     * failure is rethrown, so a mistyped code does not log the caller out.
+     *
+     * @param string                $tokenUrl     the OAuth2 token endpoint URL
+     * @param array<string, string> $params       the token request parameters
+     * @param array<string, string> $extraHeaders additional HTTP headers
+     * @return string the new access token
+     *
+     * @throws \LogicException if no API client has been injected
+     * @throws OpenAPIException if the token request fails
+     */
+    public function exchange(string $tokenUrl, array $params, array $extraHeaders = []): string
+    {
+        $previousAccessToken = $this->accessToken;
+        $previousRefreshToken = $this->refreshToken;
+        $previousExpiry = $this->tokenExpiry;
+        $this->accessToken = null;
+        $this->refreshToken = null;
+        $this->tokenExpiry = null;
+        try {
+            $this->fetchToken($tokenUrl, $params, $extraHeaders);
+            if ($this->accessToken === null) {
+                throw new OAuth2TokenException('Token fetch did not return an access token');
+            }
+        } catch (\Throwable $e) {
+            $this->accessToken = $previousAccessToken;
+            $this->refreshToken = $previousRefreshToken;
+            $this->tokenExpiry = $previousExpiry;
+            throw $e;
+        }
+        $this->exchanged = true;
+
+        return $this->accessToken;
+    }
+
+    /**
+     * Whether {@see exchange()} has completed successfully for this session.
+     */
+    public function isExchanged(): bool
+    {
+        return $this->exchanged;
     }
 
     /**
@@ -207,7 +272,7 @@ final class OAuth2TokenManager
              * `error_uri`. Parse them into the typed properties so callers
              * can recover. Fall back to the raw body when the response is
              * not a valid error object. */
-            throw $this->parseOAuth2ServerError($response->statusCode, $response->body);
+            throw self::parseOAuth2ServerError($response->statusCode, $response->body);
         }
 
         /** @var array<string, mixed>|null $responseBody */
@@ -215,8 +280,7 @@ final class OAuth2TokenManager
         if (!is_array($responseBody)) {
             throw new OAuth2TokenException('Token response is not a JSON object');
         }
-        if (
-            !isset($responseBody['access_token'])
+        if (!isset($responseBody['access_token'])
             || !is_string($responseBody['access_token'])
             || $responseBody['access_token'] === ''
         ) {
@@ -233,7 +297,7 @@ final class OAuth2TokenManager
              * parse digit strings; on anything unparseable or non-positive,
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
-            $expiresIn = $this->parseExpiresIn($responseBody['expires_in']);
+            $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
                 $bufferSecs = min($expiresIn, 30);
                 $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
@@ -257,7 +321,7 @@ final class OAuth2TokenManager
      * {@see OAuth2ServerException}. Falls back to a generic error using the raw
      * body when the body is not a valid OAuth2 error object.
      */
-    private function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
+    private static function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
     {
         $parsed = json_decode($body, true);
         if (is_array($parsed) && isset($parsed['error']) && is_string($parsed['error']) && $parsed['error'] !== '') {
@@ -272,7 +336,7 @@ final class OAuth2TokenManager
         return new OAuth2ServerException($statusCode, null, null, null, $body);
     }
 
-    private function parseExpiresIn(mixed $raw): int
+    private static function parseExpiresIn(mixed $raw): int
     {
         if (is_int($raw)) {
             return $raw;

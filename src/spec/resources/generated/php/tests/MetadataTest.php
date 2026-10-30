@@ -97,3 +97,16 @@ test('generated models never claim a null example', function (): void {
         expect($source)->not->toContain('Example: null');
     }
 });
+
+test('a declared property wins over a colliding additional property', function (): void {
+    $metadata = new Metadata();
+    $metadata->createdAt = new \DateTime('2024-01-15T10:30:00+00:00');
+    /** @var \Ds\Map<string, mixed> $additionalProperties */
+    $additionalProperties = new \Ds\Map(['createdAt' => 'x', 'other' => 'y']);
+    $metadata->additionalProperties = $additionalProperties;
+
+    $json = ObjectSerializer::serialize($metadata);
+
+    expect($json)->toBe('{"createdAt":"2024-01-15T10:30:00.000+00:00","other":"y"}');
+    expect(substr_count($json, '"createdAt"'))->toBe(1);
+});

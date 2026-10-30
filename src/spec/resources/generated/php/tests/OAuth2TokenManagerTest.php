@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -487,3 +486,96 @@ test('token error response message follows the status, code and description', fu
         'Token request failed with status 502: <html>bad gateway</html>',
     ],
 ]);
+
+test('internal refresh goes to the refresh url with the client credentials', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('fresh_access', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $params = ['grant_type' => 'client_credentials', 'client_id' => 'cid', 'client_secret' => 'sec'];
+
+    $manager->getAccessToken('https://auth.example.com/token', $params, ['X-Extra' => 'e'], 'https://auth.example.com/refresh');
+    $token = $manager->getAccessToken('https://auth.example.com/token', $params, ['X-Extra' => 'e'], 'https://auth.example.com/refresh');
+
+    expect($token)->toBe('fresh_access');
+    expect($client->capturedRequests[0]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[1]['headers']['X-Extra'] ?? null)->toBe('e');
+    expect($client->capturedRequests[1]['body'])
+        ->toBe('grant_type=refresh_token&refresh_token=old_refresh&client_id=cid&client_secret=sec');
+});
+
+test('a refresh grant is posted once and its failure propagates', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('old_access', 1, 'old_refresh'));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    $refresh = ['grant_type' => 'refresh_token', 'refresh_token' => 'old_refresh'];
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/refresh', $refresh))
+        ->toThrow(OAuth2ServerException::class);
+    expect($client->capturedRequests)->toHaveCount(2);
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+});
+
+test('exchange bypasses the cached token and the refresh token', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 3600, 'first_refresh'));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('second', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->exchange('https://auth.example.com/token', ['grant_type' => 'authorization_code', 'code' => 'a']);
+    $token = $manager->exchange('https://auth.example.com/token', ['grant_type' => 'authorization_code', 'code' => 'b']);
+
+    expect($token)->toBe('second');
+    expect($manager->isExchanged())->toBeTrue();
+    expect($manager->getRefreshToken())->toBeNull();
+    expect($client->capturedRequests)->toHaveCount(2);
+    expect($client->capturedRequests[1]['body'])->toBe('grant_type=authorization_code&code=b');
+});
+
+test('failed exchange restores the previous session', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('first', 3600, 'first_refresh'));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->exchange('https://auth.example.com/token', ['grant_type' => 'authorization_code', 'code' => 'a']);
+
+    expect(fn () => $manager->exchange('https://auth.example.com/token', ['grant_type' => 'authorization_code', 'code' => 'bad']))
+        ->toThrow(OAuth2ServerException::class);
+    expect($manager->getRefreshToken())->toBe('first_refresh');
+    expect($manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))->toBe('first');
+    expect($client->capturedRequests)->toHaveCount(2);
+});
+
+test('a failed first exchange leaves the session unexchanged', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->exchange('https://auth.example.com/token', ['grant_type' => 'authorization_code', 'code' => 'bad']))
+        ->toThrow(OAuth2ServerException::class);
+    expect($manager->isExchanged())->toBeFalse();
+});

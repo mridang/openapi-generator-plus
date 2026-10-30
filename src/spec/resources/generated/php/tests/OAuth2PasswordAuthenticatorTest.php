@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -221,7 +220,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach (new \ReflectionMethod(OAuth2PasswordAuthenticator::class, '__construct')->getParameters() as $param) {
+    foreach ((new \ReflectionMethod(OAuth2PasswordAuthenticator::class, '__construct'))->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -345,4 +344,114 @@ test('debug output keeps the non secret fields and masks both secrets', function
     expect($printR)->toContain('[username] => testuser');
     expect($printR)->toContain('[password] => ***');
     expect($printR)->toContain('[clientAuthMethod] => Basic');
+});
+
+test('password refresh in body mode carries the client credentials to the refresh url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        [],
+        'https://auth.example.com/refresh'
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer pw-token-2');
+    expect($client->capturedRequests)->toHaveCount(2);
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[1]['body'])->toBe(
+        'grant_type=refresh_token&refresh_token=refresh-1&client_id=my-client-id&client_secret=my-client-secret'
+    );
+});
+
+test('password refresh in basic mode sends the basic header and no client id in the body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-2',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        [],
+        'https://auth.example.com/refresh',
+        ClientAuthMethod::Basic
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $authenticator->getAuthHeaders();
+
+    $refresh = $client->capturedRequests[1];
+    expect($refresh['url'])->toBe('https://auth.example.com/refresh');
+    expect($refresh['headers']['Authorization'] ?? null)
+        ->toBe('Basic ' . base64_encode('my-client-id:my-client-secret'));
+    expect($refresh['body'])->toBe('grant_type=refresh_token&refresh_token=refresh-1');
+});
+
+test('password rejected refresh re-runs the password grant at the token url', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-1',
+        'refresh_token' => 'refresh-1',
+        'expires_in' => 1,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(
+        400,
+        (string) json_encode(['error' => 'invalid_grant']),
+        ['Content-Type' => 'application/json']
+    ));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'pw-token-3',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = new OAuth2PasswordAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/token',
+        'testuser',
+        'testpass',
+        [],
+        'https://auth.example.com/refresh'
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->getAuthHeaders();
+    $headers = $authenticator->getAuthHeaders();
+
+    expect($headers['Authorization'])->toBe('Bearer pw-token-3');
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[1]['url'])->toBe('https://auth.example.com/refresh');
+    expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
+    expect($client->capturedRequests[2]['body'] ?? '')->toContain('grant_type=password');
+    expect($client->capturedRequests[2]['body'] ?? '')->toContain('username=testuser');
 });

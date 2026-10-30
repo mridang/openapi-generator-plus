@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace {{invokerPackage}}\Test;
 
+use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\TransportOptions;
@@ -1421,3 +1422,53 @@ test('decompresses a valid stream whose content is falsy', function (string $pay
     'empty deflate' => ['', 'deflate'],
     'zero deflate' => ['0', 'deflate'],
 ]);
+
+test('multipart primitive parts are plain text and only models are json', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        [
+            'flag' => true,
+            'total' => 3,
+            'at' => new \DateTime('2024-01-15T10:30:00Z'),
+            'choice' => ApiKeyLocation::QUERY,
+            'id' => \Symfony\Component\Uid\Uuid::fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+            'model' => new MultipartModelPart(isEnabled: true),
+        ]
+    );
+
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"total\"\r\n\r\n3\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"choice\"\r\n\r\nquery\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"id\"\r\n\r\ne621e1f8-c36c-495a-93fc-0c247a3e6e5f\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n");
+    expect($capturedBody)->not->toContain('Content-Transfer-Encoding');
+    expect(substr_count($capturedBody, 'Content-Type:'))->toBe(1);
+});
+
+test('keeps an allowReserved query value byte for byte', function (): void {
+    $capturedUrl = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url) use (&$capturedUrl): MockResponse {
+            $capturedUrl = $url;
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $client = new StubbedDefaultApiClient($mockClient);
+    $query = 'revision=' . \{{invokerPackage}}\ValueSerializer::encodeQueryAllowingReserved("v1.0/beta:rc1[x]'y");
+
+    $client->sendRequest('GET', 'http://example.com/echo?' . $query, [], null);
+
+    expect($capturedUrl)->toBe("http://example.com/echo?revision=v1.0/beta:rc1%5Bx%5D'y");
+});

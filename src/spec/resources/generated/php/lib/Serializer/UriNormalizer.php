@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -62,10 +61,13 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
     public function denormalize(mixed $data, string $type, ?string $format = null, array $context = []): \Uri\Rfc3986\Uri
     {
         \assert(is_string($data));
+        /* `format: uri` is an absolute RFC 3986 URI: any scheme (http, ftp,
+         * mailto, urn, ...) but never a relative reference or an empty
+         * string. Encode re-emits the decoded text verbatim (toRawString). */
         $parsed = \Uri\Rfc3986\Uri::parse($data);
-        if (!$parsed instanceof \Uri\Rfc3986\Uri) {
+        if ($parsed === null || $parsed->getScheme() === null) {
             throw new \Symfony\Component\Serializer\Exception\NotNormalizableValueException(
-                sprintf('Cannot denormalize %s as %s: not a valid RFC 3986 URI', \json_encode($data), \Uri\Rfc3986\Uri::class)
+                sprintf('Cannot denormalize %s as %s: not an absolute RFC 3986 URI', \json_encode($data), \Uri\Rfc3986\Uri::class)
             );
         }
         return $parsed;
@@ -76,7 +78,7 @@ final class UriNormalizer implements NormalizerInterface, DenormalizerInterface
      */
     public function supportsDenormalization(mixed $data, string $type, ?string $format = null, array $context = []): bool
     {
-        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === \Uri\Rfc3986\Uri::class);
+        return is_string($data) && ($type === \Uri\Rfc3986\Uri::class || ltrim($type, '\\') === 'Uri\\Rfc3986\\Uri');
     }
 
     /**

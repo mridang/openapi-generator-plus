@@ -16,6 +16,8 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\UidNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
 /**
@@ -87,8 +89,53 @@ class ObjectSerializer
                  * property routed through DsAwareObjectNormalizer — serialize
                  * to the "3600s" wire form and denormalize back. */
                 new DurationNormalizer(),
+                /* A `format: date-time` model field (\DateTime) decodes only
+                 * from RFC 3339 text, through the same gate as a top-level
+                 * value. Registered before DateTimeNormalizer, whose decode
+                 * falls back to the lenient \DateTime constructor ("tomorrow",
+                 * offset-less text read in the host zone). Encode, and the
+                 * \DateTimeImmutable `format: time` fields, stay with
+                 * DateTimeNormalizer. */
+                new class implements DenormalizerInterface {
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): \DateTime {
+                        if (!is_string($data)) {
+                            throw new \InvalidArgumentException(
+                                'Expected an RFC 3339 date-time string but got ' . get_debug_type($data)
+                            );
+                        }
+
+                        return ObjectSerializer::parseRfc3339($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return ltrim($type, '\\') === \DateTime::class;
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return [\DateTime::class => true];
+                    }
+                },
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
                 new UriNormalizer(),
+                /* A `format: uuid` model field is a Symfony Uuid. Without this
+                 * normalizer the object normalizer sees a plain string on decode
+                 * and rejects it, and would walk the Uuid object on encode. The
+                 * canonical form is the lowercase RFC 4122 text. */
+                new UidNormalizer(),
                 new DsMapNormalizer(),
                 new DsSetNormalizer(),
                 new DsVectorNormalizer(),
@@ -202,7 +249,12 @@ class ObjectSerializer
                  * array-key (int|string) rather than the Ds\Map's mixed key type;
                  * additionalProperties keys are always JSON strings, and an
                  * int|string casts to string cleanly (no phpstan cast.string). */
+                /* A declared property wins over an extra entry under the same
+                 * wire name, so the key is written once with the typed value. */
                 foreach ($data->additionalProperties->toArray() as $extraKey => $extraValue) {
+                    if (array_key_exists((string) $extraKey, $normalized)) {
+                        continue;
+                    }
                     $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
                 }
                 return self::asJsonObject($normalized);
@@ -230,6 +282,78 @@ class ObjectSerializer
     private static function asJsonObject(array $fields): array|\ArrayObject
     {
         return $fields !== [] && array_is_list($fields) ? new \ArrayObject($fields) : $fields;
+    }
+
+    /**
+     * Parse an RFC 3339 date-time: YYYY-MM-DDTHH:MM:SS, an optional fraction
+     * of any length, then Z or a numeric offset. Offset-less text, date-only
+     * text, free text ("tomorrow"), other date layouts and epoch numbers are
+     * rejected, so the result never depends on the host time zone or the
+     * current date. A fraction beyond microseconds is truncated, since
+     * \DateTime keeps six digits.
+     *
+     * @throws \InvalidArgumentException when the text is not an RFC 3339 date-time
+     */
+    public static function parseRfc3339(string $text): \DateTime
+    {
+        $pattern = '/\A(\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2})(?:\.(\d+))?([Zz]|[+-]\d{2}:\d{2})\z/';
+        if (preg_match($pattern, $text, $parts) !== 1) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': expected RFC 3339 with a time-zone offset", $text)
+            );
+        }
+        $fraction = $parts[2] !== '' ? '.' . substr($parts[2], 0, 6) : '';
+        $offset = strtoupper($parts[3]) === 'Z' ? '+00:00' : $parts[3];
+        $wallClock = strtoupper($parts[1]);
+        $parsed = \DateTime::createFromFormat(
+            $fraction === '' ? '!Y-m-d\\TH:i:sP' : '!Y-m-d\\TH:i:s.uP',
+            $wallClock . $fraction . $offset
+        );
+        /* createFromFormat rolls an out-of-range field over (Feb 30 becomes
+         * Mar 1); reading the wall clock back catches that. */
+        if ($parsed === false || $parsed->format('Y-m-d\\TH:i:s') !== $wallClock) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': not a calendar date and time", $text)
+            );
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Base64-encode a `format: byte` parameter value (RFC 4648 standard
+     * alphabet with padding) before the usual query, header, path or form
+     * encoding. php models bytes as a plain string, so the API layer calls
+     * this only for parameters declared `format: byte`; each element of a
+     * list or map is encoded and null stays null (the parameter is omitted).
+     */
+    public static function encodeBase64Param(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return base64_encode($value);
+        }
+        if (is_array($value)) {
+            return array_map(
+                static fn (mixed $element): mixed => is_string($element) ? base64_encode($element) : $element,
+                $value
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Whether a value is a primitive that {@see stringify()} renders as plain
+     * text: a scalar, a date-time, a duration, a uuid or a backed enum. Models,
+     * maps and lists are not primitives.
+     */
+    public static function isPrimitiveValue(mixed $value): bool
+    {
+        return is_scalar($value)
+            || $value instanceof \DateTimeInterface
+            || $value instanceof \DateInterval
+            || $value instanceof \BackedEnum
+            || $value instanceof \Symfony\Component\Uid\Uuid;
     }
 
     /**
@@ -518,9 +642,9 @@ class ObjectSerializer
                 );
             }
             /* Invalid base64 is a wire-shape violation; throw rather than
-             * silently returning the raw undecoded string, matching the
-             * byte-decoding SDKs (ruby/elixir). */
-            $decoded = base64_decode($data, true);
+             * silently returning the raw undecoded string. Only strict RFC
+             * 4648 text passes (see isStrictBase64). */
+            $decoded = self::isStrictBase64($data) ? base64_decode($data, true) : false;
             if ($decoded === false) {
                 throw new SerializationException(
                     "Invalid base64 for 'byte': " . $data
@@ -603,12 +727,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                try {
-                    return new \DateTime($data);
-                } catch (\Exception $exception) {
-                    $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
-                    return new \DateTime((string) $cleaned);
-                }
+                return self::parseRfc3339($data);
             }
             return null;
         }
@@ -757,6 +876,7 @@ class ObjectSerializer
                 self::assertRequiredPresent($payload, $class);
                 self::assertPrimitiveTypes($payload, $class);
                 self::assertNoUnknownProperties($payload, $class);
+                self::assertBase64Fields($payload, $class);
                 /* Canonical #4: pass the JSON format so Symfony widens an
                  * integral JSON value to a `float` property (e.g. {"lat":5}
                  * into a `?float $lat`). validateAndDenormalize only applies
@@ -784,6 +904,7 @@ class ObjectSerializer
                 self::assertRequiredPresent($data, $class);
                 self::assertPrimitiveTypes($data, $class);
                 self::assertNoUnknownProperties($data, $class);
+                self::assertBase64Fields($data, $class);
             }
             /* Pass the JSON format so Symfony widens an integral JSON value
              * to a `float` property (Canonical #4); see the string-data
@@ -973,6 +1094,69 @@ class ObjectSerializer
          * the surrounding deserialize() try/catch wraps it in
          * SerializationException. */
         (new \ReflectionMethod($class, 'assertNoUnknownProperties'))->invoke(null, $data);
+    }
+
+    /**
+     * Whether a string is strict RFC 4648 base64: standard alphabet, a length
+     * that is a multiple of four with `=` padding, no whitespace or newline
+     * and no URL-safe `-` or `_`. Non-zero trailing pad bits are not checked.
+     */
+    public static function isStrictBase64(string $text): bool
+    {
+        return preg_match('~\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z~', $text) === 1;
+    }
+
+    /**
+     * Reject a `format: byte` model field whose wire value is not strict
+     * base64 (see isStrictBase64), so malformed text fails at decode time
+     * rather than when the raw-bytes accessor is first called.
+     *
+     * php models bytes as a string-typed property, so a byte field is
+     * recognised by the raw-bytes accessor the model template emits for
+     * every `format: byte` field (scalar, list element or map value):
+     * `get<Property>AsBytes()`. Each string element is checked; null is
+     * left alone.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertBase64Fields(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        $reflection = new \ReflectionClass($class);
+        foreach ($reflection->getProperties() as $property) {
+            $name = $property->getName();
+            $accessor = 'get' . str_replace('_', '', ucwords($name, '_')) . 'AsBytes';
+            if (!$reflection->hasMethod($accessor)) {
+                continue;
+            }
+            $wireName = $name;
+            foreach (
+                $property->getAttributes(
+                    \Symfony\Component\Serializer\Attribute\SerializedName::class
+                ) as $attr
+            ) {
+                $args = $attr->getArguments();
+                if (isset($args[0]) && is_string($args[0])) {
+                    $wireName = $args[0];
+                }
+            }
+            if (!array_key_exists($wireName, $data)) {
+                continue;
+            }
+            $value = $data[$wireName];
+            $elements = is_array($value) ? $value : [$value];
+            foreach ($elements as $element) {
+                if (is_string($element) && !self::isStrictBase64($element)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        "Invalid base64 for format: byte property '%s' on %s",
+                        $wireName,
+                        $class
+                    ));
+                }
+            }
+        }
     }
 
     /**
@@ -1243,7 +1427,7 @@ class ObjectSerializer
         if ($encoded === null || $encoded === '') {
             return null;
         }
-        $decoded = base64_decode($encoded, true);
+        $decoded = self::isStrictBase64($encoded) ? base64_decode($encoded, true) : false;
         if ($decoded === false) {
             throw new SerializationException(
                 "Invalid base64 for format: byte: " . $encoded

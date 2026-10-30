@@ -57,7 +57,7 @@ function newPetApiForMock(int $statusCode, string $contentType, string $body): P
 }
 
 test('data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = new \ReflectionMethod(PetApi::class, $method)->getReturnType();
+    $returnType = (new \ReflectionMethod(PetApi::class, $method))->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
     expect($returnType->getName())->toBe($expected);
@@ -70,7 +70,7 @@ test('data methods declare a native return type', function (string $method, stri
 ]);
 
 test('the options parameter doc names the authenticator only where the options carry one', function (string $method, string $expected): void {
-    $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
+    $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
     expect($doc)->toContain($expected);
@@ -385,7 +385,7 @@ test('get pet tag serializes optional array query params as styled values', func
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. That is irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -407,7 +407,7 @@ test('get pet tag serializes optional array query params as styled values', func
     // NEVER leak onto the wire. None of these tokens may appear in the URL.
     expect($captured->url)->not->toContain('Array');
     expect($decoded)->not->toContain('Array');
-    expect($decoded)->not->toContain(\Ds\Vector::class);
+    expect($decoded)->not->toContain('Ds\\Vector');
     expect($decoded)->not->toContain('[blue');
     expect($decoded)->not->toContain('blue black]');
     expect($decoded)->not->toContain('&[blue');
@@ -431,7 +431,7 @@ test('get pet tag preserves reserved chars only for allowReserved query param', 
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(filter: 'a:b', revision: 'a b:c'));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. Irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -442,6 +442,34 @@ test('get pet tag preserves reserved chars only for allowReserved query param', 
     // non-allowReserved filter: reserved ':' is percent-encoded as before.
     expect($captured->url)->toContain('filter=a%3Ab');
 });
+
+test('get pet tag percent encodes a fragment delimiter in an allowReserved value', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(revision: 'v1.0/beta:rc1#frag'));
+    } catch (\Throwable) {
+        // Only the captured URL matters here; see the test above.
+    }
+
+    expect($captured->url)->toContain('revision=v1.0/beta:rc1%23frag');
+});
+
+test('get pet tag sends byte parameters as standard base64', function (string $bytes, string $query, string $header): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(fingerprint: $bytes, xFingerprint: $bytes));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('fingerprint=' . $query);
+    expect($captured->headers['X-Fingerprint'] ?? null)->toBe($header);
+})->with([
+    'ascii' => ['hi', 'aGk%3D', 'aGk='],
+    'standard alphabet' => ["\xFB\xFF", '%2B%2F8%3D', '+/8='],
+]);
 
 // -- Canonical form-urlencoded body behaviors (#1, #2, #3) --
 //
@@ -469,8 +497,8 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -560,7 +588,7 @@ test('date only query param serialises without time component', function (): voi
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             bornAfter: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         /* The capturing client returns a canned non-list body; the URL is
          * captured during sendRequest, before any deserialization. */
     }
@@ -579,7 +607,7 @@ test('date only header param serialises without time component', function (): vo
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             reportDate: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable) {
+    } catch (\Throwable $e) {
         /* Only the captured request headers matter here. */
     }
 
@@ -690,6 +718,27 @@ test('setPetAvatar honours the selected request content type', function (): void
     unlink($tmpFile);
 });
 
+test('setPetAvatar sends the bytes verbatim under the json selector', function (): void {
+    $rawBytes = "\xFF\xD8\xFF\xE0";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, $rawBytes);
+
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatar(1, new \SplFileObject($tmpFile, 'r'), 'application/json');
+    unlink($tmpFile);
+
+    expect($captured->body)->toBe($rawBytes);
+    expect($captured->headers['Content-Type'] ?? '')->toBe('application/json');
+});
+
+test('setPetAvatarThumbnail still sends a byte body as a base64 json string', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatarThumbnail(1, SetPetAvatarThumbnailRequest::fromBytes("\xFF\xD8\xFF\xE0"));
+
+    expect($captured->body)->toBe('"/9j/4A=="');
+    expect($captured->headers['Content-Type'] ?? '')->toBe('application/json');
+});
+
 // -- Canonical: octet-stream selection sends RAW bytes, not multipart --
 //
 // uploadPetDocument (POST /pet/{petId}/documents) declares MULTIPLE request
@@ -724,8 +773,8 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 
@@ -777,6 +826,37 @@ test('uploadPetDocument with octet-stream selection sends raw bytes not multipar
     // (3) The outgoing Content-Type is exactly application/octet-stream — never
     //     multipart/form-data.
     expect($captured->headers['Content-Type'] ?? '')->toBe('application/octet-stream');
+});
+
+test('uploadPetDocument sends primitive fields as plain text parts', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'document-content');
+    $stub = new \PetstoreClient\Test\StubPsr18Client(
+        (new \Nyholm\Psr7\Factory\Psr17Factory())->createResponse(200)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('{"code":200,"type":"ok","message":"saved"}'))
+    );
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $api = new PetApi(
+        apiClient: new \PetstoreClient\Psr18ApiClient($stub, $factory, $factory),
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build()
+    );
+
+    $api->uploadPetDocument(1, new UploadPetDocumentOptions(
+        new \SplFileObject($tmpFile, 'r'),
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new \DateTime('2024-01-15T10:30:00Z'),
+        swatch: \PetstoreClient\Models\Swatch::RED,
+    ));
+    unlink($tmpFile);
+
+    $sent = (string) $stub->requests[0]->getBody();
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"isPrimary\"\r\n\r\ntrue\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"pageCount\"\r\n\r\n3\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"takenAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"swatch\"\r\n\r\nred\r\n");
+    expect($sent)->not->toContain('application/json');
 });
 
 test('uploadPetDocument default selection still sends a multipart body', function (): void {
@@ -935,8 +1015,8 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private \stdClass $captured)
+    $client = new class($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private readonly \stdClass $captured)
         {
         }
 

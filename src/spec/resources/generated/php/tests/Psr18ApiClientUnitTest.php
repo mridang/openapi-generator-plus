@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
@@ -102,7 +103,7 @@ test('psr18 joins multi value response headers', function (): void {
 
 test('psr18 injects custom user agent', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->userAgent('MyApp/1.0')->build();
+    $transport = (new TransportOptionsBuilder())->userAgent('MyApp/1.0')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -112,7 +113,7 @@ test('psr18 injects custom user agent', function (): void {
 
 test('psr18 injects request id matching uuid v4', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
+    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -123,7 +124,7 @@ test('psr18 injects request id matching uuid v4', function (): void {
 
 test('psr18 does not inject request id when disabled', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->injectRequestId(false)->build();
+    $transport = (new TransportOptionsBuilder())->injectRequestId(false)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -133,7 +134,7 @@ test('psr18 does not inject request id when disabled', function (): void {
 
 test('psr18 does not override caller request id', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
+    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['X-Request-ID' => 'caller-id'], null);
@@ -143,7 +144,7 @@ test('psr18 does not override caller request id', function (): void {
 
 test('psr18 includes transport default headers', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->defaultHeader('X-Custom', 'custom-value')->build();
+    $transport = (new TransportOptionsBuilder())->defaultHeader('X-Custom', 'custom-value')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -153,7 +154,7 @@ test('psr18 includes transport default headers', function (): void {
 
 test('psr18 caller headers override defaults', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = new TransportOptionsBuilder()->defaultHeader('Accept', 'text/plain')->build();
+    $transport = (new TransportOptionsBuilder())->defaultHeader('Accept', 'text/plain')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['Accept' => 'application/json'], null);
@@ -500,4 +501,42 @@ test('psr18 multipart model part uses configured serializer wire names', functio
     /* The date-time carries the SDK's RFC 3339 wire format with sub-second
      * precision (DateTime::RFC3339_EXTENDED). */
     expect($sent)->toContain('"recordedAt":"2020-01-02T03:04:05.123+00:00"');
+});
+
+test('psr18 multipart primitive parts are plain text and only models are json', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        [
+            'flag' => true,
+            'total' => 3,
+            'at' => new \DateTime('2024-01-15T10:30:00Z'),
+            'choice' => ApiKeyLocation::QUERY,
+            'id' => \Symfony\Component\Uid\Uuid::fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+            'model' => new MultipartModelPart(isEnabled: true),
+        ]
+    );
+
+    $sent = (string) $stub->requests[0]->getBody();
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"total\"\r\n\r\n3\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"choice\"\r\n\r\nquery\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"id\"\r\n\r\ne621e1f8-c36c-495a-93fc-0c247a3e6e5f\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n");
+    expect(substr_count($sent, 'Content-Type:'))->toBe(1);
+});
+
+test('psr18 keeps an allowReserved query value byte for byte', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'));
+    $client = newPsr18Client($stub);
+    $query = 'revision=' . \PetstoreClient\ValueSerializer::encodeQueryAllowingReserved("v1.0/beta:rc1[x]'y");
+
+    $client->sendRequest('GET', 'http://example.com/echo?' . $query, [], null);
+
+    expect($stub->requests[0]->getUri()->getQuery())->toBe("revision=v1.0/beta:rc1%5Bx%5D'y");
 });

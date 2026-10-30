@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -61,9 +60,6 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
 
     /** @var OAuth2TokenManager Token lifecycle manager. */
     private readonly OAuth2TokenManager $tokenManager;
-
-    /** @var bool Whether the authorization code has been exchanged. */
-    private bool $tokenExchanged = false;
 
     /**
      * Create a new authorization code authenticator.
@@ -144,6 +140,10 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
     /**
      * Exchange an authorization code for an access token.
      *
+     * Every call POSTs the authorization_code grant and replaces the session
+     * (a re-login or account switch sends the new code); a failed exchange
+     * keeps the previous session.
+     *
      * @param string $code the authorization code from the callback
      */
     public function exchangeCode(string $code): void
@@ -164,8 +164,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
             'client_secret' => $this->clientSecret,
             'redirect_uri' => $this->redirectUri,
         ];
-        $this->tokenManager->getAccessToken($this->tokenUrl, $params);
-        $this->tokenExchanged = true;
+        $this->tokenManager->exchange($this->tokenUrl, $params);
     }
 
     /**
@@ -188,12 +187,18 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
      */
     public function getAuthHeaders(): array
     {
-        if (!$this->tokenExchanged) {
+        if (!$this->tokenManager->isExchanged()) {
             throw new \LogicException('Must call exchangeCode() before making API requests');
         }
+        /* RFC 6749 section 6: the refresh authenticates the client the same
+         * way the code exchange did, so it carries client_id and
+         * client_secret. The params are already a refresh grant, so the
+         * manager sends exactly one POST to the refresh endpoint. */
         $params = [
             'grant_type' => 'refresh_token',
             'refresh_token' => $this->tokenManager->getRefreshToken() ?? '',
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret,
         ];
         $token = $this->tokenManager->getAccessToken($this->refreshUrl, $params);
 
@@ -217,7 +222,7 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements 
             'refreshUrl' => $this->refreshUrl,
             'redirectUri' => $this->redirectUri,
             'scopes' => $this->scopes,
-            'tokenExchanged' => $this->tokenExchanged,
+            'tokenExchanged' => $this->tokenManager->isExchanged(),
         ];
     }
 }

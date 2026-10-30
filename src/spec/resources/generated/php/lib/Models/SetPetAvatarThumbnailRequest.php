@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,7 +9,6 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 class SetPetAvatarThumbnailRequest
@@ -19,8 +17,8 @@ class SetPetAvatarThumbnailRequest
     private static function oneOfCandidates(): array
     {
         return [
-            \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar(...),
-            \PetstoreClient\ObjectSerializer::decodeByteOneOfArray(...),
+            fn(mixed $d): string => \PetstoreClient\ObjectSerializer::decodeByteOneOfScalar($d),
+            fn(mixed $d): \Ds\Vector => \PetstoreClient\ObjectSerializer::decodeByteOneOfArray($d),
         ];
     }
 

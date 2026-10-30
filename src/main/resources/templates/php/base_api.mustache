@@ -76,6 +76,11 @@ class BaseApi
      *                                            literal. Empty by default, so
      *                                            omitting it encodes every value as
      *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -90,7 +95,8 @@ class BaseApi
         ?string $contentType,
         ?string $returnType,
         ?Authenticator $auth = null,
-        array $allowReservedKeys = []
+        array $allowReservedKeys = [],
+        bool $rawBody = false
     ): ApiResult {
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             $url = $path;
@@ -162,7 +168,7 @@ class BaseApi
         }
         TraceContextUtil::injectTraceContext($headers);
 
-        $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
+        $serializedBody = $this->serializeBody($body, $contentType, $isMultipart, $rawBody);
         if ($serializedBody === null) {
             /* No body means no entity: never announce a Content-Type for it. */
             foreach (array_keys($headers) as $name) {
@@ -243,6 +249,11 @@ class BaseApi
      *                                            literal. Empty by default, so
      *                                            omitting it encodes every value as
      *                                            before.
+     * @param bool                  $rawBody      True when the operation's body is
+     *                                            `format: binary`: the caller's bytes,
+     *                                            file or stream go on the wire verbatim
+     *                                            under whichever declared Content-Type
+     *                                            was selected, even application/json.
      *
      * @return mixed Deserialized response or null
      * @throws ApiException
@@ -257,7 +268,8 @@ class BaseApi
         ?string $contentType,
         ?string $returnType,
         ?Authenticator $auth = null,
-        array $allowReservedKeys = []
+        array $allowReservedKeys = [],
+        bool $rawBody = false
     ): mixed {
         return $this->invokeApiForResult(
             $method,
@@ -269,7 +281,8 @@ class BaseApi
             $contentType,
             $returnType,
             $auth,
-            $allowReservedKeys
+            $allowReservedKeys,
+            $rawBody
         )->data;
     }
 
@@ -388,10 +401,16 @@ class BaseApi
      * @param mixed       $body        Request body
      * @param string|null $contentType Content type
      * @param bool        $isMultipart Whether the request is multipart
+     * @param bool        $rawBody     Whether the body is a `format: binary` value
      *
      * @return mixed Serialized body
      */
-    private function serializeBody(mixed $body, ?string $contentType, bool $isMultipart): mixed
+    private function serializeBody(
+        mixed $body,
+        ?string $contentType,
+        bool $isMultipart,
+        bool $rawBody = false
+    ): mixed
     {
         if ($body === null) {
             return null;
@@ -401,7 +420,14 @@ class BaseApi
             return $body;
         }
 
-        if (str_starts_with($contentType ?? '', 'image/') || $contentType === 'application/octet-stream') {
+        /* A `format: binary` body is never routed through the JSON serializer,
+         * whatever declared Content-Type the caller selected: the selector
+         * only changes the header, the bytes are the caller's. */
+        if (
+            $rawBody
+            || str_starts_with($contentType ?? '', 'image/')
+            || $contentType === 'application/octet-stream'
+        ) {
             /* A type:string format:binary body (e.g. a single-binary-body upload's image/jpeg
              * upload) must go on the wire as the RAW bytes under its DECLARED
              * Content-Type — never JSON-encoded, base64'd, or wrapped. When the

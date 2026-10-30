@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -102,7 +101,7 @@ class Psr18ApiClient extends AbstractApiClient
              * body (the base class already injected Content-Length: 0);
              * GET/HEAD send nothing. */
             $upperMethod = strtoupper($method);
-            if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
+            if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
                 $request = $request->withBody($this->streamFactory->createStream(''));
             }
         }
@@ -113,7 +112,7 @@ class Psr18ApiClient extends AbstractApiClient
             /* PSR-18 has no timeout exception type, so look for Symfony's
              * TimeoutExceptionInterface in the chain (Symfony's Psr18Client
              * wraps it); anything else is a failure with no HTTP response. */
-            for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
+            for ($cause = $e; $cause !== null; $cause = $cause->getPrevious()) {
                 if ($cause instanceof \Symfony\Contracts\HttpClient\Exception\TimeoutExceptionInterface) {
                     throw new NetworkTimeoutException("API Request timed out: {$e->getMessage()}", $e);
                 }
@@ -167,7 +166,13 @@ class Psr18ApiClient extends AbstractApiClient
             $values = is_array($value) ? $value : [$value];
             foreach ($values as $v) {
                 $out .= '--' . $boundary . $crlf;
-                if (is_object($v) && !($v instanceof \SplFileObject)) {
+                /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
+                 * text part in its stringify form with no part Content-Type; only
+                 * a model or map is an application/json part. */
+                if (ObjectSerializer::isPrimitiveValue($v)) {
+                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
+                    $out .= ObjectSerializer::stringify($v) . $crlf;
+                } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf;
                     $out .= 'Content-Type: application/json' . $crlf . $crlf;
                     $out .= ObjectSerializer::serialize($v) . $crlf;
@@ -196,9 +201,6 @@ class Psr18ApiClient extends AbstractApiClient
                         . self::buildFilenameDirective($filename) . $crlf;
                     $out .= 'Content-Type: ' . $mime . $crlf . $crlf;
                     $out .= ($content !== false ? $content : '') . $crlf;
-                } elseif (is_scalar($v)) {
-                    $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
-                    $out .= ObjectSerializer::stringify($v) . $crlf;
                 } else {
                     $out .= 'Content-Disposition: form-data; name="' . $quotedName . '"' . $crlf . $crlf;
                     $out .= $crlf;

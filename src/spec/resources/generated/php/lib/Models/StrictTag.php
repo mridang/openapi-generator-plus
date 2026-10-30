@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -10,7 +9,6 @@
  */
 
 declare(strict_types=1);
-
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -37,7 +35,7 @@ class StrictTag
         foreach (array_keys($data) as $key) {
             if (!in_array($key, $declared, true)) {
                 throw new \InvalidArgumentException(
-                    "Unknown property '" . $key
+                    "Unknown property '" . (string) $key
                         . "' on StrictTag (unevaluatedProperties:false)"
                 );
             }

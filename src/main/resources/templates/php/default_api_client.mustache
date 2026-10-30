@@ -151,6 +151,37 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * Builds a JSON form field part for a model or map value.
+     *
+     * The part carries exactly Content-Disposition then
+     * `Content-Type: application/json`, like the in-memory encoder of
+     * {@see Psr18ApiClient}. Symfony's DataPart would put Content-Type first
+     * and add a Content-Transfer-Encoding of 8bit.
+     */
+    private static function jsonFormPart(string $json): DataPart
+    {
+        return new class ($json) extends DataPart {
+            public function __construct(string $json)
+            {
+                parent::__construct($json, null, 'application/json');
+            }
+
+            public function getPreparedHeaders(): Headers
+            {
+                $prepared = parent::getPreparedHeaders();
+                $headers = new Headers();
+                $disposition = $prepared->get('Content-Disposition');
+                if ($disposition !== null) {
+                    $headers->add($disposition);
+                }
+                $headers->addTextHeader('Content-Type', 'application/json');
+
+                return $headers;
+            }
+        };
+    }
+
+    /**
      * Perform a single Symfony HTTP request with no automatic redirect
      * following, returning the raw status, body, and multi-value headers.
      *
@@ -180,12 +211,13 @@ class DefaultApiClient extends AbstractApiClient
                 $values = is_array($value) ? $value : [$value];
                 $parts = [];
                 foreach ($values as $v) {
-                    if (is_object($v) && !($v instanceof \SplFileObject)) {
-                        $parts[] = new DataPart(
-                            ObjectSerializer::serialize($v),
-                            null,
-                            'application/json'
-                        );
+                    /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
+                     * text part in its stringify form with no part Content-Type; only
+                     * a model or map is an application/json part. */
+                    if (ObjectSerializer::isPrimitiveValue($v)) {
+                        $parts[] = self::plainFormPart(ObjectSerializer::stringify($v));
+                    } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
+                        $parts[] = self::jsonFormPart(ObjectSerializer::serialize($v));
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
@@ -234,8 +266,6 @@ class DefaultApiClient extends AbstractApiClient
                         } finally {
                             fclose($v);
                         }
-                    } elseif (is_scalar($v)) {
-                        $parts[] = self::plainFormPart(ObjectSerializer::stringify($v));
                     } else {
                         $parts[] = self::plainFormPart('');
                     }
