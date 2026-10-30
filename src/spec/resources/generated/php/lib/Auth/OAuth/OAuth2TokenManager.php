@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -272,7 +273,7 @@ final class OAuth2TokenManager
              * `error_uri`. Parse them into the typed properties so callers
              * can recover. Fall back to the raw body when the response is
              * not a valid error object. */
-            throw self::parseOAuth2ServerError($response->statusCode, $response->body);
+            throw $this->parseOAuth2ServerError($response->statusCode, $response->body);
         }
 
         /** @var array<string, mixed>|null $responseBody */
@@ -280,7 +281,8 @@ final class OAuth2TokenManager
         if (!is_array($responseBody)) {
             throw new OAuth2TokenException('Token response is not a JSON object');
         }
-        if (!isset($responseBody['access_token'])
+        if (
+            !isset($responseBody['access_token'])
             || !is_string($responseBody['access_token'])
             || $responseBody['access_token'] === ''
         ) {
@@ -297,7 +299,7 @@ final class OAuth2TokenManager
              * parse digit strings; on anything unparseable or non-positive,
              * mark the token as immediately stale so the next call refetches
              * (preferable to caching a token of unknown lifetime forever). */
-            $expiresIn = self::parseExpiresIn($responseBody['expires_in']);
+            $expiresIn = $this->parseExpiresIn($responseBody['expires_in']);
             if ($expiresIn > 0) {
                 $bufferSecs = min($expiresIn, 30);
                 $this->tokenExpiry = microtime(true) + $expiresIn - $bufferSecs;
@@ -321,7 +323,7 @@ final class OAuth2TokenManager
      * {@see OAuth2ServerException}. Falls back to a generic error using the raw
      * body when the body is not a valid OAuth2 error object.
      */
-    private static function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
+    private function parseOAuth2ServerError(int $statusCode, string $body): OAuth2ServerException
     {
         $parsed = json_decode($body, true);
         if (is_array($parsed) && isset($parsed['error']) && is_string($parsed['error']) && $parsed['error'] !== '') {
@@ -336,7 +338,7 @@ final class OAuth2TokenManager
         return new OAuth2ServerException($statusCode, null, null, null, $body);
     }
 
-    private static function parseExpiresIn(mixed $raw): int
+    private function parseExpiresIn(mixed $raw): int
     {
         if (is_int($raw)) {
             return $raw;

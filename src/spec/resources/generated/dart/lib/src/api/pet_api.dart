@@ -25,6 +25,7 @@ import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/find_pets_by_status_options.dart';
 import 'options/get_pet_by_name_options.dart';
+import 'options/get_pet_summary_options.dart';
 import 'options/get_pet_tag_options.dart';
 import 'options/set_pet_preferences_options.dart';
 import 'options/upload_pet_certificate_options.dart';
@@ -1496,10 +1497,18 @@ class PetApi extends BaseApi {
     );
   }
 
-  /// Get a plain-text summary of the pet
+  /// Get a <plain> \"text\" summary & it's short
+  /// Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+  /// `asOf` Summary date, sent as a matrix-style path segment
+  /// `session` Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required
+  /// `days` Extra dates to summarise
 
-  Future<String> getPetSummary(int petId) async {
-    final result = await getPetSummaryWithHttpInfo(petId);
+  Future<String> getPetSummary(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  ) async {
+    final result = await getPetSummaryWithHttpInfo(petId, asOf, options);
     final data = result.data;
     if (data == null) {
       /* Cross-cutting `convenience-empty-body-handling`: a body-returning
@@ -1518,8 +1527,20 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the getPetSummary operation and returns the full API result.
-  Future<ApiResult<String>> getPetSummaryWithHttpInfo(int petId) async {
-    var path = '/pet/{petId}/summary';
+  Future<ApiResult<String>> getPetSummaryWithHttpInfo(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  ) async {
+    ArgumentError.checkNotNull(options.session, 'session');
+
+    if (options.session == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+      );
+    }
+
+    var path = '/pet/{petId}/summary/{asOf}';
     /* Cross-cutting `path-double-encoding`: serializeStyled already
      * percent-encodes each path segment via encodePathSegment, so wrapping
      * the result in a second encoder would encode it twice (a space would
@@ -1542,10 +1563,72 @@ class PetApi extends BaseApi {
         false,
       ).toString(),
     );
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
+    path = path.replaceAll(
+      '{'
+      'asOf'
+      '}',
+      serializeStyled(
+        'asOf',
+        stringifyDate(asOf),
+        'path',
+        'DateTime',
+        '',
+        'matrix',
+        false,
+      ).toString(),
+    );
 
     final queryParams = <String, Object?>{};
+    if (options.days != null) {
+      queryParams['days'] = maybeAllowReserved(
+        serializeStyled(
+          'days',
+          options.days,
+          'query',
+          'List<DateTime>',
+          'multi',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
 
     final headerParams = <String, String>{};
+    final cookieParts = <String>[];
+    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
+       base_api. Operation cookie params are interpolated straight into the
+       Cookie request header, so an attacker-controlled CR/LF/control-char
+       value would otherwise smuggle in extra headers. Validate every
+       assembled value the same way the auth-cookie path does and fail closed
+       with the same ArgumentError so header injection is impossible. */
+    final operationCookieValueRe = RegExp(
+      r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
+    );
+    void addCookiePart(String name, String value) {
+      if (!operationCookieValueRe.hasMatch(value)) {
+        throw ArgumentError(
+          "Cookie value for '$name' contains characters forbidden by RFC 6265",
+        );
+      }
+      cookieParts.add('$name=$value');
+    }
+
+    addCookiePart(
+      'session',
+      '${serializeStyled('session', options.session, 'cookie', 'String', '', 'form', true)}',
+    );
+    if (cookieParts.isNotEmpty) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
 
     final Object? requestBody = null;
 

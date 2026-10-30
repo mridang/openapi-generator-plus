@@ -38,7 +38,9 @@ module Petstore::Client
         _false: 'false',
         last_error: 'lastError',
         outcome: 'outcome',
-        cutoff: 'cutoff'
+        cutoff: 'cutoff',
+        phase: 'phase',
+        slug: 'slug'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -63,7 +65,9 @@ module Petstore::Client
         _false: 'Boolean',
         last_error: 'Error',
         outcome: 'Result',
-        cutoff: 'Tod::TimeOfDay'
+        cutoff: 'Tod::TimeOfDay',
+        phase: 'String',
+        slug: 'String'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -116,6 +120,8 @@ module Petstore::Client
       attribute :last_error, Types::Any.optional.meta(omittable: true)
       attribute :outcome, Types::Any.optional.meta(omittable: true)
       attribute :cutoff, Types::Any.optional.meta(omittable: true)
+      attribute :phase, Types::String.enum('In-Stock', 'on-hold', 'OUT_OF_STOCK').optional.meta(omittable: true)
+      attribute :slug, Types::Any.optional.meta(omittable: true)
     end
   end
 end

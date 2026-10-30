@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -68,7 +69,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     /**
      * @var list<class-string>
      */
-    private const DS_CONTAINER_CLASSES = [
+    private const array DS_CONTAINER_CLASSES = [
         \Ds\Vector::class,
         \Ds\Set::class,
         \Ds\Map::class,
@@ -172,7 +173,6 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     return null;
                 }
                 if (!is_array($parameterData)) {
-                    /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                     return new $className([$parameterData]);
                 }
 
@@ -217,7 +217,6 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
                     }
                 }
 
-                /** @var \Ds\Vector<mixed>|\Ds\Set<mixed>|\Ds\Map<array-key, mixed> */
                 return new $className($items);
             }
         }
@@ -269,11 +268,13 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
          * `\Ds\Vector<int>` (up to the last `>` before the param name),
          * matching ObjectSerializer::deserializeInternal's own greedy
          * container regex. */
-        if (!preg_match(
-            '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
-            $doc,
-            $matches,
-        )) {
+        if (
+            !preg_match(
+                '/@param\s+[^\s<]+<(.+)>(?:\|null)?\s+\$' . $escapedParam . '\b/',
+                $doc,
+                $matches,
+            )
+        ) {
             return null;
         }
         $inner = trim($matches[1]);

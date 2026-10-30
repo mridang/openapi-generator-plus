@@ -35,7 +35,7 @@ function newStoreApiForMock(int $statusCode, string $contentType, string $body):
 }
 
 test('data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = (new \ReflectionMethod(StoreApi::class, $method))->getReturnType();
+    $returnType = new \ReflectionMethod(StoreApi::class, $method)->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
     expect($returnType->getName())->toBe($expected);

@@ -8,6 +8,13 @@
 import Foundation
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
+/// Typed enum for EdgeCases.phase.
+public enum EdgeCasesPhaseEnum: String, Codable, Sendable, CaseIterable {
+  case inStock = "In-Stock"
+  case onHold = "on-hold"
+  case outofstock = "OUT_OF_STOCK"
+}
+
 public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var freeFormAny: AnyCodable?
   public var favoriteColor: Color?
@@ -30,6 +37,8 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var lastError: ModelError?
   public var outcome: ModelResult?
   public var cutoff: String?
+  public var phase: EdgeCasesPhaseEnum?
+  public var slug: String?
 
   enum CodingKeys: String, CodingKey {
     case freeFormAny = "freeFormAny"
@@ -50,6 +59,8 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     case lastError = "lastError"
     case outcome = "outcome"
     case cutoff = "cutoff"
+    case phase = "phase"
+    case slug = "slug"
   }
 
   /// Creates a new EdgeCases instance.
@@ -59,7 +70,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     _return: String? = nil, retryAfter: TimeInterval? = nil, expiresAt: Date? = nil,
     n2fa: Bool? = nil, separator: Separator? = nil, null: String? = nil, _true: Bool? = nil,
     _false: Bool? = nil, lastError: ModelError? = nil, outcome: ModelResult? = nil,
-    cutoff: String? = nil
+    cutoff: String? = nil, phase: EdgeCasesPhaseEnum? = nil, slug: String? = nil
   ) {
     self.freeFormAny = freeFormAny
     self.favoriteColor = favoriteColor
@@ -79,6 +90,8 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     self.lastError = lastError
     self.outcome = outcome
     self.cutoff = cutoff
+    self.phase = phase
+    self.slug = slug
   }
 
   /// Decodes this instance from the given decoder.
@@ -113,6 +126,8 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     self.lastError = try container.decodeIfPresent(ModelError.self, forKey: .lastError)
     self.outcome = try container.decodeIfPresent(ModelResult.self, forKey: .outcome)
     self.cutoff = try container.decodeIfPresent(String.self, forKey: .cutoff)
+    self.phase = try container.decodeIfPresent(EdgeCasesPhaseEnum.self, forKey: .phase)
+    self.slug = try container.decodeIfPresent(String.self, forKey: .slug)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -141,5 +156,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(lastError, forKey: .lastError)
     try container.encodeIfPresent(outcome, forKey: .outcome)
     try container.encodeIfPresent(cutoff, forKey: .cutoff)
+    try container.encodeIfPresent(phase, forKey: .phase)
+    try container.encodeIfPresent(slug, forKey: .slug)
   }
 }

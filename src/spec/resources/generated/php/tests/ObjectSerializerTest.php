@@ -1162,11 +1162,13 @@ test('integer-backed enum deserializes from a JSON number', function (): void {
 // a non-lowercase string enum).
 
 test('non-lowercase string enum round-trips with wire casing preserved', function (): void {
-    foreach ([
+    foreach (
+        [
         [Availability::AVAILABLE, 'Available'],
         [Availability::SOLD, 'Sold'],
         [Availability::ON_HOLD, 'on-hold'],
-    ] as [$case, $wire]) {
+        ] as [$case, $wire]
+    ) {
         $item = new StockItem(Priority::NUMBER_1, $case);
         $json = ObjectSerializer::serialize($item);
         expect($json)->toContain('"availability":"' . $wire . '"');
@@ -1367,7 +1369,7 @@ test('a container leaf is not JSON-decoded a second time', function (string $lea
     'DateTime' => ['DateTime', '2024-01-15T10:00:00Z'],
     'DateTimeImmutable' => ['DateTimeImmutable', '2024-01-15T10:00:00Z'],
     'DateInterval' => ['DateInterval', '3600s'],
-    'Uuid' => ['Symfony\Component\Uid\Uuid', '123e4567-e89b-12d3-a456-426614174000'],
+    'Uuid' => [\Symfony\Component\Uid\Uuid::class, '123e4567-e89b-12d3-a456-426614174000'],
 ]);
 
 test('a raw JSON string literal body still unwraps for a date-time', function (): void {

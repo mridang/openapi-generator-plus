@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -32,7 +33,6 @@ class StoreApi extends BaseApi
 {
     /**
      * Create an account
-     * @return \PetstoreClient\Models\Account
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function createAccount(\PetstoreClient\Models\Account $account): \PetstoreClient\Models\Account
@@ -83,7 +83,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Account',
+            \PetstoreClient\Models\Account::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -162,7 +162,6 @@ class StoreApi extends BaseApi
     /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\Category
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): \PetstoreClient\Models\Category
@@ -221,7 +220,7 @@ class StoreApi extends BaseApi
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options !== null && $options->querySwatch !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->querySwatch instanceof \PetstoreClient\Models\Swatch) {
             $queryParams['querySwatch'] = ValueSerializer::serializeStyled(
                 'querySwatch',
                 $options->querySwatch,
@@ -233,7 +232,7 @@ class StoreApi extends BaseApi
             );
         }
         $headerParams = [];
-        if ($options !== null && $options->preferredSwatch !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetBySwatchOptions && $options->preferredSwatch instanceof \PetstoreClient\Models\Swatch) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'Preferred-Swatch',
@@ -257,7 +256,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Category',
+            \PetstoreClient\Models\Category::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -269,7 +268,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a model exercising schema defaults on deserialize.
-     * @return \PetstoreClient\Models\Defaults
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getDefaults(): \PetstoreClient\Models\Defaults
@@ -320,7 +318,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Defaults',
+            \PetstoreClient\Models\Defaults::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -332,7 +330,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a department (mutual-recursion codegen fixture).
-     * @return \PetstoreClient\Models\Department
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getDepartment(): \PetstoreClient\Models\Department
@@ -383,7 +380,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Department',
+            \PetstoreClient\Models\Department::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -585,7 +582,6 @@ class StoreApi extends BaseApi
     /**
      * Find purchase order by ID
      * @param int $orderId ID of order to return
-     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getOrderById(int $orderId): \PetstoreClient\Models\Order
@@ -656,7 +652,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Order',
+            \PetstoreClient\Models\Order::class,
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -667,7 +663,6 @@ class StoreApi extends BaseApi
 
     /**
      * Find purchase order by tracking id
-     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId): \PetstoreClient\Models\Order
@@ -703,7 +698,7 @@ class StoreApi extends BaseApi
             'trackingId',
             $trackingId,
             'path',
-            '\Symfony\Component\Uid\Uuid',
+            \Symfony\Component\Uid\Uuid::class,
             null,
             'simple',
             false,
@@ -737,7 +732,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Order',
+            \PetstoreClient\Models\Order::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -750,7 +745,6 @@ class StoreApi extends BaseApi
     /**
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
-     * @return \PetstoreClient\Models\StockItem
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getStockItem(?GetStockItemOptions $options = null): \PetstoreClient\Models\StockItem
@@ -790,7 +784,7 @@ class StoreApi extends BaseApi
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options !== null && $options->asOf !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\GetStockItemOptions && $options->asOf instanceof \DateTime) {
             $queryParams['asOf'] = ValueSerializer::serializeStyled(
                 'asOf',
                 $options->asOf,
@@ -813,7 +807,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\StockItem',
+            \PetstoreClient\Models\StockItem::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -825,7 +819,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a bare enum (value-type response codegen fixture).
-     * @return \PetstoreClient\Models\Swatch
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getSwatch(): \PetstoreClient\Models\Swatch
@@ -876,7 +869,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Swatch',
+            \PetstoreClient\Models\Swatch::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1014,7 +1007,6 @@ class StoreApi extends BaseApi
 
     /**
      * Returns a self-referential tree (recursive-type codegen fixture)
-     * @return \PetstoreClient\Models\TreeNode
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function getTree(): \PetstoreClient\Models\TreeNode
@@ -1065,7 +1057,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\TreeNode',
+            \PetstoreClient\Models\TreeNode::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */
@@ -1077,7 +1069,6 @@ class StoreApi extends BaseApi
 
     /**
      * Place an order for a pet
-     * @return \PetstoreClient\Models\Order
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null): \PetstoreClient\Models\Order
@@ -1128,7 +1119,7 @@ class StoreApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Order',
+            \PetstoreClient\Models\Order::class,
             /* Inherits the global security requirement; pass null so BaseApi
              * falls back to the client credential. */
             null,
@@ -1180,21 +1171,21 @@ class StoreApi extends BaseApi
          * The set is empty for every other operation, so encoding is
          * unchanged. */
         $allowReservedKeys = [];
-        if ($options !== null && $options->q !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->q instanceof \PetstoreClient\Models\PhotoMetadata) {
             $queryParams['q'] = \PetstoreClient\ObjectSerializer::serialize($options->q);
         }
-        if ($options !== null && $options->labels !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->labels !== null) {
             $queryParams['labels'] = ValueSerializer::serializeStyled(
                 'labels',
                 $options->labels,
                 'query',
-                '\Ds\Set',
+                \Ds\Set::class,
                 'multi',
                 'form',
                 true,
             );
         }
-        if ($options !== null && $options->at !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->at instanceof \DateTimeImmutable) {
             $queryParams['at'] = ValueSerializer::serializeStyled(
                 'at',
                 $options->at,
@@ -1206,13 +1197,13 @@ class StoreApi extends BaseApi
             );
         }
         $headerParams = [];
-        if ($options !== null && $options->xFilter !== null) {
+        if ($options instanceof \PetstoreClient\Api\Options\SearchStoreOptions && $options->xFilter !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 'X-Filter',
                 $options->xFilter,
                 'header',
-                '\Ds\Map',
+                \Ds\Map::class,
                 null,
                 '',
                 false,

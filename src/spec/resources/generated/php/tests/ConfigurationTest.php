@@ -253,7 +253,7 @@ test('the README names the composer package and the real proxy setter', function
 });
 
 test('SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
-    $skills = (string) file_get_contents(dirname(__DIR__) . '/SKILLS.md');
+    $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
     expect($skills)->toContain('File upload parameters are typed as `\SplFileObject`.');
     expect($skills)->not->toContain('SplFileInfo');
@@ -266,7 +266,7 @@ test('phpunit.xml runs the hand written spec directory as well as tests', functi
     }
     $xml = simplexml_load_file($root . '/phpunit.xml');
     assert($xml instanceof \SimpleXMLElement);
-    $directories = array_map('strval', $xml->xpath('//testsuite/directory') ?: []);
+    $directories = array_map(strval(...), $xml->xpath('//testsuite/directory') ?: []);
 
     expect($directories)->toContain('tests');
     expect($directories)->toContain('spec');

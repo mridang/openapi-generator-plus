@@ -15,6 +15,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
+/**
+ * Account.
+ *
+ * @see <a href="https://example.com/docs/account">Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here</a>
+ */
 @Serializable
 data class Account(
     /**

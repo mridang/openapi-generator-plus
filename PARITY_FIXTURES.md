@@ -4,7 +4,7 @@ All additions live in `src/spec/resources/specs/petstore/openapi.yaml` (the fixt
 
 Rules for implementing agents:
 
-- `FixtureVocabularyLeakTest` now also forbids these new multi-word camelCase property names in templates and in the sample data of generated tests: `pageCount`, `lastError`, `trackingId` (plus every `*Pet*` name, i.e. `PetCriteria`, `getPetSummary`). Use neutral names in templates; use the fixture names only in the petstore-derived goldens.
+- `FixtureVocabularyLeakTest` now also forbids these new multi-word camelCase property names in templates and in the sample data of generated tests: `pageCount`, `lastError`, `trackingId`, `asOf` (plus every `*Pet*` name, i.e. `PetCriteria`, `getPetSummary`). Use neutral names in templates; use the fixture names only in the petstore-derived goldens.
 - `remindAt` was NOT used for the D39 form field (see conflicts): `templates/ruby/test/base_api_test.mustache` already contains the literal `remindAt`, so a petstore property of that name would fail the leak test. The field is called `reminder`.
 - Wire expectations below assume the existing canonical forms: date-time `2024-01-15T10:30:00.000+00:00`, then percent-encoded in query/form.
 
@@ -12,7 +12,7 @@ Rules for implementing agents:
 
 | operationId | Path / method | Decisions / ledger | What a per-language test asserts |
 |---|---|---|---|
-| `getPetSummary` | `GET /pet/{petId}/summary` (tag pet) | D32 / F149 | Mock answers `200 text/plain` `hello`: the call returns the String `hello` in all 12. A `getPetById` stub answered with `200 text/plain` still raises the SDK `SerializationError` naming `text/plain`; `application/problem+json` with a valid body still decodes to the model. |
+| `getPetSummary` | `GET /pet/{petId}/summary/{asOf}` (tag pet; path extended in the shared pass, see below) | D32 / F149 | Mock answers `200 text/plain` `hello`: the call returns the String `hello` in all 12. A `getPetById` stub answered with `200 text/plain` still raises the SDK `SerializationError` naming `text/plain`; `application/problem+json` with a valid body still decodes to the model. |
 | `getOrderByTrackingId` | `GET /store/order/by-tracking/{trackingId}` (tag store, `security: []`) | D67 / F217 | Pass the uuid `E621E1F8-C36C-495A-93FC-0C247A3E6E5F`: the path segment carries the lowercase hyphenated form; a non-uuid argument is rejected before dispatch (no request). Returns `Order`. |
 | `createAccount` | `POST /store/account` (tag store, `security: []`) | D56 / F025, F055 | Echo/serve `Account`: response decode keeps readOnly `id` (7); the request body for `Account(username:'u', password:'p')` contains `password`; decode of `{"id":7,"username":"u","password":"p"}` keeps `password`. |
 | `searchStore` | `GET /store/search` (tag store, `security: []`); returns `array<Order>` | D80 / F054, D50 / F068 (merged), D81 / F071, D82 / F072 | Four parameters, one test each: (1) `q` (query, `content: application/json`, `PhotoMetadata`): with `{caption:'a<b>&c', takenAt:2024-01-02T03:04:05Z, location:{lat:1.5}}` the decoded `q` equals `{"caption":"a<b>&c","takenAt":"2024-01-02T03:04:05.000+00:00","location":{"lat":1.5}}`, no null keys; with caption `a/b<é` the raw query is `q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D` (F068); `lat=NaN` raises `SerializationError` and sends zero requests (also pins swift `try?` and rust `unwrap_or_default`). (2) `X-Filter` (header, `content: application/json`, map of string): header value is `{"k":"v"}`. (3) `labels` (query, array `uniqueItems`, string items): a Set of two elements gives the pairs `labels=red`, `labels=blue` as an unordered multiset, same as an array (F072). (4) `at` (query, `format: time`): 10:30:00.123456789 gives `at=10%3A30%3A00.123`, whole seconds give `10%3A30%3A00` (F071). |
@@ -66,6 +66,24 @@ x-internal operations are dropped from SDK generation (`DropInternalOperationsRu
 - The stale NOTE about enum defaults above `Availability` was deleted and replaced by a sentence about the new values (D60).
 - `Swatch` gained `default: green`. It is also the type of the optional `querySwatch` and `Preferred-Swatch` parameters of `getBySwatch`; a generator that honours component defaults on parameters may now emit a default there, so re-check the existing `getBySwatch` tests.
 - `getPetByName` gained a REQUIRED header (D28): this is the one change that breaks existing call sites; every existing `getPetByName` test must pass the header.
+
+## Shared pass (b7): shared-file fixtures
+
+Added so the language agents can close findings that were blocked on a fixture. `getPetSummary` had no caller in any test template, so the new operation-level fixtures sit on it and no existing call site breaks. Every existing `getPetSummary` test (F149/F155 text/plain return) must now pass `asOf` and `session`.
+
+| Where | Addition | Ledger | What a per-language test asserts |
+|---|---|---|---|
+| `getPetSummary` | REQUIRED cookie `session` (string) | F218, F219 | Call with `session = ''`: the canonical `Missing the required parameter 'session' when calling PetApi.getPetSummary` (language identifier), no request sent. With `session = 'abc'` the request carries `Cookie: session=abc`. php gains the missing `{{#cookieParams}}` guard. |
+| `getPetSummary` path | `/pet/{petId}/summary/{asOf}`, `asOf` required `format: date`, `style: matrix` | F070 (1) | `asOf = 2024-01-15` gives the path `/pet/1/summary/;asOf=2024-01-15` in all 12 (node must not bypass the style for date params). |
+| `getPetSummary` query | optional `days`, array of `format: date` (form, exploded) | F070 (2) | `[2024-01-15, 2024-02-01]` gives `days=2024-01-15&days=2024-02-01`, never a date-time (node, dart, php). |
+| `getPetSummary` summary / description | summary `Get a <plain> "text" summary & it's short`; description `Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done` | F179, F181, F182 | Golden compiles and lints: python docstring survives `'''`, ruby docs show `#{id}` without a leaked backslash, elixir `@doc` does not interpolate `#{id}`, rust `cargo doc -D warnings` passes on `<plain>`/`<b>`, java doclint passes; no HTML entity (named or numeric) in any golden. |
+| `getPetSummary.session` description | `Session token: "a<b>" & it's required` | F179, F182 | Parameter doc slot: rendered raw (no `&#39;`, `&quot;`, `&amp;`) in all 12; rust/java/csharp doc gates pass. |
+| `Account` model | `externalDocs.description` `Account <docs> & "notes" it's here` | F179 | Model externalDocs slot: no HTML entity in any golden; doc gates pass. |
+| `Account.password` | `format: password` (still `writeOnly`) | F046 | Serialize `Account(username:'u', password:'p')`: the body contains `"password":"p"` in all 12 (python must not send `**********`). |
+| `EdgeCases.phase` | inline enum `In-Stock`, `on-hold`, `OUT_OF_STOCK` | F024 | Round-trip each wire value through EdgeCases: decodes to a distinct member and re-encodes to the exact original string (elixir must not use the lowercased member name). |
+| `EdgeCases.slug` | string, `pattern: ^\\d+/[a-z]+$` (YAML-escaped; the regex is `^\d+/[a-z]+$`) | F027 | Construct/decode EdgeCases with `slug: "12/ab"`: accepted in all 12 (python must not wrap the regex in `/.../` or double the backslash). |
+
+F155 needed nothing new: `getPetSummary` already returns `text/plain` string (`example: hello`).
 
 ## Conflicts resolved
 

@@ -14,6 +14,7 @@ defmodule PetstoreClient.Models.Account do
 
   **Write-only field** `password` — never returned by the server; it is sent and received like any other field.
 
+  See [Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here](https://example.com/docs/account)
   """
 
   @type t :: %__MODULE__{

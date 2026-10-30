@@ -7,9 +7,19 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic import StrictBool, StrictStr
-from typing import Optional
+from typing import Any, Optional
+from enum import Enum
+
+
+class EdgeCasesPhaseEnum(str, Enum):
+    """EdgeCases - phase"""
+
+    IN_STOCK = "In-Stock"
+    ON_HOLD = "on-hold"
+    OUT_OF_STOCK = "OUT_OF_STOCK"
 
 
 class EdgeCases(BaseModel):
@@ -45,6 +55,17 @@ class EdgeCases(BaseModel):
     last_error: Optional[Error] = Field(default=None, alias="lastError")
     outcome: Optional[Result] = Field(default=None, alias="outcome")
     cutoff: Optional[datetime.time] = Field(default=None, alias="cutoff")
+    phase: Optional[EdgeCasesPhaseEnum] = Field(default=None, alias="phase")
+    slug: Optional[StrictStr] = Field(default=None, alias="slug")
+
+    @field_validator("slug")
+    def slug_validate_regular_expression(cls, value: Any) -> Any:
+        """Validates the regular expression"""
+        if value is None:
+            return value
+        if not re.match("^\\d+/[a-z]+$", value):
+            raise ValueError("must validate the regular expression " + "^\\d+/[a-z]+$")
+        return value
 
     # Strict primitives (Item 8 — StrictInt/StrictStr/...) carry the
     # per-field strictness, so the model-wide ConfigDict no longer needs

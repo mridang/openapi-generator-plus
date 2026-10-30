@@ -19,6 +19,7 @@ import com.example.petstore.api.options.AddPetTreatmentOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetByNameOptions
+import com.example.petstore.api.options.GetPetSummaryOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.SetPetPreferencesOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -1026,14 +1027,21 @@ class PetApi : BaseApi {
     }
 
     /**
-     * Get a plain-text summary of the pet
+     * Get a <plain> \"text\" summary & it's short
+     * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
      * @param petId  (required)
+     * @param asOf Summary date, sent as a matrix-style path segment (required)
+     * @param options options for query, header, form, cookie parameters
 
      * @return String
      * @throws ApiException if fails to make API call
      */
-    suspend fun getPetSummary(petId: Long): String =
-        getPetSummaryWithHttpInfo(petId).let { result ->
+    suspend fun getPetSummary(
+        petId: Long,
+        asOf: LocalDate,
+        options: GetPetSummaryOptions,
+    ): String =
+        getPetSummaryWithHttpInfo(petId, asOf, options).let { result ->
             result.data ?: throw ApiException(
                 result.statusCode,
                 "Expected a response body for getPetSummary but received none",
@@ -1043,18 +1051,61 @@ class PetApi : BaseApi {
         }
 
     /** Same as [getPetSummary] but returns the full [ApiResult] (status code, headers and body). */
-    suspend fun getPetSummaryWithHttpInfo(petId: Long): ApiResult<String> {
+    suspend fun getPetSummaryWithHttpInfo(
+        petId: Long,
+        asOf: LocalDate,
+        options: GetPetSummaryOptions,
+    ): ApiResult<String> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling PetApi.getPetSummary"
         }
+        requireNotNull(asOf) {
+            "Missing the required parameter 'asOf' when calling PetApi.getPetSummary"
+        }
+        requireNotNull(options.session) {
+            "Missing the required parameter 'session' when calling PetApi.getPetSummary"
+        }
+        require(options.session.isNotEmpty()) {
+            "Missing the required parameter 'session' when calling PetApi.getPetSummary"
+        }
         var path =
-            "/pet/{petId}/summary"
+            "/pet/{petId}/summary/{asOf}"
                 .replace(
                     "{" + "petId" + "}",
                     ValueSerializer.serializeStyled("petId", petId, "path", "Long", null, "simple", false) as String,
+                ).replace(
+                    "{" + "asOf" + "}",
+                    ValueSerializer.serializeStyled("asOf", asOf, "path", "LocalDate", null, "matrix", false) as String,
                 )
         val queryParams = mutableMapOf<String, Any?>()
+        if (options.days != null) {
+            queryParams["days"] =
+                ValueSerializer.maybeAllowReserved(
+                    ValueSerializer.serializeStyled("days", options.days, "query", "List<LocalDate>", "multi", "form", true),
+                    false,
+                )
+        }
         val headerParams = mutableMapOf<String, String>()
+        val cookieParts = mutableListOf<String>()
+        if (options.session != null) {
+            // RFC 6265 — validate the assembled cookie name/value before it is
+            // joined into the Cookie header, exactly as the auth-cookie path in
+            // BaseApi does. A CR/LF or other control character in the serialized
+            // value must fail closed here to prevent request-header injection,
+            // rather than being interpolated raw into the Cookie header.
+            val cookieName = "session"
+            val cookieValue = ValueSerializer.serializeStyled("session", options.session, "cookie", "String", null, "form", true) as String
+            require(isValidCookieName(cookieName)) {
+                "Cookie name '$cookieName' contains characters forbidden by RFC 6265"
+            }
+            require(isValidCookieValue(cookieValue)) {
+                "Cookie value for '$cookieName' contains characters forbidden by RFC 6265"
+            }
+            cookieParts.add("$cookieName=$cookieValue")
+        }
+        if (cookieParts.isNotEmpty()) {
+            headerParams["Cookie"] = cookieParts.joinToString("; ")
+        }
 
         return invokeApiForResult<String>(
             "GET",

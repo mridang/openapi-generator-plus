@@ -1791,9 +1791,13 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 	}, nil
 }
 
-// GetPetSummary Get a plain-text summary of the pet
-func (a *PetApi) GetPetSummary(petId int64) (*string, error) {
-	result, err := a.GetPetSummaryWithHTTPInfo(petId)
+// GetPetSummary Get a <plain> \"text\" summary & it's short
+// Returns ”'plain”' text for /pets/#{id} and <b> & \"c\" it's done
+// param asOf: Summary date, sent as a matrix-style path segment
+// param session: Session token: \"a<b>\" & it's required
+// param days: Extra dates to summarise
+func (a *PetApi) GetPetSummary(petId int64, asOf string, options *opts.GetPetSummaryOptions) (*string, error) {
+	result, err := a.GetPetSummaryWithHTTPInfo(petId, asOf, options)
 	if err != nil {
 		return nil, err
 	}
@@ -1807,21 +1811,52 @@ func (a *PetApi) GetPetSummary(petId int64) (*string, error) {
 }
 
 // GetPetSummaryWithHTTPInfo performs the GetPetSummary operation and returns the full API result.
-func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64) (*ApiResult[string], error) {
+func (a *PetApi) GetPetSummaryWithHTTPInfo(petId int64, asOf string, options *opts.GetPetSummaryOptions) (*ApiResult[string], error) {
 	if err := requirePathParam("petId", petId); err != nil {
 		return nil, fmt.Errorf("%w when calling PetApi.GetPetSummary", err)
 	}
+	if err := requirePathParam("asOf", asOf); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.GetPetSummary", err)
+	}
+	if options == nil {
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.GetPetSummary", ErrMissingRequiredParameter)
+	}
+	if options.Session == "" {
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.GetPetSummary", ErrMissingRequiredParameter, "session")
+	}
 
-	path := "/pet/{petId}/summary"
+	path := "/pet/{petId}/summary/{asOf}"
 	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	path = replacePathParam(path, "asOf", encodePathSegment(stringifyDate(asOf)))
 
 	queryParams := make(map[string]any)
+	if options != nil && options.Days != nil {
+		queryParams["days"] = maybeAllowReserved(serializeStyled("days", options.Days, "query", "[]string", "multi", "form", true), false)
+	}
 
 	headerParams := make(map[string]string)
+	var cookieParts []string
+	/* Required cookie param: non-pointer Options field, always present.
+	 * The serialized value is routed through isValidCookieValue (the same
+	 * RFC 6265 cookie-octet check the auth-cookie path in base_api applies)
+	 * so a CR/LF/control-char value fails closed before it can be folded
+	 * into the Cookie request header, preventing header injection. Like
+	 * the auth path, it fails closed by returning ErrInvalidCookie, matching
+	 * how this function reports every other invalid-parameter condition. */
+	{
+		cookieValue := fmt.Sprintf("%v", serializeStyled("session", options.Session, "cookie", "string", "", "form", true))
+		if !isValidCookieValue(cookieValue) {
+			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "session")
+		}
+		cookieParts = append(cookieParts, fmt.Sprintf("session=%s", cookieValue))
+	}
+	if len(cookieParts) > 0 {
+		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
+	}
 
 	var requestBody any
 

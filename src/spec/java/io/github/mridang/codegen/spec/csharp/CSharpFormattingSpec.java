@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
 import java.nio.file.Path;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -36,6 +37,15 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
   @Override
   protected Path getSourceRoot() {
     return tempOutputDir;
+  }
+
+  /**
+   * An XML doc comment must escape {@code &}, {@code <} and {@code >}; the named forms are banned
+   * by the gate, so the C# templates write the numeric references instead.
+   */
+  @Override
+  protected boolean isAllowedNumericEntity(Path file, String entity) {
+    return Set.of("&#38;", "&#60;", "&#62;").contains(entity);
   }
 
   @Override

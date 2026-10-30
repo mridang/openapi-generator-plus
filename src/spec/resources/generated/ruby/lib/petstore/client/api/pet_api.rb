@@ -978,12 +978,15 @@ module Petstore::Client
         )
       end
 
-      # Get a plain-text summary of the pet
+      # Get a <plain> "text" summary & it\'s short
+      # Returns \'\'\'plain\'\'\' text for /pets/#{id} and <b> & "c" it\'s done
       # @param pet_id [Integer]
+      # @param as_of [Date] Summary date, sent as a matrix-style path segment
+      # @param options [GetPetSummaryOptions] options for query, header, form, and cookie parameters
       # @return [String]
       # @raise [ApiError] if fails to make API call
-      def get_pet_summary(pet_id)
-        result = get_pet_summary_with_http_info(pet_id)
+      def get_pet_summary(pet_id, as_of, options)
+        result = get_pet_summary_with_http_info(pet_id, as_of, options)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -1002,18 +1005,54 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_summary_with_http_info(pet_id)
+      def get_pet_summary_with_http_info(pet_id, as_of, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
         end
 
-        path = '/pet/{petId}/summary'
+        if as_of.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'as_of' when calling PetApi.get_pet_summary"
+        end
+
+        if options.nil? || options.session.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'session' when calling PetApi.get_pet_summary"
+        end
+
+        if options.session == ''
+          raise ArgumentError,
+                "Missing the required parameter 'session' when calling PetApi.get_pet_summary"
+        end
+
+        path = '/pet/{petId}/summary/{asOf}'
         path = path.gsub('{petId}', ::Petstore::Client::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{asOf}', ::Petstore::Client::ValueSerializer.serialize_styled('asOf', as_of, :path, 'Date', nil, 'matrix', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
+        unless options.nil? || options.days.nil?
+          query_params['days'] =
+            ::Petstore::Client::ValueSerializer.maybe_allow_reserved(
+              ::Petstore::Client::ValueSerializer.serialize_styled('days', options.days, :query, 'Array<Date>', :multi, 'form', true),
+              false
+            )
+        end
         # @type var header_params: Hash[String, String]
         header_params = {}
+        cookie_parts = [] # : Array[String]
+        unless options.nil? || options.session.nil?
+          # RFC 6265 — validate the operation-level cookie value the same way
+          # the auth-provided cookie path does in base_api, so a CR/LF or other
+          # control character fails closed instead of being injected into the
+          # Cookie request header. Pass the raw value through without
+          # URL-encoding, mirroring the auth path.
+          cookie_value = ::Petstore::Client::ValueSerializer.serialize_styled('session', options.session, :cookie, 'String', nil, 'form', true).to_s
+          raise ArgumentError, "Cookie value for 'session' contains characters forbidden by RFC 6265" unless cookie_value.match?(/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/)
+
+          cookie_parts << "session=#{cookie_value}"
+        end
+        header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
         request_body = nil
         invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,

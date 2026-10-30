@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -93,7 +94,7 @@ final class DsMapNormalizer implements NormalizerInterface, DenormalizerInterfac
     {
         return (is_array($data) || is_object($data)) && (
             $type === \Ds\Map::class
-            || ltrim($type, '\\') === 'Ds\\Map'
+            || ltrim($type, '\\') === \Ds\Map::class
         );
     }
 

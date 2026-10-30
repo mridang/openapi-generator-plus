@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -359,7 +360,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach ((new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct'))->getParameters() as $param) {
+    foreach (new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct')->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }

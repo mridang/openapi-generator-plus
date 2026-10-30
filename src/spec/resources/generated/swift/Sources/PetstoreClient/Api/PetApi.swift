@@ -1023,11 +1023,18 @@ public final class PetApi: BaseApi, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Data.self)
   }
 
-  /// Get a plain-text summary of the pet
+  /// Get a <plain> \"text\" summary & it's short
+  /// Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
   ///
   /// - Parameters:
-  public func getPetSummary(petId: Int64) async throws -> String {
-    let result = try await getPetSummaryWithHTTPInfo(petId: petId)
+  ///   - asOf: Summary date, sent as a matrix-style path segment
+  ///   - session: Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required
+  ///   - days: Extra dates to summarise
+  ///   - options: Options for query, header, form, and cookie parameters, and an optional per-operation authenticator.
+  public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
+    -> String
+  {
+    let result = try await getPetSummaryWithHTTPInfo(petId: petId, asOf: asOf, options: options)
     guard let data = result.data else {
       throw ApiError(
         statusCode: result.statusCode,
@@ -1040,18 +1047,56 @@ public final class PetApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getPetSummary operation and returns the full API result.
-  public func getPetSummaryWithHTTPInfo(petId: Int64) async throws -> ApiResult<String> {
+  public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
+    async throws -> ApiResult<String>
+  {
+    try ValueSerializer.requirePathParam("asOf", asOf, operation: "PetApi.getPetSummary")
+    guard !options.session.isEmpty else {
+      throw ConfigurationError.invalidArgument(
+        "Missing the required parameter 'session' when calling PetApi.getPetSummary")
+    }
 
-    var path = "/pet/{petId}/summary"
+    var path = "/pet/{petId}/summary/{asOf}"
     path = path.replacingOccurrences(
       of: "{" + "petId" + "}",
       with:
         "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
     )
+    path = path.replacingOccurrences(
+      of: "{" + "asOf" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("asOf", value: asOf, location: "path", schemaType: "String", collectionFormat: "", style: "matrix", explode: false) ?? "")"
+    )
 
-    let queryParams: [String: Any?] = [:]
+    var queryParams: [String: Any?] = [:]
+    if let val = options.days {
+      queryParams["days"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "days", value: val, location: "query", schemaType: "[String]", collectionFormat: "multi",
+          style: "form", explode: true), allowReserved: false)
+    }
 
-    let headerParams: [String: String] = [:]
+    var headerParams: [String: String] = [:]
+    var cookieParts: [String] = []
+    /* Operation-level cookie params are interpolated straight into the
+     * Cookie request header, so the serialized value MUST pass the same
+     * RFC 6265 cookie-octet check that auth-provided cookies receive in
+     * BaseApi. Without it a value containing CR, LF, or other control
+     * characters would smuggle extra header lines into the request
+     * (header injection). Fail closed with the identical RFC 6265
+     * ConfigurationError the auth-cookie path raises so behaviour is
+     * consistent. */
+    let sessionCookieValue =
+      "\(ValueSerializer.serializeStyled("session", value: options.session, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")"
+    if !BaseApi.isValidCookieValue(sessionCookieValue) {
+      throw ConfigurationError.invalidArgument(
+        "Cookie value for 'session' contains characters forbidden by RFC 6265"
+      )
+    }
+    cookieParts.append("session=\(sessionCookieValue)")
+    if !cookieParts.isEmpty {
+      headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+    }
 
     let requestBody: Any? = nil
     let params = InvokeAPIParams(

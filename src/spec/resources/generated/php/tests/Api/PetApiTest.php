@@ -57,7 +57,7 @@ function newPetApiForMock(int $statusCode, string $contentType, string $body): P
 }
 
 test('data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = (new \ReflectionMethod(PetApi::class, $method))->getReturnType();
+    $returnType = new \ReflectionMethod(PetApi::class, $method)->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
     expect($returnType->getName())->toBe($expected);
@@ -70,7 +70,7 @@ test('data methods declare a native return type', function (string $method, stri
 ]);
 
 test('the options parameter doc names the authenticator only where the options carry one', function (string $method, string $expected): void {
-    $doc = (new \ReflectionMethod(PetApi::class, $method))->getDocComment();
+    $doc = new \ReflectionMethod(PetApi::class, $method)->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
     expect($doc)->toContain($expected);
@@ -385,7 +385,7 @@ test('get pet tag serializes optional array query params as styled values', func
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(colors: ['blue', 'black'], sizes: ['S', 'M']));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. That is irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -407,7 +407,7 @@ test('get pet tag serializes optional array query params as styled values', func
     // NEVER leak onto the wire. None of these tokens may appear in the URL.
     expect($captured->url)->not->toContain('Array');
     expect($decoded)->not->toContain('Array');
-    expect($decoded)->not->toContain('Ds\\Vector');
+    expect($decoded)->not->toContain(\Ds\Vector::class);
     expect($decoded)->not->toContain('[blue');
     expect($decoded)->not->toContain('blue black]');
     expect($decoded)->not->toContain('&[blue');
@@ -431,7 +431,7 @@ test('get pet tag preserves reserved chars only for allowReserved query param', 
 
     try {
         $api->getPetTag(5, 'cute', new GetPetTagOptions(filter: 'a:b', revision: 'a b:c'));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         // The capturing client returns a canned non-Pet body, so deserializing
         // the Pet-typed result may fail. Irrelevant: the query string is
         // captured during sendRequest, before any deserialization happens.
@@ -497,8 +497,8 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 
@@ -588,7 +588,7 @@ test('date only query param serialises without time component', function (): voi
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             bornAfter: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         /* The capturing client returns a canned non-list body; the URL is
          * captured during sendRequest, before any deserialization. */
     }
@@ -607,7 +607,7 @@ test('date only header param serialises without time component', function (): vo
         $api->findPetsByStatus(new FindPetsByStatusOptions(
             reportDate: new \DateTime('2024-01-01T10:30:45+00:00'),
         ));
-    } catch (\Throwable $e) {
+    } catch (\Throwable) {
         /* Only the captured request headers matter here. */
     }
 
@@ -773,8 +773,8 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 
@@ -832,9 +832,9 @@ test('uploadPetDocument sends primitive fields as plain text parts', function ()
     $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
     file_put_contents($tmpFile, 'document-content');
     $stub = new \PetstoreClient\Test\StubPsr18Client(
-        (new \Nyholm\Psr7\Factory\Psr17Factory())->createResponse(200)
+        new \Nyholm\Psr7\Factory\Psr17Factory()->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody((new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('{"code":200,"type":"ok","message":"saved"}'))
+            ->withBody(new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('{"code":200,"type":"ok","message":"saved"}'))
     );
     $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
     $api = new PetApi(
@@ -1015,8 +1015,8 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new class($captured) implements \PetstoreClient\ApiClient {
-        public function __construct(private readonly \stdClass $captured)
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        public function __construct(private \stdClass $captured)
         {
         }
 

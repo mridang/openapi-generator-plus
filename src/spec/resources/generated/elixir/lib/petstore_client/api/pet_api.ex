@@ -2281,10 +2281,15 @@ defmodule PetstoreClient.Api.PetApi do
   end
 
   @doc """
-  Get a plain-text summary of the pet
+  Get a <plain> \"text\" summary & it's short
+
+  Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
 
   ## Parameters
     * `pet_id` - integer()
+    * `as_of` - Date.t() - Summary date, sent as a matrix-style path segment
+
+    * `options` - Optional parameters (query, header, form, cookie).
 
     * `opts` - Keyword list.
 
@@ -2294,10 +2299,16 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_summary(t(), integer(), keyword()) ::
+  @spec get_pet_summary(
+          t(),
+          integer(),
+          Date.t(),
+          PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+          keyword()
+        ) ::
           {:ok, String.t()} | {:error, Exception.t()}
-  def get_pet_summary(%__MODULE__{} = api, pet_id, opts \\ []) do
-    case get_pet_summary_with_http_info(api, pet_id, opts) do
+  def get_pet_summary(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
+    case get_pet_summary_with_http_info(api, pet_id, as_of, options, opts) do
       # convenience-empty-body-handling: a body-returning operation that
       # comes back with no decodable body surfaces a typed ApiError rather
       # than silently handing back nil, so callers never get a silent
@@ -2322,10 +2333,16 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_summary`. Raises on error.
   """
-  @spec get_pet_summary!(t(), integer(), keyword()) ::
+  @spec get_pet_summary!(
+          t(),
+          integer(),
+          Date.t(),
+          PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+          keyword()
+        ) ::
           String.t()
-  def get_pet_summary!(%__MODULE__{} = api, pet_id, opts \\ []) do
-    case get_pet_summary(api, pet_id, opts) do
+  def get_pet_summary!(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
+    case get_pet_summary(api, pet_id, as_of, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -2334,9 +2351,15 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_summary` but returns the full `ApiResult`.
   """
-  @spec get_pet_summary_with_http_info(t(), integer(), keyword()) ::
+  @spec get_pet_summary_with_http_info(
+          t(),
+          integer(),
+          Date.t(),
+          PetstoreClient.Api.Options.GetPetSummaryOptions.t(),
+          keyword()
+        ) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
-  def get_pet_summary_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+  def get_pet_summary_with_http_info(%__MODULE__{} = api, pet_id, as_of, options, opts \\ []) do
     # `opts` carries only the keys this operation reads: `:server` when it
     # declares operation-level servers and `:content_type` when it declares more
     # than one request content-type. Any other key (a misspelling, or a key the
@@ -2352,7 +2375,17 @@ defmodule PetstoreClient.Api.PetApi do
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
     end
 
-    path = "/pet/{petId}/summary"
+    if is_nil(as_of) do
+      raise ArgumentError,
+            "Missing the required parameter 'as_of' when calling PetApi.get_pet_summary"
+    end
+
+    if is_nil(options) or is_nil(options.session) or options.session == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'session' when calling PetApi.get_pet_summary"
+    end
+
+    path = "/pet/{petId}/summary/{asOf}"
 
     path =
       String.replace(
@@ -2370,8 +2403,83 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
       )
 
+    path =
+      String.replace(
+        path,
+        "{asOf}",
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "asOf",
+          as_of,
+          :path,
+          "Date.t()",
+          nil,
+          "matrix",
+          false
+        )
+        |> to_string()
+      )
+
     query_params = %{}
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.days) and options.days != [] do
+        Map.put(
+          query_params,
+          "days",
+          PetstoreClient.ValueSerializer.maybe_allow_reserved(
+            PetstoreClient.ValueSerializer.serialize_styled(
+              "days",
+              options.days,
+              :query,
+              "[Date.t()]",
+              :multi,
+              "form",
+              true
+            ),
+            false
+          )
+        )
+      else
+        query_params
+      end
+
     header_params = %{}
+    cookie_parts = []
+
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.session) do
+        # RFC 6265 — operation-level cookie params are interpolated raw into the
+        # Cookie header just like auth-provided cookies in BaseApi, so they must
+        # pass the same cookie-value validation. A CR/LF/control-char value is a
+        # programmer error and would otherwise enable header injection; fail
+        # closed with the identical ArgumentError the auth-cookie path raises.
+        cookie_value =
+          PetstoreClient.ValueSerializer.serialize_styled(
+            "session",
+            options.session,
+            :cookie,
+            "String.t()",
+            nil,
+            "form",
+            true
+          )
+          |> to_string()
+
+        unless cookie_value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+          raise ArgumentError,
+                "Cookie value for 'session' contains characters forbidden by RFC 6265"
+        end
+
+        cookie_parts ++ ["session=#{cookie_value}"]
+      else
+        cookie_parts
+      end
+
+    header_params =
+      if cookie_parts != [],
+        do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")),
+        else: header_params
+
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(

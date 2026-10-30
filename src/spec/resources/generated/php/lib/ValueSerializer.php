@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -46,8 +47,7 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null
-    {
+    ): string|array|null {
         if ($value === null) {
             if ($location === 'query') {
                 return null;
@@ -66,7 +66,7 @@ final class ValueSerializer
             ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
                 ? $v->format('Y-m-d')
                 : ObjectSerializer::stringify($v)
-            : [ObjectSerializer::class, 'stringify'];
+            : ObjectSerializer::stringify(...);
 
         if (is_array($value)) {
             if ($location === 'query') {
@@ -111,7 +111,7 @@ final class ValueSerializer
     public static function formatDateOnly(mixed $value): mixed
     {
         if (is_array($value)) {
-            return array_map(static fn (mixed $item): mixed => self::formatDateOnly($item), $value);
+            return array_map(self::formatDateOnly(...), $value);
         }
 
         return $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : $value;
@@ -212,7 +212,7 @@ final class ValueSerializer
         }
         if (
             $location === 'path'
-            && ($style === null || $style === '' || $style === 'simple')
+            && (in_array($style, [null, '', 'simple'], true))
             && ($value === '.' || $value === '..')
         ) {
             /* A dot segment would be collapsed by URL resolution and silently
@@ -238,7 +238,7 @@ final class ValueSerializer
             ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
                 ? $v->format('Y-m-d')
                 : ObjectSerializer::stringify($v)
-            : [ObjectSerializer::class, 'stringify'];
+            : ObjectSerializer::stringify(...);
 
         /* Whether the incoming value is a multi-valued collection drives the
          * branching below: only arrays/objects explode into repeated params or

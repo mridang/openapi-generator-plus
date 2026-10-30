@@ -15,6 +15,7 @@ import (
 )
 
 // Account is a model class generated from the OpenAPI schema.
+// See https://example.com/docs/account Account <docs> & "notes" it's here
 type Account struct {
 	// Read-only: the server sets this property. It is still sent and received
 	// like any other property.

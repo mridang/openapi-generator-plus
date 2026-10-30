@@ -103,7 +103,7 @@ test('psr18 joins multi value response headers', function (): void {
 
 test('psr18 injects custom user agent', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->userAgent('MyApp/1.0')->build();
+    $transport = new TransportOptionsBuilder()->userAgent('MyApp/1.0')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -113,7 +113,7 @@ test('psr18 injects custom user agent', function (): void {
 
 test('psr18 injects request id matching uuid v4', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -124,7 +124,7 @@ test('psr18 injects request id matching uuid v4', function (): void {
 
 test('psr18 does not inject request id when disabled', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(false)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(false)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -134,7 +134,7 @@ test('psr18 does not inject request id when disabled', function (): void {
 
 test('psr18 does not override caller request id', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
+    $transport = new TransportOptionsBuilder()->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['X-Request-ID' => 'caller-id'], null);
@@ -144,7 +144,7 @@ test('psr18 does not override caller request id', function (): void {
 
 test('psr18 includes transport default headers', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->defaultHeader('X-Custom', 'custom-value')->build();
+    $transport = new TransportOptionsBuilder()->defaultHeader('X-Custom', 'custom-value')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', [], null);
@@ -154,7 +154,7 @@ test('psr18 includes transport default headers', function (): void {
 
 test('psr18 caller headers override defaults', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
-    $transport = (new TransportOptionsBuilder())->defaultHeader('Accept', 'text/plain')->build();
+    $transport = new TransportOptionsBuilder()->defaultHeader('Accept', 'text/plain')->build();
     $client = newPsr18Client($stub, $transport);
 
     $client->sendRequest('GET', 'http://example.com/test', ['Accept' => 'application/json'], null);

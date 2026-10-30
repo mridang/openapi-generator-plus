@@ -11,9 +11,62 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
+// EdgeCasesPhaseEnum is the typed enum for EdgeCases.Phase.
+type EdgeCasesPhaseEnum string
+
+const (
+	EdgeCasesPhaseEnumInStock    EdgeCasesPhaseEnum = "In-Stock"
+	EdgeCasesPhaseEnumOnHold     EdgeCasesPhaseEnum = "on-hold"
+	EdgeCasesPhaseEnumOUTOFSTOCK EdgeCasesPhaseEnum = "OUT_OF_STOCK"
+)
+
+// AllEdgeCasesPhaseEnumValues returns all allowed values.
+func AllEdgeCasesPhaseEnumValues() []EdgeCasesPhaseEnum {
+	return []EdgeCasesPhaseEnum{
+		EdgeCasesPhaseEnumInStock,
+		EdgeCasesPhaseEnumOnHold,
+		EdgeCasesPhaseEnumOUTOFSTOCK,
+	}
+}
+
+// String returns the declared wire value of the enum, so the shared stringify
+// helper renders the value rather than the fmt-default "%v" of a pointer.
+func (v EdgeCasesPhaseEnum) String() string {
+	return string(v)
+}
+
+// UnmarshalJSON validates the value is one of the declared
+// enum members at deserialise time.
+func (v *EdgeCasesPhaseEnum) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := EdgeCasesPhaseEnum(raw)
+	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %v for enum EdgeCasesPhaseEnum", raw)
+}
+
+// MarshalJSON enforces the same membership on the way out, so a value outside
+// the declared members is rejected instead of being sent.
+func (v EdgeCasesPhaseEnum) MarshalJSON() ([]byte, error) {
+	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
+		if allowed == v {
+			return marshalJSON(string(v))
+		}
+	}
+	return nil, fmt.Errorf("unexpected value %v for enum EdgeCasesPhaseEnum", string(v))
+}
+
 type EdgeCases struct {
 	FreeFormAny   *any   `json:"freeFormAny,omitempty"`
 	FavoriteColor *Color `json:"favoriteColor,omitempty"`
@@ -27,15 +80,17 @@ type EdgeCases struct {
 	/* RetryAfter Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s") */
 	RetryAfter *Duration `json:"retryAfter,omitempty"`
 	/* ExpiresAt Absolute expiry instant */
-	ExpiresAt *DateTime   `json:"expiresAt,omitempty"`
-	N2fa      *bool       `json:"2fa,omitempty"`
-	Separator *Separator  `json:"separator,omitempty"`
-	Null      *string     `json:"null,omitempty"`
-	True      *bool       `json:"true,omitempty"`
-	False     *bool       `json:"false,omitempty"`
-	LastError *ModelError `json:"lastError,omitempty"`
-	Outcome   *Result     `json:"outcome,omitempty"`
-	Cutoff    *string     `json:"cutoff,omitempty"`
+	ExpiresAt *DateTime           `json:"expiresAt,omitempty"`
+	N2fa      *bool               `json:"2fa,omitempty"`
+	Separator *Separator          `json:"separator,omitempty"`
+	Null      *string             `json:"null,omitempty"`
+	True      *bool               `json:"true,omitempty"`
+	False     *bool               `json:"false,omitempty"`
+	LastError *ModelError         `json:"lastError,omitempty"`
+	Outcome   *Result             `json:"outcome,omitempty"`
+	Cutoff    *string             `json:"cutoff,omitempty"`
+	Phase     *EdgeCasesPhaseEnum `json:"phase,omitempty"`
+	Slug      *string             `json:"slug,omitempty"`
 }
 
 // Equal reports whether this EdgeCases is value-equal to other.
@@ -68,7 +123,7 @@ func (o EdgeCases) MarshalJSON() ([]byte, error) {
 func (o *EdgeCases) UnmarshalJSON(data []byte) error {
 	type Alias EdgeCases
 	aux := &Alias{}
-	if err := json.Unmarshal(dropMiscasedKeys(data, "freeFormAny", "favoriteColor", "permissionsNote", "and", "or", "not", "class", "return", "retryAfter", "expiresAt", "2fa", "separator", "null", "true", "false", "lastError", "outcome", "cutoff"), aux); err != nil {
+	if err := json.Unmarshal(dropMiscasedKeys(data, "freeFormAny", "favoriteColor", "permissionsNote", "and", "or", "not", "class", "return", "retryAfter", "expiresAt", "2fa", "separator", "null", "true", "false", "lastError", "outcome", "cutoff", "phase", "slug"), aux); err != nil {
 		return err
 	}
 	*o = EdgeCases(*aux)

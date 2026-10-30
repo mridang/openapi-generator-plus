@@ -35,8 +35,14 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default List<String> getSetupCommands() {
+    /* The compiler toolchain without build-base: build-base also pulls in
+     * fortify-headers, whose realpath wrapper aborts the zstd-ruby build on
+     * musl ("PATH_MAX unset"). gcc, g++, make, musl-dev and linux-headers
+     * build every native gem, the dev toolchain's (rbs/prism/strscan via
+     * steep) and the :optional codec group's (brotli, zstd-ruby), so the
+     * br/zstd decode tests run instead of skipping. */
     return List.of(
-        "apk add --no-cache build-base > /dev/null 2>&1",
+        "apk add --no-cache gcc g++ make musl-dev linux-headers > /dev/null 2>&1",
         "bundle install --quiet");
   }
 
@@ -44,10 +50,8 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
   default Map<String, String> getCacheEnv() {
     /* No custom BUNDLE_PATH: gems install into the default GEM_HOME so
      * bigdecimal resolves to the image's precompiled default gem (3.1.8)
-     * rather than recompiling from source. BUNDLE_WITHOUT skips the
-     * :optional group (brotli/zstd-ruby) — C extensions that do not build
-     * on musl. The native gems pulled by the dev toolchain (rbs/prism/
-     * strscan via steep) compile via build-base at setup. */
-    return Map.of("BUNDLE_WITHOUT", "optional");
+     * rather than recompiling from source. No BUNDLE_WITHOUT: the :optional
+     * codec group is installed as well. */
+    return Map.of();
   }
 }

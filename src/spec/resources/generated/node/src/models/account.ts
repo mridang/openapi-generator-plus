@@ -7,6 +7,9 @@
 
 import { Expose } from "class-transformer";
 
+/**
+ * @see {@link https://example.com/docs/account} Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
+ */
 export class Account {
   /**
    * 2.5 — Wire-serialization registry for `type: number` (no format)

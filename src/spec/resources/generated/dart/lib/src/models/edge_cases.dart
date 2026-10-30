@@ -13,6 +13,35 @@ import 'result.dart';
 import 'separator.dart';
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
+/// Typed enum for EdgeCases.phase.
+enum EdgeCasesPhaseEnum {
+  /// Represents the value 'In-Stock'.
+  instock('In-Stock'),
+
+  /// Represents the value 'on-hold'.
+  onhold('on-hold'),
+
+  /// Represents the value 'OUT_OF_STOCK'.
+  outofstock('OUT_OF_STOCK');
+
+  final String value;
+  const EdgeCasesPhaseEnum(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static EdgeCasesPhaseEnum fromJson(String value) {
+    return EdgeCasesPhaseEnum.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () =>
+          throw ArgumentError('Unknown EdgeCasesPhaseEnum value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+
 class EdgeCases {
   final Object? freeFormAny;
 
@@ -53,6 +82,10 @@ class EdgeCases {
 
   final String? cutoff;
 
+  final EdgeCasesPhaseEnum? phase;
+
+  final String? slug;
+
   const EdgeCases({
     this.freeFormAny,
     this.favoriteColor,
@@ -72,6 +105,8 @@ class EdgeCases {
     this.lastError,
     this.outcome,
     this.cutoff,
+    this.phase,
+    this.slug,
   });
 
   /// Creates a [EdgeCases] from a JSON map.
@@ -123,6 +158,12 @@ class EdgeCases {
           : null,
 
       cutoff: json['cutoff'] as String?,
+
+      phase: json['phase'] != null
+          ? EdgeCasesPhaseEnum.fromJson(json['phase'] as String)
+          : null,
+
+      slug: json['slug'] as String?,
     );
   }
 
@@ -183,6 +224,12 @@ class EdgeCases {
     if (cutoff != null) {
       json['cutoff'] = cutoff;
     }
+    if (phase != null) {
+      json['phase'] = phase?.toJson();
+    }
+    if (slug != null) {
+      json['slug'] = slug;
+    }
     return json;
   }
 
@@ -211,7 +258,9 @@ class EdgeCases {
         false_ == other.false_ &&
         lastError == other.lastError &&
         outcome == other.outcome &&
-        cutoff == other.cutoff;
+        cutoff == other.cutoff &&
+        phase == other.phase &&
+        slug == other.slug;
   }
 
   /// hashCode emits Object.hashAll which accepts an arbitrary-length
@@ -239,5 +288,7 @@ class EdgeCases {
     lastError,
     outcome,
     cutoff,
+    phase,
+    slug,
   ]);
 }

@@ -15,13 +15,16 @@ from typing import Optional
 class Account(BaseModel):
     """
     Account
+
+    .. seealso::
+        `Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here <https://example.com/docs/account>`_
     """
 
     id: Optional[StrictInt] = Field(
         default=None, alias="id", json_schema_extra={"readOnly": True}
     )
     username: StrictStr = Field(alias="username")
-    password: Optional[StrictStr] = Field(
+    password: Optional[SecretStr] = Field(
         default=None, alias="password", json_schema_extra={"writeOnly": True}
     )
 
@@ -35,5 +38,7 @@ class Account(BaseModel):
         protected_namespaces=(),
     )
 
+
+from pydantic import SecretStr
 
 Account.model_rebuild(raise_errors=False)

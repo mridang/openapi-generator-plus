@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -98,7 +100,7 @@ class PetPassport
      */
     public function getScansAsBytes(): ?array
     {
-        if ($this->scans === null) {
+        if (!$this->scans instanceof \Ds\Vector) {
             return null;
         }
         $decoded = [];

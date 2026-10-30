@@ -11,7 +11,12 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
-/** Account. */
+/**
+ * Account.
+ *
+ * @see <a href="https://example.com/docs/account">Account &lt;docs&gt; &amp; &quot;notes&quot;
+ *     it&#39;s here</a>
+ */
 public class Account {
 
   /**

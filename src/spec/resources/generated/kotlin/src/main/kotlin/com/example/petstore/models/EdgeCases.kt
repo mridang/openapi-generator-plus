@@ -121,4 +121,35 @@ data class EdgeCases(
     @SerialName("cutoff")
     @Contextual
     val cutoff: LocalTime? = null,
-)
+    /**
+     * The `phase` property.
+     */
+    @SerialName("phase")
+    val phase: PhaseEnum? = null,
+    /**
+     * The `slug` property.
+     */
+    @SerialName("slug")
+    val slug: String? = null,
+) {
+    @Serializable
+    enum class PhaseEnum(
+        val value: String,
+    ) {
+        @SerialName("In-Stock")
+        IN_STOCK("In-Stock"),
+
+        @SerialName("on-hold")
+        ON_HOLD("on-hold"),
+
+        @SerialName("OUT_OF_STOCK")
+        OUT_OF_STOCK("OUT_OF_STOCK"),
+        ;
+
+        companion object {
+            fun fromValue(value: String): PhaseEnum =
+                entries.firstOrNull { it.value == value }
+                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+        }
+    }
+}

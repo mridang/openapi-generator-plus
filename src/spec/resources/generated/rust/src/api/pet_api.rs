@@ -1967,12 +1967,21 @@ impl PetApi {
         self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
-    /// Get a plain-text summary of the pet
+    /// Get a <plain> \"text\" summary & it's short
+    /// Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+    /// * `as_of`: Summary date, sent as a matrix-style path segment
+    /// * `session`: Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required
+    /// * `days`: Extra dates to summarise
+    /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_pet_summary(
         &self,
         pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_summary_with_http_info(pet_id).await?;
+        let result = self
+            .get_pet_summary_with_http_info(pet_id, as_of, options)
+            .await?;
         // convenience-empty-body-handling: a body-returning operation that
         // receives no decodable body must surface the SDK's typed ApiError
         // (not a silent null / zero value), matching the other SDKs.
@@ -1994,12 +2003,14 @@ impl PetApi {
     pub async fn get_pet_summary_with_http_info(
         &self,
         pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
     ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
         // The public get_pet_summary_with_http_info entry point always sends the
         // first declared request content-type, application/json. The shared
         // implementation below takes the resolved Content-Type as an argument
         // and this operation declares no alternative to select.
-        self.get_pet_summary_invoke(pet_id, "application/json")
+        self.get_pet_summary_invoke(pet_id, as_of, options, "application/json")
             .await
     }
 
@@ -2010,10 +2021,12 @@ impl PetApi {
     async fn get_pet_summary_invoke(
         &self,
         pet_id: i64,
+        as_of: chrono::NaiveDate,
+        options: Option<&GetPetSummaryOptions>,
 
         request_content_type: &str,
     ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
-        let mut path = "/pet/{petId}/summary".to_string();
+        let mut path = "/pet/{petId}/summary/{asOf}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
             Some(&object_serializer::to_path_value(&pet_id)),
@@ -2030,10 +2043,112 @@ impl PetApi {
             // (a space would become %2520, a slash %252F).
             path = path.replace("{petId}", &v);
         }
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "asOf",
+            Some(&object_serializer::to_path_value(&as_of)),
+            None,
+            "path",
+            "chrono::NaiveDate",
+            "",
+            "matrix",
+            false,
+        ) {
+            // `serialize_styled` already percent-encodes path segments (preserving
+            // the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+            // serializer output directly — re-encoding here would double-encode
+            // (a space would become %2520, a slash %252F).
+            path = path.replace("{asOf}", &v);
+        }
 
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.days {
+                let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "days",
+                    None,
+                    Some(&items),
+                    "query",
+                    "Vec<chrono::NaiveDate>",
+                    "multi",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("days".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("days".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let mut header_params: HashMap<String, String> = HashMap::new();
+        let mut cookie_parts: Vec<String> = Vec::new();
+        // Required cookie parameter: a missing Options is a programming error.
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_summary",
+                    "session"
+                )),
+            )
+        })?;
+        // A required string must not be empty: reject it like the other SDKs.
+        if opts.session.is_empty() {
+            return Err(Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.get_pet_summary",
+                    "session"
+                )),
+            ));
+        }
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "session",
+            Some(&object_serializer::stringify(&opts.session)),
+            None,
+            "cookie",
+            "String",
+            "",
+            "form",
+            true,
+        ) {
+            // header-injection guard: an operation cookie value is interpolated
+            // raw into the Cookie request header (RFC 6265 forbids percent-
+            // encoding it), so a CR/LF/control-char value would otherwise split
+            // the header and inject arbitrary ones. Reject anything outside the
+            // RFC 6265 cookie-octet set, failing closed with
+            // crate::errors::configuration_error::ConfigurationError::InvalidArgument — the same RFC 6265 rejection
+            // the auth-cookie path performs in BaseApi.
+            // cookie-octet is %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E.
+            let cookie_value_valid = v.chars().all(|c| {
+                let o = c as u32;
+                o == 0x21
+                    || (0x23..=0x2B).contains(&o)
+                    || (0x2D..=0x3A).contains(&o)
+                    || (0x3C..=0x5B).contains(&o)
+                    || (0x5D..=0x7E).contains(&o)
+            });
+            if !cookie_value_valid {
+                return Err(Box::new(
+                    crate::errors::configuration_error::ConfigurationError::InvalidArgument(
+                        format!(
+                            "Cookie value for '{}' contains characters forbidden by RFC 6265",
+                            "session"
+                        ),
+                    ),
+                ));
+            }
+            cookie_parts.push(format!("session={}", v));
+        }
+        if !cookie_parts.is_empty() {
+            header_params.insert("Cookie".to_string(), cookie_parts.join("; "));
+        }
 
         let request_body: Option<Vec<u8>> = None;
         let multipart: Option<HashMap<String, MultipartValue>> = None;

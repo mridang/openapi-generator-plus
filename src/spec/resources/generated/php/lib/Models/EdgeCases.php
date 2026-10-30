@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -9,6 +10,7 @@
  */
 
 declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
@@ -81,6 +83,12 @@ class EdgeCases
     #[SerializedName('cutoff')]
     public ?\DateTimeImmutable $cutoff = null;
 
+    #[SerializedName('phase')]
+    public ?EdgeCasesPhaseEnum $phase = null;
+
+    #[SerializedName('slug')]
+    public ?string $slug = null;
+
     /**
      */
     public function __construct(
@@ -102,6 +110,8 @@ class EdgeCases
         ?\PetstoreClient\Models\Error $lastError = null,
         ?\PetstoreClient\Models\Result $outcome = null,
         ?\DateTimeImmutable $cutoff = null,
+        ?EdgeCasesPhaseEnum $phase = null,
+        ?string $slug = null,
     ) {
         $this->freeFormAny = $freeFormAny;
         $this->favoriteColor = $favoriteColor;
@@ -121,5 +131,7 @@ class EdgeCases
         $this->lastError = $lastError;
         $this->outcome = $outcome;
         $this->cutoff = $cutoff;
+        $this->phase = $phase;
+        $this->slug = $slug;
     }
 }

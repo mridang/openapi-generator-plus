@@ -17,6 +17,7 @@ import com.example.petstore.api.options.AddPetTreatmentOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetByNameOptions;
+import com.example.petstore.api.options.GetPetSummaryOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.SetPetPreferencesOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -1420,37 +1421,92 @@ public class PetApi extends BaseApi {
   }
 
   /**
-   * Get a plain-text summary of the pet
+   * Get a <plain> \"text\" summary & it's short Returns '''plain''' text for /pets/#{id} and <b> &
+   * \"c\" it's done
    *
    * @param petId (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
    * @return {@code String}
    * @throws ApiException if fails to make API call
    */
-  public String getPetSummary(Long petId) {
-    return requireBody(getPetSummaryWithHttpInfo(petId), "getPetSummary");
+  public String getPetSummary(Long petId, LocalDate asOf, GetPetSummaryOptions options) {
+    return requireBody(getPetSummaryWithHttpInfo(petId, asOf, options), "getPetSummary");
   }
 
   /**
-   * Get a plain-text summary of the pet
+   * Get a <plain> \"text\" summary & it's short Returns '''plain''' text for /pets/#{id} and <b> &
+   * \"c\" it's done
    *
    * @param petId (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code String}
    * @throws ApiException if fails to make API call
    */
-  public ApiResult<String> getPetSummaryWithHttpInfo(Long petId) {
+  public ApiResult<String> getPetSummaryWithHttpInfo(
+      Long petId, LocalDate asOf, GetPetSummaryOptions options) {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling PetApi.getPetSummary");
     }
+    if (asOf == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'asOf' when calling PetApi.getPetSummary");
+    }
+    if (java.util.Objects.isNull(options)
+        || options.session() == null
+        || options.session().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'session' when calling PetApi.getPetSummary");
+    }
     String path =
-        "/pet/{petId}/summary"
+        "/pet/{petId}/summary/{asOf}"
             .replace(
                 "{" + "petId" + "}",
                 (String)
                     ValueSerializer.serializeStyled(
-                        "petId", petId, "path", "Long", null, "simple", false));
+                        "petId", petId, "path", "Long", null, "simple", false))
+            .replace(
+                "{" + "asOf" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "asOf", asOf, "path", "LocalDate", null, "matrix", false));
     Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options.days() != null) {
+      queryParams.put(
+          "days",
+          ValueSerializer.maybeAllowReserved(
+              ValueSerializer.serializeStyled(
+                  "days", options.days(), "query", "List<LocalDate>", "multi", "form", true),
+              false));
+    }
     Map<String, String> headerParams = new HashMap<>();
+    java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
+    if (options != null && options.session() != null) {
+      String sessionCookieValue =
+          String.valueOf(
+              ValueSerializer.serializeStyled(
+                  "session", options.session(), "cookie", "String", null, "form", true));
+      /* RFC 6265 — validate the operation cookie name and the assembled
+       * value with the SAME rule the auth-provided cookie path applies in
+       * BaseApi. Without this, a CR/LF or control-char value supplied at
+       * the call site would be interpolated straight into the Cookie
+       * request header (header injection). Fail closed instead, mirroring
+       * the auth-cookie path's IllegalArgumentException. */
+      if (!isValidCookieName("session")) {
+        throw new IllegalArgumentException(
+            "Cookie name 'session' contains characters forbidden by RFC 6265");
+      }
+      if (!isValidCookieValue(sessionCookieValue)) {
+        throw new IllegalArgumentException(
+            "Cookie value for 'session' contains characters forbidden by RFC 6265");
+      }
+      cookieJoiner.add("session=" + sessionCookieValue);
+    }
+    if (cookieJoiner.length() > 0) {
+      headerParams.put("Cookie", cookieJoiner.toString());
+    }
     return invokeApiForResult(
         "GET",
         path,

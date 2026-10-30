@@ -17,10 +17,10 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 final class MultipartModelPart
 {
     #[SerializedName('isEnabled')]
-    public ?bool $isEnabled = null;
+    public ?bool $isEnabled;
 
     #[SerializedName('recordedAt')]
-    public ?\DateTime $recordedAt = null;
+    public ?\DateTime $recordedAt;
 
     public function __construct(?bool $isEnabled = null, ?\DateTime $recordedAt = null)
     {

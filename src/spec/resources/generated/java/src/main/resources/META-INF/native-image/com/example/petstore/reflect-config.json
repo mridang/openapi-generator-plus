@@ -97,6 +97,13 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.EdgeCases$PhaseEnum",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Employee",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,

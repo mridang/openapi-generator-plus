@@ -140,6 +140,10 @@ export class EdgeCases {
     { toPlainOnly: true },
   )
   cutoff?: Temporal.PlainTime;
+  @Expose({ name: "phase" })
+  phase?: EdgeCasesPhaseEnum;
+  @Expose({ name: "slug" })
+  slug?: string;
 
   constructor(data?: Partial<EdgeCases>) {
     Object.assign(this, data);
@@ -229,6 +233,9 @@ export class EdgeCases {
         );
       }
     }
+    if (this.slug != null && typeof this.slug !== "string") {
+      throw new TypeError(`slug must be a string, got ${typeof this.slug}`);
+    }
     /* `format: date-time`: an unparseable wire value becomes an Invalid Date
      * rather than an error, so reject it here. */
     if (
@@ -239,6 +246,20 @@ export class EdgeCases {
       throw new TypeError(
         `expiresAt must be a valid Date, got ${String(this.expiresAt)}`,
       );
+    }
+    if (this.phase != null) {
+      const phaseValues = Object.values(EdgeCasesPhaseEnum).filter(
+        (v) =>
+          typeof (EdgeCasesPhaseEnum as Record<string, unknown>)[
+            v as string
+          ] !== "number",
+      );
+      if (!(phaseValues as readonly unknown[]).includes(this.phase)) {
+        throw new TypeError(
+          `Unknown enum value for phase: ${JSON.stringify(this.phase)}. ` +
+            `Expected one of [${phaseValues.map((v) => JSON.stringify(v)).join(", ")}].`,
+        );
+      }
     }
     if (this.favoriteColor != null) {
       const favoriteColorValues = Object.values(Color).filter(
@@ -363,6 +384,12 @@ export class EdgeCases {
     if (!EdgeCases.__deepEquals(this.cutoff, (other as EdgeCases).cutoff)) {
       return false;
     }
+    if (!EdgeCases.__deepEquals(this.phase, (other as EdgeCases).phase)) {
+      return false;
+    }
+    if (!EdgeCases.__deepEquals(this.slug, (other as EdgeCases).slug)) {
+      return false;
+    }
     return true;
   }
 
@@ -444,4 +471,10 @@ export class EdgeCases {
     }
     return false;
   }
+}
+
+export enum EdgeCasesPhaseEnum {
+  InStock = "In-Stock",
+  OnHold = "on-hold",
+  OUTOFSTOCK = "OUT_OF_STOCK",
 }

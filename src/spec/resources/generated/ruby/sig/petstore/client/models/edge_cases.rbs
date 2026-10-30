@@ -23,5 +23,7 @@ module Petstore::Client::Models
     attr_reader last_error: Error?
     attr_reader outcome: Result?
     attr_reader cutoff: Tod::TimeOfDay?
+    attr_reader phase: String?
+    attr_reader slug: String?
   end
 end

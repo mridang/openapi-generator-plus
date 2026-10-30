@@ -35,6 +35,7 @@ from .options.add_pet_treatment_options import AddPetTreatmentOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
 from .options.get_pet_by_name_options import GetPetByNameOptions
+from .options.get_pet_summary_options import GetPetSummaryOptions
 from .options.get_pet_tag_options import GetPetTagOptions
 from .options.set_pet_preferences_options import SetPetPreferencesOptions
 from .options.upload_pet_certificate_options import UploadPetCertificateOptions
@@ -1397,14 +1398,19 @@ class PetApi(BaseApi):
     async def get_pet_summary(
         self,
         pet_id: StrictInt,
+        as_of: date,
+        options: GetPetSummaryOptions,
     ) -> StrictStr:
-        """Get a plain-text summary of the pet
+        """Get a <plain> \"text\" summary & it's short
+        Returns '_'_'plain'_'_' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
+        :param as_of: Summary date, sent as a matrix-style path segment (required)
+        :param options: options for query, header, form, and cookie parameters
 
         :return: StrictStr
         :raises ApiException: if fails to make API call
         """
-        result = await self.get_pet_summary_with_http_info(pet_id)
+        result = await self.get_pet_summary_with_http_info(pet_id, as_of, options)
 
         if result.data is None:
             # This operation declares a non-void return type, so an empty /
@@ -1422,9 +1428,14 @@ class PetApi(BaseApi):
     async def get_pet_summary_with_http_info(
         self,
         pet_id: StrictInt,
+        as_of: date,
+        options: GetPetSummaryOptions,
     ) -> "ApiResult[StrictStr]":
-        """Get a plain-text summary of the pet (with HTTP info)
+        """Get a <plain> \"text\" summary & it's short (with HTTP info)
+        Returns '_'_'plain'_'_' text for /pets/#{id} and <b> & \"c\" it's done
         :param pet_id:  (required)
+        :param as_of: Summary date, sent as a matrix-style path segment (required)
+        :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -1434,7 +1445,17 @@ class PetApi(BaseApi):
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_summary"
             )
 
-        path = "/pet/{petId}/summary"
+        if as_of is None:
+            raise ValueError(
+                "Missing the required parameter 'as_of' when calling PetApi.get_pet_summary"
+            )
+
+        if options is None or options.session is None or options.session == "":
+            raise ValueError(
+                "Missing the required parameter 'session' when calling PetApi.get_pet_summary"
+            )
+
+        path = "/pet/{petId}/summary/{asOf}"
         path = path.replace(
             "{" + "petId" + "}",
             str(
@@ -1443,8 +1464,49 @@ class PetApi(BaseApi):
                 )
             ),
         )
+        path = path.replace(
+            "{" + "asOf" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "asOf", as_of, "path", "date", None, "matrix", False
+                )
+            ),
+        )
         query_params: Dict[str, Any] = {}
+        if options is not None and options.days is not None:
+            query_params["days"] = ValueSerializer.maybe_allow_reserved(
+                ValueSerializer.serialize_styled(
+                    "days", options.days, "query", "List[date]", "multi", "form", True
+                ),
+                False,
+            )
         header_params: Dict[str, str] = {}
+        cookie_parts = []
+        if options is not None and options.session is not None:
+            # RFC 6265 — operation cookie values are interpolated straight into
+            # the Cookie request header, so they must pass the same cookie-octet
+            # validation that auth-provided cookies receive in the base client.
+            # A CR/LF or control char here would otherwise allow header
+            # injection; fail closed with the same error the auth-cookie path
+            # raises rather than emitting a malformed header.
+            cookie_value = str(
+                ValueSerializer.serialize_styled(
+                    "session",
+                    options.session,
+                    "cookie",
+                    "StrictStr",
+                    None,
+                    "form",
+                    True,
+                )
+            )
+            if not _is_valid_cookie_value(cookie_value):
+                raise ValueError(
+                    "Cookie value for 'session' contains characters forbidden by RFC 6265"
+                )
+            cookie_parts.append(f"session={cookie_value}")
+        if cookie_parts:
+            header_params["Cookie"] = "; ".join(cookie_parts)
         body = None
 
         return await self._invoke_api_for_result(

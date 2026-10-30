@@ -28,6 +28,7 @@ import type { AddPetTreatmentOptions } from "./options/add-pet-treatment-options
 import type { DeletePetOptions } from "./options/delete-pet-options.js";
 import type { FindPetsByStatusOptions } from "./options/find-pets-by-status-options.js";
 import type { GetPetByNameOptions } from "./options/get-pet-by-name-options.js";
+import type { GetPetSummaryOptions } from "./options/get-pet-summary-options.js";
 import type { GetPetTagOptions } from "./options/get-pet-tag-options.js";
 import type { SetPetPreferencesOptions } from "./options/set-pet-preferences-options.js";
 import type { UploadPetCertificateOptions } from "./options/upload-pet-certificate-options.js";
@@ -1331,13 +1332,25 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Get a plain-text summary of the pet
+   * Get a <plain> \"text\" summary & it's short
+   * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
    * @param petId  (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options.days Extra dates to summarise (optional)
+   * @param options.session Session token: \&quot;a&lt;b&gt;\&quot; &amp; it&#39;s required (required)
    * @return string
    * @throws {ApiError} if fails to make API call
    */
-  async getPetSummary(petId: number): Promise<string> {
-    const getPetSummaryResult = await this.getPetSummaryWithHttpInfo(petId);
+  async getPetSummary(
+    petId: number,
+    asOf: Date,
+    options: GetPetSummaryOptions,
+  ): Promise<string> {
+    const getPetSummaryResult = await this.getPetSummaryWithHttpInfo(
+      petId,
+      asOf,
+      options,
+    );
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
      * typed ApiError, never a silently-cast `undefined`. */
@@ -1354,16 +1367,30 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Get a plain-text summary of the pet (with HTTP info)
+   * Get a <plain> \"text\" summary & it's short (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetSummaryWithHttpInfo(petId: number): Promise<ApiResult<string>> {
+  async getPetSummaryWithHttpInfo(
+    petId: number,
+    asOf: Date,
+    options: GetPetSummaryOptions,
+  ): Promise<ApiResult<string>> {
     if (petId == null) {
       throw new TypeError(
         "Missing the required parameter 'petId' when calling PetApi.getPetSummary",
       );
     }
-    let path = `/pet/{petId}/summary`;
+    if (asOf == null) {
+      throw new TypeError(
+        "Missing the required parameter 'asOf' when calling PetApi.getPetSummary",
+      );
+    }
+    if (options?.session == null || options.session === "") {
+      throw new TypeError(
+        "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+      );
+    }
+    let path = `/pet/{petId}/summary/{asOf}`;
     path = path.replace(
       `{${"petId"}}`,
       ValueSerializer.serializeStyled(
@@ -1376,8 +1403,46 @@ export class PetApi extends BaseApi {
         false,
       ) as string,
     );
+    path = path.replace(
+      `{${"asOf"}}`,
+      ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate(asOf)),
+    );
     const queryParams: Record<string, unknown> = {};
+    if (options?.days != null) {
+      queryParams["days"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "days",
+          options.days,
+          "query",
+          "Array<Date>",
+          "multi",
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
     const headerParams: Record<string, string> = {};
+    const cookieParts: string[] = [];
+    if (options?.session != null) {
+      const sessionCookieValue = `${ValueSerializer.serializeStyled("session", options.session, "cookie", "string", null, "form", true)}`;
+      /* RFC 6265 — reject CR/LF and other control characters in the
+       * serialized cookie value before it is joined into the Cookie
+       * header. This mirrors the validation the auth-cookie path applies
+       * in the base client, so a forbidden value fails closed with the
+       * same error instead of being injected raw into the header. */
+      if (
+        !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(sessionCookieValue)
+      ) {
+        throw new TypeError(
+          `Cookie value for 'session' contains characters forbidden by RFC 6265`,
+        );
+      }
+      cookieParts.push(`session=${sessionCookieValue}`);
+    }
+    if (cookieParts.length > 0) {
+      headerParams["Cookie"] = cookieParts.join("; ");
+    }
     return await this.invokeApiForResult(
       "GET",
       path,

@@ -10,6 +10,8 @@ mod find_pets_by_status_options;
 pub use find_pets_by_status_options::*;
 mod get_pet_by_name_options;
 pub use get_pet_by_name_options::*;
+mod get_pet_summary_options;
+pub use get_pet_summary_options::*;
 mod get_pet_tag_options;
 pub use get_pet_tag_options::*;
 mod set_pet_preferences_options;

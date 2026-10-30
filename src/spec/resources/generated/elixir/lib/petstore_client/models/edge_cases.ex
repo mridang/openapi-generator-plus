@@ -30,7 +30,9 @@ defmodule PetstoreClient.Models.EdgeCases do
           _false: boolean() | nil,
           last_error: PetstoreClient.Models.Error.t() | nil,
           outcome: PetstoreClient.Models.Result.t() | nil,
-          cutoff: Time.t() | nil
+          cutoff: Time.t() | nil,
+          phase: :in_stock | :on_hold | :out_of_stock | nil,
+          slug: String.t() | nil
         }
 
   defstruct [
@@ -51,7 +53,9 @@ defmodule PetstoreClient.Models.EdgeCases do
     :_false,
     :last_error,
     :outcome,
-    :cutoff
+    :cutoff,
+    :phase,
+    :slug
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -75,7 +79,9 @@ defmodule PetstoreClient.Models.EdgeCases do
       _false: "false",
       last_error: "lastError",
       outcome: "outcome",
-      cutoff: "cutoff"
+      cutoff: "cutoff",
+      phase: "phase",
+      slug: "slug"
     }
   end
 
@@ -121,7 +127,9 @@ defmodule PetstoreClient.Models.EdgeCases do
       _false: "boolean()",
       last_error: "Error",
       outcome: "Result",
-      cutoff: "Time.t()"
+      cutoff: "Time.t()",
+      phase: "Enum<in_stock,on_hold,out_of_stock>",
+      slug: "String.t()"
     }
   end
 end

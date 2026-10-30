@@ -1768,14 +1768,21 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get a plain-text summary of the pet
+    /// <![CDATA[Get a <plain> \"text\" summary & it's short]]>
     /// </summary>
+    /// <remarks><![CDATA[Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done]]></remarks>
     /// <param name="petId"></param>
+    /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns><![CDATA[string]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<string> GetPetSummaryAsync(long petId)
+    public async Task<string> GetPetSummaryAsync(
+        long petId,
+        DateOnly asOf,
+        GetPetSummaryOptions options
+    )
     {
-        Task<ApiResult<string>> task = GetPetSummaryWithHttpInfoAsync(petId);
+        Task<ApiResult<string>> task = GetPetSummaryWithHttpInfoAsync(petId, asOf, options);
         ApiResult<string> result = await task.ConfigureAwait(false);
         /* convenience-empty-body-handling: a body-returning operation that
          * receives no decodable body surfaces the same typed, catchable
@@ -1802,14 +1809,44 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
-    /// Get a plain-text summary of the pet (with HTTP info)
+    /// <![CDATA[Get a <plain> \"text\" summary & it's short]]> (with HTTP info)
     /// </summary>
+    /// <remarks><![CDATA[Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done]]></remarks>
     /// <param name="petId"></param>
+    /// <param name="asOf">Summary date, sent as a matrix-style path segment</param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
     /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<string>> GetPetSummaryWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<string>> GetPetSummaryWithHttpInfoAsync(
+        long petId,
+        DateOnly asOf,
+        GetPetSummaryOptions options
+    )
     {
-        string path = "/pet/{petId}/summary";
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".Session",
+                "Missing the required parameter 'session' when calling PetApi.GetPetSummary"
+            );
+        }
+        ArgumentNullException.ThrowIfNull(options);
+        RequireOption(
+            options.Session,
+            nameof(options) + "." + nameof(options.Session),
+            "Missing the required parameter 'session' when calling PetApi.GetPetSummary"
+        );
+        if (options.Session.Length == 0)
+        {
+            throw new ArgumentException(
+                "Missing the required parameter 'session' when calling PetApi.GetPetSummary",
+                nameof(options) + "." + nameof(options.Session)
+            );
+        }
+        string path = "/pet/{petId}/summary/{asOf}";
 
         path = path.Replace(
             "{" + nameof(petId) + "}",
@@ -1826,8 +1863,77 @@ public class PetApi : BaseApi
             StringComparison.Ordinal
         );
 
+        path = path.Replace(
+            "{" + nameof(asOf) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(asOf),
+                    asOf,
+                    "path",
+                    "DateOnly",
+                    null,
+                    "matrix",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
         Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Days != null)
+        {
+            queryParams["days"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "days",
+                    options.Days,
+                    "query",
+                    "List<DateOnly>",
+                    "multi",
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
         Dictionary<string, string> headerParams = [];
+        List<string> cookieParts = [];
+        if (options != null && options.Session != null)
+        {
+            /* RFC 6265 header-injection guard. An operation-level cookie
+               parameter (in: cookie) is interpolated straight into the
+               Cookie request header, so it must clear the same name/value
+               validation that auth-provided cookies pass through in
+               BaseApi. A CR/LF or control character here would otherwise
+               splice an extra header into the request — fail closed with
+               the identical ArgumentException the auth-cookie path raises. */
+            string cookieName = "session";
+            string cookieValue = (string)
+                ValueSerializer.SerializeStyled(
+                    "session",
+                    options.Session,
+                    "cookie",
+                    "string",
+                    null,
+                    "form",
+                    true
+                )!;
+            if (!IsValidCookieName(cookieName))
+            {
+                throw new ArgumentException(
+                    $"Cookie name '{cookieName}' contains characters forbidden by RFC 6265"
+                );
+            }
+            if (!IsValidCookieValue(cookieValue))
+            {
+                throw new ArgumentException(
+                    $"Cookie value for '{cookieName}' contains characters forbidden by RFC 6265"
+                );
+            }
+            cookieParts.Add(cookieName + "=" + cookieValue);
+        }
+        if (cookieParts.Count > 0)
+        {
+            headerParams["Cookie"] = string.Join("; ", cookieParts);
+        }
 
         return await InvokeApiForResultAsync<string>(
                 "GET",

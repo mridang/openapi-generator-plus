@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -71,7 +72,7 @@ test('print_r() redacts the secret and shows ***', function (): void {
 
 test('secret constructor parameters are marked sensitive', function (): void {
     $sensitive = [];
-    foreach ((new \ReflectionMethod(BasicAuthenticator::class, '__construct'))->getParameters() as $param) {
+    foreach (new \ReflectionMethod(BasicAuthenticator::class, '__construct')->getParameters() as $param) {
         if ($param->getAttributes(\SensitiveParameter::class) !== []) {
             $sensitive[] = $param->getName();
         }
@@ -97,7 +98,7 @@ test('debug output keeps the host and username and masks only the password', fun
 
 test('every generated basic wrapper sends the basic header and masks the password', function (): void {
     $wrappers = 0;
-    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+    foreach (glob(__DIR__ . '/../lib/Auth/*Authenticator.php') ?: [] as $file) {
         $class = 'PetstoreClient\\Auth\\' . basename($file, '.php');
         if (!is_subclass_of($class, BasicAuthenticator::class)) {
             continue;

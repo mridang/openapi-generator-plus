@@ -170,7 +170,7 @@ test('injects custom user agent', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->userAgent('MyApp/1.0')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -211,7 +211,7 @@ test('injects request id', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -235,7 +235,7 @@ test('does not inject request id when disabled', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(false)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -257,7 +257,7 @@ test('does not override caller request id', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -292,7 +292,7 @@ test('generates unique request ids', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->injectRequestId(true)
         ->build();
 
@@ -319,7 +319,7 @@ test('unit includes transport default headers', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->defaultHeader('X-Custom', 'custom-value')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -341,7 +341,7 @@ test('caller headers override defaults', function (): void {
         }
     );
 
-    $transport = (new TransportOptionsBuilder())
+    $transport = new TransportOptionsBuilder()
         ->defaultHeader('Accept', 'text/plain')
         ->build();
     $client = new StubbedDefaultApiClient($mockClient, $transport);
@@ -627,7 +627,7 @@ test('decodes iso 8859 1 error body to utf 8', function (): void {
 test('proxy with basic auth is accepted by builder', function (): void {
     // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
     // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
-    $opts = (new TransportOptionsBuilder())
+    $opts = new TransportOptionsBuilder()
         ->proxy('http://user:secret@proxy.example.com:8080')
         ->build();
 
@@ -708,7 +708,7 @@ test('cross origin redirect strips api key header', function (): void {
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     /* MockHttpClient records request options on its responses. We use a
      * closure form so we can capture the headers sent on hop 2. */
-    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {
@@ -747,7 +747,7 @@ test('cross origin redirect strips authorization and cookie', function (): void 
     $capturedHeaders = [];
     $hop2 = new MockResponse('ok', ['http_code' => 200]);
     $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $mock = new MockHttpClient(function ($method, $url, $options) use (&$capturedHeaders, $hop1, $hop2) {
+    $mock = new MockHttpClient(function ($method, $url, array $options) use (&$capturedHeaders, $hop1, $hop2): \Symfony\Component\HttpClient\Response\MockResponse {
         static $hop = 0;
         $hop++;
         if ($hop === 1) {

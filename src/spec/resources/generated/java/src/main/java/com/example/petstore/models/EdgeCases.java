@@ -8,7 +8,9 @@
 
 package com.example.petstore.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -16,6 +18,49 @@ import javax.annotation.Nullable;
 
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
 public class EdgeCases {
+
+  /** Allowed values for the {@code phase} property. */
+  public enum PhaseEnum {
+    /** The {@code "In-Stock"} value. */
+    IN_STOCK("In-Stock"),
+    /** The {@code "on-hold"} value. */
+    ON_HOLD("on-hold"),
+    /** The {@code "OUT_OF_STOCK"} value. */
+    OUT_OF_STOCK("OUT_OF_STOCK");
+
+    private final String value;
+
+    PhaseEnum(String value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
+    @JsonCreator
+    public static PhaseEnum fromValue(String value) {
+      for (PhaseEnum b : values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
 
   /** The {@code freeFormAny} property. */
   @JsonProperty("freeFormAny")
@@ -110,6 +155,16 @@ public class EdgeCases {
   @Nullable
   public LocalTime cutoff;
 
+  /** The {@code phase} property. */
+  @JsonProperty("phase")
+  @Nullable
+  public PhaseEnum phase;
+
+  /** The {@code slug} property. */
+  @JsonProperty("slug")
+  @Nullable
+  public String slug;
+
   /** Creates an empty instance. */
   public EdgeCases() {}
 
@@ -143,7 +198,9 @@ public class EdgeCases {
         && java.util.Objects.equals(this._false, other._false)
         && java.util.Objects.equals(this.lastError, other.lastError)
         && java.util.Objects.equals(this.outcome, other.outcome)
-        && java.util.Objects.equals(this.cutoff, other.cutoff);
+        && java.util.Objects.equals(this.cutoff, other.cutoff)
+        && java.util.Objects.equals(this.phase, other.phase)
+        && java.util.Objects.equals(this.slug, other.slug);
   }
 
   @Override
@@ -166,7 +223,9 @@ public class EdgeCases {
         _false,
         lastError,
         outcome,
-        cutoff);
+        cutoff,
+        phase,
+        slug);
   }
 
   @Override
@@ -191,6 +250,8 @@ public class EdgeCases {
     sb.append(", lastError=").append(lastError);
     sb.append(", outcome=").append(outcome);
     sb.append(", cutoff=").append(cutoff);
+    sb.append(", phase=").append(phase);
+    sb.append(", slug=").append(slug);
     sb.append("}");
     return sb.toString();
   }

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -147,7 +148,7 @@ class DefaultApiClient extends AbstractApiClient
      * of {@see Psr18ApiClient} never sends; both headers are dropped so the two
      * transports put the same bytes on the wire.
      */
-    private static function plainFormPart(string $value): TextPart
+    private function plainFormPart(string $value): TextPart
     {
         return new class ($value) extends TextPart {
             public function getPreparedHeaders(): Headers
@@ -169,7 +170,7 @@ class DefaultApiClient extends AbstractApiClient
      * {@see Psr18ApiClient}. Symfony's DataPart would put Content-Type first
      * and add a Content-Transfer-Encoding of 8bit.
      */
-    private static function jsonFormPart(string $json): DataPart
+    private function jsonFormPart(string $json): DataPart
     {
         return new class ($json) extends DataPart {
             public function __construct(string $json)
@@ -182,7 +183,7 @@ class DefaultApiClient extends AbstractApiClient
                 $prepared = parent::getPreparedHeaders();
                 $headers = new Headers();
                 $disposition = $prepared->get('Content-Disposition');
-                if ($disposition !== null) {
+                if ($disposition instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
                     $headers->add($disposition);
                 }
                 $headers->addTextHeader('Content-Type', 'application/json');
@@ -226,9 +227,9 @@ class DefaultApiClient extends AbstractApiClient
                      * text part in its stringify form with no part Content-Type; only
                      * a model or map is an application/json part. */
                     if (ObjectSerializer::isPrimitiveValue($v)) {
-                        $parts[] = self::plainFormPart(ObjectSerializer::stringify($v));
+                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
                     } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
-                        $parts[] = self::jsonFormPart(ObjectSerializer::serialize($v));
+                        $parts[] = $this->jsonFormPart(ObjectSerializer::serialize($v));
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
@@ -278,7 +279,7 @@ class DefaultApiClient extends AbstractApiClient
                             fclose($v);
                         }
                     } else {
-                        $parts[] = self::plainFormPart('');
+                        $parts[] = $this->plainFormPart('');
                     }
                 }
                 $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;
@@ -304,7 +305,7 @@ class DefaultApiClient extends AbstractApiClient
                  * empty body so Symfony emits Content-Length: 0 (the base
                  * class already injected the header); GET/HEAD send nothing. */
                 $upperMethod = strtoupper($method);
-                if ($upperMethod === 'POST' || $upperMethod === 'PUT' || $upperMethod === 'PATCH') {
+                if (in_array($upperMethod, ['POST', 'PUT', 'PATCH'], true)) {
                     $options['body'] = '';
                 }
             }

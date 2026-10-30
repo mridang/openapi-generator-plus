@@ -18,6 +18,7 @@ module Petstore::Client
   # Model classes generated from OpenAPI schemas.
   module Models
     # Model class for Account.
+    # @see https://example.com/docs/account Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
     class Account < Dry::Struct
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {

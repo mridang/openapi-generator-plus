@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -208,7 +209,7 @@ class BaseApi
             $isNonJson = $respContentType !== null
                 && !$this->headerSelector->isJsonMime($respContentType);
 
-            if ($isNonJson && self::isTextMediaType((string) $respContentType)) {
+            if ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it
                  * back unchanged. Base64-decoding it would corrupt any text
@@ -301,7 +302,7 @@ class BaseApi
      * decoded string (the same rule the transport uses), as opposed to a
      * binary body it base64-encodes.
      */
-    private static function isTextMediaType(string $mediaType): bool
+    private function isTextMediaType(string $mediaType): bool
     {
         $mediaType = strtolower($mediaType);
         return str_starts_with($mediaType, 'text/')
@@ -346,7 +347,7 @@ class BaseApi
              * encoded normally. When the key is absent from the set the value
              * encoder is the default one, so encoding is byte-identical. */
             $encodeValue = isset($allowReservedKeys[$k])
-                ? static fn (string $s): string => ValueSerializer::encodeQueryAllowingReserved($s)
+                ? ValueSerializer::encodeQueryAllowingReserved(...)
                 : $encode;
             if (is_array($v)) {
                 foreach ($v as $vv) {
@@ -354,7 +355,7 @@ class BaseApi
                         continue;
                     }
                     $qs .= $key;
-                    $qs .= '=' . $encodeValue(self::queryValueText($vv));
+                    $qs .= '=' . $encodeValue($this->queryValueText($vv));
                     $qs .= '&';
                 }
             } else {
@@ -369,7 +370,7 @@ class BaseApi
                     continue;
                 }
                 $qs .= $key;
-                $qs .= '=' . $encodeValue(self::queryValueText($v));
+                $qs .= '=' . $encodeValue($this->queryValueText($v));
                 $qs .= '&';
             }
         }
@@ -383,9 +384,9 @@ class BaseApi
      * form (so a date-time is RFC 3339 and an enum is its bare value, never a
      * JSON-encoded object or a quoted string); anything else is JSON-encoded.
      */
-    private static function queryValueText(mixed $value): string
+    private function queryValueText(mixed $value): string
     {
-        if (self::isFormScalar($value)) {
+        if ($this->isFormScalar($value)) {
             return ObjectSerializer::stringify($value);
         }
 
@@ -396,7 +397,7 @@ class BaseApi
      * Whether a value has a canonical {@see ObjectSerializer::stringify} text
      * form: a scalar, date-time, duration, UUID or backed enum.
      */
-    private static function isFormScalar(mixed $value): bool
+    private function isFormScalar(mixed $value): bool
     {
         return is_scalar($value)
             || $value instanceof \DateTimeInterface
@@ -420,8 +421,7 @@ class BaseApi
         ?string $contentType,
         bool $isMultipart,
         bool $rawBody = false
-    ): mixed
-    {
+    ): mixed {
         if ($body === null) {
             return null;
         }
@@ -486,7 +486,7 @@ class BaseApi
             foreach ($body as $name => $value) {
                 $values = is_array($value) && array_is_list($value) ? $value : [$value];
                 foreach ($values as $element) {
-                    if ($element !== null && !self::isFormScalar($element)) {
+                    if ($element !== null && !$this->isFormScalar($element)) {
                         /* A model, map or nested array has no defined form
                          * encoding without an OAS encoding block; failing here
                          * keeps a JSON blob or a language repr off the wire. */

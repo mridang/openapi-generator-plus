@@ -8,6 +8,7 @@
 import '../object_serializer.dart';
 
 /// Account is a model class generated from the OpenAPI schema.
+/// See <https://example.com/docs/account> Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
 class Account {
   ///
   /// This property is read-only; it is still sent and received like any

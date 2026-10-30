@@ -15,6 +15,68 @@ namespace PetstoreClient.Models;
 /// </summary>
 public class EdgeCases : IEquatable<EdgeCases>
 {
+    [JsonConverter(typeof(PhaseEnumConverter))]
+    public enum PhaseEnum
+    {
+        InStock,
+
+        OnHold,
+
+        OUTOFSTOCK,
+    }
+
+    /// <summary>
+    /// Serializes <see cref="PhaseEnum"/> to and from its OpenAPI wire string
+    /// values -- a net8.0-compatible replacement for the .NET 9+
+    /// <c>[JsonStringEnumMemberName]</c> attribute.
+    /// </summary>
+    private sealed class PhaseEnumConverter : JsonConverter<PhaseEnum>
+    {
+        public override PhaseEnum Read(
+            ref System.Text.Json.Utf8JsonReader reader,
+            Type typeToConvert,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            if (reader.TokenType != System.Text.Json.JsonTokenType.String)
+            {
+                throw new System.Text.Json.JsonException(
+                    $"Expected a JSON string for enum PhaseEnum but got {reader.TokenType}."
+                );
+            }
+
+            string? value = reader.GetString();
+            return value switch
+            {
+                "In-Stock" => PhaseEnum.InStock,
+                "on-hold" => PhaseEnum.OnHold,
+                "OUT_OF_STOCK" => PhaseEnum.OUTOFSTOCK,
+                _ => throw new System.Text.Json.JsonException(
+                    $"Unknown value '{value}' for enum PhaseEnum."
+                ),
+            };
+        }
+
+        public override void Write(
+            System.Text.Json.Utf8JsonWriter writer,
+            PhaseEnum value,
+            System.Text.Json.JsonSerializerOptions options
+        )
+        {
+            writer.WriteStringValue(
+                value switch
+                {
+                    PhaseEnum.InStock => "In-Stock",
+                    PhaseEnum.OnHold => "on-hold",
+                    PhaseEnum.OUTOFSTOCK => "OUT_OF_STOCK",
+                    _ => throw new System.Text.Json.JsonException(
+                        $"Unknown value '{value}' for enum PhaseEnum."
+                    ),
+                }
+            );
+        }
+    }
+
     [JsonPropertyName("freeFormAny")]
     public object? FreeFormAny { get; set; }
 
@@ -78,6 +140,12 @@ public class EdgeCases : IEquatable<EdgeCases>
     [JsonPropertyName("cutoff")]
     public TimeOnly? Cutoff { get; set; }
 
+    [JsonPropertyName("phase")]
+    public PhaseEnum? Phase { get; set; }
+
+    [JsonPropertyName("slug")]
+    public string? Slug { get; set; }
+
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(EdgeCases? other)
     {
@@ -111,6 +179,8 @@ public class EdgeCases : IEquatable<EdgeCases>
                     && EqualityComparer<Error?>.Default.Equals(this.LastError, other.LastError)
                     && EqualityComparer<Result?>.Default.Equals(this.Outcome, other.Outcome)
                     && EqualityComparer<TimeOnly?>.Default.Equals(this.Cutoff, other.Cutoff)
+                    && EqualityComparer<PhaseEnum?>.Default.Equals(this.Phase, other.Phase)
+                    && EqualityComparer<string?>.Default.Equals(this.Slug, other.Slug)
             );
     }
 
@@ -140,6 +210,8 @@ public class EdgeCases : IEquatable<EdgeCases>
         hash.Add(this.LastError);
         hash.Add(this.Outcome);
         hash.Add(this.Cutoff);
+        hash.Add(this.Phase);
+        hash.Add(this.Slug);
         return hash.ToHashCode();
     }
 
@@ -166,6 +238,8 @@ public class EdgeCases : IEquatable<EdgeCases>
         sb.Append(", LastError=").Append(this.LastError);
         sb.Append(", Outcome=").Append(this.Outcome);
         sb.Append(", Cutoff=").Append(this.Cutoff);
+        sb.Append(", Phase=").Append(this.Phase);
+        sb.Append(", Slug=").Append(this.Slug);
         sb.Append('}');
         return sb.ToString();
     }

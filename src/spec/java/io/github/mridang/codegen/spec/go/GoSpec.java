@@ -34,8 +34,12 @@ interface GoSpec extends LanguageSpec, DockerImageSpec {
     default List<String> getSetupCommands() {
         /* The snapshot every spec restores is taken from the host's golden
          * directory, which still holds the previous run's JUnit report. Drop it,
-         * or each later spec copies that stale report back over the fresh one. */
-        return List.of("find .out/reports -mindepth 1 -delete 2>/dev/null; true", "go mod tidy");
+         * or each later spec copies that stale report back over the fresh one.
+         * `go mod tidy -diff` checks the committed go.mod/go.sum without
+         * rewriting them (it exits non-zero and prints the diff when they are
+         * untidy), so every spec runs on the manifest as committed. */
+        return List.of(
+                "find .out/reports -mindepth 1 -delete 2>/dev/null; true", "go mod tidy -diff");
     }
 
     @Override

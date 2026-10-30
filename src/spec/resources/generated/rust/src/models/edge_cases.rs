@@ -8,6 +8,21 @@
 use super::*;
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
+/// Typed enum for EdgeCases.phase.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum EdgeCasesPhaseEnum {
+    /// Represents the value "In-Stock".
+    #[default]
+    #[serde(rename = "In-Stock")]
+    InStock,
+    /// Represents the value "on-hold".
+    #[serde(rename = "on-hold")]
+    OnHold,
+    /// Represents the value "OUT_OF_STOCK".
+    #[serde(rename = "OUT_OF_STOCK")]
+    OUTOFSTOCK,
+}
+
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct EdgeCases {
     #[serde(rename = "freeFormAny", skip_serializing_if = "Option::is_none")]
@@ -59,6 +74,10 @@ pub struct EdgeCases {
         with = "crate::object_serializer::naive_time::option"
     )]
     pub cutoff: Option<chrono::NaiveTime>,
+    #[serde(rename = "phase", skip_serializing_if = "Option::is_none")]
+    pub phase: Option<EdgeCasesPhaseEnum>,
+    #[serde(rename = "slug", skip_serializing_if = "Option::is_none")]
+    pub slug: Option<String>,
 }
 
 impl EdgeCases {
@@ -83,6 +102,8 @@ impl EdgeCases {
             last_error: None,
             outcome: None,
             cutoff: None,
+            phase: None,
+            slug: None,
         }
     }
 }

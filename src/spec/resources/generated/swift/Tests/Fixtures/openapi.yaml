@@ -740,11 +740,15 @@ paths:
   # ─── Pet summary ─────────────────────────────────────────────────────────────
   # Non-JSON success body on a NON-binary return: a text/plain String return.
 
-  /pet/{petId}/summary:
+  # Also carries a required cookie, a date path segment in matrix style, a
+  # query array of dates, and hostile prose in the summary, description and a
+  # parameter description (code literals and doc comments must survive it).
+  /pet/{petId}/summary/{asOf}:
     get:
       tags:
         - pet
-      summary: Get a plain-text summary of the pet
+      summary: "Get a <plain> \"text\" summary & it's short"
+      description: "Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done"
       operationId: getPetSummary
       parameters:
         - name: petId
@@ -753,6 +757,29 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: asOf
+          in: path
+          required: true
+          description: Summary date, sent as a matrix-style path segment
+          style: matrix
+          schema:
+            type: string
+            format: date
+        - name: session
+          in: cookie
+          required: true
+          description: "Session token: \"a<b>\" & it's required"
+          schema:
+            type: string
+        - name: days
+          in: query
+          required: false
+          description: Extra dates to summarise
+          schema:
+            type: array
+            items:
+              type: string
+              format: date
       responses:
         '200':
           description: Successful operation
@@ -2271,6 +2298,18 @@ components:
         cutoff:
           type: string
           format: time
+        # Inline property enum whose wire values are not lowercase identifiers.
+        phase:
+          type: string
+          enum:
+            - In-Stock
+            - on-hold
+            - OUT_OF_STOCK
+        # Pattern with a slash and a backslash class, no apostrophe: the regex
+        # must reach the SDK undelimited and unescaped.
+        slug:
+          type: string
+          pattern: "^\\d+/[a-z]+$"
 
     # Self-referential schema. Exercises recursive-type code generation: a
     # value type that contains itself has infinite size unless the recursive
@@ -2434,6 +2473,9 @@ components:
     # is still decoded from a response, a writeOnly one is still sent.
     Account:
       type: object
+      externalDocs:
+        description: "Account <docs> & \"notes\" it's here"
+        url: https://example.com/docs/account
       required:
         - username
       properties:
@@ -2443,8 +2485,10 @@ components:
           readOnly: true
         username:
           type: string
+        # format: password is a plain string on the wire: the real value is sent.
         password:
           type: string
+          format: password
           writeOnly: true
 
     # Required AND nullable: the key must be present, null is a legal value and
