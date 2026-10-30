@@ -243,37 +243,138 @@ class ObjectSerializer
             $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
             ]);
-            /* OAS `additionalProperties` flatten. A model that declares an open
-             * additionalProperties map carries a public `?\Ds\Map
-             * $additionalProperties` property. The normalizer above walks every
-             * public property, so the map is emitted under a literal nested
-             * `additionalProperties` key — but the wire contract requires those
-             * entries flattened to the top level (matching Python's re-flatten
-             * and Java's `@JsonAnyGetter`). Lift each entry to the top level and
-             * drop the synthetic key. */
-            if (
-                property_exists($data, 'additionalProperties')
-                && $data->additionalProperties instanceof \Ds\Map
-            ) {
-                unset($normalized['additionalProperties']);
-                /* Iterate via toArray() so the keys are typed as the native PHP
-                 * array-key (int|string) rather than the Ds\Map's mixed key type;
-                 * additionalProperties keys are always JSON strings, and an
-                 * int|string casts to string cleanly (no phpstan cast.string). */
-                /* A declared property wins over an extra entry under the same
-                 * wire name, so the key is written once with the typed value. */
-                foreach ($data->additionalProperties->toArray() as $extraKey => $extraValue) {
-                    if (array_key_exists((string) $extraKey, $normalized)) {
-                        continue;
-                    }
-                    $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
-                }
-                return self::asJsonObject($normalized);
-            }
-            return $normalized;
+            /* OAS `additionalProperties` flatten: the normalizer emits a model's
+             * open map under a literal `additionalProperties` key, at the root
+             * and in every nested model. See flattenAdditionalProperties. */
+            /** @var array<array-key, mixed>|\ArrayObject<array-key, mixed> $flattened */
+            $flattened = self::flattenAdditionalProperties($data, $normalized);
+            return $flattened;
         }
 
         throw new \InvalidArgumentException('Cannot serialize value of type ' . get_debug_type($data));
+    }
+
+    /**
+     * Lift every model's additionalProperties entries to the top level of its
+     * own JSON object, walking the value and its normalized form together.
+     *
+     * A model that declares an open additionalProperties map carries a public
+     * `?\Ds\Map $additionalProperties` property. The Symfony normalizer walks
+     * every public property, so the map is emitted under a literal nested
+     * `additionalProperties` key, and it does so for a model nested in another
+     * model or in a list or map as well as for the root. The wire contract
+     * requires the entries flattened into the model's object (matching
+     * Python's re-flatten and Java's `@JsonAnyGetter`). Each declared property
+     * is matched to its wire key by its SerializedName, a declared property
+     * wins over an extra entry of the same name, and composed wrappers are left
+     * as the normalizer produced them.
+     *
+     * @param mixed $value      the value that was normalized
+     * @param mixed $normalized the normalizer's output for $value
+     * @return mixed the normalized form with every open map flattened
+     */
+    private static function flattenAdditionalProperties(mixed $value, mixed $normalized): mixed
+    {
+        if (!is_array($normalized)) {
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($normalized)) {
+                return $normalized;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if (
+            !is_object($value)
+            || method_exists($value, 'getActualInstance')
+            || method_exists($value, 'getActualInstances')
+        ) {
+            return $normalized;
+        }
+        foreach (self::publicModelProperties($value) as $wireName => $property) {
+            if (array_key_exists($wireName, $normalized)) {
+                $normalized[$wireName] = self::flattenAdditionalProperties(
+                    $property->getValue($value),
+                    $normalized[$wireName]
+                );
+            }
+        }
+        if (
+            property_exists($value, 'additionalProperties')
+            && $value->additionalProperties instanceof \Ds\Map
+        ) {
+            unset($normalized['additionalProperties']);
+            /* Iterate via toArray() so the keys are typed as the native PHP
+             * array-key (int|string) rather than the Ds\Map's mixed key type;
+             * additionalProperties keys are always JSON strings, and an
+             * int|string casts to string cleanly (no phpstan cast.string). */
+            foreach ($value->additionalProperties->toArray() as $extraKey => $extraValue) {
+                if (array_key_exists((string) $extraKey, $normalized)) {
+                    continue;
+                }
+                $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
+            }
+            return self::asJsonObject($normalized);
+        }
+        return $normalized;
+    }
+
+    /**
+     * The initialized public instance properties of a model, keyed by wire
+     * name (the SerializedName, or the PHP name without one). The synthetic
+     * `additionalProperties` property is never a wire key and is left out.
+     *
+     * @return array<string, \ReflectionProperty>
+     */
+    private static function publicModelProperties(object $model): array
+    {
+        $properties = [];
+        foreach (new \ReflectionObject($model)->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if (
+                $property->isStatic()
+                || $property->getName() === 'additionalProperties'
+                || !$property->isInitialized($model)
+            ) {
+                continue;
+            }
+            $properties[self::wireNameOf($property)] = $property;
+        }
+        return $properties;
+    }
+
+    /**
+     * The wire name of a model property: its SerializedName, or its PHP name.
+     */
+    private static function wireNameOf(\ReflectionProperty $property): string
+    {
+        $wireName = $property->getName();
+        foreach (
+            $property->getAttributes(
+                \Symfony\Component\Serializer\Attribute\SerializedName::class
+            ) as $attr
+        ) {
+            $args = $attr->getArguments();
+            if (isset($args[0]) && is_string($args[0])) {
+                $wireName = $args[0];
+            } elseif (isset($args['name']) && is_string($args['name'])) {
+                $wireName = $args['name'];
+            }
+        }
+        return $wireName;
     }
 
     /**
@@ -1188,6 +1289,11 @@ class ObjectSerializer
      */
     private static function captureAdditionalProperties(object $result, array $data): object
     {
+        foreach (self::publicModelProperties($result) as $wireName => $property) {
+            if (array_key_exists($wireName, $data)) {
+                self::captureNestedAdditionalProperties($property->getValue($result), $data[$wireName]);
+            }
+        }
         if (!property_exists($result, 'additionalProperties')) {
             return $result;
         }
@@ -1202,20 +1308,7 @@ class ObjectSerializer
             if ($property->getName() === 'additionalProperties') {
                 continue;
             }
-            $wireName = $property->getName();
-            foreach (
-                $property->getAttributes(
-                    \Symfony\Component\Serializer\Attribute\SerializedName::class
-                ) as $attr
-            ) {
-                $args = $attr->getArguments();
-                if (isset($args[0]) && is_string($args[0])) {
-                    $wireName = $args[0];
-                } elseif (isset($args['name']) && is_string($args['name'])) {
-                    $wireName = $args['name'];
-                }
-            }
-            $declaredWireNames[$wireName] = true;
+            $declaredWireNames[self::wireNameOf($property)] = true;
         }
 
         /** @var array<string, mixed> $extra */
@@ -1232,6 +1325,47 @@ class ObjectSerializer
             $result->additionalProperties = new \Ds\Map($extra);
         }
         return $result;
+    }
+
+    /**
+     * Capture additionalProperties on the models nested in a decoded value.
+     *
+     * Symfony denormalizes a nested model directly, so its undeclared keys
+     * are dropped just as the root's would be. This walks the decoded value
+     * together with its raw JSON (a model property, a list element or a map
+     * value) and runs the same capture on every nested model.
+     *
+     * @param mixed $value the denormalized value
+     * @param mixed $raw   the decoded JSON it was built from
+     */
+    private static function captureNestedAdditionalProperties(mixed $value, mixed $raw): void
+    {
+        if (!is_array($raw)) {
+            return;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($raw)) {
+                return;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if (is_object($value) && !($value instanceof \UnitEnum)) {
+            self::captureAdditionalProperties($value, $raw);
+        }
     }
 
     /**

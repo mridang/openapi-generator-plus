@@ -1051,6 +1051,43 @@ test('non-existent caCertPath throws invalid argument exception at construction'
         });
 });
 
+test('a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'only-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->caCertPath($path)->build());
+        $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
+        assert(is_object($http));
+        $defaults = (new \ReflectionProperty($http, 'defaultOptions'))->getValue($http);
+        assert(is_array($defaults));
+
+        expect($defaults['cafile'])->toBe($path);
+        expect($defaults['capath'])->toBe($path);
+    } finally {
+        unlink($path);
+    }
+});
+
+test('no caCertPath leaves the system trust store in place', function (): void {
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+    $http = (new \ReflectionProperty(DefaultApiClient::class, 'client'))->getValue($client);
+    assert(is_object($http));
+    $defaults = (new \ReflectionProperty($http, 'defaultOptions'))->getValue($http);
+    assert(is_array($defaults));
+
+    expect($defaults['cafile'])->toBeNull();
+    expect($defaults['capath'])->toBeNull();
+});
+
 test('transport failure raises NetworkException with status 0 and the cause kept', function (): void {
     $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
     $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {

@@ -345,9 +345,7 @@ class PetApi extends BaseApi
             }
             $cookieParts[] = 'api_key=' . $cookieValue;
         }
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
         $requestBody = null;
 
         /** @var ApiResult<null> $result */
@@ -1376,8 +1374,8 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Get a <plain> \"text\" summary & it's short
-     * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+     * Get a <plain> "text" summary & it's short
+     * Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
      * @param \DateTime $asOf Summary date, sent as a matrix-style path segment
      * @param GetPetSummaryOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
@@ -1411,6 +1409,9 @@ class PetApi extends BaseApi
      */
     public function getPetSummaryWithHttpInfo(int $petId, \DateTime $asOf, GetPetSummaryOptions $options): ApiResult
     {
+        if ($options->session === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'session' when calling PetApi.getPetSummary");
+        }
         $path = '/pet/{petId}/summary/{asOf}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
@@ -1471,24 +1472,20 @@ class PetApi extends BaseApi
         }
         $headerParams = [];
         $cookieParts = [];
-        if ($options->session !== null) {
-            /** @var string $cookieValue */
-            $cookieValue = ValueSerializer::serializeStyled('session', $options->session, 'cookie', 'string', null, 'form', true);
-            /* RFC 6265 cookie-value: reject CR/LF/control chars and other
-             * forbidden octets before this value is folded into the Cookie
-             * request header. Mirrors the auth-cookie path in BaseApi so an
-             * operation cookie param fails closed with the same
-             * InvalidArgumentException instead of enabling header injection. */
-            if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
-                throw new \InvalidArgumentException(
-                    "Cookie value for 'session' contains characters forbidden by RFC 6265"
-                );
-            }
-            $cookieParts[] = 'session=' . $cookieValue;
+        /** @var string $cookieValue */
+        $cookieValue = ValueSerializer::serializeStyled('session', $options->session, 'cookie', 'string', null, 'form', true);
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for 'session' contains characters forbidden by RFC 6265"
+            );
         }
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $cookieParts[] = 'session=' . $cookieValue;
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
         $requestBody = null;
 
         /** @var ApiResult<string> $result */

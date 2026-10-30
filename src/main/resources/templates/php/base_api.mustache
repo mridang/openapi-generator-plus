@@ -287,6 +287,22 @@ class BaseApi
     }
 
     /**
+     * Folds an operation's cookie parameters into one Cookie request header,
+     * in declaration order. No header is added when the call sends no cookie.
+     *
+     * @param array<string, string> $headerParams the request headers built so far
+     * @param list<string>          $cookieParts  the encoded `name=value` pairs
+     * @return array<string, string> the headers with the Cookie header added
+     */
+    protected static function withCookieHeader(array $headerParams, array $cookieParts): array
+    {
+        if ($cookieParts !== []) {
+            $headerParams['Cookie'] = implode('; ', $cookieParts);
+        }
+        return $headerParams;
+    }
+
+    /**
      * Whether a response media type is text the transport hands over as a
      * decoded string (the same rule the transport uses), as opposed to a
      * binary body it base64-encodes.

@@ -13,6 +13,7 @@ use {{invokerPackage}}\Api\Options\AddPetPhotosOptions;
 use {{invokerPackage}}\Api\Options\DeletePetOptions;
 use {{invokerPackage}}\Api\Options\FindPetsByStatusOptions;
 use {{invokerPackage}}\Api\Options\GetPetByNameOptions;
+use {{invokerPackage}}\Api\Options\GetPetSummaryOptions;
 use {{invokerPackage}}\Api\Options\GetPetTagOptions;
 use {{invokerPackage}}\Api\Options\SetPetPreferencesOptions;
 use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
@@ -83,6 +84,14 @@ test('the options parameter doc names the authenticator only where the options c
     ['getPetByName', '$options Options for query, header, form, and cookie parameters' . "\n"],
     ['getPetByNameWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
 ]);
+
+test('operation summary and description reach the doc comment unescaped', function (): void {
+    $doc = (new \ReflectionMethod(PetApi::class, 'getPetSummary'))->getDocComment();
+    expect($doc)->toBeString();
+    assert(is_string($doc));
+    expect($doc)->toContain("     * Get a <plain> \"text\" summary & it's short\n");
+    expect($doc)->toContain("     * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done\n");
+});
 
 // -- Integration tests via Chasm --
 
@@ -1158,6 +1167,29 @@ test('get pet by name sends the required query param when supplied', function ()
 
     expect($result)->not->toBeNull();
     expect($captured->headers)->not->toBeEmpty();
+});
+
+test('get pet summary throws when required cookie param is empty', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetSummary(1, new \DateTime('2024-01-15'), new GetPetSummaryOptions(session: '')))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+        );
+    expect($captured->url)->toBe('');
+});
+
+test('get pet summary sends the required cookie param when supplied', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetSummaryWithHttpInfo(1, new \DateTime('2024-01-15'), new GetPetSummaryOptions(session: 'abc'));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's media type; only the request matters. */
+    }
+
+    expect($captured->headers['Cookie'] ?? null)->toBe('session=abc');
 });
 
 // -- Authenticator secret redaction in debug dumps (#2, #3) --

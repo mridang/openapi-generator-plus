@@ -16,7 +16,7 @@ namespace PetstoreClient\Models;
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
 /**
- * @see https://example.com/docs/account Account &lt;docs&gt; &amp; &quot;notes&quot; it&#39;s here
+ * @see https://example.com/docs/account Account <docs> & "notes" it's here
  */
 class Account
 {

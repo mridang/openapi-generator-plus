@@ -26,20 +26,20 @@ use {{invokerPackage}}\Models\{{.}};
  * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see {{url}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
+ * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagExternalDocs}}
  */
 class {{classname}} extends BaseApi
 {
 {{#operation}}
     /**
-     * {{{summary}}}
+     * {{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}
 {{#notes}}
-     * {{{.}}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/notes}}
 {{#pathParams}}
 {{#description}}
-     * @param {{{dataType}}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -47,12 +47,12 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{{summary}}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -60,7 +60,7 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{{summary}}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -82,7 +82,7 @@ class {{classname}} extends BaseApi
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-     * @see {{url}} {{{description}}}
+     * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}
 {{/externalDocs}}
      */
 {{#returnType}}
@@ -155,7 +155,7 @@ class {{classname}} extends BaseApi
 {{/hasAuthMethods}}
 {{! required-param-validation: a required string param must not be empty. A path
     param interpolated into the URL would otherwise collapse the segment (e.g.
-    /pets//orders); a required query, header or form string is rejected for the
+    /pets//orders); a required query, header, form or cookie string is rejected for the
     same reason the other SDKs reject it — an empty string is not a present value
     for a required parameter. Non-string required params rely on the PHP type for
     presence. The harmonised message matches the cross-SDK canonical. }}
@@ -197,6 +197,15 @@ class {{classname}} extends BaseApi
 {{/isString}}
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -329,6 +338,22 @@ class {{classname}} extends BaseApi
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
+{{#required}}
+        /** @var string $cookieValue */
+        $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            );
+        }
+        $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
@@ -344,10 +369,9 @@ class {{classname}} extends BaseApi
             }
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
+{{/required}}
 {{/cookieParams}}
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
 {{/hasCookieParams}}
 {{#hasFormParams}}
         $requestBody = [];
@@ -469,7 +493,7 @@ class {{classname}} extends BaseApi
 {{/hasAuthMethods}}
 {{! required-param-validation: a required string param must not be empty. A path
     param interpolated into the URL would otherwise collapse the segment (e.g.
-    /pets//orders); a required query, header or form string is rejected for the
+    /pets//orders); a required query, header, form or cookie string is rejected for the
     same reason the other SDKs reject it — an empty string is not a present value
     for a required parameter. Non-string required params rely on the PHP type for
     presence. The harmonised message matches the cross-SDK canonical. }}
@@ -511,6 +535,15 @@ class {{classname}} extends BaseApi
 {{/isString}}
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
@@ -643,6 +676,22 @@ class {{classname}} extends BaseApi
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
+{{#required}}
+        /** @var string $cookieValue */
+        $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            );
+        }
+        $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
@@ -658,10 +707,9 @@ class {{classname}} extends BaseApi
             }
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
+{{/required}}
 {{/cookieParams}}
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
 {{/hasCookieParams}}
 {{#hasFormParams}}
         $requestBody = [];

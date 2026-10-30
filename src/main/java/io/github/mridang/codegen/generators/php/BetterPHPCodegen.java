@@ -168,6 +168,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return name + "_";
     }
 
+    /**
+     * Escapes a variable, property or parameter name only when PHP cannot use
+     * it. Every PHP keyword is a legal {@code $}-sigiled variable, a legal
+     * property name and, since PHP 8, a legal named argument, so
+     * {@code $and}, {@code $class} and {@code $return} stay as written. The one
+     * name a variable cannot take is {@code $this}. Class, method and constant
+     * names still go through the reserved-word list.
+     *
+     * @param name the cased, sanitized variable name
+     * @return whether the name must be escaped
+     */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return "this".equals(name);
+    }
+
     /** {@inheritDoc} */
     @Override
     public GeneratorLanguage generatorLanguage() {

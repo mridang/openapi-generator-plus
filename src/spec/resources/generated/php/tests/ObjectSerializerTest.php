@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\Models\Account;
 use PetstoreClient\Models\Availability;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Defaults;
@@ -1289,6 +1290,32 @@ test('a model with numeric and named fields keeps both as an object', function (
     expect(ObjectSerializer::serialize($meta))->toBe('{"createdAt":"2024-01-01T00:00:00.000+00:00","0":"x"}');
 });
 
+test('a list of models keeps each element\'s additional properties both ways', function (): void {
+    $json = '[{"createdAt":"2024-01-01T00:00:00.000+00:00","extra":"a"},{"other":"b"}]';
+    /** @var \Ds\Vector<Metadata> $list */
+    $list = ObjectSerializer::deserialize($json, '\Ds\Vector<Metadata>');
+    $first = $list->get(0);
+    assert($first->additionalProperties !== null);
+    expect($first->additionalProperties->toArray())->toBe(['extra' => 'a']);
+
+    expect(ObjectSerializer::serialize($list))->toBe($json);
+});
+
+test('a model nested in another model keeps its additional properties both ways', function (): void {
+    $holder = new class () {
+        #[\Symfony\Component\Serializer\Attribute\SerializedName('meta')]
+        public ?Metadata $meta = null;
+    };
+    $json = '{"meta":{"createdAt":"2024-01-01T00:00:00.000+00:00","extra":"a"}}';
+
+    $decoded = ObjectSerializer::deserialize($json, $holder::class);
+    assert($decoded instanceof $holder);
+    assert($decoded->meta instanceof \PetstoreClient\Models\Metadata && $decoded->meta->additionalProperties instanceof \Ds\Map);
+    expect($decoded->meta->additionalProperties->toArray())->toBe(['extra' => 'a']);
+
+    expect(ObjectSerializer::serialize($decoded))->toBe($json);
+});
+
 // -- Canonical #7: a nested container deep-round-trips to typed leaves --
 //
 // StockItem.matrix is `array<array<int>>` -> `\Ds\Vector<\Ds\Vector<int>>`.
@@ -1542,4 +1569,26 @@ test('uri-reference field still accepts a relative reference', function (): void
     /** @var Pet $item */
     $item = ObjectSerializer::deserialize($json, Pet::class);
     expect($item->thumbnailRef)->toBe('/assets/thumb.png');
+});
+
+test('model external docs description reaches the doc comment unescaped', function (): void {
+    $doc = new \ReflectionClass(Account::class)->getDocComment();
+    expect($doc)->toBe("/**\n * @see https://example.com/docs/account Account <docs> & \"notes\" it's here\n */");
+});
+
+test('keyword-named properties keep their names and wire keys', function (): void {
+    $model = new EdgeCases(and: true, or: false, not: true, class: 'c', return: 'r');
+
+    expect($model->and)->toBeTrue();
+    expect($model->class)->toBe('c');
+    expect($model->return)->toBe('r');
+    /** @var array<string, mixed> $decoded */
+    $decoded = json_decode(ObjectSerializer::serialize($model), true);
+    expect($decoded)->toBe(['and' => true, 'or' => false, 'not' => true, 'class' => 'c', 'return' => 'r']);
+
+    /** @var EdgeCases $back */
+    $back = ObjectSerializer::deserialize('{"and":false,"class":"k","return":"v"}', EdgeCases::class);
+    expect($back->and)->toBeFalse();
+    expect($back->class)->toBe('k');
+    expect($back->return)->toBe('v');
 });

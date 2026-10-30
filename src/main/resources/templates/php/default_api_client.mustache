@@ -93,6 +93,14 @@ class DefaultApiClient extends AbstractApiClient
                 );
             }
             $options['cafile'] = $caCertPath;
+            /* The configured CA must be the only trust anchor. libcurl adds
+             * its compiled-in CA directory (e.g. /etc/ssl/certs) to CAINFO
+             * unless CAPATH is set, so a server with a public certificate
+             * would still be accepted. OpenSSL looks a CAPATH up as
+             * <dir>/<hash>.0, and a file path holds no such entries, so
+             * pointing it at the CA file itself leaves the configured CA as
+             * the sole root for both the curl and the native transport. */
+            $options['capath'] = $caCertPath;
         }
 
         if ($this->transportOptions->proxy !== null) {

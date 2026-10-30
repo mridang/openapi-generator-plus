@@ -69,7 +69,8 @@ final class TransportOptionsBuilder
     }
 
     /**
-     * Set the path to a custom CA certificate bundle.
+     * Set the path to a custom CA certificate bundle. When set, it replaces
+     * the system trust store: only the certificates in this bundle are trusted.
      *
      * @param string|null $caCertPath file path to a PEM-encoded CA certificate, or null
      * @return self this builder
