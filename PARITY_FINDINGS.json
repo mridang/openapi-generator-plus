@@ -1003,8 +1003,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F017",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D02 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "go/rust/elixir per-scheme OAuth wrappers drop the spec's declared scopes (no scope= on token request / authorize URL)",
@@ -1202,8 +1202,8 @@
    "unit_testable": false,
    "lens": "L08-config",
    "id": "F020",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D72 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "go trace-context hook always receives context.Background(), so the documented OpenTelemetry setup never injects a traceparent",
@@ -1444,8 +1444,8 @@
    "unit_testable": true,
    "lens": "L09-models-scalars",
    "id": "F025",
-   "status": "needs-spec",
-   "note": "",
+   "status": "fixed",
+   "note": "done via decision D56 in all SDKs (batches 5-6, branch parity/spec-expansion)",
    "outcomes": {
     "java": {
      "outcome": "needs-spec",
@@ -2076,8 +2076,8 @@
    "unit_testable": true,
    "lens": "L12-api-bodies",
    "id": "F035",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D35 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "BaseApi 'cross-origin redirect drops Authorization/Cookie' tests are tautological in all 12; swift has no real strip test at all",
@@ -3384,8 +3384,8 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F044",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D46 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals",
@@ -3557,8 +3557,8 @@
    "unit_testable": true,
    "lens": "L15-template-mechanics",
    "id": "F047",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D46 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Global server and server-variable descriptions are raw spec text placed inside string literals, so one apostrophe breaks 5 SDKs and one double quote breaks the other 7",
@@ -4052,8 +4052,8 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F055",
-   "status": "needs-spec",
-   "note": "",
+   "status": "fixed",
+   "note": "done via decision D56 in all SDKs (batches 5-6, branch parity/spec-expansion)",
    "outcomes": {
     "java": {
      "outcome": "needs-spec",
@@ -4677,8 +4677,8 @@
    "unit_testable": false,
    "lens": "L01-value-serializer",
    "id": "F066",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D78 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "application/x-www-form-urlencoded bodies in php and ruby skip ObjectSerializer.stringify (date-time, enum and number fields go out in non-canonical form)",
@@ -5584,8 +5584,8 @@
    "unit_testable": true,
    "lens": "L02-object-serializer",
    "id": "F081",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D58 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "go still HTML-escapes <, >, & inside every model body (contradicts AGENTS Resolved 'go serializes with HTML escaping OFF')",
@@ -5752,8 +5752,8 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F084",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D35 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Binary return type with an absent response Content-Type behaves differently in the 12 SDKs; java's BaseApi contradicts its own transport, and rust silently returns empty bytes",
@@ -5888,8 +5888,8 @@
    "unit_testable": true,
    "lens": "L03-request-assembly",
    "id": "F086",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D52 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Query, form-body and multipart part ORDER differs across SDKs; go, swift and rust multipart are nondeterministic per run",
@@ -7792,8 +7792,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F112",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D06 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "OIDC authenticator never requests the `openid` scope",
@@ -8169,8 +8169,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F119",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D03 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "java auth-code getAuthHeaders NPEs when the OP issued no refresh_token and the access token expired",
@@ -8315,8 +8315,8 @@
    "unit_testable": false,
    "lens": "L08-config",
    "id": "F122",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D42 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Test gaps: no test covers CA sole-anchor, garbage-CA rejection outside 3 SDKs, proxy failure classes, timeout <= 0, or a shared per-operation server variable",
@@ -9628,8 +9628,8 @@
    "unit_testable": false,
    "lens": "L11-api-shape",
    "id": "F145",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D42 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "csharp: per-operation server variant and variable-enum types are emitted at namespace level without an operation prefix (Server0, Primary, Regional, RegionValue, VersionValue…), so two operations with unnamed or same-named servers or variables fail to compile; plus a duplicate <summary> tag",
@@ -11952,8 +11952,8 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F172",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D43 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Model-name collisions with built-in or SDK types are guarded only in node (e.g. a schema named Error breaks swift)",
@@ -14916,8 +14916,8 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F214",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D36 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "Required + nullable properties: node/elixir accept an explicit null, kotlin/rust/swift/python/dart reject it, go silently zero-values it, java accepts it; all 12 drop the key when serializing a null. Not exercised",
@@ -15022,8 +15022,8 @@
    "unit_testable": true,
    "lens": "L19-spec-coverage",
    "id": "F216",
-   "status": "partial",
-   "note": "done in ruby; still open for csharp, dart, elixir, go, java, kotlin, node, php, python, rust, swift",
+   "status": "fixed",
+   "note": "done via decision D39 in all SDKs (batches 5-6, branch parity/spec-expansion)",
    "outcomes": {
     "ruby": {
      "outcome": "fixed",
@@ -19379,8 +19379,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F292",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D10 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "buildAuthorizationUrl with an empty state: 6 SDKs emit '&state=', 6 omit it",
@@ -19426,8 +19426,8 @@
    "unit_testable": true,
    "lens": "L07-oauth-oidc",
    "id": "F293",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D11 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "expires_in string grammar differs (hex, type suffixes, newline trimming)",
@@ -19733,8 +19733,8 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F299",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D21 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "The default User-Agent product token comes from a different identifier in different SDKs",
@@ -19773,8 +19773,8 @@
    "unit_testable": true,
    "lens": "L08-config",
    "id": "F300",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D22 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "java puts TraceContextUtil in the api subpackage; the other 11 keep it at the SDK root",
@@ -24088,8 +24088,8 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F363",
-   "status": "open",
-   "note": ""
+   "status": "fixed",
+   "note": "done via decision D43 in all SDKs (batches 5-6, branch parity/spec-expansion)"
   },
   {
    "title": "java reserved-word list deliberately omits true/false/null, which are illegal Java identifiers",
