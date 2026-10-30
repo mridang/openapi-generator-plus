@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using PetstoreClient;
 using PetstoreClient.Auth.OAuth;
+using PetstoreClient.Errors;
 using Xunit;
 
 namespace Test;
@@ -29,6 +30,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
 
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
+        public int CallCount { get; private set; }
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -37,6 +39,7 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
             object? body
         )
         {
+            CallCount++;
             LastUrl = url;
             LastBody = body?.ToString();
             return Task.FromResult(_responses.Dequeue());
@@ -424,5 +427,107 @@ public class OAuth2AuthorizationCodeAuthenticatorTest
 
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
         Assert.Contains("grant_type=refresh_token", client.LastBody!);
+    }
+
+    [Fact]
+    public async Task RefreshBodyCarriesTheClientCredentials()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.LastBody
+        );
+    }
+
+    [Fact]
+    public async Task RejectedRefreshSurfacesOAuth2ServerExceptionAfterOnePost()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("auth-code-xyz");
+        OAuth2ServerException ex = await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            auth.GetAuthHeadersAsync()
+        );
+
+        Assert.Equal("invalid_grant", ex.Code);
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task SecondExchangeCodeSendsTheNewCode()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue(
+            "{\"access_token\":\"tok2\",\"refresh_token\":\"ref2\",\"expires_in\":3600}"
+        );
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await auth.ExchangeCodeAsync("b");
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(2, client.CallCount);
+        Assert.Contains(
+            "grant_type=authorization_code",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
+        Assert.Contains("code=b", client.LastBody!, StringComparison.Ordinal);
+        Assert.Equal("Bearer tok2", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task SecondExchangeWithoutRefreshTokenDropsTheOldRefreshToken()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok3\",\"expires_in\":3600}");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await auth.ExchangeCodeAsync("b");
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Contains("refresh_token=&", client.LastBody!, StringComparison.Ordinal);
+        Assert.DoesNotContain("ref1", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task FailedExchangeKeepsThePreviousSession()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("a");
+        await Assert.ThrowsAsync<OAuth2ServerException>(() => auth.ExchangeCodeAsync("bad"));
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer tok1", headers["Authorization"]);
+        Assert.Equal(2, client.CallCount);
     }
 }

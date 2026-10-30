@@ -371,7 +371,10 @@ public class {{classname}} : BaseApi
 {{#vendorExtensions.param.queryContent}}
         if (options != null && options.{{vendorExtensions.pascalName}} != null)
         {
-            queryParams["{{baseName}}"] = System.Text.Json.JsonSerializer.Serialize(
+            /* A content-encoded query value is the same compact JSON a
+             * request body would carry (SDK converters, wire names, no HTML
+             * or non-ASCII escaping); a failure is a SerializationException. */
+            queryParams["{{baseName}}"] = Serializer.Serialize(
                 options.{{vendorExtensions.pascalName}}
             );
         }
@@ -540,7 +543,8 @@ public class {{classname}} : BaseApi
     (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
     BaseApi suppresses the client-level authenticator and attaches no credential
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
-                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}
+                {{#hasAuthMethods}}options?.Auth{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+                rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}}
             )
             .ConfigureAwait(false);
     }

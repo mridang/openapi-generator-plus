@@ -1578,6 +1578,43 @@ public class DefaultApiClientUnitTest
         Assert.DoesNotContain("\"location\"", wireText);
     }
 
+    [Fact]
+    public async Task MultipartPrimitivePartsAreCanonicalTextPartsAndOnlyModelsAreJson()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "flag", true },
+            { "count", 3L },
+            { "recordedAt", new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero) },
+            { "shade", MultipartShade.Red },
+            { "metadata", new MultipartModelPart { IsEnabled = true } },
+        };
+
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/resource/1/files"),
+            new Dictionary<string, string>(), formData);
+
+        Assert.NotNull(wireText);
+        Assert.Contains("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n", wireText, StringComparison.Ordinal);
+        Assert.Contains("Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n", wireText, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"recordedAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n",
+            wireText,
+            StringComparison.Ordinal);
+        Assert.Contains("Content-Disposition: form-data; name=\"shade\"\r\n\r\nred\r\n", wireText, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n",
+            wireText,
+            StringComparison.Ordinal);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(wireText!, "Content-Type:"));
+    }
+
     /// <summary>
     /// First request returns <paramref name="firstStatus"/> with a Location
     /// header pointing at <paramref name="location"/>; subsequent requests
@@ -1872,4 +1909,28 @@ public sealed class MultipartModelPart
 
     [System.Text.Json.Serialization.JsonPropertyName("recordedAt")]
     public DateTimeOffset? RecordedAt { get; set; }
+}
+
+/// <summary>
+/// A stand-in string enum for the multipart text-part test above, carrying
+/// its wire value the way generated enums do.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(MultipartShadeConverter))]
+public enum MultipartShade
+{
+    Red,
+}
+
+/// <summary>Maps <see cref="MultipartShade"/> to its wire value.</summary>
+public sealed class MultipartShadeConverter : System.Text.Json.Serialization.JsonConverter<MultipartShade>
+{
+    public override MultipartShade Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options) => MultipartShade.Red;
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        MultipartShade value,
+        System.Text.Json.JsonSerializerOptions options) => writer.WriteStringValue("red");
 }

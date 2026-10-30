@@ -19,7 +19,7 @@ public abstract class BaseApi
     protected Configuration Config { get; }
 
     /// <summary>Serializer for request/response body conversion.</summary>
-    private ObjectSerializer Serializer { get; }
+    private protected ObjectSerializer Serializer { get; }
 
     /// <summary>Optional authenticator used as fallback when no per-call auth is provided.</summary>
     protected IAuthenticator? Authenticator { get; }
@@ -65,6 +65,12 @@ public abstract class BaseApi
     /// Invoke an API operation and return the full result including status code,
     /// headers, and raw body alongside the deserialized data.
     /// </summary>
+    /// <param name="rawBody">
+    /// True when the operation's request body is <c>format: binary</c>: the
+    /// caller's bytes are sent unchanged under whichever declared
+    /// Content-Type was selected (application/json included) and never go
+    /// through the JSON serializer.
+    /// </param>
     protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
         string path,
@@ -74,7 +80,8 @@ public abstract class BaseApi
         string[] accepts,
         string contentType,
         Type? returnType,
-        IAuthenticator? auth = null
+        IAuthenticator? auth = null,
+        bool rawBody = false
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);
@@ -210,8 +217,12 @@ public abstract class BaseApi
                  * already streams raw bytes. */
                 requestBody = ExtractBinaryPart(binaryForm);
             }
-            else if (isBinary || isMultipart)
+            else if (rawBody || isBinary || isMultipart)
             {
+                /* A format:binary body (rawBody) is the caller's bytes: the
+                 * selected Content-Type only changes the header, so even an
+                 * application/json selection sends them verbatim rather than
+                 * reflecting the Stream through the JSON serializer. */
                 requestBody = body;
             }
             else if (string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase))

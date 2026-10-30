@@ -790,4 +790,123 @@ public class OAuth2TokenManagerTest
             );
         }
     }
+
+    [Fact]
+    public async Task RefreshGoesToTheRefreshUrlWithTheClientCredentials()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var parameters = new Dictionary<string, string>
+        {
+            ["grant_type"] = "password",
+            ["client_id"] = "cid",
+            ["client_secret"] = "secret",
+        };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+        var refreshUrl = new Uri("https://auth.example.com/refresh");
+
+        await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
+        string second = await manager.GetAccessTokenAsync(tokenUrl, parameters, null, refreshUrl);
+
+        Assert.Equal("tok2", second);
+        Assert.Equal(refreshUrl, client.LastUrl);
+        Assert.Equal(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=cid&client_secret=secret",
+            client.LastBody
+        );
+    }
+
+    [Fact]
+    public async Task RefreshGrantParametersMakeExactlyOnePost()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        await manager.GetAccessTokenAsync(
+            tokenUrl,
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" }
+        );
+        await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.GetAccessTokenAsync(
+                tokenUrl,
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["refresh_token"] = "ref1",
+                }
+            )
+        );
+
+        Assert.Equal(2, client.CallCount);
+    }
+
+    [Fact]
+    public async Task ExchangeBypassesTheCacheAndTheRefreshPath()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"access_token\":\"tok2\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        await manager.ExchangeAsync(
+            tokenUrl,
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "a" }
+        );
+        string second = await manager.ExchangeAsync(
+            tokenUrl,
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "b" }
+        );
+
+        Assert.Equal("tok2", second);
+        Assert.Equal(2, client.CallCount);
+        Assert.Equal("grant_type=authorization_code&code=b", client.LastBody);
+        Assert.Null(manager.RefreshToken);
+    }
+
+    [Fact]
+    public async Task FailedExchangeRestoresThePreviousSession()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"
+        );
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        await manager.ExchangeAsync(
+            tokenUrl,
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code", ["code"] = "a" }
+        );
+        await Assert.ThrowsAsync<OAuth2ServerException>(() =>
+            manager.ExchangeAsync(
+                tokenUrl,
+                new Dictionary<string, string>
+                {
+                    ["grant_type"] = "authorization_code",
+                    ["code"] = "bad",
+                }
+            )
+        );
+        string cached = await manager.GetAccessTokenAsync(
+            tokenUrl,
+            new Dictionary<string, string> { ["grant_type"] = "authorization_code" }
+        );
+
+        Assert.Equal("tok1", cached);
+        Assert.Equal("ref1", manager.RefreshToken);
+        Assert.Equal(2, client.CallCount);
+    }
 }

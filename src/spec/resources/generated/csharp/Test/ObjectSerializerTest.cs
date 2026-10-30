@@ -1671,4 +1671,145 @@ public class ObjectSerializerTest
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<object>(beyond));
         }
     }
+
+    public class StrictWireFormatTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Theory]
+        [InlineData("2024-01-01T10:00:00")]
+        [InlineData("01/02/2024 10:00")]
+        [InlineData("tomorrow")]
+        [InlineData("10:00")]
+        [InlineData("1700000000")]
+        [InlineData("2024-01-01")]
+        public void NonRfc3339DateTimeIsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"shipDate\":\"" + text + "\"}")
+            );
+        }
+
+        [Fact]
+        public void OffsetLessDateTimeIsRejectedUnderAnyHostZone()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"shipDate\":\"2024-01-01T10:00:00\"}")
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<DateTimeOffset>("\"2024-01-01T10:00:00\"")
+            );
+        }
+
+        [Fact]
+        public void UtcDateTimeIsAccepted()
+        {
+            Order? order = _serializer.Deserialize<Order>(
+                "{\"shipDate\":\"2024-01-01T10:00:00Z\"}"
+            );
+
+            Assert.Equal(new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero), order!.ShipDate);
+        }
+
+        [Fact]
+        public void NanosecondFractionWithOffsetIsAccepted()
+        {
+            Order? order = _serializer.Deserialize<Order>(
+                "{\"shipDate\":\"2024-01-01T10:00:00.123456789+05:30\"}"
+            );
+
+            Assert.Equal(
+                new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.FromMinutes(330)).AddTicks(
+                    1234567
+                ),
+                order!.ShipDate
+            );
+            Assert.Equal(TimeSpan.FromMinutes(330), order.ShipDate!.Value.Offset);
+        }
+
+        [Theory]
+        [InlineData("dGVzdA")]
+        [InlineData("dGVz dA==")]
+        [InlineData("dGVz\\ndA==")]
+        [InlineData("-_8=")]
+        [InlineData("!!!!")]
+        public void NonStrictBase64IsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<PetPassport>("{\"thumbnail\":\"" + text + "\"}")
+            );
+        }
+
+        [Fact]
+        public void PaddedStandardBase64IsAccepted()
+        {
+            PetPassport? passport = _serializer.Deserialize<PetPassport>(
+                "{\"thumbnail\":\"dGVzdA==\"}"
+            );
+
+            Assert.Equal("test"u8.ToArray(), passport!.Thumbnail);
+        }
+
+        [Theory]
+        [InlineData("urn:isbn:0451450523")]
+        [InlineData("mailto:a@b.com")]
+        [InlineData("ftp://x.org/f")]
+        [InlineData("https://example.com/items/one")]
+        public void AbsoluteUriIsAcceptedAndReEmittedVerbatim(string text)
+        {
+            string json = "{\"name\":\"a\",\"photoUrls\":[],\"homepageUrl\":\"" + text + "\"}";
+
+            Pet? decoded = _serializer.Deserialize<Pet>(json);
+
+            Assert.Equal(text, decoded!.HomepageUrl!.OriginalString);
+            Assert.Contains(
+                "\"homepageUrl\":\"" + text + "\"",
+                _serializer.Serialize(decoded),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Theory]
+        [InlineData("/relative")]
+        [InlineData("not a uri")]
+        [InlineData("")]
+        public void NonAbsoluteUriIsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Pet>(
+                    "{\"name\":\"a\",\"photoUrls\":[],\"homepageUrl\":\"" + text + "\"}"
+                )
+            );
+        }
+
+        [Fact]
+        public void UriReferenceStaysAPlainString()
+        {
+            Pet? decoded = _serializer.Deserialize<Pet>(
+                "{\"name\":\"a\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb-a.png\"}"
+            );
+
+            Assert.Equal("/assets/thumb-a.png", decoded!.ThumbnailRef);
+        }
+
+        [Fact]
+        public void NullElementInAListOfModelsIsRejected()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<List<Pet>>("[null,{\"name\":\"a\",\"photoUrls\":[]}]")
+            );
+            Assert.IsType<SerializationException>(ex);
+        }
+
+        [Fact]
+        public void NullValueInAMapOfModelsIsRejected()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, Pet>>(
+                    "{\"a\":null,\"b\":{\"name\":\"a\",\"photoUrls\":[]}}"
+                )
+            );
+            Assert.IsType<SerializationException>(ex);
+        }
+    }
 }

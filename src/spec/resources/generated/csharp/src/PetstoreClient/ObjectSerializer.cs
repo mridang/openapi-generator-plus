@@ -20,7 +20,7 @@ namespace PetstoreClient;
 /// The parameter encoding methods provide consistent value conversion for
 /// URL path, query string, header, and form parameters.
 /// </summary>
-internal class ObjectSerializer
+internal partial class ObjectSerializer
 {
     /// <summary>
     /// Maximum allowed JSON nesting depth. A malicious 100k-deep
@@ -118,9 +118,10 @@ internal class ObjectSerializer
         {
             json = json[1..];
         }
+        T? result;
         try
         {
-            return JsonSerializer.Deserialize<T>(json, _options);
+            result = JsonSerializer.Deserialize<T>(json, _options);
         }
         catch (JsonException e)
         {
@@ -136,6 +137,57 @@ internal class ObjectSerializer
                never leak the BCL parse failure: it is a wire-shape error. */
             throw new SerializationException($"Failed to deserialize JSON to {typeof(T)}", e);
         }
+        RejectNullModelElements(result, typeof(T));
+        return result;
+    }
+
+    /// <summary>
+    /// A null element in an array or map of models is not an object, so it is
+    /// rejected rather than handed to the caller: the generated element type
+    /// cannot say whether the items schema is nullable, so null model
+    /// elements are always refused.
+    /// </summary>
+    private static void RejectNullModelElements(object? value, System.Type targetType)
+    {
+        System.Type? elementType = null;
+        if (targetType.IsGenericType)
+        {
+            System.Type[] arguments = targetType.GetGenericArguments();
+            elementType = arguments[^1];
+        }
+        else if (targetType.IsArray)
+        {
+            elementType = targetType.GetElementType();
+        }
+        if (elementType is null || !IsModelType(elementType))
+        {
+            return;
+        }
+        IEnumerable? elements = value switch
+        {
+            IDictionary dictionary => dictionary.Values,
+            IEnumerable enumerable => enumerable,
+            _ => null,
+        };
+        if (elements is null)
+        {
+            return;
+        }
+        foreach (object? element in elements)
+        {
+            if (element is null)
+            {
+                throw new SerializationException(
+                    $"Failed to deserialize JSON to {targetType}: null element in a collection of {elementType.Name}"
+                );
+            }
+        }
+    }
+
+    private static bool IsModelType(System.Type type)
+    {
+        return type.IsClass
+            && string.Equals(type.Namespace, "PetstoreClient.Models", StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -376,7 +428,10 @@ internal class ObjectSerializer
              * members themselves are preserved by the embedded
              * ILLink.Descriptors.xml keep-list, so reflection is safe here. */
             TypeInfoResolver =
-                new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver(),
+                new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver
+                {
+                    Modifiers = { DropExtensionDataCollisions },
+                },
         };
         /* No global JsonStringEnumConverter: every generated enum carries its
          * own [JsonConverter(typeof(XxxConverter))] that maps to the exact
@@ -394,7 +449,77 @@ internal class ObjectSerializer
          * "3600s"-style strings matching protobuf's canonical JSON
          * mapping (the wire format a gRPC-gateway expects). */
         options.Converters.Add(new ProtobufDurationConverter());
+        /* format:byte decodes strict RFC 4648 base64 and format:uri requires
+         * an absolute URI; both replace the lenient System.Text.Json defaults. */
+        options.Converters.Add(new StrictBase64Converter());
+        options.Converters.Add(new AbsoluteUriConverter());
         return options;
+    }
+
+    /// <summary>
+    /// A declared property is authoritative over an additionalProperties entry
+    /// with the same wire name: System.Text.Json writes [JsonExtensionData]
+    /// after the declared properties without de-duplicating, so the extension
+    /// data getter is wrapped to hand the writer a copy without the colliding
+    /// keys. No JSON object is ever written with a duplicate key. Decoding
+    /// never produces a collision, so the getter returns the caller's
+    /// dictionary unchanged whenever no key collides.
+    /// </summary>
+    private static void DropExtensionDataCollisions(
+        System.Text.Json.Serialization.Metadata.JsonTypeInfo typeInfo
+    )
+    {
+        if (typeInfo.Kind != System.Text.Json.Serialization.Metadata.JsonTypeInfoKind.Object)
+        {
+            return;
+        }
+        System.Text.Json.Serialization.Metadata.JsonPropertyInfo? extensionData = null;
+        HashSet<string> declared = new(StringComparer.Ordinal);
+        foreach (
+            System.Text.Json.Serialization.Metadata.JsonPropertyInfo property in typeInfo.Properties
+        )
+        {
+            if (property.IsExtensionData)
+            {
+                extensionData = property;
+            }
+            else
+            {
+                _ = declared.Add(property.Name);
+            }
+        }
+        if (extensionData?.Get is not Func<object, object?> getter || declared.Count == 0)
+        {
+            return;
+        }
+        extensionData.Get = owner =>
+            getter(owner) switch
+            {
+                Dictionary<string, object> values => WithoutDeclaredKeys(values, declared),
+                Dictionary<string, JsonElement> elements => WithoutDeclaredKeys(elements, declared),
+                object other => other,
+                null => null,
+            };
+    }
+
+    private static Dictionary<string, TValue> WithoutDeclaredKeys<TValue>(
+        Dictionary<string, TValue> source,
+        HashSet<string> declared
+    )
+    {
+        if (!source.Keys.Any(declared.Contains))
+        {
+            return source;
+        }
+        Dictionary<string, TValue> filtered = new(source.Count, source.Comparer);
+        foreach (KeyValuePair<string, TValue> entry in source)
+        {
+            if (!declared.Contains(entry.Key))
+            {
+                filtered[entry.Key] = entry.Value;
+            }
+        }
+        return filtered;
     }
 
     /// <summary>
@@ -404,10 +529,22 @@ internal class ObjectSerializer
     /// is emitted so the fraction the reader accepts is also written, keeping
     /// the round-trip lossless instead of truncating to whole seconds.
     /// </summary>
-    private sealed class DateTimeOffsetJsonConverter
+    private sealed partial class DateTimeOffsetJsonConverter
         : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
     {
         private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fffzzz";
+
+        private static readonly string[] RoundTripFormats =
+        [
+            "yyyy-MM-dd'T'HH:mm:ssK",
+            "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
+        ];
+
+        /* [0-9], not \d: in .NET \d also matches non-ASCII digits. */
+        [System.Text.RegularExpressions.GeneratedRegex(
+            @"^(?<seconds>[0-9]{4}-[0-9]{2}-[0-9]{2}[Tt][0-9]{2}:[0-9]{2}:[0-9]{2})(?<fraction>\.[0-9]+)?(?<offset>[Zz]|[+-][0-9]{2}:[0-9]{2})$"
+        )]
+        private static partial System.Text.RegularExpressions.Regex Rfc3339DateTimePattern();
 
         public override DateTimeOffset Read(
             ref Utf8JsonReader reader,
@@ -425,9 +562,33 @@ internal class ObjectSerializer
                 );
             }
             string text = reader.GetString()!;
+            return ParseRfc3339(text);
+        }
+
+        /// <summary>
+        /// Parses an RFC 3339 date-time: YYYY-MM-DDTHH:MM:SS, an optional
+        /// fraction of any length, then Z or a +-HH:MM offset. Offset-less,
+        /// date-only, free-text and epoch inputs are rejected, so the host
+        /// time zone and the current date are never consulted.
+        /// </summary>
+        internal static DateTimeOffset ParseRfc3339(string text)
+        {
+            System.Text.RegularExpressions.Match match = Rfc3339DateTimePattern().Match(text);
+            if (!match.Success)
+            {
+                throw new JsonException($"Invalid date-time: {text}");
+            }
+            /* .NET parses at most seven fraction digits (100 ns ticks), so a
+             * longer fraction is truncated to that precision before parsing. */
+            string fraction = match.Groups["fraction"].Value;
+            string normalized =
+                match.Groups["seconds"].Value
+                + (fraction.Length > 8 ? fraction[..8] : fraction)
+                + match.Groups["offset"].Value;
             if (
-                !DateTimeOffset.TryParse(
-                    text,
+                !DateTimeOffset.TryParseExact(
+                    normalized.ToUpperInvariant(),
+                    RoundTripFormats,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None,
                     out DateTimeOffset value
@@ -794,5 +955,95 @@ internal sealed partial class ProtobufDurationConverter : JsonConverter<TimeSpan
         {
             throw new JsonException($"Invalid protobuf duration: {text}", e);
         }
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: byte</c> values as strict RFC 4648 section 4 base64:
+/// standard alphabet, length a multiple of four with <c>=</c> padding, and no
+/// whitespace, newline or URL-safe characters. System.Text.Json's default
+/// decoder tolerates embedded whitespace; this converter rejects it.
+/// </summary>
+internal sealed partial class StrictBase64Converter : JsonConverter<byte[]>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+    )]
+    private static partial System.Text.RegularExpressions.Regex Base64Pattern();
+
+    public override byte[] Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a base64 JSON string but got {reader.TokenType}.");
+        }
+        return Decode(reader.GetString()!);
+    }
+
+    public override void Write(Utf8JsonWriter writer, byte[] value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        writer.WriteBase64StringValue(value);
+    }
+
+    /// <summary>
+    /// Decodes strict base64, throwing <see cref="JsonException"/> for any
+    /// input outside the standard padded alphabet.
+    /// </summary>
+    public static byte[] Decode(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (!Base64Pattern().IsMatch(text))
+        {
+            throw new JsonException("Invalid base64 value for a format:byte field");
+        }
+        return Convert.FromBase64String(text);
+    }
+}
+
+/// <summary>
+/// Decodes <c>format: uri</c> values only when they are absolute RFC 3986
+/// URIs: a scheme, a colon, then no whitespace or control characters (http,
+/// ftp, mailto and urn are all valid). Relative references, empty and
+/// whitespace-containing strings are rejected. Encoding re-emits the decoded
+/// text verbatim.
+/// </summary>
+internal sealed partial class AbsoluteUriConverter : JsonConverter<Uri>
+{
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"^[A-Za-z][A-Za-z0-9+.\-]*:[^\s\x00-\x1F\x7F]*$"
+    )]
+    private static partial System.Text.RegularExpressions.Regex AbsoluteUriPattern();
+
+    public override Uri Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
+    {
+        if (reader.TokenType != JsonTokenType.String)
+        {
+            throw new JsonException($"Expected a URI JSON string but got {reader.TokenType}.");
+        }
+        string text = reader.GetString()!;
+        if (
+            !AbsoluteUriPattern().IsMatch(text)
+            || !Uri.TryCreate(text, UriKind.Absolute, out Uri? uri)
+        )
+        {
+            throw new JsonException($"Invalid absolute URI: {text}");
+        }
+        return uri;
+    }
+
+    public override void Write(Utf8JsonWriter writer, Uri value, JsonSerializerOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        writer.WriteStringValue(value.OriginalString);
     }
 }

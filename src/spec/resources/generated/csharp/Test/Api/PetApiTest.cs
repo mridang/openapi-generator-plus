@@ -358,6 +358,37 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task TestSetPetAvatarSendsTheCallerBytesVerbatimUnderTheJsonSelector()
+    {
+        var client = new HeaderAndBodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SetPetAvatarAsync(
+            1L,
+            new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
+            "application/json"
+        );
+
+        MemoryStream sent = Assert.IsType<MemoryStream>(client.CapturedBody);
+        Assert.Equal(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }, sent.ToArray());
+        Assert.Equal("application/json", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task TestSetPetAvatarThumbnailByteBodyStaysBase64Json()
+    {
+        var client = new HeaderAndBodyCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SetPetAvatarThumbnailAsync(
+            1L,
+            new SetPetAvatarThumbnailRequest(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A })
+        );
+
+        Assert.Equal("\"iVBORw0K\"", client.CapturedBody);
+    }
+
+    [Fact]
     public async Task TestGetPetAvatar()
     {
         var result = await _api.GetPetAvatarAsync(1L);

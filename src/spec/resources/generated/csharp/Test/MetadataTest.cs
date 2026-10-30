@@ -134,4 +134,23 @@ public class MetadataTest
         Assert.Equal(withExtra, sameExtra);
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
     }
+
+    [Fact]
+    public void DeclaredPropertyWinsOverACollidingAdditionalProperty()
+    {
+        var metadata = new Metadata
+        {
+            CreatedAt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
+            AdditionalProperties = new Dictionary<string, object>
+            {
+                ["createdAt"] = "x",
+                ["extra"] = "y",
+            },
+        };
+
+        var json = _serializer.Serialize(metadata);
+
+        Assert.Equal("{\"createdAt\":\"2024-01-15T10:30:00.000+00:00\",\"extra\":\"y\"}", json);
+        Assert.Equal(2, metadata.AdditionalProperties!.Count);
+    }
 }

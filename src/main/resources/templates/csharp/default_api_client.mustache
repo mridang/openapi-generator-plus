@@ -808,10 +808,15 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 multipart.Add(stringContent);
                 break;
             default:
-                if (value is int or long or float or double or bool or decimal)
+                if (ObjectSerializer.IsScalar(value))
                 {
+                    /* Every primitive (number, boolean, date, date-time,
+                       duration, uuid, enum) is a plain text part carrying its
+                       canonical Stringify form (true, not True; invariant
+                       culture; .fff+00:00 date-times; enum wire values). Only
+                       models, maps and other objects become JSON parts. */
                     ValidateMultipartFilename(name);
-                    StringContent scalarContent = BuildTextPart(value.ToString() ?? "");
+                    StringContent scalarContent = BuildTextPart(ObjectSerializer.Stringify(value));
                     _ = scalarContent.Headers.Remove("Content-Disposition");
                     _ = scalarContent.Headers.TryAddWithoutValidation(
                         "Content-Disposition",

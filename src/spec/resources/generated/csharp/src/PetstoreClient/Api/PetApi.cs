@@ -2274,7 +2274,8 @@ public class PetApi : BaseApi
                 [],
                 effectiveRequestContentType,
                 null,
-                null
+                null,
+                rawBody: true
             )
             .ConfigureAwait(false);
     }

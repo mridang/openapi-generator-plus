@@ -1175,7 +1175,10 @@ public class StoreApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options != null && options.Q != null)
         {
-            queryParams["q"] = System.Text.Json.JsonSerializer.Serialize(options.Q);
+            /* A content-encoded query value is the same compact JSON a
+             * request body would carry (SDK converters, wire names, no HTML
+             * or non-ASCII escaping); a failure is a SerializationException. */
+            queryParams["q"] = Serializer.Serialize(options.Q);
         }
         if (options != null && options.Labels != null)
         {
