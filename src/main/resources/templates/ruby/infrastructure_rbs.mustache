@@ -197,6 +197,7 @@
     def close: () -> void
     def self.supported_encodings: () -> String
     private
+    def run_hop: (Symbol, String, untyped, Hash[String, String], Float?) -> untyped
     def header?: (Hash[String, String], String) -> bool
     def network_error_class: (Faraday::Error) -> singleton(Errors::NetworkError)
     def validate_ca_cert_path: (String?) -> void
@@ -213,6 +214,8 @@
     def multipart_part: (String, untyped, String) -> String
     def sanitize_multipart_field_name: (String | Symbol) -> String
     def build_content_disposition: (String | Symbol, String?) -> String
+    def escape_quoted: (String) -> String
+    def rfc5987_encode: (String) -> String
     def sniff_part_mime: (String?) -> String
     def redirect_status?: (Integer | String) -> bool
     def resolve_url: (String, String) -> String?
@@ -224,7 +227,7 @@
   class ValueSerializer
     def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
     def self.serialize_styled: (String, untyped, Symbol, String, Symbol?, String?, bool) -> untyped
-    def self.serialize_deep_object: (String, Hash[String, untyped]?) -> Hash[String, String]
+    def self.serialize_deep_object: (String, untyped) -> Hash[String, String]
     def self.encode_query_allowing_reserved: (String?) -> String
     def self.maybe_allow_reserved: (untyped, bool) -> untyped
 
@@ -267,6 +270,7 @@
     def self.model_type?: (String) -> bool
     def self.convert_to_type: (untyped, String) -> untyped
     def self.sanitize_for_serialization: (untyped, ?Set[Integer]) -> untyped
+    def self.sort_scalar_set: (Array[untyped]) -> Array[untyped]
     def self.deserialize_model: (untyped, untyped) -> untyped
     def self.apply_format_on_deserialize: (untyped, String?) -> untyped
     def self.apply_format_on_serialize: (untyped, String?) -> untyped
@@ -375,7 +379,8 @@
 {{#hasOAuth2AuthorizationCode}}
       class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?) -> void
+        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?, ?token_manager: OAuth2TokenManager?) -> void
+        attr_reader token_manager: OAuth2TokenManager
         def api_client=: (ApiClient) -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
@@ -400,6 +405,7 @@
         def exchange_code: (String) -> void
         private
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
+        def discover_delegate: () -> OAuth2AuthorizationCodeAuthenticator
         def parse_max_age: (Hash[String, String]?) -> Integer
         def parse_discovery: (String?) -> Hash[String, untyped]
       end
@@ -414,6 +420,8 @@
         def exchange: (String, Hash[String, String], ?Hash[String, String]) -> String
         def access_token=: (String) -> void
         def invalidate_access_token: () -> void
+        def mark_exchanged: () -> void
+        def exchanged?: () -> bool
         private
         def token_still_valid?: () -> bool
         def try_refresh_token: (String, Hash[String, String], Hash[String, String]) -> bool

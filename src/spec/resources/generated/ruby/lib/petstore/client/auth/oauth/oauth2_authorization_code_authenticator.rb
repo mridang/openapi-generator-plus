@@ -39,8 +39,10 @@ module Petstore::Client
         # @param redirect_uri [String] redirect URI registered with the OAuth2 provider
         # @param scopes [Array<String>] requested scopes
         # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
+        # @param token_manager [OAuth2TokenManager, nil] an existing session to
+        #   continue (used by OIDC rediscovery); a fresh one when nil
         def initialize(host, client_id, client_secret, authorization_url,
-                       token_url, redirect_uri, scopes, refresh_url: nil)
+                       token_url, redirect_uri, scopes, refresh_url: nil, token_manager: nil)
           super()
           @host = host
           @client_id = client_id
@@ -50,9 +52,14 @@ module Petstore::Client
           @refresh_url = refresh_url || token_url
           @redirect_uri = redirect_uri
           @scopes = scopes.freeze
-          @token_manager = OAuth2TokenManager.new
-          @token_exchanged = false
+          @token_manager = token_manager || OAuth2TokenManager.new
         end
+
+        # The token manager holding this authenticator's session.
+        #
+        # @api private
+        # @return [OAuth2TokenManager]
+        attr_reader :token_manager
 
         # Inject the shared API client for making token requests.
         #
@@ -107,12 +114,12 @@ module Petstore::Client
           # Always POST the new code (never the cache or the refresh path);
           # a rejected code keeps the previous session.
           @token_manager.exchange(@token_url, params)
-          @token_exchanged = true
+          @token_manager.mark_exchanged
         end
 
         # @return [Hash{String => String}]
         def auth_headers
-          raise 'Must call exchange_code before making API requests' unless @token_exchanged
+          raise 'Must call exchange_code before making API requests' unless @token_manager.exchanged?
 
           # RFC 6749 §6: the refresh authenticates the client the same way
           # the code exchange did.

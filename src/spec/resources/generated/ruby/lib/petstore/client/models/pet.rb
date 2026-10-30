@@ -78,6 +78,13 @@ module Petstore::Client
       }
       OPENAPI_FORMATS = openapi_formats.freeze
 
+      # Required properties whose schema also allows null. The key must be
+      # present, null is a legal value, and ::Petstore::Client::ObjectSerializer
+      # writes a nil value as an explicit null instead of omitting the key.
+      # @type var required_nullable: Hash[Symbol, bool]
+      required_nullable = {}
+      REQUIRED_NULLABLE = required_nullable.freeze
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym

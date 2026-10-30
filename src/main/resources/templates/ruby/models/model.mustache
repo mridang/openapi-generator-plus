@@ -402,6 +402,21 @@ module {{moduleName}}
       }
       OPENAPI_FORMATS = openapi_formats.freeze
 
+      # Required properties whose schema also allows null. The key must be
+      # present, null is a legal value, and ::{{moduleName}}::ObjectSerializer
+      # writes a nil value as an explicit null instead of omitting the key.
+      # @type var required_nullable: Hash[Symbol, bool]
+      required_nullable = {
+        {{#vars}}
+        {{#required}}
+        {{#isNullable}}
+        {{{name}}}: true,
+        {{/isNullable}}
+        {{/required}}
+        {{/vars}}
+      }
+      REQUIRED_NULLABLE = required_nullable.freeze
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym
@@ -459,7 +474,7 @@ module {{moduleName}}
       attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{^isEnum}}
-      attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      attribute :{{name}}, {{#isNullable}}Types::Any{{/isNullable}}{{^isNullable}}Types::Required{{/isNullable}}{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{/required}}
       {{^required}}

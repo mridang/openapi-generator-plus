@@ -843,6 +843,54 @@ describe Petstore::Client::ObjectSerializer do
     end
   end
 
+  describe 'format: uuid canonical form' do
+    it 'writes an uppercase uuid in lowercase hyphenated form' do
+      order = Petstore::Client::Models::Order.new(tracking_id: 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F')
+      _(Petstore::Client::ObjectSerializer.serialize(order)).must_include('"trackingId":"e621e1f8-c36c-495a-93fc-0c247a3e6e5f"')
+    end
+
+    it 'decodes an uppercase uuid to its lowercase form' do
+      order = Petstore::Client::ObjectSerializer.deserialize(
+        '{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}', 'Petstore::Client::Models::Order'
+      )
+      _(order.tracking_id).must_equal('e621e1f8-c36c-495a-93fc-0c247a3e6e5f')
+    end
+
+    it 'rejects a malformed uuid on decode' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', 'Petstore::Client::Models::Order')
+      end
+      _(err.message).must_equal('Invalid UUID for format: uuid: "not-a-uuid"')
+    end
+  end
+
+  describe 'uniqueItems arrays of scalars' do
+    it 'writes the elements in ascending order whatever the insertion order' do
+      2.times do
+        item = Petstore::Client::Models::Pet.new(name: 'n', photo_urls: Set['c', 'a', 'b'])
+        _(Petstore::Client::ObjectSerializer.serialize(item)).must_include('"photoUrls":["a","b","c"]')
+      end
+    end
+  end
+
+  describe 'required and nullable property' do
+    it 'decodes an explicit null to nil' do
+      model = Petstore::Client::ObjectSerializer.deserialize('{"note":null}', 'Petstore::Client::Models::RequiredNullable')
+      _(model.note).must_be_nil
+    end
+
+    it 'rejects a payload without the key' do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{}', 'Petstore::Client::Models::RequiredNullable')
+      end
+    end
+
+    it 'writes a nil value as an explicit null' do
+      model = Petstore::Client::Models::RequiredNullable.new(note: nil)
+      _(Petstore::Client::ObjectSerializer.serialize(model)).must_equal('{"note":null}')
+    end
+  end
+
   # ── format: time (Tod::TimeOfDay surface, 4.8) ──
 
   describe 'format: time round-tripping' do

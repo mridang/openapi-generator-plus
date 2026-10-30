@@ -432,7 +432,7 @@ module Petstore::Client
         end
 
         path = '/store/order/by-tracking/{trackingId}'
-        path = path.gsub('{trackingId}', ::Petstore::Client::ValueSerializer.serialize_styled('trackingId', tracking_id, :path, 'String', nil, 'simple', false).to_s)
+        path = path.gsub('{trackingId}', ::Petstore::Client::ValueSerializer.serialize_styled('trackingId', ::Petstore::Client::ObjectSerializer.validate_uuid(tracking_id), :path, 'String', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]

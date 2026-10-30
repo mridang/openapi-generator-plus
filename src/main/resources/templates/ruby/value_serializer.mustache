@@ -2,6 +2,7 @@
 
 {{>api_info}}
 
+require 'json'
 require 'uri'
 
 module {{moduleName}}
@@ -42,6 +43,10 @@ module {{moduleName}}
 
     def self.serialize(value, location, _schema_type, collection_format: nil)
       return serialize_nil(location) if value.nil?
+
+      # A uniqueItems array parameter is a Set; it expands exactly like an
+      # array, in the Set's iteration order.
+      value = value.to_a if value.is_a?(Set)
       return serialize_array(value, location, collection_format) if value.is_a?(Array)
 
       str_val = ObjectSerializer.stringify(value)
@@ -131,6 +136,9 @@ module {{moduleName}}
     # @param explode [Boolean] whether to explode array values
     # @return [String, Array<String>, nil] the serialized value
     def self.serialize_styled(param_name, value, location, schema_type, collection_format, style, explode)
+      # A uniqueItems array parameter is a Set; it expands exactly like an
+      # array, in the Set's iteration order.
+      value = value.to_a if value.is_a?(Set)
       # Path parameters are required components of the URL — accepting an
       # empty string would silently produce a malformed URL like
       # `/resource//details`, which most servers route to 404 instead of
@@ -224,16 +232,22 @@ module {{moduleName}}
     # stringified values, suitable for inclusion in a query string.
     #
     # @param param_name [String] the parameter name (e.g. 'filter')
-    # @param value [Hash, nil] the hash value to serialize
+    # A generated model is first reduced to its wire-named fields (unset
+    # fields omitted), so each bracketed key carries the JSON name.
+    #
+    # @param value [Hash, Object, nil] the hash or model value to serialize
     # @return [Hash{String => String}] expanded keys to serialized values
     def self.serialize_deep_object(param_name, value)
       # @type var empty: Hash[String, String]
       empty = {}
       return empty if value.nil?
 
+      fields = value.is_a?(Hash) ? value : JSON.parse(ObjectSerializer.serialize(value))
+      return empty unless fields.is_a?(Hash)
+
       # @type var acc: Hash[String, String]
       acc = {}
-      value.each_with_object(acc) do |(key, val), result|
+      fields.each_with_object(acc) do |(key, val), result|
         result["#{param_name}[#{key}]"] = ObjectSerializer.stringify(val)
       end
     end

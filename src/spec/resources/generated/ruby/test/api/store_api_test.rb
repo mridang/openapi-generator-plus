@@ -75,6 +75,47 @@ describe Petstore::Client::Api::StoreApi do
     end
   end
 
+  describe '#search_store uniqueItems query' do
+    it 'expands a Set of labels into one pair per element' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.search_store(Petstore::Client::Api::Options::SearchStoreOptions.new(labels: Set['red', 'blue']))
+        request_line = captured.pop[:request_line]
+        query = request_line.split[1].to_s.split('?', 2).last.to_s
+        _(query.split('&').sort).must_equal(%w[labels=blue labels=red])
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe '#get_order_by_tracking_id' do
+    it 'puts the lowercase hyphenated uuid in the path' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        api.get_order_by_tracking_id('E621E1F8-C36C-495A-93FC-0C247A3E6E5F')
+        request_line = captured.pop[:request_line]
+        _(request_line).must_equal('GET /store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f HTTP/1.1')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'rejects a malformed uuid before sending anything' do
+      api, server, thread, captured = capture_wire_request('{"id":1}')
+      begin
+        err = _ { api.get_order_by_tracking_id('not-a-uuid') }.must_raise(Petstore::Client::Errors::SerializationError)
+        _(err.message).must_equal('Invalid UUID for format: uuid: "not-a-uuid"')
+        _(captured.empty?).must_equal(true)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#get_inventory' do
     it 'returns inventory' do
       result = @api.get_inventory

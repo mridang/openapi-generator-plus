@@ -47,6 +47,23 @@ module Petstore::Client
           @access_token = nil
           @refresh_token = nil
           @token_expiry = nil
+          @exchanged = false
+        end
+
+        # Record that an authorization code was exchanged for this session.
+        # The flag lives here, with the tokens, so a delegate rebuilt around
+        # this manager (OIDC rediscovery) keeps the session.
+        #
+        # @return [void]
+        def mark_exchanged
+          @mutex.synchronize { @exchanged = true }
+        end
+
+        # Whether an authorization code has been exchanged for this session.
+        #
+        # @return [Boolean]
+        def exchanged?
+          @mutex.synchronize { @exchanged }
         end
 
         # Get a valid access token, fetching or refreshing as necessary.

@@ -307,7 +307,9 @@ module Petstore::Client
         visited.add(obj_id)
         begin
           case object
-          when Array, Set
+          when Set
+            sort_scalar_set(object.map { |item| sanitize_for_serialization(item, visited) })
+          when Array
             object.map { |item| sanitize_for_serialization(item, visited) }
           when Hash
             # @type var sanitized: Hash[untyped, untyped]
@@ -330,12 +332,19 @@ module Petstore::Client
           visited.add(obj_id)
           # @type var formats: Hash[Symbol, String]
           formats = object.class.const_defined?(:OPENAPI_FORMATS) ? object.class::OPENAPI_FORMATS : {}
+          # A required property whose schema allows null is written as null;
+          # every other nil property is omitted.
+          # @type var nulls_written: Hash[Symbol, bool]
+          nulls_written = object.class.const_defined?(:REQUIRED_NULLABLE) ? object.class::REQUIRED_NULLABLE : {}
           begin
             # @type var hash: Hash[untyped, untyped]
             hash = {}
             object.class::ATTRIBUTE_MAP.each do |attr, json_key|
               value = object.send(attr)
-              next if value.nil?
+              if value.nil?
+                hash[json_key] = nil if nulls_written.key?(attr)
+                next
+              end
 
               fmt = formats[attr]
               hash[json_key] = if fmt
@@ -372,6 +381,20 @@ module Petstore::Client
         else
           object.to_s
         end
+      end
+    end
+
+    # A uniqueItems array of scalars goes on the wire in ascending natural
+    # order (numbers numerically, strings by code point, false before true)
+    # so the same Set always yields the same bytes. A Set of objects, or of
+    # mixed kinds, keeps its own iteration order.
+    def self.sort_scalar_set(items)
+      if items.all?(String) || items.all?(Numeric)
+        items.sort
+      elsif items.all? { |item| [true, false].include?(item) }
+        items.sort_by { |item| item ? 1 : 0 }
+      else
+        items
       end
     end
 
@@ -573,7 +596,7 @@ module Petstore::Client
     # +byte+ — base64-decode the wire string into a binary-encoded
     # Ruby String. Strict mode rejects whitespace and trailing garbage.
     # +uuid+ — validate the wire string against {UUID_REGEX} and return
-    # it unchanged.
+    # it lowercased.
     def self.apply_format_on_deserialize(value, fmt)
       case fmt
       when 'byte'
@@ -613,10 +636,12 @@ module Petstore::Client
       end
     end
 
+    # Validate a `format: uuid` value and return its canonical form: lowercase
+    # 8-4-4-4-12 hex (RFC 9562 section 4). Any letter case is accepted.
     def self.validate_uuid(value)
       raise Errors::SerializationError, "Invalid UUID for format: uuid: #{value.inspect}" unless value.is_a?(String) && UUID_REGEX.match?(value)
 
-      value
+      value.downcase
     end
 
     # An absolute RFC 3986 URI: a scheme, ':' and no whitespace or control
@@ -710,7 +735,7 @@ module Petstore::Client
     # Apply +format+-specific encoding before JSON serialization.
     #
     # +byte+ — base64-encode the raw bytes (strict, no line breaks).
-    # +uuid+ — validate against {UUID_REGEX} and emit unchanged.
+    # +uuid+ — validate against {UUID_REGEX} and emit lowercased.
     def self.apply_format_on_serialize(value, fmt)
       case fmt
       when 'byte'

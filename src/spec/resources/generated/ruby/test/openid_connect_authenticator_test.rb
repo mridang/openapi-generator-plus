@@ -52,6 +52,28 @@ class FailingOidcClient
   end
 end
 
+# Client that answers every discovery request slowly, so concurrent callers
+# overlap, and counts how many discovery requests reached it.
+class SlowDiscoveryClient
+  attr_reader :discovery_count
+
+  def initialize(discovery)
+    @discovery = discovery
+    @discovery_count = 0
+    @lock = Mutex.new
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    @lock.synchronize { @discovery_count += 1 }
+    sleep 0.2
+    Petstore::Client::ApiHttpResponse.new(
+      status_code: 200,
+      body: @discovery.to_json,
+      headers: { 'content-type' => 'application/json', 'cache-control' => 'max-age=3600' }
+    )
+  end
+end
+
 describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
   parallelize_me!
 
@@ -370,6 +392,41 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
     _(auth.build_authorization_url).must_include 'https://auth.example.com/authorize?'
     _(auth.build_authorization_url).must_include 'https://auth.example.com/v2/authorize?'
+  end
+
+  it 'keeps the exchanged session across a rediscovery after max-age expiry' do
+    moved = { status: 200, headers: { 'cache-control' => 'max-age=3600' },
+              body: { 'authorization_endpoint' => 'https://auth.example.com/v2/authorize',
+                      'token_endpoint' => 'https://auth.example.com/v2/token' } }
+    client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }),
+                                 token_response, moved])
+    auth = oidc_authenticator(client)
+
+    auth.exchange_code('oidc_code_123')
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer oidc_tok'
+    _(discovery_requests(client).length).must_equal 2
+    _(client.requests.count { |r| r[:method] == :post }).must_equal 1
+    _(auth.build_authorization_url).must_include 'https://auth.example.com/v2/authorize?'
+  end
+
+  it 'keeps the old delegate when a rediscovery fails and retries on the next call' do
+    failed = { status: 500, body: { 'error' => 'unavailable' } }
+    client = FakeOidcClient.new([discovery_response.merge(headers: { 'cache-control' => 'max-age=0' }),
+                                 token_response, failed, discovery_response])
+    auth = oidc_authenticator(client)
+
+    auth.exchange_code('oidc_code_123')
+    assert_raises(Petstore::Client::Errors::InternalServerError) { auth.auth_headers }
+    _(auth.auth_headers['Authorization']).must_equal 'Bearer oidc_tok'
+    _(discovery_requests(client).length).must_equal 3
+  end
+
+  it 'issues one discovery request for concurrent callers on a cold authenticator' do
+    client = SlowDiscoveryClient.new(discovery_response[:body])
+    auth = oidc_authenticator(client)
+
+    Array.new(8) { Thread.new { auth.build_authorization_url } }.each(&:join)
+    _(client.discovery_count).must_equal 1
   end
 
   it 'shows the host, discovery URL and client id but not the secret in inspect' do

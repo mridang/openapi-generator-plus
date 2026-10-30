@@ -46,6 +46,7 @@ module Petstore::Client
           @api_client = nil
           @delegate = nil
           @discovery_expiry = Time.at(0)
+          @discovery_mutex = Mutex.new
         end
 
         # RFC 8414 recommended default max-age for OIDC discovery documents.
@@ -96,12 +97,27 @@ module Petstore::Client
         # header from the discovery response; falls back to the RFC 8414
         # recommended default of 86400 seconds when absent.
         #
+        # Rediscovery refreshes the endpoints only: the replacement delegate
+        # is built around the previous delegate's token manager, so the
+        # exchanged session survives it. A failed rediscovery leaves the old
+        # delegate and its expiry in place and raises; the next call retries.
+        # The fetch is single-flight: one discovery request at a time, with
+        # the expiry re-checked once the lock is held.
+        #
         # @return [OAuth2AuthorizationCodeAuthenticator]
         # @raise [RuntimeError] if the API client has not been injected
         # @raise [::Petstore::Client::Errors::ApiError] if the discovery request fails with a non-2xx status
         # @raise [::Petstore::Client::Errors::SerializationError] if the discovery document is unusable
         def resolve_delegate
-          return @delegate if @delegate && Time.now < @discovery_expiry
+          @discovery_mutex.synchronize { discover_delegate }
+        end
+
+        # The body of {#resolve_delegate}, run under the discovery lock.
+        #
+        # @return [OAuth2AuthorizationCodeAuthenticator]
+        def discover_delegate
+          current = @delegate
+          return current if current && Time.now < @discovery_expiry
 
           client = @api_client
           if client.nil?
@@ -128,15 +144,17 @@ module Petstore::Client
           raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'authorization_endpoint'" if authorization_endpoint.nil? || authorization_endpoint.to_s.strip.empty?
           raise ::Petstore::Client::Errors::SerializationError, "OIDC discovery document is missing 'token_endpoint'" if token_endpoint.nil? || token_endpoint.to_s.strip.empty?
 
-          @delegate = OAuth2AuthorizationCodeAuthenticator.new(
+          delegate = OAuth2AuthorizationCodeAuthenticator.new(
             @host, @client_id, @client_secret,
             authorization_endpoint,
             token_endpoint,
-            @redirect_uri, @scopes
+            @redirect_uri, @scopes,
+            token_manager: current&.token_manager
           )
-          @delegate.api_client = client
+          delegate.api_client = client
+          @delegate = delegate
           @discovery_expiry = Time.now + parse_max_age(response.headers)
-          @delegate
+          delegate
         end
 
         # @return [Hash] the discovery document

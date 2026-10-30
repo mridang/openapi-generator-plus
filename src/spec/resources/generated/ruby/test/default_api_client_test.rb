@@ -98,6 +98,22 @@ describe Petstore::Client::DefaultApiClient do
       json = JSON.parse(response.body)
       _(json['method']).must_equal('GET')
     end
+
+    it 'ignores the ambient proxy environment when no proxy is configured' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
+      bypass = %w[NO_PROXY no_proxy]
+      saved = (dead + bypass).to_h { |name| [name, ENV.fetch(name, nil)] }
+      dead.each { |name| ENV[name] = 'http://127.0.0.1:1' }
+      bypass.each { |name| ENV.delete(name) }
+
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.build)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+    ensure
+      saved&.each { |name, value| ENV[name] = value }
+    end
   end
 
   describe 'proxy with credentials' do
@@ -213,6 +229,32 @@ describe Petstore::Client::DefaultApiClient do
       error = _ { client.send_request(:GET, "#{chasm_url}/test/slow", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
       _(error.status_code).must_equal 0
       _(error.cause).wont_be_nil
+    end
+
+    it 'spends one budget across every redirect hop' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .timeout(1200)
+        .follow_redirects(true)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      error = _ { client.send_request(:GET, "#{chasm_url}/test/redirect/chain/1", {}, nil) }.must_raise Petstore::Client::Errors::NetworkTimeoutError
+      _(error.status_code).must_equal 0
+    end
+
+    it 'completes the redirect chain within a sufficient budget' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = Petstore::Client::TransportOptions.builder
+        .timeout(5000)
+        .follow_redirects(true)
+        .build
+
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/redirect/chain/1", {}, nil)
+      _(response.status_code).must_equal(200)
     end
   end
 
