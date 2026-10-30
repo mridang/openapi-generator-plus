@@ -89,6 +89,63 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       @Nullable String refreshUrl,
       String redirectUri,
       List<String> scopes) {
+    this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        refreshUrl,
+        redirectUri,
+        scopes,
+        new OAuth2TokenManager());
+  }
+
+  /**
+   * Create an authenticator around an existing token manager, so the session it holds (tokens and
+   * the exchanged flag) carries over. OpenID Connect uses this when a rediscovery names new
+   * endpoints.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param authorizationUrl authorization endpoint URL
+   * @param tokenUrl token endpoint URL
+   * @param redirectUri redirect URI registered with the provider
+   * @param scopes requested scopes
+   * @param tokenManager the token manager that owns the session
+   */
+  OAuth2AuthorizationCodeAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String authorizationUrl,
+      String tokenUrl,
+      String redirectUri,
+      List<String> scopes,
+      OAuth2TokenManager tokenManager) {
+    this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        null,
+        redirectUri,
+        scopes,
+        tokenManager);
+  }
+
+  private OAuth2AuthorizationCodeAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String authorizationUrl,
+      String tokenUrl,
+      @Nullable String refreshUrl,
+      String redirectUri,
+      List<String> scopes,
+      OAuth2TokenManager tokenManager) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -97,7 +154,16 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
     this.redirectUri = redirectUri;
     this.scopes = List.copyOf(scopes);
-    this.tokenManager = new OAuth2TokenManager();
+    this.tokenManager = tokenManager;
+  }
+
+  /**
+   * The token manager that owns this authenticator's session.
+   *
+   * @return the token manager
+   */
+  OAuth2TokenManager tokenManager() {
+    return tokenManager;
   }
 
   @Override

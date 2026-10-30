@@ -219,6 +219,12 @@ public final class DefaultApiClient implements ApiClient {
                 }
                 builder.proxy(
                         ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
+            } else {
+                /* TransportOptions.proxy is the only proxy source. Without a
+                 * selector HttpClient falls back to ProxySelector.getDefault(),
+                 * which honours the http(s).proxyHost JVM properties; a null
+                 * address selects a direct connection instead. */
+                builder.proxy(ProxySelector.of(null));
             }
 
             if (!transportOptions.isVerifySsl()) {
@@ -498,10 +504,17 @@ public final class DefaultApiClient implements ApiClient {
                 while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
                     String location = response.headers()
                             .firstValue("location").orElse(null);
-                    if (location == null) {
+                    /* An empty or unresolvable Location is unusable: stop and
+                     * return the 3xx untouched, exactly like a missing one. */
+                    if (location == null || location.isEmpty()) {
                         break;
                     }
-                    URI redirectUri = resolveLocation(originalUri, location);
+                    URI redirectUri;
+                    try {
+                        redirectUri = resolveLocation(originalUri, location);
+                    } catch (IllegalArgumentException unusableLocation) {
+                        break;
+                    }
                     /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
                      * data:, etc.). URI.resolve() preserves whatever scheme the
                      * server returned in Location, so a malicious or
@@ -565,6 +578,15 @@ public final class DefaultApiClient implements ApiClient {
                     if (!sameOrigin) {
                         redirectHeaders.keySet().removeIf(
                                 k -> isSensitiveHeader(SENSITIVE_HEADER_NAMES, k));
+                    }
+                    /* The SDK's own Proxy-Authorization authenticates to the
+                     * proxy, which is the same on every hop, so it survives the
+                     * caller-credential strip. It is not re-added on a
+                     * cross-origin hop to https, where it would travel inside the
+                     * tunnel to an unrelated origin. */
+                    if (proxyAuthHeader != null
+                            && (sameOrigin || "http".equalsIgnoreCase(redirectUri.getScheme()))) {
+                        redirectHeaders.put("Proxy-Authorization", proxyAuthHeader);
                     }
                     if (nextBody == NO_BODY
                             || ((statusCode == 303 || statusCode == 301 || statusCode == 302)
@@ -1218,7 +1240,17 @@ public final class DefaultApiClient implements ApiClient {
         if (ascii) {
             return "filename=\"" + escaped + "\"";
         }
-        String asciiFallback = filename.replaceAll("[^\\x20-\\x7E]", "_")
+        /* One '_' per Unicode code point (not per UTF-16 unit), so an emoji
+           outside the BMP becomes a single '_' as in the other SDKs. */
+        StringBuilder fallback = new StringBuilder();
+        filename.codePoints().forEach(cp -> {
+            if (cp < 0x20 || cp > 0x7E) {
+                fallback.append('_');
+            } else {
+                fallback.appendCodePoint(cp);
+            }
+        });
+        String asciiFallback = fallback.toString()
                 .replace("\\", "\\\\").replace("\"", "\\\"");
         /* Keep exactly the RFC 3986 unreserved set (RFC 5987 value-chars):
            URLEncoder leaves '*' literal and escapes '~' to %7E. */

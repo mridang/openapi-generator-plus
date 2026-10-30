@@ -568,6 +568,23 @@ class PetApiTest {
     }
 
     @Test
+    void getPetTagSendsQueryParametersInDeclarationOrder() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.getPetTag(5L, "cute", new GetPetTagOptions()
+                .revision("v1.0/beta:rc1")
+                .filter("f")
+                .sizes(List.of("x", "y"))
+                .colors(List.of("a", "b")));
+
+        String url = java.util.Objects.requireNonNull(capturing.capturedUrl);
+        assertThat(url.substring(url.indexOf('?') + 1))
+                .isEqualTo("colors=a%7Cb&sizes=x%20y&filter=f&revision=v1.0/beta:rc1");
+    }
+
+    @Test
     void getPetTagPercentEncodesAHashInAnAllowReservedValue() throws Exception {
         CapturingApiClient capturing = new CapturingApiClient();
         Configuration config = Configuration.builder().baseUrl("http://localhost").build();
@@ -701,6 +718,61 @@ class PetApiTest {
 
         assertNotNull(capturing.capturedUrl);
         assertThat(capturing.capturedUrl).contains("status=");
+    }
+
+    @Test
+    void setPetPreferencesFormBodyFollowsDeclarationOrder() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        Configuration config = Configuration.builder().baseUrl("http://localhost").build();
+        PetApi petApi = new PetApi(capturing, config);
+
+        petApi.setPetPreferences(1L, new SetPetPreferencesOptions("n")
+                .renewalDate(java.time.LocalDate.of(2025, 1, 2))
+                .note("m")
+                .tags(List.of("x", "y")));
+
+        assertNotNull(capturing.capturedBody);
+        assertThat(capturing.capturedBody.toString())
+                .isEqualTo("nickname=n&tags=x&tags=y&note=m&renewalDate=2025-01-02");
+    }
+
+    @Test
+    void uploadPetDocumentSendsPartsInDeclarationOrder() throws Exception {
+        final byte[][] capturedBody = new byte[1][];
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                    "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+                            .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        try {
+            String baseUrl = "http://localhost:" + server.getAddress().getPort();
+            Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+            PetApi petApi = new PetApi(new DefaultApiClient(), config);
+
+            petApi.uploadPetDocument(
+                    1L,
+                    new UploadPetDocumentOptions(new ByteArrayInputStream(new byte[] {1}))
+                            .notes("n")
+                            .documentType("d"));
+
+            assertNotNull(capturedBody[0]);
+            String wireText = new String(capturedBody[0], StandardCharsets.UTF_8);
+            int file = wireText.indexOf("Content-Disposition: form-data; name=\"file\"");
+            int documentType = wireText.indexOf("Content-Disposition: form-data; name=\"documentType\"");
+            int notes = wireText.indexOf("Content-Disposition: form-data; name=\"notes\"");
+            assertThat(file).isGreaterThanOrEqualTo(0);
+            assertThat(documentType).isGreaterThan(file);
+            assertThat(notes).isGreaterThan(documentType);
+        } finally {
+            server.stop(0);
+        }
     }
 
     @Test

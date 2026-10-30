@@ -20,6 +20,13 @@ public class Metadata {
   @Nullable
   public OffsetDateTime createdAt;
 
+  /* Wire names of the declared properties; an additional property with one of
+   * these keys is never serialised (the declared property wins). */
+  private static final java.util.Set<String> DECLARED_PROPERTY_NAMES =
+      java.util.Set.of("createdAt");
+
+  /* Not a property itself: the entries are written flat by the any-getter. */
+  @com.fasterxml.jackson.annotation.JsonIgnore
   private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
 
   /**
@@ -40,9 +47,13 @@ public class Metadata {
    */
   @com.fasterxml.jackson.annotation.JsonAnyGetter
   public java.util.Map<String, Object> getAdditionalProperties() {
-    /* Unmodifiable view so callers cannot mutate internal state through the
-     * accessor (SpotBugs EI_EXPOSE_REP-clean without a suppression). */
-    return java.util.Collections.unmodifiableMap(this.additionalProperties);
+    /* A key that equals a declared property's wire name is dropped here, so the
+     * declared value wins and the serialised object never carries a duplicate
+     * key. The copy is unmodifiable so callers cannot mutate internal state
+     * through the accessor (SpotBugs EI_EXPOSE_REP-clean without a suppression). */
+    java.util.Map<String, Object> extras = new java.util.LinkedHashMap<>(this.additionalProperties);
+    extras.keySet().removeAll(DECLARED_PROPERTY_NAMES);
+    return java.util.Collections.unmodifiableMap(extras);
   }
 
   /** Creates an empty instance. */

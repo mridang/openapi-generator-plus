@@ -115,12 +115,14 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     }
     String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
     String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
-    /* A document that names the same endpoints keeps the delegate: it
-     * holds the token from the code exchange, which a refresh of the
-     * discovery cache must not discard. */
+    /* The session (tokens and the exchanged flag) lives in the token
+     * manager, which outlives discovery: a document that names the same
+     * endpoints keeps the delegate, and one that names new endpoints gets
+     * a delegate built around the previous token manager, so a refresh of
+     * the discovery cache never discards the code exchange. */
     String endpoints = authorizationEndpoint + "\n" + tokenEndpoint;
     OAuth2AuthorizationCodeAuthenticator current = delegate;
-    if (current == null || !endpoints.equals(discoveredEndpoints)) {
+    if (current == null) {
       current =
           new OAuth2AuthorizationCodeAuthenticator(
               host,
@@ -130,9 +132,20 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
               tokenEndpoint,
               redirectUri,
               scopes);
-      delegate = current;
-      discoveredEndpoints = endpoints;
+    } else if (!endpoints.equals(discoveredEndpoints)) {
+      current =
+          new OAuth2AuthorizationCodeAuthenticator(
+              host,
+              clientId,
+              clientSecret,
+              authorizationEndpoint,
+              tokenEndpoint,
+              redirectUri,
+              scopes,
+              current.tokenManager());
     }
+    delegate = current;
+    discoveredEndpoints = endpoints;
     current.setApiClient(apiClient);
     discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
     return current;

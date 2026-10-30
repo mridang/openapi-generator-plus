@@ -27,6 +27,7 @@ import com.example.petstore.models.TreeNode;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -134,7 +135,7 @@ public class StoreApi extends BaseApi {
           "Missing the required parameter 'account' when calling StoreApi.createAccount");
     }
     String path = "/store/account";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "POST",
@@ -177,7 +178,7 @@ public class StoreApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "orderId", orderId, "path", "Long", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "DELETE",
@@ -250,7 +251,7 @@ public class StoreApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "pathSwatch", pathSwatch, "path", "Swatch", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.querySwatch() != null) {
       queryParams.put(
           "querySwatch",
@@ -303,7 +304,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<Defaults> getDefaultsWithHttpInfo() {
     String path = "/store/defaults";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -335,7 +336,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<Department> getDepartmentWithHttpInfo() {
     String path = "/store/department";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -367,7 +368,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<List<Map<String, Category>>> getGroupedCategoriesWithHttpInfo() {
     String path = "/store/grouped-categories";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -399,7 +400,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() {
     String path = "/store/inventory";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -431,7 +432,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<List<List<Integer>>> getMatrixWithHttpInfo() {
     String path = "/store/matrix";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -475,7 +476,7 @@ public class StoreApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "orderId", orderId, "path", "Long", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -519,7 +520,7 @@ public class StoreApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "trackingId", trackingId, "path", "UUID", null, "simple", false));
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -579,7 +580,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<StockItem> getStockItemWithHttpInfo(@Nullable GetStockItemOptions options) {
     String path = "/store/stock-item";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.asOf() != null) {
       queryParams.put(
           "asOf",
@@ -619,7 +620,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<Swatch> getSwatchWithHttpInfo() {
     String path = "/store/swatch";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -651,7 +652,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<List<Map<String, Swatch>>> getSwatchGroupsWithHttpInfo() {
     String path = "/store/swatch-groups";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -683,7 +684,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<List<Map<String, OffsetDateTime>>> getTimestampGroupsWithHttpInfo() {
     String path = "/store/timestamp-groups";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -715,7 +716,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<TreeNode> getTreeWithHttpInfo() {
     String path = "/store/tree";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "GET",
@@ -749,7 +750,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) {
     String path = "/store/order";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
         "POST",
@@ -809,7 +810,7 @@ public class StoreApi extends BaseApi {
    */
   public ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options) {
     String path = "/store/search";
-    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, Object> queryParams = new LinkedHashMap<>();
     if (options != null && options.q() != null) {
       queryParams.put("q", objectSerializer.serialize(options.q()));
     }

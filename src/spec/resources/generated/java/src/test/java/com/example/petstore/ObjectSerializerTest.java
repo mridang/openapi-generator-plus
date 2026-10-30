@@ -435,6 +435,36 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("time stringifies as HH:mm:ss, with .SSS only for a non-zero millisecond part")
+    void timeStringifiesAsPartialTime() {
+      assertEquals("10:30:00", ObjectSerializer.stringify(java.time.LocalTime.of(10, 30)));
+      assertEquals(
+          "10:30:00.123",
+          ObjectSerializer.stringify(java.time.LocalTime.of(10, 30, 0, 123_456_789)));
+      assertEquals(
+          "10:30:00.999",
+          ObjectSerializer.stringify(java.time.LocalTime.of(10, 30, 0, 999_600_000)));
+    }
+
+    @Test
+    @DisplayName("time body property uses the partial-time form and round-trips")
+    void bodyTimeUsesPartialTimeAndRoundTrips() {
+      com.example.petstore.models.EdgeCases edge = new com.example.petstore.models.EdgeCases();
+      edge.cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789);
+      String json = serializer.serialize(edge);
+      assertEquals("{\"cutoff\":\"10:30:00.123\"}", json);
+      com.example.petstore.models.EdgeCases decoded =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(json, com.example.petstore.models.EdgeCases.class));
+      assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), decoded.cutoff);
+      assertEquals(
+          "{\"cutoff\":\"10:30:00\"}",
+          serializer.serialize(
+              serializer.deserialize(
+                  "{\"cutoff\":\"10:30:00\"}", com.example.petstore.models.EdgeCases.class)));
+    }
+
+    @Test
     @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
     void roundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
@@ -515,6 +545,55 @@ class ObjectSerializerTest {
                       new com.fasterxml.jackson.core.type.TypeReference<
                           com.example.petstore.models.Category>() {}.getType()));
       assertNotNull(ex.getCause(), "exception should have a cause");
+    }
+
+    @Test
+    @DisplayName("null element in an array of models throws SerializationException")
+    void nullElementInModelArrayThrows() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "[null,{\"name\":\"a\",\"photoUrls\":[]}]",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          List<com.example.petstore.models.Pet>>() {}.getType()));
+      assertNullElementCause(ex);
+    }
+
+    @Test
+    @DisplayName("null value in a map of models throws SerializationException")
+    void nullValueInModelMapThrows() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"a\":null,\"b\":{\"name\":\"a\",\"photoUrls\":[]}}",
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          java.util.Map<String, com.example.petstore.models.Pet>>() {}.getType()));
+      assertNullElementCause(ex);
+    }
+
+    @Test
+    @DisplayName("null element in an array of strings is still decoded")
+    void nullElementInScalarArrayIsKept() {
+      List<String> values =
+          serializer.deserialize(
+              "[null,\"a\"]",
+              new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {}.getType());
+      assertEquals(Arrays.asList(null, "a"), values);
+    }
+
+    private void assertNullElementCause(SerializationException ex) {
+      com.fasterxml.jackson.databind.exc.MismatchedInputException cause =
+          assertInstanceOf(
+              com.fasterxml.jackson.databind.exc.MismatchedInputException.class, ex.getCause());
+      String message = java.util.Objects.requireNonNull(cause.getMessage());
+      assertTrue(
+          message.startsWith(
+              "Null element in an array or map of models; the items schema is not nullable"),
+          "unexpected message: " + message);
     }
 
     @Test
@@ -848,6 +927,29 @@ class ObjectSerializerTest {
       // (FAIL_ON_EMPTY_BEANS disabled).
       String json = serializer.serialize(new Object());
       assertEquals("{}", json);
+    }
+
+    @Test
+    @DisplayName("uniqueItems array of scalars is written in ascending order")
+    void uniqueScalarArrayIsSorted() {
+      com.example.petstore.models.Pet pet =
+          new com.example.petstore.models.Pet(
+              "item", new java.util.LinkedHashSet<>(List.of("c", "a", "b")));
+      String first = serializer.serialize(pet);
+      assertTrue(first.contains("\"photoUrls\":[\"a\",\"b\",\"c\"]"), first);
+      assertEquals(first, serializer.serialize(pet));
+    }
+
+    @Test
+    @DisplayName("scalar sets sort numerically and by code point")
+    void scalarSetsSortNumericallyAndByCodePoint() {
+      assertEquals(
+          List.of(2, 10, 100),
+          ObjectSerializer.sortedScalars(new java.util.LinkedHashSet<>(List.of(10, 100, 2))));
+      assertEquals(
+          List.of("B", "a", "�", "😀"),
+          ObjectSerializer.sortedScalars(
+              new java.util.LinkedHashSet<>(List.of("😀", "a", "�", "B"))));
     }
 
     @Test

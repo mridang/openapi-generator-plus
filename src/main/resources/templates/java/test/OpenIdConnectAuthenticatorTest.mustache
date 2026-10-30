@@ -356,6 +356,103 @@ class OpenIdConnectAuthenticatorTest {
                 .startsWith("https://login.example.com/authorize?"));
     }
 
+    @Test
+    void rediscoveryWithNewEndpointsKeepsTheExchangedSession() {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        var posts = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                String host = gets.incrementAndGet() == 1 ? "auth" : "login";
+                return new ApiHttpResponse(200,
+                        "{\"authorization_endpoint\":\"https://" + host + ".example.com/authorize\","
+                                + "\"token_endpoint\":\"https://" + host + ".example.com/token\"}",
+                        Map.of("Cache-Control", "max-age=0"));
+            }
+            posts.incrementAndGet();
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+        Map<String, String> headers = auth.getAuthHeaders();
+
+        assertEquals("Bearer oidc-tok", headers.get("Authorization"));
+        assertEquals(2, gets.get());
+        assertEquals(1, posts.get());
+        assertTrue(auth.buildAuthorizationUrl(null)
+                .startsWith("https://login.example.com/authorize?"));
+    }
+
+    @Test
+    void failedRediscoveryKeepsTheOldDelegate() {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        var posts = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                if (gets.incrementAndGet() == 2) {
+                    return new ApiHttpResponse(500, "{}", Map.of());
+                }
+                return new ApiHttpResponse(200, DISCOVERY_RESPONSE,
+                        Map.of("Cache-Control", "max-age=0"));
+            }
+            posts.incrementAndGet();
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        auth.exchangeCode("oidc-code");
+        assertThrowsExactly(InternalServerErrorException.class, auth::getAuthHeaders);
+        Map<String, String> headers = auth.getAuthHeaders();
+
+        assertEquals("Bearer oidc-tok", headers.get("Authorization"));
+        assertEquals(3, gets.get());
+        assertEquals(1, posts.get());
+    }
+
+    @Test
+    void concurrentCallsOnAColdAuthenticatorDiscoverOnce() throws Exception {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            gets.incrementAndGet();
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new ApiHttpResponse(200, DISCOVERY_RESPONSE, Map.of());
+        };
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        java.util.concurrent.ExecutorService pool =
+                java.util.concurrent.Executors.newFixedThreadPool(8);
+        try {
+            java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+            List<java.util.concurrent.Future<String>> results = new java.util.ArrayList<>();
+            for (int i = 0; i < 8; i++) {
+                results.add(pool.submit(() -> {
+                    start.await();
+                    return auth.buildAuthorizationUrl(null);
+                }));
+            }
+            start.countDown();
+            for (java.util.concurrent.Future<String> result : results) {
+                assertTrue(result.get().startsWith("https://auth.example.com/authorize?"));
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertEquals(1, gets.get());
+    }
+
     /**
      * The default {@code toString()} must mask the stored client secret: the
      * secret value must be absent and a {@code ***} redaction marker present.

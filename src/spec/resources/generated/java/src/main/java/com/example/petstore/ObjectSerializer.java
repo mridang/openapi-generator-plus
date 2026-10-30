@@ -18,6 +18,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.StreamReadConstraints;
+import com.fasterxml.jackson.databind.BeanDescription;
+import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
@@ -29,9 +31,13 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
+import com.fasterxml.jackson.databind.deser.BeanDeserializerModifier;
+import com.fasterxml.jackson.databind.deser.std.DelegatingDeserializer;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.databind.type.LogicalType;
+import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
@@ -76,6 +82,13 @@ public final class ObjectSerializer {
    */
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSxxx");
+
+  /** RFC 3339 partial-time for a whole-second {@code format: time} value. */
+  private static final DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss");
+
+  /** RFC 3339 partial-time with a fixed three-digit millisecond fraction. */
+  private static final DateTimeFormatter TIME_MILLIS_FORMATTER =
+      DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
   private final ObjectMapper objectMapper;
 
@@ -173,9 +186,8 @@ public final class ObjectSerializer {
     }
     if (value instanceof java.time.LocalTime lt) {
       /* A format:time value has no date or offset, so the offset-bearing
-      ISO_OFFSET_DATE_TIME below would throw on it. ISO_LOCAL_TIME emits
-      HH:mm[:ss[.SSS]] and preserves any sub-second fraction. */
-      return DateTimeFormatter.ISO_LOCAL_TIME.format(lt);
+      formatter below would throw on it. */
+      return formatTime(lt);
     }
     if (value instanceof java.time.LocalDateTime ldt) {
       /* A local date-time carries no offset, so ISO_OFFSET_DATE_TIME would
@@ -445,6 +457,12 @@ public final class ObjectSerializer {
         /* format: byte and format: uri are validated on decode, so a
         malformed value fails here instead of being accepted. */
         .addModule(strictFormatModule())
+        /* A null element in an array or map of models fails the decode
+        instead of reaching the caller as a null entry. */
+        .addModule(nullModelElementModule())
+        /* A uniqueItems array of scalars goes on the wire sorted, so the
+        bytes do not depend on the caller's insertion order. */
+        .addModule(sortedScalarSetModule())
         .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
         .build();
   }
@@ -514,6 +532,192 @@ public final class ObjectSerializer {
   }
 
   /**
+   * Build a Jackson module that rejects a JSON {@code null} element in an array or map whose
+   * element type is a generated model.
+   *
+   * <p>JSON null is not an object, so {@code [null, {...}]} does not match an array-of-model
+   * schema. Jackson keeps the null by default; the element type carries no nullability, so a null
+   * model element is always rejected, as in the other SDKs that cannot express a nullable element.
+   *
+   * @return the null-element module
+   */
+  private static SimpleModule nullModelElementModule() {
+    SimpleModule module = new SimpleModule();
+    module.setDeserializerModifier(
+        new BeanDeserializerModifier() {
+          @Override
+          public JsonDeserializer<?> modifyCollectionDeserializer(
+              DeserializationConfig config,
+              CollectionType type,
+              BeanDescription beanDesc,
+              JsonDeserializer<?> deserializer) {
+            return isModelType(type.getContentType())
+                ? new NullModelElementDeserializer(deserializer)
+                : deserializer;
+          }
+
+          @Override
+          public JsonDeserializer<?> modifyMapDeserializer(
+              DeserializationConfig config,
+              MapType type,
+              BeanDescription beanDesc,
+              JsonDeserializer<?> deserializer) {
+            return isModelType(type.getContentType())
+                ? new NullModelElementDeserializer(deserializer)
+                : deserializer;
+          }
+        });
+    return module;
+  }
+
+  /**
+   * Build a Jackson module that writes a {@link java.util.Set} of scalars in ascending natural
+   * order.
+   *
+   * <p>A uniqueItems array is semantically a set, so reordering it is not a data change; sorting
+   * makes every SDK emit identical bytes. Numbers sort numerically, strings, enums and other
+   * string-encoded scalars by the Unicode code points of their wire text. A set holding anything
+   * else (models, free-form objects, mixed kinds) keeps the set's own order.
+   *
+   * @return the sorted-set module
+   */
+  @SuppressWarnings("rawtypes")
+  private static SimpleModule sortedScalarSetModule() {
+    SimpleModule module = new SimpleModule();
+    module.addSerializer(
+        java.util.Set.class,
+        new JsonSerializer<java.util.Set>() {
+          @Override
+          public void serialize(java.util.Set value, JsonGenerator gen, SerializerProvider provider)
+              throws IOException {
+            provider.defaultSerializeValue(sortedScalars(value), gen);
+          }
+
+          @Override
+          public boolean isEmpty(SerializerProvider provider, java.util.Set value) {
+            return value.isEmpty();
+          }
+        });
+    return module;
+  }
+
+  /**
+   * Copy a set into a list, sorted when every element is the same kind of scalar and in the set's
+   * own order otherwise.
+   *
+   * @param values the set to order
+   * @return the elements in wire order
+   */
+  static List<Object> sortedScalars(java.util.Set<?> values) {
+    List<Object> ordered = new java.util.ArrayList<>(values);
+    if (ordered.size() < 2) {
+      return ordered;
+    }
+    boolean numbers = true;
+    boolean booleans = true;
+    boolean texts = true;
+    for (Object element : ordered) {
+      numbers &= element instanceof Number number && isFinite(number);
+      booleans &= element instanceof Boolean;
+      texts &=
+          element instanceof CharSequence
+              || element instanceof Enum<?>
+              || element instanceof java.util.UUID
+              || element instanceof java.net.URI
+              || element instanceof TemporalAccessor;
+    }
+    if (numbers) {
+      ordered.sort(
+          java.util.Comparator.comparing(
+              element -> new java.math.BigDecimal(String.valueOf(element))));
+    } else if (booleans) {
+      ordered.sort(java.util.Comparator.comparing(element -> (Boolean) element));
+    } else if (texts) {
+      ordered.sort((left, right) -> compareCodePoints(stringify(left), stringify(right)));
+    }
+    return ordered;
+  }
+
+  private static boolean isFinite(Number number) {
+    return !(number instanceof Double d && !Double.isFinite(d))
+        && !(number instanceof Float f && !Float.isFinite(f));
+  }
+
+  /**
+   * Compare two strings by Unicode code point, not by UTF-16 unit, so a supplementary character
+   * sorts after U+FFFF as in the other SDKs.
+   */
+  private static int compareCodePoints(String left, String right) {
+    int i = 0;
+    int j = 0;
+    while (i < left.length() && j < right.length()) {
+      int a = left.codePointAt(i);
+      int b = right.codePointAt(j);
+      if (a != b) {
+        return Integer.compare(a, b);
+      }
+      i += Character.charCount(a);
+      j += Character.charCount(b);
+    }
+    return Integer.compare(left.length() - i, right.length() - j);
+  }
+
+  private static boolean isModelType(JavaType type) {
+    Class<?> raw = type.getRawClass();
+    return !raw.isEnum() && "com.example.petstore.models".equals(raw.getPackageName());
+  }
+
+  /**
+   * Wraps a collection or map deserializer and fails when the decoded container holds a null
+   * element.
+   */
+  private static final class NullModelElementDeserializer extends DelegatingDeserializer {
+
+    private static final long serialVersionUID = 1L;
+
+    NullModelElementDeserializer(JsonDeserializer<?> delegate) {
+      super(delegate);
+    }
+
+    @Override
+    protected JsonDeserializer<?> newDelegatingInstance(JsonDeserializer<?> newDelegatee) {
+      return new NullModelElementDeserializer(newDelegatee);
+    }
+
+    @Override
+    public Object deserialize(JsonParser parser, DeserializationContext context)
+        throws IOException {
+      Object value = _delegatee.deserialize(parser, context);
+      Iterable<?> elements =
+          value instanceof java.util.Map<?, ?> map ? map.values() : (Iterable<?>) value;
+      for (Object element : elements) {
+        if (element == null) {
+          return context.reportInputMismatch(
+              this, "Null element in an array or map of models; the items schema is not nullable");
+        }
+      }
+      return value;
+    }
+  }
+
+  /**
+   * Format a {@code format: time} value as RFC 3339 partial-time.
+   *
+   * <p>The value is {@code HH:mm:ss}, plus {@code .SSS} only when the millisecond part is non-zero.
+   * Sub-millisecond digits are truncated, never rounded, matching the date-time encoding and the
+   * other eleven SDKs.
+   *
+   * @param value the time of day
+   * @return the partial-time text
+   */
+  public static String formatTime(java.time.LocalTime value) {
+    java.time.LocalTime millis = value.truncatedTo(java.time.temporal.ChronoUnit.MILLIS);
+    return millis.get(java.time.temporal.ChronoField.MILLI_OF_SECOND) == 0
+        ? TIME_FORMATTER.format(millis)
+        : TIME_MILLIS_FORMATTER.format(millis);
+  }
+
+  /**
    * Build a Jackson module that serializes {@link OffsetDateTime} with {@link #DATE_TIME_FORMATTER}
    * so JSON bodies carry the canonical {@code YYYY-MM-DDTHH:mm:ss.SSS+00:00} shape (fixed
    * three-digit millis, numeric offset, never {@code Z}) — identical to the parameter path and the
@@ -532,6 +736,19 @@ public final class ObjectSerializer {
               OffsetDateTime value, JsonGenerator gen, SerializerProvider provider)
               throws IOException {
             gen.writeString(DATE_TIME_FORMATTER.format(value));
+          }
+        });
+    /* JavaTimeModule writes a LocalTime with ISO_LOCAL_TIME, which keeps up
+    to nine fraction digits and drops ":00" seconds; bodies use the same
+    partial-time form as parameters instead. */
+    module.addSerializer(
+        java.time.LocalTime.class,
+        new JsonSerializer<java.time.LocalTime>() {
+          @Override
+          public void serialize(
+              java.time.LocalTime value, JsonGenerator gen, SerializerProvider provider)
+              throws IOException {
+            gen.writeString(formatTime(value));
           }
         });
     /* JavaTimeModule's own deserializer also accepts a JSON number (epoch

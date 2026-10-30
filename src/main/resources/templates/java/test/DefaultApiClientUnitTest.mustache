@@ -986,6 +986,71 @@ class DefaultApiClientUnitTest {
     assertTrue(directive.contains("a\\\"b.txt"));
   }
 
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.CsvSource(
+      delimiter = '|',
+      quoteCharacter = '`',
+      value = {
+        "résumé*(1).pdf | filename=\"r_sum_*(1).pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf",
+        "a\"b\\c.txt | filename=\"a\\\"b\\\\c.txt\"",
+        "😀.png | filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+        "plain.txt | filename=\"plain.txt\""
+      })
+  void multipartFilenameDirectiveFollowsTheCanonicalRule(String filename, String expected) {
+    assertEquals(expected, DefaultApiClient.buildFilenameDirective(filename));
+  }
+
+  @Test
+  void proxyAuthorizationSurvivesACrossOriginHttpRedirect() throws Exception {
+    final java.util.concurrent.atomic.AtomicReference<String> seenProxyAuth =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenAuth =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenTarget =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    HttpServer proxy = HttpServer.create(new InetSocketAddress(0), 0);
+    proxy.createContext(
+        "/x",
+        exchange -> {
+          if (exchange.getRequestHeaders().getFirst("Proxy-Authorization") != null) {
+            exchange.getResponseHeaders().add("Location", "http://b.test/y");
+            exchange.sendResponseHeaders(302, -1);
+          } else {
+            exchange.sendResponseHeaders(407, -1);
+          }
+          exchange.close();
+        });
+    proxy.createContext(
+        "/y",
+        exchange -> {
+          seenTarget.set(exchange.getRequestURI().toString());
+          seenProxyAuth.set(exchange.getRequestHeaders().getFirst("Proxy-Authorization"));
+          seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    proxy.start();
+    try {
+      TransportOptions transport =
+          TransportOptions.builder()
+              .proxy("http://user:pass@localhost:" + proxy.getAddress().getPort())
+              .followRedirects(true)
+              .build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer caller-secret");
+      ApiHttpResponse response = client.sendRequest("GET", "http://a.test/x", headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals("http://b.test/y", seenTarget.get());
+      assertEquals(
+          "Basic " + Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8)),
+          seenProxyAuth.get());
+      assertNull(seenAuth.get(), "the caller's Authorization must be stripped cross-origin");
+    } finally {
+      proxy.stop(0);
+    }
+  }
+
   @Test
   void multipartFilenameCRLFRejected() {
     assertThrows(IllegalArgumentException.class,
