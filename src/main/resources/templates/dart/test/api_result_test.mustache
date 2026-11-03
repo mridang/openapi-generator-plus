@@ -1,0 +1,37 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ApiResult', () {
+    test('exposes data, status code, raw body, and headers', () {
+      const result = ApiResult<String>(
+        statusCode: 200,
+        data: 'payload',
+        rawBody: '{"value":"payload"}',
+        headers: {'content-type': 'application/json'},
+      );
+
+      expect(result.statusCode, equals(200));
+      expect(result.data, equals('payload'));
+      expect(result.rawBody, equals('{"value":"payload"}'));
+      expect(result.headers, equals({'content-type': 'application/json'}));
+    });
+
+    test('data is null when the response body was empty', () {
+      const result = ApiResult<String>(
+        statusCode: 204,
+        data: null,
+        rawBody: '',
+        headers: {},
+      );
+
+      expect(result.statusCode, equals(204));
+      expect(result.data, isNull);
+      expect(result.rawBody, isEmpty);
+      expect(result.headers, isEmpty);
+    });
+  });
+}
+{{/generateTests}}

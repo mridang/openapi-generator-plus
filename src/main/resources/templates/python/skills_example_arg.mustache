@@ -1,0 +1,1 @@
+{{#isModel}}{{{dataType}}}.model_construct(){{/isModel}}{{^isModel}}{{#isString}}"value"{{/isString}}{{^isString}}{{#isLong}}1{{/isLong}}{{^isLong}}{{#isInteger}}1{{/isInteger}}{{^isInteger}}{{#isArray}}[]{{/isArray}}{{^isArray}}None{{/isArray}}{{/isInteger}}{{/isLong}}{{/isString}}{{/isModel}}

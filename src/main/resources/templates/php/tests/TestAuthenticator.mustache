@@ -1,0 +1,42 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\Authenticator;
+
+class TestAuthenticator implements Authenticator
+{
+    /**
+     * @param array<string, string> $headers
+     * @param array<string, string> $queryParams
+     * @param array<string, string> $cookies
+     */
+    public function __construct(
+        private readonly array $headers = [],
+        private readonly array $queryParams = [],
+        private readonly array $cookies = []
+    ) {
+    }
+
+    public function getHost(): string
+    {
+        return '';
+    }
+
+    public function getAuthHeaders(): array
+    {
+        return $this->headers;
+    }
+
+    public function getQueryParams(): array
+    {
+        return $this->queryParams;
+    }
+
+    public function getCookieParams(): array
+    {
+        return $this->cookies;
+    }
+}

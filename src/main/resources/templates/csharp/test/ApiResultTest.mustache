@@ -1,0 +1,67 @@
+{{>api_info}}
+
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+public class ApiResultTest
+{
+    [Fact]
+    public void ExposesStatusCodeDataRawBodyAndHeaders()
+    {
+        var headers = new Dictionary<string, string>
+        {
+            ["Content-Type"] = "application/json",
+            ["X-Request-Id"] = "abc123",
+        };
+
+        var result = new ApiResult<string>(200, "payload", "\"payload\"", headers);
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal("payload", result.Data);
+        Assert.Equal("\"payload\"", result.RawBody);
+        Assert.Equal("application/json", result.Headers["Content-Type"]);
+        Assert.Equal("abc123", result.Headers["X-Request-Id"]);
+    }
+
+    [Fact]
+    public void DataIsNullForVoidResponses()
+    {
+        var result = new ApiResult<string>(
+            204,
+            null,
+            string.Empty,
+            new Dictionary<string, string>()
+        );
+
+        Assert.Equal(204, result.StatusCode);
+        Assert.Null(result.Data);
+        Assert.Equal(string.Empty, result.RawBody);
+        Assert.Empty(result.Headers);
+    }
+
+    [Fact]
+    public void HeadersAreReadOnly()
+    {
+        var source = new Dictionary<string, string> { ["X-Key"] = "value" };
+        var result = new ApiResult<int>(200, 42, "42", source);
+
+        // Mutating the source dictionary after construction must not leak
+        // into the result: the headers are defensively copied.
+        source["X-Key"] = "mutated";
+        source["X-New"] = "added";
+
+        Assert.Equal("value", result.Headers["X-Key"]);
+        Assert.False(result.Headers.ContainsKey("X-New"));
+        Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(result.Headers);
+    }
+
+    [Fact]
+    public void CarriesTypedValueData()
+    {
+        var result = new ApiResult<int>(200, 42, "42", new Dictionary<string, string>());
+
+        Assert.Equal(42, result.Data);
+    }
+}

@@ -1,0 +1,30 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Api.Options.{{className}} do
+  @moduledoc """
+  Options for the `{{operationId}}` operation.
+  """
+
+  @type t :: %__MODULE__{
+{{#params}}
+{{#deprecated}}
+          # @deprecated This parameter is deprecated.
+{{/deprecated}}
+          {{name}}: {{{typespec}}}{{^-last}},{{/-last}}{{#-last}}{{#hasAuthField}},{{/hasAuthField}}{{/-last}}
+{{/params}}
+{{#hasAuthField}}
+          auth: term() | nil
+{{/hasAuthField}}
+        }
+
+  defstruct [
+{{#params}}
+    {{name}}: nil{{^-last}},{{/-last}}{{#-last}}{{#hasAuthField}},{{/hasAuthField}}{{/-last}}
+{{/params}}
+{{#hasAuthField}}
+    # Overrides the client's configured credentials for this call only.
+    # Falls back to the API instance's configured authenticator when nil.
+    auth: nil
+{{/hasAuthField}}
+  ]
+end

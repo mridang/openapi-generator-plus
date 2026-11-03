@@ -1,0 +1,55 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.errors.ApiException
+
+/**
+ * Interface for API HTTP transport.
+ *
+ * Implementations handle the actual HTTP request/response cycle.
+ * The default implementation uses Ktor's `HttpClient`.
+ */
+interface ApiClient : AutoCloseable {
+    /**
+     * Send an HTTP request, optionally refusing to follow redirects.
+     *
+     * When [noRedirect] is true, any 3xx response (including 307/308) is
+     * returned to the caller as-is rather than being replayed to the
+     * `Location` target. OAuth2 token/revoke/authorize endpoint POSTs use this
+     * guard so a malicious or misconfigured server cannot replay the
+     * credentialed body to an attacker-controlled URL.
+     *
+     * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param url Fully qualified URL
+     * @param headers HTTP headers
+     * @param body Request body (serialized JSON string, ByteArray for binary, or
+     *   `Map<String, Any?>` for multipart form data; may be null)
+     * @param noRedirect when `true`, do not follow 3xx responses; defaults to false
+     * @return ApiHttpResponse containing status code, body, and headers
+     * @throws ApiException if the request fails
+     */
+    suspend fun sendRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+        noRedirect: Boolean = false,
+    ): ApiHttpResponse
+
+    /**
+     * Releases any resources held by this client (connection pool, executor
+     * threads, sockets). Default implementation is a no-op; implementations
+     * that own a pooled HTTP client should override and dispose of it.
+     *
+     * Use with Kotlin's `use { }`:
+     * ```
+     * DefaultApiClient().use { client ->
+     *     // ... make requests ...
+     * }
+     * ```
+     */
+    override fun close() {
+        // No-op by default. Implementations override to release resources.
+    }
+}

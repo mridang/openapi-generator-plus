@@ -1,0 +1,80 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.MountableFile;
+
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Singleton Chasm mock server container shared across all test classes.
+ */
+public final class ChasmContainer {
+
+    /** Shared Docker network so Squid can reach Chasm via container alias. */
+    static final Network PROXY_NETWORK = Network.newNetwork();
+
+    private static final GenericContainer<?> INSTANCE;
+
+    static {
+        INSTANCE = new GenericContainer<>("mridang/chasm:1.3.0")
+            .withExposedPorts(4010, 8443)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
+                "/tmp/openapi.yaml")
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server.pem")),
+                "/certs/cert.pem")
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-key.pem")),
+                "/certs/key.pem")
+            .withCommand("mock", "/tmp/openapi.yaml", "--host", "0.0.0.0",
+                "--tls-cert", "/certs/cert.pem",
+                "--tls-key", "/certs/key.pem",
+                "--tls-port", "8443")
+            .withNetwork(PROXY_NETWORK)
+            .withNetworkAliases("chasm")
+            .waitingFor(Wait.forLogMessage(".*Listening on.*", 1))
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true");
+        INSTANCE.start();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            if (INSTANCE != null && INSTANCE.isRunning()) {
+                INSTANCE.stop();
+            }
+            if (PROXY_NETWORK != null) {
+                try {
+                    PROXY_NETWORK.close();
+                } catch (Exception e) {
+                    e.printStackTrace(System.err);
+                }
+            }
+        }));
+    }
+
+    private ChasmContainer() {}
+
+    public static String getBaseUrl() {
+        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(4010);
+    }
+
+    public static String getHttpsBaseUrl() {
+        return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
+    }
+
+    public static int getHttpsPort() {
+        return INSTANCE.getMappedPort(8443);
+    }
+
+    public static String getInternalHttpUrl() {
+        return "http://chasm:4010";
+    }
+
+    public static String getInternalHttpsUrl() {
+        return "https://chasm:8443";
+    }
+}

@@ -1,0 +1,20 @@
+
+package {{package}}
+
+{{#imports}}
+import {{.}}
+{{/imports}}
+
+/**
+ * Authenticator for the `{{schemeName}}` security scheme.
+ */
+class {{className}} : {{baseClass}} {
+    /**
+     * Creates an authenticator for the `{{schemeName}}` security scheme.
+     *
+{{#constructorParams}}
+     * @param {{name}} the {{name}} credential
+{{/constructorParams}}
+     */
+    constructor({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) : super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})
+}

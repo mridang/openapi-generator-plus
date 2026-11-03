@@ -1,0 +1,35 @@
+module Petstore::Client
+  module Api
+    class StoreApi < BaseApi
+      def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator) -> void
+      def delete_order: (Integer order_id) -> void
+      def delete_order_with_http_info: (Integer order_id) -> ::Petstore::Client::ApiResult[nil]
+      def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
+      def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
+      def get_defaults: () -> Models::Defaults
+      def get_defaults_with_http_info: () -> ::Petstore::Client::ApiResult[Models::Defaults]
+      def get_department: () -> Models::Department
+      def get_department_with_http_info: () -> ::Petstore::Client::ApiResult[Models::Department]
+      def get_grouped_categories: () -> Array[Hash[String, Models::Category]]
+      def get_grouped_categories_with_http_info: () -> ::Petstore::Client::ApiResult[Array[Hash[String, Models::Category]]]
+      def get_inventory: () -> Hash[String, Integer]
+      def get_inventory_with_http_info: () -> ::Petstore::Client::ApiResult[Hash[String, Integer]]
+      def get_matrix: () -> Array[Array[Integer]]
+      def get_matrix_with_http_info: () -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
+      def get_order_by_id: (Integer order_id) -> Models::Order
+      def get_order_by_id_with_http_info: (Integer order_id) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_stock_item: (?Options::GetStockItemOptions? options) -> Models::StockItem
+      def get_stock_item_with_http_info: (?Options::GetStockItemOptions? options) -> ::Petstore::Client::ApiResult[Models::StockItem]
+      def get_swatch: () -> Models::Swatch
+      def get_swatch_with_http_info: () -> ::Petstore::Client::ApiResult[Models::Swatch]
+      def get_swatch_groups: () -> Array[Hash[String, Models::Swatch]]
+      def get_swatch_groups_with_http_info: () -> ::Petstore::Client::ApiResult[Array[Hash[String, Models::Swatch]]]
+      def get_timestamp_groups: () -> Array[Hash[String, Time]]
+      def get_timestamp_groups_with_http_info: () -> ::Petstore::Client::ApiResult[Array[Hash[String, Time]]]
+      def get_tree: () -> Models::TreeNode
+      def get_tree_with_http_info: () -> ::Petstore::Client::ApiResult[Models::TreeNode]
+      def place_order: (Models::Order? order) -> Models::Order
+      def place_order_with_http_info: (Models::Order? order) -> ::Petstore::Client::ApiResult[Models::Order]
+    end
+  end
+end

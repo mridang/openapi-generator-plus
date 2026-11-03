@@ -3,7 +3,7 @@ name: Run Tests
 on: push
 
 permissions:
-  contents: write
+  contents: read
 
 defaults:
   run:
@@ -14,6 +14,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Runner Common Setup
+        uses: mridang/action-runner-common@v1
+        with:
+          # Polyglot test matrix pulls ~12 GB of language images during the
+          # job. Free runner bloat (Android SDK, .NET, Haskell, CodeQL,
+          # PyPy, etc.) up front so the post-step bin-pack has room to
+          # actually save those images to cache.
+          docker-cache-free-disk: 'true'
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -42,7 +51,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
         with:
-          java-version: '17'
+          java-version: '25'
           distribution: 'corretto'
           cache: maven
 

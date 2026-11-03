@@ -1,0 +1,11 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+module {{moduleName}}
+  module Errors
+    # Exception for a request that timed out. The status code is always 0;
+    # the underlying library error is kept as +cause+.
+    class NetworkTimeoutError < NetworkError
+    end
+  end
+end

@@ -1,0 +1,9 @@
+module Petstore::Client
+  module Auth
+    module OAuth
+      class BrowserAuthImplicitAuthenticator < OAuth2ImplicitAuthenticator
+        def initialize: (String host, String client_id) -> void
+      end
+    end
+  end
+end

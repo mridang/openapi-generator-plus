@@ -1,0 +1,17 @@
+#nullable enable
+
+namespace PetstoreClient.Api.Options;
+
+/// <summary>
+/// Options for the SetPetPreferences operation.
+/// </summary>
+public sealed class SetPetPreferencesOptions
+{
+    public required string Nickname { get; init; }
+
+    public List<string>? Tags { get; init; }
+
+    public string? Note { get; init; }
+
+    public DateOnly? RenewalDate { get; init; }
+}

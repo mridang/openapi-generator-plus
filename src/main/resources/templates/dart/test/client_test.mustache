@@ -1,0 +1,106 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('{{clientClassName}}', () {
+    test('construct with authenticator only', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+      expect(client, isNotNull);
+    });
+
+    test('construct with authenticator and null transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: null);
+
+      expect(client, isNotNull);
+    });
+
+    test('construct with authenticator and transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+      final transport = TransportOptionsBuilder().build();
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
+
+      expect(client, isNotNull);
+    });
+
+    test('BearerAuthenticator rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'ñoño'),
+        throwsArgumentError,
+      );
+    });
+
+    test('BearerAuthenticator rejects an empty or whitespace token', () {
+      // bearer-no-empty-token-guard: an empty / whitespace-only token would
+      // emit a bare "Authorization: Bearer " header and send the request
+      // unauthenticated, so the constructor must reject it.
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: ''),
+        throwsArgumentError,
+      );
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: '   '),
+        throwsArgumentError,
+      );
+    });
+
+    test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      // HEADER location must reject anything outside printable ASCII +
+      // TAB to prevent header injection (\r\n) and silent UTF-8
+      // mangling that varies per HTTP lib.
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\r\nInjected: yes',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+
+      // Non-header locations accept arbitrary chars.
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'kéy',
+        location: ApiKeyLocation.query,
+      );
+      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+    });
+
+    test('API groups are accessible', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(client.{{clientPropertyName}}, isNotNull);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+  });
+}
+{{/generateTests}}
