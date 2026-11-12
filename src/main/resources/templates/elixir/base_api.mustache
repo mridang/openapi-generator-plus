@@ -1,0 +1,437 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Api.BaseApi do
+  @moduledoc """
+  Base module for all API modules. Provides the `invoke_api/10` function that
+  handles URL construction, header selection, body serialization, request
+  dispatch, and response deserialization.
+  """
+
+  # Sentinel authenticator that marks an operation as explicitly unauthenticated.
+  #
+  # An operation declared with `security: []` in the spec opts out of all
+  # authentication. Its generated function passes this sentinel as the `auth`
+  # argument so that `invoke_api_for_result/10` can distinguish three states
+  # that a plain `nil` could not:
+  #
+  #   * `@no_auth` - the operation is unauthenticated; the client-level
+  #     authenticator must NOT be applied (no credential leak);
+  #   * `nil` - a secured operation with no per-call override; fall back to the
+  #     client-level authenticator (unchanged behaviour);
+  #   * any other value - a per-call override; use it (unchanged behaviour).
+  #
+  # An atom is interned and identity-comparable, distinct from nil and from
+  # every authenticator (which is a struct or a plain map), so it can never
+  # collide with a real credential. Callers never see it.
+  @no_auth :"$openapi_generator_plus_no_auth$"
+
+  @doc false
+  # The no-auth sentinel (see @no_auth). Exposed so the generated per-resource
+  # API modules can pass it for `security: []` operations.
+  @spec no_auth() :: :"$openapi_generator_plus_no_auth$"
+  def no_auth, do: @no_auth
+
+  @doc """
+  Invoke an API operation.
+
+  Delegates to `invoke_api_for_result/10` and returns just the deserialized
+  data (`nil` for void responses).
+
+  ## Parameters
+
+    * `state` - The API state holding the `api_client`, `config` and `authenticator`.
+    * `method` - HTTP method (`:get`, `:post`, `:put`, `:delete`, etc.).
+    * `path` - URL path (with path params already substituted).
+    * `query_params` - Query parameters.
+    * `header_params` - Custom header parameters.
+    * `body` - Request body (model struct or `nil`).
+    * `accepts` - Acceptable response content types.
+    * `content_type` - Request content type.
+    * `return_type` - Return type for deserialization (`nil` for void).
+    * `auth` - Optional authenticator for operation-specific auth.
+
+  ## Returns
+
+    `{:ok, data}` or `{:error, exception}` if the API call fails.
+  """
+  @spec invoke_api(
+          map(),
+          atom(),
+          String.t(),
+          map(),
+          map(),
+          term(),
+          [String.t()] | nil,
+          String.t() | nil,
+          String.t() | nil,
+          map() | :"$openapi_generator_plus_no_auth$" | nil
+        ) :: {:ok, term()} | {:error, Exception.t()}
+  def invoke_api(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
+    case invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth) do
+      {:ok, result} -> {:ok, result.data}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Invoke an API operation and return the full result including status code,
+  headers, and raw body alongside the deserialized data.
+
+  Takes the same parameters as `invoke_api/10`.
+
+  ## Returns
+
+    `{:ok, api_result}` containing deserialized data, status code, raw body, and
+    headers, or `{:error, exception}` if the API call fails.
+  """
+  @spec invoke_api_for_result(
+          map(),
+          atom(),
+          String.t(),
+          map(),
+          map(),
+          term(),
+          [String.t()] | nil,
+          String.t() | nil,
+          String.t() | nil,
+          map() | :"$openapi_generator_plus_no_auth$" | nil
+        ) :: {:ok, {{moduleName}}.ApiResult.t()} | {:error, Exception.t()}
+  def invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
+    method = if is_atom(method), do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(), else: method
+
+    url =
+      if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
+        path
+      else
+        # Strip trailing slash from the base URL when the path starts with a
+        # slash so baseUrl='https://x/' + path='/y' yields 'https://x/y' rather
+        # than 'https://x//y', which most servers route to 404.
+        base =
+          if String.starts_with?(path, "/") do
+            String.replace(state.config.base_url, ~r{/+$}, "")
+          else
+            state.config.base_url
+          end
+
+        base <> path
+      end
+
+    # Three-state auth resolution (see @no_auth). The sentinel suppresses the
+    # client authenticator; a nil auth falls back to it (secured op, no per-call
+    # override); any other value is an explicit per-call override.
+    effective_auth =
+      case auth do
+        @no_auth -> nil
+        nil -> Map.get(state, :authenticator)
+        explicit -> explicit
+      end
+
+    query_params =
+      case auth_credentials(effective_auth, :query_params) do
+        nil -> query_params
+        params -> Map.merge(query_params, params)
+      end
+
+    query_string = build_query_string(query_params)
+    url = if query_string != "", do: "#{url}?#{query_string}", else: url
+
+    is_multipart = content_type == "multipart/form-data"
+    selected = {{moduleName}}.HeaderSelector.select_headers(accepts, content_type || "", is_multipart)
+
+    headers = %{}
+    headers = if selected["Accept"], do: Map.put(headers, "Accept", selected["Accept"]), else: headers
+    headers = if selected["Content-Type"], do: Map.put(headers, "Content-Type", selected["Content-Type"]), else: headers
+    headers = Map.merge(headers, state.config.default_headers)
+    headers = Map.merge(headers, header_params)
+
+    headers =
+      case auth_credentials(effective_auth, :auth_headers) do
+        nil -> headers
+        auth_headers -> Map.merge(headers, auth_headers)
+      end
+
+    headers =
+      case auth_credentials(effective_auth, :cookie_params) do
+        nil ->
+          headers
+
+        cookies ->
+          if map_size(cookies) > 0 do
+            # RFC 6265 - cookie name is a token (RFC 7230 §3.2.6); cookie value
+            # is *cookie-octet (US-ASCII excluding whitespace, DQUOTE, comma,
+            # semicolon, backslash, controls). DO NOT URL-encode here: most
+            # cookie parsers do not URL-decode, so `=` (base64 padding) would
+            # arrive as literal `%3D` and break JWT/session cookies. Validate
+            # and pass through raw instead.
+            cookie_str = Enum.map_join(cookies, "; ", fn {k, v} ->
+              name = to_string(k)
+              value = to_string(v)
+              unless name =~ ~r/\A[A-Za-z0-9!#$%&'*+\-.^_`|~]+\z/ do
+                raise ArgumentError,
+                      "Cookie name '#{name}' contains characters forbidden by RFC 6265"
+              end
+              unless value =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/ do
+                raise ArgumentError,
+                      "Cookie value for '#{name}' contains characters forbidden by RFC 6265"
+              end
+              "#{name}=#{value}"
+            end)
+
+            existing = Map.get(headers, "Cookie")
+
+            cookie_value =
+              if existing do
+                "#{existing}; #{cookie_str}"
+              else
+                cookie_str
+              end
+
+            Map.put(headers, "Cookie", cookie_value)
+          else
+            headers
+          end
+      end
+
+    headers = {{moduleName}}.TraceContextUtil.inject_trace_context(headers)
+    serialized_body = serialize_body(body, content_type)
+    headers = if is_nil(serialized_body), do: Map.delete(headers, "Content-Type"), else: headers
+
+    result =
+      try do
+        {:ok,
+         case state.api_client do
+           %{__struct__: mod} = client -> mod.send_request(client, method, url, headers, serialized_body)
+           mod when is_atom(mod) -> mod.send_request(method, url, headers, serialized_body)
+         end}
+      rescue
+        e -> {:error, e}
+      end
+
+    case result do
+      {:error, _} = error ->
+        error
+
+      {:ok, response} ->
+        if response.status_code < 200 or response.status_code >= 300 do
+          {:error,
+           {{moduleName}}.Errors.ApiError.from_response(
+             response.status_code,
+             response.headers,
+             response.body
+           )}
+        else
+          decode_success_body(response, return_type)
+        end
+    end
+  end
+
+  # Decode a 2xx response body into the declared return type. A body that
+  # does not match the declared schema is a contract violation and the
+  # deserialize path RAISES a SerializationError (bad base64 / UUID / unknown
+  # enum / missing required field / primitive type mismatch).
+  # That raise is allowed to propagate: it surfaces through `invoke_api` as a
+  # raised exception, while transport-level failures remain tagged
+  # `{:error, _}` from the send try/rescue above. The success path returns
+  # `{:ok, ApiResult}`.
+  defp decode_success_body(response, return_type) do
+    data =
+      if return_type && response.body && response.body != "" do
+          ct_header =
+            Enum.find(response.headers, fn {k, _v} ->
+              String.downcase(k) == "content-type"
+            end)
+
+          resp_content_type =
+            case ct_header do
+              {_k, v} -> v |> String.split(";") |> List.first() |> String.trim()
+              nil -> nil
+            end
+
+          # When Content-Type is absent (nil) treat it as JSON.
+          is_json =
+            is_nil(resp_content_type) or
+              {{moduleName}}.HeaderSelector.json_mime?(resp_content_type)
+
+          cond do
+            is_json ->
+              # A 2xx body that does not match the declared schema is a
+              # contract violation; propagate the decode error to the
+              # caller instead of silently substituting the raw body
+              # string (which would yield type confusion). For a binary
+              # return type (a top-level `format: byte` value carried as
+              # application/json) the body is a JSON string literal of base64,
+              # quotes included: deserialize/2 JSON-parses it first and the
+              # "binary()" conversion then base64-decodes the inner string, so
+              # the quoted literal is never base64-decoded directly.
+              {{moduleName}}.ObjectSerializer.deserialize(response.body, return_type)
+
+            return_type == "binary()" ->
+              # Binary operations declare `return_type = "binary()"`. The
+              # transport base64-encodes non-text response bodies into the
+              # `response.body` string, so decode it back to raw bytes
+              # here. Fall back to the raw
+              # body if it is not valid base64 (e.g. a test server that
+              # writes raw bytes), never raising.
+              case Base.decode64(response.body) do
+                {:ok, decoded} -> decoded
+                :error -> response.body
+              end
+
+            true ->
+              response.body
+          end
+        else
+          nil
+        end
+
+      {:ok,
+       %{{moduleName}}.ApiResult{
+         status_code: response.status_code,
+         data: data,
+         raw_body: response.body,
+         headers: response.headers
+       }}
+  end
+
+  @doc """
+  Build a collection parameter string.
+
+  ## Parameters
+
+    * `param` - The list of values.
+    * `format` - The collection format (`:csv`, `:ssv`, `:tsv`, `:pipes` or `:multi`).
+
+  ## Returns
+
+    The joined string, or the list itself for `:multi`.
+  """
+  @spec build_collection_param([term()], atom()) :: String.t() | [String.t()]
+  def build_collection_param(param, format) do
+    case format do
+      :ssv -> Enum.join(param, " ")
+      :tsv -> Enum.join(param, "\t")
+      :pipes -> Enum.join(param, "|")
+      :multi -> param
+      _ -> Enum.join(param, ",")
+    end
+  end
+
+  # Resolve an authenticator's credentials for the given behaviour callback
+  # (:auth_headers, :query_params, or :cookie_params). Authenticators are
+  # {{moduleName}}.Auth.Authenticator behaviours: the credential providers are
+  # CALLBACK FUNCTIONS on the authenticator's module, not data fields on the
+  # struct, so they are dispatched through `effective_auth.__struct__.<cb>/1`
+  # (guarded by `function_exported?/3`, mirroring how `send_request` and the
+  # client's `set_api_client` are invoked). Returns nil when there is no
+  # authenticator or it does not implement the callback, so callers can skip
+  # the merge entirely. Reading these as struct fields would silently drop the
+  # credential — every real authenticator defstruct holds only its secret
+  # material (e.g. [:host, :token]), never an :auth_headers key.
+  defp auth_credentials(effective_auth, callback)
+       when is_map(effective_auth) and is_atom(callback) do
+    case effective_auth do
+      %{__struct__: mod} ->
+        # Real authenticators are behaviour structs: the credential providers
+        # are CALLBACK FUNCTIONS on the module, dispatched via the struct's
+        # module (guarded so a struct that doesn't implement the callback
+        # simply contributes nothing).
+        if function_exported?(mod, callback, 1) do
+          apply(mod, callback, [effective_auth])
+        else
+          nil
+        end
+
+      plain_map ->
+        # Plain-map fast-path: a map-shaped auth carries its credentials as
+        # data fields keyed by the callback name (e.g. %{auth_headers: %{...}}).
+        # Supported for lightweight/ad-hoc auth injection alongside the
+        # behaviour-struct form above.
+        Map.get(plain_map, callback)
+    end
+  end
+
+  defp auth_credentials(_effective_auth, _callback), do: nil
+
+  defp build_query_string(query_params) do
+    query_params
+    |> Enum.flat_map(&query_string_pairs/1)
+    |> Enum.join("&")
+  end
+
+  # Build the `key=value` pairs for one query parameter. OAS allowReserved: a
+  # value wrapped by ValueSerializer.maybe_allow_reserved/2 keeps RFC 3986
+  # reserved characters literal instead of percent-encoding them.
+  defp query_string_pairs({k, wrapped}) do
+    {allow_reserved, value} = unwrap_allow_reserved(wrapped)
+    query_string_pairs(k, value, allow_reserved)
+  end
+
+  defp query_string_pairs(_k, value, _allow_reserved) when is_nil(value) or value == [], do: []
+
+  defp query_string_pairs(k, values, allow_reserved) when is_list(values) do
+    encoded_key = encode_query_component(to_string(k))
+
+    Enum.map(values, fn val ->
+      "#{encoded_key}=#{encode_query_value({{moduleName}}.ObjectSerializer.to_query_value(val, nil), allow_reserved)}"
+    end)
+  end
+
+  defp query_string_pairs(k, value, allow_reserved) do
+    encoded_key = encode_query_component(to_string(k))
+    ["#{encoded_key}=#{encode_query_value({{moduleName}}.ObjectSerializer.to_query_value(value, nil), allow_reserved)}"]
+  end
+
+  # Unwrap a query value that ValueSerializer.maybe_allow_reserved/2 tagged for
+  # reserved-character preservation, returning `{allow_reserved?, value}`.
+  defp unwrap_allow_reserved({:allow_reserved, value}), do: {true, value}
+  defp unwrap_allow_reserved(value), do: {false, value}
+
+  # Encode a query-parameter value, preserving RFC 3986 reserved characters when
+  # the parameter declared `allowReserved: true`; otherwise percent-encode with
+  # a %20 space.
+  defp encode_query_value(value, true), do: {{moduleName}}.ValueSerializer.encode_query_allowing_reserved(value)
+  defp encode_query_value(value, false), do: encode_query_component(value)
+
+  # Percent-encode a query key/value. URI.encode_www_form emits '+' for a space
+  # (application/x-www-form-urlencoded rules), but RFC 3986 requires %20 in a
+  # query component (a strict server reads '+' as a literal plus), so normalise
+  # the space. A literal '+' is already %2B at this point. The form-urlencoded
+  # body path keeps URI.encode_www_form's '+'. Matches the other SDKs.
+  defp encode_query_component(value), do: value |> URI.encode_www_form() |> String.replace("+", "%20")
+
+  defp serialize_body(nil, _content_type), do: nil
+
+  defp serialize_body(body, "multipart/form-data"), do: body
+
+  defp serialize_body(body, "application/octet-stream"), do: body
+
+  defp serialize_body(body, "image/" <> _), do: body
+
+  defp serialize_body(body, "text/plain"), do: to_string(body)
+
+  # application/x-www-form-urlencoded: canonical form serialization (identical
+  # across every SDK). Array fields emit one repeated key per element
+  # (exploded, e.g. tags=a&tags=b - never tags=a,b or tags[]=); null/absent
+  # fields are omitted entirely; URI.encode_www_form uses
+  # application/x-www-form-urlencoded rules, so a space becomes '+'.
+  defp serialize_body(body, "application/x-www-form-urlencoded") when is_map(body) do
+    body
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.flat_map(&encode_form_pair/1)
+    |> Enum.join("&")
+  end
+
+  defp serialize_body(body, _content_type), do: {{moduleName}}.ObjectSerializer.serialize(body)
+
+  defp encode_form_pair({key, values}) when is_list(values) do
+    encoded_key = URI.encode_www_form(to_string(key))
+
+    Enum.map(values, fn val ->
+      "#{encoded_key}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(val))}"
+    end)
+  end
+
+  defp encode_form_pair({key, value}) do
+    ["#{URI.encode_www_form(to_string(key))}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(value))}"]
+  end
+end

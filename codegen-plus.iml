@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module version="4">
+  <component name="AdditionalModuleElements">
+    <content url="file://$MODULE_DIR$" dumb="true">
+      <excludeFolder url="file://$MODULE_DIR$/.devbox" />
+      <excludeFolder url="file://$MODULE_DIR$/.idea" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/testprojects" />
+      <excludeFolder url="file://$MODULE_DIR$/.claude" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/java/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/node/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/php/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/python/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/vendor" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/go/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/kotlin/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/python/.ruff" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/csharp/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/dart/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/dart/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/php/vendor" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/.rubocop" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/rust/.out" />
+    </content>
+  </component>
+  <component name="Go" enabled="true" />
+</module>

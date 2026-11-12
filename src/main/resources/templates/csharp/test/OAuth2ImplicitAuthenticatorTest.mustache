@@ -1,0 +1,185 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth.OAuth;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using Xunit;
+
+namespace Test;
+
+public class OAuth2ImplicitAuthenticatorTest
+{
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
+    private static OAuth2ImplicitAuthenticator CreateAuthenticator()
+    {
+        return new OAuth2ImplicitAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            new Uri("https://auth.example.com/authorize"),
+            Scopes);
+    }
+
+    [Fact]
+    public void AccessTokenFieldIsVolatile()
+    {
+        FieldInfo field = typeof(OAuth2ImplicitAuthenticator).GetField(
+            "_accessToken", BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+        Assert.Contains(typeof(IsVolatile), field.GetRequiredCustomModifiers());
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithResponseTypeToken()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl();
+
+        string urlStr = url.ToString();
+        Assert.Contains("response_type=token", urlStr);
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
+    }
+
+    [Fact]
+    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    {
+        var auth = new OAuth2ImplicitAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            new Uri("https://Auth.Example.com:443/authorize"),
+            Scopes);
+
+        string url = auth.BuildAuthorizationUrl().OriginalString;
+
+        Assert.StartsWith("https://Auth.Example.com:443/authorize?response_type=token&", url);
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithClientId()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl();
+
+        Assert.Contains("client_id=my-client-id", url.ToString());
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithScopes()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl();
+
+        Assert.Contains("scope=read%20write", url.OriginalString, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildsAuthorizationUrlWithState()
+    {
+        var auth = CreateAuthenticator();
+
+        Uri url = auth.BuildAuthorizationUrl("my-state");
+
+        Assert.Contains("state=my-state", url.ToString());
+    }
+
+    [Fact]
+    public void GetAuthHeadersReturnsBearerAfterSetAccessToken()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("implicit-tok");
+
+        Dictionary<string, string> headers = auth.GetAuthHeaders();
+
+        Assert.Equal("Bearer implicit-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void ThrowsWhenAccessTokenNotSet()
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        Assert.Contains("Must set the access token before making API requests", ex.Message);
+    }
+
+    [Fact]
+    public void GetHostReturnsConfiguredHost()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+
+    /// <summary>
+    /// ToString() must redact the access token: the raw value must be absent
+    /// and the masked placeholder present.
+    /// </summary>
+    [Fact]
+    public void RedactsSecret()
+    {
+        var auth = CreateAuthenticator();
+        auth.SetAccessToken("implicit-tok");
+        string repr = auth.ToString();
+        Assert.DoesNotContain("implicit-tok", repr);
+        Assert.Contains("***", repr);
+    }
+
+    [Fact]
+    public void ReprShowsTheNonSecretFieldsAndWhetherATokenIsSet()
+    {
+        var auth = CreateAuthenticator();
+        string prefix = "OAuth2ImplicitAuthenticator(Host=https://api.example.com, "
+            + "ClientId=my-client-id, AuthorizationUrl=https://auth.example.com/authorize, "
+            + "Scopes=[read, write], AccessToken=";
+        Assert.Equal(prefix + "null)", auth.ToString());
+
+        auth.SetAccessToken("implicit-tok");
+        Assert.Equal(prefix + "***)", auth.ToString());
+    }
+
+    [Fact]
+    public void AuthorizationUrlPercentEncodesEverythingButTheUnreservedSet()
+    {
+        var auth = new OAuth2ImplicitAuthenticator(
+            "https://api.example.com",
+            "id~*!'()",
+            new Uri("https://auth.example.com/authorize"),
+            new[] { "a~b", "c*d" });
+
+        string url = auth.BuildAuthorizationUrl("s!t(a)te'").OriginalString;
+
+        Assert.Contains("client_id=id~%2A%21%27%28%29&", url, StringComparison.Ordinal);
+        Assert.Contains("scope=a~b%20c%2Ad", url, StringComparison.Ordinal);
+        Assert.Contains("state=s%21t%28a%29te%27", url, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tok\r\nInjected: yes")]
+    [InlineData("tok\n")]
+    [InlineData("tok\0")]
+    [InlineData("t\u00f6k\u00e9n")]
+    public void SetAccessTokenRejectsAControlOrNonAsciiCharacter(string token)
+    {
+        var auth = CreateAuthenticator();
+
+        var ex = Assert.Throws<ArgumentException>(() => auth.SetAccessToken(token));
+
+        Assert.Contains("printable ASCII", ex.Message, StringComparison.Ordinal);
+        /* A rejected token is never stored. */
+        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+    }
+
+    [Fact]
+    public void SetAccessTokenAcceptsAHorizontalTab()
+    {
+        var auth = CreateAuthenticator();
+
+        auth.SetAccessToken("tok\ten");
+
+        Assert.Equal("Bearer tok\ten", auth.GetAuthHeaders()["Authorization"]);
+    }
+}

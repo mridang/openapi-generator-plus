@@ -1,0 +1,15 @@
+{{! Recursive deserializer-argument builder for a (possibly nested) container
+    element type. Emits a model class constructor for a leaf model, an arrow
+    cast for a leaf primitive or enum (a TS enum is structurally its string
+    value, so a cast suffices), a null-guarded `new Date(...)` arrow for a
+    date/date-time leaf (a null/undefined wire value yields null rather than the
+    epoch Date(0) / Invalid Date that `new Date(null)` / `new Date(undefined)`
+    would produce, so a nullable timestamp container is not corrupted; a
+    non-string or unparseable value is rejected), a type-checked integer or
+    boolean leaf, or an
+    arrow that re-enters deserializeArray / deserializeMap
+    for each further container level — so the innermost leaves of a nested generic
+    container (e.g. Array<Record<string, Foo>>) are decoded into typed values
+    instead of left as raw objects. Enum and date leaves are routed BEFORE the
+    model branch so they are not mistaken for model classes. }}
+{{#isArray}}(x: unknown) => ObjectSerializer.deserializeArray(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isArray}}{{#isMap}}(x: unknown) => ObjectSerializer.deserializeMap(x, {{#items}}{{>deserialize_arg}}{{/items}}){{/isMap}}{{^isArray}}{{^isMap}}{{#isEnum}}(x: unknown) => x as {{{dataType}}}{{/isEnum}}{{#isEnumRef}}(x: unknown) => ObjectSerializer.deserializeEnum<{{{dataType}}}>(x, {{{dataType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnum}}{{^isEnumRef}}{{#isDateTime}}(x: unknown) => ObjectSerializer.deserializeLeaf<Date | null>(x, 'date'){{/isDateTime}}{{#isDate}}(x: unknown) => ObjectSerializer.deserializeLeaf<Date | null>(x, 'date'){{/isDate}}{{^isDateTime}}{{^isDate}}{{#isPrimitiveType}}{{#isInteger}}(x: unknown) => ObjectSerializer.deserializeLeaf<number>(x, 'integer'){{/isInteger}}{{^isInteger}}{{#isLong}}(x: unknown) => ObjectSerializer.deserializeLeaf<number>(x, 'integer'){{/isLong}}{{^isLong}}{{#isBoolean}}(x: unknown) => ObjectSerializer.deserializeLeaf<boolean>(x, 'boolean'){{/isBoolean}}{{^isBoolean}}(x: unknown) => x as {{{dataType}}}{{/isBoolean}}{{/isLong}}{{/isInteger}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{complexType}}{{/isPrimitiveType}}{{/isDate}}{{/isDateTime}}{{/isEnumRef}}{{/isEnum}}{{/isMap}}{{/isArray}}

@@ -1,0 +1,14 @@
+{{>api_info}}
+
+import { NetworkError } from './network-error{{importFileExtension}}';
+
+/**
+ * Error for a request that timed out. The status code is always `0`; the
+ * underlying error is kept as `cause`.
+ */
+export class NetworkTimeoutError extends NetworkError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'NetworkTimeoutError';
+  }
+}

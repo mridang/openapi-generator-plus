@@ -1,0 +1,44 @@
+{{>api_info}}
+
+package {{invokerPackage}}.errors;
+
+/**
+ * Root of the SDK exception hierarchy.
+ *
+ * <p>Every error the SDK raises ultimately extends this single branded base, so
+ * a caller can write one {@code catch ({{invokerPackage}}.errors.{{errorPrefix}}Exception e)}
+ * and be certain it covers all SDK-originated failures — API/HTTP errors
+ * ({@link ApiException} and its typed subclasses), serialization failures, and
+ * OAuth2 token/server errors raised during authentication.
+ * Because the root extends {@link RuntimeException} the whole hierarchy is
+ * unchecked: callers are never forced to declare or catch SDK exceptions. The
+ * chain for a typed HTTP error is, for example:
+ * {@code UnauthorizedException → ClientException → ApiException →
+ * {{errorPrefix}}Exception → RuntimeException}.
+ */
+{{! The class name comes from the errorPrefix option, whose default is an }}
+{{! acronym, so Checkstyle's abbreviation rule cannot apply to it. }}
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+public class {{errorPrefix}}Exception extends RuntimeException {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Construct an exception with a detail message.
+     *
+     * @param message the detail message
+     */
+    public {{errorPrefix}}Exception(String message) {
+        super(message);
+    }
+
+    /**
+     * Construct an exception with a detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause   the underlying cause
+     */
+    public {{errorPrefix}}Exception(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

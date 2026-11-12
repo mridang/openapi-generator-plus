@@ -1,0 +1,25 @@
+{{>api_info}}
+import Foundation
+
+/// Error for HTTP 401 Unauthorized.
+public class UnauthorizedError: ClientError, @unchecked Sendable {
+    /// Creates the error. The status is fixed at 401, so this type never
+    /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:)``
+    /// is the only place a status is mapped to a type.
+    public init(
+        message: String = "",
+        responseBody: String? = nil,
+        responseHeaders: [String: String]? = nil,
+        errorBody: Any? = nil,
+        underlyingError: Error? = nil
+    ) {
+        super.init(
+            statusCode: 401,
+            message: message,
+            responseBody: responseBody,
+            responseHeaders: responseHeaders,
+            errorBody: errorBody,
+            underlyingError: underlyingError
+        )
+    }
+}

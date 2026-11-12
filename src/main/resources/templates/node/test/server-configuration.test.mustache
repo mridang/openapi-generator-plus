@@ -1,0 +1,136 @@
+{{>api_info}}
+
+import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
+import { ServerConfiguration, ServerVariable } from '../src/server-configuration{{importFileExtension}}';
+
+describe('ServerConfiguration', () => {
+  it('resolves a template-free URL unchanged', () => {
+    const config = new ServerConfiguration('https://api.example.com/v1', null, {});
+    expect(config.getUrl()).toBe('https://api.example.com/v1');
+  });
+
+  it('substitutes variables with their default values', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com/v{version}',
+      null,
+      {
+        env: new ServerVariable('prod', null, []),
+        version: new ServerVariable('2', null, [])
+      }
+    );
+    expect(config.getUrl()).toBe('https://prod.api.example.com/v2');
+  });
+
+  it('substitutes every occurrence of a variable', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com/{env}',
+      null,
+      { env: new ServerVariable('prod', null, []) }
+    );
+    expect(config.getUrl()).toBe('https://prod.api.example.com/prod');
+  });
+
+  it('does not expand a placeholder that a substituted value introduces', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com/{version}',
+      null,
+      {
+        env: new ServerVariable('{version}', null, []),
+        version: new ServerVariable('v2', null, [])
+      }
+    );
+    expect(config.getUrl()).toBe('https://{version}.api.example.com/v2');
+  });
+
+  it('substitutes a value containing replacement patterns literally', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('a$&b', null, []) }
+    );
+    expect(config.getUrl()).toBe('https://a$&b.api.example.com');
+  });
+
+  it('substitutes variables with supplied overrides', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, []) }
+    );
+    expect(config.getUrl({ env: 'staging' })).toBe('https://staging.api.example.com');
+  });
+
+  it('accepts an override that is one of the enum values', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, ['prod', 'staging']) }
+    );
+    expect(config.getUrl({ env: 'staging' })).toBe('https://staging.api.example.com');
+  });
+
+  it('rejects an override that is not one of the enum values', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, ['prod', 'staging']) }
+    );
+    let caught: unknown;
+    try {
+      config.getUrl({ env: 'dev' });
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).constructor).toBe(TypeError);
+    expect(caught).not.toBeInstanceOf({{errorPrefix}}Error);
+    expect((caught as Error).message).toBe(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging"
+    );
+  });
+
+  it('rejects a default value that is not one of the enum values', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('dev', null, ['prod', 'staging']) }
+    );
+    expect(() => config.getUrl()).toThrow(TypeError);
+    expect(() => config.getUrl()).toThrow(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging"
+    );
+  });
+
+  it('accepts any override for a variable without an enum', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com',
+      null,
+      { env: new ServerVariable('prod', null, []) }
+    );
+    expect(config.getUrl({ env: 'anything-goes' })).toBe('https://anything-goes.api.example.com');
+  });
+
+  it('keeps the defaults of the variables that are not overridden', () => {
+    const config = new ServerConfiguration(
+      'https://{env}.api.example.com/v{version}',
+      null,
+      {
+        env: new ServerVariable('prod', null, []),
+        version: new ServerVariable('2', null, [])
+      }
+    );
+    expect(config.getUrl({ version: '3' })).toBe('https://prod.api.example.com/v3');
+  });
+
+  it('leaves a placeholder without a declared variable untouched', () => {
+    const config = new ServerConfiguration('https://api.example.com/{unknown}', null, {});
+    expect(config.getUrl({ unknown: 'x' })).toBe('https://api.example.com/{unknown}');
+  });
+
+  it('exposes the raw template, description and variables', () => {
+    const variables = { env: new ServerVariable('prod', null, []) };
+    const config = new ServerConfiguration('https://{env}.api.example.com', 'the main server', variables);
+    expect(config.urlTemplate).toBe('https://{env}.api.example.com');
+    expect(config.description).toBe('the main server');
+    expect(config.variables).toEqual(variables);
+  });
+});

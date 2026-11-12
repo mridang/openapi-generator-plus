@@ -1,0 +1,74 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Auth
+    # Authenticator for API key authentication.
+    class ApiKeyAuthenticator < BaseAuthenticator
+      attr_reader :host
+
+      # @param host [String] API base URL
+      # @param key_param_name [String] name of the key parameter
+      # @param api_key [String] the API key value
+      # @param location [Symbol] :header, :query, or :cookie
+      def initialize(host, key_param_name, api_key, location)
+        super()
+        validate_api_key!(key_param_name, api_key, location)
+        @host = host
+        @key_param_name = key_param_name
+        @api_key = api_key
+        @location = location
+      end
+
+      # Redact the API key from the default object representation so logging
+      # or inspecting an authenticator never leaks the credential.
+      def inspect
+        "#<#{self.class.name} host=#{@host.inspect} " \
+          "key_param_name=#{@key_param_name.inspect} api_key=\"***\" location=#{@location.inspect}>"
+      end
+      alias to_s inspect
+
+      # @return [Hash{String => String}]
+      def auth_headers
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::HEADER
+        result
+      end
+
+      # @return [Hash{String => String}]
+      def query_params
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::QUERY
+        result
+      end
+
+      # @return [Hash{String => String}]
+      def cookie_params
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::COOKIE
+        result
+      end
+
+      private
+
+      # Validation applies to ALL locations: empty/whitespace API keys
+      # and CR/LF/NUL are always programmer errors. RFC 7230 §3.2.6
+      # printable-ASCII rule still applies to HEADER values.
+      def validate_api_key!(key_param_name, api_key, location)
+        if api_key.nil? || api_key.empty? || api_key.strip.empty?
+          raise ArgumentError,
+                "API key value for '#{key_param_name}' must not be empty"
+        end
+        if api_key.match?(/[\r\n\x00]/)
+          raise ArgumentError,
+                "API key value for '#{key_param_name}' contains forbidden control characters (CR/LF/NUL)"
+        end
+        return unless location == ApiKeyLocation::HEADER && api_key.match?(/[^\t\x20-\x7E]/)
+
+        raise ArgumentError,
+              "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+      end
+    end
+  end
+end

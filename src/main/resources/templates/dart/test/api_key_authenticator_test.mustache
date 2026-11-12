@@ -1,0 +1,219 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ApiKeyAuthenticator', () {
+    test('valid header key is exposed in auth headers', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+      final headers = auth.authHeaders();
+      expect(headers['X-Api-Key'], equals('abc123'));
+    });
+
+    test('valid query key is exposed in query params', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.query,
+      );
+      expect(auth.queryParams(), equals({'api_key': 'abc123'}));
+    });
+
+    test('HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
+      // HEADER location must reject anything outside printable ASCII +
+      // TAB to prevent header injection (\r\n) and silent UTF-8
+      // mangling that varies per HTTP lib.
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\r\nInjected: yes',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('the query location accepts a non-ASCII key', () {
+      final queryAuth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'api_key',
+        apiKey: 'kéy',
+        location: ApiKeyLocation.query,
+      );
+      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+    });
+
+    test('redacts the API key in toString', () {
+      // authenticator-secret-in-default-string-repr: the default toString()
+      // must never expose the stored API key.
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+      expect(auth.toString(), isNot(contains('abc123')));
+      expect(auth.toString(), contains('***'));
+    });
+  });
+
+  group('ApiKeyAuthenticator validation', () {
+    ApiKeyAuthenticator build(String key, ApiKeyLocation location) =>
+        ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'k',
+          apiKey: key,
+          location: location,
+        );
+
+    for (final location in ApiKeyLocation.values) {
+      for (final key in ['', '   ']) {
+        test('${location.name} rejects the blank key "$key"', () {
+          expect(
+            () => build(key, location),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals("API key value for 'k' must not be empty"),
+              ),
+            ),
+          );
+        });
+      }
+      for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
+        test('${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {
+          expect(
+            () => build(key, location),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals(
+                  "API key value for 'k' contains forbidden control characters (CR/LF/NUL)",
+                ),
+              ),
+            ),
+          );
+        });
+      }
+    }
+
+    test('a header key rejects non-ASCII with the RFC 7230 message', () {
+      expect(
+        () => build('kéy', ApiKeyLocation.header),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            equals(
+              "API key for header 'k' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('a cookie key accepts non-ASCII and is emitted only as a cookie', () {
+      final auth = build('kéy', ApiKeyLocation.cookie);
+
+      expect(auth.cookieParams(), equals({'k': 'kéy'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.queryParams(), isEmpty);
+    });
+
+    test('a header key is emitted only as a header', () {
+      final auth = build('abc', ApiKeyLocation.header);
+
+      expect(auth.authHeaders(), equals({'k': 'abc'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('the redacted repr shows the non-secret fields and masks the key', () {
+      expect(
+        build('abc', ApiKeyLocation.cookie).toString(),
+        equals(
+          'ApiKeyAuthenticator(host: {{{basePath}}}, keyParamName: k, apiKey: ***, location: cookie)',
+        ),
+      );
+    });
+  });
+
+  group('ApiKeyAuthenticator scheme wrappers', () {
+    final builders = <String, ApiKeyAuthenticator Function(String)>{
+      'ApiKeyHeaderAuthenticator': (key) =>
+          ApiKeyHeaderAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'InternalApiKeyAuthenticator': (key) =>
+          InternalApiKeyAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'ApiKeyQueryAuthenticator': (key) =>
+          ApiKeyQueryAuthenticator(host: '{{{basePath}}}', apiKey: key),
+      'SessionCookieAuthenticator': (key) =>
+          SessionCookieAuthenticator(host: '{{{basePath}}}', apiKey: key),
+    };
+
+    test('ApiKeyHeaderAuthenticator sends X-API-Key as a header', () {
+      final auth = builders['ApiKeyHeaderAuthenticator']!('k1');
+
+      expect(auth.authHeaders(), equals({'X-API-Key': 'k1'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('InternalApiKeyAuthenticator sends X-Internal-Key as a header', () {
+      final auth = builders['InternalApiKeyAuthenticator']!('k1');
+
+      expect(auth.authHeaders(), equals({'X-Internal-Key': 'k1'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('ApiKeyQueryAuthenticator sends api_key as a query parameter', () {
+      final auth = builders['ApiKeyQueryAuthenticator']!('k1');
+
+      expect(auth.queryParams(), equals({'api_key': 'k1'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('SessionCookieAuthenticator sends SESSION_ID as a cookie', () {
+      final auth = builders['SessionCookieAuthenticator']!('k1');
+
+      expect(auth.cookieParams(), equals({'SESSION_ID': 'k1'}));
+      expect(auth.authHeaders(), isEmpty);
+      expect(auth.queryParams(), isEmpty);
+    });
+
+    builders.forEach((name, build) {
+      test('$name rejects an empty key at construction', () {
+        expect(() => build(''), throwsArgumentError);
+      });
+
+      test('$name masks the key in toString', () {
+        final repr = build('abc123').toString();
+
+        expect(repr, startsWith('$name(host: {{{basePath}}}, keyParamName: '));
+        expect(repr, contains('apiKey: ***'));
+        expect(repr, isNot(contains('abc123')));
+      });
+    });
+  });
+}
+{{/generateTests}}

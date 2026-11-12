@@ -1,0 +1,143 @@
+{{>api_info}}
+
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
+
+test('valid header key passes', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+    $headers = $auth->getAuthHeaders();
+    expect($headers['X-API-Key'])->toBe('abc123');
+});
+
+test('valid query key passes', function (): void {
+    // Non-header locations accept arbitrary chars.
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
+});
+
+test('api key query allows non ascii', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'kéy']);
+});
+
+test('empty key header throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('empty key query throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', '', ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('empty key cookie throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', '', ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('whitespace only key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', '   ', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('crlf in query key throws at construction', function (): void {
+    // CR/LF/NUL are forbidden control characters in ALL locations.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'api_key', "abc\r\n", ApiKeyLocation::QUERY))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('crlf in cookie key throws at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'session', "abc\n", ApiKeyLocation::COOKIE))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects crlf at construction', function (): void {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key header rejects non ascii at construction', function (): void {
+    expect(fn () => new ApiKeyAuthenticator('https://api.example.com', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('api key is masked in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the API key never leaks through a stray dump or an
+     * exception/stack-trace log. */
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('abc123');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('abc123');
+    expect($printR)->toContain('***');
+    // keyParamName is non-secret and should still be visible for debugging.
+    expect($printR)->toContain('X-API-Key');
+});
+
+test('secret constructor parameters are marked sensitive', function (): void {
+    $sensitive = [];
+    foreach ((new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct'))->getParameters() as $param) {
+        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+            $sensitive[] = $param->getName();
+        }
+    }
+    expect($sensitive)->toBe(['apiKey']);
+});
+
+test('valid cookie key is emitted through cookie params only', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'abc123', ApiKeyLocation::COOKIE);
+
+    expect($auth->getCookieParams())->toBe(['session' => 'abc123']);
+    expect($auth->getAuthHeaders())->toBe([]);
+    expect($auth->getQueryParams())->toBe([]);
+});
+
+test('debug output keeps the non secret fields and masks only the key', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'X-API-Key', 'abc123', ApiKeyLocation::HEADER);
+
+    $printR = print_r($auth, true);
+
+    expect($printR)->toContain('[host] => https://api.example.com');
+    expect($printR)->toContain('[keyParamName] => X-API-Key');
+    expect($printR)->toContain('[apiKey] => ***');
+    expect($printR)->toContain('[location] => HEADER');
+});
+
+test('every generated api key wrapper emits its key at exactly one location and masks it', function (): void {
+    $wrappers = 0;
+    foreach (glob(dirname(__DIR__) . '/lib/Auth/*Authenticator.php') ?: [] as $file) {
+        $class = '{{invokerPackage}}\\Auth\\' . basename($file, '.php');
+        if (!is_subclass_of($class, ApiKeyAuthenticator::class)) {
+            continue;
+        }
+        $wrappers++;
+        $reflection = new \ReflectionClass($class);
+
+        $auth = $reflection->newInstance('https://api.example.com', 'wrapper-key-1');
+        $emitted = array_filter([
+            'header' => $auth->getAuthHeaders(),
+            'query' => $auth->getQueryParams(),
+            'cookie' => $auth->getCookieParams(),
+        ]);
+        expect($emitted)->toHaveCount(1, "$class must emit its key at exactly one location");
+        $pair = array_shift($emitted);
+        assert(is_array($pair));
+        expect(array_values($pair))->toBe(['wrapper-key-1']);
+        expect(array_keys($pair)[0])->not->toBe('');
+        expect(print_r($auth, true))->not->toContain('wrapper-key-1');
+        expect(fn () => $reflection->newInstance('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class);
+    }
+    expect($wrappers)->toBeGreaterThan(0);
+});

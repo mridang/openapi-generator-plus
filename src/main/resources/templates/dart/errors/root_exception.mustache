@@ -1,0 +1,27 @@
+{{>api_info}}
+/// Root of the SDK exception hierarchy.
+///
+/// Every error the SDK raises ultimately extends this single branded base, so
+/// a caller can write one `on {{errorPrefix}}Exception catch (e)` and be
+/// certain it covers all SDK-originated failures — API/HTTP errors
+/// ([ApiException] and its typed subclasses), serialization failures
+/// ([SerializationException]), and OAuth2 token/server errors raised during
+/// authentication. The chain for a typed HTTP error is, for example:
+/// `UnauthorizedException → ClientException → ApiException →
+/// {{errorPrefix}}Exception`.
+///
+/// Dart has no checked exceptions and `Exception` is merely a marker
+/// interface, so this is an abstract base class that `implements Exception`.
+/// Concrete leaves extend it (directly or transitively) so that
+/// `is {{errorPrefix}}Exception` holds up the whole chain.
+abstract class {{errorPrefix}}Exception implements Exception {
+  /// Const constructor so `const` subclass constructors (e.g. the typed
+  /// [ApiException] leaves) remain valid.
+  const {{errorPrefix}}Exception();
+
+  /// The detail message describing what went wrong.
+  String get message;
+
+  @override
+  String toString() => message;
+}

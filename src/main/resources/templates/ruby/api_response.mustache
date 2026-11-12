@@ -1,0 +1,18 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  # Represents an HTTP API response.
+  class ApiHttpResponse
+    attr_reader :status_code, :body, :headers
+
+    def initialize(status_code:, body:, headers:)
+      @status_code = status_code
+      @body = body
+      # Frozen so a caller's hash cannot mutate the response headers after
+      # construction, matching ApiResult.
+      @headers = headers.freeze
+    end
+  end
+end

@@ -1,0 +1,147 @@
+package {{package}};
+
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+{{#hasModelImports}}
+{{#modelImports}}
+import {{modelPackage}}.{{{.}}};
+{{/modelImports}}
+{{/hasModelImports}}
+{{#hasExtraImports}}
+{{#extraImports}}
+import {{{.}}};
+{{/extraImports}}
+{{/hasExtraImports}}
+{{#hasAuthField}}
+import {{authImport}};
+{{/hasAuthField}}
+import javax.annotation.Nullable;
+
+/**
+ * Options for the {{operationId}} operation.
+ */
+public final class {{className}} {
+{{#params}}
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+{{#required}}
+    private final {{{dataType}}} {{paramName}};
+{{/required}}
+{{^required}}
+    @Nullable private {{{dataType}}} {{paramName}};
+{{/required}}
+{{/params}}
+{{#hasAuthField}}
+    @Nullable private {{authFieldType}} auth;
+{{/hasAuthField}}
+
+    /**
+     * Creates an options instance with the required parameters.
+     *
+{{#requiredParams}}
+     * @param {{paramName}} {{#description}}{{{description}}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
+{{/requiredParams}}
+     */
+    public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
+{{#requiredParams}}
+{{#isMutableCollection}}
+        this.{{paramName}} = {{copyFactory}}.copyOf({{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
+        this.{{paramName}} = {{paramName}};
+{{/isMutableCollection}}
+{{/requiredParams}}
+    }
+{{#params}}
+{{^required}}
+
+    /**
+     * Sets the {@code {{baseName}}} parameter.
+{{#description}}
+     *
+     * <p>{{{description}}}
+{{/description}}
+     *
+     * @param {{paramName}} {{#description}}{{{description}}}{{/description}}{{^description}}the {@code {{baseName}}} parameter{{/description}}
+     * @return this options instance for chaining
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
+     */
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+    public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
+{{#isMutableCollection}}
+        this.{{paramName}} = {{paramName}} == null ? null : {{copyFactory}}.copyOf({{paramName}});
+{{/isMutableCollection}}
+{{^isMutableCollection}}
+        this.{{paramName}} = {{paramName}};
+{{/isMutableCollection}}
+        return this;
+    }
+
+    /**
+     * Returns the {@code {{baseName}}} parameter.
+{{#description}}
+     *
+     * <p>{{{description}}}
+{{/description}}
+     *
+     * @return the {@code {{baseName}}} parameter, or {@code null} if unset
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
+     */
+    @Nullable
+{{/required}}
+{{#required}}
+    /**
+     * Returns the {@code {{baseName}}} parameter.
+{{#description}}
+     *
+     * <p>{{{description}}}
+{{/description}}
+     *
+     * @return the {@code {{baseName}}} parameter
+{{#deprecated}}
+     * @deprecated This parameter is deprecated.
+{{/deprecated}}
+     */
+{{/required}}
+{{#deprecated}}
+    @Deprecated
+{{/deprecated}}
+    public {{{dataType}}} {{paramName}}() {
+        return {{paramName}};
+    }
+{{/params}}
+{{#hasAuthField}}
+
+    /**
+     * Sets the per-operation authenticator. When set, it overrides the
+     * client's configured credentials for this call only.
+     *
+     * @param auth the authenticator to use for this operation
+     * @return this options instance for chaining
+     */
+    public {{className}} auth({{authFieldType}} auth) {
+        this.auth = auth;
+        return this;
+    }
+
+    /**
+     * Returns the per-operation authenticator.
+     *
+     * @return the authenticator, or {@code null} to use the configured credentials
+     */
+    @Nullable
+    public {{authFieldType}} auth() {
+        return auth;
+    }
+{{/hasAuthField}}
+}

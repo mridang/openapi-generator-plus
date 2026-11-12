@@ -1,0 +1,165 @@
+{{>api_info}}
+
+using System.Globalization;
+using System.Text;
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception thrown when an API call fails.
+/// </summary>
+public class ApiException : {{errorPrefix}}Exception
+{
+    public int StatusCode { get; }
+    public string? ResponseBody { get; }
+    public Dictionary<string, string>? ResponseHeaders { get; }
+    public object? ErrorBody { get; }
+
+    public ApiException() { }
+
+    public ApiException(string message)
+        : base(message) { }
+
+    public ApiException(string message, Exception innerException)
+        : base(message, innerException) { }
+
+    /// <summary>
+    /// Creates an exception for a response that arrived but could not be used,
+    /// such as a body whose Content-Encoding cannot be decoded. The status code
+    /// is the real status of the response that arrived, and the underlying
+    /// failure is kept as the inner exception.
+    /// </summary>
+    public ApiException(int statusCode, string message, Exception innerException)
+        : base(message, innerException)
+    {
+        StatusCode = statusCode;
+    }
+
+    public ApiException(
+        int statusCode,
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(message)
+    {
+        StatusCode = statusCode;
+        ResponseHeaders = responseHeaders;
+        ResponseBody = responseBody;
+        ErrorBody = errorBody;
+    }
+
+    /// <summary>
+    /// Maps an HTTP response that was not a success to the exception for its
+    /// status: 400, 401, 403, 404, 409 and 422 map to their named
+    /// <see cref="ClientException"/> subclasses and any other 4xx to
+    /// <see cref="ClientException"/>; 500 maps to
+    /// <see cref="InternalServerErrorException"/> and any other 5xx to
+    /// <see cref="ServerException"/>; any other status maps to
+    /// <see cref="ApiException"/> itself. A JSON body is parsed into
+    /// <see cref="ErrorBody"/>; a body that is not JSON leaves it null.
+    /// </summary>
+    /// <param name="statusCode">The HTTP status code of the response.</param>
+    /// <param name="responseHeaders">The HTTP response headers, if available.</param>
+    /// <param name="responseBody">The raw HTTP response body, if available.</param>
+    /// <returns>The exception for the status; the caller throws it.</returns>
+    public static ApiException FromResponse(
+        int statusCode,
+        IReadOnlyDictionary<string, string>? responseHeaders,
+        string? responseBody
+    )
+    {
+        string message = $"API returned status code {statusCode}";
+        Dictionary<string, string>? headers =
+            responseHeaders is null ? null : new Dictionary<string, string>(responseHeaders);
+        object? errorBody = null;
+        if (!string.IsNullOrEmpty(responseBody))
+        {
+            try
+            {
+                /* Cap the nesting depth so a deeply-nested error payload is
+                 * refused before it can recurse through the call stack. */
+                using var document = System.Text.Json.JsonDocument.Parse(
+                    responseBody,
+                    new System.Text.Json.JsonDocumentOptions
+                    {
+                        MaxDepth = ObjectSerializer.MaxJsonDepth,
+                    }
+                );
+                errorBody = document.RootElement.Clone();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                /* non-JSON or over-deep body, errorBody stays null */
+            }
+        }
+
+        return statusCode switch
+        {
+            400 => new BadRequestException(message, headers, responseBody, errorBody),
+            401 => new UnauthorizedException(message, headers, responseBody, errorBody),
+            403 => new ForbiddenException(message, headers, responseBody, errorBody),
+            404 => new NotFoundException(message, headers, responseBody, errorBody),
+            409 => new ConflictException(message, headers, responseBody, errorBody),
+            422 => new UnprocessableEntityException(message, headers, responseBody, errorBody),
+            >= 400 and < 500 => new ClientException(statusCode, message, headers, responseBody, errorBody),
+            500 => new InternalServerErrorException(message, headers, responseBody, errorBody),
+            >= 500 and < 600 => new ServerException(statusCode, message, headers, responseBody, errorBody),
+            _ => new ApiException(statusCode, message, headers, responseBody, errorBody),
+        };
+    }
+
+    /// <summary>
+    /// Deserialize the raw response body into the given type.
+    ///
+    /// Useful when the API returns a structured error body that you want to
+    /// access in a strongly-typed way.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the error body into.</typeparam>
+    /// <returns>The deserialized error body, or null if the body is empty.</returns>
+    public T? GetTypedErrorBody<T>()
+        where T : class
+    {
+        if (string.IsNullOrEmpty(ResponseBody))
+        {
+            return null;
+        }
+        return new ObjectSerializer().Deserialize<T>(ResponseBody);
+    }
+
+    /// <summary>
+    /// Render the error as the message followed by whatever response context
+    /// was captured, one labelled field per line.
+    ///
+    /// <see cref="Exception.Message"/> is deliberately left alone: it keeps
+    /// returning the detail message the exception was constructed with.
+    /// </summary>
+    public override string ToString()
+    {
+        StringBuilder rendered =
+            new(
+                string.IsNullOrEmpty(Message)
+                    ? "Error message: the server returns an error"
+                    : Message
+            );
+        if (StatusCode != 0)
+        {
+            rendered
+                .Append("\nHTTP status code: ")
+                .Append(StatusCode.ToString(CultureInfo.InvariantCulture));
+        }
+        if (ResponseHeaders is { Count: > 0 })
+        {
+            rendered
+                .Append("\nResponse headers: {")
+                .Append(string.Join(", ", ResponseHeaders.Select(h => $"{h.Key}={h.Value}")))
+                .Append('}');
+        }
+        if (!string.IsNullOrEmpty(ResponseBody))
+        {
+            rendered.Append("\nResponse body: ").Append(ResponseBody);
+        }
+        return rendered.ToString();
+    }
+}

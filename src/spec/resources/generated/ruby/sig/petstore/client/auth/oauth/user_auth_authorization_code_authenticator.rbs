@@ -1,0 +1,9 @@
+module Petstore::Client
+  module Auth
+    module OAuth
+      class UserAuthAuthorizationCodeAuthenticator < OAuth2AuthorizationCodeAuthenticator
+        def initialize: (String host, String client_id, String client_secret, String redirect_uri) -> void
+      end
+    end
+  end
+end

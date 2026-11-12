@@ -1,0 +1,95 @@
+{{>api_info}}
+
+defmodule {{moduleName}}.Configuration do
+  @moduledoc """
+  API-level configuration for generated client classes.
+
+  Holds the base URL and default headers that are applied to every API
+  request. Transport-level settings (TLS, proxy, timeouts) belong in
+  `#{inspect({{moduleName}}.TransportOptions)}` and are configured on the
+  `#{inspect({{moduleName}}.DefaultApiClient)}`.
+
+  This struct is immutable. Use `new/1` to create instances:
+
+      config = {{moduleName}}.Configuration.new(
+        base_url: "https://api.example.com",
+        default_headers: %{"Authorization" => "Bearer token"}
+      )
+  """
+
+  @typedoc """
+  * `base_url` - The base URL for all API requests. Defaults to the first
+    server URL from the OpenAPI specification.
+  * `default_headers` - Default headers included in every API request. These
+    headers are merged after transport-level headers from
+    `#{inspect({{moduleName}}.TransportOptions)}` but before operation-specific
+    headers and authentication headers.
+  """
+  @type t :: %__MODULE__{
+          base_url: String.t(),
+          default_headers: %{optional(String.t()) => String.t()}
+        }
+
+  @enforce_keys [:base_url]
+  defstruct base_url: "{{{basePath}}}",
+            default_headers: %{}
+
+  @doc """
+  Creates a new Configuration with the given options.
+
+  ## Options
+
+    * `:base_url` - The base URL for all API requests. Defaults to the first
+      server URL from the OpenAPI specification.
+    * `:default_headers` - Default headers included in every API request. These
+      headers are merged after transport-level headers from
+      `#{inspect({{moduleName}}.TransportOptions)}` but before operation-specific
+      headers and authentication headers.
+
+  ## Examples
+
+      iex> {{moduleName}}.Configuration.new()
+      %{{moduleName}}.Configuration{base_url: "{{{basePath}}}", default_headers: %{}}
+
+      iex> {{moduleName}}.Configuration.new(base_url: "https://custom.example.com")
+      %{{moduleName}}.Configuration{base_url: "https://custom.example.com", default_headers: %{}}
+
+  """
+  @spec new(keyword()) :: t()
+  def new(opts \\ []) do
+    %__MODULE__{
+      base_url: Keyword.get(opts, :base_url, "{{{basePath}}}"),
+      default_headers: Keyword.get(opts, :default_headers, %{})
+    }
+  end
+
+  @doc """
+  Creates a new Configuration from a server configuration with variable overrides.
+
+  Resolves the server URL template with the given variable overrides and uses
+  the result as the base URL. Variables not present in the map use their
+  default values. Enum validation is performed by
+  `#{inspect({{moduleName}}.ServerConfiguration)}.url/2`.
+
+  ## Parameters
+
+    * `server_config` - The server configuration to use.
+    * `variables` - Variable overrides (defaults to an empty map, so every
+      variable uses its default value).
+  """
+  @spec from_server({{moduleName}}.ServerConfiguration.t(), %{optional(String.t()) => String.t()}) :: t()
+  def from_server(server_config, variables \\ %{}) do
+    new(base_url: {{moduleName}}.ServerConfiguration.url(server_config, variables))
+  end
+
+  @doc """
+  Returns a Configuration with default values.
+
+  A fresh instance every call: the SDK keeps no process-wide default a caller
+  could swap out from under another caller.
+  """
+  @spec default() :: t()
+  def default do
+    new()
+  end
+end

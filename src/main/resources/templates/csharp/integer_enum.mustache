@@ -1,0 +1,59 @@
+{{!
+    Integer-backed enum. The wire form is a JSON number, so the members carry
+    their explicit numeric values and the converter reads/writes numbers
+    (mirroring the string converter's strict unknown-value rejection). System
+    .Text.Json's default enum handling is bypassed so the client targets net8.0
+    without relying on framework numeric-enum behaviour and so unknown values
+    throw rather than silently round-tripping.
+}}[JsonConverter(typeof({{classname}}Converter))]
+public enum {{classname}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{name}} = {{{value}}},
+{{^-last}}
+
+{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+}
+
+/// <summary>
+/// Serializes <see cref="{{classname}}"/> to and from its OpenAPI wire integer
+/// values; unknown values throw a <see cref="JsonException"/>, matching the
+/// strict behaviour of the string-enum converter.
+/// </summary>
+internal sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+{
+    public override {{classname}} Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.Number)
+        {
+            throw new JsonException($"Expected a JSON number for enum {{classname}} but got {reader.TokenType}.");
+        }
+
+        long value = reader.GetInt64();
+        return value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            {{{value}}} => {{classname}}.{{name}},
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        };
+    }
+
+    public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+    {
+        writer.WriteNumberValue(value switch
+        {
+            {{#allowableValues}}
+            {{#enumVars}}
+            {{classname}}.{{name}} => {{{value}}},
+            {{/enumVars}}
+            {{/allowableValues}}
+            _ => throw new JsonException($"Unknown value '{value}' for enum {{classname}}.")
+        });
+    }
+}

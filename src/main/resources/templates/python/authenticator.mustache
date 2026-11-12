@@ -1,0 +1,27 @@
+{{>api_info}}
+
+from abc import ABC, abstractmethod
+from typing import Dict
+
+
+class Authenticator(ABC):
+    """Base class for providing authentication credentials to the API client.
+
+    Subclasses supply the API host URL and authorization headers.
+    """
+
+    @abstractmethod
+    def get_host(self) -> str:
+        """Returns the base URL of the API."""
+
+    @abstractmethod
+    def get_auth_headers(self) -> Dict[str, str]:
+        """Returns the authentication headers to include in every request."""
+
+    def get_query_params(self) -> Dict[str, str]:
+        """Returns query parameters to include for authentication."""
+        return {}
+
+    def get_cookie_params(self) -> Dict[str, str]:
+        """Returns cookie parameters to include for authentication."""
+        return {}

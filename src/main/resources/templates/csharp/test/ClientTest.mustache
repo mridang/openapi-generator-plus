@@ -1,0 +1,310 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth;
+using {{packageName}}.Auth.OAuth;
+using Xunit;
+
+namespace Test;
+
+public class ClientTest : IDisposable
+{
+    private readonly BearerAuthenticator _authenticator =
+        new("{{{basePath}}}", "test-token");
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorOnly()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndNullTransportOptions()
+    {
+        using var client = new {{clientClassName}}(_authenticator, null);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndTransportOptions()
+    {
+        var transport = TransportOptions.Builder().Build();
+
+        using var client = new {{clientClassName}}(_authenticator, transport);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void BearerRejectsCrlfAndNonAscii()
+    {
+        // auth-validation-timing: the token is validated eagerly at
+        // construction (matching the 10-SDK majority), so a malformed token
+        // throws when the authenticator is created, not at first use.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "tok\r\nInjected: yes"));
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "ñoño"));
+    }
+
+    [Fact]
+    public void BearerRejectsEmptyToken()
+    {
+        // bearer-no-empty-token-guard: an empty/whitespace token would emit a
+        // bare "Authorization: Bearer " header, sending the request
+        // unauthenticated. It must be rejected like the api-key empty guard.
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", ""));
+        Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("{{{basePath}}}", "   "));
+    }
+
+    [Fact]
+    public void ApiKeyHeaderRejectsCrlfAndNonAscii()
+    {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's Header location must reject anything
+        // outside printable ASCII + TAB to prevent header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        // auth-validation-timing: validation runs eagerly at construction.
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.Header));
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.Header));
+        // Non-header locations accept arbitrary (non-control) chars.
+        Assert.NotNull(
+            new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.Query).GetQueryParams());
+    }
+
+    [Fact]
+    public void ApiKeyQueryAcceptsNonAscii()
+    {
+        var auth = new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.Query);
+
+        Assert.Equal(
+            new Dictionary<string, string> { ["api_key"] = "kéy" },
+            auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void ApiGroupsAreAccessible()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.NotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    private const string Host = "https://api.example.com";
+
+    private static Dictionary<string, string> Pair(string key, string value) =>
+        new() { [key] = value };
+
+    [Fact]
+    public void ApiKeyHeaderWrapperSendsItsKeyInTheSchemeHeader()
+    {
+        var auth = new ApiKeyHeaderAuthenticator(Host, "k");
+
+        Assert.Equal(Pair("X-API-Key", "k"), auth.GetAuthHeaders());
+        Assert.Empty(auth.GetQueryParams());
+        Assert.Empty(auth.GetCookieParams());
+    }
+
+    [Fact]
+    public void InternalApiKeyWrapperSendsItsKeyInTheSchemeHeader()
+    {
+        var auth = new InternalApiKeyAuthenticator(Host, "k");
+
+        Assert.Equal(Pair("X-Internal-Key", "k"), auth.GetAuthHeaders());
+        Assert.Empty(auth.GetQueryParams());
+        Assert.Empty(auth.GetCookieParams());
+    }
+
+    [Fact]
+    public void ApiKeyQueryWrapperSendsItsKeyInTheSchemeQueryParameter()
+    {
+        var auth = new ApiKeyQueryAuthenticator(Host, "k");
+
+        Assert.Equal(Pair("api_key", "k"), auth.GetQueryParams());
+        Assert.Empty(auth.GetAuthHeaders());
+        Assert.Empty(auth.GetCookieParams());
+    }
+
+    [Fact]
+    public void SessionCookieWrapperSendsItsKeyInTheSchemeCookie()
+    {
+        var auth = new SessionCookieAuthenticator(Host, "k");
+
+        Assert.Equal(Pair("SESSION_ID", "k"), auth.GetCookieParams());
+        Assert.Empty(auth.GetAuthHeaders());
+        Assert.Empty(auth.GetQueryParams());
+    }
+
+    [Fact]
+    public void ApiKeyWrappersRejectAnEmptyKeyAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, ""));
+        Assert.Throws<ArgumentException>(() => new InternalApiKeyAuthenticator(Host, ""));
+        Assert.Throws<ArgumentException>(() => new ApiKeyQueryAuthenticator(Host, ""));
+        Assert.Throws<ArgumentException>(() => new SessionCookieAuthenticator(Host, ""));
+    }
+
+    [Fact]
+    public void ApiKeyWrappersMaskTheKeyInTheirRepr()
+    {
+        Assert.DoesNotContain("secret-key", new ApiKeyHeaderAuthenticator(Host, "secret-key").ToString());
+        Assert.DoesNotContain("secret-key", new InternalApiKeyAuthenticator(Host, "secret-key").ToString());
+        Assert.DoesNotContain("secret-key", new ApiKeyQueryAuthenticator(Host, "secret-key").ToString());
+        Assert.DoesNotContain("secret-key", new SessionCookieAuthenticator(Host, "secret-key").ToString());
+        Assert.Contains(
+            "KeyParamName=SESSION_ID, ApiKey=***, Location=Cookie",
+            new SessionCookieAuthenticator(Host, "secret-key").ToString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BearerWrappersSendTheTokenAsABearerCredential()
+    {
+        Assert.Equal(
+            Pair("Authorization", "Bearer xyz"),
+            new PetStoreBearerAuthenticator(Host, "xyz").GetAuthHeaders());
+        Assert.Equal(
+            Pair("Authorization", "Bearer xyz"),
+            new ServiceTokenAuthenticator(Host, "xyz").GetAuthHeaders());
+        Assert.Throws<ArgumentException>(() => new PetStoreBearerAuthenticator(Host, ""));
+        Assert.Throws<ArgumentException>(() => new ServiceTokenAuthenticator(Host, ""));
+    }
+
+    [Fact]
+    public void BasicWrappersSendTheCredentialsAsABasicCredential()
+    {
+        Assert.Equal(
+            Pair("Authorization", "Basic YWxpY2U6czNjcmV0"),
+            new PetStoreBasicAuthenticator(Host, "alice", "s3cret").GetAuthHeaders());
+        Assert.Equal(
+            Pair("Authorization", "Basic YWxpY2U6czNjcmV0"),
+            new AdminBasicAuthenticator(Host, "alice", "s3cret").GetAuthHeaders());
+        Assert.Throws<ArgumentException>(() => new PetStoreBasicAuthenticator(Host, "ali:ce", "s3cret"));
+        Assert.Throws<ArgumentException>(() => new AdminBasicAuthenticator(Host, "ali:ce", "s3cret"));
+    }
+
+    [Fact]
+    public async Task PasswordWrapperUsesItsTokenUrlThenItsRefreshUrlAndScopes()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new LegacyAuthPasswordAuthenticator(Host, "cid", "csecret", "alice", "s3cret");
+        auth.SetApiClient(transport);
+
+        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal(2, transport.Requests.Count);
+        Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
+        Assert.Contains("grant_type=password", transport.Requests[0].Body, StringComparison.Ordinal);
+        Assert.Contains("scope=read", transport.Requests[0].Body, StringComparison.Ordinal);
+        Assert.Equal("https://auth.example.com/oauth/refresh", transport.Requests[1].Url.AbsoluteUri);
+        Assert.Contains("grant_type=refresh_token", transport.Requests[1].Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AuthorizationCodeWrapperUsesItsAuthorizeTokenAndRefreshUrlsAndScopes()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        transport.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new UserAuthAuthorizationCodeAuthenticator(
+            Host, "cid", "csecret", new Uri("https://app.example.com/callback"));
+        auth.SetApiClient(transport);
+
+        string authorizeUrl = auth.BuildAuthorizationUrl().OriginalString;
+        await auth.ExchangeCodeAsync("code");
+        await auth.GetAuthHeadersAsync();
+
+        Assert.StartsWith("https://auth.example.com/authorize?", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("scope=pets%3Awrite%20pets%3Aread", authorizeUrl, StringComparison.Ordinal);
+        Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
+        Assert.Equal("https://auth.example.com/oauth/refresh", transport.Requests[1].Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ClientCredentialsWrapperUsesItsTokenUrlAndScopes()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new MachineAuthClientCredentialsAuthenticator(Host, "cid", "csecret");
+        auth.SetApiClient(transport);
+
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
+        Assert.Contains("grant_type=client_credentials", transport.Requests[0].Body, StringComparison.Ordinal);
+        Assert.Contains("scope=pets%3Awrite+pets%3Aread", transport.Requests[0].Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ImplicitWrapperUsesItsAuthorizeUrlAndScopes()
+    {
+        var auth = new BrowserAuthImplicitAuthenticator(Host, "cid");
+
+        string authorizeUrl = auth.BuildAuthorizationUrl().OriginalString;
+
+        Assert.StartsWith("https://auth.example.com/authorize?", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("response_type=token", authorizeUrl, StringComparison.Ordinal);
+        Assert.Contains("scope=read", authorizeUrl, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OpenIdConnectWrapperDiscoversFromItsConfigurationUrlWithoutScopes()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+            + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        var auth = new SsoAuthAuthenticator(
+            Host, "cid", "csecret", new Uri("https://app.example.com/callback"));
+        auth.SetApiClient(transport);
+
+        string authorizeUrl = (await auth.BuildAuthorizationUrlAsync()).OriginalString;
+
+        Assert.Equal(
+            "https://auth.example.com/.well-known/openid-configuration",
+            transport.Requests[0].Url.AbsoluteUri);
+        Assert.StartsWith("https://auth.example.com/authorize?", authorizeUrl, StringComparison.Ordinal);
+        Assert.DoesNotContain("scope=", authorizeUrl, StringComparison.Ordinal);
+    }
+
+    private sealed class ScriptedApiClient : IApiClient
+    {
+        private readonly Queue<string> _bodies = new();
+
+        public List<(string Method, Uri Url, string Body)> Requests { get; } = [];
+
+        public void Enqueue(string body) => _bodies.Enqueue(body);
+
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body)
+        {
+            Requests.Add((method, url, body?.ToString() ?? string.Empty));
+            return Task.FromResult(
+                new ApiHttpResponse(200, _bodies.Dequeue(), new Dictionary<string, string>()));
+        }
+    }
+}

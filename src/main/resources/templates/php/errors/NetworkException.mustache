@@ -1,0 +1,17 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Errors;
+
+use Throwable;
+
+/**
+ * Exception for a request that received no HTTP response: connection refused,
+ * DNS failure, TLS failure, or connection reset. The status code is always 0
+ * and the underlying transport exception is kept as the previous exception.
+ */
+class NetworkException extends ApiException
+{
+    public function __construct(string $message = "", ?Throwable $previous = null)
+    {
+        parent::__construct(0, $message, null, null, null, $previous);
+    }
+}

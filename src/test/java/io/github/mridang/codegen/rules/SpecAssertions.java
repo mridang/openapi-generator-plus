@@ -192,6 +192,7 @@ public final class SpecAssertions {
             this.actual = actual;
         }
 
+        @SuppressWarnings("unused")
         public void hasNoContent() {
             assertTrue(actual.getContent() == null || actual.getContent().isEmpty());
         }

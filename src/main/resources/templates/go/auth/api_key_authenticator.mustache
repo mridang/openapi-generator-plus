@@ -1,0 +1,115 @@
+{{>api_info}}
+package auth
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
+// ApiKeyAuthenticator is the authenticator for API key authentication.
+//
+// The API key can be sent as a header, query parameter, or cookie,
+// depending on the location specified at construction.
+type ApiKeyAuthenticator struct {
+	BaseAuthenticator
+	host         string
+	keyParamName string
+	apiKey       string
+	location     ApiKeyLocation
+}
+
+// ErrInvalidApiKey is returned by NewApiKeyAuthenticator when the key is empty,
+// whitespace-only, contains CR, LF or NUL, or — for a header key — contains a
+// character outside printable ASCII and TAB (RFC 7230 §3.2.6). Match it with
+// errors.Is.
+var ErrInvalidApiKey = errors.New("invalid API key")
+
+// invalidApiKeyError carries the message the other SDKs use for a bad key while
+// still matching ErrInvalidApiKey through errors.Is.
+type invalidApiKeyError struct{ message string }
+
+func (e *invalidApiKeyError) Error() string { return e.message }
+
+func (e *invalidApiKeyError) Unwrap() error { return ErrInvalidApiKey }
+
+// NewApiKeyAuthenticator creates a new API key authenticator.
+//
+// Parameters:
+//   - host: API base URL
+//   - keyParamName: name of the key parameter
+//   - apiKey: the API key value
+//   - location: where to send the key (header, query, or cookie)
+//
+// Returns ErrInvalidApiKey when the key cannot be sent safely.
+func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) (*ApiKeyAuthenticator, error) {
+	// Validation applies to ALL locations: empty/whitespace API keys
+	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+	// printable-ASCII rule still applies to HEADER values.
+	if strings.TrimSpace(apiKey) == "" {
+		return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' must not be empty", keyParamName)}
+	}
+	for _, c := range apiKey {
+		if c == '\r' || c == '\n' || c == 0 {
+			return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' contains forbidden control characters (CR/LF/NUL)", keyParamName)}
+		}
+	}
+	if location == ApiKeyLocationHeader {
+		for _, c := range apiKey {
+			if c != '\t' && (c < 0x20 || c >= 0x7F) {
+				return nil, &invalidApiKeyError{fmt.Sprintf("API key value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", keyParamName)}
+			}
+		}
+	}
+	return &ApiKeyAuthenticator{
+		host:         host,
+		keyParamName: keyParamName,
+		apiKey:       apiKey,
+		location:     location,
+	}, nil
+}
+
+// Host returns the API base URL.
+func (a *ApiKeyAuthenticator) Host() string {
+	return a.host
+}
+
+// String returns a string representation that redacts the API key so
+// credentials never leak into logs or stack traces (matching the other SDKs).
+func (a ApiKeyAuthenticator) String() string {
+	return fmt.Sprintf("ApiKeyAuthenticator{host: %q, keyParamName: %q, apiKey: ***, location: %s}", a.host, a.keyParamName, a.location)
+}
+
+// GoString redacts the same secrets for the %#v verb. fmt ignores String()
+// for %#v and would otherwise reflect over every unexported field, secrets
+// included, into logs and test-failure output.
+func (a ApiKeyAuthenticator) GoString() string {
+	return a.String()
+}
+
+// AuthHeaders returns the API key as a header if the location is Header.
+func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationHeader {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// QueryParams returns the API key as a query parameter if the location is Query.
+func (a *ApiKeyAuthenticator) QueryParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationQuery {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// CookieParams returns the API key as a cookie if the location is Cookie.
+func (a *ApiKeyAuthenticator) CookieParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationCookie {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}

@@ -1,0 +1,335 @@
+{{>api_info}}
+import json
+import pytest
+from typing import Any
+from unittest.mock import MagicMock
+from urllib.parse import urlparse, parse_qs
+
+from {{packageName}}.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
+from {{packageName}}.errors.internal_server_error_exception import InternalServerErrorException
+from {{packageName}}.errors.not_found_exception import NotFoundException
+from {{packageName}}.errors import ApiException, SerializationException
+from {{packageName}}.api_http_response import ApiHttpResponse
+
+
+def _create_authenticator() -> OpenIdConnectAuthenticator:
+    return OpenIdConnectAuthenticator(
+        host='https://api.example.com',
+        openid_connect_url='https://auth.example.com/.well-known/openid-configuration',
+        client_id='oidc_client',
+        client_secret='oidc_secret',
+        redirect_uri='https://app.example.com/callback',
+        scopes=['openid', 'profile'],
+    )
+
+
+def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, MagicMock]:
+    """Helper that creates an authenticator and mocks the discovery endpoint."""
+    auth = _create_authenticator()
+    mock_client = MagicMock()
+    discovery_response = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps({
+            'authorization_endpoint': 'https://auth.example.com/authorize',
+            'token_endpoint': 'https://auth.example.com/token',
+            'issuer': 'https://auth.example.com',
+        }),
+        headers={'content-type': 'application/json'},
+    )
+    mock_client.send_request.return_value = discovery_response
+    auth.set_api_client(mock_client)
+    return auth, mock_client
+
+
+class TestOpenIdConnectAuthenticator:
+
+    def test_builds_authorization_url_from_discovery(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        url = auth.build_authorization_url()
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+
+        assert parsed.netloc == 'auth.example.com'
+        assert parsed.path == '/authorize'
+        assert params['client_id'] == ['oidc_client']
+        assert params['response_type'] == ['code']
+        assert params['scope'] == ['openid profile']
+
+    def test_fetches_discovery_document(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+
+        call_args = mock_client.send_request.call_args
+        assert call_args[0][0] == 'GET'
+        assert call_args[0][1] == 'https://auth.example.com/.well-known/openid-configuration'
+
+    def test_obtains_token_after_code_exchange(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()  # force discovery so delegate is cached
+
+        # Reset mock to track new calls for exchange_code
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc_access_token',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc_code')
+
+        token_call = mock_client.send_request.call_args
+        assert token_call[0][0] == 'POST'
+        assert token_call[0][1] == 'https://auth.example.com/token'
+        body = token_call[0][3]
+        assert 'grant_type=authorization_code' in body
+        assert 'code=oidc_code' in body
+
+    def test_get_auth_headers_returns_bearer_after_exchange(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()  # force discovery so delegate is cached
+
+        # Exchange code - returns token
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc-tok',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc-code')
+        headers = auth.get_auth_headers()
+
+        assert headers['Authorization'] == 'Bearer oidc-tok'
+
+    def test_throws_when_no_api_client_injected(self) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is RuntimeError
+
+    def test_get_host_returns_configured_host(self) -> None:
+        auth = _create_authenticator()
+
+        assert auth.get_host() == 'https://api.example.com'
+
+    def test_redacts_secret(self) -> None:
+        """The repr masks the client_secret as ``***`` and never leaks it."""
+        auth = _create_authenticator()
+        rendered = repr(auth)
+        assert 'oidc_secret' not in rendered
+        assert '***' in rendered
+
+    @pytest.mark.parametrize(
+        ('status', 'expected'),
+        [(404, NotFoundException), (500, InternalServerErrorException)],
+    )
+    def test_discovery_non_2xx_status_raises(self, status: int, expected: type[ApiException]) -> None:
+        # Discovery is an HTTP call like any other: a non-2xx answer (e.g. a
+        # 500-HTML error page) raises the same status-specific error an API
+        # call would, not a confusing "invalid JSON" from json.loads.
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=status,
+            body='<html>Error</html>',
+            headers={'content-type': 'text/html'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(expected) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is expected
+        assert exc_info.value.status_code == status
+
+    def test_discovery_document_not_json_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body='<html>not json</html>',
+            headers={'content-type': 'text/html'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException) as exc_info:
+            auth.build_authorization_url()
+        assert type(exc_info.value) is SerializationException
+
+    def test_discovery_missing_authorization_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({'token_endpoint': 'https://auth.example.com/token'}),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException, match="OIDC discovery document is missing 'authorization_endpoint'"):
+            auth.build_authorization_url()
+
+    def test_fetches_discovery_document_only_once(self) -> None:
+        # The discovery document must be cached: a second build must reuse it
+        # rather than issue a second GET to the discovery endpoint.
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 1
+
+    def test_discovery_empty_token_endpoint_raises(self) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({
+                'authorization_endpoint': 'https://auth.example.com/authorize',
+                'token_endpoint': '',
+            }),
+            headers={'content-type': 'application/json'},
+        )
+        auth.set_api_client(mock_client)
+        with pytest.raises(SerializationException):
+            auth.build_authorization_url()
+
+
+def _discovery_client(cache_control: Any) -> MagicMock:
+    mock_client = MagicMock()
+    headers = {"content-type": "application/json"}
+    if cache_control is not None:
+        headers["cache-control"] = cache_control
+    mock_client.send_request.return_value = ApiHttpResponse(
+        status_code=200,
+        body=json.dumps(
+            {
+                "authorization_endpoint": "https://auth.example.com/authorize",
+                "token_endpoint": "https://auth.example.com/token",
+            }
+        ),
+        headers=headers,
+    )
+    return mock_client
+
+
+class TestDiscoveryCacheLifetime:
+    @pytest.mark.parametrize(
+        ("headers", "expected"),
+        [
+            ({"Cache-Control": "max-age=120"}, 120),
+            ({"cache-control": "public, MAX-AGE=45"}, 45),
+            ({"Cache-Control": "max-age=0"}, 0),
+            ({"Cache-Control": "no-store"}, 86400),
+            ({"Cache-Control": "max-age=abc"}, 86400),
+            ({"content-type": "application/json"}, 86400),
+            ({}, 86400),
+            (None, 86400),
+        ],
+    )
+    def test_max_age_is_read_from_the_cache_control_header(
+        self, headers: Any, expected: int
+    ) -> None:
+        from {{packageName}}.auth.oauth.openid_connect_authenticator import (
+            _parse_max_age,
+        )
+
+        assert _parse_max_age(headers) == expected
+
+    def test_a_document_is_refetched_once_its_max_age_has_passed(self) -> None:
+        from unittest.mock import patch
+
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=100")
+        auth.set_api_client(mock_client)
+        module = "{{packageName}}.auth.oauth.openid_connect_authenticator.time"
+
+        with patch(module) as clock:
+            clock.monotonic.return_value = 1000.0
+            auth.build_authorization_url()
+            clock.monotonic.return_value = 1099.0
+            auth.build_authorization_url()
+            assert mock_client.send_request.call_count == 1
+
+            clock.monotonic.return_value = 1100.0
+            auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+    def test_max_age_zero_refetches_on_every_use(self) -> None:
+        auth = _create_authenticator()
+        mock_client = _discovery_client("max-age=0")
+        auth.set_api_client(mock_client)
+
+        auth.build_authorization_url()
+        auth.build_authorization_url()
+
+        assert mock_client.send_request.call_count == 2
+
+
+class TestDiscoveryTransportFailure:
+    def test_a_network_failure_reaches_the_caller_unchanged(self) -> None:
+        from {{packageName}}.errors import NetworkException
+
+        failure = NetworkException(message="connection refused")
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = failure
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(NetworkException) as excinfo:
+            auth.build_authorization_url()
+
+        assert excinfo.value is failure
+
+
+class TestOidcAuthorizationUrl:
+    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+        auth, _ = _create_authenticator_with_discovery()
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=oidc_client"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=openid%20profile"
+        )
+
+
+class TestSsoAuthWrapper:
+    def test_discovers_from_the_spec_url_and_requests_no_scope(self) -> None:
+        from {{packageName}}.auth.oauth.sso_auth_authenticator import (
+            SsoAuthAuthenticator,
+        )
+
+        auth = SsoAuthAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+        mock_client = _discovery_client(None)
+        auth.set_api_client(mock_client)
+
+        assert auth.build_authorization_url() == (
+            "https://auth.example.com/authorize?response_type=code&client_id=cid"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcb"
+        )
+        assert mock_client.send_request.call_args[0][1] == (
+            "https://auth.example.com/.well-known/openid-configuration"
+        )
+
+
+class TestOpenIdConnectRedactedRepr:
+    def test_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:
+        assert repr(_create_authenticator()) == (
+            "OpenIdConnectAuthenticator(host='https://api.example.com', "
+            "openid_connect_url="
+            "'https://auth.example.com/.well-known/openid-configuration', "
+            "client_id='oidc_client', client_secret='***', "
+            "redirect_uri='https://app.example.com/callback', "
+            "scopes=('openid', 'profile'))"
+        )
