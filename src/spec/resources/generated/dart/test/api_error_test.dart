@@ -214,6 +214,17 @@ void main() {
       );
     });
 
+    test('status error constructors default the response context to null', () {
+      const err = BadRequestException();
+
+      expect(err.statusCode, equals(400));
+      expect(err.message, equals(''));
+      expect(err.responseHeaders, isNull);
+      expect(err.responseBody, isNull);
+      expect(err.errorBody, isNull);
+      expect(const NotFoundException(message: 'gone').responseHeaders, isNull);
+    });
+
     test(
       'NetworkTimeoutException is NetworkException and ApiException with status 0',
       () {

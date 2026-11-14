@@ -16,8 +16,8 @@ package com.example.petstore.errors
  * @param errorBody the deserialized error body, if available
  */
 class NotFoundException(
-    message: String,
-    responseHeaders: Map<String, String>?,
-    responseBody: String?,
+    message: String = "",
+    responseHeaders: Map<String, String>? = null,
+    responseBody: String? = null,
     errorBody: Any? = null,
 ) : ClientException(404, message, responseHeaders, responseBody, errorBody)

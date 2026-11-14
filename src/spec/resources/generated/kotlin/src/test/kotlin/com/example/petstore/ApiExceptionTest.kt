@@ -10,8 +10,10 @@ package com.example.petstore
 import com.example.petstore.errors.ApiException
 import com.example.petstore.errors.BadRequestException
 import com.example.petstore.errors.ClientException
+import com.example.petstore.errors.NotFoundException
 import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
+import com.example.petstore.errors.ServerException
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -89,6 +91,31 @@ class ApiExceptionTest {
         assertTrue(ex is ApiException)
         assertTrue(ex is OpenAPIException)
         assertEquals(400, ex.statusCode)
+    }
+
+    @Test
+    fun statusErrorConstructorsDefaultTheResponseContextToNull() {
+        val bad = BadRequestException()
+        assertEquals(400, bad.statusCode)
+        assertEquals("", bad.message)
+        assertNull(bad.responseHeaders)
+        assertNull(bad.responseBody)
+        assertNull(bad.errorBody)
+
+        val missing = NotFoundException("gone")
+        assertEquals(404, missing.statusCode)
+        assertNull(missing.responseHeaders)
+
+        val client = ClientException(418, "teapot")
+        assertEquals(418, client.statusCode)
+        assertEquals("teapot", client.message)
+        assertNull(client.responseHeaders)
+        assertNull(client.responseBody)
+        assertNull(client.errorBody)
+
+        val server = ServerException(503, "down")
+        assertEquals(503, server.statusCode)
+        assertNull(server.responseHeaders)
     }
 
     @Test

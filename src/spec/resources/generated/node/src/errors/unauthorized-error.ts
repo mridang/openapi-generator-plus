@@ -13,8 +13,8 @@ import { ClientError } from "./client-error.js";
  */
 export class UnauthorizedError<T = unknown> extends ClientError<T> {
   constructor(
-    message: string,
-    responseHeaders: Record<string, string> | null = {},
+    message: string = "",
+    responseHeaders: Record<string, string> | null = null,
     responseBody: string | null = null,
     errorBody: T | null = null,
   ) {

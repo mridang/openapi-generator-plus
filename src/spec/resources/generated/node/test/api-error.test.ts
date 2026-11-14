@@ -79,6 +79,22 @@ describe("ApiError", () => {
       expect(err.name).toBe("BadRequestError");
     });
 
+    test("status error constructors default the response context to null", () => {
+      const bad = new BadRequestError();
+      expect(bad.statusCode).toBe(400);
+      expect(bad.message).toBe("");
+      expect(bad.responseHeaders).toBeNull();
+      expect(bad.responseBody).toBeNull();
+      expect(bad.errorBody).toBeNull();
+      expect(new NotFoundError("gone").responseHeaders).toBeNull();
+      const client = new ClientError(418, "teapot");
+      expect(client.statusCode).toBe(418);
+      expect(client.responseHeaders).toBeNull();
+      expect(client.responseBody).toBeNull();
+      expect(client.errorBody).toBeNull();
+      expect(new ServerError(503, "down").responseHeaders).toBeNull();
+    });
+
     test("a NetworkTimeoutError is a NetworkError and ApiError with status 0", () => {
       const cause = new Error("socket hang up");
       const err = new NetworkTimeoutError("timed out", { cause });

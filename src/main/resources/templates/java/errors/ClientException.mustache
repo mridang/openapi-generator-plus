@@ -13,6 +13,16 @@ public class ClientException extends ApiException {
     private static final long serialVersionUID = 1L;
 
     /**
+     * Creates a new exception with no response context.
+     *
+     * @param statusCode the HTTP status code
+     * @param message the error message
+     */
+    public ClientException(int statusCode, String message) {
+        this(statusCode, message, null, null, null);
+    }
+
+    /**
      * Creates a new exception.
      *
      * @param statusCode the HTTP status code

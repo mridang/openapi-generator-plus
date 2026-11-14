@@ -10,7 +10,7 @@ import 'client_exception.dart';
 /// Exception for HTTP 404 Not Found.
 class NotFoundException extends ClientException {
   const NotFoundException({
-    required super.message,
+    super.message = '',
     super.responseBody,
     super.responseHeaders,
     super.errorBody,
