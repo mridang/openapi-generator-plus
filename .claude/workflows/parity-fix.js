@@ -124,9 +124,21 @@ const allowNote = plan => (plan.allow_rules && plan.allow_rules.trim() && plan.a
 const summary = []
 let head = args.base
 const moved = step => { if (step && /^[0-9a-f]{7,40}$/.test(step.commit || '')) head = step.commit; return step }
-for (const set of args.sets) {
-  phase('Plan')
+/* Planning and pre-flight are read-only, so the next set is prepared while the current
+ * one is implemented and reviewed. */
+async function prepare(set) {
   const plan = await role(`Plan change set ${set.slug} for ledger items ${set.ids.join(',')}.`, { label: `${set.slug}:plan`, phase: 'Plan', agentType: 'parity-planner', schema: PLAN })
+  if (!plan || plan.verdict !== 'work') return { plan, pre: [] }
+  const pre = (await role(`Pre-flight for change set ${set.slug}, area "${plan.area}". Canonical behaviour:\n${plan.canonical}\n\nPlanned tasks:\n${JSON.stringify(plan.tasks)}`,
+    { label: `${set.slug}:preflight`, phase: 'Pre-flight', agentType: 'parity-preflight', schema: PREFLIGHT }))?.languages ?? []
+  return { plan, pre }
+}
+
+let pending = args.sets.length ? prepare(args.sets[0]) : null
+for (let i = 0; i < args.sets.length; i++) {
+  const set = args.sets[i]
+  const { plan, pre } = await pending
+  pending = i + 1 < args.sets.length ? prepare(args.sets[i + 1]) : null
   if (!plan) { summary.push(`${set.slug}: planner failed`); continue }
   if (plan.verdict !== 'work') {
     moved(await role(`In ${PR}, record ledger items ${set.ids.join(',')} as ${plan.verdict === 'already-fixed' ? 'fixed' : plan.verdict} with note "${plan.reason.replace(/"/g, "'").slice(0, 300)}" (python3 etc/parity-findings.py set <ids> <status> "<note>", then render), and commit the ledger as "docs: record ${set.slug} in the findings ledger".${allowNote(plan)}`,
@@ -135,9 +147,6 @@ for (const set of args.sets) {
     continue
   }
 
-  phase('Pre-flight')
-  const pre = (await role(`Pre-flight for change set ${set.slug}, area "${plan.area}". Canonical behaviour:\n${plan.canonical}\n\nPlanned tasks:\n${JSON.stringify(plan.tasks)}`,
-    { label: `${set.slug}:preflight`, phase: 'Pre-flight', agentType: 'parity-preflight', schema: PREFLIGHT }))?.languages ?? []
   const work = LANGS.filter(l => {
     const t = plan.tasks.find(x => x.language === l)
     const p = pre.find(x => x.language === l)
