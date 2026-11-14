@@ -19,7 +19,7 @@ package com.example.petstore.errors
 open class ClientException(
     statusCode: Int,
     message: String,
-    responseHeaders: Map<String, String>?,
-    responseBody: String?,
+    responseHeaders: Map<String, String>? = null,
+    responseBody: String? = null,
     errorBody: Any? = null,
 ) : ApiException(statusCode, message, responseHeaders, responseBody, errorBody)

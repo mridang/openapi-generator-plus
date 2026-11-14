@@ -7,6 +7,8 @@ import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.NotFoundException
+import {{invokerPackage}}.errors.ServerException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
 
@@ -81,6 +83,31 @@ class ApiExceptionTest {
         assertTrue(ex is ApiException)
         assertTrue(ex is {{errorPrefix}}Exception)
         assertEquals(400, ex.statusCode)
+    }
+
+    @Test
+    fun statusErrorConstructorsDefaultTheResponseContextToNull() {
+        val bad = BadRequestException()
+        assertEquals(400, bad.statusCode)
+        assertEquals("", bad.message)
+        assertNull(bad.responseHeaders)
+        assertNull(bad.responseBody)
+        assertNull(bad.errorBody)
+
+        val missing = NotFoundException("gone")
+        assertEquals(404, missing.statusCode)
+        assertNull(missing.responseHeaders)
+
+        val client = ClientException(418, "teapot")
+        assertEquals(418, client.statusCode)
+        assertEquals("teapot", client.message)
+        assertNull(client.responseHeaders)
+        assertNull(client.responseBody)
+        assertNull(client.errorBody)
+
+        val server = ServerException(503, "down")
+        assertEquals(503, server.statusCode)
+        assertNull(server.responseHeaders)
     }
 
     @Test
