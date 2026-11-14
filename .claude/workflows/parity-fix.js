@@ -27,6 +27,7 @@ const PLAN = {
     canonical: { type: 'string' },
     commit_subject: { type: 'string' },
     shared_task: { type: 'string' },
+    allow_rules: { type: 'string', description: 'JSON list of rules to append to etc/api-surface-allow.json for differences that are genuine language idiom (each with element, aspect, languages and the language feature as reason), or empty' },
     tasks: { type: 'array', items: { type: 'object', properties: {
       language: { type: 'string', enum: LANGS }, action: { type: 'string', enum: ['change', 'skip'] },
       task: { type: 'string' } }, required: ['language', 'action', 'task'] } },
@@ -83,6 +84,9 @@ function implement(set, plan, pre, lang, base, feedback) {
     { label: `${set.slug}:${lang}`, phase: 'Implement', agentType: `sdk-${lang}`, isolation: 'worktree', schema: REPORT })
 }
 
+const allowNote = plan => (plan.allow_rules && plan.allow_rules.trim() && plan.allow_rules.trim() !== '[]')
+  ? ` Also append these idiom rules to the "allow" list of etc/api-surface-allow.json (keep its formatting), check python3 etc/api-surface.py check no longer reports them, and include the file in the commit: ${plan.allow_rules}`
+  : ''
 const summary = []
 let head = args.base
 const moved = step => { if (step && /^[0-9a-f]{7,40}$/.test(step.commit || '')) head = step.commit; return step }
@@ -91,7 +95,7 @@ for (const set of args.sets) {
   const plan = await agent(`Plan change set ${set.slug} for ledger items ${set.ids.join(',')}.`, { label: `${set.slug}:plan`, phase: 'Plan', agentType: 'parity-planner', schema: PLAN })
   if (!plan) { summary.push(`${set.slug}: planner failed`); continue }
   if (plan.verdict !== 'work') {
-    moved(await agent(`In ${PR}, record ledger items ${set.ids.join(',')} as ${plan.verdict === 'already-fixed' ? 'fixed' : plan.verdict} with note "${plan.reason.replace(/"/g, "'").slice(0, 300)}" (python3 etc/parity-findings.py set <ids> <status> "<note>", then render), and commit the ledger as "docs: record ${set.slug} in the findings ledger".`,
+    moved(await agent(`In ${PR}, record ledger items ${set.ids.join(',')} as ${plan.verdict === 'already-fixed' ? 'fixed' : plan.verdict} with note "${plan.reason.replace(/"/g, "'").slice(0, 300)}" (python3 etc/parity-findings.py set <ids> <status> "<note>", then render), and commit the ledger as "docs: record ${set.slug} in the findings ledger".${allowNote(plan)}`,
       { label: `${set.slug}:record`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP }))
     summary.push(`${set.slug}: ${plan.verdict} (${plan.reason.slice(0, 120)})`)
     continue
@@ -143,7 +147,7 @@ for (const set of args.sets) {
   phase('Integrate')
   const found = [...(verdict?.new_findings ?? []), ...reports.flatMap(r => (r.discovered ?? []).map(d => ({ title: d.slice(0, 200), severity: 'medium', languages: [r.language], description: d })))]
   if (verdict && verdict.approved) {
-    const done = await agent(`In ${PR}, the parity-guard approved the staged change set ${set.slug}. Commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}`,
+    const done = await agent(`In ${PR}, the parity-guard approved the staged change set ${set.slug}. Commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}.${allowNote(plan)}`,
       { label: `${set.slug}:commit`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     summary.push(`${set.slug}: ${done && done.ok ? 'landed ' + (done.commit || '') : 'gate failed: ' + (done ? done.notes.slice(0, 160) : 'no report')}`)
     moved(done)
