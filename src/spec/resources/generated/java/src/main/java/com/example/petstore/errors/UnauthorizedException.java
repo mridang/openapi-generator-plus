@@ -15,6 +15,20 @@ import javax.annotation.Nullable;
 public class UnauthorizedException extends ClientException {
   @java.io.Serial private static final long serialVersionUID = 1L;
 
+  /** Creates a new exception with an empty message and no response context. */
+  public UnauthorizedException() {
+    this("", null, null, null);
+  }
+
+  /**
+   * Creates a new exception with no response context.
+   *
+   * @param message the error message
+   */
+  public UnauthorizedException(String message) {
+    this(message, null, null, null);
+  }
+
   /**
    * Creates a new exception.
    *

@@ -125,6 +125,36 @@ class ApiExceptionTest {
     }
 
     @Test
+    void statusErrorConstructorsDefaultTheResponseContextToNull() {
+        {{invokerPackage}}.errors.BadRequestException badRequest =
+                new {{invokerPackage}}.errors.BadRequestException();
+        assertEquals(400, badRequest.getStatusCode());
+        assertEquals("", badRequest.getMessage());
+        assertNull(badRequest.getResponseHeaders());
+        assertNull(badRequest.getResponseBody());
+        assertNull(badRequest.getErrorBody());
+
+        {{invokerPackage}}.errors.NotFoundException notFound =
+                new {{invokerPackage}}.errors.NotFoundException("gone");
+        assertEquals(404, notFound.getStatusCode());
+        assertEquals("gone", notFound.getMessage());
+        assertNull(notFound.getResponseHeaders());
+
+        {{invokerPackage}}.errors.ClientException client =
+                new {{invokerPackage}}.errors.ClientException(418, "teapot");
+        assertEquals(418, client.getStatusCode());
+        assertEquals("teapot", client.getMessage());
+        assertNull(client.getResponseHeaders());
+        assertNull(client.getResponseBody());
+        assertNull(client.getErrorBody());
+
+        {{invokerPackage}}.errors.ServerException server =
+                new {{invokerPackage}}.errors.ServerException(503, "down");
+        assertEquals(503, server.getStatusCode());
+        assertNull(server.getResponseHeaders());
+    }
+
+    @Test
     void networkExceptionsExtendApiExceptionWithStatusZero() {
         // No HTTP response arrived, so the status is 0 and the transport
         // failure is kept as the cause. Both sit under ApiException so an

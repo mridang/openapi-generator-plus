@@ -16,6 +16,16 @@ public class ServerException extends ApiException {
   @java.io.Serial private static final long serialVersionUID = 1L;
 
   /**
+   * Creates a new exception with no response context.
+   *
+   * @param statusCode the HTTP status code
+   * @param message the error message
+   */
+  public ServerException(int statusCode, String message) {
+    this(statusCode, message, null, null, null);
+  }
+
+  /**
    * Creates a new exception.
    *
    * @param statusCode the HTTP status code
