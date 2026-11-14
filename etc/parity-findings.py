@@ -8,8 +8,16 @@
   parity-findings.py apply <results.json> <batch>   record per-language outcomes from a fix batch
   parity-findings.py decision <D06,D11,...> [language]   print decisions from PARITY_DECISIONS.json
   parity-findings.py discovered <results.json> <batch>   list the new issues a batch reported
+  parity-findings.py add <findings.json>      append new findings (a JSON list); exact-title duplicates are skipped
+  parity-findings.py next [n]                 print the next n open items, highest severity first
+  parity-findings.py done <F001,...> <commit> [note]   mark items fixed by the given commit
+  parity-findings.py count                    print the single progress number (open ledger items)
+  parity-findings.py classes                  print the bug-class catalogue: every review lens with
+                                              examples of real findings, for /parity-review
 
-Statuses: open, fixed, false-positive, forced, duplicate, deferred.
+Statuses: open, partial, needs-spec, parked, fixed, false-positive, forced, duplicate, deferred.
+This file is the only findings list in the repository: every review, fix agent and
+workflow reports into it through this script.
 """
 import json, os, sys, collections
 
@@ -180,6 +188,68 @@ def do_decision(ids, language):
             print("\nSPEC FIXTURE (already merged into the petstore spec; see PARITY_FIXTURES.md):\n" + d["spec_yaml"])
 
 
+OPEN = {"open", "partial", "needs-spec", "parked"}
+
+
+def do_add(path):
+    new = json.load(open(path, encoding="utf-8"))
+    data = load()
+    titles = {f["title"].strip().lower() for f in data["findings"]}
+    nxt = max(int(f["id"][1:]) for f in data["findings"]) + 1
+    added = []
+    for r in new:
+        title = r["title"].strip()
+        if title.lower() in titles:
+            continue
+        titles.add(title.lower())
+        f = {"id": "F%03d" % nxt, "severity": r.get("severity", "medium"), "title": title[:200],
+             "lens": r.get("lens", "review"), "category": r.get("category", "discovered"),
+             "languages": r.get("languages", []), "description": r.get("description", title),
+             "evidence": r.get("evidence", []), "unit_testable": r.get("unit_testable"),
+             "status": "open", "note": r.get("note", ""), "batch": None}
+        nxt += 1
+        data["findings"].append(f)
+        added.append(f["id"])
+    save(data)
+    print("added %d: %s" % (len(added), ",".join(added)))
+
+
+def do_next(n):
+    fs = [f for f in load()["findings"] if f["status"] in OPEN]
+    fs.sort(key=lambda f: (SEV.get(f["severity"], 9), f.get("category") or "", f["id"]))
+    for f in fs[:n]:
+        print("%s [%s] [%s] %s (%s)" % (f["id"], f["severity"], f["status"], f["title"], ",".join(f.get("languages", []))))
+
+
+def do_done(ids, commit, note):
+    data = load()
+    want = set(ids.split(","))
+    for f in data["findings"]:
+        if f["id"] in want:
+            f["status"] = "fixed"
+            f["commit"] = commit
+            if note:
+                f["note"] = note
+    save(data)
+
+
+def do_count():
+    print(sum(1 for f in load()["findings"] if f["status"] in OPEN))
+
+
+def do_classes():
+    real = {"open", "partial", "needs-spec", "parked", "fixed", "forced"}
+    by = collections.defaultdict(list)
+    for f in load()["findings"]:
+        if f["status"] in real and f.get("lens", "").startswith("L"):
+            by[f["lens"]].append(f)
+    for lens in sorted(by):
+        fs = by[lens]
+        print("%s (%d real findings)" % (lens, len(fs)))
+        for f in sorted(fs, key=lambda f: SEV.get(f["severity"], 9))[:6]:
+            print("  - [%s] %s" % (f["severity"], f["title"][:160]))
+
+
 def render():
     fs = load()["findings"]
     by_status = collections.Counter(f["status"] for f in fs)
@@ -231,6 +301,19 @@ if __name__ == "__main__":
         sys.exit(0)
     elif cmd == "show":
         do_show(sys.argv[2])
+        sys.exit(0)
+    elif cmd == "add":
+        do_add(sys.argv[2])
+    elif cmd == "next":
+        do_next(int(sys.argv[2]) if len(sys.argv) > 2 else 20)
+        sys.exit(0)
+    elif cmd == "done":
+        do_done(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+    elif cmd == "classes":
+        do_classes()
+        sys.exit(0)
+    elif cmd == "count":
+        do_count()
         sys.exit(0)
     elif cmd == "render":
         pass

@@ -680,6 +680,15 @@
     "rust"
    ],
    "reason": "rust ownership: into_data(self) moves the payload out; borrowing languages have no by-value counterpart"
+  },
+  {
+   "element": "*",
+   "aspect": "casing",
+   "languages": [
+    "go",
+    "swift"
+   ],
+   "reason": "language idiom: go and swift spell initialisms in upper case (URL, ID, HTTP) per Effective Go and the Swift API Design Guidelines"
   }
  ]
 }

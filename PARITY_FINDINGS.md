@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4, needs-spec 2, open 87, partial 7. Severity: critical 3, high 59, medium 424, low 174.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4, needs-spec 2, open 174, partial 7. Severity: critical 3, high 59, medium 511, low 174.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -666,6 +666,93 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4,
 | F658 | medium | duplicate | batch5-discovered | node | The header comment emitted by api_info (a // line in every generated node source file) still shows escapeText's backslash-escaped quotes (\"quoted\") from info.description; that is D41 territory |
 | F659 | medium | duplicate | batch5-discovered | node | ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only and date-time leaves, so the D57 offset requirement is not enforced on container or top-level date-time values |
 | F660 | medium | false-positive | batch5-discovered | node | The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec |
+| F661 | medium | open | api-surface | dart, elixir, ruby, rust | API surface: harmonise api `baseapi` (9 differences) |
+| F662 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences) |
+| F663 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences) |
+| F664 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences) |
+| F665 | medium | open | api-surface | dart, node, php, ruby | API surface: harmonise api `petapi` (6 differences) |
+| F666 | medium | open | api-surface | dart, java, ruby | API surface: harmonise api `storeapi` (4 differences) |
+| F667 | medium | open | api-surface | python | API surface: harmonise auth `apikeyauthenticator` (3 differences) |
+| F668 | medium | open | api-surface | dart, node | API surface: harmonise auth `authenticator` (2 differences) |
+| F669 | medium | open | api-surface | python | API surface: harmonise auth `basicauthenticator` (2 differences) |
+| F670 | medium | open | api-surface | python | API surface: harmonise auth `bearerauthenticator` (1 differences) |
+| F671 | medium | open | api-surface | dart, elixir, go, node, ruby, rust, swift | API surface: harmonise auth `httpawareauthenticator` (2 differences) |
+| F672 | medium | open | api-surface | dart, elixir, go, java, node, ruby, rust, swift | API surface: harmonise auth `oauth2authorizationcodeauthenticator` (6 differences) |
+| F673 | medium | open | api-surface | dart, elixir, go, python, ruby, rust, swift | API surface: harmonise auth `oauth2clientcredentialsauthenticator` (7 differences) |
+| F674 | medium | open | api-surface | dart, elixir, go, java, ruby, rust, swift | API surface: harmonise auth `oauth2implicitauthenticator` (3 differences) |
+| F675 | medium | open | api-surface | dart, elixir, go, java, python, ruby, rust, swift | API surface: harmonise auth `oauth2passwordauthenticator` (11 differences) |
+| F676 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, ruby, rust, swift | API surface: harmonise auth `oauth2tokenmanager` (9 differences) |
+| F677 | medium | open | api-surface | dart, go, java, ruby, rust, swift | API surface: harmonise auth `openidconnectauthenticator` (5 differences) |
+| F678 | medium | open | api-surface | dart, node, php | API surface: harmonise core `abstractapiclient` (17 differences) |
+| F679 | medium | open | api-surface | dart, node, python | API surface: harmonise core `allowreservedvalue` (1 differences) |
+| F680 | medium | open | api-surface | dart, elixir, node, python | API surface: harmonise core `apiclient` (4 differences) |
+| F681 | medium | open | api-surface | php, ruby | API surface: harmonise core `client` (4 differences) |
+| F682 | medium | open | api-surface | elixir, ruby | API surface: harmonise core `configuration` (2 differences) |
+| F683 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `configurationbuilder` (2 differences) |
+| F684 | medium | open | api-surface | csharp, dart, elixir, kotlin, node, python, ruby, rust | API surface: harmonise core `defaultapiclient` (25 differences) |
+| F685 | medium | open | api-surface | csharp, go, java, kotlin, ruby, swift | API surface: harmonise core `headerselector` (2 differences) |
+| F686 | medium | open | api-surface | swift | API surface: harmonise core `iso8601duration` (2 differences) |
+| F687 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `objectserializer` (78 differences) |
+| F688 | medium | open | api-surface | ruby | API surface: harmonise core `petstore` (1 differences) |
+| F689 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `serverconfiguration` (1 differences) |
+| F690 | medium | open | api-surface | dart, go, ruby, rust | API surface: harmonise core `servers` (2 differences) |
+| F691 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `servervariable` (1 differences) |
+| F692 | medium | open | api-surface | php, ruby | API surface: harmonise core `transportoptions` (3 differences) |
+| F693 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `transportoptionsbuilder` (9 differences) |
+| F694 | medium | open | api-surface | csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `valueserializer` (22 differences) |
+| F695 | medium | open | api-surface | ruby | API surface: harmonise core `valueserializerallowreservedvalue` (1 differences) |
+| F696 | medium | open | api-surface | dart, elixir, go, node, python, ruby, rust, swift | API surface: harmonise error `apierror` (7 differences) |
+| F697 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `badrequesterror` (1 differences) |
+| F698 | medium | open | api-surface | kotlin, node | API surface: harmonise error `clienterror` (1 differences) |
+| F699 | medium | open | api-surface | swift | API surface: harmonise error `configurationerror` (1 differences) |
+| F700 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `conflicterror` (1 differences) |
+| F701 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `forbiddenerror` (1 differences) |
+| F702 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `internalservererror` (1 differences) |
+| F703 | medium | open | api-surface | dart, go, python, ruby | API surface: harmonise error `networkerror` (1 differences) |
+| F704 | medium | open | api-surface | dart, go | API surface: harmonise error `networktimeouterror` (1 differences) |
+| F705 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `notfounderror` (1 differences) |
+| F706 | medium | open | api-surface | kotlin | API surface: harmonise error `oauth2servererror` (1 differences) |
+| F707 | medium | open | api-surface | java, kotlin, swift | API surface: harmonise error `oauth2tokenerror` (2 differences) |
+| F708 | medium | open | api-surface | dart | API surface: harmonise error `openapierror` (1 differences) |
+| F709 | medium | open | api-surface | kotlin, node | API surface: harmonise error `servererror` (1 differences) |
+| F710 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `unauthorizederror` (1 differences) |
+| F711 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `unprocessableentityerror` (1 differences) |
+| F712 | medium | open | api-surface | php | API surface: harmonise model `binaryvault` (6 differences) |
+| F713 | medium | open | api-surface | go, rust | API surface: harmonise model `datetime` (2 differences) |
+| F714 | medium | open | api-surface | go | API surface: harmonise model `defaults` (1 differences) |
+| F715 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `defaultsmodeenum` (1 differences) |
+| F716 | medium | open | api-surface | elixir | API surface: harmonise model `dryfood` (1 differences) |
+| F717 | medium | open | api-surface | go | API surface: harmonise model `edgecases` (1 differences) |
+| F718 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `edgecasesphaseenum` (1 differences) |
+| F719 | medium | open | api-surface | go | API surface: harmonise model `error` (1 differences) |
+| F720 | medium | open | api-surface | csharp, elixir, java, node, php | API surface: harmonise model `metadata` (3 differences) |
+| F721 | medium | open | api-surface | go | API surface: harmonise model `modelerror` (1 differences) |
+| F722 | medium | open | api-surface | java | API surface: harmonise model `modelresult` (1 differences) |
+| F723 | medium | open | api-surface | go | API surface: harmonise model `order` (1 differences) |
+| F724 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `orderstatusenum` (1 differences) |
+| F725 | medium | open | api-surface | go | API surface: harmonise model `pet` (1 differences) |
+| F726 | medium | open | api-surface | dart, go, kotlin, node, php, python, swift | API surface: harmonise model `petfood` (5 differences) |
+| F727 | medium | open | api-surface | php | API surface: harmonise model `petpassport` (6 differences) |
+| F728 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `petstatusenum` (1 differences) |
+| F729 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `pettreatment` (9 differences) |
+| F730 | medium | open | api-surface | go | API surface: harmonise model `petwithowner` (1 differences) |
+| F731 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `petwithownerstatusenum` (1 differences) |
+| F732 | medium | open | api-surface | kotlin | API surface: harmonise model `requirednullable` (1 differences) |
+| F733 | medium | open | api-surface | java | API surface: harmonise model `result` (1 differences) |
+| F734 | medium | open | api-surface | php | API surface: harmonise model `setpetavatarrequest` (2 differences) |
+| F735 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, php, python, swift | API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences) |
+| F736 | medium | open | api-surface | csharp, elixir, java, kotlin, node, php, ruby | API surface: harmonise model `stricttag` (7 differences) |
+| F737 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `treatmentrecord` (9 differences) |
+| F738 | medium | open | api-surface | elixir | API surface: harmonise model `wetfood` (1 differences) |
+| F739 | medium | open | api-surface | go | API surface: harmonise options `addpetoptions` (1 differences) |
+| F740 | medium | open | api-surface | elixir | API surface: harmonise options `addpetphotosoptions` (2 differences) |
+| F741 | medium | open | api-surface | go | API surface: harmonise options `addpettreatmentoptions` (1 differences) |
+| F742 | medium | open | api-surface | go | API surface: harmonise options `deletepetoptions` (1 differences) |
+| F743 | medium | open | api-surface | elixir | API surface: harmonise options `getpetbynameoptions` (2 differences) |
+| F744 | medium | open | api-surface | elixir | API surface: harmonise options `getpetsummaryoptions` (1 differences) |
+| F745 | medium | open | api-surface | elixir | API surface: harmonise options `setpetpreferencesoptions` (1 differences) |
+| F746 | medium | open | api-surface | elixir, go | API surface: harmonise options `uploadpetcertificateoptions` (1 differences) |
+| F747 | medium | open | api-surface | elixir, go, rust | API surface: harmonise options `uploadpetdocumentoptions` (3 differences) |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -7205,3 +7292,889 @@ ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only 
 - SDKs: node
 
 The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec.
+
+## F661 [medium] API surface: harmonise api `baseapi` (9 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, ruby, rust
+
+`etc/api-surface.py check` reports these public-API differences for `baseapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- baseapi.noauth [member] majority absent (11 SDKs); differs: ruby=extra
+- baseapi.config [member] majority absent (10 SDKs); differs: dart=extra; ruby=extra
+- baseapi.apiclient [member] majority absent (11 SDKs); differs: dart=extra
+- baseapi.invokeapi [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra
+- baseapi.invokeapi [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)
+- baseapi.invokeapiforresult [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra
+- baseapi.invokeapiforresult [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody, deserialize) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)
+- baseapi.invokeapiforemptyresult [member] majority absent (11 SDKs); differs: rust=extra
+- baseapi.buildcollectionparam [member] majority absent (11 SDKs); differs: elixir=extra
+
+## F662 [medium] API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, php, python, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoservermirror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- getmultiserverpetinfoservermirror.region [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
+- getmultiserverpetinfoservermirror.channel [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
+
+## F663 [medium] API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, php, python, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `getmultiserverpetinfoserverregional`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- getmultiserverpetinfoserverregional.region [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
+
+## F664 [medium] API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, php, python, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `getstagingpetinfoserverstagingserver`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- getstagingpetinfoserverstagingserver.environment [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
+- getstagingpetinfoserverstagingserver.version [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
+
+## F665 [medium] API surface: harmonise api `petapi` (6 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, node, php, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `petapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petapi.setpetavatar [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)
+- petapi.setpetavatarwithhttpinfo [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)
+- petapi.uploadpetdocument [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)
+- petapi.uploadpetdocumentwithhttpinfo [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)
+- petapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra
+- petapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra
+
+## F666 [medium] API surface: harmonise api `storeapi` (4 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, java, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `storeapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- storeapi.placeorder [optional] majority (order?) (7 SDKs); differs: java=(order)
+- storeapi.placeorderwithhttpinfo [optional] majority (order?) (7 SDKs); differs: java=(order)
+- storeapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra
+- storeapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra
+
+## F667 [medium] API surface: harmonise auth `apikeyauthenticator` (3 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: python
+
+`etc/api-surface.py check` reports these public-API differences for `apikeyauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- apikeyauthenticator.keyparamname [member] majority absent (10 SDKs); differs: python=extra
+- apikeyauthenticator.apikey [member] majority absent (10 SDKs); differs: python=extra
+- apikeyauthenticator.location [member] majority absent (10 SDKs); differs: python=extra
+
+## F668 [medium] API surface: harmonise auth `authenticator` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, node
+
+`etc/api-surface.py check` reports these public-API differences for `authenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- authenticator.isnoauth [member] majority absent (10 SDKs); differs: dart=extra; node=extra
+- authenticator.isnoauth [params] majority (auth) (1 SDKs); differs: dart=()
+
+## F669 [medium] API surface: harmonise auth `basicauthenticator` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: python
+
+`etc/api-surface.py check` reports these public-API differences for `basicauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- basicauthenticator.username [member] majority absent (10 SDKs); differs: python=extra
+- basicauthenticator.password [member] majority absent (10 SDKs); differs: python=extra
+
+## F670 [medium] API surface: harmonise auth `bearerauthenticator` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: python
+
+`etc/api-surface.py check` reports these public-API differences for `bearerauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- bearerauthenticator.token [member] majority absent (10 SDKs); differs: python=extra
+
+## F671 [medium] API surface: harmonise auth `httpawareauthenticator` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, node, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `httpawareauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- httpawareauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(arg1); go=(client); ruby=(client); rust=(client); swift=(client)
+- httpawareauthenticator.ishttpawareauthenticator [member] majority absent (11 SDKs); differs: node=extra
+
+## F672 [medium] API surface: harmonise auth `oauth2authorizationcodeauthenticator` (6 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, java, node, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2authorizationcodeauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2authorizationcodeauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)
+- oauth2authorizationcodeauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)
+- oauth2authorizationcodeauthenticator.tokenmanager [member] majority absent (10 SDKs); differs: ruby=extra
+- oauth2authorizationcodeauthenticator.authheadersorthrow [member] majority absent (11 SDKs); differs: swift=extra
+- oauth2authorizationcodeauthenticator.<ctor> [ctor] majority (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl) (6 SDKs); differs: java=(host, clientid, clientsecret, authorizationurl, tokenurl, refreshurl, redirecturi, scopes); node=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl, tokenmanager); ruby=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl, tokenmanager)
+- oauth2authorizationcodeauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl?) (4 SDKs); differs: dart=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes?, refreshurl?); swift=(host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes?, refreshurl?)
+
+## F673 [medium] API surface: harmonise auth `oauth2clientcredentialsauthenticator` (7 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2clientcredentialsauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2clientcredentialsauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)
+- oauth2clientcredentialsauthenticator.clientid [member] majority absent (10 SDKs); differs: python=extra
+- oauth2clientcredentialsauthenticator.clientsecret [member] majority absent (10 SDKs); differs: python=extra
+- oauth2clientcredentialsauthenticator.tokenurl [member] majority absent (10 SDKs); differs: python=extra
+- oauth2clientcredentialsauthenticator.scopes [member] majority absent (10 SDKs); differs: python=extra
+- oauth2clientcredentialsauthenticator.clientauthmethod [member] majority absent (10 SDKs); differs: python=extra
+- oauth2clientcredentialsauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, tokenurl, scopes, clientauthmethod?) (6 SDKs); differs: dart=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?); python=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?); swift=(host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?)
+
+## F674 [medium] API surface: harmonise auth `oauth2implicitauthenticator` (3 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, java, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2implicitauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2implicitauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(); ruby=(client); rust=(client); swift=(client)
+- oauth2implicitauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)
+- oauth2implicitauthenticator.<ctor> [ctor-optional] majority (host, clientid, authorizationurl, scopes) (8 SDKs); differs: dart=(host, clientid, authorizationurl, scopes?); swift=(host, clientid, authorizationurl, scopes?)
+
+## F675 [medium] API surface: harmonise auth `oauth2passwordauthenticator` (11 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, java, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2passwordauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2passwordauthenticator.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); ruby=(client); rust=(client); swift=(client)
+- oauth2passwordauthenticator.clientid [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.clientsecret [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.tokenurl [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.username [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.password [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.scopes [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.refreshurl [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.clientauthmethod [member] majority absent (10 SDKs); differs: python=extra
+- oauth2passwordauthenticator.<ctor> [ctor] majority (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl, clientauthmethod) (8 SDKs); differs: java=(host, clientid, clientsecret, tokenurl, refreshurl, username, password, scopes, clientauthmethod)
+- oauth2passwordauthenticator.<ctor> [ctor-optional] majority (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl?, clientauthmethod?) (5 SDKs); differs: dart=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?); python=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?); swift=(host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?)
+
+## F676 [medium] API surface: harmonise auth `oauth2tokenmanager` (9 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, go, java, kotlin, node, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2tokenmanager`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2tokenmanager.exchanged [member] majority present (8 SDKs); differs: csharp=missing; dart=missing; go=missing; kotlin=missing
+- oauth2tokenmanager.setapiclient [params] majority (apiclient) (6 SDKs); differs: dart=(client); elixir=(client); go=(client); rust=(client); swift=(client)
+- oauth2tokenmanager.exchange [optional] majority (tokenurl, params, extraheaders?) (8 SDKs); differs: java=(tokenurl, params, extraheaders)
+- oauth2tokenmanager.expirysafetymarginms [member] majority absent (11 SDKs); differs: kotlin=extra
+- oauth2tokenmanager.maxexpiresinseconds [member] majority absent (11 SDKs); differs: kotlin=extra
+- oauth2tokenmanager.apiclient [member] majority absent (11 SDKs); differs: kotlin=extra
+- oauth2tokenmanager.expirysafetymargins [member] majority absent (11 SDKs); differs: ruby=extra
+- oauth2tokenmanager.maxexpiresins [member] majority absent (11 SDKs); differs: ruby=extra
+- oauth2tokenmanager.markexchanged [member] majority absent (8 SDKs); differs: node=extra; ruby=extra; rust=extra
+
+## F677 [medium] API surface: harmonise auth `openidconnectauthenticator` (5 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, java, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `openidconnectauthenticator`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- openidconnectauthenticator.setapiclient [params] majority (apiclient) (7 SDKs); differs: dart=(client); go=(client); rust=(client); swift=(client)
+- openidconnectauthenticator.buildauthorizationurl [optional] majority (state?) (9 SDKs); differs: java=(state)
+- openidconnectauthenticator.defaultdiscoverymaxageseconds [member] majority absent (11 SDKs); differs: ruby=extra
+- openidconnectauthenticator.maxdiscoverymaxageseconds [member] majority absent (11 SDKs); differs: ruby=extra
+- openidconnectauthenticator.<ctor> [ctor-optional] majority (host, openidconnecturl, clientid, clientsecret, redirecturi, scopes) (8 SDKs); differs: dart=(host, openidconnecturl, clientid, clientsecret, redirecturi, scopes?); swift=(host, openidconnecturl, clientid, clientsecret, redirecturi, scopes?)
+
+## F678 [medium] API surface: harmonise core `abstractapiclient` (17 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, node, php
+
+`etc/api-surface.py check` reports these public-API differences for `abstractapiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- abstractapiclient [type] majority absent (9 SDKs); differs: dart=AbstractApiClient; node=AbstractApiClient; php=AbstractApiClient
+- abstractapiclient.sendrequest [params] majority (method, url, headers, body, noredirect) (2 SDKs); differs: node=(method, url, headers, body, options)
+- abstractapiclient.validatemultipartfilename [member] majority present (2 SDKs); differs: node=missing
+- abstractapiclient.buildfilenamedirective [member] majority present (2 SDKs); differs: node=missing
+- abstractapiclient.ensuredecoded [member] majority absent (2 SDKs); differs: node=extra
+- abstractapiclient.decodebody [member] majority absent (2 SDKs); differs: node=extra
+- abstractapiclient.mimetypeforfilename [member] majority absent (2 SDKs); differs: node=extra
+- abstractapiclient.buildcontentdisposition [member] majority absent (2 SDKs); differs: node=extra
+- abstractapiclient.proxyauthheader [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.decompressbytes [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.isnetworkerror [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.istimeoutmessage [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.buildproxyauthheader [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.validatemultipartfieldname [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.escapemultipartfieldname [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.rfc5987encodevalue [member] majority absent (2 SDKs); differs: dart=extra
+- abstractapiclient.<ctor> [ctor] majority (transportoptions) (2 SDKs); differs: dart=(transportoptions, httpclient, proxyauthheader)
+
+## F679 [medium] API surface: harmonise core `allowreservedvalue` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, node, python
+
+`etc/api-surface.py check` reports these public-API differences for `allowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- allowreservedvalue [type] majority absent (9 SDKs); differs: dart=AllowReservedValue; node=AllowReservedValue; python=AllowReservedValue
+
+## F680 [medium] API surface: harmonise core `apiclient` (4 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, node, python
+
+`etc/api-surface.py check` reports these public-API differences for `apiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- apiclient.close [member] majority present (8 SDKs); differs: dart=missing; node=missing; python=missing
+- apiclient.sendrequest [member] majority present (11 SDKs); differs: elixir=missing
+- apiclient.sendrequest [params] majority (method, url, headers, body, noredirect) (8 SDKs); differs: node=(method, url, headers, body, options)
+- apiclient.sendrequest [optional] majority (method, url, headers, body, noredirect?) (7 SDKs); differs: python=(method, url, headers, body?, noredirect?)
+
+## F681 [medium] API surface: harmonise core `client` (4 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: php, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `client`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- client [type] majority present (11 SDKs); differs: ruby=missing
+- client.withtoken [params] majority (host, accesstoken, transportoptions) (10 SDKs); differs: php=(host, accesstoken, transportoptions, apiclient)
+- client.withauthenticator [params] majority (authenticator, transportoptions) (10 SDKs); differs: php=(authenticator, transportoptions, apiclient)
+- client.<ctor> [ctor] majority (authenticator, transportoptions) (7 SDKs); differs: php=(authenticator, transportoptions, apiclient)
+
+## F682 [medium] API surface: harmonise core `configuration` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `configuration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- configuration.fromserver [member] majority absent (11 SDKs); differs: elixir=extra
+- configuration.<ctor> [ctor-optional] majority (baseurl?, defaultheaders?) (3 SDKs); differs: ruby=(baseurl, defaultheaders)
+
+## F683 [medium] API surface: harmonise core `configurationbuilder` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `configurationbuilder`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- configurationbuilder.baseurl [params] majority (baseurl) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- configurationbuilder.server [params] majority (serverconfig, variables) (7 SDKs); differs: dart=(server, variables); go=(server, variables); rust=(server, variables); swift=(server, variables)
+
+## F684 [medium] API surface: harmonise core `defaultapiclient` (25 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, kotlin, node, python, ruby, rust
+
+`etc/api-surface.py check` reports these public-API differences for `defaultapiclient`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- defaultapiclient.sendrequest [params] majority (method, url, headers, body, noredirect) (8 SDKs); differs: node=(method, url, headers, body, options)
+- defaultapiclient.sendrequest [optional] majority (method, url, headers, body, noredirect?) (6 SDKs); differs: kotlin=(method, url, headers, body, noredirect); python=(method, url, headers, body?, noredirect?)
+- defaultapiclient.sensitiveheadernames [member] majority absent (11 SDKs); differs: csharp=extra
+- defaultapiclient.proxyauthorizationheader [member] majority absent (11 SDKs); differs: csharp=extra
+- defaultapiclient.validatemultipartfilename [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra
+- defaultapiclient.buildfilenamedirective [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra
+- defaultapiclient.rfc5987encodevalue [member] majority absent (10 SDKs); differs: csharp=extra; rust=extra
+- defaultapiclient.extrasensitiveheadernames [member] majority absent (11 SDKs); differs: ruby=extra
+- defaultapiclient.supportedencodings [member] majority absent (11 SDKs); differs: ruby=extra
+- defaultapiclient.builddispatcher [member] majority absent (11 SDKs); differs: node=extra
+- defaultapiclient.proxyauthheader [member] majority absent (10 SDKs); differs: dart=extra
+- defaultapiclient.isnetworkerror [member] majority absent (11 SDKs); differs: dart=extra
+- defaultapiclient.decompressbytes [member] majority absent (11 SDKs); differs: dart=extra
+- defaultapiclient.closed [member] majority absent (10 SDKs); differs: rust=extra
+- defaultapiclient.serializemultipartbody [member] majority absent (11 SDKs); differs: rust=extra
+- defaultapiclient.validatemultipartfieldname [member] majority absent (11 SDKs); differs: rust=extra
+- defaultapiclient.escapemultipartfieldname [member] majority absent (11 SDKs); differs: rust=extra
+- defaultapiclient.mimeforfilename [member] majority absent (11 SDKs); differs: rust=extra
+- defaultapiclient.parsecharset [member] majority absent (11 SDKs); differs: rust=extra
+- defaultapiclient.decodetextbody [member] majority absent (10 SDKs); differs: elixir=extra; rust=extra
+- defaultapiclient.decodetextbody [params] majority (bytes, contenttype) (1 SDKs); differs: elixir=(body, contenttype)
+- defaultapiclient.classifytransporterror [member] majority absent (11 SDKs); differs: elixir=extra
+- defaultapiclient.requestoptions [member] majority absent (11 SDKs); differs: elixir=extra
+- defaultapiclient.buildcontentdisposition [member] majority absent (11 SDKs); differs: elixir=extra
+- defaultapiclient.<ctor> [ctor] majority (transportoptions) (9 SDKs); differs: python=(transportoptions, poolmanager)
+
+## F685 [medium] API surface: harmonise core `headerselector` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, go, java, kotlin, ruby, swift
+
+`etc/api-surface.py check` reports these public-API differences for `headerselector`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- headerselector [type] majority present (7 SDKs); differs: csharp=missing; go=missing; java=missing; kotlin=missing; swift=missing
+- headerselector.jsonmimepattern [member] majority absent (6 SDKs); differs: ruby=extra
+
+## F686 [medium] API surface: harmonise core `iso8601duration` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: swift
+
+`etc/api-surface.py check` reports these public-API differences for `iso8601duration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- iso8601duration.formatprotobufduration [params] majority (duration) (1 SDKs); differs: swift=(interval)
+- iso8601duration.validatepartialtime [member] majority present (1 SDKs); differs: swift=missing
+
+## F687 [medium] API surface: harmonise core `objectserializer` (78 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `objectserializer`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- objectserializer [type] majority present (8 SDKs); differs: csharp=missing; go=missing; kotlin=missing; swift=missing
+- objectserializer.maxjsondepth [member] majority absent (6 SDKs); differs: java=extra; ruby=extra
+- objectserializer.serialize [params] majority (object) (4 SDKs); differs: node=(obj); php=(data); python=(obj); rust=(value)
+- objectserializer.deserialize [params] majority (jsonstring, targettype) (3 SDKs); differs: dart=(data, fromjson); java=(jsonstring, type); node=(json, cls); php=(data, class, httpheaders); rust=(data)
+- objectserializer.stringify [params] majority (value) (7 SDKs); differs: elixir=(dt)
+- objectserializer.toqueryvalue [optional] majority (value, collectionformat?) (5 SDKs); differs: dart=(value, collectionformat); java=(value, collectionformat)
+- objectserializer.formattime [member] majority absent (6 SDKs); differs: java=extra; rust=extra
+- objectserializer.resolveoneof [member] majority present (4 SDKs); differs: elixir=missing; python=missing; ruby=missing; rust=missing
+- objectserializer.resolveoneof [params] majority (json, candidates) (2 SDKs); differs: dart=(data, fromjsoncandidates); php=(data, candidates)
+- objectserializer.resolveoneof [optional] majority (json, candidates) (1 SDKs); differs: node=(json, candidates?)
+- objectserializer.resolveanyof [member] majority present (4 SDKs); differs: elixir=missing; python=missing; ruby=missing; rust=missing
+- objectserializer.resolveanyof [params] majority (json, candidates) (2 SDKs); differs: dart=(data, fromjsoncandidates); php=(data, candidates)
+- objectserializer.resolveanyof [optional] majority (json, candidates) (1 SDKs); differs: node=(json, candidates?)
+- objectserializer.structuralequals [member] majority absent (7 SDKs); differs: java=extra
+- objectserializer.structuralhashcode [member] majority absent (7 SDKs); differs: java=extra
+- objectserializer.parserfc3339 [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.encodebase64param [member] majority absent (6 SDKs); differs: php=extra; ruby=extra
+- objectserializer.isprimitivevalue [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.isstrictbase64 [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.topathdatevalue [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.resolveanyofall [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.qualifyschemaname [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.decodebytes [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.encodebytes [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.decodebyteoneofscalar [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.decodebyteoneofarray [member] majority absent (7 SDKs); differs: php=extra
+- objectserializer.formatprotobufduration [member] majority absent (6 SDKs); differs: elixir=extra; php=extra
+- objectserializer.formatprotobufduration [params] majority (interval) (1 SDKs); differs: elixir=(duration)
+- objectserializer.parseprotobufduration [member] majority absent (6 SDKs); differs: elixir=extra; php=extra
+- objectserializer.parseprotobufduration [params] majority (value) (1 SDKs); differs: elixir=(text)
+- objectserializer.parsejson [member] majority present (5 SDKs); differs: java=missing; php=missing; rust=missing
+- objectserializer.parsejson [params] majority (data) (2 SDKs); differs: node=(json); python=(jsonstring); ruby=(jsonstring, symbolizenames)
+- objectserializer.defaultdatetimeformat [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.rfc3339datetimeregex [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.uriregex [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.protobufdurationregex [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.uuidregex [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.jsonmaxdepth [member] majority absent (6 SDKs); differs: elixir=extra; ruby=extra
+- objectserializer.encodeoneofbody [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.sanitizeforserialization [member] majority absent (6 SDKs); differs: elixir=extra; ruby=extra
+- objectserializer.sanitizeforserialization [params] majority (object, visited) (1 SDKs); differs: elixir=(value)
+- objectserializer.sortscalarset [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.convertelement [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.modeltype [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.converttotype [member] majority absent (6 SDKs); differs: elixir=extra; ruby=extra
+- objectserializer.converttotype [params] majority (data, returntype) (1 SDKs); differs: elixir=(data, type)
+- objectserializer.deserializemodel [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.applyformatondeserialize [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.decodebyte [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.validateuuid [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.validateuri [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.durationtoprotobufjson [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.durationfromprotobufjson [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.applyformatonserialize [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.encodebyte [member] majority absent (7 SDKs); differs: ruby=extra
+- objectserializer.durationtoprotojson [member] majority absent (7 SDKs); differs: node=extra
+- objectserializer.durationfromprotojson [member] majority absent (7 SDKs); differs: node=extra
+- objectserializer.decodebase64 [member] majority absent (6 SDKs); differs: dart=extra; node=extra
+- objectserializer.decodebase64 [params] majority (value) (1 SDKs); differs: dart=(text)
+- objectserializer.reattachadditionalproperties [member] majority absent (7 SDKs); differs: node=extra
+- objectserializer.deserializearray [member] majority absent (6 SDKs); differs: dart=extra; node=extra
+- objectserializer.deserializearray [params] majority (json, cls) (1 SDKs); differs: dart=(json, deserializeelement)
+- objectserializer.deserializemap [member] majority absent (6 SDKs); differs: dart=extra; node=extra
+- objectserializer.deserializemap [params] majority (json, cls) (1 SDKs); differs: dart=(json, deserializevalue)
+- objectserializer.deserializeenum [member] majority absent (7 SDKs); differs: node=extra
+- objectserializer.deserializeleaf [member] majority absent (7 SDKs); differs: node=extra
+- objectserializer.deserializelist [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.wirelist [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.wirelistornull [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.deserializemapfromjson [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.deserializearrayfromjson [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.deserializeraw [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.parsedatetime [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.parseuri [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.formatdatetimeoffset [member] majority absent (7 SDKs); differs: dart=extra
+- objectserializer.todeepobjectmap [member] majority absent (7 SDKs); differs: rust=extra
+- objectserializer.serializeextras [member] majority absent (7 SDKs); differs: rust=extra
+- objectserializer.findandcastintotype [member] majority absent (7 SDKs); differs: elixir=extra
+
+## F688 [medium] API surface: harmonise core `petstore` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: ruby
+
+`etc/api-surface.py check` reports these public-API differences for `petstore`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petstore [type] majority absent (11 SDKs); differs: ruby=Petstore
+
+## F689 [medium] API surface: harmonise core `serverconfiguration` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `serverconfiguration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- serverconfiguration.<ctor> [ctor-optional] majority (urltemplate, description?, variables?) (5 SDKs); differs: csharp=(urltemplate, description, variables); java=(urltemplate, description, variables); kotlin=(urltemplate, description, variables); node=(urltemplate, description, variables)
+
+## F690 [medium] API surface: harmonise core `servers` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, ruby, rust
+
+`etc/api-surface.py check` reports these public-API differences for `servers`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- servers.all [member] majority present (8 SDKs); differs: dart=missing; go=missing; ruby=missing; rust=missing
+- servers.allservers [member] majority absent (9 SDKs); differs: dart=extra; go=extra; rust=extra
+
+## F691 [medium] API surface: harmonise core `servervariable` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `servervariable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- servervariable.<ctor> [ctor-optional] majority (defaultvalue, description?, enumvalues?) (5 SDKs); differs: csharp=(defaultvalue, description, enumvalues); java=(defaultvalue, description, enumvalues); kotlin=(defaultvalue, description, enumvalues); node=(defaultvalue, description, enumvalues)
+
+## F692 [medium] API surface: harmonise core `transportoptions` (3 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: php, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `transportoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- transportoptions.assertvalidproxy [member] majority absent (11 SDKs); differs: php=extra
+- transportoptions.validateproxy [member] majority absent (11 SDKs); differs: ruby=extra
+- transportoptions.<ctor> [ctor-optional] majority (verifyssl?, cacertpath?, proxy?, timeout?, followredirects?, maxredirects?, useragent?, defaultheaders?, injectrequestid?) (2 SDKs); differs: ruby=(verifyssl, cacertpath, proxy, timeout, followredirects, maxredirects, useragent, defaultheaders, injectrequestid)
+
+## F693 [medium] API surface: harmonise core `transportoptionsbuilder` (9 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `transportoptionsbuilder`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- transportoptionsbuilder.verifyssl [params] majority (verifyssl) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.cacertpath [params] majority (cacertpath) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.proxy [params] majority (proxy) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.timeout [params] majority (timeout) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.followredirects [params] majority (followredirects) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.maxredirects [params] majority (maxredirects) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.useragent [params] majority (useragent) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.injectrequestid [params] majority (injectrequestid) (6 SDKs); differs: dart=(val); go=(val); ruby=(val); rust=(val); swift=(val)
+- transportoptionsbuilder.useragentopt [member] majority absent (10 SDKs); differs: rust=extra
+
+## F694 [medium] API surface: harmonise core `valueserializer` (22 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `valueserializer`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- valueserializer [type] majority present (7 SDKs); differs: csharp=missing; go=missing; java=missing; kotlin=missing; swift=missing
+- valueserializer.serialize [member] majority present (5 SDKs); differs: dart=missing; rust=missing
+- valueserializer.formatdateonly [member] majority absent (6 SDKs); differs: php=extra
+- valueserializer.encodepathsegment [member] majority present (6 SDKs); differs: rust=missing
+- valueserializer.encodepathsegment [params] majority (value) (5 SDKs); differs: dart=(s)
+- valueserializer.encodequeryallowingreserved [params] majority (value) (5 SDKs); differs: dart=(s); rust=(s)
+- valueserializer.serializestyled [params] majority (paramname, value, location, schematype, collectionformat, style, explode) (6 SDKs); differs: rust=(paramname, value, items, location, schematype, collectionformat, style, explode)
+- valueserializer.serializestyled [optional] majority (paramname, value, location, schematype, collectionformat, style, explode) (5 SDKs); differs: python=(paramname, value, location, schematype, collectionformat?, style?, explode?)
+- valueserializer.maybeallowreserved [member] majority present (5 SDKs); differs: php=missing; rust=missing
+- valueserializer.preserveencoded [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.reservedpreserved [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.serializenil [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.serializearray [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.serializequeryarray [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.encodeitem [member] majority absent (6 SDKs); differs: ruby=extra
+- valueserializer.normalize [member] majority absent (6 SDKs); differs: node=extra
+- valueserializer.stringifydate [member] majority absent (5 SDKs); differs: dart=extra; node=extra
+- valueserializer.stringifydates [member] majority absent (5 SDKs); differs: dart=extra; node=extra
+- valueserializer.encodequerycomponent [member] majority absent (6 SDKs); differs: node=extra
+- valueserializer.serializevalue [member] majority absent (5 SDKs); differs: dart=extra; rust=extra
+- valueserializer.encoderfc3986querycomponent [member] majority absent (6 SDKs); differs: dart=extra
+- valueserializer.serializearrayvalue [member] majority absent (6 SDKs); differs: rust=extra
+
+## F695 [medium] API surface: harmonise core `valueserializerallowreservedvalue` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: ruby
+
+`etc/api-surface.py check` reports these public-API differences for `valueserializerallowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- valueserializerallowreservedvalue [type] majority absent (11 SDKs); differs: ruby=ValueSerializerAllowReservedValue
+
+## F696 [medium] API surface: harmonise error `apierror` (7 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, elixir, go, node, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `apierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- apierror.fromresponse [params] majority (statuscode, responseheaders, responsebody) (6 SDKs); differs: elixir=(statuscode, headers, body); go=(statuscode, headers, body); python=(statuscode, headers, body); ruby=(statuscode, headers, body); rust=(statuscode, headers, body); swift=(statuscode, headers, body)
+- apierror.detailmessage [member] majority absent (11 SDKs); differs: ruby=extra
+- apierror.parseerrorbody [member] majority absent (11 SDKs); differs: ruby=extra
+- apierror.registerstatuserror [member] majority absent (11 SDKs); differs: node=extra
+- apierror.underlyingerror [member] majority absent (10 SDKs); differs: dart=extra
+- apierror.withsource [member] majority absent (11 SDKs); differs: rust=extra
+- apierror.<ctor> [ctor] majority (statuscode, message, responseheaders, responsebody, errorbody, cause) (2 SDKs); differs: dart=(statuscode, message, responsebody, responseheaders, errorbody, underlyingerror); go=(statuscode, msg, responsebody, responseheaders, errorbody, cause); python=(statuscode, message, responseheaders, responsebody, errorbody); ruby=(arg); rust=(statuscode, message, responsebody, responseheaders)
+
+## F697 [medium] API surface: harmonise error `badrequesterror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `badrequesterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- badrequesterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F698 [medium] API surface: harmonise error `clienterror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `clienterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- clienterror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)
+
+## F699 [medium] API surface: harmonise error `configurationerror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: swift
+
+`etc/api-surface.py check` reports these public-API differences for `configurationerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- configurationerror [cases] majority invalidargument,invalidcacertificate,invalidproxy,invalidservervariable,invalidstate,invalidtimeout (1 SDKs); differs: swift=invalidargument,invalidcacertificate,invalidproxyurl,invalidservervariable,invalidstate,proxyunsupported,tlsoptionsunsupported
+
+## F700 [medium] API surface: harmonise error `conflicterror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `conflicterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- conflicterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F701 [medium] API surface: harmonise error `forbiddenerror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `forbiddenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- forbiddenerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F702 [medium] API surface: harmonise error `internalservererror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `internalservererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- internalservererror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F703 [medium] API surface: harmonise error `networkerror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, python, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `networkerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- networkerror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause); python=(message); ruby=(message)
+
+## F704 [medium] API surface: harmonise error `networktimeouterror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go
+
+`etc/api-surface.py check` reports these public-API differences for `networktimeouterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- networktimeouterror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause)
+
+## F705 [medium] API surface: harmonise error `notfounderror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `notfounderror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- notfounderror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F706 [medium] API surface: harmonise error `oauth2servererror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: kotlin
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2servererror.buildmessage [member] majority absent (11 SDKs); differs: kotlin=extra
+
+## F707 [medium] API surface: harmonise error `oauth2tokenerror` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, swift
+
+`etc/api-surface.py check` reports these public-API differences for `oauth2tokenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- oauth2tokenerror [kind] majority type (11 SDKs); differs: swift=enum
+- oauth2tokenerror.<ctor> [ctor] majority (message) (3 SDKs); differs: java=(message, cause); kotlin=(message, cause)
+
+## F708 [medium] API surface: harmonise error `openapierror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart
+
+`etc/api-surface.py check` reports these public-API differences for `openapierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- openapierror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=()
+
+## F709 [medium] API surface: harmonise error `servererror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- servererror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)
+
+## F710 [medium] API surface: harmonise error `unauthorizederror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `unauthorizederror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- unauthorizederror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F711 [medium] API surface: harmonise error `unprocessableentityerror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java, kotlin, node
+
+`etc/api-surface.py check` reports these public-API differences for `unprocessableentityerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- unprocessableentityerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
+
+## F712 [medium] API surface: harmonise model `binaryvault` (6 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: php
+
+`etc/api-surface.py check` reports these public-API differences for `binaryvault`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- binaryvault.sealasbytes [member] majority absent (11 SDKs); differs: php=extra
+- binaryvault.shardsasbytes [member] majority absent (11 SDKs); differs: php=extra
+- binaryvault.labelsasbytes [member] majority absent (11 SDKs); differs: php=extra
+- binaryvault.setsealfrombytes [member] majority absent (11 SDKs); differs: php=extra
+- binaryvault.setshardsfrombytes [member] majority absent (11 SDKs); differs: php=extra
+- binaryvault.setlabelsfrombytes [member] majority absent (11 SDKs); differs: php=extra
+
+## F713 [medium] API surface: harmonise model `datetime` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go, rust
+
+`etc/api-surface.py check` reports these public-API differences for `datetime`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- datetime.time [member] majority present (1 SDKs); differs: rust=missing
+- datetime.intoinner [member] majority present (1 SDKs); differs: go=missing
+
+## F714 [medium] API surface: harmonise model `defaults` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `defaults`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- defaults.alldefaultsmodeenumvalues [member] majority absent (11 SDKs); differs: go=extra
+
+## F715 [medium] API surface: harmonise model `defaultsmodeenum` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `defaultsmodeenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- defaultsmodeenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
+
+## F716 [medium] API surface: harmonise model `dryfood` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `dryfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- dryfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional
+
+## F717 [medium] API surface: harmonise model `edgecases` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `edgecases`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- edgecases.alledgecasesphaseenumvalues [member] majority absent (11 SDKs); differs: go=extra
+
+## F718 [medium] API surface: harmonise model `edgecasesphaseenum` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `edgecasesphaseenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- edgecasesphaseenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
+
+## F719 [medium] API surface: harmonise model `error` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `error`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- error [type] majority present (9 SDKs); differs: go=missing
+
+## F720 [medium] API surface: harmonise model `metadata` (3 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, elixir, java, node, php
+
+`etc/api-surface.py check` reports these public-API differences for `metadata`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- metadata.additionalproperties [member] majority present (11 SDKs); differs: node=missing
+- metadata.setadditionalproperty [member] majority absent (11 SDKs); differs: java=extra
+- metadata.additionalproperties [prop-optional] majority required (6 SDKs); differs: csharp=optional; elixir=optional; php=optional
+
+## F721 [medium] API surface: harmonise model `modelerror` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `modelerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- modelerror [type] majority absent (9 SDKs); differs: go=ModelError
+
+## F722 [medium] API surface: harmonise model `modelresult` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java
+
+`etc/api-surface.py check` reports these public-API differences for `modelresult`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- modelresult [type] majority absent (9 SDKs); differs: java=ModelResult
+
+## F723 [medium] API surface: harmonise model `order` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `order`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- order.allorderstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
+
+## F724 [medium] API surface: harmonise model `orderstatusenum` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `orderstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- orderstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
+
+## F725 [medium] API surface: harmonise model `pet` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `pet`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- pet.allpetstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
+
+## F726 [medium] API surface: harmonise model `petfood` (5 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: dart, go, kotlin, node, php, python, swift
+
+`etc/api-surface.py check` reports these public-API differences for `petfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petfood.actualinstance [member] majority absent (8 SDKs); differs: kotlin=extra; node=extra; php=extra; python=extra
+- petfood.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra
+- petfood.value [params] majority () (2 SDKs); differs: swift=(type)
+- petfood.newpetfoodfromdryfood [member] majority absent (11 SDKs); differs: go=extra
+- petfood.newpetfoodfromwetfood [member] majority absent (11 SDKs); differs: go=extra
+
+## F727 [medium] API surface: harmonise model `petpassport` (6 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: php
+
+`etc/api-surface.py check` reports these public-API differences for `petpassport`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petpassport.thumbnailasbytes [member] majority absent (11 SDKs); differs: php=extra
+- petpassport.scansasbytes [member] majority absent (11 SDKs); differs: php=extra
+- petpassport.biometricchipasbytes [member] majority absent (11 SDKs); differs: php=extra
+- petpassport.setthumbnailfrombytes [member] majority absent (11 SDKs); differs: php=extra
+- petpassport.setscansfrombytes [member] majority absent (11 SDKs); differs: php=extra
+- petpassport.setbiometricchipfrombytes [member] majority absent (11 SDKs); differs: php=extra
+
+## F728 [medium] API surface: harmonise model `petstatusenum` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `petstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
+
+## F729 [medium] API surface: harmonise model `pettreatment` (9 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `pettreatment`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- pettreatment.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing
+- pettreatment.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra
+- pettreatment.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra
+- pettreatment.actualinstances [member] majority absent (11 SDKs); differs: php=extra
+- pettreatment.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra
+- pettreatment.value [params] majority () (2 SDKs); differs: swift=(type)
+- pettreatment.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra
+- pettreatment.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra
+- pettreatment.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra
+
+## F730 [medium] API surface: harmonise model `petwithowner` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `petwithowner`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petwithowner.allpetwithownerstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
+
+## F731 [medium] API surface: harmonise model `petwithownerstatusenum` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `petwithownerstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- petwithownerstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
+
+## F732 [medium] API surface: harmonise model `requirednullable` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: kotlin
+
+`etc/api-surface.py check` reports these public-API differences for `requirednullable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- requirednullable.note [prop-optional] majority required (11 SDKs); differs: kotlin=optional
+
+## F733 [medium] API surface: harmonise model `result` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: java
+
+`etc/api-surface.py check` reports these public-API differences for `result`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- result [type] majority present (9 SDKs); differs: java=missing
+
+## F734 [medium] API surface: harmonise model `setpetavatarrequest` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: php
+
+`etc/api-surface.py check` reports these public-API differences for `setpetavatarrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- setpetavatarrequest.dataasbytes [member] majority absent (11 SDKs); differs: php=extra
+- setpetavatarrequest.setdatafrombytes [member] majority absent (11 SDKs); differs: php=extra
+
+## F735 [medium] API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, go, java, kotlin, php, python, swift
+
+`etc/api-surface.py check` reports these public-API differences for `setpetavatarthumbnailrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- setpetavatarthumbnailrequest.actualinstance [member] majority absent (7 SDKs); differs: csharp=extra; java=extra; kotlin=extra; php=extra; python=extra
+- setpetavatarthumbnailrequest.actualinstanceasbytes [member] majority absent (11 SDKs); differs: php=extra
+- setpetavatarthumbnailrequest.actualinstanceasbytelist [member] majority absent (11 SDKs); differs: php=extra
+- setpetavatarthumbnailrequest.frombytes [member] majority absent (11 SDKs); differs: php=extra
+- setpetavatarthumbnailrequest.frombytelist [member] majority absent (11 SDKs); differs: php=extra
+- setpetavatarthumbnailrequest.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra
+- setpetavatarthumbnailrequest.value [params] majority () (2 SDKs); differs: swift=(type)
+- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombytesliceslice [member] majority absent (11 SDKs); differs: go=extra
+- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombyteslice [member] majority absent (11 SDKs); differs: go=extra
+- setpetavatarthumbnailrequest.serialize [member] majority absent (11 SDKs); differs: elixir=extra
+
+## F736 [medium] API surface: harmonise model `stricttag` (7 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, elixir, java, kotlin, node, php, ruby
+
+`etc/api-surface.py check` reports these public-API differences for `stricttag`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- stricttag.setunknownproperty [member] majority absent (11 SDKs); differs: java=extra
+- stricttag.parsestrict [member] majority absent (11 SDKs); differs: kotlin=extra
+- stricttag.unknownproperties [member] majority absent (11 SDKs); differs: csharp=extra
+- stricttag.assertnounknownproperties [member] majority absent (11 SDKs); differs: php=extra
+- stricttag.unevaluatedpropertiesfalse [member] majority absent (11 SDKs); differs: ruby=extra
+- stricttag.fromjsonstrict [member] majority absent (11 SDKs); differs: node=extra
+- stricttag.frommapstrict [member] majority absent (11 SDKs); differs: elixir=extra
+
+## F737 [medium] API surface: harmonise model `treatmentrecord` (9 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
+
+`etc/api-surface.py check` reports these public-API differences for `treatmentrecord`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- treatmentrecord.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing
+- treatmentrecord.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra
+- treatmentrecord.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra
+- treatmentrecord.actualinstances [member] majority absent (11 SDKs); differs: php=extra
+- treatmentrecord.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra
+- treatmentrecord.value [params] majority () (2 SDKs); differs: swift=(type)
+- treatmentrecord.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra
+- treatmentrecord.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra
+- treatmentrecord.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra
+
+## F738 [medium] API surface: harmonise model `wetfood` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `wetfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- wetfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional
+
+## F739 [medium] API surface: harmonise options `addpetoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `addpetoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- addpetoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
+
+## F740 [medium] API surface: harmonise options `addpetphotosoptions` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `addpetphotosoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- addpetphotosoptions.files [prop-optional] majority required (9 SDKs); differs: elixir=optional
+- addpetphotosoptions.metadata [prop-optional] majority required (9 SDKs); differs: elixir=optional
+
+## F741 [medium] API surface: harmonise options `addpettreatmentoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `addpettreatmentoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- addpettreatmentoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
+
+## F742 [medium] API surface: harmonise options `deletepetoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: go
+
+`etc/api-surface.py check` reports these public-API differences for `deletepetoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- deletepetoptions.auth [prop-optional] majority optional (9 SDKs); differs: go=required
+
+## F743 [medium] API surface: harmonise options `getpetbynameoptions` (2 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `getpetbynameoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- getpetbynameoptions.category [prop-optional] majority required (9 SDKs); differs: elixir=optional
+- getpetbynameoptions.xcorrelationid [prop-optional] majority required (9 SDKs); differs: elixir=optional
+
+## F744 [medium] API surface: harmonise options `getpetsummaryoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `getpetsummaryoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- getpetsummaryoptions.session [prop-optional] majority required (9 SDKs); differs: elixir=optional
+
+## F745 [medium] API surface: harmonise options `setpetpreferencesoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir
+
+`etc/api-surface.py check` reports these public-API differences for `setpetpreferencesoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- setpetpreferencesoptions.nickname [prop-optional] majority required (9 SDKs); differs: elixir=optional
+
+## F746 [medium] API surface: harmonise options `uploadpetcertificateoptions` (1 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, go
+
+`etc/api-surface.py check` reports these public-API differences for `uploadpetcertificateoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- uploadpetcertificateoptions.file [prop-optional] majority required (8 SDKs); differs: elixir=optional; go=optional
+
+## F747 [medium] API surface: harmonise options `uploadpetdocumentoptions` (3 differences)
+- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- SDKs: elixir, go, rust
+
+`etc/api-surface.py check` reports these public-API differences for `uploadpetdocumentoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
+- uploadpetdocumentoptions.isprimary [params] majority () (11 SDKs); differs: rust=(isprimary)
+- uploadpetdocumentoptions.primary [member] majority absent (11 SDKs); differs: rust=extra
+- uploadpetdocumentoptions.file [prop-optional] majority required (8 SDKs); differs: elixir=optional; go=optional

@@ -50,7 +50,12 @@ src/spec/resources/generated/*/mix.lock
 /org/
 
 # Agent and IDE directories
-/.claude/
+/.claude/*
+!/.claude/settings.json
+!/.claude/agents/
+!/.claude/hooks/
+!/.claude/skills/
+!/.claude/workflows/
 /.agents/
 /.agent/
 /.cursor/

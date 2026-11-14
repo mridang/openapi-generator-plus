@@ -7,6 +7,42 @@ is a defect until you can name the language feature that forces it.
 
 Read `CLAUDE.md` too: it holds the alignment rules for generated prose and examples.
 
+## Parity workflow
+
+The twelve SDKs must be perfectly harmonised: the same public API shape, wire bytes,
+accepted and rejected inputs and errors, differing only by genuine language idiom. These
+rules hold for every session and every agent, however the work starts:
+
+- **One language, one agent.** SDK code is changed only by its owner agent
+  (`.claude/agents/sdk-<lang>.md`; shared code by `sdk-shared`). The main session
+  coordinates and never edits SDK code. `.claude/hooks/ownership-guard.sh` refuses
+  every other write.
+- **Every change goes through `/parity-fix`.** It runs the saved workflow
+  `.claude/workflows/parity-fix.js`: the planner fixes the one canonical behaviour, a
+  pre-flight compares the area in all twelve, the language agents implement it in
+  parallel, and the parity-guard (`.claude/agents/parity-guard.md`) reviews all twelve
+  together. A change found mid-session becomes a ledger item and a change set; it is
+  never fixed in one language alone.
+- **One ledger.** `PARITY_FINDINGS.json`, maintained only through
+  `etc/parity-findings.py`, is the only list of findings. Reviews (`/parity-review`),
+  agents and the guard report into it; `etc/parity-findings.py count` is the single
+  progress number, and `/parity-status` says where things stand.
+- **Green before it lands.** `etc/ci-local.sh` is the one definition of green (CI runs
+  the same steps). `.claude/hooks/commit-guard.sh` refuses SDK commits on the PR branch
+  without the parity-guard's approval of the staged tree, refuses pushes of commits that
+  have not passed a full local check, and refuses all of it while `parity-halt` exists
+  in the git common dir (set when CI fails after a local pass, until the local check
+  catches the cause).
+- **Docker.** `.claude/hooks/docker-guard.sh` removes leaked test containers and holds
+  new runs while Docker is full. Start hand-run containers only with
+  `docker run --rm --label parity.guard=1`.
+- **Nothing outside the repo.** Working state lives in these files, never in a scratch
+  directory or a session's memory.
+
+The desktop app reads hooks and agents from the main checkout's `.claude/`, so after
+pulling changes to them copy `.claude/{settings.json,agents,hooks,skills,workflows}` from
+the PR branch into the main checkout.
+
 ## Layout
 
 | Path | What it is |
