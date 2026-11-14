@@ -1,10 +1,10 @@
 <?php
 /**
 {{#appName}}
- * {{{.}}}
+ * {{#lambda.phpdocDescription}}{{{.}}}{{/lambda.phpdocDescription}}
 {{/appName}}
 {{#appDescription}}
- * {{{.}}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/appDescription}}
  *
  * The version of the OpenAPI document: {{#version}}{{{.}}}{{/version}}

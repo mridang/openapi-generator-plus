@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -107,12 +107,13 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
         """Returns the authentication headers with the Bearer token.
 
         Raises:
-            RuntimeError: If :meth:`set_access_token` has not been called yet.
+            RuntimeError: If :meth:`set_access_token` has not been called yet,
+                or was called with an empty string (an empty token is unset).
 
         Returns:
             Dict with the Authorization header.
         """
-        if self._access_token is None:
+        if not self._access_token:
             raise RuntimeError("Must set the access token before making API requests")
         return {"Authorization": f"Bearer {self._access_token}"}
 

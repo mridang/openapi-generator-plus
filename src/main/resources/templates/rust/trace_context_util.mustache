@@ -62,9 +62,9 @@ fn inject_trace_context_impl(_headers: &mut HashMap<String, String>) {
      * Enable it in Cargo.toml to activate trace context propagation. */
 }
 
-// These tests live in-crate (rather than under tests/) because
-// `trace_context_util` is a crate-private module and is therefore not
-// reachable from the external integration-test crate.
+/* These tests live in-crate (rather than under tests/) because
+ * `trace_context_util` is a crate-private module and is therefore not
+ * reachable from the external integration-test crate. */
 #[cfg(test)]
 mod tests {
     use super::inject_trace_context;
@@ -75,8 +75,8 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert("X-Existing".to_string(), "value".to_string());
 
-        // inject_trace_context should be a no-op when OpenTelemetry is not configured.
-        // It should not panic or modify existing headers.
+        /* inject_trace_context should be a no-op when OpenTelemetry is not configured.
+         * It should not panic or modify existing headers. */
         inject_trace_context(&mut headers);
 
         assert_eq!(headers.get("X-Existing").unwrap(), "value");
@@ -86,7 +86,7 @@ mod tests {
     fn test_inject_trace_context_empty_headers_do_not_cause_exception() {
         let mut headers = HashMap::new();
 
-        // Should not panic with empty headers map
+        /* Should not panic with empty headers map */
         inject_trace_context(&mut headers);
     }
 

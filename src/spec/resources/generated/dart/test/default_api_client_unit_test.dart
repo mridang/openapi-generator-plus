@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -15,6 +15,42 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('DefaultApiClient unit tests', () {
+    test(
+      'a lower-case caller user-agent and x-request-id suppress injection',
+      () async {
+        List<String>? receivedUA;
+        List<String>? receivedRequestId;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedUA = request.headers['user-agent'];
+          receivedRequestId = request.headers['x-request-id'];
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .userAgent('Sdk/9.9')
+              .injectRequestId(true)
+              .defaultHeader('user-agent', 'MyApp')
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+
+          await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/test',
+            {'x-request-id': 'abc'},
+            null,
+          );
+          expect(receivedUA, equals(['MyApp']));
+          expect(receivedRequestId, equals(['abc']));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('injects custom User-Agent header', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1718,6 +1754,58 @@ void main() {
       },
     );
 
+    test(
+      'multipart primitive fields are text parts in the canonical form',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'flag': true,
+              'count': 3,
+              'at': DateTime.utc(2024, 1, 15, 10, 30),
+              'shade': Swatch.red,
+              'meta': {'k': 'v'},
+            },
+          );
+          final lower = body.toLowerCase();
+          for (final part in [
+            ('flag', 'true'),
+            ('count', '3'),
+            ('at', '2024-01-15t10:30:00.000+00:00'),
+            ('shade', 'red'),
+          ]) {
+            expect(
+              lower,
+              contains(
+                'content-disposition: form-data; name="${part.$1}"'
+                '\r\n\r\n${part.$2}\r\n',
+              ),
+              reason: '${part.$1} must be a text part, got: $body',
+            );
+          }
+          expect(
+            RegExp('content-type: application/json').allMatches(lower),
+            hasLength(1),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('multipart scalar field is still sent as a single part', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2024,5 +2112,113 @@ void main() {
         await server.close();
       }
     });
+  });
+
+  /* An implicit and an explicit default port are the same origin, so the
+   * caller's credentials survive that redirect; a different port is a
+   * different origin and strips them. The stub is a forward proxy, so every
+   * hop reaches it as an absolute-URI request and no listener has to bind
+   * port 80. */
+  group('Redirect origin with an explicit default port', () {
+    for (final hop in <List<Object>>[
+      ['http://a.test/x', 'http://a.test:80/y', true],
+      ['http://a.test:80/x', 'http://a.test/y', true],
+      ['http://a.test/x', 'http://A.TEST/y', true],
+      ['http://a.test/x', 'http://a.test:8080/y', false],
+      ['http://a.test:80/x', 'http://a.test:8080/y', false],
+    ]) {
+      final from = hop[0] as String;
+      final to = hop[1] as String;
+      final keeps = hop[2] as bool;
+      test(
+        '$from to $to ${keeps ? 'keeps' : 'strips'} Authorization',
+        () async {
+          final second = <String, String?>{};
+          final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          proxy.listen((request) {
+            if (request.uri.path == '/x') {
+              request.response
+                ..statusCode = 302
+                ..headers.set('Location', to)
+                ..close();
+              return;
+            }
+            second['path'] = request.uri.path;
+            second['authorization'] = request.headers.value('authorization');
+            second['cookie'] = request.headers.value('cookie');
+            request.response
+              ..statusCode = 200
+              ..close();
+          });
+
+          try {
+            final transport = TransportOptionsBuilder()
+                .proxy('http://127.0.0.1:${proxy.port}')
+                .followRedirects(true)
+                .build();
+            final resp = await DefaultApiClient(transportOptions: transport)
+                .sendRequest('GET', from, {
+                  'Authorization': 'Bearer caller-secret',
+                  'Cookie': 'session=abc',
+                }, null);
+            expect(resp.statusCode, equals(200));
+            expect(second['path'], equals('/y'));
+            expect(
+              second['authorization'],
+              keeps ? equals('Bearer caller-secret') : isNull,
+            );
+            expect(second['cookie'], keeps ? equals('session=abc') : isNull);
+          } finally {
+            await proxy.close();
+          }
+        },
+      );
+    }
+  });
+
+  group('Proxy credentials across redirects', () {
+    /* The stub is the forward proxy: it sees every hop as an absolute-URI
+     * request, so a cross-origin redirect needs no second host. */
+    test(
+      'keep the proxy Proxy-Authorization and drop the caller Authorization',
+      () async {
+        final second = <String, String?>{};
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        proxy.listen((request) {
+          if (request.headers.value('host') == 'a.test') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://b.test/y')
+              ..close();
+            return;
+          }
+          second['host'] = request.headers.value('host');
+          second['proxy-authorization'] = request.headers.value(
+            'proxy-authorization',
+          );
+          second['authorization'] = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .proxy('http://user:pass@127.0.0.1:${proxy.port}')
+              .followRedirects(true)
+              .build();
+          final resp = await DefaultApiClient(transportOptions: transport)
+              .sendRequest('GET', 'http://a.test/x', {
+                'Authorization': 'Bearer caller-secret',
+              }, null);
+          expect(resp.statusCode, equals(200));
+          expect(second['host'], equals('b.test'));
+          expect(second['proxy-authorization'], equals('Basic dXNlcjpwYXNz'));
+          expect(second['authorization'], isNull);
+        } finally {
+          await proxy.close();
+        }
+      },
+    );
   });
 }

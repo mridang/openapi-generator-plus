@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -26,7 +27,8 @@ defmodule PetstoreClient.Models.Pet do
           thumbnail_ref: String.t() | nil,
           link_template: String.t() | nil,
           owner_email: String.t() | nil,
-          weight_kg: float() | nil
+          weight_kg: float() | nil,
+          nickname: String.t() | nil
         }
 
   @enforce_keys [
@@ -45,7 +47,8 @@ defmodule PetstoreClient.Models.Pet do
     :thumbnail_ref,
     :link_template,
     :owner_email,
-    :weight_kg
+    :weight_kg,
+    :nickname
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -63,7 +66,8 @@ defmodule PetstoreClient.Models.Pet do
       thumbnail_ref: "thumbnailRef",
       link_template: "linkTemplate",
       owner_email: "ownerEmail",
-      weight_kg: "weightKg"
+      weight_kg: "weightKg",
+      nickname: "nickname"
     }
   end
 
@@ -71,6 +75,26 @@ defmodule PetstoreClient.Models.Pet do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "id",
+      "name",
+      "category",
+      "photoUrls",
+      "tags",
+      "status",
+      "location",
+      "homepageUrl",
+      "thumbnailRef",
+      "linkTemplate",
+      "ownerEmail",
+      "weightKg",
+      "nickname"
+    ]
   end
 
   @doc """
@@ -99,13 +123,14 @@ defmodule PetstoreClient.Models.Pet do
       category: "Category",
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
-      status: "Enum<available,pending,sold>",
+      status: "Enum<available=available,pending=pending,sold=sold>",
       location: "[any()]",
       homepage_url: "String.t()",
       thumbnail_ref: "String.t()",
       link_template: "String.t()",
       owner_email: "String.t()",
-      weight_kg: "float()"
+      weight_kg: "float()",
+      nickname: "String.t()"
     }
   end
 end

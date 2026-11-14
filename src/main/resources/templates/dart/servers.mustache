@@ -22,17 +22,17 @@ import 'server_configuration.dart';
 /// ```
 {{#serverConfigs}}
 
-/// Server {{serverIndex}}: `{{serverUrl}}`{{#serverDescription}}
+/// Server {{serverIndex}}: `{{{serverUrl}}}`{{#serverDescription}}
 ///
-/// {{serverDescription}}{{/serverDescription}}
+/// {{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/serverDescription}}
 const server{{serverIndex}} = ServerConfiguration(
-  urlTemplate: '{{{serverUrl}}}',
-  description: '{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}',
+  urlTemplate: '{{#lambda.dartString}}{{{serverUrl}}}{{/lambda.dartString}}',
+  description: '{{#serverDescription}}{{#lambda.dartString}}{{{serverDescription}}}{{/lambda.dartString}}{{/serverDescription}}',
   variables: {{#hasVariables}}{
-{{#serverVariables}}    '{{{varName}}}': ServerVariable(
-      defaultValue: '{{{varDefault}}}',
-      description: '{{#varDescription}}{{{varDescription}}}{{/varDescription}}',
-      enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+{{#serverVariables}}    '{{#lambda.dartString}}{{{varName}}}{{/lambda.dartString}}': ServerVariable(
+      defaultValue: '{{#lambda.dartString}}{{{varDefault}}}{{/lambda.dartString}}',
+      description: '{{#varDescription}}{{#lambda.dartString}}{{{varDescription}}}{{/lambda.dartString}}{{/varDescription}}',
+      enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{#lambda.dartString}}{{{.}}}{{/lambda.dartString}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
     ),
 {{/serverVariables}}  }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}},
 );

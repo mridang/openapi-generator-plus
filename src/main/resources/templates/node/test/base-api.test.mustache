@@ -25,7 +25,7 @@ import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFi
 import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { Category } from '../src/models/index{{importFileExtension}}';
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { {{errorPrefix}}Error } from '../src/errors/index{{importFileExtension}}';
+import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
 
 
 class CapturingApiClient implements ApiClient {
@@ -455,6 +455,20 @@ describe('BaseApi body serialization', () => {
       testApi.call('POST', '/test/echo', {}, {}, body,
         ['application/json'], 'application/x-www-form-urlencoded', null),
     ).rejects.toThrow(new URIError('URI malformed'));
+    expect(client.capturedBody).toBeNull();
+  });
+
+  test.each([
+    ['a nested map', { location: { lat: 1.5 } }],
+    ['an array of objects', { location: [{ lat: 1.5 }] }],
+  ])('form-urlencoded body rejects %s with SerializationError', async (_label, body) => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await expect(
+      testApi.call('POST', '/test/echo', {}, {}, body,
+        ['application/json'], 'application/x-www-form-urlencoded', null),
+    ).rejects.toThrow(new SerializationError('form-urlencoded field location must be a scalar or array of scalars'));
     expect(client.capturedBody).toBeNull();
   });
 
@@ -1020,14 +1034,21 @@ describe('Container response leaves are type-checked', () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":"5"}';
     const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
-    await expect(storeApi.getInventory()).rejects.toThrow('Expected integer but received: string');
+    await expect(storeApi.getInventory()).rejects.toThrow('Expected int32 but received: string');
   });
 
   test('getInventory rejects a fractional number in the integer map', async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":7.5}';
     const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
-    await expect(storeApi.getInventory()).rejects.toThrow('Expected integer but received: number');
+    await expect(storeApi.getInventory()).rejects.toThrow('Expected int32 but received: number');
+  });
+
+  test('getInventory rejects an out-of-range number in the integer map', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"available":3000000000}';
+    const storeApi = new StoreApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(storeApi.getInventory()).rejects.toThrow(SerializationError);
   });
 
   test('getInventory still decodes integer values', async () => {

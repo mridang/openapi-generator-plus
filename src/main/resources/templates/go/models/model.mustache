@@ -172,6 +172,14 @@ type {{classname}} struct {
 	//
 	// Deprecated: {{#deprecationMessage}}{{{deprecationMessage}}}{{/deprecationMessage}}{{^deprecationMessage}}This property is deprecated.{{/deprecationMessage}}
 {{/deprecated}}
+{{#isReadOnly}}
+	// Read-only: the server sets this property. It is still sent and received
+	// like any other property.
+{{/isReadOnly}}
+{{#isWriteOnly}}
+	// Write-only: the server never returns this property. It is still sent
+	// and received like any other property.
+{{/isWriteOnly}}
 {{#required}}
 	{{name}} {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} `json:"{{baseName}}"`
 {{/required}}
@@ -242,10 +250,11 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(o.AdditionalProperties) == 0 {
+	extras := withoutDeclaredKeys(o.AdditionalProperties{{#vars}}, "{{baseName}}"{{/vars}})
+	if len(extras) == 0 {
 		return b, nil
 	}
-	extra, err := marshalJSON(o.AdditionalProperties)
+	extra, err := marshalJSON(extras)
 	if err != nil {
 		return nil, err
 	}
@@ -264,6 +273,18 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -322,6 +343,18 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -375,6 +408,18 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	type Alias {{classname}}
 	aux := &Alias{}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}
@@ -429,6 +474,18 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{/required}}
 {{/vars}}
 {{/hasOptionalDefault}}
+{{#vars}}
+{{#isUri}}
+	if err := checkAbsoluteURIField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUri}}
+{{/vars}}
+{{#hasByteFields}}
+	if err := checkBase64Fields(data, aux); err != nil {
+		return err
+	}
+{{/hasByteFields}}
 	if err := json.Unmarshal(dropMiscasedKeys(data{{#vars}}, "{{baseName}}"{{/vars}}), aux); err != nil {
 		return err
 	}

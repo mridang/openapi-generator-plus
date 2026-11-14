@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -73,6 +73,26 @@ final class Servers
     }
 
     /**
+     * Server 2: https://{tenant}.example.com/api
+     *
+     * Bob's "sandbox" & co: $5 #{x} a*_/b
+     */
+    public static function server2(): ServerConfiguration
+    {
+        return new ServerConfiguration(
+            urlTemplate: 'https://{tenant}.example.com/api',
+            description: 'Bob\'s "sandbox" & co: $5 #{x} a*/b',
+            variables: [
+                'tenant' => new ServerVariable(
+                    defaultValue: 'o\'neil',
+                    description: 'Tenant\'s "id"',
+                    enumValues: ['o\'neil', 'a&b'],
+                ),
+            ],
+        );
+    }
+
+    /**
      * Return all server configurations in declaration order.
      *
      * @return ServerConfiguration[]
@@ -82,6 +102,7 @@ final class Servers
         return [
             self::server0(),
             self::server1(),
+            self::server2(),
         ];
     }
 

@@ -173,6 +173,39 @@ func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	}
 }
 
+func TestDefaultApiClient_CallerHeadersWinCaseInsensitively(t *testing.T) {
+	t.Parallel()
+	sdkAgent := "sdk-default-agent"
+	transport, buildErr := NewTransportOptionsBuilder().
+		UserAgent(&sdkAgent).
+		InjectRequestID(true).
+		DefaultHeader("user-agent", "MyApp").
+		DefaultHeader("x-request-id", "abc").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", chasmHTTPURL+"/test/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(resp.Body, sdkAgent) {
+		t.Errorf("SDK default User-Agent must not be sent, got %s", resp.Body)
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
+		t.Fatalf("failed to parse body: %v", err)
+	}
+	headers, _ := parsed["headers"].(map[string]any)
+	if headers == nil || headers["user-agent"] != "MyApp" {
+		t.Errorf("expected User-Agent 'MyApp', got %v", headers["user-agent"])
+	}
+	if headers["x-request-id"] != "abc" {
+		t.Errorf("expected X-Request-ID 'abc', got %v", headers["x-request-id"])
+	}
+}
+
 func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().
@@ -299,6 +332,43 @@ func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 	}
 	if !strings.Contains(resp.Body, `"method"`) {
 		t.Errorf("expected body to contain echo envelope, got %q", resp.Body)
+	}
+}
+
+// An unusable Location (unparseable, or absent) stops the redirect loop: the
+// 3xx itself comes back with its status and body, never a transport error.
+func TestDefaultApiClient_UnusableLocationReturnsTheRedirect(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		path     string
+		body     string
+		location string
+	}{
+		{"/test/redirect/malformed-location", `{"redirect":"malformed"}`, "http://[bad"},
+		{"/test/redirect/no-location", `{"redirect":"no-location"}`, ""},
+	}
+	for _, followRedirects := range []bool{true, false} {
+		transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(followRedirects).Build()
+		if buildErr != nil {
+			t.Fatal(buildErr)
+		}
+		client := NewDefaultApiClient(transport)
+		for _, tc := range cases {
+			resp, err := client.SendRequest("GET", chasmHTTPURL+tc.path, map[string]string{}, nil)
+			if err != nil {
+				t.Errorf("%s (follow=%v): expected the 302, got %v", tc.path, followRedirects, err)
+				continue
+			}
+			if resp.StatusCode != 302 {
+				t.Errorf("%s (follow=%v): expected status 302, got %d", tc.path, followRedirects, resp.StatusCode)
+			}
+			if strings.ReplaceAll(resp.Body, " ", "") != tc.body {
+				t.Errorf("%s (follow=%v): expected body %s, got %q", tc.path, followRedirects, tc.body, resp.Body)
+			}
+			if got := resp.Headers["location"]; got != tc.location {
+				t.Errorf("%s (follow=%v): expected the Location %q kept, got %q", tc.path, followRedirects, tc.location, got)
+			}
+		}
 	}
 }
 

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,6 +13,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -85,7 +87,7 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
 
   @Override
   public Map<String, String> getAuthHeaders() {
-    Map<String, String> params = new HashMap<>();
+    Map<String, String> params = new LinkedHashMap<>();
     params.put("grant_type", "client_credentials");
     Map<String, String> extraHeaders = new HashMap<>();
     if (clientAuthMethod == ClientAuthMethod.BASIC) {

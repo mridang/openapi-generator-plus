@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -294,6 +294,53 @@ void main() {
       }
     });
 
+    /* A format:binary body goes out verbatim under any selected content type,
+     * including application/json; a format:byte JSON body stays base64. */
+    test(
+      'setPetAvatar sends the bytes verbatim under the JSON selector',
+      () async {
+        final bodies = <List<int>>[];
+        final types = <String?>[];
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          types.add(request.headers.contentType?.mimeType);
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          bodies.add(builder.takeBytes());
+          request.response
+            ..statusCode = 204
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.setPetAvatar(
+            1,
+            Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xE0]),
+            'application/json',
+          );
+          await api.setPetAvatarThumbnail(
+            1,
+            SetPetAvatarThumbnailRequest.value(
+              Uint8List.fromList(<int>[1, 2, 3]),
+            ),
+          );
+
+          expect(bodies[0], equals([0xFF, 0xD8, 0xFF, 0xE0]));
+          expect(types[0], equals('application/json'));
+          expect(String.fromCharCodes(bodies[1]), equals('"AQID"'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('getPetAvatar', () async {
       final api = _newPetApiForIntegration();
 
@@ -342,6 +389,65 @@ void main() {
       );
       expect(result, isNotNull);
     });
+
+    /* A primitive multipart value is a text part with no part Content-Type
+     * carrying the canonical stringify form; only objects are JSON parts. */
+    test(
+      'uploadPetDocument sends primitive fields as canonical text parts',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          final builder = BytesBuilder();
+          await for (final chunk in request) {
+            builder.add(chunk);
+          }
+          body = String.fromCharCodes(builder.takeBytes());
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType('application', 'json')
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.uploadPetDocument(
+            1,
+            UploadPetDocumentOptions(
+              file: Uint8List.fromList([0x66, 0x61, 0x6B, 0x65]),
+              isPrimary: true,
+              pageCount: 3,
+              takenAt: DateTime.utc(2024, 1, 15, 10, 30),
+              swatch: Swatch.red,
+            ),
+          );
+
+          for (final part in [
+            ('isPrimary', 'true'),
+            ('pageCount', '3'),
+            ('takenAt', '2024-01-15T10:30:00.000+00:00'),
+            ('swatch', 'red'),
+          ]) {
+            expect(
+              body,
+              contains(
+                'Content-Disposition: form-data; name="${part.$1}"'
+                '\r\n\r\n${part.$2}\r\n',
+              ),
+              reason: '${part.$1} must be a text part, got: $body',
+            );
+          }
+          expect(body, isNot(contains('application/json')));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* octet-stream-raw-body (multi-content-type binary selection): the
      * uploadPetDocument operation declares TWO request Content-Types —
@@ -897,7 +1003,7 @@ void main() {
 
         final result = await api.getPetByName(
           'Rex',
-          const GetPetByNameOptions(category: 'dogs'),
+          const GetPetByNameOptions(category: 'dogs', xCorrelationId: 'c-1'),
         );
 
         expect(result, isNotNull);
@@ -975,7 +1081,10 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       await expectLater(
-        api.getPetByName('Rex', const GetPetByNameOptions(category: '')),
+        api.getPetByName(
+          'Rex',
+          const GetPetByNameOptions(category: '', xCorrelationId: 'c-1'),
+        ),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
@@ -1015,6 +1124,112 @@ void main() {
     });
   });
 
+  group('format: date parameters', () {
+    /* Dart has no date-only type, so a `format: date` value is a DateTime.
+     * A matrix-style date path param and each item of a date-array query
+     * param must still go out as YYYY-MM-DD, never as a full date-time. */
+    test(
+      'getPetSummary sends the date path param and date array as dates',
+      () async {
+        String? capturedPath;
+        String? capturedQuery;
+        String? capturedCookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedPath = request.uri.path;
+          capturedQuery = request.uri.query;
+          capturedCookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('hello')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          final result = await api.getPetSummary(
+            1,
+            DateTime.utc(2024, 1, 15),
+            GetPetSummaryOptions(
+              session: 'abc',
+              days: [DateTime.utc(2024, 1, 15), DateTime.utc(2024, 2, 1)],
+            ),
+          );
+
+          expect(result, equals('hello'));
+          expect(capturedPath, equals('/pet/1/summary/;asOf=2024-01-15'));
+          expect(capturedQuery, equals('days=2024-01-15&days=2024-02-01'));
+          expect(capturedCookie, equals('session=abc'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+  });
+
+  group('operation doc comments', () {
+    final source = File(
+      '${Directory.current.path}/lib/src/api/pet_api.dart',
+    ).readAsStringSync();
+
+    /* The `options` argument is documented on every operation that takes
+     * it: the authenticator clause appears only where the Options class
+     * carries one, and an auth-only Options says just that. */
+    test('document the options argument by what it carries', () {
+      expect(
+        source,
+        contains(
+          '  /// `options` options carrying an optional per-call authenticator\n'
+          '  Future<Pet> addPet(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          '  /// `options` options for query, header, form, and cookie parameters, '
+          'plus an optional per-call authenticator\n'
+          '  Future<void> deletePet(',
+        ),
+      );
+      expect(
+        source,
+        contains(
+          '  /// `days` Extra dates to summarise\n'
+          '  /// `options` options for query, header, form, and cookie parameters\n'
+          '  Future<String> getPetSummary(',
+        ),
+      );
+    });
+
+    /* Spec prose reaches the doc comment as written: no HTML entity and no
+     * string-literal backslash before a quote. */
+    test('render spec prose verbatim', () {
+      expect(
+        source,
+        contains("  /// Get a <plain> \"text\" summary & it's short\n"),
+      );
+      expect(
+        source,
+        contains("  /// `session` Session token: \"a<b>\" & it's required\n"),
+      );
+      final docLines = source
+          .split('\n')
+          .where((line) => line.trimLeft().startsWith('///'));
+      for (final line in docLines) {
+        expect(
+          line,
+          isNot(matches(RegExp(r'&(#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z]+);'))),
+        );
+        expect(line, isNot(contains(r'\"')));
+      }
+    });
+  });
+
   group('operation-level server variants', () {
     test('the fixed external variant resolves its URL', () {
       expect(
@@ -1049,7 +1264,7 @@ void main() {
         );
         expect(
           GetMultiServerPetInfoServerRegional(
-            GetMultiServerPetInfoServerRegion.EU,
+            GetMultiServerPetInfoServerRegionalRegion.EU,
           ).getUrl(),
           equals('https://eu.example.com/v1'),
         );

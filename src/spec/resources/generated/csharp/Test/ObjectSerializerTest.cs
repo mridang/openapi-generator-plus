@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -14,10 +14,8 @@ using Xunit;
 
 namespace Test;
 
-public class ObjectSerializerTest
+public static class ObjectSerializerTest
 {
-    private readonly ObjectSerializer _serializer = new();
-
     public class StringifyTests
     {
         [Fact]
@@ -45,11 +43,18 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void ByteArrayReturnsStandardBase64()
+        {
+            Assert.Equal("aGk=", ObjectSerializer.Stringify(new byte[] { 0x68, 0x69 }));
+            Assert.Equal("+/8=", ObjectSerializer.Stringify(new byte[] { 0xFB, 0xFF }));
+        }
+
+        [Fact]
         public void DateTimeReturnsIso8601String()
         {
             var dt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
             string result = ObjectSerializer.Stringify(dt);
-            Assert.StartsWith("2024-01-15T10:30:00", result);
+            Assert.StartsWith("2024-01-15T10:30:00", result, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -295,9 +300,9 @@ public class ObjectSerializerTest
                 CultureInfo.InvariantCulture
             );
             var result = ObjectSerializer.Stringify(dt);
-            Assert.Contains("2024-01-01T12:30:45", result);
+            Assert.Contains("2024-01-01T12:30:45", result, StringComparison.Ordinal);
             Assert.True(
-                result.Contains("+00:00") || result.EndsWith('Z'),
+                result.Contains("+00:00", StringComparison.Ordinal) || result.EndsWith('Z'),
                 $"should contain UTC offset: {result}"
             );
         }
@@ -310,7 +315,7 @@ public class ObjectSerializerTest
                 CultureInfo.InvariantCulture
             );
             var result = ObjectSerializer.Stringify(dt);
-            Assert.Contains("+05:30", result);
+            Assert.Contains("+05:30", result, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -321,7 +326,7 @@ public class ObjectSerializerTest
                 CultureInfo.InvariantCulture
             );
             var result = ObjectSerializer.Stringify(dt);
-            Assert.Contains("-08:00", result);
+            Assert.Contains("-08:00", result, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -332,7 +337,7 @@ public class ObjectSerializerTest
                 CultureInfo.InvariantCulture
             );
             var result = ObjectSerializer.Stringify(dt);
-            Assert.Contains(".123", result);
+            Assert.Contains(".123", result, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -382,7 +387,7 @@ public class ObjectSerializerTest
             var metadata = new PhotoMetadata { TakenAt = instant };
 
             string json = serializer.Serialize(metadata);
-            Assert.Contains(".123", json);
+            Assert.Contains(".123", json, StringComparison.Ordinal);
 
             var roundTripped = serializer.Deserialize<PhotoMetadata>(json);
             Assert.NotNull(roundTripped);
@@ -398,21 +403,21 @@ public class ObjectSerializerTest
         public void AccentedCharacterNotUnicodeEscaped()
         {
             var result = _serializer.Serialize("café");
-            Assert.Contains("é", result);
+            Assert.Contains("é", result, StringComparison.Ordinal);
         }
 
         [Fact]
         public void CjkCharactersNotUnicodeEscaped()
         {
             var result = _serializer.Serialize("日本");
-            Assert.Contains("日本", result);
+            Assert.Contains("日本", result, StringComparison.Ordinal);
         }
 
         [Fact]
         public void TabCharacterEscapedProperlyInJson()
         {
             var result = _serializer.Serialize("a\tb");
-            Assert.Contains(@"\t", result);
+            Assert.Contains(@"\t", result, StringComparison.Ordinal);
         }
     }
 
@@ -488,7 +493,11 @@ public class ObjectSerializerTest
             var order = _serializer.Deserialize<Order>("{\"id\":9007199254740993}");
 
             Assert.Equal(9007199254740993L, order!.Id);
-            Assert.Contains("9007199254740993", _serializer.Serialize(order));
+            Assert.Contains(
+                "9007199254740993",
+                _serializer.Serialize(order),
+                StringComparison.Ordinal
+            );
         }
 
         [Fact]
@@ -540,8 +549,8 @@ public class ObjectSerializerTest
         {
             var category = new Category { Id = 1L, Name = "Dogs" };
             var json = _serializer.Serialize(category);
-            Assert.Contains("\"id\":1", json);
-            Assert.Contains("\"name\":\"Dogs\"", json);
+            Assert.Contains("\"id\":1", json, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"Dogs\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -556,8 +565,8 @@ public class ObjectSerializerTest
         {
             var category = new Category { Id = 0L, Name = "" };
             var json = _serializer.Serialize(category);
-            Assert.Contains("\"id\":0", json);
-            Assert.Contains("\"name\":\"\"", json);
+            Assert.Contains("\"id\":0", json, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"\"", json, StringComparison.Ordinal);
         }
     }
 
@@ -763,7 +772,7 @@ public class ObjectSerializerTest
         {
             var order = new Order { Status = Order.StatusEnum.Approved };
             var json = _serializer.Serialize(order);
-            Assert.Contains("\"status\":\"approved\"", json);
+            Assert.Contains("\"status\":\"approved\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -778,7 +787,7 @@ public class ObjectSerializerTest
         {
             var order = _serializer.Deserialize<Order>("{\"status\":\"placed\"}");
             var back = _serializer.Serialize(order);
-            Assert.Contains("\"status\":\"placed\"", back);
+            Assert.Contains("\"status\":\"placed\"", back, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -816,6 +825,17 @@ public class ObjectSerializerTest
             // mode was absent, so it keeps the schema default.
             Assert.Equal(Defaults.ModeEnum.Medium, fromNull.Mode);
         }
+
+        [Fact]
+        public void DefaultsNumericLiteralsKeepTheirExactTypedValue()
+        {
+            var fromEmpty = _serializer.Deserialize<Defaults>("{}");
+            Assert.NotNull(fromEmpty);
+            Assert.Equal(1.5m, fromEmpty!.Ratio);
+            Assert.Equal(0.25f, fromEmpty.Scale);
+            Assert.Equal(2.0, fromEmpty.Weight);
+            Assert.Equal(9000000000L, fromEmpty.Ceiling);
+        }
     }
 
     // Gap #13 — discard nulls on serialize.
@@ -831,8 +851,8 @@ public class ObjectSerializerTest
         {
             var category = new Category { Id = 1L, Name = null };
             var json = _serializer.Serialize(category);
-            Assert.Contains("\"id\":1", json);
-            Assert.DoesNotContain("\"name\"", json);
+            Assert.Contains("\"id\":1", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"name\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -848,8 +868,8 @@ public class ObjectSerializerTest
         {
             var category = new Category { Id = null, Name = "Dogs" };
             var json = _serializer.Serialize(category);
-            Assert.DoesNotContain("\"id\"", json);
-            Assert.Contains("\"name\":\"Dogs\"", json);
+            Assert.DoesNotContain("\"id\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"name\":\"Dogs\"", json, StringComparison.Ordinal);
         }
     }
 
@@ -1116,8 +1136,8 @@ public class ObjectSerializerTest
         {
             var dry = new DryFood(2.5);
             var json = _serializer.Serialize(dry);
-            Assert.Contains("\"foodType\":\"dry\"", json);
-            Assert.Contains("\"weightKg\":2.5", json);
+            Assert.Contains("\"foodType\":\"dry\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"weightKg\":2.5", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1125,7 +1145,7 @@ public class ObjectSerializerTest
         {
             var wet = new WetFood(350);
             var json = _serializer.Serialize(wet);
-            Assert.Contains("\"foodType\":\"wet\"", json);
+            Assert.Contains("\"foodType\":\"wet\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1170,7 +1190,11 @@ public class ObjectSerializerTest
         {
             var holder = new GuidHolder { Id = Guid.Parse("550e8400-e29b-41d4-a716-446655440000") };
             var json = _serializer.Serialize(holder);
-            Assert.Contains("\"id\":\"550e8400-e29b-41d4-a716-446655440000\"", json);
+            Assert.Contains(
+                "\"id\":\"550e8400-e29b-41d4-a716-446655440000\"",
+                json,
+                StringComparison.Ordinal
+            );
 
             var decoded = _serializer.Deserialize<GuidHolder>(json);
             Assert.NotNull(decoded);
@@ -1233,8 +1257,8 @@ public class ObjectSerializerTest
             var item = new StockItem(Priority.NUMBER_2);
             var json = _serializer.Serialize(item);
             // The wire form is a bare number, never a quoted string.
-            Assert.Contains("\"priority\":2", json);
-            Assert.DoesNotContain("\"priority\":\"2\"", json);
+            Assert.Contains("\"priority\":2", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"priority\":\"2\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1250,7 +1274,7 @@ public class ObjectSerializerTest
         {
             var item = _serializer.Deserialize<StockItem>("{\"priority\":1}");
             var back = _serializer.Serialize(item);
-            Assert.Contains("\"priority\":1", back);
+            Assert.Contains("\"priority\":1", back, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1284,7 +1308,7 @@ public class ObjectSerializerTest
         {
             var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.Available };
             var json = _serializer.Serialize(item);
-            Assert.Contains("\"availability\":\"Available\"", json);
+            Assert.Contains("\"availability\":\"Available\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1292,7 +1316,7 @@ public class ObjectSerializerTest
         {
             var item = new StockItem(Priority.NUMBER_1) { Availability = Availability.OnHold };
             var json = _serializer.Serialize(item);
-            Assert.Contains("\"availability\":\"on-hold\"", json);
+            Assert.Contains("\"availability\":\"on-hold\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1329,7 +1353,11 @@ public class ObjectSerializerTest
                 var payload = "{\"priority\":1,\"availability\":\"" + wire + "\"}";
                 var item = _serializer.Deserialize<StockItem>(payload);
                 Assert.Equal(member, item!.Availability);
-                Assert.Contains("\"availability\":\"" + wire + "\"", _serializer.Serialize(item));
+                Assert.Contains(
+                    "\"availability\":\"" + wire + "\"",
+                    _serializer.Serialize(item),
+                    StringComparison.Ordinal
+                );
             }
         }
 
@@ -1357,7 +1385,7 @@ public class ObjectSerializerTest
             var passport = new PetPassport { Thumbnail = bytes };
             var json = _serializer.Serialize(passport);
             // base64 of {1,2,3,255} is "AQID/w==".
-            Assert.Contains("\"thumbnail\":\"AQID/w==\"", json);
+            Assert.Contains("\"thumbnail\":\"AQID/w==\"", json, StringComparison.Ordinal);
 
             var decoded = _serializer.Deserialize<PetPassport>(json);
             Assert.NotNull(decoded);
@@ -1375,8 +1403,8 @@ public class ObjectSerializerTest
             var passport = new PetPassport { Scans = scans };
             var json = _serializer.Serialize(passport);
             // Each element is an independent base64 string.
-            Assert.Contains("\"ABAg\"", json);
-            Assert.Contains("\"3q2+7w==\"", json);
+            Assert.Contains("\"ABAg\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"3q2+7w==\"", json, StringComparison.Ordinal);
 
             var decoded = _serializer.Deserialize<PetPassport>(json);
             Assert.NotNull(decoded);
@@ -1430,12 +1458,12 @@ public class ObjectSerializerTest
             var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");
             var json = _serializer.Serialize(meta);
             // The extra keys appear at the top level of the object verbatim.
-            Assert.Contains("\"region\":\"emea\"", json);
-            Assert.Contains("\"tier\":\"gold\"", json);
+            Assert.Contains("\"region\":\"emea\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"tier\":\"gold\"", json, StringComparison.Ordinal);
             // They must NOT be wrapped under an additionalProperties /
             // additional_properties container key.
-            Assert.DoesNotContain("additionalProperties", json);
-            Assert.DoesNotContain("additional_properties", json);
+            Assert.DoesNotContain("additionalProperties", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("additional_properties", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1474,7 +1502,7 @@ public class ObjectSerializerTest
                 "{\"priority\":2,\"matrix\":[[7,8],[9]]}"
             );
             var json = _serializer.Serialize(item);
-            Assert.Contains("\"matrix\":[[7,8],[9]]", json);
+            Assert.Contains("\"matrix\":[[7,8],[9]]", json, StringComparison.Ordinal);
         }
     }
 
@@ -1490,8 +1518,8 @@ public class ObjectSerializerTest
                 WeightKg = 1.5m,
             };
             var json = _serializer.Serialize(pet);
-            Assert.Contains("\"weightKg\":1.5", json);
-            Assert.DoesNotContain("\"weightKg\":\"1.5\"", json);
+            Assert.Contains("\"weightKg\":1.5", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"weightKg\":\"1.5\"", json, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -1651,6 +1679,147 @@ public class ObjectSerializerTest
             Assert.NotNull(_serializer.Deserialize<object>(within));
             var beyond = new string('[', 1500) + new string(']', 1500);
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<object>(beyond));
+        }
+    }
+
+    public class StrictWireFormatTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Theory]
+        [InlineData("2024-01-01T10:00:00")]
+        [InlineData("01/02/2024 10:00")]
+        [InlineData("tomorrow")]
+        [InlineData("10:00")]
+        [InlineData("1700000000")]
+        [InlineData("2024-01-01")]
+        public void NonRfc3339DateTimeIsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"shipDate\":\"" + text + "\"}")
+            );
+        }
+
+        [Fact]
+        public void OffsetLessDateTimeIsRejectedUnderAnyHostZone()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>("{\"shipDate\":\"2024-01-01T10:00:00\"}")
+            );
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<DateTimeOffset>("\"2024-01-01T10:00:00\"")
+            );
+        }
+
+        [Fact]
+        public void UtcDateTimeIsAccepted()
+        {
+            Order? order = _serializer.Deserialize<Order>(
+                "{\"shipDate\":\"2024-01-01T10:00:00Z\"}"
+            );
+
+            Assert.Equal(new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero), order!.ShipDate);
+        }
+
+        [Fact]
+        public void NanosecondFractionWithOffsetIsAccepted()
+        {
+            Order? order = _serializer.Deserialize<Order>(
+                "{\"shipDate\":\"2024-01-01T10:00:00.123456789+05:30\"}"
+            );
+
+            Assert.Equal(
+                new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.FromMinutes(330)).AddTicks(
+                    1234567
+                ),
+                order!.ShipDate
+            );
+            Assert.Equal(TimeSpan.FromMinutes(330), order.ShipDate!.Value.Offset);
+        }
+
+        [Theory]
+        [InlineData("dGVzdA")]
+        [InlineData("dGVz dA==")]
+        [InlineData("dGVz\\ndA==")]
+        [InlineData("-_8=")]
+        [InlineData("!!!!")]
+        public void NonStrictBase64IsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<PetPassport>("{\"thumbnail\":\"" + text + "\"}")
+            );
+        }
+
+        [Fact]
+        public void PaddedStandardBase64IsAccepted()
+        {
+            PetPassport? passport = _serializer.Deserialize<PetPassport>(
+                "{\"thumbnail\":\"dGVzdA==\"}"
+            );
+
+            Assert.Equal("test"u8.ToArray(), passport!.Thumbnail);
+        }
+
+        [Theory]
+        [InlineData("urn:isbn:0451450523")]
+        [InlineData("mailto:a@b.com")]
+        [InlineData("ftp://x.org/f")]
+        [InlineData("https://example.com/items/one")]
+        public void AbsoluteUriIsAcceptedAndReEmittedVerbatim(string text)
+        {
+            string json = "{\"name\":\"a\",\"photoUrls\":[],\"homepageUrl\":\"" + text + "\"}";
+
+            Pet? decoded = _serializer.Deserialize<Pet>(json);
+
+            Assert.Equal(text, decoded!.HomepageUrl!.OriginalString);
+            Assert.Contains(
+                "\"homepageUrl\":\"" + text + "\"",
+                _serializer.Serialize(decoded),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Theory]
+        [InlineData("/relative")]
+        [InlineData("not a uri")]
+        [InlineData("")]
+        public void NonAbsoluteUriIsRejected(string text)
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Pet>(
+                    "{\"name\":\"a\",\"photoUrls\":[],\"homepageUrl\":\"" + text + "\"}"
+                )
+            );
+        }
+
+        [Fact]
+        public void UriReferenceStaysAPlainString()
+        {
+            Pet? decoded = _serializer.Deserialize<Pet>(
+                "{\"name\":\"a\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb-a.png\"}"
+            );
+
+            Assert.Equal("/assets/thumb-a.png", decoded!.ThumbnailRef);
+        }
+
+        [Fact]
+        public void NullElementInAListOfModelsIsRejected()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<List<Pet>>("[null,{\"name\":\"a\",\"photoUrls\":[]}]")
+            );
+            Assert.IsType<SerializationException>(ex);
+        }
+
+        [Fact]
+        public void NullValueInAMapOfModelsIsRejected()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Dictionary<string, Pet>>(
+                    "{\"a\":null,\"b\":{\"name\":\"a\",\"photoUrls\":[]}}"
+                )
+            );
+            Assert.IsType<SerializationException>(ex);
         }
     }
 }

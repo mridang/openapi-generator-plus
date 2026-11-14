@@ -752,7 +752,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 || ModelUtils.isNumberSchema(resolved)
                 || ModelUtils.isBooleanSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return resolved.getDefault().toString();
+                final String literal = resolved.getDefault().toString();
+                // Ruby style groups five or more integer digits with '_'
+                // (9_000_000_000); the value is unchanged.
+                return literal.matches("-?\\d{5,}")
+                        ? literal.replaceAll("(\\d)(?=(\\d{3})+$)", "$1_")
+                        : literal;
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
@@ -819,15 +824,43 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     }
 
     /**
-     * Overrides the base class because Ruby uses heredoc markers
-     * ({@code =begin}/{@code =end}) and string interpolation
-     * instead of block comments. Cannot be standardized because
-     * other languages use block comments (handled by the base
-     * class).
+     * Overrides the base class because Ruby's block comment is the
+     * {@code =begin}/{@code =end} pair. An interpolation sequence (a hash
+     * followed by an opening brace) is left as written: the templates put
+     * spec text only in line comments and single-quoted literals, where it
+     * does not interpolate. Cannot be standardized because other languages
+     * use C-style block comments (handled by the base class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
-        return input.replace("=end", "=_end").replace("=begin", "=_begin").replace("#{", "\\#{");
+        return input.replace("=end", "=_end").replace("=begin", "=_begin");
+    }
+
+    /**
+     * Keywords that stay plain as a model property name: {@code obj.and},
+     * {@code obj.return} and a {@code attribute :and} reader are legal Ruby
+     * and RBS, so only names that clash ({@code class} is Object#class) or
+     * are literals keep the underscore prefix. Parameters still escape every
+     * keyword, see {@link #toParamName}. Cannot be standardized because the
+     * reserved set is Ruby-specific.
+     */
+    private static final Set<String> PLAIN_PROPERTY_KEYWORDS = Set.of("and", "or", "not", "return");
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return !PLAIN_PROPERTY_KEYWORDS.contains(name) && super.shouldEscapeReservedVarName(name);
+    }
+
+    /**
+     * A parameter becomes a keyword argument and a local variable, where a
+     * keyword such as {@code and} cannot be read back, so every reserved
+     * word is escaped here, including the ones a property keeps plain.
+     */
+    @Override
+    public String toParamName(String name) {
+        final String paramName = super.toParamName(name);
+        return isReservedWord(paramName) ? escapeReservedWord(paramName) : paramName;
     }
 
     /**
@@ -855,7 +888,129 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                         })
                 .put(
                         "camelize",
-                        (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())));
+                        (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())))
+                .put(
+                        "rubyConst",
+                        (fragment, writer) -> writer.write(toRubyConstantName(fragment.execute())))
+                .put(
+                        "rubyQuoted",
+                        (fragment, writer) -> writer.write(escapeSingleQuoted(fragment.execute())))
+                .put(
+                        "rubyComment",
+                        (fragment, writer) -> writer.write(fragment.execute().replaceAll("\\s*[\\r\\n]+\\s*", " ").trim()))
+                .put(
+                        "rubyDocComment",
+                        (fragment, writer) -> writer.write(unescapeSingleQuoted(fragment.execute())));
+    }
+
+    /**
+     * Reverses {@link #escapeSingleQuoted} for text that {@link #escapeText}
+     * prepared for a literal but that lands in a line comment, where an
+     * escaped quote would show its backslash. Cannot be standardized because the
+     * other languages quote differently.
+     */
+    static String unescapeSingleQuoted(String input) {
+        final StringBuilder sb = new StringBuilder(input.length());
+        for (int i = 0; i < input.length(); i++) {
+            final char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length()) {
+                final char next = input.charAt(i + 1);
+                if (next == '\'' || next == '\\') {
+                    sb.append(next);
+                    i++;
+                    continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Escapes text for a Ruby single-quoted string literal, where only a
+     * backslash and the single quote itself are escape sequences. Cannot be
+     * standardized because the other languages quote differently.
+     */
+    static String escapeSingleQuoted(String input) {
+        return input.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    /**
+     * Turns an arbitrary spec value into a legal Ruby constant name: upper
+     * case, every non-identifier character replaced by an underscore, and a
+     * leading letter guaranteed. Cannot be standardized because constant
+     * naming rules are Ruby-specific.
+     */
+    static String toRubyConstantName(String input) {
+        final String cleaned = input.toUpperCase(java.util.Locale.ROOT)
+                .replaceAll("[^A-Z0-9_]", "_")
+                .replaceAll("_+", "_")
+                .replaceAll("^_|_$", "");
+        if (cleaned.isEmpty()) {
+            return "EMPTY";
+        }
+        return Character.isDigit(cleaned.charAt(0)) ? "N" + cleaned : cleaned;
+    }
+
+    /**
+     * Escapes spec text for the single-quoted Ruby literals the templates
+     * emit: a backslash and a single quote are escaped, a double quote and
+     * {@code #{...}} are left as written because single-quoted strings do
+     * not interpolate. Cannot be standardized because the other languages
+     * quote differently.
+     */
+    @Nullable
+    @Override
+    public String escapeText(@Nullable String input) {
+        if (input == null) {
+            return null;
+        }
+        final String flattened = input.replaceAll("[\\t\\n\\r]", " ");
+        return escapeSingleQuoted(flattened).replace("=end", "=_end").replace("=begin", "=_begin");
+    }
+
+    /**
+     * Rewrites a default that references a component enum constant to Ruby's
+     * {@code ::} constant lookup; everything else goes to the base class.
+     * Cannot be standardized because the other languages use {@code .}.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        fixEnumRefDefault(prop, model);
+    }
+
+    /**
+     * A single-quoted Ruby literal interprets only {@code \\} and {@code \'},
+     * so control characters stay raw in enum literals ({@code \n} would be a
+     * literal backslash-n).
+     */
+    @Override
+    protected boolean escapesEnumControlCharacters() {
+        return false;
+    }
+
+    private void fixEnumRefDefault(CodegenProperty prop, CodegenModel model) {
+        if (prop.defaultValue != null
+                && !prop.isEnum
+                && prop.defaultValue.matches("[A-Z][A-Za-z0-9]*\\.[A-Z_][A-Z0-9_]*")) {
+            // A default that references a component enum ({@code Swatch.GREEN})
+            // is a constant lookup in Ruby, not a method call.
+            prop.defaultValue = prop.defaultValue.replace(".", "::");
+            return;
+        }
+        super.fixEnumDefaultValue(prop, model);
+    }
+
+    /**
+     * Ruby enum constants must be non-empty identifiers. A value made only
+     * of symbols (a space, {@code @@}) sanitises to nothing, so it takes the
+     * empty-value name and the collision suffixing that follows. Cannot be
+     * standardized because the other languages accept other fallbacks.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        return name.isEmpty() ? getEmptyEnumVarName() : name;
     }
 
     /*
@@ -1192,6 +1347,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 && !rbsType.contains("Models::")) {
             return rbsType.replaceAll(
                     "\\b" + Pattern.quote(p.dataType) + "\\b", "Models::" + p.dataType);
+        }
+        // A content-encoded parameter (OAS `content`, not `schema`) carries its
+        // model name in dataType with no baseType; qualify it the same way.
+        if (p.baseType == null && p.dataType != null
+                && rbsType.equals(p.dataType)
+                && p.dataType.matches("[A-Z][A-Za-z0-9]*")) {
+            return qualifySingleType(p.dataType);
         }
         return rbsType;
     }

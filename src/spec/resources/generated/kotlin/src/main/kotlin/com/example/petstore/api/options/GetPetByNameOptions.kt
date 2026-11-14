@@ -6,4 +6,5 @@ package com.example.petstore.api.options
  */
 class GetPetByNameOptions(
     val category: String,
+    val xCorrelationId: String,
 )

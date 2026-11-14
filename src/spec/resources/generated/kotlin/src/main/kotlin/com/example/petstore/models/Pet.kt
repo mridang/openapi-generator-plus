@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -107,6 +107,13 @@ data class Pet(
     @SerialName("weightKg")
     @Contextual
     val weightKg: BigDecimal? = null,
+    /**
+     * The `nickname` property.
+     *
+     * Example: `rex`
+     */
+    @SerialName("nickname")
+    val nickname: String? = null,
 ) {
     @Serializable
     enum class StatusEnum(
@@ -158,6 +165,7 @@ data class Pet(
         } else if (other.weightKg != null) {
             return false
         }
+        if (nickname != other.nickname) return false
         return true
     }
 
@@ -175,6 +183,7 @@ data class Pet(
         result = 31 * result + (linkTemplate?.hashCode() ?: 0)
         result = 31 * result + (ownerEmail?.hashCode() ?: 0)
         result = 31 * result + (weightKg?.stripTrailingZeros()?.hashCode() ?: 0)
+        result = 31 * result + (nickname?.hashCode() ?: 0)
         return result
     }
 }

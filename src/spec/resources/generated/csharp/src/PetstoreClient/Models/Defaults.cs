@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -83,6 +83,24 @@ public class Defaults : IEquatable<Defaults>
     [JsonPropertyName("label")]
     public string? Label { get; set; } = "untitled";
 
+    [JsonPropertyName("greeting")]
+    public string? Greeting { get; set; } = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b";
+
+    [JsonPropertyName("swatch")]
+    public Swatch? Swatch { get; set; } = global::PetstoreClient.Models.Swatch.Green;
+
+    [JsonPropertyName("ratio")]
+    public decimal? Ratio { get; set; } = 1.5m;
+
+    [JsonPropertyName("scale")]
+    public float? Scale { get; set; } = 0.25f;
+
+    [JsonPropertyName("weight")]
+    public double? Weight { get; set; } = 2;
+
+    [JsonPropertyName("ceiling")]
+    public long? Ceiling { get; set; } = 9000000000;
+
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(Defaults? other)
     {
@@ -92,6 +110,12 @@ public class Defaults : IEquatable<Defaults>
                 || EqualityComparer<int?>.Default.Equals(this.Retries, other.Retries)
                     && EqualityComparer<ModeEnum?>.Default.Equals(this.Mode, other.Mode)
                     && EqualityComparer<string?>.Default.Equals(this.Label, other.Label)
+                    && EqualityComparer<string?>.Default.Equals(this.Greeting, other.Greeting)
+                    && EqualityComparer<Swatch?>.Default.Equals(this.Swatch, other.Swatch)
+                    && EqualityComparer<decimal?>.Default.Equals(this.Ratio, other.Ratio)
+                    && EqualityComparer<float?>.Default.Equals(this.Scale, other.Scale)
+                    && EqualityComparer<double?>.Default.Equals(this.Weight, other.Weight)
+                    && EqualityComparer<long?>.Default.Equals(this.Ceiling, other.Ceiling)
             );
     }
 
@@ -106,6 +130,12 @@ public class Defaults : IEquatable<Defaults>
         hash.Add(this.Retries);
         hash.Add(this.Mode);
         hash.Add(this.Label);
+        hash.Add(this.Greeting);
+        hash.Add(this.Swatch);
+        hash.Add(this.Ratio);
+        hash.Add(this.Scale);
+        hash.Add(this.Weight);
+        hash.Add(this.Ceiling);
         return hash.ToHashCode();
     }
 
@@ -117,6 +147,12 @@ public class Defaults : IEquatable<Defaults>
         sb.Append("Retries=").Append(this.Retries);
         sb.Append(", Mode=").Append(this.Mode);
         sb.Append(", Label=").Append(this.Label);
+        sb.Append(", Greeting=").Append(this.Greeting);
+        sb.Append(", Swatch=").Append(this.Swatch);
+        sb.Append(", Ratio=").Append(this.Ratio);
+        sb.Append(", Scale=").Append(this.Scale);
+        sb.Append(", Weight=").Append(this.Weight);
+        sb.Append(", Ceiling=").Append(this.Ceiling);
         sb.Append('}');
         return sb.ToString();
     }

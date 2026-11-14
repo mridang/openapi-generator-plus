@@ -91,9 +91,24 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   Exceptions raised during the fetch are caught inside the closure (to avoid
   crashing the Agent process), returned as a sentinel result, and re-raised in
   the caller so callers see the original exception class.
+
+  When a refresh token is held and `params` is not itself a refresh grant, the
+  refresh (`grant_type=refresh_token` plus the `client_id`/`client_secret` that
+  `params` carries, and the same `extra_headers`) goes to the `:refresh_url`
+  option (default `token_url`). If it fails, `params` is POSTed to `token_url`,
+  re-running the original grant. A `params` that is already a refresh grant is
+  POSTed exactly once.
   """
-  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) :: String.t()
-  def get_access_token(manager, token_url, params, extra_headers \\ %{}) do
+  @spec get_access_token(
+          pid(),
+          String.t(),
+          %{optional(String.t()) => String.t()},
+          %{optional(String.t()) => String.t()},
+          keyword()
+        ) :: String.t()
+  def get_access_token(manager, token_url, params, extra_headers \\ %{}, opts \\ []) do
+    refresh_url = Keyword.get(opts, :refresh_url, token_url)
+
     result =
       Agent.get_and_update(
         manager,
@@ -106,13 +121,14 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
                    now < state.token_expiry - @expiry_safety_margin_s) ->
               {{:ok, state.access_token}, state}
 
-            is_binary(state.refresh_token) and state.refresh_token != "" ->
+            params["grant_type"] != "refresh_token" and is_binary(state.refresh_token) and
+                state.refresh_token != "" ->
               refresh_params =
                 %{"grant_type" => "refresh_token", "refresh_token" => state.refresh_token}
                 |> maybe_put(params, "client_id")
                 |> maybe_put(params, "client_secret")
 
-              case try_fetch_token(state, token_url, refresh_params, extra_headers) do
+              case try_fetch_token(state, refresh_url, refresh_params, extra_headers) do
                 {:ok, new_state} ->
                   {{:ok, new_state.access_token}, new_state}
 
@@ -134,6 +150,39 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
               rescue
                 e -> {{:raise, e, __STACKTRACE__}, state}
               end
+          end
+        end,
+        :infinity
+      )
+
+    case result do
+      {:ok, token} -> token
+      {:raise, exception, stacktrace} -> reraise exception, stacktrace
+    end
+  end
+
+  @doc """
+  Exchange a grant for a new session, bypassing the cache and the refresh path.
+
+  `params` is POSTed verbatim to `token_url`. On success the session holds
+  exactly what the response carried (no refresh token or expiry unless it sent
+  one) and is marked exchanged. On failure the previous session is restored and
+  the error re-raised, so a rejected grant does not discard a working session.
+  """
+  @spec exchange(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) ::
+          String.t()
+  def exchange(manager, token_url, params, extra_headers \\ %{}) do
+    result =
+      Agent.get_and_update(
+        manager,
+        fn state ->
+          cleared = %{state | access_token: nil, refresh_token: nil, token_expiry: nil}
+
+          try do
+            new_state = %{fetch_token(cleared, token_url, params, extra_headers) | token_exchanged: true}
+            {{:ok, new_state.access_token}, new_state}
+          rescue
+            e -> {{:raise, e, __STACKTRACE__}, state}
           end
         end,
         :infinity
@@ -195,7 +244,7 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
         extra_headers
       )
 
-    body = URI.encode_query(params)
+    body = URI.encode_query(ordered_params(params))
 
     # Refuse to follow a 307/308 redirect on a token-endpoint POST.
     # 307 + 308 preserve method *and* body, so a malicious or compromised
@@ -285,6 +334,17 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
       end
 
     new_state
+  end
+
+  # Token-request parameters go on the wire in one fixed order shared by every
+  # SDK; any key outside the list follows, sorted.
+  @param_order ~w(grant_type code refresh_token username password client_id client_secret redirect_uri scope)
+
+  defp ordered_params(params) do
+    {known, rest} = Enum.split_with(params, fn {key, _} -> key in @param_order end)
+
+    Enum.sort_by(known, fn {key, _} -> Enum.find_index(@param_order, &(&1 == key)) end) ++
+      Enum.sort_by(rest, fn {key, _} -> key end)
   end
 
   defp parse_oauth2_server_error(status_code, body) do

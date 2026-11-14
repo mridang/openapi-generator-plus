@@ -39,9 +39,9 @@ class {{serverTypeName}}(ABC):
 {{#variants}}
 {{#serverVariables}}{{#hasEnumValues}}
 
-class {{serverTypeName}}{{pascalName}}(str, Enum):
+class {{serverTypeName}}{{enumTypeName}}(str, Enum):
 {{#enumValues}}
-    {{name}} = '{{value}}'
+    {{name}} = {{{literal}}}
 {{/enumValues}}
 {{/hasEnumValues}}{{/serverVariables}}
 {{/variants}}
@@ -52,7 +52,7 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
     """{{{description}}}"""
 {{/hasDescription}}
 
-    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
+    def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
 {{#serverVariables}}
         self._{{snakeName}} = {{snakeName}}
 {{/serverVariables}}
@@ -77,7 +77,7 @@ class {{classname}}(BaseApi):
 {{#tagExternalDocs}}
 
     .. seealso::
-        `{{{description}}} <{{url}}>`_
+        `{{{description}}} <{{{url}}}>`_
 {{/tagExternalDocs}}
     """
 
@@ -104,11 +104,11 @@ class {{classname}}(BaseApi):
         {{{.}}}
 {{/notes}}
 {{#pathParams}}
-        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}
         # {{{summary}}}
         # {{{description}}}
-        # >>> {{value}}
+        # >>> {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
@@ -116,7 +116,7 @@ class {{classname}}(BaseApi):
 {{#vendorExtensions.pluralExamples}}
         # {{{summary}}}
         # {{{description}}}
-        # >>> {{value}}
+        # >>> {{{value}}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -140,7 +140,7 @@ class {{classname}}(BaseApi):
 {{#externalDocs}}
 
         .. seealso::
-            `{{{description}}} <{{url}}>`_
+            `{{{description}}} <{{{url}}}>`_
 {{/externalDocs}}
         """
         result = await self.{{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#servers}}{{#-first}}{{#allParams.0}}, {{/allParams.0}}server=server{{/-first}}{{/servers}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type=request_content_type{{/vendorExtensions.hasMultipleConsumes}})
@@ -174,7 +174,7 @@ class {{classname}}(BaseApi):
         {{{.}}}
 {{/notes}}
 {{#pathParams}}
-        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabelWithDefault}}
+        :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
 {{/pathParams}}
 {{#bodyParam}}
         :param {{paramName}}: {{{description}}}{{vendorExtensions.requiredLabel}}
@@ -338,6 +338,11 @@ class {{classname}}(BaseApi):
             {{#vendorExtensions.hasMultipleConsumes}}content_type{{/vendorExtensions.hasMultipleConsumes}}{{^vendorExtensions.hasMultipleConsumes}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.hasMultipleConsumes}},
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
             {{#hasAuthMethods}}{{#vendorExtensions.op.optionsParamRequired}}options.auth{{/vendorExtensions.op.optionsParamRequired}}{{^vendorExtensions.op.optionsParamRequired}}(options.auth if options is not None else None){{/vendorExtensions.op.optionsParamRequired}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NO_AUTH{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}None{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}},
+{{#bodyParam}}
+{{#isBinary}}
+            raw_body=True,
+{{/isBinary}}
+{{/bodyParam}}
         )
 {{/operation}}
 {{/operations}}

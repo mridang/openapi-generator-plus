@@ -16,7 +16,10 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
-                description.set("A simplified Pet Store API for integration testing.")
+                description.set(
+                    "A simplified Pet Store API for integration testing. Covers pets & owners, <admin" +
+                        "> notes, \"quoted\" text, it's \$USD and #{x}.",
+                )
                 licenses {
                     license {
                         name.set("MIT")
@@ -97,7 +100,7 @@ kotlin {
             }
         }
         val jvmTest by getting {
-            kotlin.srcDirs("src/test/kotlin")
+            kotlin.srcDirs("src/test/kotlin", "src/spec/kotlin")
             dependencies {
                 // Spelled as an explicit coordinate rather than kotlin("test-junit5")
                 // so .openapi-generator/DEV-DEPENDENCIES can be checked against this
@@ -126,7 +129,7 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = false
-    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin"))
+    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin", "src/spec/kotlin"))
     config.setFrom(files("detekt.yml"))
 }
 

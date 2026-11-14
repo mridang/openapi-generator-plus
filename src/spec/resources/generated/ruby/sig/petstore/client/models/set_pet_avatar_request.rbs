@@ -4,6 +4,7 @@ module Petstore::Client::Models
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
     OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
     attr_reader data: String
     attr_reader mime_type: String
   end

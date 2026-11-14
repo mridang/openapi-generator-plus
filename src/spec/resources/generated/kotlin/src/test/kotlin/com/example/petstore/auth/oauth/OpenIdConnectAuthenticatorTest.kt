@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -10,6 +10,8 @@ package com.example.petstore.auth.oauth
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
 import com.example.petstore.errors.OpenAPIException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
@@ -78,6 +80,23 @@ class OpenIdConnectAuthenticatorTest {
         assertTrue(url.contains("response_type=code"))
         assertTrue(url.contains("client_id=my-client-id"))
         assertTrue(url.contains("state=my-state"))
+    }
+
+    @Test
+    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+        val client = FakeApiClient()
+        client.enqueue(
+            """{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""",
+        )
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val url = runBlocking { auth.buildAuthorizationUrl("") }
+        val absent = runBlocking { auth.buildAuthorizationUrl(null) }
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(absent, url)
     }
 
     @Test
@@ -341,6 +360,22 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    fun hugeMaxAgeIsClampedAndTheDocumentStaysCached() {
+        for (maxAge in listOf("9223372036854775807", "18446744073709551615")) {
+            val client = FakeApiClient()
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=$maxAge"))
+
+            val auth = createAuthenticator()
+            auth.setApiClient(client)
+
+            val urls = runBlocking { listOf(auth.buildAuthorizationUrl(), auth.buildAuthorizationUrl()) }
+
+            assertTrue(urls.all { it.startsWith("https://auth.example.com/authorize?") }, maxAge)
+            assertEquals(1, client.getCount, maxAge)
+        }
+    }
+
+    @Test
     fun unparseableMaxAgeFallsBackToTheOneDayDefault() {
         val client = FakeApiClient()
         client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=soon"))
@@ -408,5 +443,79 @@ class OpenIdConnectAuthenticatorTest {
 
         assertEquals("Bearer t1", headers["Authorization"])
         assertEquals(2, client.getCount)
+    }
+
+    @Test
+    fun rediscoveredEndpointsAreUsedWithTheSameSession() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize-v1"), headers = mapOf("Cache-Control" to "max-age=0"))
+        client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
+        client.enqueue(discovery("https://auth.example.com/authorize-v2"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("code") }
+        val headers = runBlocking { auth.getAuthHeaders() }
+        val url = runBlocking { auth.buildAuthorizationUrl() }
+
+        assertEquals("Bearer t1", headers["Authorization"])
+        assertTrue(url.startsWith("https://auth.example.com/authorize-v2?"), url)
+        assertEquals(2, client.getCount)
+        assertEquals("GET", client.lastMethod, "no token POST for the still valid token")
+    }
+
+    @Test
+    fun failedRediscoveryKeepsTheOldDelegate() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=0"))
+        client.enqueue("""{"access_token":"t1","refresh_token":"r1","expires_in":3600}""")
+        client.enqueue("""{"error":"down"}""", statusCode = 500)
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.exchangeCode("code") }
+        assertThrowsExactly(com.example.petstore.errors.InternalServerErrorException::class.java) {
+            runBlocking { auth.getAuthHeaders() }
+        }
+        val headers = runBlocking { auth.getAuthHeaders() }
+
+        assertEquals("Bearer t1", headers["Authorization"])
+        assertEquals(3, client.getCount)
+    }
+
+    @Test
+    fun concurrentCallsOnAColdAuthenticatorShareOneDiscovery() {
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var gets = 0
+        val client =
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse {
+                    gets++
+                    gate.await()
+                    return ApiHttpResponse(200, discovery("https://auth.example.com/authorize"), emptyMap())
+                }
+            }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val urls =
+            runBlocking {
+                val calls = (1..5).map { async { auth.buildAuthorizationUrl() } }
+                kotlinx.coroutines.yield()
+                gate.complete(Unit)
+                calls.awaitAll()
+            }
+
+        assertEquals(1, gets)
+        assertEquals(5, urls.size)
     }
 }

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,7 +13,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -44,7 +45,6 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private final String redirectUri;
   private final List<String> scopes;
   private final OAuth2TokenManager tokenManager;
-  private volatile boolean tokenExchanged;
 
   /**
    * Create a new authorization code authenticator.
@@ -89,6 +89,63 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       @Nullable String refreshUrl,
       String redirectUri,
       List<String> scopes) {
+    this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        refreshUrl,
+        redirectUri,
+        scopes,
+        new OAuth2TokenManager());
+  }
+
+  /**
+   * Create an authenticator around an existing token manager, so the session it holds (tokens and
+   * the exchanged flag) carries over. OpenID Connect uses this when a rediscovery names new
+   * endpoints.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param authorizationUrl authorization endpoint URL
+   * @param tokenUrl token endpoint URL
+   * @param redirectUri redirect URI registered with the provider
+   * @param scopes requested scopes
+   * @param tokenManager the token manager that owns the session
+   */
+  OAuth2AuthorizationCodeAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String authorizationUrl,
+      String tokenUrl,
+      String redirectUri,
+      List<String> scopes,
+      OAuth2TokenManager tokenManager) {
+    this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        null,
+        redirectUri,
+        scopes,
+        tokenManager);
+  }
+
+  private OAuth2AuthorizationCodeAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String authorizationUrl,
+      String tokenUrl,
+      @Nullable String refreshUrl,
+      String redirectUri,
+      List<String> scopes,
+      OAuth2TokenManager tokenManager) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -97,7 +154,16 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
     this.redirectUri = redirectUri;
     this.scopes = List.copyOf(scopes);
-    this.tokenManager = new OAuth2TokenManager();
+    this.tokenManager = tokenManager;
+  }
+
+  /**
+   * The token manager that owns this authenticator's session.
+   *
+   * @return the token manager
+   */
+  OAuth2TokenManager tokenManager() {
+    return tokenManager;
   }
 
   @Override
@@ -125,7 +191,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (!scopes.isEmpty()) {
       url.append("&scope=").append(encode(String.join(" ", scopes)));
     }
-    if (state != null) {
+    if (state != null && !state.isEmpty()) {
       url.append("&state=").append(encode(state));
     }
     return url.toString();
@@ -144,14 +210,16 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (code == null || code.trim().isEmpty()) {
       throw new IllegalArgumentException("Authorization code must not be empty");
     }
-    Map<String, String> params = new HashMap<>();
+    Map<String, String> params = new LinkedHashMap<>();
     params.put("grant_type", "authorization_code");
     params.put("code", code);
     params.put("client_id", clientId);
     params.put("client_secret", clientSecret);
     params.put("redirect_uri", redirectUri);
-    tokenManager.getAccessToken(tokenUrl, params);
-    tokenExchanged = true;
+    /* RFC 6749 section 4.1.3: every exchange sends its code. exchange()
+     * bypasses the token cache and the refresh grant, replaces the session
+     * on success and keeps the previous one on failure. */
+    tokenManager.exchange(tokenUrl, params, Collections.emptyMap());
   }
 
   @Override
@@ -161,16 +229,19 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
 
   @Override
   public Map<String, String> getAuthHeaders() {
-    if (!tokenExchanged) {
+    if (!tokenManager.isExchanged()) {
       throw new IllegalStateException("Must call exchangeCode() before making API requests");
     }
-    Map<String, String> params = new HashMap<>();
+    Map<String, String> params = new LinkedHashMap<>();
     params.put("grant_type", "refresh_token");
     /* An OP that issued no refresh_token leaves none to send. Put an empty
      * value rather than null (which would fail to form-encode) so the OP
-     * answers with its typed OAuth2ServerException. */
+     * answers with its typed OAuth2ServerException. RFC 6749 section 6:
+     * the refresh authenticates the client like the code exchange did. */
     String refreshToken = tokenManager.getRefreshToken();
     params.put("refresh_token", refreshToken != null ? refreshToken : "");
+    params.put("client_id", clientId);
+    params.put("client_secret", clientSecret);
     String token = tokenManager.getAccessToken(refreshUrl, params);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }

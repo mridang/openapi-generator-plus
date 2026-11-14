@@ -13,6 +13,7 @@ import 'api_http_response.dart';
 import 'errors/api_exception.dart';
 import 'errors/network_exception.dart';
 import 'errors/network_timeout_exception.dart';
+import 'object_serializer.dart';
 import 'transport_options.dart';
 
 /// Transport-agnostic base for [ApiClient] implementations.
@@ -128,12 +129,15 @@ abstract class AbstractApiClient implements ApiClient {
     merged.addAll(_transportOptions.defaultHeaders);
     merged.addAll(headers);
 
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller's
+     * `user-agent` or `x-request-id` in any case, even with an empty value,
+     * suppresses the injected default and is sent exactly as written. */
     final userAgent = _transportOptions.userAgent;
-    if (!merged.containsKey('User-Agent') && userAgent != null) {
+    if (!_hasHeader(merged, 'User-Agent') && userAgent != null) {
       merged['User-Agent'] = userAgent;
     }
 
-    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
+    if (!_hasHeader(merged, 'X-Request-ID') && _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
@@ -240,13 +244,26 @@ abstract class AbstractApiClient implements ApiClient {
         Object? currentBody = body;
         var currentHeaders = Map<String, String>.from(merged);
         while (hops < maxRedirects && _isRedirectStatus(streamedResponse.statusCode)) {
+          /* A missing, empty or unparseable Location is not a usable
+           * redirect: stop and return the 3xx untouched (status, headers and
+           * body), exactly like a missing Location. The Location is resolved
+           * BEFORE the body is drained so a break leaves the body readable. */
+          final location = streamedResponse.headers['location'];
+          if (location == null || location.isEmpty) break;
+          final Uri nextUri;
+          try {
+            nextUri = currentUri.resolve(location);
+          } on FormatException {
+            break;
+          }
+          if ((nextUri.scheme == 'http' || nextUri.scheme == 'https') &&
+              nextUri.host.isEmpty) {
+            break;
+          }
           /* Drain any unread body to release the connection, within what is
            * left of the end-to-end timeout so a stalled redirect body cannot
            * hang the call. */
           await _drainWithin(streamedResponse.stream, clock);
-          final location = streamedResponse.headers['location'];
-          if (location == null || location.isEmpty) break;
-          final nextUri = currentUri.resolve(location);
           if (nextUri.scheme != 'http' && nextUri.scheme != 'https') {
             /* A `Location:` pointing at a non-http(s) scheme (`file:`,
              * `javascript:`, `data:`, ...) is a redirect-target smuggling
@@ -319,6 +336,17 @@ abstract class AbstractApiClient implements ApiClient {
             }
             redirectHeaders[k] = v;
           });
+          /* The SDK's own Proxy-Authorization authenticates to the proxy,
+           * which is the same for every hop, so it is re-applied after the
+           * cross-origin strip (which removes only caller credentials). On a
+           * cross-origin hop to an https target it is NOT re-added: there it
+           * would travel inside the tunnel to an unrelated origin. */
+          if (proxyAuth != null &&
+              !(crossOrigin && nextUri.scheme.toLowerCase() == 'https')) {
+            redirectHeaders.removeWhere(
+                (k, _) => k.toLowerCase() == 'proxy-authorization');
+            redirectHeaders['Proxy-Authorization'] = proxyAuth;
+          }
           final next = http.Request(nextMethod, nextUri);
           next.headers.addAll(redirectHeaders);
           next.followRedirects = false;
@@ -600,8 +628,17 @@ abstract class AbstractApiClient implements ApiClient {
         filename: name,
         contentType: contentType,
       ));
-    } else if (value is String || value is num || value is bool) {
-      final text = value.toString();
+    } else if (value is String ||
+        value is num ||
+        value is bool ||
+        value is DateTime ||
+        value is Duration ||
+        value is Enum ||
+        value is UuidValue) {
+      /* A primitive is a text part carrying the canonical [stringify] form
+       * (`true`, `2024-01-15T10:30:00.000+00:00`, an enum's wire value);
+       * only maps and models become application/json parts. */
+      final text = stringify(value);
       if (repeated) {
         request.files.add(http.MultipartFile.fromString(name, text));
       } else {
@@ -770,6 +807,13 @@ abstract class AbstractApiClient implements ApiClient {
   static String _supportedEncodings() {
     final encodings = ['gzip', 'deflate'];
     return encodings.join(', ');
+  }
+
+  /// Reports whether [headers] holds [name] under ASCII case-insensitive
+  /// comparison (RFC 9110 section 5.1).
+  static bool _hasHeader(Map<String, String> headers, String name) {
+    final wanted = name.toLowerCase();
+    return headers.keys.any((key) => key.toLowerCase() == wanted);
   }
 
   static String _generateUuid() {

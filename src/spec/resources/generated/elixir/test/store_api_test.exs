@@ -216,4 +216,22 @@ defmodule PetstoreClient.Api.StoreApiTest do
 
     Agent.stop(name)
   end
+
+  # readOnly and writeOnly have no wire effect: the writeOnly password is sent
+  # and the readOnly id of the response is decoded.
+  test "create_account sends the writeOnly property and decodes the readOnly one" do
+    {:ok, name} = StubApiClient.start(~s({"id":7,"username":"u","password":"p"}))
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.StoreApi.new(StubApiClient, config)
+
+    assert {:ok, %PetstoreClient.Models.Account{id: 7, username: "u", password: "p"}} =
+             PetstoreClient.Api.StoreApi.create_account(api, %PetstoreClient.Models.Account{
+               username: "u",
+               password: "p"
+             })
+
+    assert Jason.decode!(StubApiClient.captured(name).body)["password"] == "p"
+
+    Agent.stop(name)
+  end
 end

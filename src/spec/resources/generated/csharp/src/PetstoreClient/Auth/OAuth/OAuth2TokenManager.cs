@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -27,6 +27,12 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const int ExpirySafetyMarginSeconds = 60;
 
+    /// <summary>
+    /// Ceiling applied to a server-supplied <c>expires_in</c>, in seconds (one
+    /// year), so an absurd lifetime cannot overflow the expiry arithmetic.
+    /// </summary>
+    private const long MaxExpiresInSeconds = 31_536_000L;
+
     private readonly object _stateLock = new();
     private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
@@ -49,12 +55,27 @@ public sealed class OAuth2TokenManager
     /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
     /// <param name="parameters">The token request parameters (grant_type, client_id, etc.).</param>
     /// <param name="extraHeaders">Optional additional headers to send with the token request (e.g. Authorization for HTTP Basic client auth).</param>
+    /// <param name="refreshUrl">
+    /// Endpoint for the internal refresh_token grant. Defaults to
+    /// <paramref name="tokenUrl"/> when null.
+    /// </param>
     /// <returns>A valid access token.</returns>
+    /// <remarks>
+    /// When a refresh token is held and <paramref name="parameters"/> is not
+    /// itself a refresh_token grant, the manager first POSTs
+    /// grant_type=refresh_token to <paramref name="refreshUrl"/>, carrying the
+    /// same client authentication as the original grant (RFC 6749 section 6:
+    /// client_id/client_secret copied from the parameters, plus the same extra
+    /// headers). On any failure it re-runs the original grant at
+    /// <paramref name="tokenUrl"/>. When the parameters already are a
+    /// refresh_token grant exactly one POST is made.
+    /// </remarks>
     /// <exception cref="InvalidOperationException">If no API client has been injected or token fetch fails.</exception>
     public Task<string> GetAccessTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
-        Dictionary<string, string>? extraHeaders = null
+        Dictionary<string, string>? extraHeaders = null,
+        Uri? refreshUrl = null
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
@@ -84,10 +105,88 @@ public sealed class OAuth2TokenManager
                 return Task.FromResult(_accessToken);
             }
 
-            task = _inflightRefresh ??= RefreshOrFetchAsync(tokenUrl, parameters, extraHeaders);
+            task = _inflightRefresh ??= RefreshOrFetchAsync(
+                tokenUrl,
+                refreshUrl ?? tokenUrl,
+                parameters,
+                extraHeaders
+            );
         }
 
         return AwaitAndClearAsync(task);
+    }
+
+    /// <summary>
+    /// Exchanges a grant (e.g. an authorization code) for a new session. The
+    /// given parameters are POSTed verbatim to <paramref name="tokenUrl"/>:
+    /// the cached token is never returned and no refresh is attempted. On
+    /// success the session holds exactly what the response carried (a
+    /// response without refresh_token leaves no refresh token, one without
+    /// expires_in leaves no expiry). On any failure the previous session is
+    /// restored and the error rethrown.
+    /// </summary>
+    /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
+    /// <param name="parameters">The token request parameters, sent unchanged.</param>
+    /// <param name="extraHeaders">Optional additional headers to send with the token request.</param>
+    /// <returns>The new access token.</returns>
+    public Task<string> ExchangeAsync(
+        Uri tokenUrl,
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+        Task<string> task;
+        lock (_stateLock)
+        {
+            task = ExchangeAfterAsync(_inflightRefresh, tokenUrl, parameters, extraHeaders);
+            _inflightRefresh = task;
+        }
+
+        return AwaitAndClearAsync(task);
+    }
+
+    private async Task<string> ExchangeAfterAsync(
+        Task<string>? previous,
+        Uri tokenUrl,
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders
+    )
+    {
+        if (previous is not null)
+        {
+            try
+            {
+                _ = await previous.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+                when (ex is not OutOfMemoryException and not StackOverflowException)
+            {
+                /* The earlier in-flight request belongs to its own caller,
+                 * who observes its failure; the exchange only waits for it to
+                 * settle so the two never interleave their state writes. */
+            }
+        }
+
+        string? previousAccessToken = _accessToken;
+        string? previousRefreshToken = RefreshToken;
+        DateTimeOffset? previousExpiry = _tokenExpiry;
+        _accessToken = null;
+        RefreshToken = null;
+        _tokenExpiry = null;
+        try
+        {
+            await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
+            return _accessToken
+                ?? throw new OAuth2TokenException("Token fetch did not return an access token");
+        }
+        catch
+        {
+            _accessToken = previousAccessToken;
+            RefreshToken = previousRefreshToken;
+            _tokenExpiry = previousExpiry;
+            throw;
+        }
     }
 
     private async Task<string> AwaitAndClearAsync(Task<string> task)
@@ -110,11 +209,15 @@ public sealed class OAuth2TokenManager
 
     private async Task<string> RefreshOrFetchAsync(
         Uri tokenUrl,
+        Uri refreshUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders
     )
     {
-        if (!string.IsNullOrEmpty(RefreshToken))
+        bool isRefreshGrant =
+            parameters.TryGetValue("grant_type", out string? grantType)
+            && grantType == "refresh_token";
+        if (!isRefreshGrant && !string.IsNullOrEmpty(RefreshToken))
         {
             Dictionary<string, string> refreshParams = new()
             {
@@ -131,7 +234,8 @@ public sealed class OAuth2TokenManager
             }
             try
             {
-                await FetchTokenAsync(tokenUrl, refreshParams, extraHeaders).ConfigureAwait(false);
+                await FetchTokenAsync(refreshUrl, refreshParams, extraHeaders)
+                    .ConfigureAwait(false);
                 if (_accessToken is not null)
                 {
                     return _accessToken;
@@ -370,15 +474,11 @@ public sealed class OAuth2TokenManager
             case JsonValueKind.Number:
                 if (element.TryGetInt64(out long asInt))
                 {
-                    return asInt;
+                    return Math.Min(asInt, MaxExpiresInSeconds);
                 }
                 if (element.TryGetDouble(out double asDouble))
                 {
-                    if (double.IsNaN(asDouble) || double.IsInfinity(asDouble))
-                    {
-                        return 0L;
-                    }
-                    return (long)Math.Floor(asDouble);
+                    return ClampExpiresIn(asDouble);
                 }
                 return 0L;
             case JsonValueKind.String:
@@ -396,11 +496,7 @@ public sealed class OAuth2TokenManager
                     )
                 )
                 {
-                    if (double.IsNaN(parsed) || double.IsInfinity(parsed))
-                    {
-                        return 0L;
-                    }
-                    return (long)Math.Floor(parsed);
+                    return ClampExpiresIn(parsed);
                 }
                 return 0L;
             case JsonValueKind.Undefined:
@@ -412,6 +508,20 @@ public sealed class OAuth2TokenManager
             default:
                 return 0L;
         }
+    }
+
+    /// <summary>
+    /// Floors a fractional <c>expires_in</c> and caps it at
+    /// <see cref="MaxExpiresInSeconds"/>. NaN and infinity carry no lifetime,
+    /// so they give <c>0</c> (the token is treated as stale).
+    /// </summary>
+    private static long ClampExpiresIn(double seconds)
+    {
+        if (double.IsNaN(seconds) || double.IsInfinity(seconds))
+        {
+            return 0L;
+        }
+        return seconds >= MaxExpiresInSeconds ? MaxExpiresInSeconds : (long)Math.Floor(seconds);
     }
 
     /// <summary>Gets the refresh token returned by the token endpoint, if any.</summary>

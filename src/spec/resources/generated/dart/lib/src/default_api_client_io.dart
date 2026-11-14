@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -110,6 +110,12 @@ class DefaultApiClient extends AbstractApiClient {
           HttpClientBasicCredentials(user, pass),
         );
       }
+    } else {
+      /* TransportOptions.proxy is the only proxy source: with none set the
+       * client connects directly and never consults HTTP(S)_PROXY or
+       * NO_PROXY, so traffic is never rerouted through a proxy the caller
+       * did not configure. */
+      ioClient.findProxy = (_) => 'DIRECT';
     }
 
     if (options.timeout != null) {

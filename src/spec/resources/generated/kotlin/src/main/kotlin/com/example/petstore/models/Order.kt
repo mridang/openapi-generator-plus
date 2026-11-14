@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,6 +16,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.OffsetDateTime
+import kotlin.uuid.Uuid
 
 @Serializable
 data class Order(
@@ -43,6 +44,12 @@ data class Order(
     @SerialName("quantity")
     @Serializable(with = com.example.petstore.StrictIntSerializer::class)
     val quantity: Int? = null,
+    /**
+     * The `trackingId` property.
+     */
+    @SerialName("trackingId")
+    @Contextual
+    val trackingId: Uuid? = null,
     /**
      * The `shipDate` property.
      */

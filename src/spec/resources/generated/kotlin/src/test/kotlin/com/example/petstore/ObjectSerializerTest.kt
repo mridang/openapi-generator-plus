@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -31,6 +31,21 @@ private data class ContextualStrict(
     @Contextual
     @SerialName("ts")
     val ts: OffsetDateTime,
+)
+
+// File-scoped fixture: a model that nests the additionalProperties model
+// Metadata as a property, a list element and a map value. Internal (public in
+// bytecode) so the serializer can read its properties reflectively.
+@Serializable
+internal data class MetadataHolder(
+    @SerialName("label")
+    val label: String? = null,
+    @SerialName("meta")
+    val meta: com.example.petstore.models.Metadata? = null,
+    @SerialName("metas")
+    val metas: List<com.example.petstore.models.Metadata>? = null,
+    @SerialName("byKey")
+    val byKey: Map<String, com.example.petstore.models.Metadata>? = null,
 )
 
 class ObjectSerializerTest {
@@ -275,6 +290,18 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("a uniqueItems array of scalars goes on the wire in ascending order")
+        fun scalarSetIsSortedOnTheWire() {
+            val pet =
+                com.example.petstore.models
+                    .Pet(name = "n", photoUrls = linkedSetOf("c", "a", "b"))
+            repeat(2) {
+                val json = serializer.serialize(pet)
+                assertTrue(json.contains("\"photoUrls\":[\"a\",\"b\",\"c\"]"), "got: $json")
+            }
+        }
+
+        @Test
         @DisplayName("omits an explicitly-nulled optional even when its default is non-null")
         fun omitsExplicitNullEvenWithNonNullDefault() {
             // label has a non-null schema default ("untitled"). Setting it to null
@@ -466,6 +493,11 @@ class ObjectSerializerTest {
             assertEquals(3, fromEmpty!!.retries)
             assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, fromEmpty.mode)
             assertEquals("untitled", fromEmpty.label)
+            assertEquals("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b", fromEmpty.greeting)
+            assertEquals(0, java.math.BigDecimal("1.5").compareTo(fromEmpty.ratio))
+            assertEquals(0.25f, fromEmpty.scale)
+            assertEquals(2.0, fromEmpty.weight)
+            assertEquals(9000000000L, fromEmpty.ceiling)
 
             val fromNull = serializer.deserialize<com.example.petstore.models.Defaults>("{\"label\":null,\"retries\":7}")
             assertNotNull(fromNull)
@@ -501,6 +533,51 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("StrictPrimitiveCoercionTests")
     inner class StrictPrimitiveCoercionTests {
+        @Test
+        @DisplayName("integer model fields reject fractional, quoted, boolean and out-of-range values")
+        fun integerModelFieldsAreStrict() {
+            val rejected =
+                listOf(
+                    "{\"quantity\":3000000000}",
+                    "{\"quantity\":1.5}",
+                    "{\"quantity\":\"5\"}",
+                    "{\"quantity\":true}",
+                    "{\"id\":9223372036854775808}",
+                )
+            for (body in rejected) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.Order>(body)
+                }, body)
+            }
+            assertEquals(2147483647, serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":2147483647}")!!.quantity)
+            assertEquals(Long.MAX_VALUE, serializer.deserialize<com.example.petstore.models.Order>("{\"id\":9223372036854775807}")!!.id)
+        }
+
+        @Test
+        @DisplayName("integer container leaves reject fractional, quoted and out-of-range values")
+        fun integerContainerLeavesAreStrict() {
+            for (body in listOf("{\"a\":\"5\"}", "{\"a\":3000000000}", "{\"a\":1.5}")) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<Map<String, Int>>(body)
+                }, body)
+            }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<List<List<Int>>>("[[1.5]]")
+            }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":true}")
+            }
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"matrix\":[[\"1\"]]}")
+            }
+            assertEquals(
+                listOf(listOf(1)),
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"matrix\":[[1]]}")!!.matrix,
+            )
+            assertEquals(mapOf("a" to 5), serializer.deserialize<Map<String, Int>>("{\"a\":5}"))
+            assertEquals(listOf(listOf(1, 2)), serializer.deserialize<List<List<Int>>>("[[1,2]]"))
+        }
+
         @Test
         @DisplayName("quoted-scalar-into-numeric-field: {\"id\":\"42\"} on a Long field throws")
         fun quotedScalarIntoLongFieldThrows() {
@@ -616,6 +693,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("byte array returns padded standard-alphabet base64")
+        fun byteArrayReturnsBase64() {
+            assertEquals("aGk=", serializer.stringify("hi".toByteArray(Charsets.UTF_8)))
+            assertEquals("+/8=", serializer.stringify(byteArrayOf(0xFB.toByte(), 0xFF.toByte())))
+        }
+
+        @Test
         @DisplayName("Duration returns a protobuf-JSON duration string")
         fun durationReturnsProtobufJsonString() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
@@ -666,6 +750,15 @@ class ObjectSerializerTest {
         @DisplayName("long returns string representation")
         fun longReturnsString() {
             assertEquals("9007199254740993", serializer.stringify(9007199254740993L))
+        }
+
+        @Test
+        @DisplayName("format time is HH:mm:ss, plus truncated .SSS when the millisecond part is non-zero")
+        fun timeIsPartialTimeWithTruncatedMillis() {
+            assertEquals("10:30:00", serializer.stringify(java.time.LocalTime.of(10, 30, 0)))
+            assertEquals("10:30:00.123", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 123_456_789)))
+            assertEquals("10:30:00.999", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 999_600_000)))
+            assertEquals("10:30:00", serializer.stringify(java.time.LocalTime.of(10, 30, 0, 500_000)))
         }
     }
 
@@ -996,6 +1089,52 @@ class ObjectSerializerTest {
     @DisplayName("FixtureModelRegressionTests")
     inner class FixtureModelRegressionTests {
         @Test
+        @DisplayName("a required nullable property accepts null, rejects absence and is written as null")
+        fun requiredNullablePropertyKeepsItsKey() {
+            val decoded = serializer.deserialize<com.example.petstore.models.RequiredNullable>("{\"note\":null}")
+            assertNotNull(decoded)
+            assertNull(decoded!!.note)
+            val missing =
+                assertThrowsExactly(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.RequiredNullable>("{}")
+                }
+            assertTrue(missing.message!!.contains("note"), missing.message)
+            assertEquals(
+                "{\"note\":null}",
+                serializer.serialize(
+                    com.example.petstore.models
+                        .RequiredNullable(note = null),
+                ),
+            )
+            assertEquals(
+                "{\"note\":\"n\"}",
+                serializer.serialize(
+                    com.example.petstore.models
+                        .RequiredNullable(note = "n"),
+                ),
+            )
+        }
+
+        @Test
+        @DisplayName("EdgeCases.cutoff (format time) encodes as partial-time and decodes back")
+        fun timePropertyRoundTrips() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789)),
+                )
+            assertEquals("{\"cutoff\":\"10:30:00.123\"}", json)
+            val whole =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0)),
+                )
+            assertEquals("{\"cutoff\":\"10:30:00\"}", whole)
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>(json)
+            assertEquals(java.time.LocalTime.of(10, 30, 0, 123_000_000), decoded!!.cutoff)
+        }
+
+        @Test
         @DisplayName("integer-backed enum (Priority) round-trips as a JSON NUMBER, not a string")
         fun integerBackedEnumSerializesAsNumber() {
             // Priority is an integer-backed enum (enum: 1, 2, 3). Seven SDKs
@@ -1199,6 +1338,53 @@ class ObjectSerializerTest {
             assertFalse(
                 reserialized.contains("\"additionalProperties\""),
                 "extras must NOT nest under an additionalProperties key, got: $reserialized",
+            )
+        }
+
+        @Test
+        @DisplayName("additionalProperties are captured on a model nested as a property, list element and map value")
+        fun nestedAdditionalPropertiesAreCaptured() {
+            val decoded =
+                serializer.deserialize<MetadataHolder>(
+                    "{\"label\":\"x\",\"meta\":{\"region\":\"emea\"}," +
+                        "\"metas\":[{\"tier\":\"gold\"},{\"tier\":\"blue\"}]," +
+                        "\"byKey\":{\"k\":{\"zone\":\"z1\"}}}",
+                )!!
+            assertEquals(mapOf<String, Any?>("region" to "emea"), decoded.meta!!.additionalProperties)
+            assertEquals(mapOf<String, Any?>("tier" to "gold"), decoded.metas!![0].additionalProperties)
+            assertEquals(mapOf<String, Any?>("tier" to "blue"), decoded.metas[1].additionalProperties)
+            assertEquals(mapOf<String, Any?>("zone" to "z1"), decoded.byKey!!["k"]!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("additionalProperties are captured on the elements of a list and map response")
+        fun containerElementAdditionalPropertiesAreCaptured() {
+            val list = serializer.deserialize<List<com.example.petstore.models.Metadata>>("[{\"tier\":\"gold\"}]")!!
+            assertEquals(mapOf<String, Any?>("tier" to "gold"), list[0].additionalProperties)
+            val map = serializer.deserialize<Map<String, com.example.petstore.models.Metadata>>("{\"k\":{\"zone\":\"z1\"}}")!!
+            assertEquals(mapOf<String, Any?>("zone" to "z1"), map["k"]!!.additionalProperties)
+        }
+
+        @Test
+        @DisplayName("additionalProperties of a nested model are re-emitted on serialize")
+        fun nestedAdditionalPropertiesAreSerialized() {
+            val meta =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["region"] = "emea" }
+            val element =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["tier"] = "gold" }
+            val keyed =
+                com.example.petstore.models
+                    .Metadata()
+                    .apply { additionalProperties["zone"] = "z1" }
+            val holder = MetadataHolder(label = "x", meta = meta, metas = listOf(element), byKey = mapOf("k" to keyed))
+            assertEquals(
+                "{\"label\":\"x\",\"meta\":{\"region\":\"emea\"},\"metas\":[{\"tier\":\"gold\"}]," +
+                    "\"byKey\":{\"k\":{\"zone\":\"z1\"}}}",
+                serializer.serialize(holder),
             )
         }
 
@@ -1544,14 +1730,64 @@ class ObjectSerializerTest {
         // A format:byte model field (PetPassport.thumbnail) holding a
         // bad-alphabet base64 string is rejected: Base64ByteArraySerializer's
         // decoder throws rather than silently truncating, and the SDK surfaces
-        // it as SerializationException (the cause is the JDK decoder's
-        // IllegalArgumentException, not a kotlinx error).
+        // it as SerializationException.
         @Test
         @DisplayName("invalid base64 in a byte field throws SerializationException")
         fun invalidBase64ByteFieldThrowsSerializationException() {
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<com.example.petstore.models.PetPassport>("{\"thumbnail\":\"!!!!\"}")
             }
+        }
+
+        @Test
+        @DisplayName("a byte field accepts only padded standard-alphabet base64 without whitespace")
+        fun byteFieldDecodeIsStrictBase64() {
+            for (bad in listOf("dGVzdA", "dGVz dA==", "dGVz\\ndA==", "-_8=", "!!!!")) {
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.PetPassport>("{\"thumbnail\":\"$bad\"}")
+                }, bad)
+            }
+            val decoded = serializer.deserialize<com.example.petstore.models.PetPassport>("{\"thumbnail\":\"dGVzdA==\"}")
+            assertArrayEquals("test".toByteArray(Charsets.UTF_8), decoded!!.thumbnail)
+        }
+
+        @Test
+        @DisplayName("a format: uri field accepts any absolute URI and rejects relative or blank text")
+        fun uriFieldRequiresAnAbsoluteUri() {
+            val good = listOf("urn:isbn:0451450523", "mailto:a@b.com", "ftp://x.org/f", "https://example.com/items/1")
+            for (uri in good) {
+                val json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"$uri\"}"
+                assertNotNull(serializer.deserialize<com.example.petstore.models.Pet>(json)!!.homepageUrl, uri)
+            }
+            val https = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"https://example.com/items/1\"}"
+            assertEquals(
+                "https://example.com/items/1",
+                serializer.deserialize<com.example.petstore.models.Pet>(https)!!.homepageUrl.toString(),
+            )
+            for (uri in listOf("/relative", "not a uri", "")) {
+                val json = "{\"name\":\"n\",\"photoUrls\":[],\"homepageUrl\":\"$uri\"}"
+                assertThrowsExactly(SerializationException::class.java, {
+                    serializer.deserialize<com.example.petstore.models.Pet>(json)
+                }, uri)
+            }
+            val ref = "{\"name\":\"n\",\"photoUrls\":[],\"thumbnailRef\":\"/assets/thumb.png\"}"
+            assertEquals("/assets/thumb.png", serializer.deserialize<com.example.petstore.models.Pet>(ref)!!.thumbnailRef)
+        }
+
+        @Test
+        @DisplayName("readOnly and writeOnly properties are decoded and encoded like any other")
+        fun readOnlyAndWriteOnlyPropertiesHaveNoWireEffect() {
+            val decoded = serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\"}")
+            assertEquals(7L, decoded!!.id)
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .Account(username = "u", password = "p"),
+                )
+            assertTrue(json.contains("\"password\":\"p\""), json)
+            val withPassword =
+                serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}")
+            assertEquals("p", withPassword!!.password)
         }
 
         // A payload nested ~600 deep parses fine; ~1500 deep exceeds the 1000

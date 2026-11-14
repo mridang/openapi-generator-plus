@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -19,21 +19,42 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   public var retries: Int?
   public var mode: DefaultsModeEnum?
   public var label: String?
+  public var greeting: String?
+  public var swatch: Swatch?
+  public var ratio: Double?
+  public var scale: Float?
+  public var weight: Double?
+  public var ceiling: Int64?
 
   enum CodingKeys: String, CodingKey {
     case retries = "retries"
     case mode = "mode"
     case label = "label"
+    case greeting = "greeting"
+    case swatch = "swatch"
+    case ratio = "ratio"
+    case scale = "scale"
+    case weight = "weight"
+    case ceiling = "ceiling"
   }
 
   /// Creates a new Defaults instance.
   public init(
     retries: Int? = 3, mode: DefaultsModeEnum? = DefaultsModeEnum(rawValue: "medium"),
-    label: String? = "untitled"
+    label: String? = "untitled",
+    greeting: String? = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
+    swatch: Swatch? = Swatch(rawValue: "green"), ratio: Double? = 1.5, scale: Float? = 0.25,
+    weight: Double? = 2, ceiling: Int64? = 9_000_000_000
   ) {
     self.retries = retries
     self.mode = mode
     self.label = label
+    self.greeting = greeting
+    self.swatch = swatch
+    self.ratio = ratio
+    self.scale = scale
+    self.weight = weight
+    self.ceiling = ceiling
   }
 
   /// Decodes this instance from the given decoder.
@@ -60,6 +81,30 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
       container.contains(.label)
       ? try container.decodeIfPresent(String.self, forKey: .label)
       : "untitled"
+    self.greeting =
+      container.contains(.greeting)
+      ? try container.decodeIfPresent(String.self, forKey: .greeting)
+      : "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+    self.swatch =
+      container.contains(.swatch)
+      ? try container.decodeIfPresent(Swatch.self, forKey: .swatch)
+      : Swatch(rawValue: "green")
+    self.ratio =
+      container.contains(.ratio)
+      ? try container.decodeIfPresent(Double.self, forKey: .ratio)
+      : 1.5
+    self.scale =
+      container.contains(.scale)
+      ? try container.decodeIfPresent(Float.self, forKey: .scale)
+      : 0.25
+    self.weight =
+      container.contains(.weight)
+      ? try container.decodeIfPresent(Double.self, forKey: .weight)
+      : 2
+    self.ceiling =
+      container.contains(.ceiling)
+      ? try container.decodeIfPresent(Int64.self, forKey: .ceiling)
+      : 9_000_000_000
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -72,5 +117,11 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(retries, forKey: .retries)
     try container.encodeIfPresent(mode, forKey: .mode)
     try container.encodeIfPresent(label, forKey: .label)
+    try container.encodeIfPresent(greeting, forKey: .greeting)
+    try container.encodeIfPresent(swatch, forKey: .swatch)
+    try container.encodeIfPresent(ratio, forKey: .ratio)
+    try container.encodeIfPresent(scale, forKey: .scale)
+    try container.encodeIfPresent(weight, forKey: .weight)
+    try container.encodeIfPresent(ceiling, forKey: .ceiling)
   }
 }

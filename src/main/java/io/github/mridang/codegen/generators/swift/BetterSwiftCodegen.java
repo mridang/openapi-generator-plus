@@ -174,6 +174,32 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Prefixes a model named {@code Error} or {@code Result} with
+     * {@code Model}: a public {@code Error} struct shadows
+     * {@code Swift.Error} for the whole module, so every error type that
+     * conforms to {@code Error} stops compiling. Same rule as java.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        if ("Error".equals(modelName) || "Result".equals(modelName)) {
+            return "Model" + modelName;
+        }
+        return modelName;
+    }
+
+    /** Applies the {@link #toModelName} prefix to $ref property and parameter types. */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("Error".equals(type) || "Result".equals(type)) {
+            return "Model" + type;
+        }
+        return type;
+    }
+
+    /**
      * Keeps a property named {@code type} unescaped. The reserved-word list is
      * lowercased on load, so its {@code Type} entry (the metatype member, which
      * only exists with a capital T) would otherwise rename the legal property
@@ -514,7 +540,17 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+                // The shared enum literal escape: the literal evaluates to
+                // exactly the spec string (backslash, quote, control chars).
+                final String literal =
+                        quoteEnumValue(escapeEnumStringValue(String.valueOf(resolved.getDefault())));
+                if (schema.get$ref() != null && resolved.getEnum() != null) {
+                    // A component enum default is a case of that enum type,
+                    // looked up by its wire value like an inline enum default.
+                    return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
+                            + "(rawValue: " + literal + ")";
+                }
+                return literal;
             }
         }
         return null;

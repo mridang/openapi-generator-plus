@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -150,6 +151,15 @@ public class PetWithOwner {
   @Nullable
   public BigDecimal weightKg;
 
+  /**
+   * The {@code nickname} property.
+   *
+   * <p>Example: {@code rex}
+   */
+  @JsonProperty("nickname")
+  @Nullable
+  public String nickname;
+
   /** The {@code ownerName} property. */
   @JsonProperty("ownerName")
   public String ownerName;
@@ -209,6 +219,7 @@ public class PetWithOwner {
         && java.util.Objects.equals(this.linkTemplate, other.linkTemplate)
         && java.util.Objects.equals(this.ownerEmail, other.ownerEmail)
         && com.example.petstore.ObjectSerializer.structuralEquals(this.weightKg, other.weightKg)
+        && java.util.Objects.equals(this.nickname, other.nickname)
         && java.util.Objects.equals(this.ownerName, other.ownerName);
   }
 
@@ -227,6 +238,7 @@ public class PetWithOwner {
         linkTemplate,
         ownerEmail,
         com.example.petstore.ObjectSerializer.structuralHashCode(weightKg),
+        nickname,
         ownerName);
   }
 
@@ -246,6 +258,7 @@ public class PetWithOwner {
     sb.append(", linkTemplate=").append(linkTemplate);
     sb.append(", ownerEmail=").append(ownerEmail);
     sb.append(", weightKg=").append(weightKg);
+    sb.append(", nickname=").append(nickname);
     sb.append(", ownerName=").append(ownerName);
     sb.append("}");
     return sb.toString();

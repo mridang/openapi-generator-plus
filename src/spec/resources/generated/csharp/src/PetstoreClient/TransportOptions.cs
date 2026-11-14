@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -40,8 +40,9 @@ public sealed class TransportOptions
     /// <summary>
     /// Path to a custom CA certificate bundle for TLS verification.
     /// When set together with <see cref="VerifySsl"/>=<c>true</c>, the client trusts
-    /// certificates signed by this CA in addition to (or instead of) the system trust store.
-    /// <c>null</c> uses the system default.
+    /// only certificates that chain to the certificates in this file: it replaces the
+    /// system trust store (to trust both, put the system bundle in the file). Host name
+    /// verification still applies. <c>null</c> uses the system default.
     /// </summary>
     public string? CaCertPath { get; }
 

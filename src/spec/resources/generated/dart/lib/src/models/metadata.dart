@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -29,7 +29,7 @@ class Metadata {
     }
     return Metadata(
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
+          ? parseDateTime(json['createdAt'] as String)
           : null,
 
       additionalProperties: additionalProperties,
@@ -42,7 +42,12 @@ class Metadata {
     if (createdAt != null) {
       json['createdAt'] = formatDateTimeOffset(createdAt!);
     }
-    json.addAll(additionalProperties);
+    /* A declared property is authoritative: an additionalProperties entry
+     * whose key equals a declared wire name is dropped, so no key is written
+     * twice and the typed value wins. */
+    for (final entry in additionalProperties.entries) {
+      json.putIfAbsent(entry.key, () => entry.value);
+    }
     return json;
   }
 

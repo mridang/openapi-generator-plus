@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -23,7 +23,13 @@ module Petstore::Client
       ATTRIBUTE_MAP = {
         retries: 'retries',
         mode: 'mode',
-        label: 'label'
+        label: 'label',
+        greeting: 'greeting',
+        swatch: 'swatch',
+        ratio: 'ratio',
+        scale: 'scale',
+        weight: 'weight',
+        ceiling: 'ceiling'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -33,7 +39,13 @@ module Petstore::Client
       OPENAPI_TYPES = {
         retries: 'Integer',
         mode: 'String',
-        label: 'String'
+        label: 'String',
+        greeting: 'String',
+        swatch: 'Swatch',
+        ratio: 'Float',
+        scale: 'Float',
+        weight: 'Float',
+        ceiling: 'Integer'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -53,6 +65,13 @@ module Petstore::Client
       openapi_formats = {}
       OPENAPI_FORMATS = openapi_formats.freeze
 
+      # Required properties whose schema also allows null. The key must be
+      # present, null is a legal value, and ::Petstore::Client::ObjectSerializer
+      # writes a nil value as an explicit null instead of omitting the key.
+      # @type var required_nullable: Hash[Symbol, bool]
+      required_nullable = {}
+      REQUIRED_NULLABLE = required_nullable.freeze
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym
@@ -61,6 +80,12 @@ module Petstore::Client
       attribute :retries, Types::Any.optional.meta(omittable: true).default(3)
       attribute :mode, Types::String.enum('low', 'medium', 'high').optional.meta(omittable: true).default('medium')
       attribute :label, Types::Any.optional.meta(omittable: true).default('untitled')
+      attribute :greeting, Types::Any.optional.meta(omittable: true).default('it\'s "quoted" \\ back slash next $USD #{x} a*/b')
+      attribute :swatch, Types::Any.optional.meta(omittable: true).default('green')
+      attribute :ratio, Types::Any.optional.meta(omittable: true).default(1.5)
+      attribute :scale, Types::Any.optional.meta(omittable: true).default(0.25)
+      attribute :weight, Types::Any.optional.meta(omittable: true).default(2)
+      attribute :ceiling, Types::Any.optional.meta(omittable: true).default(9_000_000_000)
     end
   end
 end

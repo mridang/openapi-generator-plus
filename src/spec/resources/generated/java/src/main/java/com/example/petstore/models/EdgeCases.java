@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,13 +8,59 @@
 
 package com.example.petstore.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
 public class EdgeCases {
+
+  /** Allowed values for the {@code phase} property. */
+  public enum PhaseEnum {
+    /** The {@code "In-Stock"} value. */
+    IN_STOCK("In-Stock"),
+    /** The {@code "on-hold"} value. */
+    ON_HOLD("on-hold"),
+    /** The {@code "OUT_OF_STOCK"} value. */
+    OUT_OF_STOCK("OUT_OF_STOCK");
+
+    private final String value;
+
+    PhaseEnum(String value) {
+      this.value = value;
+    }
+
+    /**
+     * Returns the wire value of this enum constant.
+     *
+     * @return the wire value
+     */
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    /**
+     * Returns the enum constant for the given wire value.
+     *
+     * @param value the wire value
+     * @return the matching enum constant
+     * @throws IllegalArgumentException if no constant matches
+     */
+    @JsonCreator
+    public static PhaseEnum fromValue(String value) {
+      for (PhaseEnum b : values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
 
   /** The {@code freeFormAny} property. */
   @JsonProperty("freeFormAny")
@@ -26,8 +73,8 @@ public class EdgeCases {
   public Color favoriteColor;
 
   /**
-   * Required permission is "user.grant.write" for {@literal <}admin{@literal >} & owner roles
-   * (don't skip it)
+   * Required permission is "user.grant.write" for {@literal <}admin{@literal >} {@literal &} owner
+   * roles (don't skip it)
    */
   @JsonProperty("permissionsNote")
   @Nullable
@@ -68,6 +115,56 @@ public class EdgeCases {
   @Nullable
   public OffsetDateTime expiresAt;
 
+  /** The {@code n2fa} property. */
+  @JsonProperty("2fa")
+  @Nullable
+  public Boolean n2fa;
+
+  /** The {@code separator} property. */
+  @JsonProperty("separator")
+  @Nullable
+  public Separator separator;
+
+  /** The {@code _null} property. */
+  @JsonProperty("null")
+  @Nullable
+  public String _null;
+
+  /** The {@code _true} property. */
+  @JsonProperty("true")
+  @Nullable
+  public Boolean _true;
+
+  /** The {@code _false} property. */
+  @JsonProperty("false")
+  @Nullable
+  public Boolean _false;
+
+  /** The {@code lastError} property. */
+  @JsonProperty("lastError")
+  @Nullable
+  public ModelError lastError;
+
+  /** The {@code outcome} property. */
+  @JsonProperty("outcome")
+  @Nullable
+  public ModelResult outcome;
+
+  /** The {@code cutoff} property. */
+  @JsonProperty("cutoff")
+  @Nullable
+  public LocalTime cutoff;
+
+  /** The {@code phase} property. */
+  @JsonProperty("phase")
+  @Nullable
+  public PhaseEnum phase;
+
+  /** The {@code slug} property. */
+  @JsonProperty("slug")
+  @Nullable
+  public String slug;
+
   /** Creates an empty instance. */
   public EdgeCases() {}
 
@@ -93,7 +190,17 @@ public class EdgeCases {
         && java.util.Objects.equals(this._class, other._class)
         && java.util.Objects.equals(this._return, other._return)
         && java.util.Objects.equals(this.retryAfter, other.retryAfter)
-        && java.util.Objects.equals(this.expiresAt, other.expiresAt);
+        && java.util.Objects.equals(this.expiresAt, other.expiresAt)
+        && java.util.Objects.equals(this.n2fa, other.n2fa)
+        && java.util.Objects.equals(this.separator, other.separator)
+        && java.util.Objects.equals(this._null, other._null)
+        && java.util.Objects.equals(this._true, other._true)
+        && java.util.Objects.equals(this._false, other._false)
+        && java.util.Objects.equals(this.lastError, other.lastError)
+        && java.util.Objects.equals(this.outcome, other.outcome)
+        && java.util.Objects.equals(this.cutoff, other.cutoff)
+        && java.util.Objects.equals(this.phase, other.phase)
+        && java.util.Objects.equals(this.slug, other.slug);
   }
 
   @Override
@@ -108,7 +215,17 @@ public class EdgeCases {
         _class,
         _return,
         retryAfter,
-        expiresAt);
+        expiresAt,
+        n2fa,
+        separator,
+        _null,
+        _true,
+        _false,
+        lastError,
+        outcome,
+        cutoff,
+        phase,
+        slug);
   }
 
   @Override
@@ -125,6 +242,16 @@ public class EdgeCases {
     sb.append(", _return=").append(_return);
     sb.append(", retryAfter=").append(retryAfter);
     sb.append(", expiresAt=").append(expiresAt);
+    sb.append(", n2fa=").append(n2fa);
+    sb.append(", separator=").append(separator);
+    sb.append(", _null=").append(_null);
+    sb.append(", _true=").append(_true);
+    sb.append(", _false=").append(_false);
+    sb.append(", lastError=").append(lastError);
+    sb.append(", outcome=").append(outcome);
+    sb.append(", cutoff=").append(cutoff);
+    sb.append(", phase=").append(phase);
+    sb.append(", slug=").append(slug);
     sb.append("}");
     return sb.toString();
   }

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -26,6 +26,11 @@ module Petstore::Client
         # race against the server clock.
         EXPIRY_SAFETY_MARGIN_S = 60
 
+        # Ceiling (one year, in seconds) for a server-supplied expires_in, so
+        # a huge lifetime is cached for a year instead of breaking the
+        # expiry arithmetic.
+        MAX_EXPIRES_IN_S = 31_536_000
+
         # The refresh token last issued by the authorization server.
         #
         # @return [String, nil] the current refresh token, if any
@@ -47,25 +52,74 @@ module Petstore::Client
           @access_token = nil
           @refresh_token = nil
           @token_expiry = nil
+          @exchanged = false
+        end
+
+        # Record that an authorization code was exchanged for this session.
+        # The flag lives here, with the tokens, so a delegate rebuilt around
+        # this manager (OIDC rediscovery) keeps the session.
+        #
+        # @return [void]
+        def mark_exchanged
+          @mutex.synchronize { @exchanged = true }
+        end
+
+        # Whether an authorization code has been exchanged for this session.
+        #
+        # @return [Boolean]
+        def exchanged?
+          @mutex.synchronize { @exchanged }
         end
 
         # Get a valid access token, fetching or refreshing as necessary.
         #
         # This method is synchronized to prevent concurrent token requests.
         #
+        # When a refresh token is held and +params+ is not itself a refresh
+        # grant, the refresh grant (carrying the same client authentication,
+        # RFC 6749 §6) is POSTed to +refresh_url+ first; on failure the
+        # original grant is re-run against +token_url+. Params that already
+        # are a refresh grant are POSTed exactly once.
+        #
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
+        # @param refresh_url [String, nil] the refresh endpoint (defaults to token_url)
         # @return [String] a valid access token
         # @raise [RuntimeError] if no API client has been injected
         # @raise [::Petstore::Client::Errors::OAuth2ServerError] if the token endpoint answers with a non-2xx status
         # @raise [::Petstore::Client::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
-        def get_access_token(token_url, params, extra_headers = {})
+        def get_access_token(token_url, params, extra_headers = {}, refresh_url: nil)
           @mutex.synchronize do
             return @access_token if token_still_valid?
-            return @access_token if try_refresh_token(token_url, params, extra_headers)
+
+            return @access_token if params['grant_type'] != 'refresh_token' && try_refresh_token(refresh_url || token_url, params, extra_headers)
 
             fetch_token(token_url, params, extra_headers)
             @access_token
+          end
+        end
+
+        # POST +params+ verbatim to +token_url+, bypassing the token cache and
+        # the refresh path, and replace the session with exactly what the
+        # response carried. On any failure the previous session is restored
+        # and the error re-raised, so a rejected exchange does not log out.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [String] the newly issued access token
+        def exchange(token_url, params, extra_headers = {})
+          @mutex.synchronize do
+            previous = [@access_token, @refresh_token, @token_expiry]
+            @access_token = nil
+            @refresh_token = nil
+            @token_expiry = nil
+            begin
+              fetch_token(token_url, params, extra_headers)
+            rescue StandardError
+              @access_token, @refresh_token, @token_expiry = previous
+              raise
+            end
+            @access_token.to_s
           end
         end
 
@@ -193,9 +247,11 @@ module Petstore::Client
         end
 
         def require_api_client
-          @api_client || raise('ApiClient has not been injected. ' \
-                               'Ensure the Petstore constructor calls api_client= ' \
-                               'on HttpAwareAuthenticator before making API requests.')
+          @api_client || raise(
+            'ApiClient has not been injected. ' \
+            'Ensure the Petstore constructor calls api_client= ' \
+            'on HttpAwareAuthenticator before making API requests.'
+          )
         end
 
         def apply_token_response(parsed)
@@ -228,6 +284,10 @@ module Petstore::Client
         end
 
         def parse_expires_in(raw)
+          [parse_raw_expires_in(raw), MAX_EXPIRES_IN_S].min
+        end
+
+        def parse_raw_expires_in(raw)
           case raw
           when Integer
             raw
@@ -241,7 +301,9 @@ module Petstore::Client
 
             # Plain decimal digits with an optional fraction only: Float()
             # would also accept hex ("0x10"), exponents and underscores.
-            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.to_f.floor : 0
+            # The integer part is read exactly, so a digit string too long
+            # for a Float is clamped rather than overflowing to Infinity.
+            trimmed.match?(/\A\d+(?:\.\d+)?\z/) ? trimmed.split('.').first.to_i : 0
           else
             0
           end

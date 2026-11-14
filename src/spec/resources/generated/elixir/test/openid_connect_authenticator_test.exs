@@ -84,6 +84,30 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
+    test "empty state is omitted" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      url = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth, "")
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      refute String.contains?(url, "state")
+    end
+
     test "fetches discovery document" do
       fake_client =
         FakeApiClient.new([

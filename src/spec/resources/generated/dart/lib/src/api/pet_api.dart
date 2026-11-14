@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -25,6 +25,7 @@ import 'options/add_pet_treatment_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/find_pets_by_status_options.dart';
 import 'options/get_pet_by_name_options.dart';
+import 'options/get_pet_summary_options.dart';
 import 'options/get_pet_tag_options.dart';
 import 'options/set_pet_preferences_options.dart';
 import 'options/upload_pet_certificate_options.dart';
@@ -54,13 +55,31 @@ abstract class GetMultiServerPetInfoServer {
 }
 
 /// Valid values for the region server variable in GetMultiServerPetInfoServer.
-enum GetMultiServerPetInfoServerRegion {
+enum GetMultiServerPetInfoServerRegionalRegion {
   US('us'),
   EU('eu'),
   AP('ap');
 
   final String value;
-  const GetMultiServerPetInfoServerRegion(this.value);
+  const GetMultiServerPetInfoServerRegionalRegion(this.value);
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+enum GetMultiServerPetInfoServerMirrorRegion {
+  US('us'),
+  EU('eu');
+
+  final String value;
+  const GetMultiServerPetInfoServerMirrorRegion(this.value);
+}
+
+/// Valid values for the channel server variable in GetMultiServerPetInfoServer.
+enum GetMultiServerPetInfoServerChannel {
+  A_B('a&b'),
+  IT_S('it\'s');
+
+  final String value;
+  const GetMultiServerPetInfoServerChannel(this.value);
 }
 
 /// Primary
@@ -76,10 +95,11 @@ class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
 
 /// Regional
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
-  final GetMultiServerPetInfoServerRegion _region;
+  final GetMultiServerPetInfoServerRegionalRegion _region;
 
-  GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
-    : _region = region;
+  GetMultiServerPetInfoServerRegional(
+    GetMultiServerPetInfoServerRegionalRegion region,
+  ) : _region = region;
 
   @override
   String getUrl() {
@@ -89,6 +109,36 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
       'region'
       '}',
       _region.value,
+    );
+    return url;
+  }
+}
+
+/// Mirror
+class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
+  final GetMultiServerPetInfoServerMirrorRegion _region;
+  final GetMultiServerPetInfoServerChannel _channel;
+
+  GetMultiServerPetInfoServerMirror(
+    GetMultiServerPetInfoServerMirrorRegion region,
+    GetMultiServerPetInfoServerChannel channel,
+  ) : _region = region,
+      _channel = channel;
+
+  @override
+  String getUrl() {
+    var url = 'https://{region}.mirror.example.com/{channel}/v1';
+    url = url.replaceAll(
+      '{'
+      'region'
+      '}',
+      _region.value,
+    );
+    url = url.replaceAll(
+      '{'
+      'channel'
+      '}',
+      _channel.value,
     );
     return url;
   }
@@ -168,13 +218,16 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
 
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
-/// See <https://example.com/docs/pets> Find out more about pets
+/// (globs like /pets/* and /pets/**/ and an id of #{petId})
+///
+/// See <https://example.com/docs/pets> Find out more about pets (it's */ here)
+/// on two lines
 class PetApi extends BaseApi {
   PetApi({super.apiClient, super.config, super.authenticator});
 
   /// Add a new pet to the store
   /// `pet` Create a new pet in the store
-
+  /// `options` options carrying an optional per-call authenticator
   Future<Pet> addPet(Pet pet, AddPetOptions? options) async {
     final result = await addPetWithHttpInfo(pet, options);
     final data = result.data;
@@ -226,7 +279,7 @@ class PetApi extends BaseApi {
 
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<List<Photo>> addPetPhotos(
     int petId,
     AddPetPhotosOptions options,
@@ -319,7 +372,7 @@ class PetApi extends BaseApi {
   }
 
   /// Record a treatment for a pet
-
+  /// `options` options carrying an optional per-call authenticator
   Future<PetTreatment> addPetTreatment(
     int petId,
     PetTreatment petTreatment,
@@ -405,7 +458,7 @@ class PetApi extends BaseApi {
   /// Deletes a pet
   /// `petId` Pet id to delete
   /// `apiKey` Session cookie used for authentication
-
+  /// `options` options for query, header, form, and cookie parameters, plus an optional per-call authenticator
   Future<void> deletePet(int petId, DeletePetOptions? options) async {
     await deletePetWithHttpInfo(petId, options);
   }
@@ -490,7 +543,6 @@ class PetApi extends BaseApi {
 
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-
   Future<Uint8List> downloadPetDocument(int petId, int documentId) async {
     final result = await downloadPetDocumentWithHttpInfo(petId, documentId);
     final data = result.data;
@@ -584,7 +636,6 @@ class PetApi extends BaseApi {
 
   /// List pets born on a given date
   /// `bornOn` Date of birth to match
-
   Future<List<Pet>> findPetsBornOn(DateTime bornOn) async {
     final result = await findPetsBornOnWithHttpInfo(bornOn);
     final data = result.data;
@@ -659,19 +710,17 @@ class PetApi extends BaseApi {
   /// `filter` Filter criteria as key-value pairs
   /// `bornAfter` Only return pets born on or after this date
   /// `reportDate` Reference date for the report
-
+  /// `options` options for query, header, form, and cookie parameters
   /// ### `status` — Available only
   /// Show only pets currently in stock
   /// ```json
   /// available
   /// ```
-
   /// ### `status` — Sold pets
   /// Show pets that have been sold
   /// ```json
   /// sold
   /// ```
-
   /// See <https://example.com/docs/filtering> Find out more about filtering
   @Deprecated('This operation is deprecated.')
   Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options) async {
@@ -740,6 +789,20 @@ class PetApi extends BaseApi {
         false,
       );
     }
+    if (options != null && options.n2ndPage != null) {
+      queryParams['2ndPage'] = maybeAllowReserved(
+        serializeStyled(
+          '2ndPage',
+          options.n2ndPage,
+          'query',
+          'int',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
 
     final headerParams = <String, String>{};
     if (options != null && options.reportDate != null) {
@@ -765,7 +828,6 @@ class PetApi extends BaseApi {
   }
 
   /// Get external pet info
-
   Future<Pet> getExternalPetInfo(
     int petId,
     GetExternalPetInfoServer? server,
@@ -846,7 +908,6 @@ class PetApi extends BaseApi {
   }
 
   /// Get multi-server pet info
-
   Future<Pet> getMultiServerPetInfo(
     int petId,
     GetMultiServerPetInfoServer? server,
@@ -928,7 +989,6 @@ class PetApi extends BaseApi {
 
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
-
   Future<Uint8List> getPetAvatar(int petId) async {
     final result = await getPetAvatarWithHttpInfo(petId);
     final data = result.data;
@@ -996,7 +1056,6 @@ class PetApi extends BaseApi {
 
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-
   Future<Uint8List> getPetAvatarThumbnail(int petId) async {
     final result = await getPetAvatarThumbnailWithHttpInfo(petId);
     final data = result.data;
@@ -1068,19 +1127,16 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   /// `petId` ID of pet to return
-
   /// ### `petId` — Small breed ID
   /// A common small-breed pet identifier
   /// ```json
   /// 1
   /// ```
-
   /// ### `petId` — Large breed ID
   /// A common large-breed pet identifier
   /// ```json
   /// 42
   /// ```
-
   @Deprecated('This operation is deprecated.')
   Future<Pet> getPetById(int petId, GetPetByIdServer? server) async {
     final result = await getPetByIdWithHttpInfo(petId, server);
@@ -1159,7 +1215,7 @@ class PetApi extends BaseApi {
   }
 
   /// Look up a pet by name (simple string path param + required query)
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<Pet> getPetByName(String name, GetPetByNameOptions options) async {
     final result = await getPetByNameWithHttpInfo(name, options);
     final data = result.data;
@@ -1191,9 +1247,18 @@ class PetApi extends BaseApi {
     }
 
     ArgumentError.checkNotNull(options.category, 'category');
+
     if (options.category == '') {
       throw ArgumentError(
         "Missing the required parameter 'category' when calling PetApi.getPetByName",
+      );
+    }
+
+    ArgumentError.checkNotNull(options.xCorrelationId, 'xCorrelationId');
+
+    if (options.xCorrelationId == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
       );
     }
 
@@ -1237,6 +1302,8 @@ class PetApi extends BaseApi {
     );
 
     final headerParams = <String, String>{};
+    headerParams['X-Correlation-Id'] =
+        '${serializeStyled('X-Correlation-Id', options.xCorrelationId, 'header', 'String', '', 'simple', false)}';
 
     final Object? requestBody = null;
 
@@ -1257,7 +1324,6 @@ class PetApi extends BaseApi {
 
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-
   Future<PetPassport> getPetPassport(int petId) async {
     final result = await getPetPassportWithHttpInfo(petId);
     final data = result.data;
@@ -1328,7 +1394,6 @@ class PetApi extends BaseApi {
 
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-
   Future<Uint8List> getPetPhoto(int petId, int photoId) async {
     final result = await getPetPhotoWithHttpInfo(petId, photoId);
     final data = result.data;
@@ -1419,9 +1484,160 @@ class PetApi extends BaseApi {
     );
   }
 
+  /// Get a <plain> "text" summary & it's short
+  /// Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done
+  /// `asOf` Summary date, sent as a matrix-style path segment
+  /// `session` Session token: "a<b>" & it's required
+  /// `days` Extra dates to summarise
+  /// `options` options for query, header, form, and cookie parameters
+  Future<String> getPetSummary(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  ) async {
+    final result = await getPetSummaryWithHttpInfo(petId, asOf, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as String` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getPetSummary but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getPetSummary operation and returns the full API result.
+  Future<ApiResult<String>> getPetSummaryWithHttpInfo(
+    int petId,
+    DateTime asOf,
+    GetPetSummaryOptions options,
+  ) async {
+    ArgumentError.checkNotNull(options.session, 'session');
+
+    if (options.session == '') {
+      throw ArgumentError(
+        "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+      );
+    }
+
+    var path = '/pet/{petId}/summary/{asOf}';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
+    path = path.replaceAll(
+      '{'
+      'petId'
+      '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is mapped to `String` (already in YYYY-MM-DD form), so it
+     * flows through serializeStyled like any other string with no special
+     * casing. */
+    path = path.replaceAll(
+      '{'
+      'asOf'
+      '}',
+      serializeStyled(
+        'asOf',
+        stringifyDate(asOf),
+        'path',
+        'DateTime',
+        '',
+        'matrix',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+    if (options.days != null) {
+      queryParams['days'] = maybeAllowReserved(
+        serializeStyled(
+          'days',
+          stringifyDates(options.days),
+          'query',
+          'List<DateTime>',
+          'multi',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+    final cookieParts = <String>[];
+    /* RFC 6265 cookie-value grammar, identical to the auth-cookie path in
+       base_api. Operation cookie params are interpolated straight into the
+       Cookie request header, so an attacker-controlled CR/LF/control-char
+       value would otherwise smuggle in extra headers. Validate every
+       assembled value the same way the auth-cookie path does and fail closed
+       with the same ArgumentError so header injection is impossible. */
+    final operationCookieValueRe = RegExp(
+      r'^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$',
+    );
+    void addCookiePart(String name, String value) {
+      if (!operationCookieValueRe.hasMatch(value)) {
+        throw ArgumentError(
+          "Cookie value for '$name' contains characters forbidden by RFC 6265",
+        );
+      }
+      cookieParts.add('$name=$value');
+    }
+
+    addCookiePart(
+      'session',
+      '${serializeStyled('session', options.session, 'cookie', 'String', '', 'form', true)}',
+    );
+    if (cookieParts.isNotEmpty) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<String>(
+      method: 'GET',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['text/plain'],
+      contentType: 'application/json',
+      returnType: 'String',
+      auth: null,
+      deserialize: (body) => deserializeRaw(body) as String,
+    );
+  }
+
   /// Get a tag for a pet
   /// `revision` Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon.
-
+  /// `criteria` Object-valued query parameter, form style exploded (the OAS default for query)
+  /// `fingerprint` Opaque bytes, base64 on the wire (OAS format byte)
+  /// `options` options for query, header, form, and cookie parameters
   Future<Pet> getPetTag(
     int petId,
     String tagName,
@@ -1560,8 +1776,66 @@ class PetApi extends BaseApi {
         true,
       );
     }
+    if (options != null && options.criteria != null) {
+      queryParams['criteria'] = maybeAllowReserved(
+        serializeStyled(
+          'criteria',
+          options.criteria,
+          'query',
+          'PetCriteria',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.criteriaCsv != null) {
+      queryParams['criteriaCsv'] = maybeAllowReserved(
+        serializeStyled(
+          'criteriaCsv',
+          options.criteriaCsv,
+          'query',
+          'PetCriteria',
+          '',
+          'form',
+          false,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.criteriaDeep != null) {
+      serializeDeepObject(
+        'criteriaDeep',
+        options.criteriaDeep as Map<String, Object?>?,
+      ).forEach((k, v) {
+        queryParams[k] = v;
+      });
+    }
+    if (options != null && options.fingerprint != null) {
+      queryParams['fingerprint'] = maybeAllowReserved(
+        serializeStyled(
+          'fingerprint',
+          options.fingerprint,
+          'query',
+          'Uint8List',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
 
     final headerParams = <String, String>{};
+    if (options != null && options.xCriteria != null) {
+      headerParams['X-Criteria'] =
+          '${serializeStyled('X-Criteria', options.xCriteria, 'header', 'PetCriteria', '', 'simple', false)}';
+    }
+    if (options != null && options.xFingerprint != null) {
+      headerParams['X-Fingerprint'] =
+          '${serializeStyled('X-Fingerprint', options.xFingerprint, 'header', 'Uint8List', '', 'simple', false)}';
+    }
 
     final Object? requestBody = null;
 
@@ -1581,7 +1855,6 @@ class PetApi extends BaseApi {
   }
 
   /// Get staging pet info
-
   Future<Pet> getStagingPetInfo(
     int petId,
     GetStagingPetInfoServer? server,
@@ -1663,7 +1936,6 @@ class PetApi extends BaseApi {
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-
   Future<void> setPetAvatar(
     int petId,
     Uint8List body, [
@@ -1727,13 +1999,13 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: requestContentType ?? 'image/jpeg',
       returnType: '',
+      rawBody: true,
       auth: null,
     );
   }
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-
   Future<void> setPetAvatarThumbnail(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -1794,7 +2066,7 @@ class PetApi extends BaseApi {
 
   /// Update a pet's notification preferences
   /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<ApiResponse> setPetPreferences(
     int petId,
     SetPetPreferencesOptions options,
@@ -1824,6 +2096,7 @@ class PetApi extends BaseApi {
     SetPetPreferencesOptions options,
   ) async {
     ArgumentError.checkNotNull(options.nickname, 'nickname');
+
     if (options.nickname == '') {
       throw ArgumentError(
         "Missing the required parameter 'nickname' when calling PetApi.setPetPreferences",
@@ -1880,6 +2153,9 @@ class PetApi extends BaseApi {
     if (options.renewalDate != null) {
       formBody['renewalDate'] = stringifyDate(options.renewalDate!);
     }
+    if (options.reminder != null) {
+      formBody['reminder'] = options.reminder;
+    }
     final Object requestBody = formBody;
 
     return invokeApiForResult<ApiResponse>(
@@ -1901,7 +2177,6 @@ class PetApi extends BaseApi {
   /// Update an existing pet
   /// `petId` ID of pet to update
   /// `pet` Pet object that needs to be updated
-
   Future<Pet> updatePet(int petId, Pet pet) async {
     final result = await updatePetWithHttpInfo(petId, pet);
     final data = result.data;
@@ -1970,7 +2245,7 @@ class PetApi extends BaseApi {
 
   /// Upload the pet's adoption certificate
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<ApiResponse> uploadPetCertificate(
     int petId,
     UploadPetCertificateOptions options,
@@ -2062,7 +2337,7 @@ class PetApi extends BaseApi {
 
   /// Attach a vet document or health record
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
-
+  /// `options` options for query, header, form, and cookie parameters
   Future<ApiResponse> uploadPetDocument(
     int petId,
     UploadPetDocumentOptions options, [
@@ -2145,6 +2420,18 @@ class PetApi extends BaseApi {
     }
     if (options.notes != null) {
       formBody['notes'] = options.notes;
+    }
+    if (options.isPrimary != null) {
+      formBody['isPrimary'] = options.isPrimary;
+    }
+    if (options.pageCount != null) {
+      formBody['pageCount'] = options.pageCount;
+    }
+    if (options.takenAt != null) {
+      formBody['takenAt'] = options.takenAt;
+    }
+    if (options.swatch != null) {
+      formBody['swatch'] = options.swatch;
     }
     /* multi-content-type-binary-body: this operation declares more than one
      * request Content-Type — `multipart/form-data` AND a raw binary type

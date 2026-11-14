@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Version>{{packageVersion}}</Version>
 {{#appDescription}}
-    <Description>{{{appDescription}}}</Description>
+    <Description>{{#lambda.escapeXmlText}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.escapeXmlText}}</Description>
 {{/appDescription}}
 {{^appDescription}}
     <Description>Generated API client{{#appName}} for {{{appName}}}{{/appName}}</Description>

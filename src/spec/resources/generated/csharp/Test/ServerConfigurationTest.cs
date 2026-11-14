@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -83,8 +83,8 @@ public class ServerConfigurationTest
         var ex = Assert.Throws<ArgumentException>(() =>
             server.GetUrl(new Dictionary<string, string> { ["env"] = "invalid" })
         );
-        Assert.Contains("Invalid value 'invalid'", ex.Message);
-        Assert.Contains("env", ex.Message);
+        Assert.Contains("Invalid value 'invalid'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("env", ex.Message, StringComparison.Ordinal);
         // A server variable outside its enum is a caller mistake, not an SDK error.
         Assert.False(typeof(OpenAPIException).IsInstanceOfType(ex));
     }
@@ -125,7 +125,11 @@ public class ServerConfigurationTest
 
         var ex = Assert.Throws<ArgumentException>(() => server.GetUrl());
 
-        Assert.Contains("Invalid value 'prod' for server variable 'env'", ex.Message);
+        Assert.Contains(
+            "Invalid value 'prod' for server variable 'env'",
+            ex.Message,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]

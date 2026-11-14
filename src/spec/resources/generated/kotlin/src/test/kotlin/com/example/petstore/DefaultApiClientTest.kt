@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -47,6 +47,65 @@ class DefaultApiClientTest {
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
             assertEquals("GET", json.get("method").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("TLS verification enforced")
+    inner class TlsVerificationEnforced {
+        /**
+         * Reaches the mock server through Squid by its IP address on the proxy
+         * network, which the fixture certificate does not carry (it names
+         * chasm, localhost, host.docker.internal and 127.0.0.1). The CIO engine
+         * checks the certificate against the reverse-resolved host name, so the
+         * resolved address of host.docker.internal would pass as that name; the
+         * proxy-network address has no reverse entry here.
+         */
+        private fun mismatchUrl(): String = "${ChasmContainer.getInternalHttpsAddressUrl()}/test/echo"
+
+        private fun causes(ex: Throwable): List<Throwable> = generateSequence(ex) { it.cause }.toList()
+
+        @Test
+        @DisplayName("the default transport rejects a certificate from an untrusted CA")
+        fun defaultTransportRejectsUntrustedCa() {
+            val client = DefaultApiClient(TransportOptions.builder().build())
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+            assertTrue(
+                causes(ex).any { it is java.security.cert.CertPathBuilderException },
+                "the certificate chain must be rejected, got ${causes(ex)}",
+            )
+        }
+
+        @Test
+        @DisplayName("verifySsl=true rejects an address the certificate does not name")
+        fun verifySslTrueRejectsHostnameMismatch() {
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy(SquidContainer.getProxyUrl())
+                    .verifySsl(true)
+                    .caCertPath(caCertPath)
+                    .build()
+            val client = DefaultApiClient(transport)
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking { client.sendRequest("GET", mismatchUrl(), emptyMap(), null) }
+                }
+            assertEquals(0, ex.statusCode)
+            val address = java.net.URI(mismatchUrl()).host
+            assertTrue(
+                causes(ex).any {
+                    it is io.ktor.network.tls.TLSException &&
+                        it.message.orEmpty().startsWith("No server host: $address in the server certificate")
+                },
+                "the host name check must reject $address, got ${causes(ex)}",
+            )
         }
     }
 
@@ -216,6 +275,46 @@ class DefaultApiClientTest {
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
         }
+
+        @Test
+        @DisplayName("the timeout is one budget for every redirect hop")
+        fun timeoutCoversTheWholeRedirectChain() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client =
+                DefaultApiClient(
+                    TransportOptions
+                        .builder()
+                        .timeout(1200L)
+                        .followRedirects(true)
+                        .build(),
+                )
+            val ex =
+                assertThrowsExactly(com.example.petstore.errors.NetworkTimeoutException::class.java) {
+                    runBlocking {
+                        client.sendRequest("GET", "$chasmUrl/test/redirect/chain/1", emptyMap(), null)
+                    }
+                }
+            assertEquals(0, ex.statusCode)
+        }
+
+        @Test
+        @DisplayName("a redirect chain inside the budget completes")
+        fun redirectChainInsideTheBudgetCompletes() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client =
+                DefaultApiClient(
+                    TransportOptions
+                        .builder()
+                        .timeout(5000L)
+                        .followRedirects(true)
+                        .build(),
+                )
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/redirect/chain/1", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+        }
     }
 
     @Nested
@@ -238,6 +337,28 @@ class DefaultApiClientTest {
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
             assertEquals("MyApp/1.0", json.get("headers").get("user-agent").asText())
+        }
+
+        @Test
+        @DisplayName("a caller header in any letter case suppresses the injected User-Agent and X-Request-ID")
+        fun callerHeaderInAnyCaseWins() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .defaultHeaders(mapOf("user-agent" to "MyApp", "x-request-id" to "abc"))
+                    .build()
+            val client = DefaultApiClient(transport)
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            val headers = ObjectMapper().readTree(response.body).get("headers")
+            assertEquals("MyApp", headers.get("user-agent").asText())
+            assertEquals("abc", headers.get("x-request-id").asText())
+            assertFalse(response.body.contains("(kotlin)"), response.body)
         }
     }
 
@@ -416,30 +537,52 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("resolves an empty Location to the base URL (RFC 3986)")
-        fun resolvesEmptyLocationToBaseUrl() {
-            var secondHopUrl: String? = null
+        @DisplayName("an empty Location behaves like a missing one: the 3xx is returned with its body")
+        fun emptyLocationReturnsTheRedirect() {
             var hopCount = 0
             val engine =
-                MockEngine { req ->
+                MockEngine { _ ->
                     hopCount++
-                    if (hopCount == 1) {
-                        respond(
-                            content = "",
-                            status = HttpStatusCode.Found,
-                            headers = headersOf("Location", ""),
-                        )
-                    } else {
-                        secondHopUrl = req.url.toString()
-                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
-                    }
+                    respond(
+                        content = "{\"redirect\":\"empty\"}",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location" to listOf(""), "Content-Type" to listOf("application/json")),
+                    )
                 }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            runBlocking {
-                apiClient.sendRequest("GET", "https://h.example.com/v1/pets/1?x=1", emptyMap(), null)
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "https://h.example.com/v1/pets/1?x=1", emptyMap(), null)
+                }
+            assertEquals(302, response.statusCode)
+            assertEquals("{\"redirect\":\"empty\"}", response.body)
+            assertEquals(1, hopCount, "an empty Location must not be followed")
+        }
+
+        @Test
+        @DisplayName("a missing or unparseable Location returns the 3xx with its body")
+        fun unusableLocationReturnsTheRedirect() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .build()
+            val client = DefaultApiClient(transport)
+            val rows =
+                listOf(
+                    "/test/redirect/no-location" to "no-location",
+                    "/test/redirect/malformed-location" to "malformed",
+                )
+            for ((path, marker) in rows) {
+                val response =
+                    runBlocking {
+                        client.sendRequest("GET", "$chasmUrl$path", emptyMap(), null)
+                    }
+                assertEquals(302, response.statusCode, path)
+                assertEquals("{\"redirect\":\"$marker\"}", response.body.filterNot { it.isWhitespace() }, path)
             }
-            assertEquals("https://h.example.com/v1/pets/1?x=1", secondHopUrl)
         }
     }
 

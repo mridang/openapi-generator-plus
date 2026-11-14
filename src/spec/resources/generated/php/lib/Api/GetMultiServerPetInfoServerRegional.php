@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -18,10 +18,10 @@ namespace PetstoreClient\Api;
  */
 final class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
 {
-    private readonly GetMultiServerPetInfoServerRegion $region;
+    private readonly GetMultiServerPetInfoServerRegionalRegion $region;
 
     public function __construct(
-        GetMultiServerPetInfoServerRegion $region,
+        GetMultiServerPetInfoServerRegionalRegion $region,
     ) {
         $this->region = $region;
     }

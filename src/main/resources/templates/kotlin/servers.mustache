@@ -23,18 +23,18 @@ object Servers {
 
 {{#serverConfigs}}
     /**
-     * Server {{serverIndex}}: `{{serverUrl}}`{{#serverDescription}}
+     * Server {{serverIndex}}: `{{#lambda.kdoc}}{{{serverUrl}}}{{/lambda.kdoc}}`{{#serverDescription}}
      *
-     * {{serverDescription}}{{/serverDescription}}
+     * {{#lambda.kdoc}}{{{serverDescription}}}{{/lambda.kdoc}}{{/serverDescription}}
      */
     val SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
-        "{{{serverUrl}}}",
-        {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+        "{{#lambda.kotlinString}}{{{serverUrl}}}{{/lambda.kotlinString}}",
+        {{#serverDescription}}"{{#lambda.kotlinString}}{{{serverDescription}}}{{/lambda.kotlinString}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
         {{#hasVariables}}mapOf(
-{{#serverVariables}}            "{{varName}}" to ServerVariable(
-                "{{{varDefault}}}",
-                {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
-                {{#hasEnumValues}}listOf({{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}emptyList(){{/hasEnumValues}}){{^-last}},{{/-last}}
+{{#serverVariables}}            "{{#lambda.kotlinString}}{{{varName}}}{{/lambda.kotlinString}}" to ServerVariable(
+                "{{#lambda.kotlinString}}{{{varDefault}}}{{/lambda.kotlinString}}",
+                {{#varDescription}}"{{#lambda.kotlinString}}{{{varDescription}}}{{/lambda.kotlinString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                {{#hasEnumValues}}listOf({{#varEnumValues}}"{{#lambda.kotlinString}}{{{.}}}{{/lambda.kotlinString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}emptyList(){{/hasEnumValues}}){{^-last}},{{/-last}}
 {{/serverVariables}}        ){{/hasVariables}}{{^hasVariables}}emptyMap(){{/hasVariables}}
     )
 

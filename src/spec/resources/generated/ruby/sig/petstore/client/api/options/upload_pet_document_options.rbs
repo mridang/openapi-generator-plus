@@ -9,7 +9,11 @@ module Petstore::Client
         attr_reader file: (::IO | ::StringIO)
         attr_reader document_type: String?
         attr_reader notes: String?
-        def initialize: (file: (::IO | ::StringIO), ?document_type: String?, ?notes: String?) -> void
+        attr_reader is_primary: bool?
+        attr_reader page_count: Integer?
+        attr_reader taken_at: Time?
+        attr_reader swatch: Models::Swatch?
+        def initialize: (file: (::IO | ::StringIO), ?document_type: String?, ?notes: String?, ?is_primary: bool?, ?page_count: Integer?, ?taken_at: Time?, ?swatch: Models::Swatch?) -> void
       end
     end
   end

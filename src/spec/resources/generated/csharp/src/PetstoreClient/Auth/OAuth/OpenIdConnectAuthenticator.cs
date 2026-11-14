@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -39,6 +39,12 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     private static partial Regex MaxAgePattern();
 
     private const long DefaultMaxAgeSeconds = 86400L;
+
+    /// <summary>
+    /// Ceiling applied to a server-supplied <c>max-age</c>, in seconds (one
+    /// year), so an absurd lifetime cannot overflow the expiry arithmetic.
+    /// </summary>
+    private const long MaxDiscoveryMaxAgeSeconds = 31_536_000L;
 
     /// <summary>
     /// Create a new OpenID Connect authenticator.
@@ -174,7 +180,8 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
     /// <param name="headers">The response headers.</param>
     /// <returns>
     /// The parsed max-age in seconds, or 86400 (RFC 8414 default) if the header
-    /// is absent or does not contain a <c>max-age</c> directive.
+    /// is absent or does not contain a <c>max-age</c> directive. A larger value
+    /// is clamped to one year.
     /// </returns>
     private static long ParseMaxAge(IReadOnlyDictionary<string, string> headers)
     {
@@ -183,9 +190,20 @@ public partial class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareA
             if (string.Equals(entry.Key, "Cache-Control", StringComparison.OrdinalIgnoreCase))
             {
                 Match match = MaxAgePattern().Match(entry.Value);
-                return match.Success && long.TryParse(match.Groups[1].Value, out long seconds)
-                    ? seconds
-                    : DefaultMaxAgeSeconds;
+                if (!match.Success)
+                {
+                    return DefaultMaxAgeSeconds;
+                }
+                /* The pattern matched only digits, so a failed parse is an
+                 * overflow: that value is beyond the ceiling as well. */
+                return long.TryParse(
+                    match.Groups[1].Value,
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out long seconds
+                )
+                    ? Math.Min(seconds, MaxDiscoveryMaxAgeSeconds)
+                    : MaxDiscoveryMaxAgeSeconds;
             }
         }
         return DefaultMaxAgeSeconds;

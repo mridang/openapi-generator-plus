@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -39,7 +39,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         // Chasm echo envelope: presence of "method" field confirms a JSON response body.
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -107,7 +107,49 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CustomCaCertStillRejectsHostnameMismatch()
+    {
+        /* The mock certificate is issued by the pinned CA but names no IP
+           address, so reaching the server by its IP must fail the host name
+           check even though the chain is trusted. */
+        var caCertPath = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "Test",
+            "Resources",
+            "certs",
+            "ca.pem"
+        );
+        var httpsBase = new Uri(_fixture.HttpsBaseUrl);
+        System.Net.IPAddress address = System.Net.IPAddress.TryParse(httpsBase.Host, out var parsed)
+            ? parsed
+            : (
+                await System.Net.Dns.GetHostAddressesAsync(
+                    httpsBase.Host,
+                    TestContext.Current.CancellationToken
+                )
+            )[0];
+        string host =
+            address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
+                ? "[" + address + "]"
+                : address.ToString();
+
+        var transport = TransportOptions.Builder().VerifySsl(true).CaCertPath(caCertPath).Build();
+
+        var client = new DefaultApiClient(transport);
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("https://" + host + ":" + httpsBase.Port + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(0, ex.StatusCode);
     }
 
     [Fact]
@@ -124,7 +166,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -177,7 +219,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     // -- Request timeout --
@@ -352,7 +394,7 @@ public class DefaultApiClientTest
 
         Assert.Equal(200, response.StatusCode);
         // Chasm follows the redirect to /test/echo, whose envelope contains "method".
-        Assert.Contains("\"method\"", response.Body);
+        Assert.Contains("\"method\"", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -593,7 +635,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -608,7 +650,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     [Fact(Skip = "zstd is not supported by the platform: .NET has no built-in zstd decoder")]
@@ -623,7 +665,7 @@ public class DefaultApiClientTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("userId", response.Body);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
     }
 
     /*
@@ -771,7 +813,10 @@ public class DefaultApiClientTest
         )
         {
             var path = request.RequestUri!.AbsolutePath;
-            var remaining = int.Parse(path.Substring(path.LastIndexOf('/') + 1));
+            var remaining = int.Parse(
+                path.AsSpan(path.LastIndexOf('/') + 1),
+                System.Globalization.CultureInfo.InvariantCulture
+            );
             if (remaining <= 0)
             {
                 return Task.FromResult(

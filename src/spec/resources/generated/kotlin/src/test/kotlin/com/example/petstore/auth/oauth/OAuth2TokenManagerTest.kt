@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -137,6 +137,68 @@ class OAuth2TokenManagerTest {
         }
 
         assertEquals("ref1", manager.getRefreshToken())
+    }
+
+    @Test
+    fun refreshIsSentToTheRefreshUrlAndARefreshGrantIsPostedOnce() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials", "client_id" to "cid")
+
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        val token =
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    params,
+                    emptyMap(),
+                    "https://auth.example.com/refresh",
+                )
+            }
+
+        assertEquals("tok2", token)
+        assertEquals("https://auth.example.com/refresh", client.lastUrl)
+        assertEquals("grant_type=refresh_token&refresh_token=ref1&client_id=cid", client.lastBody)
+
+        val single = FakeApiClient()
+        single.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val other = OAuth2TokenManager()
+        other.apiClient = single
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking {
+                other.getAccessToken(
+                    "https://auth.example.com/refresh",
+                    mapOf("grant_type" to "refresh_token", "refresh_token" to "r"),
+                )
+            }
+        }
+        assertEquals(1, single.bodies.size)
+    }
+
+    @Test
+    fun exchangeBypassesTheCacheAndRestoresTheSessionOnFailure() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+        client.enqueue("""{"error":"invalid_grant"}""", statusCode = 400)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val url = "https://auth.example.com/token"
+
+        runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "a")) }
+        val second = runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "b")) }
+        assertEquals("tok2", second)
+        assertEquals("grant_type=authorization_code&code=b", client.lastBody)
+        assertNull(manager.getRefreshToken())
+
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking { manager.exchange(url, mapOf("grant_type" to "authorization_code", "code" to "bad")) }
+        }
+        assertEquals("tok2", runBlocking { manager.getAccessToken(url, mapOf("grant_type" to "authorization_code")) })
+        assertEquals(3, client.bodies.size)
     }
 
     @Test
@@ -368,6 +430,43 @@ class OAuth2TokenManagerTest {
             second,
             "float expires_in must floor to a valid cached expiry",
         )
+    }
+
+    @Test
+    fun hugeExpiresInIsClampedAndTheTokenStaysCached() {
+        for (expiresIn in listOf("1e20", "9223372036854775807", "\"99999999999999999999\"")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"big1","expires_in":$expiresIn}""")
+            client.enqueue("""{"access_token":"big2","expires_in":3600}""")
+
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+
+            val params = mapOf("grant_type" to "client_credentials")
+            val tokenUrl = "https://auth.example.com/token"
+
+            val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+            val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
+
+            assertEquals("big1", first, expiresIn)
+            assertEquals("big1", second, "expires_in $expiresIn must be clamped and cached, not overflow")
+        }
+    }
+
+    @Test
+    fun nonFiniteExpiresInMarksTheTokenStale() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")
+        client.enqueue("""{"access_token":"inf2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        assertEquals("inf1", runBlocking { manager.getAccessToken(tokenUrl, params) })
+        assertEquals("inf2", runBlocking { manager.getAccessToken(tokenUrl, params) })
     }
 
     @Test

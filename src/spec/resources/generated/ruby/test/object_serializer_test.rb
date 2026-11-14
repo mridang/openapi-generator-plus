@@ -129,6 +129,72 @@ describe Petstore::Client::ObjectSerializer do
       # digits, so equal rational milliseconds proves a lossless round-trip.
       _((round_tripped.taken_at.to_r * 1000).round).must_equal((original.to_r * 1000).round)
     end
+
+    ['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000', '2024-01-01'].each do |text|
+      it "rejects the non-RFC 3339 date-time #{text.inspect}" do
+        _ { Petstore::Client::ObjectSerializer.deserialize(JSON.generate(text), 'Time') }
+          .must_raise(Petstore::Client::Errors::SerializationError)
+      end
+    end
+
+    it 'rejects a bare epoch number as a date-time' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('1700000000', 'Time') }
+        .must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
+    it 'accepts an RFC 3339 date-time with Z or a numeric offset and any fraction' do
+      utc = Petstore::Client::ObjectSerializer.deserialize('"2024-01-01T10:00:00Z"', 'Time')
+      _(utc).must_equal(Time.utc(2024, 1, 1, 10, 0, 0))
+      offset = Petstore::Client::ObjectSerializer.deserialize('"2024-01-01T10:00:00.123456789+05:30"', 'Time')
+      _(offset.utc_offset).must_equal(19_800)
+      _(offset.nsec).must_equal(123_456_789)
+    end
+  end
+
+  describe '.encode_base64_param' do
+    it 'encodes format: byte parameter bytes as padded standard base64' do
+      _(Petstore::Client::ObjectSerializer.encode_base64_param('hi')).must_equal('aGk=')
+      _(Petstore::Client::ObjectSerializer.encode_base64_param("\xFB\xFF".b)).must_equal('+/8=')
+      _(Petstore::Client::ObjectSerializer.encode_base64_param(nil)).must_be_nil
+    end
+  end
+
+  describe 'null model elements in containers' do
+    it 'rejects a null element in an array of models' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('[null,{"name":"a","photoUrls":[]}]', 'Array<Pet>') }
+        .must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
+    it 'rejects a null value in a map of models' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"a":null,"b":{"name":"a","photoUrls":[]}}', 'Hash<String, Pet>') }
+        .must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
+    it 'keeps a null element in an array of strings' do
+      _(Petstore::Client::ObjectSerializer.deserialize('[null,"a"]', 'Array<String>')).must_equal([nil, 'a'])
+    end
+  end
+
+  describe 'format: uri validation' do
+    def decode_uri(text)
+      json = JSON.generate({ 'name' => 'n', 'photoUrls' => [], 'homepageUrl' => text, 'thumbnailRef' => '/assets/thumb.png' })
+      Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
+    end
+
+    ['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/1'].each do |text|
+      it "accepts and re-emits the absolute URI #{text.inspect}" do
+        decoded = decode_uri(text)
+        _(decoded.homepage_url).must_equal(text)
+        _(decoded.thumbnail_ref).must_equal('/assets/thumb.png')
+        _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(decoded))['homepageUrl']).must_equal(text)
+      end
+    end
+
+    ['/relative', 'not a uri', ''].each do |text|
+      it "rejects #{text.inspect} as a format: uri value" do
+        _ { decode_uri(text) }.must_raise(Petstore::Client::Errors::SerializationError)
+      end
+    end
   end
 
   describe 'NonAsciiSerialization' do
@@ -475,6 +541,29 @@ describe Petstore::Client::ObjectSerializer do
       _(from_null.retries).must_equal(7)
     end
 
+    # A keyword that Ruby accepts as a method name stays plain (`and`,
+    # `return`); only `class`, which would shadow Object#class, and the
+    # literals keep the underscore. The wire keys are unchanged either way.
+    it 'keeps plain keyword property names and the wire keys of EdgeCases' do
+      json = '{"and":true,"or":false,"not":true,"class":"c","return":"r","null":"n","true":true}'
+      edge = Petstore::Client::ObjectSerializer.deserialize(json, 'EdgeCases')
+      _(edge.and).must_equal(true)
+      _(edge.or).must_equal(false)
+      _(edge.not).must_equal(true)
+      _(edge.return).must_equal('r')
+      _(edge._class).must_equal('c')
+      _(edge.null).must_equal('n')
+      _(edge._true).must_equal(true)
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(edge))).must_equal(JSON.parse(json))
+    end
+
+    # Spec prose in a model's externalDocs reaches the comment as written:
+    # no HTML entity and no literal escape.
+    it 'documents the Account externalDocs description verbatim' do
+      path = String(Object.const_source_location(Petstore::Client::Models::Account.name)&.first)
+      _(File.read(path)).must_include(%q(# @see https://example.com/docs/account Account <docs> & "notes" it's here))
+    end
+
     # Self-referential model (TreeNode has a `child` of its own type). A
     # nested payload must decode every level into a typed TreeNode, with the
     # absent innermost `child` left nil rather than wrapped in an empty model.
@@ -774,6 +863,54 @@ describe Petstore::Client::ObjectSerializer do
       model = Petstore::Client::Models::TestFormatModel.new(identifier: uuid)
       json = Petstore::Client::ObjectSerializer.serialize(model)
       _(JSON.parse(json)['identifier']).must_equal(uuid)
+    end
+  end
+
+  describe 'format: uuid canonical form' do
+    it 'writes an uppercase uuid in lowercase hyphenated form' do
+      order = Petstore::Client::Models::Order.new(tracking_id: 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F')
+      _(Petstore::Client::ObjectSerializer.serialize(order)).must_include('"trackingId":"e621e1f8-c36c-495a-93fc-0c247a3e6e5f"')
+    end
+
+    it 'decodes an uppercase uuid to its lowercase form' do
+      order = Petstore::Client::ObjectSerializer.deserialize(
+        '{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}', 'Petstore::Client::Models::Order'
+      )
+      _(order.tracking_id).must_equal('e621e1f8-c36c-495a-93fc-0c247a3e6e5f')
+    end
+
+    it 'rejects a malformed uuid on decode' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', 'Petstore::Client::Models::Order')
+      end
+      _(err.message).must_equal('Invalid UUID for format: uuid: "not-a-uuid"')
+    end
+  end
+
+  describe 'uniqueItems arrays of scalars' do
+    it 'writes the elements in ascending order whatever the insertion order' do
+      2.times do
+        item = Petstore::Client::Models::Pet.new(name: 'n', photo_urls: Set['c', 'a', 'b'])
+        _(Petstore::Client::ObjectSerializer.serialize(item)).must_include('"photoUrls":["a","b","c"]')
+      end
+    end
+  end
+
+  describe 'required and nullable property' do
+    it 'decodes an explicit null to nil' do
+      model = Petstore::Client::ObjectSerializer.deserialize('{"note":null}', 'Petstore::Client::Models::RequiredNullable')
+      _(model.note).must_be_nil
+    end
+
+    it 'rejects a payload without the key' do
+      assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{}', 'Petstore::Client::Models::RequiredNullable')
+      end
+    end
+
+    it 'writes a nil value as an explicit null' do
+      model = Petstore::Client::Models::RequiredNullable.new(note: nil)
+      _(Petstore::Client::ObjectSerializer.serialize(model)).must_equal('{"note":null}')
     end
   end
 

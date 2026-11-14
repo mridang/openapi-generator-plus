@@ -10,7 +10,13 @@ module Petstore::Client
         attr_reader sizes: Array[String]?
         attr_reader filter: String?
         attr_reader revision: String?
-        def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?, ?revision: String?) -> void
+        attr_reader criteria: Models::PetCriteria?
+        attr_reader criteria_csv: Models::PetCriteria?
+        attr_reader criteria_deep: Models::PetCriteria?
+        attr_reader fingerprint: String?
+        attr_reader x_criteria: Models::PetCriteria?
+        attr_reader x_fingerprint: String?
+        def initialize: (?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?, ?revision: String?, ?criteria: Models::PetCriteria?, ?criteria_csv: Models::PetCriteria?, ?criteria_deep: Models::PetCriteria?, ?fingerprint: String?, ?x_criteria: Models::PetCriteria?, ?x_fingerprint: String?) -> void
       end
     end
   end

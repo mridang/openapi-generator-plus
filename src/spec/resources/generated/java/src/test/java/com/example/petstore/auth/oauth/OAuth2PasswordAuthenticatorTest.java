@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -143,6 +144,154 @@ class OAuth2PasswordAuthenticatorTest {
     assertNotNull(body);
     assertTrue(body.contains("grant_type=refresh_token"));
     assertTrue(body.contains("refresh_token=ref1"));
+  }
+
+  @Test
+  void sendsThePasswordGrantFieldsInTheCanonicalOrder() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2PasswordAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+
+    assertEquals(
+        "grant_type=password&username=testuser&password=testpass"
+            + "&client_id=my-client-id&client_secret=my-client-secret&scope=read+write",
+        capturedBody.get());
+  }
+
+  @Test
+  void refreshInBodyModeCarriesTheClientCredentials() {
+    List<String> urls = new java.util.ArrayList<>();
+    List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          bodies.add(body != null ? body.toString() : "");
+          if (urls.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2PasswordAuthenticator auth =
+        new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/token",
+            "https://auth.example.com/oauth/refresh",
+            "testuser",
+            "testpass",
+            List.of("read"));
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+    Map<String, String> headers = auth.getAuthHeaders();
+
+    assertEquals("https://auth.example.com/oauth/refresh", urls.get(1));
+    assertEquals(
+        "grant_type=refresh_token&refresh_token=ref1"
+            + "&client_id=my-client-id&client_secret=my-client-secret",
+        bodies.get(1));
+    assertEquals("Bearer tok2", headers.get("Authorization"));
+  }
+
+  @Test
+  void refreshInBasicModeCarriesTheBasicHeaderAndNoClientId() {
+    List<String> bodies = new java.util.ArrayList<>();
+    List<Map<String, String>> sentHeaders = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          sentHeaders.add(Map.copyOf(headers));
+          if (bodies.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}",
+                Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok2\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2PasswordAuthenticator auth =
+        new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/token",
+            null,
+            "testuser",
+            "testpass",
+            List.of("read"),
+            ClientAuthMethod.BASIC);
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+    auth.getAuthHeaders();
+
+    assertEquals("grant_type=refresh_token&refresh_token=ref1", bodies.get(1));
+    String expectedBasic =
+        "Basic "
+            + java.util.Base64.getEncoder()
+                .encodeToString(
+                    "my-client-id:my-client-secret"
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    assertEquals(expectedBasic, sentHeaders.get(1).get("Authorization"));
+  }
+
+  @Test
+  void rejectedRefreshReRunsThePasswordGrant() {
+    List<String> urls = new java.util.ArrayList<>();
+    List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          urls.add(url);
+          bodies.add(body != null ? body.toString() : "");
+          if (urls.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}",
+                Map.of());
+          }
+          if (urls.size() == 2) {
+            return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+          }
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"tok3\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2PasswordAuthenticator auth =
+        new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/token",
+            "https://auth.example.com/oauth/refresh",
+            "testuser",
+            "testpass",
+            List.of("read"));
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+    Map<String, String> headers = auth.getAuthHeaders();
+
+    assertEquals(
+        List.of(
+            "https://auth.example.com/token",
+            "https://auth.example.com/oauth/refresh",
+            "https://auth.example.com/token"),
+        urls);
+    assertTrue(bodies.get(2).startsWith("grant_type=password&"), bodies.get(2));
+    assertEquals("Bearer tok3", headers.get("Authorization"));
   }
 
   @Test

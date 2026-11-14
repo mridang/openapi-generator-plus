@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -33,19 +33,19 @@ class EdgeCases
     public ?string $permissionsNote = null;
 
     #[SerializedName('and')]
-    public ?bool $and_ = null;
+    public ?bool $and = null;
 
     #[SerializedName('or')]
-    public ?bool $or_ = null;
+    public ?bool $or = null;
 
     #[SerializedName('not')]
     public ?bool $not = null;
 
     #[SerializedName('class')]
-    public ?string $class_ = null;
+    public ?string $class = null;
 
     #[SerializedName('return')]
-    public ?string $return_ = null;
+    public ?string $return = null;
 
     /**
      * Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
@@ -59,29 +59,79 @@ class EdgeCases
     #[SerializedName('expiresAt')]
     public ?\DateTime $expiresAt = null;
 
+    #[SerializedName('2fa')]
+    public ?bool $n2fa = null;
+
+    #[SerializedName('separator')]
+    public ?\PetstoreClient\Models\Separator $separator = null;
+
+    #[SerializedName('null')]
+    public ?string $null = null;
+
+    #[SerializedName('true')]
+    public ?bool $true = null;
+
+    #[SerializedName('false')]
+    public ?bool $false = null;
+
+    #[SerializedName('lastError')]
+    public ?\PetstoreClient\Models\Error $lastError = null;
+
+    #[SerializedName('outcome')]
+    public ?\PetstoreClient\Models\Result $outcome = null;
+
+    #[SerializedName('cutoff')]
+    public ?\DateTimeImmutable $cutoff = null;
+
+    #[SerializedName('phase')]
+    public ?EdgeCasesPhaseEnum $phase = null;
+
+    #[SerializedName('slug')]
+    public ?string $slug = null;
+
     /**
      */
     public function __construct(
         mixed $freeFormAny = null,
         ?\PetstoreClient\Models\Color $favoriteColor = null,
         ?string $permissionsNote = null,
-        ?bool $and_ = null,
-        ?bool $or_ = null,
+        ?bool $and = null,
+        ?bool $or = null,
         ?bool $not = null,
-        ?string $class_ = null,
-        ?string $return_ = null,
+        ?string $class = null,
+        ?string $return = null,
         ?\DateInterval $retryAfter = null,
         ?\DateTime $expiresAt = null,
+        ?bool $n2fa = null,
+        ?\PetstoreClient\Models\Separator $separator = null,
+        ?string $null = null,
+        ?bool $true = null,
+        ?bool $false = null,
+        ?\PetstoreClient\Models\Error $lastError = null,
+        ?\PetstoreClient\Models\Result $outcome = null,
+        ?\DateTimeImmutable $cutoff = null,
+        ?EdgeCasesPhaseEnum $phase = null,
+        ?string $slug = null,
     ) {
         $this->freeFormAny = $freeFormAny;
         $this->favoriteColor = $favoriteColor;
         $this->permissionsNote = $permissionsNote;
-        $this->and_ = $and_;
-        $this->or_ = $or_;
+        $this->and = $and;
+        $this->or = $or;
         $this->not = $not;
-        $this->class_ = $class_;
-        $this->return_ = $return_;
+        $this->class = $class;
+        $this->return = $return;
         $this->retryAfter = $retryAfter;
         $this->expiresAt = $expiresAt;
+        $this->n2fa = $n2fa;
+        $this->separator = $separator;
+        $this->null = $null;
+        $this->true = $true;
+        $this->false = $false;
+        $this->lastError = $lastError;
+        $this->outcome = $outcome;
+        $this->cutoff = $cutoff;
+        $this->phase = $phase;
+        $this->slug = $slug;
     }
 }

@@ -41,7 +41,8 @@ defmodule PetstoreClient.MixProject do
 
   defp package do
     [
-      description: "A simplified Pet Store API for integration testing.",
+      description:
+        "A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and \#{x}.",
       licenses: ["MIT"]
     ]
   end

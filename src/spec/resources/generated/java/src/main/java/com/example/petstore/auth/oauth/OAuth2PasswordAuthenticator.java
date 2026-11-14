@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,6 +13,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -148,34 +150,23 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
 
   @Override
   public Map<String, String> getAuthHeaders() {
-    Map<String, String> params = new HashMap<>();
-    String currentRefreshToken = tokenManager.getRefreshToken();
     /*
-     * RFC 6749 §4.3.2: the initial password grant goes to the token
-     * endpoint; only the refresh grant (§6) goes to the refresh endpoint.
-     * These differ when the caller configures a distinct refreshUrl.
+     * RFC 6749 §4.3.2: the password grant goes to the token endpoint. Once
+     * a refresh token is held, the token manager POSTs the refresh grant
+     * (§6) to the refresh endpoint, authenticated like this grant (§3.2.1:
+     * client_id/client_secret in BODY mode, the Basic header otherwise),
+     * and re-runs this password grant if the refresh is rejected.
      */
-    String endpoint;
-    if (currentRefreshToken != null) {
-      /* RFC 6749 §6: the refresh grant carries only grant_type and
-       * refresh_token. client_id/client_secret and scope belong to the
-       * initial password grant, not the refresh — matching the auth-code
-       * flow's refresh path and the other SDKs. */
-      endpoint = refreshUrl;
-      params.put("grant_type", "refresh_token");
-      params.put("refresh_token", currentRefreshToken);
-    } else {
-      endpoint = tokenUrl;
-      params.put("grant_type", "password");
-      params.put("username", username);
-      params.put("password", password);
-      if (clientAuthMethod != ClientAuthMethod.BASIC) {
-        params.put("client_id", clientId);
-        params.put("client_secret", clientSecret);
-      }
-      if (!scopes.isEmpty()) {
-        params.put("scope", String.join(" ", scopes));
-      }
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("grant_type", "password");
+    params.put("username", username);
+    params.put("password", password);
+    if (clientAuthMethod != ClientAuthMethod.BASIC) {
+      params.put("client_id", clientId);
+      params.put("client_secret", clientSecret);
+    }
+    if (!scopes.isEmpty()) {
+      params.put("scope", String.join(" ", scopes));
     }
     Map<String, String> extraHeaders = new HashMap<>();
     if (clientAuthMethod == ClientAuthMethod.BASIC) {
@@ -201,7 +192,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
                       .getBytes(java.nio.charset.StandardCharsets.UTF_8));
       extraHeaders.put("Authorization", "Basic " + credentials);
     }
-    String token = tokenManager.getAccessToken(endpoint, params, extraHeaders);
+    String token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders, refreshUrl);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 

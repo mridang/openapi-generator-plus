@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -293,7 +293,7 @@ public class StoreApiTest
             new GetBySwatchOptions { QuerySwatch = Swatch.Green, PreferredSwatch = Swatch.Blue }
         );
 
-        Assert.EndsWith("/store/by-swatch/red", client.Url!.AbsolutePath);
+        Assert.EndsWith("/store/by-swatch/red", client.Url!.AbsolutePath, StringComparison.Ordinal);
         Assert.Equal("?querySwatch=green", client.Url.Query);
         Assert.Equal("blue", client.Headers["Preferred-Swatch"]);
     }
@@ -306,7 +306,11 @@ public class StoreApiTest
 
         await api.GetBySwatchAsync(Swatch.Blue);
 
-        Assert.EndsWith("/store/by-swatch/blue", client.Url!.AbsolutePath);
+        Assert.EndsWith(
+            "/store/by-swatch/blue",
+            client.Url!.AbsolutePath,
+            StringComparison.Ordinal
+        );
         Assert.Equal("", client.Url.Query);
         Assert.False(client.Headers.ContainsKey("Preferred-Swatch"));
     }
@@ -402,5 +406,85 @@ public class StoreApiTest
                 )
             );
         }
+    }
+
+    private sealed class ListCapturingApiClient : IApiClient
+    {
+        public Uri? Url { get; private set; }
+        public int CallCount { get; private set; }
+
+        public Task<PetstoreClient.ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            CallCount++;
+            Url = url;
+            return Task.FromResult(
+                new PetstoreClient.ApiHttpResponse(
+                    200,
+                    "[]",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
+        }
+    }
+
+    [Fact]
+    public async Task SearchStoreContentQueryUsesTheSdkSerializer()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions { Q = new PhotoMetadata { Caption = "a/b<\u00e9" } }
+        );
+
+        Assert.Equal("?q=%7B%22caption%22%3A%22a%2Fb%3C%C3%A9%22%7D", client.Url!.Query);
+    }
+
+    [Fact]
+    public async Task SearchStoreContentQueryKeepsWireDateTimeForm()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.SearchStoreAsync(
+            new SearchStoreOptions
+            {
+                Q = new PhotoMetadata
+                {
+                    TakenAt = new DateTimeOffset(2024, 1, 2, 3, 4, 5, TimeSpan.Zero),
+                },
+            }
+        );
+
+        Assert.Equal(
+            "{\"takenAt\":\"2024-01-02T03:04:05.000+00:00\"}",
+            Uri.UnescapeDataString(client.Url!.Query["?q=".Length..])
+        );
+    }
+
+    [Fact]
+    public async Task SearchStoreUnserializableContentQueryRaisesSerializationExceptionWithoutARequest()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.SearchStoreAsync(
+                new SearchStoreOptions
+                {
+                    Q = new PhotoMetadata
+                    {
+                        Location = new PhotoMetadataLocation { Lat = double.NaN },
+                    },
+                }
+            )
+        );
+
+        Assert.Equal(0, client.CallCount);
     }
 }

@@ -45,6 +45,25 @@ test('builds authorization url from discovery', function (): void {
     expect($url)->toContain('scope=openid%20profile');
 });
 
+test('empty state is omitted', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        ['openid', 'profile']
+    );
+    $authenticator->setApiClient($client);
+
+    $url = $authenticator->buildAuthorizationUrl('');
+
+    expect($url)->not->toContain('state');
+    expect($url)->toBe($authenticator->buildAuthorizationUrl());
+});
+
 test('obtains token after code exchange', function (): void {
     $client = new MockTokenApiClient();
     // Discovery document

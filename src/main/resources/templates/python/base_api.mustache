@@ -4,6 +4,8 @@ import asyncio
 from typing import Any, Dict, List, Optional, TypeVar, Union
 from urllib.parse import quote, urlencode
 
+from pydantic import BaseModel
+
 from ..api_client import ApiClient
 from ..api_http_response import ApiHttpResponse
 from ..api_result import ApiResult
@@ -14,6 +16,7 @@ from ..value_serializer import ValueSerializer, AllowReservedValue
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
 from ..errors import ApiException
+from ..errors.serialization_exception import SerializationException
 from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')
@@ -126,6 +129,7 @@ class BaseApi:
         content_type: Optional[str],
         return_type: Optional[str],
         auth: Union[Authenticator, '_NoAuth', None] = None,
+        raw_body: bool = False,
     ) -> 'ApiResult[Any]':
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -275,6 +279,12 @@ class BaseApi:
         if body is not None:
             if content_type == 'multipart/form-data':
                 serialized_body = body
+            elif raw_body:
+                # The operation's body is format: binary. Whatever declared
+                # Content-Type the caller selected (application/json included),
+                # the caller's bytes / stream go out verbatim; the selector only
+                # changes the header, it never re-encodes the payload.
+                serialized_body = body
             elif content_type is not None and (
                 content_type.startswith('image/') or content_type == 'application/octet-stream'
             ):
@@ -310,10 +320,20 @@ class BaseApi:
                 # inside an array are skipped. urlencode(..., doseq=True)
                 # then percent-encodes with `quote_plus`, so a space becomes
                 # `+` (HTML form encoding), not `%20`.
+                # A model, map or array of objects has no defined form encoding
+                # (no OAS encoding style is emitted), so it is rejected rather
+                # than sent as its Python repr.
                 form_pairs: List[tuple[str, str]] = []
                 for form_key, form_value in body.items():
                     if form_value is None:
                         continue
+                    if isinstance(form_value, (BaseModel, dict)) or (
+                        isinstance(form_value, list)
+                        and any(isinstance(item, (BaseModel, dict, list)) for item in form_value)
+                    ):
+                        raise SerializationException(
+                            f'form-urlencoded field {form_key} must be a scalar or array of scalars'
+                        )
                     if isinstance(form_value, list):
                         for form_item in form_value:
                             if form_item is None:

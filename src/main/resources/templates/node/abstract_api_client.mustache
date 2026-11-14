@@ -9,6 +9,7 @@ import { NetworkTimeoutError } from './errors/network-timeout-error{{importFileE
 import type { ApiHttpResponse } from './api-http-response{{importFileExtension}}';
 import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
 import { TransportOptions } from './transport-options{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
 
 /**
  * Header names that MUST be stripped when following a cross-origin
@@ -222,10 +223,17 @@ export abstract class AbstractApiClient implements ApiClient {
       ...headers
     };
 
-    if (this.transportOptions.userAgent != null && mergedHeaders['User-Agent'] === undefined) {
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header in any case, even with an empty value, wins and is left exactly
+     * as written; nothing is injected next to it. */
+    const hasHeader = (name: string): boolean => {
+      const wanted = name.toLowerCase();
+      return Object.keys(mergedHeaders).some((key) => key.toLowerCase() === wanted);
+    };
+    if (this.transportOptions.userAgent != null && !hasHeader('User-Agent')) {
       mergedHeaders['User-Agent'] = this.transportOptions.userAgent;
     }
-    if (this.transportOptions.injectRequestId && !mergedHeaders['X-Request-ID']) {
+    if (this.transportOptions.injectRequestId && !hasHeader('X-Request-ID')) {
       mergedHeaders['X-Request-ID'] = globalThis.crypto.randomUUID();
     }
 
@@ -295,13 +303,22 @@ export abstract class AbstractApiClient implements ApiClient {
         ) {
           const location = response.headers.get('location');
           if (location == null || location.length === 0) break;
+          /* An unusable Location (one the RFC 3986 resolver rejects, such as
+           * `http://[bad`) is treated exactly like a missing one: stop and
+           * return the 3xx untouched, body included. It is resolved before
+           * the body is cancelled for that reason. */
+          let nextParsed: URL;
+          try {
+            nextParsed = new URL(location, currentUrl);
+          } catch {
+            break;
+          }
+          const nextUrl = nextParsed.toString();
           /* The 3xx body is never read. Cancel it before anything below can
            * throw or replace `response`, so undici returns the connection to
            * the pool instead of holding it until the body is garbage
            * collected. */
           await AbstractApiClient.discardBody(response);
-          const nextUrl = new URL(location, currentUrl).toString();
-          const nextParsed = new URL(nextUrl);
           /* T-D3: a Location pointing at a non-HTTP(S) scheme
            * (file:, javascript:, data:, ...) must be refused loudly,
            * never silently surfaced as the 3xx response. Throw a typed
@@ -613,7 +630,18 @@ export abstract class AbstractApiClient implements ApiClient {
       const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
     }
-    if (typeof value === 'object' && value !== null) {
+    /* A date, date-time, time or duration is a primitive in the schema, so
+     * it is a plain text part in its canonical stringify form; only a
+     * model, map or array is a JSON part. */
+    const isScalarObject =
+      value instanceof Date ||
+      value instanceof Temporal.PlainDate ||
+      value instanceof Temporal.PlainTime ||
+      value instanceof Temporal.PlainDateTime ||
+      value instanceof Temporal.Instant ||
+      value instanceof Temporal.ZonedDateTime ||
+      value instanceof Temporal.Duration;
+    if (typeof value === 'object' && value !== null && !isScalarObject) {
       AbstractApiClient.assertNoControlChars(name, 'multipart field name');
       const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       /*
@@ -635,7 +663,7 @@ export abstract class AbstractApiClient implements ApiClient {
     AbstractApiClient.assertNoControlChars(name, 'multipart field name');
     const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${String(value)}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${ObjectSerializer.stringify(value)}\r\n`,
       'utf-8'
     );
   }
@@ -756,7 +784,14 @@ export abstract class AbstractApiClient implements ApiClient {
       .replace(/"/g, '\\"');
     let header = `form-data; name="${escapedName}"; filename="${escapedFilename}"`;
     if (!isAscii) {
-      header += `; filename*=UTF-8''${encodeURIComponent(filename)}`;
+      /* RFC 5987 ext-value: percent-encode every UTF-8 byte except the
+       * RFC 3986 unreserved set A-Z a-z 0-9 - . _ ~ (encodeURIComponent also
+       * keeps ! ' ( ) *, and ' is the ext-value delimiter). */
+      const encoded = encodeURIComponent(filename).replace(
+        /[!'()*]/g,
+        (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+      );
+      header += `; filename*=UTF-8''${encoded}`;
     }
     return header;
   }

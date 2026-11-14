@@ -3,6 +3,8 @@
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
+from pydantic import BaseModel
+
 from .object_serializer import ObjectSerializer
 
 
@@ -121,12 +123,15 @@ class ValueSerializer:
         """Percent-encode a query value while leaving RFC 3986 reserved
         characters literal (OAS ``allowReserved: true``).
 
-        Everything that is not RFC 3986 reserved or unreserved -- spaces,
-        control characters, non-ASCII -- is still percent-encoded, so the
-        result is always a valid URL query segment. Only the reserved set
-        ``: / ? # [ ] @ ! $ & ' ( ) * + , ; =`` is left literal. A space
-        becomes ``%20`` (never ``+``), so this uses :func:`quote`, not
-        :func:`quote_plus`.
+        Only the reserved characters RFC 3986 section 3.4 permits inside a
+        query component, ``: / ? @ ! $ & ' ( ) * + , ; =``, are left literal.
+        ``#`` is always encoded (``%23``): left literal it would start the URL
+        fragment and silently truncate the query. ``[`` and ``]`` are always
+        encoded (``%5B`` / ``%5D``): they are not query-legal, and urllib3
+        would rewrite them to those bytes anyway, so the encoder output is
+        exactly what reaches the wire. Spaces, control characters and
+        non-ASCII are percent-encoded too. A space becomes ``%20`` (never
+        ``+``), so this uses :func:`quote`, not :func:`quote_plus`.
 
         Args:
             value: The raw value to encode.
@@ -134,7 +139,7 @@ class ValueSerializer:
         Returns:
             The encoded value with reserved characters preserved.
         """
-        return quote(value, safe="/?#[]@!$&'()*+,;=:")
+        return quote(value, safe="/?@!$&'()*+,;=:")
 
     @classmethod
     def serialize_styled(
@@ -171,6 +176,11 @@ class ValueSerializer:
         # case that slips through it.
         if location == 'path' and isinstance(value, str) and value == '':
             raise ValueError(f"Path parameter '{param_name}' must not be empty")
+        # A '.' or '..' segment is path navigation (RFC 3986 section 5.2.4):
+        # urllib3 collapses it, silently re-routing the request to a different
+        # endpoint, so it is rejected before dispatch like the empty value.
+        if location == 'path' and isinstance(value, str) and value in ('.', '..'):
+            raise ValueError(f"Path parameter '{param_name}' must not be '.' or '..'")
 
         if style is None or style == '':
             return cls.serialize(value, location, schema_type, collection_format)
@@ -249,7 +259,7 @@ class ValueSerializer:
     def serialize_deep_object(
         cls,
         param_name: str,
-        value: Optional[Dict[str, Any]],
+        value: Union[Dict[str, Any], BaseModel, None],
     ) -> Dict[str, str]:
         """Serialize a deepObject-style query parameter.
 
@@ -258,7 +268,8 @@ class ValueSerializer:
 
         Args:
             param_name: The parameter name (e.g. 'filter').
-            value: The dict value to serialize.
+            value: The dict or model value to serialize. A model contributes
+                its set fields under their wire (alias) names.
 
         Returns:
             A dict of expanded keys to serialized values.
@@ -266,7 +277,12 @@ class ValueSerializer:
         result: Dict[str, str] = {}
         if value is None:
             return result
-        for key, val in value.items():
+        fields = (
+            value.model_dump(by_alias=True, exclude_none=True)
+            if isinstance(value, BaseModel)
+            else value
+        )
+        for key, val in fields.items():
             result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
         return result
 

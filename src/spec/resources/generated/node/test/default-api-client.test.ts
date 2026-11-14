@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -438,6 +438,29 @@ describe("DefaultApiClient", () => {
 
       expect(response.statusCode).toBe(302);
     });
+
+    test.each([
+      ["no-location", '{"redirect":"no-location"}'],
+      ["malformed-location", '{"redirect":"malformed"}'],
+    ])(
+      "a 302 with an unusable Location (%s) is returned untouched",
+      async (path, body) => {
+        const chasmUrl = process.env["CHASM_HTTP_URL"]!;
+        const client = new DefaultApiClient(
+          TransportOptions.builder().followRedirects(true).build(),
+        );
+
+        const response = await client.sendRequest(
+          "GET",
+          `${chasmUrl}/test/redirect/${path}`,
+          {},
+          null,
+        );
+
+        expect(response.statusCode).toBe(302);
+        expect(JSON.parse(response.body as string)).toEqual(JSON.parse(body));
+      },
+    );
 
     test("303 switches to GET and drops body (Gap T3)", async () => {
       const chasmUrl = process.env["CHASM_HTTP_URL"]!;

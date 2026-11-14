@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -68,7 +68,7 @@ public class BearerAuthenticatorTest
         var ex = Assert.Throws<ArgumentException>(() =>
             new BearerAuthenticator("https://api.example.com", "")
         );
-        Assert.Contains("Bearer token must not be empty", ex.Message);
+        Assert.Contains("Bearer token must not be empty", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -88,8 +88,8 @@ public class BearerAuthenticatorTest
     {
         var auth = new BearerAuthenticator("https://api.example.com", "xyz");
         string repr = auth.ToString();
-        Assert.DoesNotContain("Token=xyz", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("Token=xyz", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]

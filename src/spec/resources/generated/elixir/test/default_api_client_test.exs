@@ -237,6 +237,34 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert request_id1 != request_id2
   end
 
+  test "a lower-case user-agent or x-request-id default header is not injected again" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport =
+      PetstoreClient.TransportOptions.new(
+        user_agent: "sdk-default-agent",
+        inject_request_id: true,
+        default_headers: %{"user-agent" => "MyApp", "x-request-id" => "abc"}
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    json = Jason.decode!(response.body)
+    assert json["headers"]["user-agent"] == "MyApp"
+    assert json["headers"]["x-request-id"] == "abc"
+    refute response.body =~ "sdk-default-agent"
+  end
+
   test "includes transport-level default headers" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 

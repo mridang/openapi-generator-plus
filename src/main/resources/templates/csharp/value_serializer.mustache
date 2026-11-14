@@ -44,7 +44,7 @@ internal static class ValueSerializer
             return location == "query" ? null : "";
         }
 
-        if (value is IList list)
+        if (value is IList list && value is not byte[])
         {
             if (location == "query")
             {
@@ -133,9 +133,11 @@ internal static class ValueSerializer
     /// <remarks>
     /// Everything that is not RFC 3986 reserved or unreserved — spaces, control
     /// characters, non-ASCII — is still percent-encoded, so the result is always
-    /// a valid URL query segment. Only the reserved set
-    /// <c>: / ? # [ ] @ ! $ &#38; ' ( ) * + , ; =</c> is restored after
-    /// <see cref="Uri.EscapeDataString"/> over-encodes it.
+    /// a valid URL query segment. Only the characters RFC 3986 section 3.4
+    /// permits in a query, <c>: / ? @ ! $ &#38; ' ( ) * + , ; =</c>, are restored
+    /// after <see cref="Uri.EscapeDataString"/> over-encodes them; <c>#</c>,
+    /// <c>[</c> and <c>]</c> stay percent-encoded so a literal <c>#</c> can never
+    /// start a fragment and truncate the query.
     /// </remarks>
     public static string EncodeQueryAllowingReserved(string value)
     {
@@ -148,9 +150,6 @@ internal static class ValueSerializer
             .Replace("%3A", ":", StringComparison.Ordinal)
             .Replace("%2F", "/", StringComparison.Ordinal)
             .Replace("%3F", "?", StringComparison.Ordinal)
-            .Replace("%23", "#", StringComparison.Ordinal)
-            .Replace("%5B", "[", StringComparison.Ordinal)
-            .Replace("%5D", "]", StringComparison.Ordinal)
             .Replace("%40", "@", StringComparison.Ordinal)
             .Replace("%21", "!", StringComparison.Ordinal)
             .Replace("%24", "$", StringComparison.Ordinal)
@@ -199,6 +198,24 @@ internal static class ValueSerializer
                 $"Path parameter '{paramName}' must not be empty", nameof(value));
         }
 
+        /* A simple-style path value of exactly '.' or '..' is a dot segment:
+         * URL parsers resolve it (RFC 3986 section 5.2.4) and silently route
+         * the request to a different endpoint, so it is refused before any
+         * request. Matrix and label styles prefix the value and cannot form
+         * a dot segment. */
+        if (location == "path"
+            && value is not null
+            && (value is not IList || value is byte[])
+            && (string.IsNullOrEmpty(style) || style == "simple"))
+        {
+            string segment = ObjectSerializer.Stringify(value);
+            if (segment is "." or "..")
+            {
+                throw new ArgumentException(
+                    $"Path parameter '{paramName}' must not be '.' or '..'", nameof(value));
+            }
+        }
+
         if (string.IsNullOrEmpty(style))
         {
             return Serialize(value, location, schemaType, collectionFormat);
@@ -210,7 +227,7 @@ internal static class ValueSerializer
         }
 
         List<string>? items = null;
-        if (value is IList list)
+        if (value is IList list && value is not byte[])
         {
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }

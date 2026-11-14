@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -24,13 +24,23 @@ module Petstore::Client
         free_form_any: 'freeFormAny',
         favorite_color: 'favoriteColor',
         permissions_note: 'permissionsNote',
-        _and: 'and',
-        _or: 'or',
-        _not: 'not',
+        and: 'and',
+        or: 'or',
+        not: 'not',
         _class: 'class',
-        _return: 'return',
+        return: 'return',
         retry_after: 'retryAfter',
-        expires_at: 'expiresAt'
+        expires_at: 'expiresAt',
+        n2fa: '2fa',
+        separator: 'separator',
+        null: 'null',
+        _true: 'true',
+        _false: 'false',
+        last_error: 'lastError',
+        outcome: 'outcome',
+        cutoff: 'cutoff',
+        phase: 'phase',
+        slug: 'slug'
       }.freeze
 
       # Inverse mapping from JSON key to ruby attribute name.
@@ -41,13 +51,23 @@ module Petstore::Client
         free_form_any: 'Object',
         favorite_color: 'Color',
         permissions_note: 'String',
-        _and: 'Boolean',
-        _or: 'Boolean',
-        _not: 'Boolean',
+        and: 'Boolean',
+        or: 'Boolean',
+        not: 'Boolean',
         _class: 'String',
-        _return: 'String',
+        return: 'String',
         retry_after: 'ISO8601::Duration',
-        expires_at: 'Time'
+        expires_at: 'Time',
+        n2fa: 'Boolean',
+        separator: 'Separator',
+        null: 'String',
+        _true: 'Boolean',
+        _false: 'Boolean',
+        last_error: 'Error',
+        outcome: 'Result',
+        cutoff: 'Tod::TimeOfDay',
+        phase: 'String',
+        slug: 'String'
       }.freeze
 
       # Per-attribute OpenAPI `format` for properties whose wire form
@@ -67,6 +87,13 @@ module Petstore::Client
       openapi_formats = {}
       OPENAPI_FORMATS = openapi_formats.freeze
 
+      # Required properties whose schema also allows null. The key must be
+      # present, null is a legal value, and ::Petstore::Client::ObjectSerializer
+      # writes a nil value as an explicit null instead of omitting the key.
+      # @type var required_nullable: Hash[Symbol, bool]
+      required_nullable = {}
+      REQUIRED_NULLABLE = required_nullable.freeze
+
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
         JSON_KEY_MAP[key.to_s] || key.to_sym
@@ -76,15 +103,25 @@ module Petstore::Client
       attribute :favorite_color, Types::Any.optional.meta(omittable: true)
       # Required permission is "user.grant.write" for <admin> & owner roles (don't skip it)
       attribute :permissions_note, Types::Any.optional.meta(omittable: true)
-      attribute :_and, Types::Any.optional.meta(omittable: true)
-      attribute :_or, Types::Any.optional.meta(omittable: true)
-      attribute :_not, Types::Any.optional.meta(omittable: true)
+      attribute :and, Types::Any.optional.meta(omittable: true)
+      attribute :or, Types::Any.optional.meta(omittable: true)
+      attribute :not, Types::Any.optional.meta(omittable: true)
       attribute :_class, Types::Any.optional.meta(omittable: true)
-      attribute :_return, Types::Any.optional.meta(omittable: true)
+      attribute :return, Types::Any.optional.meta(omittable: true)
       # Back-off interval before retrying (protobuf-JSON duration, e.g. "3600s")
       attribute :retry_after, Types::Any.optional.meta(omittable: true)
       # Absolute expiry instant
       attribute :expires_at, Types::Any.optional.meta(omittable: true)
+      attribute :n2fa, Types::Any.optional.meta(omittable: true)
+      attribute :separator, Types::Any.optional.meta(omittable: true)
+      attribute :null, Types::Any.optional.meta(omittable: true)
+      attribute :_true, Types::Any.optional.meta(omittable: true)
+      attribute :_false, Types::Any.optional.meta(omittable: true)
+      attribute :last_error, Types::Any.optional.meta(omittable: true)
+      attribute :outcome, Types::Any.optional.meta(omittable: true)
+      attribute :cutoff, Types::Any.optional.meta(omittable: true)
+      attribute :phase, Types::String.enum('In-Stock', 'on-hold', 'OUT_OF_STOCK').optional.meta(omittable: true)
+      attribute :slug, Types::Any.optional.meta(omittable: true)
     end
   end
 end

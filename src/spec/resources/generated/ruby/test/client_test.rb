@@ -109,9 +109,12 @@ describe Petstore::Client::Petstore do
       GetExternalPetInfoServer
       GetExternalPetInfoServerServer0
       GetMultiServerPetInfoServer
-      GetMultiServerPetInfoServerRegion
+      GetMultiServerPetInfoServerRegionalRegion
+      GetMultiServerPetInfoServerMirrorRegion
+      GetMultiServerPetInfoServerChannel
       GetMultiServerPetInfoServerPrimary
       GetMultiServerPetInfoServerRegional
+      GetMultiServerPetInfoServerMirror
       GetPetByIdServer
       GetPetByIdServerCDNBackedReadEndpointForPetDetails
       GetStagingPetInfoServer

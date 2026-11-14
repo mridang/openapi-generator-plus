@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
 /** Order. */
@@ -86,6 +88,11 @@ public class Order {
   @Nullable
   public Integer quantity;
 
+  /** The {@code trackingId} property. */
+  @JsonProperty("trackingId")
+  @Nullable
+  public UUID trackingId;
+
   /** The {@code shipDate} property. */
   @JsonProperty("shipDate")
   @Nullable
@@ -124,6 +131,7 @@ public class Order {
     return java.util.Objects.equals(this.id, other.id)
         && java.util.Objects.equals(this.petId, other.petId)
         && java.util.Objects.equals(this.quantity, other.quantity)
+        && java.util.Objects.equals(this.trackingId, other.trackingId)
         && java.util.Objects.equals(this.shipDate, other.shipDate)
         && java.util.Objects.equals(this.status, other.status)
         && java.util.Objects.equals(this.complete, other.complete);
@@ -131,7 +139,7 @@ public class Order {
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(id, petId, quantity, shipDate, status, complete);
+    return java.util.Objects.hash(id, petId, quantity, trackingId, shipDate, status, complete);
   }
 
   @Override
@@ -141,6 +149,7 @@ public class Order {
     sb.append("id=").append(id);
     sb.append(", petId=").append(petId);
     sb.append(", quantity=").append(quantity);
+    sb.append(", trackingId=").append(trackingId);
     sb.append(", shipDate=").append(shipDate);
     sb.append(", status=").append(status);
     sb.append(", complete=").append(complete);

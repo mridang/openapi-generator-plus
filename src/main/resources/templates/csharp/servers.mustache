@@ -27,15 +27,15 @@ public static class Servers
     ///
     /// {{#lambda.escapeXml}}{{{serverDescription}}}{{/lambda.escapeXml}}{{/serverDescription}}
     /// </summary>
-    {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{{serverUrl}}}", {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []);{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
-        "{{{serverUrl}}}",
-        {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+    {{^hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new("{{#lambda.stringLiteral}}{{{serverUrl}}}{{/lambda.stringLiteral}}", {{#serverDescription}}"{{#lambda.stringLiteral}}{{{serverDescription}}}{{/lambda.stringLiteral}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, []);{{/hasVariables}}{{#hasVariables}}public static readonly ServerConfiguration Server{{serverIndex}} = new(
+        "{{#lambda.stringLiteral}}{{{serverUrl}}}{{/lambda.stringLiteral}}",
+        {{#serverDescription}}"{{#lambda.stringLiteral}}{{{serverDescription}}}{{/lambda.stringLiteral}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
         new Dictionary<string, ServerVariable>
         {
-{{#serverVariables}}            ["{{varName}}"] = new ServerVariable(
-                "{{{varDefault}}}",
-                {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
-                {{#hasEnumValues}}[{{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}),
+{{#serverVariables}}            ["{{#lambda.stringLiteral}}{{{varName}}}{{/lambda.stringLiteral}}"] = new ServerVariable(
+                "{{#lambda.stringLiteral}}{{{varDefault}}}{{/lambda.stringLiteral}}",
+                {{#varDescription}}"{{#lambda.stringLiteral}}{{{varDescription}}}{{/lambda.stringLiteral}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                {{#hasEnumValues}}[{{#varEnumValues}}"{{#lambda.stringLiteral}}{{{.}}}{{/lambda.stringLiteral}}"{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}),
 {{/serverVariables}}        }
     );{{/hasVariables}}
 

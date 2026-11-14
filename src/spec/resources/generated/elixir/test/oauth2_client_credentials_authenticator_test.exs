@@ -136,6 +136,29 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
+    test "token request body is in the fixed order" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.last_body(fake_client) ==
+               "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+    end
+
     test "sends scopes" do
       fake_client =
         FakeApiClient.new([

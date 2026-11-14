@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -28,15 +28,15 @@ class BinaryVault {
   /// Creates a [BinaryVault] from a JSON map.
   factory BinaryVault.fromJson(Map<String, dynamic> json) {
     return BinaryVault(
-      seal: json['seal'] != null ? base64Decode(json['seal'] as String) : null,
+      seal: json['seal'] != null ? decodeBase64(json['seal'] as String) : null,
       shards: json['shards'] != null
           ? deserializeArray(
               json['shards'] as List,
-              (e) => base64Decode(e as String),
+              (e) => decodeBase64(e as String),
             )
           : null,
       labels: (json['labels'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, base64Decode(v as String)),
+        (k, v) => MapEntry(k, decodeBase64(v as String)),
       ),
     );
   }

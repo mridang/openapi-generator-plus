@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -18,7 +18,8 @@ public class StrictTag : IEquatable<StrictTag>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 
-    // Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
+     * any JSON key not declared above is rejected at deserialization time. */
     private Dictionary<string, object>? _unknownProperties;
 
     [JsonExtensionData]

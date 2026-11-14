@@ -24,6 +24,7 @@ export class OAuth2TokenManager {
   private tokenExpiry: number | null = null;
   private refreshToken: string | null = null;
   private inflightRefresh: Promise<string> | null = null;
+  private exchanged = false;
 
   /**
    * Inject the shared API client for making token requests.
@@ -37,8 +38,17 @@ export class OAuth2TokenManager {
   /**
    * Get a valid access token, fetching or refreshing as necessary.
    *
+   * When a refresh token is held and the given grant is not itself a
+   * refresh grant, the refresh grant is POSTed to `refreshUrl` first with
+   * the client credentials found in `params` (RFC 6749 section 6 and
+   * section 3.2.1) and the same extra headers; if the refresh fails the
+   * original grant is re-run against `tokenUrl`. When `params` already is a
+   * refresh grant it is POSTed exactly once to `tokenUrl`.
+   *
    * @param tokenUrl the OAuth2 token endpoint URL
    * @param params the token request parameters (grant_type, client_id, etc.)
+   * @param extraHeaders headers sent with every token request (e.g. Basic client auth)
+   * @param refreshUrl the endpoint for the refresh grant (defaults to tokenUrl)
    * @returns a valid access token
    * @throws Error if no API client has been injected
    * @throws OAuth2ServerError if the token endpoint answers with a non-2xx status
@@ -47,7 +57,8 @@ export class OAuth2TokenManager {
   async getAccessToken(
     tokenUrl: string,
     params: Record<string, string>,
-    extraHeaders: Record<string, string> = {}
+    extraHeaders: Record<string, string> = {},
+    refreshUrl: string = tokenUrl
   ): Promise<string> {
     if (
       this.accessToken &&
@@ -61,7 +72,7 @@ export class OAuth2TokenManager {
     }
     this.inflightRefresh = (async () => {
       try {
-        if (this.refreshToken) {
+        if (this.refreshToken && params.grant_type !== 'refresh_token') {
           const refreshParams: Record<string, string> = {
             grant_type: 'refresh_token',
             refresh_token: this.refreshToken,
@@ -73,7 +84,7 @@ export class OAuth2TokenManager {
             refreshParams.client_secret = params.client_secret;
           }
           try {
-            await this.fetchToken(tokenUrl, refreshParams, extraHeaders);
+            await this.fetchToken(refreshUrl, refreshParams, extraHeaders);
             if (this.accessToken) {
               return this.accessToken;
             }
@@ -89,6 +100,79 @@ export class OAuth2TokenManager {
       }
     })();
     return this.inflightRefresh;
+  }
+
+  /**
+   * POST the given grant verbatim and replace the session with its result.
+   *
+   * Unlike {@link getAccessToken} this never answers from the cache and
+   * never tries the refresh grant: an authorization code must reach the
+   * token endpoint (RFC 6749 section 4.1.3). The session afterwards holds
+   * exactly what the response carried (no refresh token or expiry survives
+   * from before) and is marked exchanged. On any failure the previous
+   * session is restored and the error is rethrown. Serialised with any
+   * in-flight token request.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters, sent unchanged
+   * @param extraHeaders headers sent with the token request
+   * @returns the new access token
+   * @throws OAuth2ServerError if the token endpoint answers with a non-2xx status
+   * @throws OAuth2TokenError if the token endpoint answers 2xx with an unusable body
+   */
+  async exchange(
+    tokenUrl: string,
+    params: Record<string, string>,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<string> {
+    while (this.inflightRefresh) {
+      try {
+        await this.inflightRefresh;
+      } catch {
+        /* The earlier request's caller sees its own failure. */
+      }
+    }
+    this.inflightRefresh = (async () => {
+      const previous = {
+        accessToken: this.accessToken,
+        refreshToken: this.refreshToken,
+        tokenExpiry: this.tokenExpiry,
+        exchanged: this.exchanged,
+      };
+      this.accessToken = null;
+      this.refreshToken = null;
+      this.tokenExpiry = null;
+      try {
+        await this.fetchToken(tokenUrl, params, extraHeaders);
+        this.exchanged = true;
+        return this.accessToken!;
+      } catch (error) {
+        this.accessToken = previous.accessToken;
+        this.refreshToken = previous.refreshToken;
+        this.tokenExpiry = previous.tokenExpiry;
+        this.exchanged = previous.exchanged;
+        throw error;
+      } finally {
+        this.inflightRefresh = null;
+      }
+    })();
+    return this.inflightRefresh;
+  }
+
+  /**
+   * Mark the session as established by an authorization code exchange.
+   */
+  markExchanged(): void {
+    this.exchanged = true;
+  }
+
+  /**
+   * Whether an authorization code exchange has established this session.
+   *
+   * @returns true once {@link exchange} (or {@link markExchanged}) succeeded
+   */
+  isExchanged(): boolean {
+    return this.exchanged;
   }
 
   /**

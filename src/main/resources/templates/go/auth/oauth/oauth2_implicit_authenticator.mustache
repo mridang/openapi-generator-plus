@@ -105,15 +105,17 @@ func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) error {
 //
 // The state parameter is optional and used for CSRF protection.
 func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string {
-	params := url.Values{
-		"response_type": {"token"},
-		"client_id":     {a.clientID},
+	/* One fixed parameter order shared by every SDK: response_type,
+	 * client_id, scope, state. */
+	params := [][2]string{
+		{"response_type", "token"},
+		{"client_id", a.clientID},
 	}
 	if len(a.scopes) > 0 {
-		params.Set("scope", strings.Join(a.scopes, " "))
+		params = append(params, [2]string{"scope", strings.Join(a.scopes, " ")})
 	}
 	if state != "" {
-		params.Set("state", state)
+		params = append(params, [2]string{"state", state})
 	}
 	// RFC 6749 §3.1: the authorization endpoint URI MAY already include
 	// a query component. Use '&' as the separator when one is already
@@ -122,9 +124,9 @@ func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string
 	if strings.Contains(a.authorizationURL, "?") {
 		separator = "&"
 	}
-	// url.Values.Encode emits '+' for a space; RFC 3986 requires %20 in a query
+	// url.QueryEscape emits '+' for a space; RFC 3986 requires %20 in a query
 	// component (a strict server reads '+' as a literal plus), matching the other SDKs.
-	return a.authorizationURL + separator + strings.ReplaceAll(params.Encode(), "+", "%20")
+	return a.authorizationURL + separator + strings.ReplaceAll(encodeOrderedQuery(params), "+", "%20")
 }
 
 // String implements fmt.Stringer so the default string/format representation

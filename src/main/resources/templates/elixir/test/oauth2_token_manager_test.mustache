@@ -467,6 +467,128 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
       assert error.code == "invalid_client"
     end
 
+    test "a refresh goes to the refresh_url option" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
+        },
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password"}
+      token_url = "https://auth.example.com/token"
+      opts = [refresh_url: "https://auth.example.com/refresh"]
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params, %{}, opts)
+      assert FakeApiClient.last_url(fake_client) == token_url
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params, %{}, opts) == "tok2"
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
+    end
+
+    test "a refresh grant passed as params is sent exactly once" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 1})
+        },
+        %{{moduleName}}.ApiHttpResponse{status_code: 400, body: Jason.encode!(%{"error" => "invalid_grant"})}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token_url = "https://auth.example.com/token"
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, %{"grant_type" => "password"})
+
+      assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, %{
+          "grant_type" => "refresh_token",
+          "refresh_token" => "ref1"
+        })
+      end
+
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "the token request body is in the fixed order" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{status_code: 200, body: Jason.encode!(%{"access_token" => "tok1"})}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{
+        "scope" => "a b",
+        "zeta" => "z",
+        "client_secret" => "sec",
+        "alpha" => "x",
+        "client_id" => "cid",
+        "grant_type" => "client_credentials"
+      }
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, "https://auth.example.com/token", params)
+
+      assert FakeApiClient.last_body(fake_client) ==
+               "grant_type=client_credentials&client_id=cid&client_secret=sec&scope=a+b&alpha=x&zeta=z"
+    end
+
+    test "exchange bypasses a cached token and the refresh path" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+        },
+        %{{moduleName}}.ApiHttpResponse{status_code: 200, body: Jason.encode!(%{"access_token" => "tok2"})}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token_url = "https://auth.example.com/token"
+      params = %{"grant_type" => "authorization_code", "code" => "b"}
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(manager, token_url, %{"grant_type" => "password"}) ==
+               "tok1"
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(manager, token_url, params) == "tok2"
+      assert URI.decode_query(FakeApiClient.last_body(fake_client)) == params
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == nil
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchanged?(manager)
+    end
+
+    test "a failed exchange restores the previous session" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok1", "refresh_token" => "ref1", "expires_in" => 3600})
+        },
+        %{{moduleName}}.ApiHttpResponse{status_code: 400, body: Jason.encode!(%{"error" => "invalid_grant"})}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      token_url = "https://auth.example.com/token"
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(manager, token_url, %{"grant_type" => "authorization_code"})
+
+      assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(manager, token_url, %{"grant_type" => "authorization_code"})
+      end
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "ref1"
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, %{}) == "tok1"
+    end
+
     test "a token response without expires_in is cached indefinitely" do
       fake_client = FakeApiClient.new([
         %{{moduleName}}.ApiHttpResponse{

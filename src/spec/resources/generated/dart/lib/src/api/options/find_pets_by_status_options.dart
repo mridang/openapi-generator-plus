@@ -10,6 +10,8 @@ class FindPetsByStatusOptions {
   /// Only return pets born on or after this date
   final DateTime? bornAfter;
 
+  final int? n2ndPage;
+
   /// Reference date for the report
   final DateTime? reportDate;
 
@@ -17,6 +19,7 @@ class FindPetsByStatusOptions {
     this.status,
     this.filter,
     this.bornAfter,
+    this.n2ndPage,
     this.reportDate,
   });
 }

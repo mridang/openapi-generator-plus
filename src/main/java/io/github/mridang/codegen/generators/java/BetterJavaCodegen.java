@@ -128,7 +128,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("set", "LinkedHashSet");
         instantiationTypes.put("map", "HashMap");
 
-        reservedWords = loadReservedWords("/reserved-words/java.txt");
+        reservedWords = new HashSet<>(loadReservedWords("/reserved-words/java.txt"));
+        // The literals are not keywords but are just as illegal as an
+        // identifier, so a property named null/true/false must be escaped.
+        reservedWords.addAll(Set.of("null", "true", "false", "_"));
 
         cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
                 CodegenConstants.SOURCE_FOLDER_DESC));
@@ -206,6 +209,31 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             }
         }
         return super.postProcessOperationsWithModels(objs, allModels);
+    }
+
+    /**
+     * Prefixes a model named {@code Error} or {@code Result} with
+     * {@code Model}: {@code Error} would shadow {@code java.lang.Error}
+     * (error-prone JavaLangClash), and both names are prefixed in every SDK.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        if ("Error".equals(modelName) || "Result".equals(modelName)) {
+            return "Model" + modelName;
+        }
+        return modelName;
+    }
+
+    /** Applies the {@link #toModelName} prefix to $ref property and parameter types. */
+    @Override
+    @SuppressWarnings("rawtypes")
+    public String getSchemaType(Schema schema) {
+        final String type = super.getSchemaType(schema);
+        if ("Error".equals(type) || "Result".equals(type)) {
+            return "Model" + type;
+        }
+        return type;
     }
 
     /** {@inheritDoc} */
@@ -411,11 +439,33 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 .put(
                         "javadocDescription",
                         (fragment, writer) ->
-                                writer.write(escapeForJavadoc(fragment.execute())));
+                                writer.write(escapeForJavadoc(fragment.execute())))
+                .put(
+                        "javaString",
+                        (fragment, writer) ->
+                                writer.write(escapeForJavaString(fragment.execute())));
     }
 
     /**
-     * Neutralises the angle brackets javadoc reads as HTML. An inline
+     * Escapes raw text for use inside a Java string literal: backslash, double
+     * quote and the line/tab control characters.
+     *
+     * @param text the raw text
+     * @return the text escaped for a Java string literal
+     */
+    private static String escapeForJavaString(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+    }
+
+    /**
+     * Neutralises the angle brackets and ampersands javadoc reads as HTML. An inline
      * {@code literal} tag is used rather than an HTML entity because the
      * formatting spec forbids entities in generated source, and because the
      * rendered text is then the prose the document actually wrote.
@@ -427,7 +477,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (text == null) {
             return "";
         }
-        return text.replace("<", "{@literal <}").replace(">", "{@literal >}");
+        /* A literal comment terminator would end the doc comment early, so
+         * its slash is moved into an inline literal tag as well. A bare
+         * ampersand is a bad HTML entity to doclint, so it is wrapped too;
+         * it goes first so the tags added below are not rewritten. */
+        return text.replace("&", "{@literal &}")
+                .replace("<", "{@literal <}")
+                .replace(">", "{@literal >}")
+                .replace("*/", "*{@literal /}");
     }
 
     @Override
@@ -452,8 +509,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
+        // The User-Agent product token is the published Maven artifactId, the
+        // name a user types into their build file, not the Java package.
         additionalProperties.put(
-                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (java)");
+                "userAgentDefault", artifactId + "/" + artifactVersion + " (java)");
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
@@ -638,10 +697,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 return unaliased.getDefault() + "F";
             }
             // A {@code number} with {@code format: double} maps to
-            // {@code Double}, for which a bare decimal literal is a
-            // valid initializer.
+            // {@code Double}; the D suffix makes an integral default such as
+            // {@code 2} a double literal (a bare int does not box to Double).
             if (ModelUtils.isDoubleSchema(unaliased)) {
-                return unaliased.getDefault().toString();
+                return unaliased.getDefault() + "D";
             }
             // A format-less {@code number} (and the explicit
             // {@code decimal} type) maps to {@code BigDecimal}, which
@@ -1032,6 +1091,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             // exposure-safe — no suppression and no config relaxation needed.
             final String copyFactory = collectionCopyFactory(p);
             param.put("isMutableCollection", copyFactory != null);
+            // A format: byte parameter is a mutable byte[]; it is copied in and
+            // out so the options object never shares the caller's array.
+            param.put("isByteArrayParam", "byte[]".equals(p.dataType));
             if (copyFactory != null) {
                 param.put("copyFactory", copyFactory);
             }
@@ -1058,6 +1120,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     && p.dataType != null
                     && !languageSpecificPrimitives.contains(p.dataType)
                     && !typeMapping.containsValue(p.dataType)) {
+                modelTypes.add(p.dataType);
+            }
+            // An object-typed (style form/deepObject) or content-encoded
+            // parameter may carry the model name only in dataType.
+            if (!p.isArray
+                    && !p.isMap
+                    && p.dataType != null
+                    && p.dataType.matches("[A-Z][A-Za-z0-9_]*")
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)
+                    && !importMapping.containsKey(p.dataType)) {
                 modelTypes.add(p.dataType);
             }
             if ((p.isArray || p.isMap)

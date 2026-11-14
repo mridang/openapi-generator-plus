@@ -14,6 +14,7 @@ import {{package}}.options.{{optionsClassName}};
 {{/optionsImports}}
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -22,10 +23,10 @@ import javax.annotation.Nullable;
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{{.}}}
+ * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see <a href="{{url}}">{{{description}}}</a>
+ * @see <a href="{{{url}}}">{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}</a>
 {{/tagExternalDocs}}
  */
 public class {{classname}} extends BaseApi {
@@ -54,15 +55,15 @@ public class {{classname}} extends BaseApi {
 {{#hasEnumValues}}
 
         /** Allowed values for the {@code {{name}}} server variable. */
-        enum {{pascalName}} {
+        enum {{enumTypeName}} {
 {{#enumValues}}
-            /** The {@code {{value}}} value. */
-            {{name}}("{{value}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+            /** The <code>{{#lambda.javadocDescription}}{{{value}}}{{/lambda.javadocDescription}}</code> value. */
+            {{name}}("{{#lambda.javaString}}{{{value}}}{{/lambda.javaString}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
 {{/enumValues}}
 
             private final String value;
 
-            {{pascalName}}(String value) {
+            {{enumTypeName}}(String value) {
                 this.value = value;
             }
 
@@ -81,13 +82,13 @@ public class {{classname}} extends BaseApi {
 {{#variants}}
 
         /**
-         * {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
+         * {{#hasDescription}}{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/hasDescription}}{{^hasDescription}}The {{variantName}} server variant.{{/hasDescription}}
 {{#serverVariables}}
          *
          * @param {{camelName}} the {@code {{name}}} server variable
 {{/serverVariables}}
          */
-        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
+        record {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) implements {{serverTypeName}} {
 
             @Override
             public String getUrl() {
@@ -148,7 +149,7 @@ public class {{classname}} extends BaseApi {
 {{/-first}}{{/servers}}
 {{#vendorExtensions.op.optionsArgOptional}}
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
@@ -167,7 +168,7 @@ public class {{classname}} extends BaseApi {
     }
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Convenience overload that omits the optional {@code options} argument;
      * any optional parameters{{#hasAuthMethods}} and per-call authenticator{{/hasAuthMethods}} default to unset and
@@ -193,7 +194,7 @@ public class {{classname}} extends BaseApi {
 {{#vendorExtensions.hasMultipleConsumes}}
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Overload that selects the request content-type among the types this
      * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
@@ -215,7 +216,7 @@ public class {{classname}} extends BaseApi {
     }
 
     /**
-     * {{{summary}}}
+     * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
      *
      * <p>Overload that selects the request content-type among the types this
      * operation declares ({{#consumes}}{@code {{{mediaType}}}}{{^-last}}, {{/-last}}{{/consumes}}).
@@ -260,7 +261,7 @@ public class {{classname}} extends BaseApi {
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
-        if ({{paramName}} == null{{#isString}} || {{paramName}}.isEmpty(){{/isString}}) {
+        if ({{paramName}} == null{{#isString}}{{^isUuid}} || {{paramName}}.isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -277,7 +278,7 @@ public class {{classname}} extends BaseApi {
 {{! A required Options object that is null reports the first required field, so each required check below tests the Options object itself. Objects.isNull rather than a plain comparison keeps SpotBugs from flagging the repeats as redundant. }}
 {{#queryParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -285,7 +286,7 @@ public class {{classname}} extends BaseApi {
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -293,7 +294,7 @@ public class {{classname}} extends BaseApi {
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -301,7 +302,7 @@ public class {{classname}} extends BaseApi {
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}} || options.{{paramName}}().isEmpty(){{/isString}}) {
+        if ({{#vendorExtensions.op.optionsParamRequired}}java.util.Objects.isNull(options) || {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() == null{{#isString}}{{^isUuid}} || options.{{paramName}}().isEmpty(){{/isUuid}}{{/isString}}) {
             throw new IllegalArgumentException(
                     "Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
         }
@@ -322,7 +323,7 @@ public class {{classname}} extends BaseApi {
         }
 {{/-first}}
 {{/servers}}
-        Map<String, Object> queryParams = new HashMap<>();
+        Map<String, Object> queryParams = new LinkedHashMap<>();
 {{#queryParams}}
 {{#vendorExtensions.param.queryDeepObject}}
         if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
@@ -355,7 +356,7 @@ public class {{classname}} extends BaseApi {
 {{#hasCookieParams}}
         java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
 {{#cookieParams}}
-        if (options != null && options.{{paramName}}() != null) {
+        if ({{^vendorExtensions.op.optionsParamRequired}}options != null && {{/vendorExtensions.op.optionsParamRequired}}options.{{paramName}}() != null) {
             String {{paramName}}CookieValue = String.valueOf(
                     ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
             /* RFC 6265 — validate the operation cookie name and the assembled
@@ -380,7 +381,7 @@ public class {{classname}} extends BaseApi {
         }
 {{/hasCookieParams}}
 {{#hasFormParams}}
-        Map<String, Object> formBody = new HashMap<>();
+        Map<String, Object> formBody = new LinkedHashMap<>();
 {{#formParams}}
 {{#required}}
         formBody.put("{{baseName}}", options.{{paramName}}());

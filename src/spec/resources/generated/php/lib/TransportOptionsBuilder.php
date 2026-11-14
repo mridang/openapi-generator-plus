@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -48,7 +48,7 @@ final class TransportOptionsBuilder
     private ?int $maxRedirects = null;
 
     /** @var string|null Custom User-Agent header value. */
-    private ?string $userAgent = 'PetstoreClient/1.0.0 (php)';
+    private ?string $userAgent = 'petstoreclient/1.0.0 (php)';
 
     /** @var array<string, string> Transport-level default headers. */
     private array $defaultHeaders = [];
@@ -69,7 +69,8 @@ final class TransportOptionsBuilder
     }
 
     /**
-     * Set the path to a custom CA certificate bundle.
+     * Set the path to a custom CA certificate bundle. When set, it replaces
+     * the system trust store: only the certificates in this bundle are trusted.
      *
      * @param string|null $caCertPath file path to a PEM-encoded CA certificate, or null
      * @return self this builder

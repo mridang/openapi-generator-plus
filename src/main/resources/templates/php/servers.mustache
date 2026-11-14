@@ -23,20 +23,20 @@ final class Servers
 {
 {{#serverConfigs}}
     /**
-     * Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+     * Server {{serverIndex}}: {{#lambda.phpdocDescription}}{{{serverUrl}}}{{/lambda.phpdocDescription}}{{#serverDescription}}
      *
-     * {{serverDescription}}{{/serverDescription}}
+     * {{#lambda.phpdocDescription}}{{{serverDescription}}}{{/lambda.phpdocDescription}}{{/serverDescription}}
      */
     public static function server{{serverIndex}}(): ServerConfiguration
     {
         return new ServerConfiguration(
-            urlTemplate: '{{{serverUrl}}}',
-            description: {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+            urlTemplate: '{{#lambda.phpSingleQuoted}}{{{serverUrl}}}{{/lambda.phpSingleQuoted}}',
+            description: {{#serverDescription}}'{{#lambda.phpSingleQuoted}}{{{serverDescription}}}{{/lambda.phpSingleQuoted}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
             variables: {{#hasVariables}}[
-{{#serverVariables}}                '{{varName}}' => new ServerVariable(
-                    defaultValue: '{{{varDefault}}}',
-                    description: {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}},
-                    enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+{{#serverVariables}}                '{{#lambda.phpSingleQuoted}}{{{varName}}}{{/lambda.phpSingleQuoted}}' => new ServerVariable(
+                    defaultValue: '{{#lambda.phpSingleQuoted}}{{{varDefault}}}{{/lambda.phpSingleQuoted}}',
+                    description: {{#varDescription}}'{{#lambda.phpSingleQuoted}}{{{varDescription}}}{{/lambda.phpSingleQuoted}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                    enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{#lambda.phpSingleQuoted}}{{{.}}}{{/lambda.phpSingleQuoted}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
                 ),
 {{/serverVariables}}            ]{{/hasVariables}}{{^hasVariables}}[]{{/hasVariables}},
         );

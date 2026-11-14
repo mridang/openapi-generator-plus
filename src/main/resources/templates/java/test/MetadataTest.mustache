@@ -85,6 +85,17 @@ class MetadataTest {
     }
 
     @Test
+    void testDeclaredPropertyWinsOverCollidingAdditionalProperty() {
+        Metadata metadata = new Metadata();
+        metadata.createdAt = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+        metadata.setAdditionalProperty("createdAt", "x");
+
+        String json = Objects.requireNonNull(serializer.serialize(metadata));
+
+        assertThat(json).isEqualTo("{\"createdAt\":\"2024-01-01T00:00:00.000+00:00\"}");
+    }
+
+    @Test
     void testToStringDumpsTheAdditionalProperties() {
         Metadata metadata = new Metadata();
         metadata.setAdditionalProperty("customField", "hello");

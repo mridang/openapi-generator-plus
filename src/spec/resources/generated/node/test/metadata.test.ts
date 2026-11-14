@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -41,6 +41,17 @@ describe("generated model docblocks (L1 parity)", () => {
       expect(source).not.toMatch(/@example\s+null\b/);
       expect(source).not.toMatch(/Example:\s+null\b/);
     }
+  });
+
+  test("a model externalDocs description is rendered raw, without HTML entities", () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, "..", "src", "models", "account.ts"),
+      "utf-8",
+    );
+
+    expect(source).toContain(
+      `* @see {@link https://example.com/docs/account} Account <docs> & "notes" it's here\n`,
+    );
   });
 });
 

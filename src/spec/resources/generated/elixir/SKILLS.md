@@ -225,7 +225,7 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 Models are generated as Elixir structs under the `PetstoreClient.Models` namespace.
 
 ```elixir
-model = %PetstoreClient.Models.ApiResponse{}
+model = %PetstoreClient.Models.Account{}
 ```
 
 ## Binary / File Uploads

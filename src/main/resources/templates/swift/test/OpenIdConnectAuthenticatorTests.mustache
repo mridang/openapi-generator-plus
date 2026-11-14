@@ -238,6 +238,7 @@ import Testing
         ("public, MAX-AGE=3600", 1),
         ("no-store", 1),
         ("max-age=abc", 1),
+        ("max-age=99999999999999999999999", 1),
     ])
     func testDiscoveryIsCachedForTheMaxAgeTheServerSent(cacheControl: String, discoveryRequests: Int) async throws {
         let client = MockApiClient()
@@ -253,6 +254,20 @@ import Testing
         _ = try await auth.buildAuthorizationURL()
 
         #expect(client.getCount == discoveryRequests)
+    }
+
+    /* A max-age above one year, including one too long for Int, is clamped
+     * to one year rather than caching the discovery document for longer. */
+    @Test(arguments: [
+        ("max-age=3600", 3600),
+        ("max-age=31536000", 31_536_000),
+        ("max-age=31536001", 31_536_000),
+        ("max-age=9000000000000000000", 31_536_000),
+        ("max-age=99999999999999999999999", 31_536_000),
+        ("no-store", 86400),
+    ])
+    func testDiscoveryMaxAgeIsClampedToOneYear(cacheControl: String, seconds: Int) {
+        #expect(OpenIdConnectAuthenticator.parseMaxAge(["Cache-Control": cacheControl]) == seconds)
     }
 
     @Test func testGetHostReturnsConfiguredHost() {
@@ -277,5 +292,19 @@ import Testing
         dump(auth, to: &dumped)
         #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
         #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
+    // MARK: - Generated scheme wrapper
+
+    /* The openIdConnect securityScheme's wrapper carries the spec's discovery
+     * URL and masks the client secret. */
+    @Test func schemeWrapperCarriesTheSpecDiscoveryUrl() {
+        let auth = SsoAuthAuthenticator(
+            host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
+            redirectUri: "https://app.example.com/cb")
+        #expect(
+            String(describing: auth)
+                == "SsoAuthAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: cid, clientSecret: ***, redirectURI: https://app.example.com/cb, scopes: [])"
+        )
     }
 }

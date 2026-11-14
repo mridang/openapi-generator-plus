@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -145,15 +145,17 @@ final class ValueSerializer
     }
 
     /**
-     * Percent-encodes a query value while leaving RFC 3986 reserved characters
-     * literal (OAS `allowReserved: true`).
+     * Percent-encodes a query value while leaving literal the reserved
+     * characters RFC 3986 section 3.4 permits in a query (OAS
+     * `allowReserved: true`).
      *
-     * Everything that is not RFC 3986 reserved or unreserved — spaces (encoded
-     * as `%20`, never `+`), control characters, non-ASCII — is still
-     * percent-encoded, so the result is always a valid URL query segment. Only
-     * the reserved set `: / ? # [ ] @ ! $ & ' ( ) * + , ; =` is restored to
-     * literal after rawurlencode() over-encodes it. rawurlencode() already
-     * leaves the RFC 3986 unreserved `~` literal, so it needs no restoring.
+     * Only `: / ? @ ! $ & ' ( ) * + , ; =` are restored to literal after
+     * rawurlencode() over-encodes them. `#` (which every URL parser takes as
+     * the fragment delimiter, silently truncating the query), `[` and `]` (not
+     * legal in a query) stay percent-encoded, as do spaces (`%20`, never
+     * `+`), control characters and non-ASCII, so the result is always a valid
+     * URL query segment. rawurlencode() already leaves the RFC 3986
+     * unreserved `~` literal, so it needs no restoring.
      *
      * @param string $value the raw value to encode
      * @return string the encoded value with reserved characters preserved
@@ -165,8 +167,7 @@ final class ValueSerializer
         }
 
         return strtr(rawurlencode($value), [
-            '%3A' => ':', '%2F' => '/', '%3F' => '?', '%23' => '#',
-            '%5B' => '[', '%5D' => ']', '%40' => '@', '%21' => '!',
+            '%3A' => ':', '%2F' => '/', '%3F' => '?', '%40' => '@', '%21' => '!',
             '%24' => '$', '%26' => '&', '%27' => "'", '%28' => '(',
             '%29' => ')', '%2A' => '*', '%2B' => '+', '%2C' => ',',
             '%3B' => ';', '%3D' => '=',
@@ -207,6 +208,17 @@ final class ValueSerializer
         if ($location === 'path' && is_string($value) && $value === '') {
             throw new \InvalidArgumentException(
                 "Path parameter '$paramName' must not be empty"
+            );
+        }
+        if (
+            $location === 'path'
+            && (in_array($style, [null, '', 'simple'], true))
+            && ($value === '.' || $value === '..')
+        ) {
+            /* A dot segment would be collapsed by URL resolution and silently
+             * reroute the request to the parent resource. */
+            throw new \InvalidArgumentException(
+                "Path parameter '$paramName' must not be '.' or '..'"
             );
         }
 
@@ -322,15 +334,21 @@ final class ValueSerializer
      * in a query string.
      *
      * @param string              $paramName the parameter name (e.g. 'filter')
-     * @param array<string,mixed>|null $value the associative array to serialize
+     * @param array<string,mixed>|object|null $value the associative array or model to serialize
      *
      * @return array<string,string> expanded keys to serialized values
      */
-    public static function serializeDeepObject(string $paramName, ?array $value): array
+    public static function serializeDeepObject(string $paramName, array|object|null $value): array
     {
         $result = [];
         if ($value === null) {
             return $result;
+        }
+        if (is_object($value)) {
+            /* A model is flattened through the object serializer so its keys
+             * are the wire names and unset fields are left out. */
+            $decoded = json_decode(ObjectSerializer::serialize($value), true);
+            $value = is_array($decoded) ? $decoded : [];
         }
 
         foreach ($value as $key => $val) {

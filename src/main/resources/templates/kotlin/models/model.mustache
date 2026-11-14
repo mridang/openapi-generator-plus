@@ -162,7 +162,7 @@ enum class {{classname}}(val value: String) {
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated("This schema is deprecated.")
@@ -173,7 +173,7 @@ enum class {{classname}}(val value: String) {
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -185,7 +185,7 @@ enum class {{classname}}(val value: String) {
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -404,7 +404,7 @@ class {{classname}}(
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 @Deprecated("This schema is deprecated.")
@@ -415,7 +415,7 @@ class {{classname}}(
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -427,7 +427,7 @@ class {{classname}}(
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -584,7 +584,7 @@ class {{classname}}(
  *
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -592,7 +592,7 @@ class {{classname}}(
 /**
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
 {{/externalDocumentation}}
  */
 {{/description}}
@@ -604,7 +604,7 @@ class {{classname}}(
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -616,7 +616,7 @@ class {{classname}}(
 /**
  * {{classname}}.
  *
- * @see <a href="{{url}}">{{description}}</a>
+ * @see <a href="{{{url}}}">{{{description}}}</a>
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -640,9 +640,17 @@ class {{classname}}(
    *
    * Example: `{{{.}}}`
   {{/example}}
+  {{#isReadOnly}}
+   *
+   * This property is read-only.
+  {{/isReadOnly}}
+  {{#isWriteOnly}}
+   *
+   * This property is write-only.
+  {{/isWriteOnly}}
   {{#vendorExtensions.pluralExamples}}
    *
-   * Example "{{summary}}" — {{description}}; value: {{value}}
+   * Example "{{{summary}}}" — {{{description}}}; value: {{{value}}}
   {{/vendorExtensions.pluralExamples}}
   {{#deprecated}}
    *
@@ -670,10 +678,11 @@ class {{classname}}(
 {{/isDateTime}}{{#isDate}}  @Contextual
 {{/isDate}}{{#isUuid}}  @Contextual
 {{/isUuid}}{{#isUri}}  @Contextual
-{{/isUri}}{{#vendorExtensions.isDuration}}  @Contextual
+{{/isUri}}{{#vendorExtensions.isLocalTime}}  @Contextual
+{{/vendorExtensions.isLocalTime}}{{#vendorExtensions.isDuration}}  @Contextual
 {{/vendorExtensions.isDuration}}{{#isDecimal}}  @Contextual
 {{/isDecimal}}{{^isDecimal}}{{#isNumber}}  @Contextual
-{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
+{{/isNumber}}{{/isDecimal}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{#required}}{{#isNullable}}?{{/isNullable}}{{/required}}{{^required}} = {{#isContainer}}null{{/isContainer}}{{^isContainer}}{{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/isContainer}}{{/required}}{{#required}}{{^isContainer}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/isContainer}}{{/required}}{{^-last}},{{/-last}}
 {{/vars}}
 ){{#parent}} : {{{.}}}(){{/parent}} {
 {{#vars}}
@@ -812,7 +821,9 @@ class {{classname}}(
 {{#vars}}
 {{#vendorExtensions.eqByteArray}}
 {{#required}}
+{{^isNullable}}
     if (!{{name}}.contentEquals(other.{{name}})) return false
+{{/isNullable}}
 {{/required}}
 {{^required}}
     if ({{name}} != null) {
@@ -822,11 +833,23 @@ class {{classname}}(
       return false
     }
 {{/required}}
+{{#required}}
+{{#isNullable}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if (!{{name}}.contentEquals(other.{{name}})) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/isNullable}}
+{{/required}}
 {{/vendorExtensions.eqByteArray}}
 {{#vendorExtensions.eqListByteArray}}
 {{#required}}
+{{^isNullable}}
     if ({{name}}.size != other.{{name}}.size) return false
     if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+{{/isNullable}}
 {{/required}}
 {{^required}}
     if ({{name}} != null) {
@@ -837,11 +860,24 @@ class {{classname}}(
       return false
     }
 {{/required}}
+{{#required}}
+{{#isNullable}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.size != other.{{name}}.size) return false
+      if (!{{name}}.zip(other.{{name}}).all { (a, b) -> a.contentEquals(b) }) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/isNullable}}
+{{/required}}
 {{/vendorExtensions.eqListByteArray}}
 {{#vendorExtensions.eqMapByteArray}}
 {{#required}}
+{{^isNullable}}
     if ({{name}}.keys != other.{{name}}.keys) return false
     if (!{{name}}.all { (k, v) -> v.contentEquals(other.{{name}}[k]) }) return false
+{{/isNullable}}
 {{/required}}
 {{^required}}
     if ({{name}} != null) {
@@ -852,10 +888,23 @@ class {{classname}}(
       return false
     }
 {{/required}}
+{{#required}}
+{{#isNullable}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.keys != other.{{name}}!!.keys) return false
+      if (!{{name}}.all { (k, v) -> v.contentEquals(other.{{name}}!![k]) }) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/isNullable}}
+{{/required}}
 {{/vendorExtensions.eqMapByteArray}}
 {{#vendorExtensions.eqDecimal}}
 {{#required}}
+{{^isNullable}}
     if ({{name}}.compareTo(other.{{name}}) != 0) return false
+{{/isNullable}}
 {{/required}}
 {{^required}}
     if ({{name}} != null) {
@@ -864,6 +913,16 @@ class {{classname}}(
     } else if (other.{{name}} != null) {
       return false
     }
+{{/required}}
+{{#required}}
+{{#isNullable}}
+    if ({{name}} != null) {
+      if (other.{{name}} == null) return false
+      if ({{name}}.compareTo(other.{{name}}) != 0) return false
+    } else if (other.{{name}} != null) {
+      return false
+    }
+{{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqByteArray}}
@@ -890,36 +949,64 @@ class {{classname}}(
 {{#vars}}
 {{#vendorExtensions.eqByteArray}}
 {{#required}}
+{{^isNullable}}
     result = 31 * result + {{name}}.contentHashCode()
+{{/isNullable}}
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.contentHashCode() ?: 0)
 {{/required}}
+{{#required}}
+{{#isNullable}}
+    result = 31 * result + ({{name}}?.contentHashCode() ?: 0)
+{{/isNullable}}
+{{/required}}
 {{/vendorExtensions.eqByteArray}}
 {{#vendorExtensions.eqListByteArray}}
 {{#required}}
+{{^isNullable}}
     result = 31 * result + {{name}}.fold(0) { acc, e -> 31 * acc + e.contentHashCode() }
+{{/isNullable}}
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
+{{/required}}
+{{#required}}
+{{#isNullable}}
+    result = 31 * result + ({{name}}?.fold(0) { acc, e -> 31 * acc + e.contentHashCode() } ?: 0)
+{{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqListByteArray}}
 {{#vendorExtensions.eqMapByteArray}}
 {{! XOR the per-entry hashes so the result does not depend on map order. }}
 {{#required}}
+{{^isNullable}}
     result = 31 * result + {{name}}.entries.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) }
+{{/isNullable}}
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.entries?.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) } ?: 0)
+{{/required}}
+{{#required}}
+{{#isNullable}}
+    result = 31 * result + ({{name}}?.entries?.fold(0) { acc, e -> acc xor (e.key.hashCode() * 31 + e.value.contentHashCode()) } ?: 0)
+{{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqMapByteArray}}
 {{#vendorExtensions.eqDecimal}}
 {{! stripTrailingZeros makes 1.5 and 1.50 hash alike, matching compareTo above. }}
 {{#required}}
+{{^isNullable}}
     result = 31 * result + {{name}}.stripTrailingZeros().hashCode()
+{{/isNullable}}
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.stripTrailingZeros()?.hashCode() ?: 0)
+{{/required}}
+{{#required}}
+{{#isNullable}}
+    result = 31 * result + ({{name}}?.stripTrailingZeros()?.hashCode() ?: 0)
+{{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqDecimal}}
 {{^vendorExtensions.eqByteArray}}
@@ -927,10 +1014,17 @@ class {{classname}}(
 {{^vendorExtensions.eqMapByteArray}}
 {{^vendorExtensions.eqDecimal}}
 {{#required}}
+{{^isNullable}}
     result = 31 * result + {{name}}.hashCode()
+{{/isNullable}}
 {{/required}}
 {{^required}}
     result = 31 * result + ({{name}}?.hashCode() ?: 0)
+{{/required}}
+{{#required}}
+{{#isNullable}}
+    result = 31 * result + ({{name}}?.hashCode() ?: 0)
+{{/isNullable}}
 {{/required}}
 {{/vendorExtensions.eqDecimal}}
 {{/vendorExtensions.eqMapByteArray}}

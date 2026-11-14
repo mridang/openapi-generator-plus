@@ -169,6 +169,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return false;
     }
 
+    /** Returns the generated model type names of every component schema. */
+    private Set<String> componentModelNames() {
+        final Set<String> names = new HashSet<>();
+        if (openAPI != null
+                && openAPI.getComponents() != null
+                && openAPI.getComponents().getSchemas() != null) {
+            for (final String key : openAPI.getComponents().getSchemas().keySet()) {
+                names.add(toModelName(key));
+            }
+        }
+        return names;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected NamingConvention getOperationIdCasing() {
@@ -248,7 +261,58 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return super.addMustacheLambdas()
                 .put(
                         "escapeXml",
-                        (fragment, writer) -> writer.write(wrapDocCommentXml(fragment.execute())));
+                        (fragment, writer) ->
+                                writer.write(continueDocCommentLines(wrapDocCommentXml(fragment.execute()))))
+                .put(
+                        "escapeXmlText",
+                        (fragment, writer) -> writer.write(wrapDocCommentXml(fragment.execute())))
+                .put(
+                        "stringLiteral",
+                        (fragment, writer) -> writer.write(escapeStringLiteralBody(fragment.execute())));
+    }
+
+    /**
+     * Escapes text for the body of a C# regular string literal so the
+     * literal evaluates to exactly the spec's characters: backslash and
+     * double quote are escaped, and newline, carriage return, tab and the
+     * other C0 controls use their escape sequences.
+     */
+    static String escapeStringLiteralBody(String text) {
+        if (text == null) {
+            return "";
+        }
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20 || c == 0x7F) {
+                out.append(String.format(Locale.ROOT, "\\u%04X", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * Keeps multi-line prose inside the {@code ///} doc comment: every line
+     * after the first is prefixed with {@code ///}, so a description with a
+     * newline never leaks a bare line of text into the source.
+     */
+    private static String continueDocCommentLines(String text) {
+        if (text == null) {
+            return text;
+        }
+        return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\n/// ");
     }
 
     /**
@@ -560,6 +624,26 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             }
             return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
         }
+        if (ModelUtils.isNumberSchema(resolved) && !isEnum) {
+            /*
+             * The literal must have the field's exact type: a bare
+             * double literal does not convert to decimal (CS0664) or
+             * float, so decimal-typed numbers get the m suffix and
+             * format: float gets f. Plain text keeps the exact value.
+             */
+            final Object value = resolved.getDefault();
+            final String literal = value instanceof java.math.BigDecimal
+                    ? ((java.math.BigDecimal) value).toPlainString()
+                    : value.toString();
+            final String format = resolved.getFormat();
+            if ("float".equals(format)) {
+                return literal + "f";
+            }
+            if ("double".equals(format)) {
+                return literal;
+            }
+            return literal + "m";
+        }
         if (ModelUtils.isIntegerSchema(resolved)
                 || ModelUtils.isNumberSchema(resolved)
                 || ModelUtils.isBooleanSchema(resolved)) {
@@ -617,14 +701,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 "byte", "sbyte", "float", "double", "decimal");
     }
 
-    /** {@inheritDoc} */
+    /**
+     * The template supplies the quotes (see {@link #toEnumValue}), so the
+     * quote is escaped here, unconditionally and after the shared backslash
+     * doubling, instead of by {@code quoteEnumValue}.
+     */
     @Override
     protected List<String[]> getEnumStringEscapes() {
-        return List.of(
-                new String[]{"\n", "\\\\n"},
-                new String[]{"\t", "\\\\t"},
-                new String[]{"\r", "\\\\r"},
-                new String[]{"(?<!\\\\)\"", "\\\\\""});
+        return List.<String[]>of(new String[]{"\"", "\\\\\""});
+    }
+
+    /** The quote is already escaped by the table, so only wrap the value. */
+    @Override
+    protected String toServerEnumLiteral(String value) {
+        return "\"" + escapeEnumStringValue(value) + "\"";
     }
 
     /**
@@ -818,6 +908,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 param.put("description", p.description);
             }
             params.add(param);
+            /* A content-based parameter (content: application/json) carries
+             * the model type in dataType only; baseType stays null. */
+            if (p.dataType != null && componentModelNames().contains(p.dataType)) {
+                hasAnyModelImports = true;
+            }
             if (!p.isPrimitiveType
                     && !p.isArray
                     && !p.isMap

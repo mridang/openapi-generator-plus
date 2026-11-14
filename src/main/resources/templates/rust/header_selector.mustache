@@ -91,9 +91,9 @@ impl Default for HeaderSelector {
     }
 }
 
-// These tests live in-crate (rather than under tests/) because `HeaderSelector`
-// and its module are crate-private (internal content-negotiation detail) and so
-// are not reachable from the external integration-test crate.
+/* These tests live in-crate (rather than under tests/) because `HeaderSelector`
+ * and its module are crate-private (internal content-negotiation detail) and so
+ * are not reachable from the external integration-test crate. */
 #[cfg(test)]
 mod tests {
     use super::HeaderSelector;

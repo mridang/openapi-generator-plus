@@ -62,7 +62,7 @@ open class OAuth2ImplicitAuthenticator(
         if (scopes.isNotEmpty()) {
             url.append("&scope=").append(encode(scopes.joinToString(" ")))
         }
-        if (state != null) {
+        if (!state.isNullOrEmpty()) {
             url.append("&state=").append(encode(state))
         }
         return url.toString()
@@ -92,7 +92,7 @@ open class OAuth2ImplicitAuthenticator(
     override fun getHost(): String = host
 
     override suspend fun getAuthHeaders(): Map<String, String> {
-        val token = accessToken
+        val token = accessToken?.takeIf { it.isNotEmpty() }
             ?: throw IllegalStateException("Must set the access token before making API requests")
         return mapOf("Authorization" to "Bearer $token")
     }

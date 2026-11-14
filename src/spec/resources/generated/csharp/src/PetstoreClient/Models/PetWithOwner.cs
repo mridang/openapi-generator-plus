@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -187,6 +187,10 @@ public class PetWithOwner : IEquatable<PetWithOwner>
     [JsonPropertyName("weightKg")]
     public decimal? WeightKg { get; set; }
 
+    /// <example>rex</example>
+    [JsonPropertyName("nickname")]
+    public string? Nickname { get; set; }
+
     [JsonRequired]
     [JsonPropertyName("ownerName")]
     public required string OwnerName
@@ -237,6 +241,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
                     )
                     && EqualityComparer<string?>.Default.Equals(this.OwnerEmail, other.OwnerEmail)
                     && EqualityComparer<decimal?>.Default.Equals(this.WeightKg, other.WeightKg)
+                    && EqualityComparer<string?>.Default.Equals(this.Nickname, other.Nickname)
                     && EqualityComparer<string>.Default.Equals(this.OwnerName, other.OwnerName)
             );
     }
@@ -261,6 +266,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
         hash.Add(this.LinkTemplate);
         hash.Add(this.OwnerEmail);
         hash.Add(this.WeightKg);
+        hash.Add(this.Nickname);
         hash.Add(this.OwnerName);
         return hash.ToHashCode();
     }
@@ -282,6 +288,7 @@ public class PetWithOwner : IEquatable<PetWithOwner>
         sb.Append(", LinkTemplate=").Append(this.LinkTemplate);
         sb.Append(", OwnerEmail=").Append(this.OwnerEmail);
         sb.Append(", WeightKg=").Append(this.WeightKg);
+        sb.Append(", Nickname=").Append(this.Nickname);
         sb.Append(", OwnerName=").Append(this.OwnerName);
         sb.Append('}');
         return sb.ToString();

@@ -7,9 +7,9 @@ module {{moduleName}}
     end
 {{#variants}}
 {{#serverVariables}}{{#hasEnumValues}}
-    module {{serverTypeName}}{{pascalName}}
+    module {{serverTypeName}}{{enumTypeName}}
 {{#enumValues}}
-      {{name}}: String
+      {{#lambda.rubyConst}}{{{name}}}{{/lambda.rubyConst}}: String
 {{/enumValues}}
     end
 {{/hasEnumValues}}{{/serverVariables}}

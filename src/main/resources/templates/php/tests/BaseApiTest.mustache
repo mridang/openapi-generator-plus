@@ -716,6 +716,19 @@ test('form urlencoded body renders date-time, enum and number fields canonically
     );
 });
 
+test('form urlencoded body rejects a nested map field', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    expect(fn () => $testApi->call('POST', '/test/echo', [], [], ['location' => ['lat' => 1.5]],
+        ['application/json'], 'application/x-www-form-urlencoded', null))
+        ->toThrow(
+            \{{invokerPackage}}\Errors\SerializationException::class,
+            'form-urlencoded field location must be a scalar or array of scalars'
+        );
+    expect($client->capturedBody)->toBeNull();
+});
+
 test('passes binary body as is', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

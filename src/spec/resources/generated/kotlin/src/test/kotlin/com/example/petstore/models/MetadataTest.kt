@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -127,11 +127,34 @@ class MetadataTest {
         val buildFile = java.io.File("build.gradle.kts")
         assertTrue(buildFile.exists(), "build.gradle.kts must exist at the project root")
         val contents = buildFile.readText()
-        val match = Regex("""description\.set\("([^"]*)"\)""").find(contents)
+        val match = Regex("""description\.set\(\s*"((?:[^"\\]|\\.)*)"""").find(contents)
         assertNotNull(match, "build.gradle.kts must set a POM description")
         assertTrue(
             match!!.groupValues[1].isNotBlank(),
             "POM description must not be empty",
+        )
+    }
+
+    @Test
+    @DisplayName("build.gradle.kts compiles, runs and lints the hand-written spec directory")
+    fun testSpecDirectoryIsCompiledRunAndLinted() {
+        assertTrue(java.io.File("src/spec/kotlin").isDirectory, "src/spec/kotlin must exist")
+        val manifest = java.io.File("build.gradle.kts").readText()
+        val testSources = Regex("""val jvmTest by getting \{\s*kotlin\.srcDirs\(([^)]*)\)""").find(manifest)
+        assertNotNull(testSources, "build.gradle.kts must declare the jvmTest source directories")
+        assertEquals(
+            listOf("\"src/test/kotlin\"", "\"src/spec/kotlin\""),
+            testSources!!.groupValues[1].split(",").map { it.trim() },
+        )
+        val lintSources = Regex("""detekt \{[^}]*source\.setFrom\(files\(([^)]*)\)\)""").find(manifest)
+        assertNotNull(lintSources, "build.gradle.kts must declare the detekt sources")
+        assertTrue(
+            lintSources!!
+                .groupValues[1]
+                .split(",")
+                .map { it.trim() }
+                .contains("\"src/spec/kotlin\""),
+            "detekt must lint src/spec/kotlin, got ${lintSources.groupValues[1]}",
         )
     }
 
@@ -183,5 +206,20 @@ class MetadataTest {
             "no generated model may carry a false `Example: null` doc line, found in: " +
                 offenders.joinToString(", ") { it.name },
         )
+    }
+
+    @Test
+    @DisplayName("generated sources carry spec prose raw, never HTML-escaped")
+    fun testNoHtmlEntitiesInGeneratedSources() {
+        val sourceDir = java.io.File("src/main/kotlin")
+        assertTrue(sourceDir.isDirectory, "generated source directory must exist")
+        val entity = Regex("&(?:[A-Za-z]+|#[0-9]+|#[xX][0-9A-Fa-f]+);")
+        val offenders =
+            sourceDir
+                .walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .flatMap { file -> file.readLines().filter { entity.containsMatchIn(it) }.map { "${file.name}: ${it.trim()}" } }
+                .toList()
+        assertEquals(emptyList<String>(), offenders)
     }
 }

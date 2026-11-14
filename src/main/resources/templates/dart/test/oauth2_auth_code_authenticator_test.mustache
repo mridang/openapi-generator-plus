@@ -151,6 +151,89 @@ void main() {
       expect(headers['Authorization'], equals('Bearer tok2'));
     });
 
+    test('the refresh grant carries the client credentials', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('code-a');
+      await auth.authHeadersAsync();
+
+      expect(
+        client.bodies[1],
+        equals('grant_type=refresh_token&refresh_token=ref1'
+            '&client_id=my-client-id&client_secret=my-client-secret'),
+      );
+    });
+
+    test('a rejected refresh surfaces OAuth2ServerException after one POST', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('code-a');
+      await expectLater(
+        auth.authHeadersAsync(),
+        throwsA(isA<OAuth2ServerException>()),
+      );
+      expect(client.bodies, hasLength(2));
+    });
+
+    test('a second exchangeCode sends the new code', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('a');
+      await auth.exchangeCode('b');
+
+      expect(client.bodies, hasLength(2));
+      expect(client.bodies[1], startsWith('grant_type=authorization_code&code=b&'));
+      expect((await auth.authHeadersAsync())['Authorization'], equals('Bearer tok2'));
+    });
+
+    test('a second exchange without refresh_token drops the old refresh token',
+        () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      client.enqueue('{"access_token":"tok2","expires_in":1}');
+      client.enqueue('{"access_token":"tok3","expires_in":3600}');
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('a');
+      await auth.exchangeCode('b');
+      await auth.authHeadersAsync();
+
+      expect(client.bodies[2], isNot(contains('ref1')));
+    });
+
+    test('a failed exchange keeps the previous session', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+      client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('a');
+      await expectLater(
+        auth.exchangeCode('bad'),
+        throwsA(isA<OAuth2ServerException>()),
+      );
+      expect((await auth.authHeadersAsync())['Authorization'], equals('Bearer tok1'));
+    });
+
     test('throws before exchange code called', () {
       // Requesting a token before the code exchange is a wrong call order:
       // the invalid-state StateError, not an SDK exception.

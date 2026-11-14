@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,7 +7,10 @@
 
 import { Pet } from "./pet.js";
 import { Expose, Type, Transform } from "class-transformer";
-import { decodeBase64 } from "../object-serializer.js";
+import {
+  decodeBase64,
+  reattachAdditionalProperties,
+} from "../object-serializer.js";
 
 export class PetPassport {
   /**
@@ -24,8 +27,25 @@ export class PetPassport {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set([]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   @Expose({ name: "pet" })
   @Type(() => Pet)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["pet"],
+      ),
+    { toClassOnly: true },
+  )
   pet?: Pet;
   /**
    * Base64-encoded primary thumbnail
@@ -76,14 +96,21 @@ export class PetPassport {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. */
+   * constructor reject anything that is not a string. A string must be an RFC
+   * 3339 date-time with an explicit offset; anything else (no offset, a bare
+   * date, free text) is handed on raw too, so it never resolves against the
+   * host time zone or the current date. */
   @Transform(
     ({ value, obj }) => {
       const raw = (obj as Record<string, unknown>)["issuedAt"];
-      return raw === undefined ||
-        raw === null ||
-        typeof raw === "string" ||
-        raw instanceof Date
+      if (typeof raw === "string") {
+        return /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(
+          raw,
+        )
+          ? value
+          : raw;
+      }
+      return raw === undefined || raw === null || raw instanceof Date
         ? value
         : raw;
     },

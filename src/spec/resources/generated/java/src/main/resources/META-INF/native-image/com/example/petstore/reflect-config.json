@@ -1,5 +1,14 @@
 [
   {
+    "name": "com.example.petstore.models.Account",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.ApiResponse",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -88,6 +97,13 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.EdgeCases$PhaseEnum",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.Employee",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -107,6 +123,24 @@
   },
   {
     "name": "com.example.petstore.models.Metadata",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.ModelError",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.ModelResult",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -143,6 +177,15 @@
     "name": "com.example.petstore.models.Pet$StatusEnum",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.PetCriteria",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
     "allPublicFields": true,
     "allPublicMethods": true
   },
@@ -226,6 +269,24 @@
     "allPublicMethods": true
   },
   {
+    "name": "com.example.petstore.models.RequiredNullable",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.Separator",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
     "name": "com.example.petstore.models.SetPetAvatarRequest",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
@@ -281,6 +342,15 @@
   },
   {
     "name": "com.example.petstore.models.Tag",
+    "allDeclaredConstructors": true,
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allPublicConstructors": true,
+    "allPublicFields": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "com.example.petstore.models.TreatmentRecord",
     "allDeclaredConstructors": true,
     "allDeclaredFields": true,
     "allDeclaredMethods": true,

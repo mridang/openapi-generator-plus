@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -472,6 +473,23 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void callerHeadersWinRegardlessOfCase() throws Exception {
+    TransportOptions transport =
+        TransportOptions.builder()
+            .injectRequestId(true)
+            .defaultHeader("user-agent", "MyApp")
+            .defaultHeader("x-request-id", "abc")
+            .build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    String body = response.body();
+    assertTrue(body.contains("\"user-agent\":\"MyApp\""), body);
+    assertTrue(body.contains("\"x-request-id\":\"abc\""), body);
+    assertFalse(body.contains("(java)"), body);
+  }
+
+  @Test
   void generatesUniqueRequestIds() throws Exception {
     TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
     DefaultApiClient client = new DefaultApiClient(transport);
@@ -865,6 +883,24 @@ class DefaultApiClientUnitTest {
         "byte[] part must carry Content-Type: application/octet-stream, got: " + part);
   }
 
+  @Test
+  void multipartPrimitivePartsArePlainTextInTheCanonicalForm() throws Exception {
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+        renderMultipartPart("flag", true));
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+        renderMultipartPart("count", 3L));
+    String at =
+        renderMultipartPart(
+            "at", java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC));
+    assertTrue(at.endsWith("name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n"), at);
+    assertFalse(at.contains("Content-Type"), at);
+    assertEquals(
+        "--BOUNDARY\r\nContent-Disposition: form-data; name=\"day\"\r\n\r\n2024-01-15\r\n",
+        renderMultipartPart("day", java.time.LocalDate.of(2024, 1, 15)));
+  }
+
   static class MultipartModelPart {
     @com.fasterxml.jackson.annotation.JsonProperty("isEnabled")
     @javax.annotation.Nullable
@@ -937,6 +973,73 @@ class DefaultApiClientUnitTest {
   void multipartFilenameBackslashEscapesQuotes() {
     String directive = DefaultApiClient.buildFilenameDirective("a\"b.txt");
     assertTrue(directive.contains("a\\\"b.txt"));
+  }
+
+  @org.junit.jupiter.params.ParameterizedTest
+  @org.junit.jupiter.params.provider.CsvSource(
+      delimiter = '|',
+      quoteCharacter = '`',
+      value = {
+        "résumé*(1).pdf | filename=\"r_sum_*(1).pdf\";"
+            + " filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf",
+        "a\"b\\c.txt | filename=\"a\\\"b\\\\c.txt\"",
+        "😀.png | filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+        "plain.txt | filename=\"plain.txt\""
+      })
+  void multipartFilenameDirectiveFollowsTheCanonicalRule(String filename, String expected) {
+    assertEquals(expected, DefaultApiClient.buildFilenameDirective(filename));
+  }
+
+  @Test
+  void proxyAuthorizationSurvivesACrossOriginHttpRedirect() throws Exception {
+    final java.util.concurrent.atomic.AtomicReference<String> seenProxyAuth =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenAuth =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    final java.util.concurrent.atomic.AtomicReference<String> seenTarget =
+        new java.util.concurrent.atomic.AtomicReference<>("__unset__");
+    HttpServer proxy = HttpServer.create(new InetSocketAddress(0), 0);
+    proxy.createContext(
+        "/x",
+        exchange -> {
+          if (exchange.getRequestHeaders().getFirst("Proxy-Authorization") != null) {
+            exchange.getResponseHeaders().add("Location", "http://b.test/y");
+            exchange.sendResponseHeaders(302, -1);
+          } else {
+            exchange.sendResponseHeaders(407, -1);
+          }
+          exchange.close();
+        });
+    proxy.createContext(
+        "/y",
+        exchange -> {
+          seenTarget.set(exchange.getRequestURI().toString());
+          seenProxyAuth.set(exchange.getRequestHeaders().getFirst("Proxy-Authorization"));
+          seenAuth.set(exchange.getRequestHeaders().getFirst("Authorization"));
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    proxy.start();
+    try {
+      TransportOptions transport =
+          TransportOptions.builder()
+              .proxy("http://user:pass@localhost:" + proxy.getAddress().getPort())
+              .followRedirects(true)
+              .build();
+      DefaultApiClient client = new DefaultApiClient(transport);
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer caller-secret");
+      ApiHttpResponse response = client.sendRequest("GET", "http://a.test/x", headers, null);
+      assertEquals(200, response.statusCode());
+      assertEquals("http://b.test/y", seenTarget.get());
+      assertEquals(
+          "Basic "
+              + Base64.getEncoder().encodeToString("user:pass".getBytes(StandardCharsets.UTF_8)),
+          seenProxyAuth.get());
+      assertNull(seenAuth.get(), "the caller's Authorization must be stripped cross-origin");
+    } finally {
+      proxy.stop(0);
+    }
   }
 
   @Test

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -902,6 +902,28 @@ class TestBodySerialization:
         wire = str(client.captured_body)
         assert wire == "nickname=rex&subscribed=true"
 
+    async def test_form_urlencoded_body_rejects_a_map_field(self) -> None:
+        from petstore_client.errors import SerializationException
+
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(
+            SerializationException,
+            match="form-urlencoded field location must be a scalar or array of scalars",
+        ):
+            await stub.call(
+                "POST",
+                "/test/echo",
+                {},
+                {},
+                {"location": {"lat": 1.5}},
+                ["application/json"],
+                "application/x-www-form-urlencoded",
+                None,
+            )
+        assert client.captured_body is None
+
     async def test_passes_binary_body_as_is(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
@@ -1645,7 +1667,7 @@ class TestOperationServerVariants:
     def test_multi_server_operation_offers_each_server(self) -> None:
         from petstore_client.api.pet_api import (
             GetMultiServerPetInfoServerPrimary,
-            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegionalRegion,
             GetMultiServerPetInfoServerRegional,
         )
 
@@ -1655,7 +1677,7 @@ class TestOperationServerVariants:
         )
         assert (
             GetMultiServerPetInfoServerRegional(
-                GetMultiServerPetInfoServerRegion.EU
+                GetMultiServerPetInfoServerRegionalRegion.EU
             ).get_url()
             == "https://eu.example.com/v1"
         )
@@ -1686,7 +1708,7 @@ class TestOperationServerVariants:
         self,
     ) -> None:
         from petstore_client.api.pet_api import (
-            GetMultiServerPetInfoServerRegion,
+            GetMultiServerPetInfoServerRegionalRegion,
             GetMultiServerPetInfoServerRegional,
         )
 
@@ -1698,7 +1720,7 @@ class TestOperationServerVariants:
         await api.get_multi_server_pet_info(
             7,
             server=GetMultiServerPetInfoServerRegional(
-                GetMultiServerPetInfoServerRegion.AP
+                GetMultiServerPetInfoServerRegionalRegion.AP
             ),
         )
 

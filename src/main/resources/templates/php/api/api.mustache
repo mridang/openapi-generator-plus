@@ -23,23 +23,23 @@ use {{invokerPackage}}\Models\{{.}};
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
- * {{{.}}}
+ * {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagDescription}}
 {{#tagExternalDocs}}
- * @see {{url}} {{{description}}}
+ * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}
 {{/tagExternalDocs}}
  */
 class {{classname}} extends BaseApi
 {
 {{#operation}}
     /**
-     * {{{summary}}}
+     * {{#lambda.unescapeDocComment}}{{{summary}}}{{/lambda.unescapeDocComment}}
 {{#notes}}
-     * {{{.}}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/notes}}
 {{#pathParams}}
 {{#description}}
-     * @param {{{dataType}}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -47,12 +47,12 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{{summary}}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
 {{/vendorExtensions.pluralExamples}}
 {{/pathParams}}
 {{#bodyParam}}
 {{#description}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{{.}}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/description}}
 {{^description}}
 {{#isArray}}
@@ -60,7 +60,7 @@ class {{classname}} extends BaseApi
 {{/isArray}}
 {{/description}}
 {{#vendorExtensions.pluralExamples}}
-     * @example {{value}} {{{summary}}}
+     * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
 {{/vendorExtensions.pluralExamples}}
 {{/bodyParam}}
 {{#vendorExtensions.op.hasOptionsParam}}
@@ -82,7 +82,7 @@ class {{classname}} extends BaseApi
      * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
-     * @see {{url}} {{{description}}}
+     * @see {{#lambda.phpdocDescription}}{{{url}}}{{/lambda.phpdocDescription}} {{#lambda.phpdocDescription}}{{{description}}}{{/lambda.phpdocDescription}}
 {{/externalDocs}}
      */
 {{#returnType}}
@@ -155,16 +155,18 @@ class {{classname}} extends BaseApi
 {{/hasAuthMethods}}
 {{! required-param-validation: a required string param must not be empty. A path
     param interpolated into the URL would otherwise collapse the segment (e.g.
-    /pets//orders); a required query, header or form string is rejected for the
+    /pets//orders); a required query, header, form or cookie string is rejected for the
     same reason the other SDKs reject it — an empty string is not a present value
     for a required parameter. Non-string required params rely on the PHP type for
     presence. The harmonised message matches the cross-SDK canonical. }}
 {{#pathParams}}
 {{#required}}
 {{#isString}}
+{{^isUuid}}
         if (${{paramName}} === '') {
             throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -195,12 +197,21 @@ class {{classname}} extends BaseApi
 {{/isString}}
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
             '{{baseName}}',
-            ${{paramName}},
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}${{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
             'path',
             '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
             null,
@@ -243,7 +254,7 @@ class {{classname}} extends BaseApi
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+            $queryParams['{{baseName}}'] = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -258,7 +269,7 @@ class {{classname}} extends BaseApi
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
@@ -267,7 +278,7 @@ class {{classname}} extends BaseApi
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options !== null && $options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
@@ -276,13 +287,13 @@ class {{classname}} extends BaseApi
         /* Required query param: always present (non-nullable on the Options
          * object), so it is emitted unconditionally. An empty string is a
          * legitimate value and is sent as-is. */
-        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
                 '{{baseName}}',
-                $options->{{paramName}},
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
                 'query',
                 '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
                 {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
@@ -295,11 +306,25 @@ class {{classname}} extends BaseApi
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
+{{#required}}
+        /** @var string $headerValue */
+        $headerValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+            'header',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        $headerParams['{{baseName}}'] = $headerValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 '{{baseName}}',
-                $options->{{paramName}},
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
                 'header',
                 '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
                 null,
@@ -308,13 +333,30 @@ class {{classname}} extends BaseApi
             );
             $headerParams['{{baseName}}'] = $headerValue;
         }
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
+{{#required}}
+        /** @var string $cookieValue */
+        $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            );
+        }
+        $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
-            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             /* RFC 6265 cookie-value: reject CR/LF/control chars and other
              * forbidden octets before this value is folded into the Cookie
              * request header. Mirrors the auth-cookie path in BaseApi so an
@@ -327,20 +369,19 @@ class {{classname}} extends BaseApi
             }
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
+{{/required}}
 {{/cookieParams}}
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
 {{/hasCookieParams}}
 {{#hasFormParams}}
         $requestBody = [];
 {{#formParams}}
 {{#required}}
-        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
+        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
+            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
         }
 {{/required}}
 {{/formParams}}
@@ -392,7 +433,8 @@ class {{classname}} extends BaseApi
             null,
 {{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
-            $allowReservedKeys
+            $allowReservedKeys{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}}
         );
         return $result;
     }
@@ -451,16 +493,18 @@ class {{classname}} extends BaseApi
 {{/hasAuthMethods}}
 {{! required-param-validation: a required string param must not be empty. A path
     param interpolated into the URL would otherwise collapse the segment (e.g.
-    /pets//orders); a required query, header or form string is rejected for the
+    /pets//orders); a required query, header, form or cookie string is rejected for the
     same reason the other SDKs reject it — an empty string is not a present value
     for a required parameter. Non-string required params rely on the PHP type for
     presence. The harmonised message matches the cross-SDK canonical. }}
 {{#pathParams}}
 {{#required}}
 {{#isString}}
+{{^isUuid}}
         if (${{paramName}} === '') {
             throw new \InvalidArgumentException("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
         }
+{{/isUuid}}
 {{/isString}}
 {{/required}}
 {{/pathParams}}
@@ -491,12 +535,21 @@ class {{classname}} extends BaseApi
 {{/isString}}
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+{{#isString}}
+        if ($options->{{paramName}} === '') {
+            throw new \InvalidArgumentException("Missing the required parameter '{{baseName}}' when calling {{classname}}.{{operationId}}");
+        }
+{{/isString}}
+{{/required}}
+{{/cookieParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled(
             '{{baseName}}',
-            ${{paramName}},
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}${{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
             'path',
             '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
             null,
@@ -539,7 +592,7 @@ class {{classname}} extends BaseApi
 {{#queryParams}}
 {{#vendorExtensions.param.queryContent}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = json_encode($options->{{paramName}});
+            $queryParams['{{baseName}}'] = \{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}});
         }
 {{/vendorExtensions.param.queryContent}}
 {{#vendorExtensions.param.queryDeepObject}}
@@ -554,7 +607,7 @@ class {{classname}} extends BaseApi
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
@@ -563,7 +616,7 @@ class {{classname}} extends BaseApi
          * always be sent. When the caller omits it (null), omit the key entirely
          * so no spurious '{{baseName}}=' appears on the wire. */
         if ($options !== null && $options->{{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/vendorExtensions.param.queryStyledAllowEmpty}}
@@ -572,13 +625,13 @@ class {{classname}} extends BaseApi
         /* Required query param: always present (non-nullable on the Options
          * object), so it is emitted unconditionally. An empty string is a
          * legitimate value and is sent as-is. */
-        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}});
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled(
                 '{{baseName}}',
-                $options->{{paramName}},
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
                 'query',
                 '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
                 {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}},
@@ -591,11 +644,25 @@ class {{classname}} extends BaseApi
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
+{{#required}}
+        /** @var string $headerValue */
+        $headerValue = ValueSerializer::serializeStyled(
+            '{{baseName}}',
+            {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
+            'header',
+            '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
+            null,
+            '{{style}}',
+            {{vendorExtensions.isExplodeStr}},
+        );
+        $headerParams['{{baseName}}'] = $headerValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $headerValue */
             $headerValue = ValueSerializer::serializeStyled(
                 '{{baseName}}',
-                $options->{{paramName}},
+                {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}},
                 'header',
                 '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}},
                 null,
@@ -604,13 +671,30 @@ class {{classname}} extends BaseApi
             );
             $headerParams['{{baseName}}'] = $headerValue;
         }
+{{/required}}
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
+{{#required}}
+        /** @var string $cookieValue */
+        $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+        /* RFC 6265 cookie-value: reject CR/LF/control chars and other
+         * forbidden octets before this value is folded into the Cookie
+         * request header. Mirrors the auth-cookie path in BaseApi so an
+         * operation cookie param fails closed with the same
+         * InvalidArgumentException instead of enabling header injection. */
+        if (preg_match('/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/', $cookieValue) !== 1) {
+            throw new \InvalidArgumentException(
+                "Cookie value for '{{baseName}}' contains characters forbidden by RFC 6265"
+            );
+        }
+        $cookieParts[] = '{{baseName}}=' . $cookieValue;
+{{/required}}
+{{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
-            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
+            $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
             /* RFC 6265 cookie-value: reject CR/LF/control chars and other
              * forbidden octets before this value is folded into the Cookie
              * request header. Mirrors the auth-cookie path in BaseApi so an
@@ -623,20 +707,19 @@ class {{classname}} extends BaseApi
             }
             $cookieParts[] = '{{baseName}}=' . $cookieValue;
         }
+{{/required}}
 {{/cookieParams}}
-        if ($cookieParts !== []) {
-            $headerParams['Cookie'] = implode('; ', $cookieParts);
-        }
+        $headerParams = self::withCookieHeader($headerParams, $cookieParts);
 {{/hasCookieParams}}
 {{#hasFormParams}}
         $requestBody = [];
 {{#formParams}}
 {{#required}}
-        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
+        $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
 {{/required}}
 {{^required}}
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
-            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}$options->{{paramName}}{{/items.isDate}}{{/isDate}};
+            $requestBody['{{baseName}}'] = {{#isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/isDate}}{{#items.isDate}}ValueSerializer::formatDateOnly($options->{{paramName}}){{/items.isDate}}{{^isDate}}{{^items.isDate}}{{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}{{/items.isDate}}{{/isDate}};
         }
 {{/required}}
 {{/formParams}}
@@ -688,7 +771,8 @@ class {{classname}} extends BaseApi
             null,
 {{/vendorExtensions.op.securityNone}}
 {{/hasAuthMethods}}
-            $allowReservedKeys
+            $allowReservedKeys{{#bodyParam}}{{#isBinary}},
+            rawBody: true{{/isBinary}}{{/bodyParam}}
         );
         return $result;
     }

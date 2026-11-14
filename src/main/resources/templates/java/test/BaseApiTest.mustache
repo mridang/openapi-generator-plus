@@ -967,6 +967,28 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("form-urlencoded body rejects a nested object field")
+        void formUrlencodedBodyRejectsANestedObjectField() {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("location", Map.of("lat", 1.5));
+            {{invokerPackage}}.errors.SerializationException ex = assertThrowsExactly(
+                    {{invokerPackage}}.errors.SerializationException.class,
+                    () -> testApi.call(
+                            "POST", "/test/echo",
+                            new HashMap<>(), new HashMap<>(),
+                            formParams,
+                            new String[] {"application/json"},
+                            "application/x-www-form-urlencoded",
+                            null, null));
+            assertEquals(
+                    "form-urlencoded field location must be a scalar or array of scalars",
+                    ex.getMessage());
+            assertNull(client.capturedBody);
+        }
+
+        @Test
         @DisplayName("passes binary body as-is")
         void passesBinaryBody() throws ApiException {
             var client = new CapturingApiClient();

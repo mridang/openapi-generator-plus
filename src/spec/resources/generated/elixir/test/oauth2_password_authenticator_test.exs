@@ -7,7 +7,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
     def new(responses) do
       {:ok, agent} =
         Agent.start_link(fn ->
-          %{responses: responses, last_url: nil, last_body: nil, last_headers: nil}
+          %{responses: responses, last_url: nil, last_body: nil, last_headers: nil, requests: []}
         end)
 
       %__MODULE__{agent: agent}
@@ -22,7 +22,8 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
           | responses: rest,
             last_url: url,
             last_body: body,
-            last_headers: headers
+            last_headers: headers,
+            requests: state.requests ++ [{url, body}]
         }
 
         {response, new_state}
@@ -31,6 +32,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def requests(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.requests)
     def last_headers(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_headers)
   end
 
@@ -309,6 +311,93 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
       PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
       assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/refresh"
+    end
+
+    test "a rejected refresh re-runs the password grant at the token URL" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok3", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "https://auth.example.com/token",
+          "testuser",
+          "testpass",
+          ["read"],
+          refresh_url: "https://auth.example.com/refresh"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+      headers = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok3"
+
+      assert [_first, {refresh_url, refresh}, {retry_url, retry}] =
+               FakeApiClient.requests(fake_client)
+
+      assert refresh_url == "https://auth.example.com/refresh"
+      assert URI.decode_query(refresh)["grant_type"] == "refresh_token"
+      assert retry_url == "https://auth.example.com/token"
+      assert URI.decode_query(retry)["grant_type"] == "password"
+    end
+
+    test "password grant and refresh bodies are in the fixed order" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 1
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+
+      assert [{_, grant}, {_, refresh}] = FakeApiClient.requests(fake_client)
+
+      assert grant ==
+               "grant_type=password&username=testuser&password=testpass" <>
+                 "&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+
+      assert refresh ==
+               "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
     end
 
     test "the password grant sends scopes with + for the space and percent-encodes * ! ' ( )" do

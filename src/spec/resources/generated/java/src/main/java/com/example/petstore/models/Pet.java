@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -158,6 +159,15 @@ public class Pet {
   @Nullable
   public BigDecimal weightKg;
 
+  /**
+   * The {@code nickname} property.
+   *
+   * <p>Example: {@code rex}
+   */
+  @JsonProperty("nickname")
+  @Nullable
+  public String nickname;
+
   /* No-arg constructor required by deserialization/test tooling. It
    * intentionally leaves the @NonNull required fields uninitialized — the
    * @JsonCreator constructor below populates them on the deserialization path.
@@ -209,7 +219,8 @@ public class Pet {
         && java.util.Objects.equals(this.thumbnailRef, other.thumbnailRef)
         && java.util.Objects.equals(this.linkTemplate, other.linkTemplate)
         && java.util.Objects.equals(this.ownerEmail, other.ownerEmail)
-        && com.example.petstore.ObjectSerializer.structuralEquals(this.weightKg, other.weightKg);
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.weightKg, other.weightKg)
+        && java.util.Objects.equals(this.nickname, other.nickname);
   }
 
   @Override
@@ -226,7 +237,8 @@ public class Pet {
         thumbnailRef,
         linkTemplate,
         ownerEmail,
-        com.example.petstore.ObjectSerializer.structuralHashCode(weightKg));
+        com.example.petstore.ObjectSerializer.structuralHashCode(weightKg),
+        nickname);
   }
 
   @Override
@@ -245,6 +257,7 @@ public class Pet {
     sb.append(", linkTemplate=").append(linkTemplate);
     sb.append(", ownerEmail=").append(ownerEmail);
     sb.append(", weightKg=").append(weightKg);
+    sb.append(", nickname=").append(nickname);
     sb.append("}");
     return sb.toString();
   }

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -76,4 +76,7 @@ object ChasmContainer {
     fun getInternalHttpUrl(): String = "http://chasm:4010"
 
     fun getInternalHttpsUrl(): String = "https://chasm:8443"
+
+    /** HTTPS by the mock server's IP address on [PROXY_NETWORK], reachable through Squid. */
+    fun getInternalHttpsAddressUrl(): String = "https://${INSTANCE.containerInfo.networkSettings.networks.values.first().ipAddress}:8443"
 }

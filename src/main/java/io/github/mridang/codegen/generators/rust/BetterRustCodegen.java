@@ -64,6 +64,10 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     private static final Set<String> NON_RAW_IDENTIFIER_KEYWORDS =
             Set.of("crate", "self", "super", "Self");
 
+    /** Prelude types a generated model name must not shadow. */
+    private static final Set<String> RUST_PRELUDE_TYPES =
+            Set.of("Result", "Option", "Vec", "Box", "Some", "None", "Ok", "Err");
+
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
@@ -588,6 +592,21 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
         if (resolved.getDefault() != null) {
+            if (schema.get$ref() != null
+                    && resolved.getEnum() != null
+                    && !resolved.getEnum().isEmpty()
+                    && ModelUtils.isStringSchema(resolved)) {
+                // A default on a referenced string enum names the declared variant.
+                return toModelName(ModelUtils.getSimpleRef(schema.get$ref()))
+                        + "::"
+                        + toEnumVarName(String.valueOf(resolved.getDefault()), "String");
+            }
+            if (ModelUtils.isNumberSchema(resolved)) {
+                // A floating-point literal needs a decimal point: `Some(2)` is
+                // an integer and does not coerce to f32/f64.
+                final String literal = resolved.getDefault().toString();
+                return literal.matches("-?\\d+") ? literal + ".0" : literal;
+            }
             if (ModelUtils.isStringSchema(resolved)) {
                 return "String::from(\"" + escapeText(String.valueOf(resolved.getDefault())) + "\")";
             } else if (ModelUtils.isBooleanSchema(resolved)) {
@@ -618,6 +637,26 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        /* format: time routes through the object_serializer::naive_time adapter
+         * so a body writes HH:mm:ss(.SSS), the same text as a parameter. */
+        property.vendorExtensions.put("isTime", "time".equals(property.dataFormat));
+        /* format: uri stays a String but is decoded through
+         * object_serializer::absolute_uri, which rejects relative references. */
+        property.vendorExtensions.put("isUri", "uri".equals(property.dataFormat));
+        // A property referencing a model renamed by toModelName (prelude clash)
+        // still carries the raw schema name; point it at the renamed type.
+        final String complex = property.complexType;
+        if (complex != null && RUST_PRELUDE_TYPES.contains(complex)) {
+            final String renamed = "Model" + complex;
+            final String word = "\\b" + complex + "\\b";
+            if (property.dataType != null) {
+                property.dataType = property.dataType.replaceAll(word, renamed);
+            }
+            if (property.datatypeWithEnum != null) {
+                property.datatypeWithEnum = property.datatypeWithEnum.replaceAll(word, renamed);
+            }
+            property.complexType = renamed;
+        }
     }
 
     /**
@@ -635,7 +674,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     public String escapeReservedWord(String name) {
-        if (NON_RAW_IDENTIFIER_KEYWORDS.contains(name)) {
+        // A raw identifier still has to start like an identifier, so a
+        // digit-leading name (`2fa`) takes the underscore escape as well.
+        if (NON_RAW_IDENTIFIER_KEYWORDS.contains(name) || name.matches("^\\d.*")) {
             return "_" + name;
         }
         return "r#" + name;
@@ -821,8 +862,76 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                     op.vendorExtensions.put("op", opDecorators);
                 }
             }
+            sanitizeServerEnumNames(operations.get("serverTypeDefs"));
         }
         return result;
+    }
+
+    /**
+     * Rewrites the shared upper-snake server-variable enum constant names
+     * ({@code A_B}) into Rust enum variant names by dropping the underscores,
+     * which would trip {@code non_camel_case_types}. Names, values and types
+     * are otherwise the shared ones (one enum per variable per variant).
+     *
+     * @param serverTypeDefs the {@code serverTypeDefs} list built by the base class
+     */
+    @SuppressWarnings("unchecked")
+    private static void sanitizeServerEnumNames(@Nullable Object serverTypeDefs) {
+        if (!(serverTypeDefs instanceof List)) {
+            return;
+        }
+        for (final Object typeDef : (List<Object>) serverTypeDefs) {
+            final Object variants =
+                    typeDef instanceof Map ? ((Map<String, Object>) typeDef).get("variants") : null;
+            if (!(variants instanceof List)) {
+                continue;
+            }
+            for (final Object variant : (List<Object>) variants) {
+                final Object vars =
+                        variant instanceof Map
+                                ? ((Map<String, Object>) variant).get("serverVariables")
+                                : null;
+                if (!(vars instanceof List)) {
+                    continue;
+                }
+                for (final Object serverVar : (List<Object>) vars) {
+                    final Object values =
+                            serverVar instanceof Map
+                                    ? ((Map<String, Object>) serverVar).get("enumValues")
+                                    : null;
+                    if (!(values instanceof List)) {
+                        continue;
+                    }
+                    for (final Map<String, String> ev : (List<Map<String, String>>) values) {
+                        ev.put("name", String.valueOf(ev.get("name")).replace("_", ""));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A schema named after a prelude type ({@code Result}, {@code Option}, ...)
+     * would shadow it in every module that glob-imports the models, so every
+     * {@code Result<T, E>} in that module stops compiling. Such names take the
+     * {@code Model} prefix; the wire name is unchanged.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        return RUST_PRELUDE_TYPES.contains(modelName) ? "Model" + modelName : modelName;
+    }
+
+    /**
+     * A value made only of characters that sanitise away (a space, {@code @@})
+     * would otherwise yield an empty variant name, which does not compile; it
+     * takes the empty-value name instead and the usual collision suffixing
+     * keeps the variants distinct.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        final String name = super.toEnumVarName(value, datatype);
+        return name.isEmpty() ? "Empty" : name;
     }
 
     /** {@inheritDoc} */
@@ -867,13 +976,57 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return super.addMustacheLambdas()
                 .put(
                         "rustdoc",
+                        (fragment, writer) -> writer.write(escapeRustdoc(fragment.execute())))
+                .put(
+                        "blockComment",
+                        (fragment, writer) -> writer.write(escapeBlockComment(fragment.execute())))
+                .put(
+                        "docLines",
                         (fragment, writer) ->
                                 writer.write(
                                         fragment.execute()
-                                                .replace("<", "\\<")
-                                                .replace(">", "\\>")
-                                                .replace("[", "\\[")
-                                                .replace("]", "\\]")));
+                                                .strip()
+                                                .replaceAll("\\r?\\n", "\n/// ")))
+                .put(
+                        "rustString",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .replace("\\", "\\\\")
+                                                .replace("\"", "\\\"")
+                                                .replace("\r", "\\r")
+                                                .replace("\n", "\\n")));
+    }
+
+    /**
+     * Escapes the characters rustdoc reads as markup in spec prose: angle
+     * brackets (HTML tags) and square brackets (intra-doc links).
+     *
+     * @param text the doc comment text
+     * @return the text with those characters backslash-escaped
+     */
+    static String escapeRustdoc(String text) {
+        return text.replace("<", "\\<")
+                .replace(">", "\\>")
+                .replace("[", "\\[")
+                .replace("]", "\\]");
+    }
+
+    /**
+     * Makes text safe inside a rust block comment. Rust block comments nest, so
+     * a comment opener (as in a wildcard media type) or closer in spec text would unbalance
+     * the comment; a backslash between the two characters neutralises each.
+     * Line breaks continue the comment with the usual leading {@code " * "}.
+     *
+     * @param text the comment text
+     * @return the text with comment delimiters neutralised
+     */
+    static String escapeBlockComment(String text) {
+        return text.strip()
+                .replace("*/", "*\\/")
+                .replace("/*", "/\\*")
+                .replaceAll("[ \\t]*\\r?\\n", "\n * ")
+                .replace("\n * \n", "\n *\n");
     }
 
     /** {@inheritDoc} */
@@ -1107,7 +1260,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             // is left untouched (e.g. an allowEmptyValue string stays a string).
             param.put("deprecated", p.isDeprecated);
             if (p.description != null && !p.description.isEmpty()) {
-                param.put("description", p.description);
+                // The options template renders without HTML escaping, so the
+                // raw spec prose only needs the rustdoc markdown escape.
+                final String prose =
+                        p.unescapedDescription != null ? p.unescapedDescription : p.description;
+                param.put("description", escapeRustdoc(prose));
             }
             params.add(param);
         }
@@ -1159,7 +1316,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 && (parameter.items.isModel
                         || parameter.items.isEnumRef
                         || (parameter.items.complexType != null
-                                && !parameter.items.complexType.isEmpty()));
+                                && !parameter.items.complexType.isEmpty()
+                                && !parameter.items.isDate
+                                && !parameter.items.isDateTime));
     }
 
     /** {@inheritDoc} */

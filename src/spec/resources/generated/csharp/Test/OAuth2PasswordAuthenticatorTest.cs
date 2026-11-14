@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -28,6 +28,7 @@ public class OAuth2PasswordAuthenticatorTest
         public string? LastBody { get; private set; }
         public Uri? LastUrl { get; private set; }
         public Dictionary<string, string> LastHeaders { get; private set; } = new();
+        public List<(Uri Url, string? Body)> Requests { get; } = new();
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -36,6 +37,7 @@ public class OAuth2PasswordAuthenticatorTest
             object? body
         )
         {
+            Requests.Add((url, body?.ToString()));
             LastUrl = url;
             LastHeaders = headers;
             LastBody = body?.ToString();
@@ -70,7 +72,7 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.NotNull(client.LastBody);
-        Assert.Contains("grant_type=password", client.LastBody!);
+        Assert.Contains("grant_type=password", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -84,8 +86,8 @@ public class OAuth2PasswordAuthenticatorTest
 
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("username=testuser", client.LastBody!);
-        Assert.Contains("password=testpass", client.LastBody!);
+        Assert.Contains("username=testuser", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("password=testpass", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -99,8 +101,12 @@ public class OAuth2PasswordAuthenticatorTest
 
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("client_id=my-client-id", client.LastBody!);
-        Assert.Contains("client_secret=my-client-secret", client.LastBody!);
+        Assert.Contains("client_id=my-client-id", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains(
+            "client_secret=my-client-secret",
+            client.LastBody!,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -132,8 +138,8 @@ public class OAuth2PasswordAuthenticatorTest
         // Second call should use refresh_token grant since token is expired
         await auth.GetAuthHeadersAsync();
 
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
-        Assert.Contains("refresh_token=ref1", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+        Assert.Contains("refresh_token=ref1", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -160,7 +166,7 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -189,7 +195,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "testuser",
             "testpass",
-            new[] { "read" },
+            ["read"],
             null,
             ClientAuthMethod.Basic
         );
@@ -199,7 +205,7 @@ public class OAuth2PasswordAuthenticatorTest
 
         Assert.True(client.LastHeaders.TryGetValue("Authorization", out var authHeader));
         Assert.NotNull(authHeader);
-        Assert.StartsWith("Basic ", authHeader);
+        Assert.StartsWith("Basic ", authHeader, StringComparison.Ordinal);
         string decoded = System.Text.Encoding.UTF8.GetString(
             Convert.FromBase64String(authHeader!.Substring("Basic ".Length))
         );
@@ -217,9 +223,9 @@ public class OAuth2PasswordAuthenticatorTest
     {
         var auth = CreateAuthenticator();
         string repr = auth.ToString();
-        Assert.DoesNotContain("my-client-secret", repr);
-        Assert.DoesNotContain("testpass", repr);
-        Assert.Contains("***", repr);
+        Assert.DoesNotContain("my-client-secret", repr, StringComparison.Ordinal);
+        Assert.DoesNotContain("testpass", repr, StringComparison.Ordinal);
+        Assert.Contains("***", repr, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -262,7 +268,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "user~*!'()",
             "pass~*!'()",
-            new[] { "a~b", "c*d" }
+            ["a~b", "c*d"]
         );
         auth.SetApiClient(client);
 
@@ -288,7 +294,7 @@ public class OAuth2PasswordAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             "testuser",
             "testpass",
-            new[] { "read" },
+            ["read"],
             null,
             ClientAuthMethod.Basic
         );
@@ -315,6 +321,95 @@ public class OAuth2PasswordAuthenticatorTest
         await auth.GetAuthHeadersAsync();
 
         Assert.Equal("https://auth.example.com/token", client.LastUrl!.AbsoluteUri);
-        Assert.Contains("grant_type=refresh_token", client.LastBody!);
+        Assert.Contains("grant_type=refresh_token", client.LastBody!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BodyModeRefreshCarriesTheClientCredentials()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            Scopes,
+            new Uri("https://auth.example.com/refresh")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("https://auth.example.com/refresh", client.LastUrl!.AbsoluteUri);
+        Assert.Equal(
+            "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret",
+            client.LastBody
+        );
+    }
+
+    [Fact]
+    public async Task BasicModeRefreshCarriesTheBasicHeaderAndNoClientIdInTheBody()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            Scopes,
+            null,
+            ClientAuthMethod.Basic
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("grant_type=refresh_token&refresh_token=ref1", client.LastBody);
+        Assert.Equal(
+            "Basic "
+                + Convert.ToBase64String(
+                    System.Text.Encoding.UTF8.GetBytes("my-client-id:my-client-secret")
+                ),
+            client.LastHeaders["Authorization"]
+        );
+    }
+
+    [Fact]
+    public async Task RejectedRefreshReRunsThePasswordGrantAtTheTokenUrl()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
+        client.Enqueue("{\"error\":\"invalid_grant\"}", statusCode: 400);
+        client.Enqueue("{\"access_token\":\"tok3\",\"expires_in\":3600}");
+        var auth = new OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://auth.example.com/token"),
+            "testuser",
+            "testpass",
+            Scopes,
+            new Uri("https://auth.example.com/refresh")
+        );
+        auth.SetApiClient(client);
+
+        await auth.GetAuthHeadersAsync();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
+
+        Assert.Equal("Bearer tok3", headers["Authorization"]);
+        Assert.Equal(3, client.Requests.Count);
+        Assert.Equal("https://auth.example.com/refresh", client.Requests[1].Url.AbsoluteUri);
+        Assert.Equal("https://auth.example.com/token", client.Requests[2].Url.AbsoluteUri);
+        Assert.Contains("grant_type=password", client.Requests[2].Body!, StringComparison.Ordinal);
     }
 }

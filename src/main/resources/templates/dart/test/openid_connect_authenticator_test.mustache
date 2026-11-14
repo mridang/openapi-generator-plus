@@ -314,6 +314,28 @@ void main() {
       expect(client.getCount, equals(1));
     });
 
+    /* A max-age beyond the one-year ceiling, including a digit run that
+     * overflows an int, is clamped before the expiry arithmetic, so the
+     * document stays cached instead of the Duration overflowing. */
+    for (final maxAge in <String>[
+      '9223372036854775807',
+      '18446744073709551615',
+      '31536001',
+    ]) {
+      test('Cache-Control max-age=$maxAge is clamped to one year and cached', () async {
+        final client = _FakeApiClient();
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=$maxAge'});
+        client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(1));
+      });
+    }
+
     test('a Cache-Control header without max-age falls back to the default lifetime', () async {
       final client = _FakeApiClient();
       client.enqueue(document, headers: {'Cache-Control': 'no-transform'});

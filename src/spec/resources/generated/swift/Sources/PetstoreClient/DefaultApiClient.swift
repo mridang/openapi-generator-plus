@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,6 +7,9 @@
 
 import Foundation
 
+#if canImport(CoreFoundation)
+  import CoreFoundation
+#endif
 #if canImport(Security)
   import Security
 #endif
@@ -260,10 +263,15 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     for (k, v) in headers {
       merged[k] = v
     }
-    if merged["User-Agent"] == nil, let ua = transportOptions.userAgent {
+    /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
+     * header in any case wins and nothing is injected beside it. */
+    func hasHeader(_ name: String) -> Bool {
+      merged.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame }
+    }
+    if !hasHeader("User-Agent"), let ua = transportOptions.userAgent {
       merged["User-Agent"] = ua
     }
-    if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
+    if !hasHeader("X-Request-ID") && transportOptions.injectRequestID {
       merged["X-Request-ID"] = UUID().uuidString.lowercased()
     }
     /*
@@ -494,10 +502,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       body.append(Data(crlf.utf8))
     } else if let text = value as? String {
       body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
-    } else if value is Bool || value is any BinaryInteger || value is any BinaryFloatingPoint {
-      /* Printed as the Swift value, so a Bool is `true`/`false` (bridging
-         it to NSNumber would print 1/0). */
-      body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(value)\(crlf)".utf8))
+    } else if BaseApi.isMultipartPrimitive(value) {
+      /* Every primitive (boolean, number, date-time, uuid, enum) is a
+         plain text part with no part Content-Type, its body the
+         canonical stringify form (`true`, `3`,
+         `2024-01-15T10:30:00.000+00:00`, the enum wire value). */
+      let text = ObjectSerializer.stringify(value)
+      body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
     } else {
       /* Model objects (Codable structs) -- serialize through the SDK's
        * shared, date-strategy-configured encoder rather than
@@ -646,8 +657,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   }
 
   /// Parses the `charset=` parameter from a Content-Type header and
-  /// returns the matching `String.Encoding`. Falls back to UTF-8 if the
-  /// charset is missing, unrecognised, or unsupported.
+  /// returns the matching `String.Encoding`. A label outside the table
+  /// below is resolved through CoreFoundation's IANA charset registry, so
+  /// any charset the platform can convert decodes (iso-8859-15, koi8-r,
+  /// gb18030, big5, ...). Falls back to UTF-8 if the charset is missing,
+  /// unregistered, or unsupported.
   static func encodingForContentType(_ contentType: String?) -> String.Encoding {
     guard let charset = charsetLabel(contentType) else {
       return .utf8
@@ -670,14 +684,26 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     case "utf-32": return .utf32
     case "windows-1250": return .windowsCP1250
     case "windows-1251": return .windowsCP1251
-    case "windows-1252": return .windowsCP1252
+    case "windows-1252", "cp1252", "x-cp1252": return .windowsCP1252
     case "windows-1253": return .windowsCP1253
     case "windows-1254": return .windowsCP1254
     case "shift_jis", "shift-jis": return .shiftJIS
     case "euc-jp": return .japaneseEUC
     case "iso-2022-jp": return .iso2022JP
-    default: return .utf8
+    default: return registeredEncoding(charset) ?? .utf8
     }
+  }
+
+  /// Looks a charset label up in CoreFoundation's IANA registry, which is
+  /// present on Linux as well as on the Apple platforms. Returns nil for a
+  /// label the registry does not know.
+  static func registeredEncoding(_ label: String) -> String.Encoding? {
+    let name = unsafeBitCast(NSString(string: label), to: CFString.self)
+    let cfEncoding = CFStringConvertIANACharSetNameToEncoding(name)
+    guard cfEncoding != kCFStringEncodingInvalidId else {
+      return nil
+    }
+    return String.Encoding(rawValue: UInt(CFStringConvertEncodingToNSStringEncoding(cfEncoding)))
   }
 
   /// Determines whether the given content type represents text content

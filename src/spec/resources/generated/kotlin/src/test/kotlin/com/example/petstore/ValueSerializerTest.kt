@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -14,6 +14,35 @@ import org.junit.jupiter.api.Test
 import java.time.LocalDate
 
 class ValueSerializerTest {
+    @Nested
+    @DisplayName("path dot segments")
+    inner class PathDotSegmentTests {
+        @Test
+        @DisplayName("a simple-style path value of exactly '.' or '..' is rejected")
+        fun dotSegmentPathValueIsRejected() {
+            for (segment in listOf(".", "..")) {
+                val ex =
+                    assertThrowsExactly(IllegalArgumentException::class.java) {
+                        ValueSerializer.serializeStyled("name", segment, "path", "string", null, "simple", false)
+                    }
+                assertEquals("Path parameter 'name' must not be '.' or '..'", ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName("dots inside a longer path value are kept literal")
+        fun dotsInsideAPathValueAreKept() {
+            assertEquals(
+                "a..b",
+                ValueSerializer.serializeStyled("name", "a..b", "path", "string", null, "simple", false),
+            )
+            assertEquals(
+                ".hidden",
+                ValueSerializer.serializeStyled("name", ".hidden", "path", "string", null, "simple", false),
+            )
+        }
+    }
+
     /**
      * N3/W3 parity: `format: date` path parameters must emit a date-only
      * string (YYYY-MM-DD), not a full ISO datetime. Kotlin models
@@ -720,6 +749,15 @@ class ValueSerializerTest {
             // Space is illegal in a URL and must still be percent-encoded even
             // when reserved characters are preserved.
             assertEquals("a%20b:c", ValueSerializer.encodeQueryAllowingReserved("a b:c"))
+        }
+
+        @Test
+        @DisplayName("only the RFC 3986 query-legal reserved set stays literal; # [ ] are encoded")
+        fun fragmentAndBracketsAreEncoded() {
+            assertEquals(
+                "a:b/c?d%5Be%5Df@g!h\$i&j'k(l)m*n+o,p;q=r~s%23t%20u",
+                ValueSerializer.encodeQueryAllowingReserved("a:b/c?d[e]f@g!h\$i&j'k(l)m*n+o,p;q=r~s#t u"),
+            )
         }
 
         @Test

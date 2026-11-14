@@ -6,6 +6,7 @@ from .find_pets_by_status_options import (
     FindPetsByStatusOptions as FindPetsByStatusOptions,
 )
 from .get_pet_by_name_options import GetPetByNameOptions as GetPetByNameOptions
+from .get_pet_summary_options import GetPetSummaryOptions as GetPetSummaryOptions
 from .get_pet_tag_options import GetPetTagOptions as GetPetTagOptions
 from .set_pet_preferences_options import (
     SetPetPreferencesOptions as SetPetPreferencesOptions,
@@ -18,3 +19,4 @@ from .upload_pet_document_options import (
 )
 from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions
 from .get_stock_item_options import GetStockItemOptions as GetStockItemOptions
+from .search_store_options import SearchStoreOptions as SearchStoreOptions

@@ -7,6 +7,7 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.swagger.v3.oas.models.media.Schema;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -177,6 +178,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     @Override
     protected NamingConvention getEnumCasing() {
         return NamingConvention.SNAKE_CASE;
+    }
+
+    /**
+     * Neutralises the hash-brace interpolation opener of an Elixir string
+     * literal (after the shared backslash doubling), so a value such as
+     * hash-brace-x-brace stays the four characters it is on the wire.
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"#\\{", "\\\\#{"});
     }
 
     /** {@inheritDoc} */
@@ -481,7 +492,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             if (resolved.getEnum() != null && !resolved.getEnum().isEmpty()) {
                 return ":\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
             } else if (ModelUtils.isStringSchema(resolved)) {
-                return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+                // The shared literal escape, so #{ cannot interpolate and the
+                // default is exactly the spec string.
+                return quoteEnumValue(escapeEnumStringValue(String.valueOf(resolved.getDefault())));
             } else if (ModelUtils.isBooleanSchema(resolved)) {
                 return resolved.getDefault().toString();
             } else if (ModelUtils.isIntegerSchema(resolved)
@@ -766,7 +779,132 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                 .put(
                         "elixirTypespec",
                         (fragment, writer) ->
-                                writer.write(toModuleTypespec(fragment.execute(), moduleName)));
+                                writer.write(toModuleTypespec(fragment.execute(), moduleName)))
+                .put(
+                        "elixirComment",
+                        (fragment, writer) -> writer.write(toLineComment(fragment.execute())))
+                .put(
+                        "elixirHeredoc",
+                        (fragment, writer) -> writer.write(toHeredocText(fragment.execute())))
+                .put(
+                        "elixirRawText",
+                        (fragment, writer) ->
+                                writer.write(fragment.execute().replace("\\#{", "#{")))
+                .put(
+                        "elixirEnumWire",
+                        (fragment, writer) -> writer.write(toEnumWireToken(fragment.execute())));
+    }
+
+    /**
+     * Neutralises the hash-brace interpolation opener as well as the shared
+     * comment-closer rule. Text that went through escapeText lands in
+     * interpolating double-quoted literals and heredocs (an operation's
+     * {@code @doc}, a oneOf {@code @moduledoc}), where a description that
+     * contains a hash-brace sequence would otherwise interpolate an undefined
+     * variable and fail compilation.
+     */
+    @Override
+    public String escapeUnsafeCharacters(String input) {
+        return super.escapeUnsafeCharacters(input).replace("#{", "\\#{");
+    }
+
+    /**
+     * Escapes raw spec prose for the body of an interpolating heredoc: a
+     * backslash is doubled and the hash-brace opener is escaped, so the prose
+     * renders verbatim in the generated documentation.
+     */
+    static String toHeredocText(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.replace("\\", "\\\\").replace("#{", "\\#{");
+    }
+
+    /**
+     * Turns an inline enum member's Elixir literal (a quoted, escaped string
+     * or a bare number) into the token the inline-enum descriptor of
+     * {@code openapi_types/0} carries after each member name. A string becomes
+     * its raw wire value percent-encoded (every byte outside letters, digits
+     * and {@code -_.~} is written as {@code %XX}), so the descriptor
+     * separators, quotes and interpolation openers never appear inside it; a
+     * number is prefixed with {@code #}, which a percent-encoded string never
+     * starts with.
+     */
+    static String toEnumWireToken(@Nullable String literal) {
+        if (literal == null) {
+            return "";
+        }
+        final String t = literal.trim();
+        if (t.length() < 2 || t.charAt(0) != '"' || t.charAt(t.length() - 1) != '"') {
+            return "#" + t;
+        }
+        final String body = t.substring(1, t.length() - 1);
+        final StringBuilder raw = new StringBuilder(body.length());
+        for (int i = 0; i < body.length(); i++) {
+            final char c = body.charAt(i);
+            if (c == '\\' && i + 1 < body.length()) {
+                i++;
+                final char n = body.charAt(i);
+                if (n == 'n') {
+                    raw.append('\n');
+                } else if (n == 'r') {
+                    raw.append('\r');
+                } else if (n == 't') {
+                    raw.append('\t');
+                } else {
+                    raw.append(n);
+                }
+            } else {
+                raw.append(c);
+            }
+        }
+        final StringBuilder out = new StringBuilder();
+        for (final byte b : raw.toString().getBytes(StandardCharsets.UTF_8)) {
+            final int u = b & 0xFF;
+            if ((u >= 'a' && u <= 'z') || (u >= 'A' && u <= 'Z') || (u >= '0' && u <= '9')
+                    || u == '-' || u == '_' || u == '.' || u == '~') {
+                out.append((char) u);
+            } else {
+                out.append('%').append(String.format(Locale.ROOT, "%02X", u));
+            }
+        }
+        return out.toString();
+    }
+
+    /** Widest comment line Credo's MaxLineLength (120) accepts, prefix included. */
+    private static final int COMMENT_WIDTH = 120;
+
+    /**
+     * Renders spec prose as a block of {@code #} line comments. The string-literal
+     * escaping the shared codegen applies (a quote or backslash preceded by a
+     * backslash) is reversed, each source line becomes its own comment line, and
+     * a line longer than Credo's 120-column limit is word-wrapped onto further
+     * comment lines.
+     */
+    static String toLineComment(@Nullable String text) {
+        if (text == null || text.isBlank()) {
+            return "#";
+        }
+        final String raw = text.replace("\\\"", "\"").replace("\\#{", "#{")
+                .replace("\\\\", "\\");
+        final List<String> out = new ArrayList<>();
+        for (final String line : raw.strip().split("\\r?\\n", -1)) {
+            final String trimmed = line.strip();
+            if (trimmed.isEmpty()) {
+                out.add("#");
+                continue;
+            }
+            final StringBuilder current = new StringBuilder("#");
+            for (final String word : trimmed.split("\\s+", -1)) {
+                if (current.length() > 1 && current.length() + 1 + word.length() > COMMENT_WIDTH) {
+                    out.add(current.toString());
+                    current.setLength(1);
+                }
+                current.append(' ').append(word);
+            }
+            out.add(current.toString());
+        }
+        return String.join("\n", out);
     }
 
     /**

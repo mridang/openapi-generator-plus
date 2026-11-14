@@ -39,6 +39,18 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(url).must_include 'state=csrf_state_456'
   end
 
+  it 'omits an empty state from the authorization URL' do
+    url = auth.build_authorization_url('')
+    _(url).wont_include 'state'
+    _(url).must_equal auth.build_authorization_url
+  end
+
+  it 'treats an empty access token as unset' do
+    auth.access_token = ''
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must set the access token before making API requests'
+  end
+
   it 'getAuthHeaders returns Bearer after setAccessToken' do
     auth.access_token = 'implicit_tok_abc'
     headers = auth.auth_headers

@@ -29,6 +29,7 @@ export class ValueSerializer {
       if (location === 'query') return undefined;
       return '';
     }
+    value = ValueSerializer.normalize(value, schemaType, 'value');
 
     if (Array.isArray(value)) {
       const items = value.map((v) => ObjectSerializer.stringify(v));
@@ -86,11 +87,19 @@ export class ValueSerializer {
     if (location === 'path' && typeof value === 'string' && value === '') {
       throw new TypeError(`Path parameter '${paramName}' must not be empty`);
     }
+    /* A path value of exactly `.` or `..` is a dot segment (RFC 3986
+     * section 5.2.4): the WHATWG URL parser resolves it, even when percent
+     * encoded, and silently re-routes the request to another endpoint.
+     * Reject it before dispatch. */
+    if (location === 'path' && (value === '.' || value === '..')) {
+      throw new TypeError(`Path parameter '${paramName}' must not be '.' or '..'`);
+    }
 
     if (value === null || value === undefined) {
       if (location === 'query') return undefined;
       return '';
     }
+    value = ValueSerializer.normalize(value, schemaType, paramName);
 
     if (!style) {
       return ValueSerializer.serialize(
@@ -172,6 +181,38 @@ export class ValueSerializer {
   }
 
   /**
+   * Bring a parameter value into its wire shape before styling.
+   *
+   * A `uniqueItems` array arrives as a Set and is expanded exactly like an
+   * array (in the Set's iteration order). A `format: uuid` value (schema
+   * type `UUID`) must have the 8-4-4-4-12 hex shape in any letter case and
+   * is written lowercase (RFC 9562 section 4); anything else is rejected
+   * before the request is sent.
+   *
+   * @param value the parameter value
+   * @param schemaType the parameter's schema type
+   * @param paramName the parameter name, for the error message
+   * @returns the normalized value
+   * @throws TypeError if a uuid value is malformed
+   */
+  static normalize(value: unknown, schemaType: string, paramName: string): unknown {
+    const expanded = value instanceof Set ? [...value] : value;
+    if (!/\bUUID\b/.test(schemaType ?? '')) {
+      return expanded;
+    }
+    const canonical = (v: unknown): unknown => {
+      if (typeof v !== 'string') {
+        return v;
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) {
+        throw new TypeError(`Parameter '${paramName}' is not a canonical UUID: ${JSON.stringify(v)}`);
+      }
+      return v.toLowerCase();
+    };
+    return Array.isArray(expanded) ? expanded.map(canonical) : canonical(expanded);
+  }
+
+  /**
    * Formats a `format: date` value as YYYY-MM-DD for wire serialization.
    * Node has only Date (no separate date-only type), so the codegen
    * checks the spec format and routes through this helper to strip the
@@ -185,6 +226,15 @@ export class ValueSerializer {
     const m = String(value.getUTCMonth() + 1).padStart(2, '0');
     const d = String(value.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+  }
+
+  /**
+   * Formats every element of an array (or Set) of `format: date` values as
+   * YYYY-MM-DD, in iteration order, so a date array is styled and joined
+   * like any other array instead of sending each item as a date-time.
+   */
+  static stringifyDates(values: Iterable<Date | string>): string[] {
+    return Array.from(values, (value) => ValueSerializer.stringifyDate(value));
   }
 
   /**
@@ -231,21 +281,24 @@ export class ValueSerializer {
    * Percent-encodes a query value while leaving RFC 3986 reserved characters
    * literal (OAS `allowReserved: true`).
    *
-   * Everything that is not RFC 3986 reserved or unreserved — spaces, control
-   * characters, non-ASCII — is still percent-encoded, so the result is always
-   * a valid URL query segment. `encodeURIComponent` already leaves the
-   * unreserved set (and `! ' ( ) *`) alone and encodes a space as `%20`; here
-   * the remaining reserved characters `: / ? # [ ] @ $ & + , ; =` are restored,
-   * matching Java's `encodeQueryAllowingReserved`.
+   * Only the characters RFC 3986 section 3.4 permits in a query component
+   * stay literal: `: / ? @ ! $ & ' ( ) * + , ; =` plus the unreserved set.
+   * `#` (the fragment delimiter, which would truncate the query), `[` and
+   * `]` are always percent-encoded, as are spaces, control characters and
+   * non-ASCII. `encodeURIComponent` already leaves the unreserved set (and
+   * `! ' ( ) *`) alone and encodes a space as `%20`; here the remaining
+   * query-legal reserved characters are restored.
+   *
+   * This output is the contract. FORCED exception: the WHATWG URL parser
+   * used by fetch rewrites a literal `'` in the query to `%27` after this
+   * encoder runs (its special-query percent-encode set). The server decodes
+   * both forms to the same value, so the SDK does not try to defeat it.
    */
   static encodeQueryAllowingReserved(value: string): string {
     return encodeURIComponent(value)
       .replace(/%3A/g, ':')
       .replace(/%2F/g, '/')
       .replace(/%3F/g, '?')
-      .replace(/%23/g, '#')
-      .replace(/%5B/g, '[')
-      .replace(/%5D/g, ']')
       .replace(/%40/g, '@')
       .replace(/%21/g, '!')
       .replace(/%24/g, '$')

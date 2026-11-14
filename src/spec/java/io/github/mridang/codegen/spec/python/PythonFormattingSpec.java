@@ -33,6 +33,16 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
     return tempOutputDir;
   }
 
+  /**
+   * The source root is the whole SDK, tests included, and a generated test asserts that an escaped
+   * apostrophe (the decimal 39 reference) never reaches the wire. That literal is the test's data, so it is
+   * allowed under {@code test/} only; the SDK package itself gets no allowance.
+   */
+  @Override
+  protected boolean isAllowedNumericEntity(Path file, String entity) {
+    return "&#39;".equals(entity) && tempOutputDir.relativize(file).startsWith("test");
+  }
+
   @Override
   @Nullable
   protected String getInlineCommentPattern() {

@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -26,6 +27,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
           link_template: String.t() | nil,
           owner_email: String.t() | nil,
           weight_kg: float() | nil,
+          nickname: String.t() | nil,
           owner_name: String.t()
         }
 
@@ -47,6 +49,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
     :link_template,
     :owner_email,
     :weight_kg,
+    :nickname,
     :owner_name
   ]
 
@@ -66,6 +69,7 @@ defmodule PetstoreClient.Models.PetWithOwner do
       link_template: "linkTemplate",
       owner_email: "ownerEmail",
       weight_kg: "weightKg",
+      nickname: "nickname",
       owner_name: "ownerName"
     }
   end
@@ -74,6 +78,27 @@ defmodule PetstoreClient.Models.PetWithOwner do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "id",
+      "name",
+      "category",
+      "photoUrls",
+      "tags",
+      "status",
+      "location",
+      "homepageUrl",
+      "thumbnailRef",
+      "linkTemplate",
+      "ownerEmail",
+      "weightKg",
+      "nickname",
+      "ownerName"
+    ]
   end
 
   @doc """
@@ -103,13 +128,14 @@ defmodule PetstoreClient.Models.PetWithOwner do
       category: "Category",
       photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
-      status: "Enum<available,pending,sold>",
+      status: "Enum<available=available,pending=pending,sold=sold>",
       location: "[any()]",
       homepage_url: "String.t()",
       thumbnail_ref: "String.t()",
       link_template: "String.t()",
       owner_email: "String.t()",
       weight_kg: "float()",
+      nickname: "String.t()",
       owner_name: "String.t()"
     }
   end

@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -204,7 +205,7 @@ public final class TransportOptions {
     @Nullable private Integer timeout = 10000;
     private boolean followRedirects = true;
     @Nullable private Integer maxRedirects = null;
-    @Nullable private String userAgent = "com.example.petstore/1.0.0 (java)";
+    @Nullable private String userAgent = "petstore-client/1.0.0 (java)";
     private final Map<String, String> defaultHeaders = new HashMap<>();
     private boolean injectRequestId = false;
 

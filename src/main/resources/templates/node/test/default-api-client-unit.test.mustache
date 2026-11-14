@@ -166,6 +166,20 @@ describe('DefaultApiClient unit', () => {
     expect(body['user-agent']).toBe('');
   });
 
+  it('keeps lower-case caller User-Agent and X-Request-ID headers without injecting its own', async () => {
+    const transport = TransportOptions.builder()
+      .userAgent('Sdk/1.0')
+      .injectRequestId(true)
+      .defaultHeader('user-agent', 'MyApp')
+      .defaultHeader('x-request-id', 'abc')
+      .build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    const body = JSON.parse(response.body);
+    expect(body['user-agent']).toBe('MyApp');
+    expect(body['x-request-id']).toBe('abc');
+  });
+
   it('injects default User-Agent when not explicitly set', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
@@ -509,6 +523,17 @@ describe('DefaultApiClient.buildContentDisposition multipart filename safety', (
     expect(header).not.toContain('filename*=');
     expect(header).toContain('filename="hello.txt"');
   });
+
+  it.each([
+    ['résumé*(1).pdf', `filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf`],
+    ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
+    ['\u{1F600}.png', `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
+    ['plain.txt', 'filename="plain.txt"'],
+  ])('builds the filename directive for %p', (filename, expected) => {
+    expect(DefaultApiClient.buildContentDisposition('file', filename)).toBe(
+      `form-data; name="file"; ${expected}`
+    );
+  });
 });
 
 // Canonical behavior #4 — a multipart file part advertises a Content-Type
@@ -574,6 +599,32 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
       await client.sendRequest('POST', url, {}, { 'avatar.png': Buffer.from([0x89, 0x50, 0x4e, 0x47]) });
       const body = getBody().toString('binary');
       expect(body).toContain('Content-Type: image/png');
+    } finally {
+      close();
+    }
+  });
+
+  it('primitive parts are plain text in the stringify form and only an object is a JSON part', async () => {
+    const { url, getBody, close } = await captureRawBody();
+    try {
+      const client = new DefaultApiClient();
+      await client.sendRequest('POST', url, {}, {
+        flag: true,
+        count: 3,
+        when: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+        colour: 'red',
+        payload: { label: 'sample' },
+      });
+      const body = getBody().toString('utf-8');
+      const part = (name: string) => body.split('\r\n--').find((p) => p.includes(`name="${name}"`))!;
+      expect(part('flag')).toMatch(/name="flag"\r\n\r\ntrue$/);
+      expect(part('count')).toMatch(/name="count"\r\n\r\n3$/);
+      expect(part('when')).toMatch(/name="when"\r\n\r\n2024-01-15T10:30:00\.000\+00:00$/);
+      expect(part('colour')).toMatch(/name="colour"\r\n\r\nred$/);
+      for (const name of ['flag', 'count', 'when', 'colour']) {
+        expect(part(name)).not.toContain('Content-Type');
+      }
+      expect(part('payload')).toContain('name="payload"\r\nContent-Type: application/json\r\n\r\n{"label":"sample"}');
     } finally {
       close();
     }

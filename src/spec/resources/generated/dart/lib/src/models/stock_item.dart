@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -57,7 +57,7 @@ class StockItem {
       json['availability'] = availability?.toJson();
     }
     if (matrix != null) {
-      json['matrix'] = matrix?.toList();
+      json['matrix'] = wireListOrNull(matrix, matrix);
     }
     return json;
   }

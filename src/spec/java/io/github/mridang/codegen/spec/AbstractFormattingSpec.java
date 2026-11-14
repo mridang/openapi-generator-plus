@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -57,9 +58,20 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
     return false;
   }
 
+  /**
+   * Return true when this numeric character reference is legitimate in this file. The default
+   * allows none: a numeric entity in generated source almost always comes from a {@code {{...}}}
+   * slot HTML-escaping spec prose (decimal 39 for an apostrophe, hex 3D for an equals sign, hex 60
+   * for a backtick). Override only where the language genuinely needs one, such as
+   * an XML doc comment that must escape {@code &} without the banned named form.
+   */
+  protected boolean isAllowedNumericEntity(Path file, String entity) {
+    return false;
+  }
+
   @Test
   void generatedCodeShouldNotContainHtmlEntities() throws IOException {
-    Pattern htmlEntity = Pattern.compile("&(lt|gt|amp|quot);");
+    Pattern htmlEntity = Pattern.compile("&(lt|gt|amp|quot|apos);|&#(x[0-9a-fA-F]+|[0-9]+);");
     List<String> violations = new ArrayList<>();
 
     try (Stream<Path> files = Files.walk(getSourceRoot())) {
@@ -70,9 +82,14 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
                 try {
                   List<String> lines = Files.readAllLines(p);
                   for (int i = 0; i < lines.size(); i++) {
-                    if (htmlEntity.matcher(lines.get(i)).find()) {
+                    Matcher matcher = htmlEntity.matcher(lines.get(i));
+                    while (matcher.find()) {
+                      if (matcher.group(2) != null && isAllowedNumericEntity(p, matcher.group())) {
+                        continue;
+                      }
                       violations.add(
                           p.getFileName() + ":" + (i + 1) + ": " + lines.get(i).trim());
+                      break;
                     }
                   }
                 } catch (IOException e) {

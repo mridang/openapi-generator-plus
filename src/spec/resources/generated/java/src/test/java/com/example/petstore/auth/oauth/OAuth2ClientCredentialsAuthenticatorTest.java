@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -92,6 +93,26 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     String body = capturedBody.get();
     assertNotNull(body);
     assertTrue(body.contains("scope=read+write"), body);
+  }
+
+  @Test
+  void sendsTheTokenRequestFieldsInTheCanonicalOrder() {
+    AtomicReference<String> capturedBody = new AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          capturedBody.set(body != null ? body.toString() : "");
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    OAuth2ClientCredentialsAuthenticator auth = createAuthenticator();
+    auth.setApiClient(client);
+
+    auth.getAuthHeaders();
+
+    assertEquals(
+        "grant_type=client_credentials&client_id=my-client-id"
+            + "&client_secret=my-client-secret&scope=read+write",
+        capturedBody.get());
   }
 
   @Test

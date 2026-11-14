@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -8,6 +8,13 @@
 import Foundation
 
 /// EdgeCases Edge-case property shapes mirrored from real protobuf-derived specs.
+/// Typed enum for EdgeCases.phase.
+public enum EdgeCasesPhaseEnum: String, Codable, Sendable, CaseIterable {
+  case inStock = "In-Stock"
+  case onHold = "on-hold"
+  case outofstock = "OUT_OF_STOCK"
+}
+
 public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var freeFormAny: AnyCodable?
   public var favoriteColor: Color?
@@ -22,6 +29,16 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public var retryAfter: TimeInterval?
   /// Absolute expiry instant
   public var expiresAt: Date?
+  public var n2fa: Bool?
+  public var separator: Separator?
+  public var null: String?
+  public var _true: Bool?
+  public var _false: Bool?
+  public var lastError: ModelError?
+  public var outcome: ModelResult?
+  public var cutoff: String?
+  public var phase: EdgeCasesPhaseEnum?
+  public var slug: String?
 
   enum CodingKeys: String, CodingKey {
     case freeFormAny = "freeFormAny"
@@ -34,13 +51,26 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     case _return = "return"
     case retryAfter = "retryAfter"
     case expiresAt = "expiresAt"
+    case n2fa = "2fa"
+    case separator = "separator"
+    case null = "null"
+    case _true = "true"
+    case _false = "false"
+    case lastError = "lastError"
+    case outcome = "outcome"
+    case cutoff = "cutoff"
+    case phase = "phase"
+    case slug = "slug"
   }
 
   /// Creates a new EdgeCases instance.
   public init(
     freeFormAny: AnyCodable? = nil, favoriteColor: Color? = nil, permissionsNote: String? = nil,
     and: Bool? = nil, or: Bool? = nil, not: Bool? = nil, _class: String? = nil,
-    _return: String? = nil, retryAfter: TimeInterval? = nil, expiresAt: Date? = nil
+    _return: String? = nil, retryAfter: TimeInterval? = nil, expiresAt: Date? = nil,
+    n2fa: Bool? = nil, separator: Separator? = nil, null: String? = nil, _true: Bool? = nil,
+    _false: Bool? = nil, lastError: ModelError? = nil, outcome: ModelResult? = nil,
+    cutoff: String? = nil, phase: EdgeCasesPhaseEnum? = nil, slug: String? = nil
   ) {
     self.freeFormAny = freeFormAny
     self.favoriteColor = favoriteColor
@@ -52,6 +82,16 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     self._return = _return
     self.retryAfter = retryAfter
     self.expiresAt = expiresAt
+    self.n2fa = n2fa
+    self.separator = separator
+    self.null = null
+    self._true = _true
+    self._false = _false
+    self.lastError = lastError
+    self.outcome = outcome
+    self.cutoff = cutoff
+    self.phase = phase
+    self.slug = slug
   }
 
   /// Decodes this instance from the given decoder.
@@ -78,6 +118,16 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
       try ObjectSerializer.decodeDuration($0)
     }
     self.expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
+    self.n2fa = try container.decodeIfPresent(Bool.self, forKey: .n2fa)
+    self.separator = try container.decodeIfPresent(Separator.self, forKey: .separator)
+    self.null = try container.decodeIfPresent(String.self, forKey: .null)
+    self._true = try container.decodeIfPresent(Bool.self, forKey: ._true)
+    self._false = try container.decodeIfPresent(Bool.self, forKey: ._false)
+    self.lastError = try container.decodeIfPresent(ModelError.self, forKey: .lastError)
+    self.outcome = try container.decodeIfPresent(ModelResult.self, forKey: .outcome)
+    self.cutoff = try container.decodeIfPresent(String.self, forKey: .cutoff)
+    self.phase = try container.decodeIfPresent(EdgeCasesPhaseEnum.self, forKey: .phase)
+    self.slug = try container.decodeIfPresent(String.self, forKey: .slug)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -98,5 +148,15 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(
       try retryAfter.map { try ObjectSerializer.encodeDuration($0) }, forKey: .retryAfter)
     try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
+    try container.encodeIfPresent(n2fa, forKey: .n2fa)
+    try container.encodeIfPresent(separator, forKey: .separator)
+    try container.encodeIfPresent(null, forKey: .null)
+    try container.encodeIfPresent(_true, forKey: ._true)
+    try container.encodeIfPresent(_false, forKey: ._false)
+    try container.encodeIfPresent(lastError, forKey: .lastError)
+    try container.encodeIfPresent(outcome, forKey: .outcome)
+    try container.encodeIfPresent(cutoff, forKey: .cutoff)
+    try container.encodeIfPresent(phase, forKey: .phase)
+    try container.encodeIfPresent(slug, forKey: .slug)
   }
 }

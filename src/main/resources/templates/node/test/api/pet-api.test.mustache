@@ -3,7 +3,7 @@
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
+import { GetExternalPetInfoServer, GetExternalPetInfoServerServer0, GetMultiServerPetInfoServerPrimary, GetMultiServerPetInfoServerRegionalRegion, GetMultiServerPetInfoServerRegional, GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerStagingServer, GetStagingPetInfoServerVersion, PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
 import type { AddPetOptions, UploadPetDocumentOptions, SetPetPreferencesOptions } from '../../src/api/options/index{{importFileExtension}}';
 import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
@@ -492,13 +492,13 @@ describe('PetApi error handling', () => {
   // the empty string the same way it rejects null, matching go/rust/swift/elixir.
   // Validation happens before any HTTP call, so no mock server is needed.
   test('required string query param rejects empty string', async () => {
-    await expect(api.getPetByName('Rex', { category: '' })).rejects.toThrow(
+    await expect(api.getPetByName('Rex', { category: '', xCorrelationId: 'sample-correlation' })).rejects.toThrow(
       "Missing the required parameter 'category' when calling PetApi.getPetByName"
     );
   });
 
   test('required string path param rejects empty string', async () => {
-    await expect(api.getPetByName('', { category: 'dog' })).rejects.toThrow(
+    await expect(api.getPetByName('', { category: 'dog', xCorrelationId: 'sample-correlation' })).rejects.toThrow(
       "Missing the required parameter 'name' when calling PetApi.getPetByName"
     );
   });
@@ -748,6 +748,22 @@ describe('PetApi form-urlencoded body serialization', () => {
       close();
     }
   });
+
+  test('#5 date-time form field serializes in the canonical stringify form', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      const options: SetPetPreferencesOptions = {
+        nickname: 'Rex',
+        reminder: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+      };
+      await api.setPetPreferences(1, options);
+      const { body } = getCapture();
+      expect(body).toContain('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00');
+      expect(body).not.toContain('%20');
+    } finally {
+      close();
+    }
+  });
 });
 
 // Cross-SDK multipart parity — addPetPhotos sends a multipart/form-data body
@@ -956,6 +972,31 @@ describe('PetApi request content-type selector', () => {
       close();
     }
   });
+
+  test('setPetAvatar with the JSON selector sends the binary body verbatim', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+      await api.setPetAvatar(1, bytes, 'application/json').catch(() => undefined);
+
+      const { body, contentType } = getCapture();
+      expect(contentType).toBe('application/json');
+      expect(body.equals(bytes)).toBe(true);
+    } finally {
+      close();
+    }
+  });
+
+  test('setPetAvatarThumbnail still sends a format:byte JSON body as base64', async () => {
+    const { api, getCapture, close } = await captureRawBody();
+    try {
+      await api.setPetAvatarThumbnail(1, Buffer.from([1, 2, 3, 4])).catch(() => undefined);
+
+      expect(getCapture().body.toString('utf-8')).toBe('"AQIDBA=="');
+    } finally {
+      close();
+    }
+  });
 });
 
 describe('PetApi operation servers', () => {
@@ -986,11 +1027,34 @@ describe('PetApi operation servers', () => {
   });
 });
 
+describe('PetApi doc comments', () => {
+  const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
+
+  test('a parameter description keeps its quotes, angle brackets and ampersand raw', () => {
+    expect(source).toContain(String.raw`* @param options.session Session token: \"a<b>\" & it's required (required)`);
+  });
+
+  test('no doc comment carries an HTML entity', () => {
+    expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
+  });
+
+  test.each([
+    ['deletePet', '* @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator\n'],
+    ['addPet', '* @param options options carrying an optional per-call authenticator\n'],
+    ['getPetSummary', '* @param options options for query, header, form, and cookie parameters\n'],
+  ])('%s documents its options argument', (operation, line) => {
+    const start = source.lastIndexOf('/**', source.indexOf(`  async ${operation}(`));
+    const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
+
+    expect(doc).toContain(line);
+  });
+});
+
 describe('PetApi against a recording client', () => {
-  const recorded: Array<{ method: string; url: string }> = [];
+  const recorded: Array<{ method: string; url: string; headers: Record<string, string> }> = [];
   const recordingClient: ApiClient = {
-    async sendRequest(method: string, url: string): Promise<ApiHttpResponse> {
-      recorded.push({ method, url });
+    async sendRequest(method: string, url: string, headers: Record<string, string>): Promise<ApiHttpResponse> {
+      recorded.push({ method, url, headers });
       return {
         statusCode: 200,
         body: url.includes('/pet/born-on/') ? '[]' : '{"id":7,"name":"recorded","photoUrls":[]}',
@@ -1010,7 +1074,7 @@ describe('PetApi against a recording client', () => {
   test('the generated operation-server variants resolve the URLs the spec declares', () => {
     expect(new GetExternalPetInfoServerServer0().getUrl()).toBe('https://external-api.example.com/v1');
     expect(new GetMultiServerPetInfoServerPrimary().getUrl()).toBe('https://primary.example.com/v1');
-    expect(new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.EU).getUrl()).toBe(
+    expect(new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.EU).getUrl()).toBe(
       'https://eu.example.com/v1',
     );
     expect(
@@ -1043,12 +1107,45 @@ describe('PetApi against a recording client', () => {
 
   test.each([
     [new GetMultiServerPetInfoServerPrimary(), 'https://primary.example.com/v1/'],
-    [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion.AP), 'https://ap.example.com/v1/'],
+    [new GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegionalRegion.AP), 'https://ap.example.com/v1/'],
   ])('getMultiServerPetInfo sends the request to the chosen one of several servers', async (server, prefix) => {
     await recordingApi.getMultiServerPetInfo(1, server);
 
     expect(recorded).toHaveLength(1);
     expect(recorded[0]!.url.startsWith(prefix)).toBe(true);
+  });
+
+  test.each(['.', '..'])('getPetByName rejects the dot segment %p before sending', async (name) => {
+    const error = await recordingApi
+      .getPetByName(name, { category: 'sample', xCorrelationId: 'sample-correlation' })
+      .catch((e: unknown) => e);
+
+    expect((error as Error).constructor).toBe(TypeError);
+    expect((error as Error).message).toBe(`Path parameter 'name' must not be '.' or '..'`);
+    expect(recorded).toHaveLength(0);
+  });
+
+  test('getPetByName keeps a name that only contains dots', async () => {
+    await recordingApi.getPetByName('a..b', { category: 'sample', xCorrelationId: 'sample-correlation' });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).toContain('/pet/byName/a..b?');
+  });
+
+  test('getPetTag percent-encodes # in an allowReserved value', async () => {
+    await recordingApi.getPetTag(5, 'sample', { revision: 'v1.0/beta:rc1#frag' });
+
+    expect(recorded[0]!.url).toContain('revision=v1.0/beta:rc1%23frag');
+  });
+
+  test.each([
+    [Buffer.from('hi', 'utf-8'), 'fingerprint=aGk%3D', 'aGk='],
+    [Buffer.from([0xfb, 0xff]), 'fingerprint=%2B%2F8%3D', '+/8='],
+  ])('getPetTag sends format:byte parameters as standard base64', async (bytes, query, header) => {
+    await recordingApi.getPetTag(5, 'sample', { fingerprint: bytes, xFingerprint: bytes });
+
+    expect(recorded[0]!.url).toContain(query);
+    expect(recorded[0]!.headers['X-Fingerprint']).toBe(header);
   });
 
   test('without a variant the client base URL is used', async () => {
@@ -1061,6 +1158,27 @@ describe('PetApi against a recording client', () => {
     await recordingApi.findPetsBornOn(new Date(Date.UTC(2024, 0, 1, 13, 45, 30)));
 
     expect(new URL(recorded[0]!.url).pathname).toBe('/pet/born-on/2024-01-01');
+  });
+
+  test('getPetSummary applies the matrix style to the format:date path parameter', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15, 13, 45, 30)), { session: 'abc' });
+
+    expect(new URL(recorded[0]!.url).pathname).toBe('/pet/1/summary/;asOf=2024-01-15');
+  });
+
+  test('getPetSummary sends each format:date array item as YYYY-MM-DD', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
+      session: 'abc',
+      days: [new Date(Date.UTC(2024, 0, 15, 10, 30)), new Date(Date.UTC(2024, 1, 1, 23, 59))],
+    });
+
+    expect(new URL(recorded[0]!.url).search).toBe('?days=2024-01-15&days=2024-02-01');
+  });
+
+  test('getPetSummary sends the required cookie parameter', async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc' });
+
+    expect(recorded[0]!.headers['Cookie']).toBe('session=abc');
   });
 
   test.each([

@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -34,6 +34,7 @@ __all__ = [
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
+    "Account",
     "ApiResponse",
     "Availability",
     "BinaryVault",
@@ -44,10 +45,12 @@ __all__ = [
     "DryFood",
     "EdgeCases",
     "Employee",
+    "Error",
     "Medication",
     "Metadata",
     "Order",
     "Pet",
+    "PetCriteria",
     "PetFood",
     "PetPassport",
     "PetTreatment",
@@ -56,6 +59,9 @@ __all__ = [
     "PhotoMetadata",
     "PhotoMetadataLocation",
     "Priority",
+    "RequiredNullable",
+    "Result",
+    "Separator",
     "SetPetAvatarRequest",
     "SetPetAvatarThumbnailRequest",
     "StockItem",
@@ -63,6 +69,7 @@ __all__ = [
     "Surgery",
     "Swatch",
     "Tag",
+    "TreatmentRecord",
     "TreeNode",
     "WetFood",
 ]
@@ -103,6 +110,9 @@ from petstore_client.errors import OAuth2ServerException as OAuth2ServerExceptio
 from petstore_client.errors import OAuth2TokenException as OAuth2TokenException
 
 # import models into sdk package
+from petstore_client.models.account import (
+    Account as Account,
+)
 from petstore_client.models.api_response import (
     ApiResponse as ApiResponse,
 )
@@ -133,6 +143,9 @@ from petstore_client.models.edge_cases import (
 from petstore_client.models.employee import (
     Employee as Employee,
 )
+from petstore_client.models.error import (
+    Error as Error,
+)
 from petstore_client.models.medication import (
     Medication as Medication,
 )
@@ -144,6 +157,9 @@ from petstore_client.models.order import (
 )
 from petstore_client.models.pet import (
     Pet as Pet,
+)
+from petstore_client.models.pet_criteria import (
+    PetCriteria as PetCriteria,
 )
 from petstore_client.models.pet_food import (
     PetFood as PetFood,
@@ -169,6 +185,15 @@ from petstore_client.models.photo_metadata_location import (
 from petstore_client.models.priority import (
     Priority as Priority,
 )
+from petstore_client.models.required_nullable import (
+    RequiredNullable as RequiredNullable,
+)
+from petstore_client.models.result import (
+    Result as Result,
+)
+from petstore_client.models.separator import (
+    Separator as Separator,
+)
 from petstore_client.models.set_pet_avatar_request import (
     SetPetAvatarRequest as SetPetAvatarRequest,
 )
@@ -189,6 +214,9 @@ from petstore_client.models.swatch import (
 )
 from petstore_client.models.tag import (
     Tag as Tag,
+)
+from petstore_client.models.treatment_record import (
+    TreatmentRecord as TreatmentRecord,
 )
 from petstore_client.models.tree_node import (
     TreeNode as TreeNode,

@@ -5,7 +5,7 @@
     <artifactId>petstore-client</artifactId>
     <packaging>jar</packaging>
     <name>petstore-client</name>
-    <description>A simplified Pet Store API for integration testing.</description>
+    <description><![CDATA[A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.]]></description>
     <version>1.0.0</version>
 
     <licenses>

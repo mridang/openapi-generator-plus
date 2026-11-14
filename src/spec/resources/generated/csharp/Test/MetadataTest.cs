@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -133,5 +133,24 @@ public class MetadataTest
         Assert.NotEqual(withExtra, otherValue);
         Assert.Equal(withExtra, sameExtra);
         Assert.Equal(withExtra.GetHashCode(), sameExtra.GetHashCode());
+    }
+
+    [Fact]
+    public void DeclaredPropertyWinsOverACollidingAdditionalProperty()
+    {
+        var metadata = new Metadata
+        {
+            CreatedAt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero),
+            AdditionalProperties = new Dictionary<string, object>
+            {
+                ["createdAt"] = "x",
+                ["extra"] = "y",
+            },
+        };
+
+        var json = _serializer.Serialize(metadata);
+
+        Assert.Equal("{\"createdAt\":\"2024-01-15T10:30:00.000+00:00\",\"extra\":\"y\"}", json);
+        Assert.Equal(2, metadata.AdditionalProperties!.Count);
     }
 }

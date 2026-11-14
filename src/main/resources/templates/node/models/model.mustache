@@ -34,7 +34,7 @@ export enum {{classname}} {
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/externalDocumentation}}
  */
 {{/isDeprecated}}
@@ -44,7 +44,7 @@ export enum {{classname}} {
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -56,7 +56,7 @@ export enum {{classname}} {
 {{^description}}
 {{#externalDocumentation}}
 /**
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -101,7 +101,7 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/externalDocumentation}}
  */
 {{/isDeprecated}}
@@ -111,7 +111,7 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -123,7 +123,7 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{^description}}
 {{#externalDocumentation}}
 /**
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -202,12 +202,9 @@ import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}}{{#hasTransformDe
 {{#hasTemporalImport}}
 import { Temporal } from 'temporal-polyfill';
 {{/hasTemporalImport}}
-{{#hasDurationImport}}
-import { durationFromProtoJson, durationToProtoJson } from '../object-serializer{{importFileExtension}}';
-{{/hasDurationImport}}
-{{#hasBufferImport}}
-import { decodeBase64 } from '../object-serializer{{importFileExtension}}';
-{{/hasBufferImport}}
+{{#hasSerializerImports}}
+import { {{serializerImports}} } from '../object-serializer{{importFileExtension}}';
+{{/hasSerializerImports}}
 {{#hasUuidImport}}
 import { UUID } from '../brand{{importFileExtension}}';
 {{/hasUuidImport}}
@@ -229,7 +226,7 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{/description}}
  * @deprecated This schema is deprecated.
 {{#externalDocumentation}}
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
 {{/externalDocumentation}}
  */
 {{/isDeprecated}}
@@ -239,7 +236,7 @@ import { Decimal } from '../brand{{importFileExtension}}';
 /**
  * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
  *
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{^externalDocumentation}}
@@ -251,7 +248,7 @@ import { Decimal } from '../brand{{importFileExtension}}';
 {{^description}}
 {{#externalDocumentation}}
 /**
- * @see {@link {{url}}} {{description}}
+ * @see {@link {{url}}} {{#lambda.tsComment}}{{{description}}}{{/lambda.tsComment}}
  */
 {{/externalDocumentation}}
 {{/description}}
@@ -277,6 +274,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
   ]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([
+{{#vars}}
+{{#isUuid}}
+{{^isArray}}
+    '{{name}}',
+{{/isArray}}
+{{/isUuid}}
+{{/vars}}
+  ]);
+
 {{#vars}}
 {{#description}}
   /**
@@ -285,7 +297,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * @example {{{.}}}
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-   * @example {{summary}} - {{value}}
+   * @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}}
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
    * @readonly
@@ -307,7 +319,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   /** @example {{{.}}} */
 {{/example}}
 {{#vendorExtensions.pluralExamples}}
-  /** @example {{summary}} - {{value}} */
+  /** @example {{#lambda.tsComment}}{{{summary}}} - {{{value}}}{{/lambda.tsComment}} */
 {{/vendorExtensions.pluralExamples}}
 {{#isReadOnly}}
   /** @readonly */
@@ -341,11 +353,17 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @Type(() => Date)
   /* A JSON number or boolean is not a date-time: @Type(() => Date) would turn it
    * into an epoch-millisecond instant, so hand the raw wire value on and let the
-   * constructor reject anything that is not a string. */
+   * constructor reject anything that is not a string. A string must be an RFC
+   * 3339 date-time with an explicit offset; anything else (no offset, a bare
+   * date, free text) is handed on raw too, so it never resolves against the
+   * host time zone or the current date. */
   @Transform(
     ({ value, obj }) => {
       const raw = (obj as Record<string, unknown>)['{{baseName}}'];
-      return raw === undefined || raw === null || typeof raw === 'string' || raw instanceof Date ? value : raw;
+      if (typeof raw === 'string') {
+        return /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.test(raw) ? value : raw;
+      }
+      return raw === undefined || raw === null || raw instanceof Date ? value : raw;
     },
     { toClassOnly: true }
   )
@@ -372,6 +390,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{^vendorExtensions.prop.complexTypeIsEnum}}
 {{^isFreeFormObject}}
   @Type(() => {{complexType}})
+{{#isModel}}
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) => reattachAdditionalProperties(value, (obj as Record<string, unknown>)['{{baseName}}']),
+    { toClassOnly: true }
+  )
+{{/isModel}}
 {{/isFreeFormObject}}
 {{/vendorExtensions.prop.complexTypeIsEnum}}
 {{/isEnum}}
@@ -424,6 +450,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isDate}}
 {{/isDateTime}}
 {{/items}}
+{{#items.isModel}}
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) => reattachAdditionalProperties(value, (obj as Record<string, unknown>)['{{baseName}}']),
+    { toClassOnly: true }
+  )
+{{/items.isModel}}
 {{/isArray}}
 {{#isMap}}
 {{#items}}
@@ -579,6 +613,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} === 'number' && !Number.isInteger(this.{{name}})) {
       throw new TypeError(`{{name}} must be an integer, got ${this.{{name}}}`);
     }
+    if (this.{{name}} != null && ((this.{{name}} as number) < -2147483648 || (this.{{name}} as number) > 2147483647)) {
+      throw new TypeError(`{{name}} is outside the 32-bit integer range, got ${this.{{name}}}`);
+    }
 {{/isInteger}}
 {{#isLong}}
     if (this.{{name}} != null && typeof this.{{name}} !== 'number') {
@@ -642,6 +679,18 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null && typeof this.{{name}} !== 'string') {
       throw new TypeError(`{{name}} must be a string, got ${typeof this.{{name}}}`);
     }
+{{#isUri}}
+    /* `format: uri` is an absolute RFC 3986 URI: a scheme, a colon, then no
+     * whitespace or control characters. Any scheme is valid; a relative
+     * reference or free text is not. The text is kept exactly as given. */
+    if (
+      this.{{name}} != null &&
+      (!/^[A-Za-z][A-Za-z0-9+.-]*:\S*$/.test(this.{{name}}) ||
+        [...this.{{name}}].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f))
+    ) {
+      throw new TypeError(`{{name}} must be an absolute URI, got ${JSON.stringify(this.{{name}})}`);
+    }
+{{/isUri}}
 {{/vendorExtensions.isDurationFormat}}
 {{/vendorExtensions.isTimeFormat}}
 {{/isUuid}}
@@ -673,6 +722,8 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(this.{{name}} as unknown as string)) {
         throw new TypeError(`{{name}} is not a canonical UUID: ${JSON.stringify(this.{{name}})}`);
       }
+      /* Input is case-insensitive; the canonical form is lowercase. */
+      this.{{name}} = (this.{{name}} as unknown as string).toLowerCase() as unknown as {{{dataType}}};
     }
 {{/isUuid}}
 {{#vendorExtensions.isTimeFormat}}

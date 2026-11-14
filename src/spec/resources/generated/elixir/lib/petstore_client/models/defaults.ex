@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -14,12 +15,24 @@ defmodule PetstoreClient.Models.Defaults do
   @type t :: %__MODULE__{
           retries: integer() | nil,
           mode: :low | :medium | :high | nil,
-          label: String.t() | nil
+          label: String.t() | nil,
+          greeting: String.t() | nil,
+          swatch: PetstoreClient.Models.Swatch.t() | nil,
+          ratio: float() | nil,
+          scale: float() | nil,
+          weight: float() | nil,
+          ceiling: integer() | nil
         }
 
   defstruct retries: 3,
             mode: :medium,
-            label: "untitled"
+            label: "untitled",
+            greeting: "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b",
+            swatch: :green,
+            ratio: 1.5,
+            scale: 0.25,
+            weight: 2,
+            ceiling: 9_000_000_000
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}
@@ -27,7 +40,13 @@ defmodule PetstoreClient.Models.Defaults do
     %{
       retries: "retries",
       mode: "mode",
-      label: "label"
+      label: "label",
+      greeting: "greeting",
+      swatch: "swatch",
+      ratio: "ratio",
+      scale: "scale",
+      weight: "weight",
+      ceiling: "ceiling"
     }
   end
 
@@ -35,6 +54,22 @@ defmodule PetstoreClient.Models.Defaults do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "retries",
+      "mode",
+      "label",
+      "greeting",
+      "swatch",
+      "ratio",
+      "scale",
+      "weight",
+      "ceiling"
+    ]
   end
 
   @doc """
@@ -57,8 +92,14 @@ defmodule PetstoreClient.Models.Defaults do
   def openapi_types do
     %{
       retries: "integer()",
-      mode: "Enum<low,medium,high>",
-      label: "String.t()"
+      mode: "Enum<low=low,medium=medium,high=high>",
+      label: "String.t()",
+      greeting: "String.t()",
+      swatch: "Swatch",
+      ratio: "float()",
+      scale: "float()",
+      weight: "float()",
+      ceiling: "integer()"
     }
   end
 end

@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -28,6 +28,8 @@ use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\UidNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
 /**
@@ -98,8 +100,53 @@ class ObjectSerializer
                  * property routed through DsAwareObjectNormalizer — serialize
                  * to the "3600s" wire form and denormalize back. */
                 new DurationNormalizer(),
+                /* A `format: date-time` model field (\DateTime) decodes only
+                 * from RFC 3339 text, through the same gate as a top-level
+                 * value. Registered before DateTimeNormalizer, whose decode
+                 * falls back to the lenient \DateTime constructor ("tomorrow",
+                 * offset-less text read in the host zone). Encode, and the
+                 * \DateTimeImmutable `format: time` fields, stay with
+                 * DateTimeNormalizer. */
+                new class () implements DenormalizerInterface {
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): \DateTime {
+                        if (!is_string($data)) {
+                            throw new \InvalidArgumentException(
+                                'Expected an RFC 3339 date-time string but got ' . get_debug_type($data)
+                            );
+                        }
+
+                        return ObjectSerializer::parseRfc3339($data);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return ltrim($type, '\\') === \DateTime::class;
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return [\DateTime::class => true];
+                    }
+                },
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
                 new UriNormalizer(),
+                /* A `format: uuid` model field is a Symfony Uuid. Without this
+                 * normalizer the object normalizer sees a plain string on decode
+                 * and rejects it, and would walk the Uuid object on encode. The
+                 * canonical form is the lowercase RFC 4122 text. */
+                new UidNormalizer(),
                 new DsMapNormalizer(),
                 new DsSetNormalizer(),
                 new DsVectorNormalizer(),
@@ -196,32 +243,138 @@ class ObjectSerializer
             $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
             ]);
-            /* OAS `additionalProperties` flatten. A model that declares an open
-             * additionalProperties map carries a public `?\Ds\Map
-             * $additionalProperties` property. The normalizer above walks every
-             * public property, so the map is emitted under a literal nested
-             * `additionalProperties` key — but the wire contract requires those
-             * entries flattened to the top level (matching Python's re-flatten
-             * and Java's `@JsonAnyGetter`). Lift each entry to the top level and
-             * drop the synthetic key. */
-            if (
-                property_exists($data, 'additionalProperties')
-                && $data->additionalProperties instanceof \Ds\Map
-            ) {
-                unset($normalized['additionalProperties']);
-                /* Iterate via toArray() so the keys are typed as the native PHP
-                 * array-key (int|string) rather than the Ds\Map's mixed key type;
-                 * additionalProperties keys are always JSON strings, and an
-                 * int|string casts to string cleanly (no phpstan cast.string). */
-                foreach ($data->additionalProperties->toArray() as $extraKey => $extraValue) {
-                    $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
-                }
-                return self::asJsonObject($normalized);
-            }
-            return $normalized;
+            /* OAS `additionalProperties` flatten: the normalizer emits a model's
+             * open map under a literal `additionalProperties` key, at the root
+             * and in every nested model. See flattenAdditionalProperties. */
+            /** @var array<array-key, mixed>|\ArrayObject<array-key, mixed> $flattened */
+            $flattened = self::flattenAdditionalProperties($data, $normalized);
+            return $flattened;
         }
 
         throw new \InvalidArgumentException('Cannot serialize value of type ' . get_debug_type($data));
+    }
+
+    /**
+     * Lift every model's additionalProperties entries to the top level of its
+     * own JSON object, walking the value and its normalized form together.
+     *
+     * A model that declares an open additionalProperties map carries a public
+     * `?\Ds\Map $additionalProperties` property. The Symfony normalizer walks
+     * every public property, so the map is emitted under a literal nested
+     * `additionalProperties` key, and it does so for a model nested in another
+     * model or in a list or map as well as for the root. The wire contract
+     * requires the entries flattened into the model's object (matching
+     * Python's re-flatten and Java's `@JsonAnyGetter`). Each declared property
+     * is matched to its wire key by its SerializedName, a declared property
+     * wins over an extra entry of the same name, and composed wrappers are left
+     * as the normalizer produced them.
+     *
+     * @param mixed $value      the value that was normalized
+     * @param mixed $normalized the normalizer's output for $value
+     * @return mixed the normalized form with every open map flattened
+     */
+    private static function flattenAdditionalProperties(mixed $value, mixed $normalized): mixed
+    {
+        if (!is_array($normalized)) {
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($normalized)) {
+                return $normalized;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $normalized)) {
+                    $normalized[$key] = self::flattenAdditionalProperties($item, $normalized[$key]);
+                }
+            }
+            return $normalized;
+        }
+        if (
+            !is_object($value)
+            || method_exists($value, 'getActualInstance')
+            || method_exists($value, 'getActualInstances')
+        ) {
+            return $normalized;
+        }
+        foreach (self::publicModelProperties($value) as $wireName => $property) {
+            if (array_key_exists($wireName, $normalized)) {
+                $normalized[$wireName] = self::flattenAdditionalProperties(
+                    $property->getValue($value),
+                    $normalized[$wireName]
+                );
+            }
+        }
+        if (
+            property_exists($value, 'additionalProperties')
+            && $value->additionalProperties instanceof \Ds\Map
+        ) {
+            unset($normalized['additionalProperties']);
+            /* Iterate via toArray() so the keys are typed as the native PHP
+             * array-key (int|string) rather than the Ds\Map's mixed key type;
+             * additionalProperties keys are always JSON strings, and an
+             * int|string casts to string cleanly (no phpstan cast.string). */
+            foreach ($value->additionalProperties->toArray() as $extraKey => $extraValue) {
+                if (array_key_exists((string) $extraKey, $normalized)) {
+                    continue;
+                }
+                $normalized[(string) $extraKey] = self::sanitizeForSerialization($extraValue);
+            }
+            return self::asJsonObject($normalized);
+        }
+        return $normalized;
+    }
+
+    /**
+     * The initialized public instance properties of a model, keyed by wire
+     * name (the SerializedName, or the PHP name without one). The synthetic
+     * `additionalProperties` property is never a wire key and is left out.
+     *
+     * @return array<string, \ReflectionProperty>
+     */
+    private static function publicModelProperties(object $model): array
+    {
+        $properties = [];
+        foreach (new \ReflectionObject($model)->getProperties(\ReflectionProperty::IS_PUBLIC) as $property) {
+            if (
+                $property->isStatic()
+                || $property->getName() === 'additionalProperties'
+                || !$property->isInitialized($model)
+            ) {
+                continue;
+            }
+            $properties[self::wireNameOf($property)] = $property;
+        }
+        return $properties;
+    }
+
+    /**
+     * The wire name of a model property: its SerializedName, or its PHP name.
+     */
+    private static function wireNameOf(\ReflectionProperty $property): string
+    {
+        $wireName = $property->getName();
+        foreach (
+            $property->getAttributes(
+                \Symfony\Component\Serializer\Attribute\SerializedName::class
+            ) as $attr
+        ) {
+            $args = $attr->getArguments();
+            if (isset($args[0]) && is_string($args[0])) {
+                $wireName = $args[0];
+            } elseif (isset($args['name']) && is_string($args['name'])) {
+                $wireName = $args['name'];
+            }
+        }
+        return $wireName;
     }
 
     /**
@@ -241,6 +394,78 @@ class ObjectSerializer
     private static function asJsonObject(array $fields): array|\ArrayObject
     {
         return $fields !== [] && array_is_list($fields) ? new \ArrayObject($fields) : $fields;
+    }
+
+    /**
+     * Parse an RFC 3339 date-time: YYYY-MM-DDTHH:MM:SS, an optional fraction
+     * of any length, then Z or a numeric offset. Offset-less text, date-only
+     * text, free text ("tomorrow"), other date layouts and epoch numbers are
+     * rejected, so the result never depends on the host time zone or the
+     * current date. A fraction beyond microseconds is truncated, since
+     * \DateTime keeps six digits.
+     *
+     * @throws \InvalidArgumentException when the text is not an RFC 3339 date-time
+     */
+    public static function parseRfc3339(string $text): \DateTime
+    {
+        $pattern = '/\A(\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2})(?:\.(\d+))?([Zz]|[+-]\d{2}:\d{2})\z/';
+        if (preg_match($pattern, $text, $parts) !== 1) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': expected RFC 3339 with a time-zone offset", $text)
+            );
+        }
+        $fraction = $parts[2] !== '' ? '.' . substr($parts[2], 0, 6) : '';
+        $offset = strtoupper($parts[3]) === 'Z' ? '+00:00' : $parts[3];
+        $wallClock = strtoupper($parts[1]);
+        $parsed = \DateTime::createFromFormat(
+            $fraction === '' ? '!Y-m-d\\TH:i:sP' : '!Y-m-d\\TH:i:s.uP',
+            $wallClock . $fraction . $offset
+        );
+        /* createFromFormat rolls an out-of-range field over (Feb 30 becomes
+         * Mar 1); reading the wall clock back catches that. */
+        if ($parsed === false || $parsed->format('Y-m-d\\TH:i:s') !== $wallClock) {
+            throw new \InvalidArgumentException(
+                sprintf("Invalid date-time '%s': not a calendar date and time", $text)
+            );
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Base64-encode a `format: byte` parameter value (RFC 4648 standard
+     * alphabet with padding) before the usual query, header, path or form
+     * encoding. php models bytes as a plain string, so the API layer calls
+     * this only for parameters declared `format: byte`; each element of a
+     * list or map is encoded and null stays null (the parameter is omitted).
+     */
+    public static function encodeBase64Param(mixed $value): mixed
+    {
+        if (is_string($value)) {
+            return base64_encode($value);
+        }
+        if (is_array($value)) {
+            return array_map(
+                static fn (mixed $element): mixed => is_string($element) ? base64_encode($element) : $element,
+                $value
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Whether a value is a primitive that {@see stringify()} renders as plain
+     * text: a scalar, a date-time, a duration, a uuid or a backed enum. Models,
+     * maps and lists are not primitives.
+     */
+    public static function isPrimitiveValue(mixed $value): bool
+    {
+        return is_scalar($value)
+            || $value instanceof \DateTimeInterface
+            || $value instanceof \DateInterval
+            || $value instanceof \BackedEnum
+            || $value instanceof \Symfony\Component\Uid\Uuid;
     }
 
     /**
@@ -529,9 +754,9 @@ class ObjectSerializer
                 );
             }
             /* Invalid base64 is a wire-shape violation; throw rather than
-             * silently returning the raw undecoded string, matching the
-             * byte-decoding SDKs (ruby/elixir). */
-            $decoded = base64_decode($data, true);
+             * silently returning the raw undecoded string. Only strict RFC
+             * 4648 text passes (see isStrictBase64). */
+            $decoded = self::isStrictBase64($data) ? base64_decode($data, true) : false;
             if ($decoded === false) {
                 throw new SerializationException(
                     "Invalid base64 for 'byte': " . $data
@@ -614,12 +839,7 @@ class ObjectSerializer
                 }
             }
             if (is_string($data) && $data !== '') {
-                try {
-                    return new \DateTime($data);
-                } catch (\Exception) {
-                    $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
-                    return new \DateTime((string) $cleaned);
-                }
+                return self::parseRfc3339($data);
             }
             return null;
         }
@@ -768,6 +988,7 @@ class ObjectSerializer
                 self::assertRequiredPresent($payload, $class);
                 self::assertPrimitiveTypes($payload, $class);
                 self::assertNoUnknownProperties($payload, $class);
+                self::assertBase64Fields($payload, $class);
                 /* Canonical #4: pass the JSON format so Symfony widens an
                  * integral JSON value to a `float` property (e.g. {"lat":5}
                  * into a `?float $lat`). validateAndDenormalize only applies
@@ -795,6 +1016,7 @@ class ObjectSerializer
                 self::assertRequiredPresent($data, $class);
                 self::assertPrimitiveTypes($data, $class);
                 self::assertNoUnknownProperties($data, $class);
+                self::assertBase64Fields($data, $class);
             }
             /* Pass the JSON format so Symfony widens an integral JSON value
              * to a `float` property (Canonical #4); see the string-data
@@ -802,7 +1024,7 @@ class ObjectSerializer
             /** @var object $result */
             $result = self::getSerializer()->denormalize($data, $class, JsonEncoder::FORMAT);
             if (is_array($data)) {
-                return self::captureAdditionalProperties($result, $data);
+                $result = self::captureAdditionalProperties($result, $data);
             }
             return $result;
         } catch (\Throwable $e) {
@@ -841,7 +1063,7 @@ class ObjectSerializer
         }
         $reflection = new \ReflectionClass($class);
         $constructor = $reflection->getConstructor();
-        if ($constructor === null) {
+        if (!$constructor instanceof \ReflectionMethod) {
             return;
         }
         foreach ($constructor->getParameters() as $param) {
@@ -987,6 +1209,69 @@ class ObjectSerializer
     }
 
     /**
+     * Whether a string is strict RFC 4648 base64: standard alphabet, a length
+     * that is a multiple of four with `=` padding, no whitespace or newline
+     * and no URL-safe `-` or `_`. Non-zero trailing pad bits are not checked.
+     */
+    public static function isStrictBase64(string $text): bool
+    {
+        return preg_match('~\A(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?\z~', $text) === 1;
+    }
+
+    /**
+     * Reject a `format: byte` model field whose wire value is not strict
+     * base64 (see isStrictBase64), so malformed text fails at decode time
+     * rather than when the raw-bytes accessor is first called.
+     *
+     * php models bytes as a string-typed property, so a byte field is
+     * recognised by the raw-bytes accessor the model template emits for
+     * every `format: byte` field (scalar, list element or map value):
+     * `get<Property>AsBytes()`. Each string element is checked; null is
+     * left alone.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private static function assertBase64Fields(array $data, string $class): void
+    {
+        if (!class_exists($class)) {
+            return;
+        }
+        $reflection = new \ReflectionClass($class);
+        foreach ($reflection->getProperties() as $property) {
+            $name = $property->getName();
+            $accessor = 'get' . str_replace('_', '', ucwords($name, '_')) . 'AsBytes';
+            if (!$reflection->hasMethod($accessor)) {
+                continue;
+            }
+            $wireName = $name;
+            foreach (
+                $property->getAttributes(
+                    \Symfony\Component\Serializer\Attribute\SerializedName::class
+                ) as $attr
+            ) {
+                $args = $attr->getArguments();
+                if (isset($args[0]) && is_string($args[0])) {
+                    $wireName = $args[0];
+                }
+            }
+            if (!array_key_exists($wireName, $data)) {
+                continue;
+            }
+            $value = $data[$wireName];
+            $elements = is_array($value) ? $value : [$value];
+            foreach ($elements as $element) {
+                if (is_string($element) && !self::isStrictBase64($element)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        "Invalid base64 for format: byte property '%s' on %s",
+                        $wireName,
+                        $class
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
      * OAS `additionalProperties` capture.
      *
      * The model template emits a public `?\Ds\Map $additionalProperties`
@@ -1004,6 +1289,11 @@ class ObjectSerializer
      */
     private static function captureAdditionalProperties(object $result, array $data): object
     {
+        foreach (self::publicModelProperties($result) as $wireName => $property) {
+            if (array_key_exists($wireName, $data)) {
+                self::captureNestedAdditionalProperties($property->getValue($result), $data[$wireName]);
+            }
+        }
         if (!property_exists($result, 'additionalProperties')) {
             return $result;
         }
@@ -1018,20 +1308,7 @@ class ObjectSerializer
             if ($property->getName() === 'additionalProperties') {
                 continue;
             }
-            $wireName = $property->getName();
-            foreach (
-                $property->getAttributes(
-                    \Symfony\Component\Serializer\Attribute\SerializedName::class
-                ) as $attr
-            ) {
-                $args = $attr->getArguments();
-                if (isset($args[0]) && is_string($args[0])) {
-                    $wireName = $args[0];
-                } elseif (isset($args['name']) && is_string($args['name'])) {
-                    $wireName = $args['name'];
-                }
-            }
-            $declaredWireNames[$wireName] = true;
+            $declaredWireNames[self::wireNameOf($property)] = true;
         }
 
         /** @var array<string, mixed> $extra */
@@ -1048,6 +1325,47 @@ class ObjectSerializer
             $result->additionalProperties = new \Ds\Map($extra);
         }
         return $result;
+    }
+
+    /**
+     * Capture additionalProperties on the models nested in a decoded value.
+     *
+     * Symfony denormalizes a nested model directly, so its undeclared keys
+     * are dropped just as the root's would be. This walks the decoded value
+     * together with its raw JSON (a model property, a list element or a map
+     * value) and runs the same capture on every nested model.
+     *
+     * @param mixed $value the denormalized value
+     * @param mixed $raw   the decoded JSON it was built from
+     */
+    private static function captureNestedAdditionalProperties(mixed $value, mixed $raw): void
+    {
+        if (!is_array($raw)) {
+            return;
+        }
+        if ($value instanceof \Ds\Map) {
+            foreach ($value as $key => $item) {
+                if ((is_int($key) || is_string($key)) && array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if ($value instanceof \Ds\Sequence || $value instanceof \Ds\Set || is_array($value)) {
+            $items = is_array($value) ? $value : $value->toArray();
+            if (array_is_list($items) && count($items) !== count($raw)) {
+                return;
+            }
+            foreach ($items as $key => $item) {
+                if (array_key_exists($key, $raw)) {
+                    self::captureNestedAdditionalProperties($item, $raw[$key]);
+                }
+            }
+            return;
+        }
+        if (is_object($value) && !($value instanceof \UnitEnum)) {
+            self::captureAdditionalProperties($value, $raw);
+        }
     }
 
     /**
@@ -1254,7 +1572,7 @@ class ObjectSerializer
         if ($encoded === null || $encoded === '') {
             return null;
         }
-        $decoded = base64_decode($encoded, true);
+        $decoded = self::isStrictBase64($encoded) ? base64_decode($encoded, true) : false;
         if ($decoded === false) {
             throw new SerializationException(
                 "Invalid base64 for format: byte: " . $encoded

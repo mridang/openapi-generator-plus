@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -229,6 +229,41 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize([1, 2, 3], "header", "array")).toBe(
         "1,2,3",
       );
+    });
+  });
+
+  describe("serializeStyled - path dot segments", () => {
+    test.each([".", ".."])(
+      "rejects a simple-style path value of %p",
+      (value) => {
+        expect(() =>
+          ValueSerializer.serializeStyled(
+            "name",
+            value,
+            "path",
+            "string",
+            null,
+            "simple",
+            false,
+          ),
+        ).toThrow(
+          new TypeError(`Path parameter 'name' must not be '.' or '..'`),
+        );
+      },
+    );
+
+    test("keeps a value that only contains dots", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "name",
+          "a..b",
+          "path",
+          "string",
+          null,
+          "simple",
+          false,
+        ),
+      ).toBe("a..b");
     });
   });
 
@@ -505,6 +540,89 @@ describe("ValueSerializer", () => {
           true,
         ),
       ).toBeUndefined();
+    });
+  });
+
+  describe("serializeStyled - Set values", () => {
+    test.each([
+      [true, ["red", "blue"]],
+      [false, "red,blue"],
+    ])(
+      "form style with explode=%p expands a Set like an array",
+      (explode, expected) => {
+        const value = new Set(["red", "blue"]);
+        expect(
+          ValueSerializer.serializeStyled(
+            "labels",
+            value,
+            "query",
+            "Set<string>",
+            null,
+            "form",
+            explode,
+          ),
+        ).toEqual(expected);
+        expect(
+          ValueSerializer.serializeStyled(
+            "labels",
+            ["red", "blue"],
+            "query",
+            "Array<string>",
+            null,
+            "form",
+            explode,
+          ),
+        ).toEqual(expected);
+      },
+    );
+
+    test("simple style joins the Set elements", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "ids",
+          new Set([1, 2]),
+          "header",
+          "Set<number>",
+          null,
+          "simple",
+          false,
+        ),
+      ).toBe("1,2");
+    });
+  });
+
+  describe("serializeStyled - uuid values", () => {
+    test.each(["path", "query", "header"])(
+      "writes an uppercase uuid in lowercase in the %s",
+      (location) => {
+        expect(
+          ValueSerializer.serializeStyled(
+            "id",
+            "E621E1F8-C36C-495A-93FC-0C247A3E6E5F",
+            location,
+            "UUID",
+            null,
+            location === "query" ? "form" : "simple",
+            false,
+          ),
+        ).toBe("e621e1f8-c36c-495a-93fc-0c247a3e6e5f");
+      },
+    );
+
+    test("rejects a malformed uuid", () => {
+      expect(() =>
+        ValueSerializer.serializeStyled(
+          "id",
+          "not-a-uuid",
+          "path",
+          "UUID",
+          null,
+          "simple",
+          false,
+        ),
+      ).toThrow(
+        new TypeError(`Parameter 'id' is not a canonical UUID: "not-a-uuid"`),
+      );
     });
   });
 
@@ -873,6 +991,37 @@ describe("ValueSerializer", () => {
         "2024-01-15",
       );
     });
+
+    test("stringifyDates formats each array element as YYYY-MM-DD in order", () => {
+      expect(
+        ValueSerializer.stringifyDates([
+          new Date(Date.UTC(2024, 1, 1, 23, 59)),
+          new Date(Date.UTC(2024, 0, 15, 10)),
+        ]),
+      ).toEqual(["2024-02-01", "2024-01-15"]);
+    });
+
+    test("stringifyDates expands a Set in iteration order", () => {
+      expect(
+        ValueSerializer.stringifyDates(
+          new Set(["2024-01-15T00:00:00Z", "2024-02-01"]),
+        ),
+      ).toEqual(["2024-01-15", "2024-02-01"]);
+    });
+
+    test("a styled matrix path value keeps the date part only", () => {
+      expect(
+        ValueSerializer.serializeStyled(
+          "day",
+          ValueSerializer.stringifyDate(new Date(Date.UTC(2024, 0, 15, 13))),
+          "path",
+          "Date",
+          null,
+          "matrix",
+          false,
+        ),
+      ).toBe(";day=2024-01-15");
+    });
   });
 
   describe("encodeQueryComponent", () => {
@@ -899,6 +1048,14 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.encodeQueryAllowingReserved("a b:c")).toBe(
         "a%20b:c",
       );
+    });
+
+    test("keeps only the RFC 3986 query-legal reserved set literal", () => {
+      expect(
+        ValueSerializer.encodeQueryAllowingReserved(
+          "a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u",
+        ),
+      ).toBe("a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u");
     });
 
     test("maybeAllowReserved wraps only when allowReserved is true", () => {

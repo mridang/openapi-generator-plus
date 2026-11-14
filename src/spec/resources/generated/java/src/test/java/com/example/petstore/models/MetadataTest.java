@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -87,6 +88,17 @@ class MetadataTest {
     assertThat(first).isEqualTo(same).hasSameHashCodeAs(same);
     assertThat(first).isNotEqualTo(differentValue).isNotEqualTo(differentKey);
     assertThat(first).isNotEqualTo(new Metadata());
+  }
+
+  @Test
+  void testDeclaredPropertyWinsOverCollidingAdditionalProperty() {
+    Metadata metadata = new Metadata();
+    metadata.createdAt = java.time.OffsetDateTime.parse("2024-01-01T00:00:00Z");
+    metadata.setAdditionalProperty("createdAt", "x");
+
+    String json = Objects.requireNonNull(serializer.serialize(metadata));
+
+    assertThat(json).isEqualTo("{\"createdAt\":\"2024-01-01T00:00:00.000+00:00\"}");
   }
 
   @Test

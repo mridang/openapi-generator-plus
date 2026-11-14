@@ -6,7 +6,7 @@ Auto-generated Go SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 - Go 1.26+
 - [`gofumpt`](https://github.com/mvdan/gofumpt) — stricter formatter (superset of `gofmt`)
-- [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (the generated `.golangci.yml` runs its default linters: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`)
+- [`golangci-lint`](https://golangci-lint.run/) — linter aggregator (the generated `.golangci.yml` runs its default linters: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, over the generated sources as well)
 
 ### Tooling
 

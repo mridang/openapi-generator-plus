@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -118,6 +118,24 @@ import Testing
     #expect(result.id == 1)
     let info = try await mockApi.placeOrderWithHTTPInfo()
     #expect(info.statusCode == 200)
+  }
+
+  /* readOnly and writeOnly have no wire effect: the writeOnly password is
+     sent and the readOnly id is decoded from the response. */
+  @Test func testCreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    let result = try await api.createAccount(account: Account(username: "u", password: "p"))
+
+    let sent =
+      try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
+    #expect(sent?["password"] as? String == "p")
+    #expect(result.id == 7)
+    #expect(result.password == "p")
   }
 
   @Test func testPlaceOrderServerError() async throws {

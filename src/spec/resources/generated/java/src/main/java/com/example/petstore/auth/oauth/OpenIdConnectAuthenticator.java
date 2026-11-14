@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -38,6 +39,12 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private static final Pattern MAX_AGE_PATTERN =
       Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
   private static final long DEFAULT_MAX_AGE_SECONDS = 86400L;
+
+  /**
+   * Ceiling applied to a server-supplied max-age (one year), so an absurd lifetime cannot overflow
+   * the expiry arithmetic.
+   */
+  private static final long MAX_MAX_AGE_SECONDS = 31_536_000L;
 
   private final String host;
   private final String openIdConnectUrl;
@@ -114,12 +121,14 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
     }
     String authorizationEndpoint = requireEndpoint(discovery, "authorization_endpoint");
     String tokenEndpoint = requireEndpoint(discovery, "token_endpoint");
-    /* A document that names the same endpoints keeps the delegate: it
-     * holds the token from the code exchange, which a refresh of the
-     * discovery cache must not discard. */
+    /* The session (tokens and the exchanged flag) lives in the token
+     * manager, which outlives discovery: a document that names the same
+     * endpoints keeps the delegate, and one that names new endpoints gets
+     * a delegate built around the previous token manager, so a refresh of
+     * the discovery cache never discards the code exchange. */
     String endpoints = authorizationEndpoint + "\n" + tokenEndpoint;
     OAuth2AuthorizationCodeAuthenticator current = delegate;
-    if (current == null || !endpoints.equals(discoveredEndpoints)) {
+    if (current == null) {
       current =
           new OAuth2AuthorizationCodeAuthenticator(
               host,
@@ -129,9 +138,20 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
               tokenEndpoint,
               redirectUri,
               scopes);
-      delegate = current;
-      discoveredEndpoints = endpoints;
+    } else if (!endpoints.equals(discoveredEndpoints)) {
+      current =
+          new OAuth2AuthorizationCodeAuthenticator(
+              host,
+              clientId,
+              clientSecret,
+              authorizationEndpoint,
+              tokenEndpoint,
+              redirectUri,
+              scopes,
+              current.tokenManager());
     }
+    delegate = current;
+    discoveredEndpoints = endpoints;
     current.setApiClient(apiClient);
     discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
     return current;
@@ -166,7 +186,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    *
    * @param headers the response headers
    * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if the header is absent or
-   *     does not contain a {@code max-age} directive
+   *     does not contain a {@code max-age} directive; a larger value is clamped to one year
    */
   private static long parseMaxAge(Map<String, String> headers) {
     for (Map.Entry<String, String> entry : headers.entrySet()) {
@@ -174,7 +194,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
         Matcher matcher = MAX_AGE_PATTERN.matcher(entry.getValue());
         if (matcher.find()) {
           try {
-            return Long.parseLong(matcher.group(1));
+            return Math.min(Long.parseLong(matcher.group(1)), MAX_MAX_AGE_SECONDS);
           } catch (NumberFormatException ignored) {
             return DEFAULT_MAX_AGE_SECONDS;
           }

@@ -13,6 +13,7 @@ use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
+use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
@@ -83,6 +84,14 @@ test('the options parameter doc names the authenticator only where the options c
     ['getPetByName', '$options Options for query, header, form, and cookie parameters' . "\n"],
     ['getPetByNameWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
 ]);
+
+test('operation summary and description reach the doc comment unescaped', function (): void {
+    $doc = new \ReflectionMethod(PetApi::class, 'getPetSummary')->getDocComment();
+    expect($doc)->toBeString();
+    assert(is_string($doc));
+    expect($doc)->toContain("     * Get a <plain> \"text\" summary & it's short\n");
+    expect($doc)->toContain("     * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done\n");
+});
 
 // -- Integration tests via Chasm --
 
@@ -443,6 +452,34 @@ test('get pet tag preserves reserved chars only for allowReserved query param', 
     expect($captured->url)->toContain('filter=a%3Ab');
 });
 
+test('get pet tag percent encodes a fragment delimiter in an allowReserved value', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(revision: 'v1.0/beta:rc1#frag'));
+    } catch (\Throwable) {
+        // Only the captured URL matters here; see the test above.
+    }
+
+    expect($captured->url)->toContain('revision=v1.0/beta:rc1%23frag');
+});
+
+test('get pet tag sends byte parameters as standard base64', function (string $bytes, string $query, string $header): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetTag(5, 'cute', new GetPetTagOptions(fingerprint: $bytes, xFingerprint: $bytes));
+    } catch (\Throwable) {
+        // Only the captured request matters here.
+    }
+
+    expect($captured->url)->toContain('fingerprint=' . $query);
+    expect($captured->headers['X-Fingerprint'] ?? null)->toBe($header);
+})->with([
+    'ascii' => ['hi', 'aGk%3D', 'aGk='],
+    'standard alphabet' => ["\xFB\xFF", '%2B%2F8%3D', '+/8='],
+]);
+
 // -- Canonical form-urlencoded body behaviors (#1, #2, #3) --
 //
 // setPetPreferences sends an application/x-www-form-urlencoded body with a
@@ -603,6 +640,18 @@ test('date only form field serialises without time component', function (): void
     expect($captured->body)->not->toContain('10%3A30');
 });
 
+test('date-time form field serialises in the canonical form', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    $api->setPetPreferences(1, new SetPetPreferencesOptions(
+        nickname: 'Rex',
+        reminder: new \DateTime('2024-01-15T10:30:00+00:00'),
+    ));
+
+    expect($captured->body)->toContain('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00');
+    expect($captured->body)->not->toContain('%20');
+});
+
 test('date only form field omitted when unset', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
@@ -676,6 +725,27 @@ test('setPetAvatar honours the selected request content type', function (): void
     expect($captured->body)->toBe($rawBytes);
 
     unlink($tmpFile);
+});
+
+test('setPetAvatar sends the bytes verbatim under the json selector', function (): void {
+    $rawBytes = "\xFF\xD8\xFF\xE0";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+    file_put_contents($tmpFile, $rawBytes);
+
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatar(1, new \SplFileObject($tmpFile, 'r'), 'application/json');
+    unlink($tmpFile);
+
+    expect($captured->body)->toBe($rawBytes);
+    expect($captured->headers['Content-Type'] ?? '')->toBe('application/json');
+});
+
+test('setPetAvatarThumbnail still sends a byte body as a base64 json string', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $api->setPetAvatarThumbnail(1, SetPetAvatarThumbnailRequest::fromBytes("\xFF\xD8\xFF\xE0"));
+
+    expect($captured->body)->toBe('"/9j/4A=="');
+    expect($captured->headers['Content-Type'] ?? '')->toBe('application/json');
 });
 
 // -- Canonical: octet-stream selection sends RAW bytes, not multipart --
@@ -765,6 +835,37 @@ test('uploadPetDocument with octet-stream selection sends raw bytes not multipar
     // (3) The outgoing Content-Type is exactly application/octet-stream — never
     //     multipart/form-data.
     expect($captured->headers['Content-Type'] ?? '')->toBe('application/octet-stream');
+});
+
+test('uploadPetDocument sends primitive fields as plain text parts', function (): void {
+    $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+    file_put_contents($tmpFile, 'document-content');
+    $stub = new \PetstoreClient\Test\StubPsr18Client(
+        new \Nyholm\Psr7\Factory\Psr17Factory()->createResponse(200)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody(new \Nyholm\Psr7\Factory\Psr17Factory()->createStream('{"code":200,"type":"ok","message":"saved"}'))
+    );
+    $factory = new \Nyholm\Psr7\Factory\Psr17Factory();
+    $api = new PetApi(
+        apiClient: new \PetstoreClient\Psr18ApiClient($stub, $factory, $factory),
+        config: Configuration::builder()->baseUrl('http://localhost:9999')->build()
+    );
+
+    $api->uploadPetDocument(1, new UploadPetDocumentOptions(
+        new \SplFileObject($tmpFile, 'r'),
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new \DateTime('2024-01-15T10:30:00Z'),
+        swatch: \PetstoreClient\Models\Swatch::RED,
+    ));
+    unlink($tmpFile);
+
+    $sent = (string) $stub->requests[0]->getBody();
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"isPrimary\"\r\n\r\ntrue\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"pageCount\"\r\n\r\n3\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"takenAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($sent)->toContain("Content-Disposition: form-data; name=\"swatch\"\r\n\r\nred\r\n");
+    expect($sent)->not->toContain('application/json');
 });
 
 test('uploadPetDocument default selection still sends a multipart body', function (): void {
@@ -1023,7 +1124,7 @@ test('options class is immutable: construction works but property writes throw',
 test('get pet by name throws when required query param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '')))
+    expect(fn (): mixed => $api->getPetByName('Rex', new GetPetByNameOptions(category: '', xCorrelationId: 'abc')))
         ->toThrow(
             \InvalidArgumentException::class,
             "Missing the required parameter 'category' when calling PetApi.getPetByName",
@@ -1033,8 +1134,28 @@ test('get pet by name throws when required query param is empty', function (): v
 test('get pet by name throws when required path param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetByName('', new GetPetByNameOptions(category: 'dogs')))
+    expect(fn (): mixed => $api->getPetByName('', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc')))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('get pet by name rejects a dot segment path param before dispatch', function (string $segment): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetByName($segment, new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc')))
+        ->toThrow(\InvalidArgumentException::class, "Path parameter 'name' must not be '.' or '..'");
+    expect($captured->url)->toBe('');
+})->with(['.', '..']);
+
+test('get pet by name keeps dots inside a path param', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetByNameWithHttpInfo('a..b', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc'));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toContain('/pet/byName/a..b?');
 });
 
 test('get pet by name sends the required query param when supplied', function (): void {
@@ -1042,10 +1163,33 @@ test('get pet by name sends the required query param when supplied', function ()
     // dispatched; a header-capturing client confirms the call reached the wire.
     [$api, $captured] = newHeaderCapturingPetApi();
 
-    $result = $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs'));
+    $result = $api->getPetByName('Rex', new GetPetByNameOptions(category: 'dogs', xCorrelationId: 'abc'));
 
     expect($result)->not->toBeNull();
     expect($captured->headers)->not->toBeEmpty();
+});
+
+test('get pet summary throws when required cookie param is empty', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    expect(fn (): mixed => $api->getPetSummary(1, new \DateTime('2024-01-15'), new GetPetSummaryOptions(session: '')))
+        ->toThrow(
+            \InvalidArgumentException::class,
+            "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+        );
+    expect($captured->url)->toBe('');
+});
+
+test('get pet summary sends the required cookie param when supplied', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetSummaryWithHttpInfo(1, new \DateTime('2024-01-15'), new GetPetSummaryOptions(session: 'abc'));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's media type; only the request matters. */
+    }
+
+    expect($captured->headers['Cookie'] ?? null)->toBe('session=abc');
 });
 
 // -- Authenticator secret redaction in debug dumps (#2, #3) --
@@ -1197,7 +1341,7 @@ test('a multi server operation uses the chosen server and the configured base ur
         $api->getMultiServerPetInfo(
             7,
             new \PetstoreClient\Api\GetMultiServerPetInfoServerRegional(
-                \PetstoreClient\Api\GetMultiServerPetInfoServerRegion::EU
+                \PetstoreClient\Api\GetMultiServerPetInfoServerRegionalRegion::EU
             )
         );
     } catch (\Throwable) {

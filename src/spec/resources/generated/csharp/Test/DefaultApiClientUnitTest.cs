@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -31,7 +31,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("GET", response.Body);
+        Assert.Contains("GET", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -51,8 +51,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("POST", response.Body);
-        Assert.Contains("key", response.Body);
+        Assert.Contains("POST", response.Body, StringComparison.Ordinal);
+        Assert.Contains("key", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("PUT", response.Body);
+        Assert.Contains("PUT", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("DELETE", response.Body);
+        Assert.Contains("DELETE", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(200, response.StatusCode);
-        Assert.Contains("vendor", response.Body);
+        Assert.Contains("vendor", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -322,6 +322,37 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task CallerHeadersWinRegardlessOfCasing()
+    {
+        List<string>? userAgents = null;
+        List<string>? requestIds = null;
+        var handler = new CapturingHandler(req =>
+        {
+            userAgents = req.Headers.TryGetValues("User-Agent", out var ua) ? ua.ToList() : null;
+            requestIds = req.Headers.TryGetValues("X-Request-ID", out var ids)
+                ? ids.ToList()
+                : null;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .UserAgent("SdkDefault/9.9")
+            .InjectRequestId(true)
+            .DefaultHeader("user-agent", "MyApp")
+            .DefaultHeader("x-request-id", "abc")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(new List<string> { "MyApp" }, userAgents);
+        Assert.Equal(new List<string> { "abc" }, requestIds);
+    }
+
+    [Fact]
     public async Task GeneratesUniqueRequestIds()
     {
         var capturedIds = new List<string>();
@@ -429,8 +460,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: image/png", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("Content-Type: image/png", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -457,8 +488,12 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: application/octet-stream", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -489,10 +524,14 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("name=\"file\"", wireText);
-        Assert.Contains("filename=\"file\"", wireText);
-        Assert.Contains("Content-Type: application/octet-stream", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("name=\"file\"", wireText, StringComparison.Ordinal);
+        Assert.Contains("filename=\"file\"", wireText, StringComparison.Ordinal);
+        Assert.Contains(
+            "Content-Type: application/octet-stream",
+            wireText,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -519,8 +558,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.StartsWith("multipart/form-data", contentTypeHeader);
-        Assert.Contains("Content-Type: application/pdf", wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader, StringComparison.Ordinal);
+        Assert.Contains("Content-Type: application/pdf", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -549,7 +588,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.Contains("Content-Type: image/png", wireText);
+        Assert.Contains("Content-Type: image/png", wireText, StringComparison.Ordinal);
         Assert.Matches(
             "Content-Disposition: form-data; name=\"avatar.png\"; [^\r\n]*\r\nContent-Type: image/png\r\n\r\n",
             wireText
@@ -583,7 +622,7 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireBytes);
         string wireText = Encoding.UTF8.GetString(wireBytes!);
-        Assert.Contains("名前.png", wireText);
+        Assert.Contains("名前.png", wireText, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -632,9 +671,9 @@ public class DefaultApiClientUnitTest
     public void MultipartFilenameNonAsciiEmitsRFC5987()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("日本.pdf");
-        Assert.Contains("filename*=UTF-8''", directive);
-        Assert.Contains("%E6%97%A5%E6%9C%AC", directive);
-        Assert.StartsWith("filename=\"", directive);
+        Assert.Contains("filename*=UTF-8''", directive, StringComparison.Ordinal);
+        Assert.Contains("%E6%97%A5%E6%9C%AC", directive, StringComparison.Ordinal);
+        Assert.StartsWith("filename=\"", directive, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -642,7 +681,7 @@ public class DefaultApiClientUnitTest
     {
         string directive = DefaultApiClient.BuildFilenameDirective("file.png");
         Assert.Equal("filename=\"file.png\"", directive);
-        Assert.DoesNotContain("filename*=", directive);
+        Assert.DoesNotContain("filename*=", directive, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -987,9 +1026,17 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal(2, handler.Requests.Count);
-        Assert.Contains("hello-upload", Encoding.UTF8.GetString(handler.Bodies[1]));
+        Assert.Contains(
+            "hello-upload",
+            Encoding.UTF8.GetString(handler.Bodies[1]),
+            StringComparison.Ordinal
+        );
         Assert.Equal(handler.Bodies[0], handler.Bodies[1]);
-        Assert.StartsWith("multipart/form-data; boundary=", handler.ContentTypes[1]);
+        Assert.StartsWith(
+            "multipart/form-data; boundary=",
+            handler.ContentTypes[1],
+            StringComparison.Ordinal
+        );
         Assert.Equal(handler.ContentTypes[0], handler.ContentTypes[1]);
     }
 
@@ -1701,25 +1748,83 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(wireText);
         // Wire (camelCase) keys from [JsonPropertyName], never snake_case.
-        Assert.Contains("\"isEnabled\":true", wireText);
-        Assert.Contains("\"recordedAt\":", wireText);
-        Assert.DoesNotContain("is_enabled", wireText);
-        Assert.DoesNotContain("recorded_at", wireText);
+        Assert.Contains("\"isEnabled\":true", wireText, StringComparison.Ordinal);
+        Assert.Contains("\"recordedAt\":", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("is_enabled", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("recorded_at", wireText, StringComparison.Ordinal);
         // The JSON part carries the bare declared type, no charset suffix.
-        Assert.Contains("Content-Type: application/json", wireText);
-        Assert.DoesNotContain("charset", wireText);
+        Assert.Contains("Content-Type: application/json", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("charset", wireText, StringComparison.Ordinal);
         // Content-Disposition leads the part headers, as in the other SDKs.
         Assert.Contains(
             "Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n",
-            wireText
+            wireText,
+            StringComparison.Ordinal
         );
         // The SDK DateTimeOffset converter emits yyyy-MM-dd'T'HH:mm:ss.fffzzz.
-        Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText);
+        Assert.Contains("2020-01-02T03:04:05.123+00:00", wireText, StringComparison.Ordinal);
         // Null-omission from the configured options: the unset "caption" and
         // "location" fields are dropped rather than emitted as null — proof the
         // SDK JsonSerializerOptions are applied, not the bare default.
-        Assert.DoesNotContain("\"caption\"", wireText);
-        Assert.DoesNotContain("\"location\"", wireText);
+        Assert.DoesNotContain("\"caption\"", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"location\"", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MultipartPrimitivePartsAreCanonicalTextPartsAndOnlyModelsAreJson()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "flag", true },
+            { "count", 3L },
+            { "recordedAt", new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero) },
+            { "shade", MultipartShade.Red },
+            {
+                "metadata",
+                new MultipartModelPart { IsEnabled = true }
+            },
+        };
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/resource/1/files"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"recordedAt\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"shade\"\r\n\r\nred\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Contains(
+            "Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n",
+            wireText,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(wireText!, "Content-Type:"));
     }
 
     /// <summary>
@@ -2029,4 +2134,31 @@ public sealed class MultipartModelPart
 
     [System.Text.Json.Serialization.JsonPropertyName("recordedAt")]
     public DateTimeOffset? RecordedAt { get; set; }
+}
+
+/// <summary>
+/// A stand-in string enum for the multipart text-part test above, carrying
+/// its wire value the way generated enums do.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(MultipartShadeConverter))]
+public enum MultipartShade
+{
+    Red,
+}
+
+/// <summary>Maps <see cref="MultipartShade"/> to its wire value.</summary>
+public sealed class MultipartShadeConverter
+    : System.Text.Json.Serialization.JsonConverter<MultipartShade>
+{
+    public override MultipartShade Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options
+    ) => MultipartShade.Red;
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        MultipartShade value,
+        System.Text.Json.JsonSerializerOptions options
+    ) => writer.WriteStringValue("red");
 }

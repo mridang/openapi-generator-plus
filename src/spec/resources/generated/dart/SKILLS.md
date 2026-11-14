@@ -247,7 +247,7 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as Dart classes in the `models` directory.
 
 ```dart
-final model = ApiResponse(/* properties */);
+final model = Account(/* properties */);
 ```
 
 ## Binary / File Uploads

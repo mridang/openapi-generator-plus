@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -7,7 +7,8 @@
 
 import { Category } from "./category.js";
 import { Tag } from "./tag.js";
-import { Expose, Type } from "class-transformer";
+import { Expose, Type, Transform } from "class-transformer";
+import { reattachAdditionalProperties } from "../object-serializer.js";
 import { URI } from "../brand.js";
 import { Email } from "../brand.js";
 import { Decimal } from "../brand.js";
@@ -30,6 +31,13 @@ export class PetWithOwner {
    */
   static readonly __decimalFields: ReadonlySet<string> = new Set(["weightKg"]);
 
+  /**
+   * `format: uuid` fields. ObjectSerializer.serialize writes them in the
+   * canonical lowercase 8-4-4-4-12 form (RFC 9562 section 4) whatever case
+   * the caller used. Empty when the model has no uuid fields.
+   */
+  static readonly __uuidFields: ReadonlySet<string> = new Set([]);
+
   /** @example 10 */
   @Expose({ name: "id" })
   id?: number;
@@ -38,11 +46,31 @@ export class PetWithOwner {
   name!: string;
   @Expose({ name: "category" })
   @Type(() => Category)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["category"],
+      ),
+    { toClassOnly: true },
+  )
   category?: Category;
   @Expose({ name: "photoUrls" })
   photoUrls!: Set<string>;
   @Expose({ name: "tags" })
   @Type(() => Tag)
+  /* A nested model that declares additionalProperties keeps its free-form
+   * wire keys: class-transformer drops every key without an @Expose. */
+  @Transform(
+    ({ value, obj }) =>
+      reattachAdditionalProperties(
+        value,
+        (obj as Record<string, unknown>)["tags"],
+      ),
+    { toClassOnly: true },
+  )
   tags?: Array<Tag>;
   /**
    * pet status in the store
@@ -78,6 +106,9 @@ export class PetWithOwner {
    */
   @Expose({ name: "weightKg" })
   weightKg?: Decimal;
+  /** @example rex */
+  @Expose({ name: "nickname" })
+  nickname?: string;
   @Expose({ name: "ownerName" })
   ownerName!: string;
 
@@ -152,6 +183,20 @@ export class PetWithOwner {
         `homepageUrl must be a string, got ${typeof this.homepageUrl}`,
       );
     }
+    /* `format: uri` is an absolute RFC 3986 URI: a scheme, a colon, then no
+     * whitespace or control characters. Any scheme is valid; a relative
+     * reference or free text is not. The text is kept exactly as given. */
+    if (
+      this.homepageUrl != null &&
+      (!/^[A-Za-z][A-Za-z0-9+.-]*:\S*$/.test(this.homepageUrl) ||
+        [...this.homepageUrl].some(
+          (c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f,
+        ))
+    ) {
+      throw new TypeError(
+        `homepageUrl must be an absolute URI, got ${JSON.stringify(this.homepageUrl)}`,
+      );
+    }
     if (this.thumbnailRef != null && typeof this.thumbnailRef !== "string") {
       throw new TypeError(
         `thumbnailRef must be a string, got ${typeof this.thumbnailRef}`,
@@ -179,6 +224,11 @@ export class PetWithOwner {
     } else if (this.weightKg != null && typeof this.weightKg !== "string") {
       throw new TypeError(
         `weightKg must be a Decimal string or number, got ${typeof this.weightKg}`,
+      );
+    }
+    if (this.nickname != null && typeof this.nickname !== "string") {
+      throw new TypeError(
+        `nickname must be a string, got ${typeof this.nickname}`,
       );
     }
     if (this.ownerName != null && typeof this.ownerName !== "string") {
@@ -317,6 +367,14 @@ export class PetWithOwner {
         this.weightKg,
         (other as PetWithOwner).weightKg,
         true,
+      )
+    ) {
+      return false;
+    }
+    if (
+      !PetWithOwner.__deepEquals(
+        this.nickname,
+        (other as PetWithOwner).nickname,
       )
     ) {
       return false;

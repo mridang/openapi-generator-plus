@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -36,6 +36,32 @@ import Testing
     let result = ValueSerializer.serializeValue(
       "a/b", location: "path", schemaType: "string", collectionFormat: "")
     #expect(result as? String == "a%2Fb")
+  }
+
+  /* "." and ".." are dot segments in the simple style and are rejected. */
+  @Test(arguments: [".", ".."])
+  func testRequirePathParamRejectsDotSegments(value: String) {
+    var message: String?
+    do {
+      try ValueSerializer.requirePathParam(
+        "name", value, style: "simple", operation: "SampleApi.get")
+    } catch ConfigurationError.invalidArgument(let text) {
+      message = text
+    } catch {
+      message = nil
+    }
+    #expect(message == "Path parameter 'name' must not be '.' or '..'")
+  }
+
+  /* Dots inside a value, and the prefixed label and matrix styles, are not
+     dot segments. */
+  @Test(arguments: [("a..b", "simple"), (".hidden", "simple"), ("..", "label"), ("..", "matrix")])
+  func testRequirePathParamAcceptsNonDotSegments(value: String, style: String) throws {
+    try ValueSerializer.requirePathParam("name", value, style: style, operation: "SampleApi.get")
+    #expect(
+      ValueSerializer.serializeValue(
+        value, location: "path", schemaType: "string", collectionFormat: "")
+        as? String == value)
   }
 
   @Test func testSerializeValuePathInteger() {

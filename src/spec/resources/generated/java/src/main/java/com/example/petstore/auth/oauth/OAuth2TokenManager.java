@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 import javax.annotation.Nullable;
@@ -37,11 +39,18 @@ public class OAuth2TokenManager {
    */
   private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
 
+  /**
+   * Ceiling applied to a server-supplied expires_in (one year), so an absurd lifetime cannot
+   * overflow the expiry arithmetic.
+   */
+  private static final long MAX_EXPIRES_IN_SECONDS = 31_536_000L;
+
   private final ObjectMapper objectMapper;
   @Nullable private ApiClient apiClient;
   @Nullable private String accessToken;
   @Nullable private Instant tokenExpiry;
   @Nullable private String refreshToken;
+  private boolean exchanged;
 
   /**
    * Create a new token manager.
@@ -89,13 +98,37 @@ public class OAuth2TokenManager {
    */
   public synchronized String getAccessToken(
       String tokenUrl, Map<String, String> params, Map<String, String> extraHeaders) {
+    return getAccessToken(tokenUrl, params, extraHeaders, null);
+  }
+
+  /**
+   * Get a valid access token, fetching or refreshing as necessary.
+   *
+   * <p>When a refresh token is held and {@code params} is not itself a refresh grant, the refresh
+   * grant is POSTed to {@code refreshUrl} first, authenticated like the original grant (RFC 6749
+   * section 6): the {@code client_id}/{@code client_secret} of {@code params} and the same {@code
+   * extraHeaders}. If that fails, the original grant is re-run against {@code tokenUrl}. A refresh
+   * grant in {@code params} is POSTed exactly once.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters (grant_type, etc.)
+   * @param extraHeaders additional headers to include on the token request
+   * @param refreshUrl the refresh endpoint URL, or null to use tokenUrl
+   * @return a valid access token
+   */
+  public synchronized String getAccessToken(
+      String tokenUrl,
+      Map<String, String> params,
+      Map<String, String> extraHeaders,
+      @Nullable String refreshUrl) {
     if (accessToken != null
         && (tokenExpiry == null
             || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
       return accessToken;
     }
-    if (refreshToken != null && !refreshToken.isEmpty()) {
-      Map<String, String> refreshParams = new HashMap<>();
+    boolean refreshGrant = "refresh_token".equals(params.get("grant_type"));
+    if (!refreshGrant && refreshToken != null && !refreshToken.isEmpty()) {
+      Map<String, String> refreshParams = new LinkedHashMap<>();
       refreshParams.put("grant_type", "refresh_token");
       refreshParams.put("refresh_token", refreshToken);
       if (params.containsKey("client_id")) {
@@ -105,7 +138,7 @@ public class OAuth2TokenManager {
         refreshParams.put("client_secret", params.get("client_secret"));
       }
       try {
-        fetchToken(tokenUrl, refreshParams, extraHeaders);
+        fetchToken(refreshUrl != null ? refreshUrl : tokenUrl, refreshParams, extraHeaders);
         if (accessToken != null) {
           return accessToken;
         }
@@ -123,6 +156,59 @@ public class OAuth2TokenManager {
       throw new OAuth2TokenException("Token fetch did not return an access token");
     }
     return accessToken;
+  }
+
+  /**
+   * POST an authorization-code style grant verbatim and replace the session.
+   *
+   * <p>Unlike {@link #getAccessToken(String, Map, Map)} this never returns a cached token and never
+   * tries the refresh grant. On success the session holds exactly what the response carried (no
+   * refresh token or expiry survives from before) and is marked exchanged. On any failure the
+   * previous session is restored and the error is rethrown, so a rejected code does not log the
+   * caller out.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters, sent unchanged
+   * @param extraHeaders additional headers to include on the token request
+   * @return the new access token
+   */
+  public synchronized String exchange(
+      String tokenUrl, Map<String, String> params, Map<String, String> extraHeaders) {
+    String previousAccessToken = accessToken;
+    Instant previousExpiry = tokenExpiry;
+    String previousRefreshToken = refreshToken;
+    boolean previousExchanged = exchanged;
+    accessToken = null;
+    tokenExpiry = null;
+    refreshToken = null;
+    boolean succeeded = false;
+    try {
+      fetchToken(tokenUrl, params, extraHeaders);
+      String token = accessToken;
+      if (token == null) {
+        throw new OAuth2TokenException("Token fetch did not return an access token");
+      }
+      exchanged = true;
+      succeeded = true;
+      return token;
+    } finally {
+      if (!succeeded) {
+        /* Restore the previous session; the failure propagates as is. */
+        accessToken = previousAccessToken;
+        tokenExpiry = previousExpiry;
+        refreshToken = previousRefreshToken;
+        exchanged = previousExchanged;
+      }
+    }
+  }
+
+  /**
+   * Whether a code exchange has completed successfully.
+   *
+   * @return true once {@link #exchange(String, Map, Map)} has succeeded
+   */
+  public synchronized boolean isExchanged() {
+    return exchanged;
   }
 
   /**
@@ -277,7 +363,7 @@ public class OAuth2TokenManager {
    *
    * <p>Returns {@code 0} (caller skips caching) when the value is missing, unparseable, or
    * non-positive. Accepts integers, floors floats, and parses digit strings (e.g. {@code "3600"}
-   * from Salesforce).
+   * from Salesforce). A lifetime above one year is clamped to one year.
    *
    * @param node the JSON node holding {@code expires_in}
    * @return the parsed lifetime in seconds, or {@code 0} when unusable
@@ -287,14 +373,17 @@ public class OAuth2TokenManager {
       return 0L;
     }
     if (node.isIntegralNumber()) {
-      return node.longValue();
+      if (!node.canConvertToLong()) {
+        return node.bigIntegerValue().signum() > 0 ? MAX_EXPIRES_IN_SECONDS : 0L;
+      }
+      return Math.min(node.longValue(), MAX_EXPIRES_IN_SECONDS);
     }
     if (node.isFloatingPointNumber()) {
       double d = node.doubleValue();
       if (Double.isNaN(d) || Double.isInfinite(d)) {
         return 0L;
       }
-      return (long) Math.floor(d);
+      return Math.min((long) Math.floor(d), MAX_EXPIRES_IN_SECONDS);
     }
     if (node.isTextual()) {
       String text = node.textValue().trim();
@@ -306,7 +395,7 @@ public class OAuth2TokenManager {
       if (!text.matches("\\d+(\\.\\d+)?")) {
         return 0L;
       }
-      return (long) Math.floor(Double.parseDouble(text));
+      return Math.min((long) Math.floor(Double.parseDouble(text)), MAX_EXPIRES_IN_SECONDS);
     }
     return 0L;
   }

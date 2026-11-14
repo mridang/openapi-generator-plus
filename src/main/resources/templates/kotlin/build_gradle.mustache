@@ -16,7 +16,9 @@ publishing {
     publications {
         withType<MavenPublication> {
             pom {
-                description.set("{{#appDescription}}{{{appDescription}}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}")
+                description.set(
+                    "{{#lambda.kotlinChunked}}{{#appDescription}}{{#lambda.kotlinDollar}}{{{appDescription}}}{{/lambda.kotlinDollar}}{{/appDescription}}{{^appDescription}}Generated API client for {{#appName}}{{{appName}}}{{/appName}}{{/appDescription}}{{/lambda.kotlinChunked}}",
+                )
                 licenses {
                     license {
                         name.set("{{licenseId}}")
@@ -97,7 +99,7 @@ kotlin {
             }
         }
         val jvmTest by getting {
-            kotlin.srcDirs("src/test/kotlin")
+            kotlin.srcDirs("src/test/kotlin", "src/spec/kotlin")
             dependencies {
                 // Spelled as an explicit coordinate rather than kotlin("test-junit5")
                 // so .openapi-generator/DEV-DEPENDENCIES can be checked against this
@@ -128,7 +130,7 @@ detekt {
     buildUponDefaultConfig = true
     allRules = false
     autoCorrect = false
-    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin"))
+    source.setFrom(files("src/main/kotlin", "src/jvmMain/kotlin", "src/test/kotlin", "src/spec/kotlin"))
     config.setFrom(files("detekt.yml"))
 }
 

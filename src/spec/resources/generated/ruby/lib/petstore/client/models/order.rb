@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -24,6 +24,7 @@ module Petstore::Client
         id: 'id',
         pet_id: 'petId',
         quantity: 'quantity',
+        tracking_id: 'trackingId',
         ship_date: 'shipDate',
         status: 'status',
         complete: 'complete'
@@ -37,6 +38,7 @@ module Petstore::Client
         id: 'Integer',
         pet_id: 'Integer',
         quantity: 'Integer',
+        tracking_id: 'String',
         ship_date: 'Time',
         status: 'String',
         complete: 'Boolean'
@@ -56,8 +58,19 @@ module Petstore::Client
       # which openapi-generator calls "inner", registering a phantom +inner:+
       # key instead of the real map/array attribute.
       # @type var openapi_formats: Hash[Symbol, String]
-      openapi_formats = {}
+      openapi_formats = {
+
+        tracking_id: 'uuid'
+
+      }
       OPENAPI_FORMATS = openapi_formats.freeze
+
+      # Required properties whose schema also allows null. The key must be
+      # present, null is a legal value, and ::Petstore::Client::ObjectSerializer
+      # writes a nil value as an explicit null instead of omitting the key.
+      # @type var required_nullable: Hash[Symbol, bool]
+      required_nullable = {}
+      REQUIRED_NULLABLE = required_nullable.freeze
 
       # Transform incoming hash keys from JSON format to Ruby attribute names.
       transform_keys do |key|
@@ -70,6 +83,7 @@ module Petstore::Client
       attribute :pet_id, Types::Any.optional.meta(omittable: true)
       # @example 7
       attribute :quantity, Types::Any.optional.meta(omittable: true)
+      attribute :tracking_id, Types::Any.optional.meta(omittable: true)
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
       # Order Status
       # @example approved

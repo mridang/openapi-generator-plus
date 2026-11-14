@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -31,6 +31,40 @@ void main() {
   });
 
   group('StoreApi', () {
+    test(
+      'searchStore expands a uniqueItems query array into repeated pairs',
+      () async {
+        String? query;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          query = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('[]')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.searchStore(
+            const SearchStoreOptions(labels: ['red', 'blue']),
+          );
+
+          expect(
+            query!.split('&'),
+            unorderedEquals(['labels=red', 'labels=blue']),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('placeOrder', () async {
       final api = _newStoreApiForIntegration();
 

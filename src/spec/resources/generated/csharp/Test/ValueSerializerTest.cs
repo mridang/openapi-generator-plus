@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -994,6 +994,68 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void AllowReservedEncodesFragmentAndBracketCharacters()
+    {
+        Assert.Equal(
+            "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u",
+            ValueSerializer.EncodeQueryAllowingReserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u")
+        );
+    }
+
+    [Theory]
+    [InlineData(".")]
+    [InlineData("..")]
+    public void SerializeStyledRejectsDotSegmentPathValue(string segment)
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            ValueSerializer.SerializeStyled(
+                "name",
+                segment,
+                "path",
+                "string",
+                null,
+                "simple",
+                false
+            )
+        );
+        Assert.StartsWith(
+            "Path parameter 'name' must not be '.' or '..'",
+            ex.Message,
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void SerializeStyledKeepsDotsInsideAPathValue()
+    {
+        Assert.Equal(
+            "a..b",
+            ValueSerializer.SerializeStyled("name", "a..b", "path", "string", null, "simple", false)
+        );
+    }
+
+    [Fact]
+    public void SerializeEncodesByteArrayAsBase64NotAList()
+    {
+        Assert.Equal(
+            "aGk=",
+            ValueSerializer.Serialize(new byte[] { 0x68, 0x69 }, "header", "string")
+        );
+        Assert.Equal(
+            "+/8=",
+            ValueSerializer.SerializeStyled(
+                "fp",
+                new byte[] { 0xFB, 0xFF },
+                "query",
+                "string",
+                null,
+                "form",
+                true
+            )
+        );
+    }
+
+    [Fact]
     public void MaybeAllowReservedWrapsOnlyWhenAllowReservedIsTrue()
     {
         Assert.Equal("plain", ValueSerializer.MaybeAllowReserved("plain", false));
@@ -1021,7 +1083,7 @@ public enum TestHue
     Green,
 }
 
-internal sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
+public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConverter<TestHue>
 {
     public override TestHue Read(
         ref System.Text.Json.Utf8JsonReader reader,

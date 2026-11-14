@@ -4,6 +4,7 @@ package options
 
 import (
 	"os"
+	. "petstore/pkg/models"
 )
 
 // UploadPetDocumentOptions carries the parameters for the UploadPetDocument operation.
@@ -11,4 +12,8 @@ type UploadPetDocumentOptions struct {
 	File         *os.File
 	DocumentType *string
 	Notes        *string
+	IsPrimary    *bool
+	PageCount    *int64
+	TakenAt      *DateTime
+	Swatch       *Swatch
 }

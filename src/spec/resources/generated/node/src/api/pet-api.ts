@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -28,6 +28,7 @@ import type { AddPetTreatmentOptions } from "./options/add-pet-treatment-options
 import type { DeletePetOptions } from "./options/delete-pet-options.js";
 import type { FindPetsByStatusOptions } from "./options/find-pets-by-status-options.js";
 import type { GetPetByNameOptions } from "./options/get-pet-by-name-options.js";
+import type { GetPetSummaryOptions } from "./options/get-pet-summary-options.js";
 import type { GetPetTagOptions } from "./options/get-pet-tag-options.js";
 import type { SetPetPreferencesOptions } from "./options/set-pet-preferences-options.js";
 import type { UploadPetCertificateOptions } from "./options/upload-pet-certificate-options.js";
@@ -36,7 +37,6 @@ import type { UploadPetDocumentOptions } from "./options/upload-pet-document-opt
 export abstract class GetExternalPetInfoServer {
   abstract getUrl(): string;
 }
-
 export class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
   constructor() {
     super();
@@ -49,12 +49,21 @@ export abstract class GetMultiServerPetInfoServer {
   abstract getUrl(): string;
 }
 
-export enum GetMultiServerPetInfoServerRegion {
+export enum GetMultiServerPetInfoServerRegionalRegion {
   US = "us",
   EU = "eu",
   AP = "ap",
 }
 
+export enum GetMultiServerPetInfoServerMirrorRegion {
+  US = "us",
+  EU = "eu",
+}
+
+export enum GetMultiServerPetInfoServerChannel {
+  A_B = "a&b",
+  IT_S = "it's",
+}
 /**
  * Primary
  */
@@ -70,8 +79,8 @@ export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoSer
  * Regional
  */
 export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
-  readonly region: GetMultiServerPetInfoServerRegion;
-  constructor(region: GetMultiServerPetInfoServerRegion) {
+  readonly region: GetMultiServerPetInfoServerRegionalRegion;
+  constructor(region: GetMultiServerPetInfoServerRegionalRegion) {
     super();
     this.region = region;
   }
@@ -85,10 +94,36 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
     );
   }
 }
+/**
+ * Mirror
+ */
+export class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
+  readonly region: GetMultiServerPetInfoServerMirrorRegion;
+  readonly channel: GetMultiServerPetInfoServerChannel;
+  constructor(
+    region: GetMultiServerPetInfoServerMirrorRegion,
+    channel: GetMultiServerPetInfoServerChannel,
+  ) {
+    super();
+    this.region = region;
+    this.channel = channel;
+  }
+  getUrl(): string {
+    const resolved = new Map<string, string>([
+      ["region", this.region],
+      ["channel", this.channel],
+    ]);
+    /* Substitute in a single pass so a value that itself contains a
+     * placeholder such as {other} is never expanded a second time. */
+    return "https://{region}.mirror.example.com/{channel}/v1".replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
+  }
+}
 export abstract class GetPetByIdServer {
   abstract getUrl(): string;
 }
-
 /**
  * CDN-backed read endpoint for pet details
  */
@@ -113,7 +148,6 @@ export enum GetStagingPetInfoServerVersion {
   V2 = "v2",
   V3 = "v3",
 }
-
 /**
  * Staging server
  */
@@ -143,8 +177,8 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
 }
 /**
  * PetApi provides methods for the Pet API group.
- * Everything about your Pets
- * @see {@link https://example.com/docs/pets} Find out more about pets
+ * Everything about your Pets (globs like /pets/* and /pets/**\/ and an id of #{petId})
+ * @see {@link https://example.com/docs/pets} Find out more about pets (it's *\/ here) on two lines
  */
 export class PetApi extends BaseApi {
   constructor(
@@ -157,8 +191,9 @@ export class PetApi extends BaseApi {
 
   /**
    * Add a new pet to the store
-   * @param options.auth optional authenticator for this operation
    * @param pet Create a new pet in the store (required)
+   * @param options options carrying an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -212,6 +247,7 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery
    * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.files  (required)
    * @param options.metadata  (required)
    * @return Array<Photo>
@@ -301,9 +337,10 @@ export class PetApi extends BaseApi {
 
   /**
    * Record a treatment for a pet
-   * @param options.auth optional authenticator for this operation
    * @param petId  (required)
    * @param petTreatment  (required)
+   * @param options options carrying an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @return PetTreatment
    * @throws {ApiError} if fails to make API call
    */
@@ -381,8 +418,9 @@ export class PetApi extends BaseApi {
 
   /**
    * Deletes a pet
-   * @param options.auth optional authenticator for this operation
    * @param petId Pet id to delete (required)
+   * @param options options for query, header, form, and cookie parameters, plus an optional per-call authenticator
+   * @param options.auth optional authenticator for this operation
    * @param options.apiKey Session cookie used for authentication (optional)
    * @throws {ApiError} if fails to make API call
    */
@@ -576,7 +614,15 @@ export class PetApi extends BaseApi {
     let path = `/pet/born-on/{bornOn}`;
     path = path.replace(
       `{${"bornOn"}}`,
-      ValueSerializer.encodePathSegment(ValueSerializer.stringifyDate(bornOn)),
+      ValueSerializer.serializeStyled(
+        "bornOn",
+        ValueSerializer.stringifyDate(bornOn),
+        "path",
+        "Date",
+        null,
+        "simple",
+        false,
+      ) as string,
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -595,11 +641,13 @@ export class PetApi extends BaseApi {
 
   /**
    * Finds Pets by status
+   * @param options options for query, header, form, and cookie parameters
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
    * @example Available only - available
    * @example Sold pets - sold
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @param options.bornAfter Only return pets born on or after this date (optional)
+   * @param options.n2ndPage  (optional)
    * @param options.reportDate Reference date for the report (optional)
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call
@@ -653,21 +701,49 @@ export class PetApi extends BaseApi {
     if (options?.filter != null) {
       const deepObj = ValueSerializer.serializeDeepObject(
         "filter",
-        options.filter as Record<string, unknown>,
+        options.filter as unknown as Record<string, unknown>,
       );
       Object.assign(queryParams, deepObj);
     }
     if (options?.bornAfter != null) {
       queryParams["bornAfter"] = ValueSerializer.maybeAllowReserved(
-        ValueSerializer.stringifyDate(options.bornAfter),
+        ValueSerializer.serializeStyled(
+          "bornAfter",
+          ValueSerializer.stringifyDate(options.bornAfter),
+          "query",
+          "Date",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.n2ndPage != null) {
+      queryParams["2ndPage"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "2ndPage",
+          options.n2ndPage,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
         false,
       );
     }
     const headerParams: Record<string, string> = {};
     if (options?.reportDate != null) {
-      headerParams["Report-Date"] = ValueSerializer.stringifyDate(
-        options.reportDate,
-      );
+      headerParams["Report-Date"] = ValueSerializer.serializeStyled(
+        "Report-Date",
+        ValueSerializer.stringifyDate(options.reportDate),
+        "header",
+        "Date",
+        null,
+        "simple",
+        false,
+      ) as string;
     }
     return await this.invokeApiForResult(
       "GET",
@@ -1031,7 +1107,9 @@ export class PetApi extends BaseApi {
   /**
    * Look up a pet by name (simple string path param + required query)
    * @param name  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.category  (required)
+   * @param options.xCorrelationId  (required)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -1073,6 +1151,11 @@ export class PetApi extends BaseApi {
         "Missing the required parameter 'category' when calling PetApi.getPetByName",
       );
     }
+    if (options?.xCorrelationId == null || options.xCorrelationId === "") {
+      throw new TypeError(
+        "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+      );
+    }
     let path = `/pet/byName/{name}`;
     path = path.replace(
       `{${"name"}}`,
@@ -1102,6 +1185,17 @@ export class PetApi extends BaseApi {
       );
     }
     const headerParams: Record<string, string> = {};
+    if (options?.xCorrelationId != null) {
+      headerParams["X-Correlation-Id"] = ValueSerializer.serializeStyled(
+        "X-Correlation-Id",
+        options.xCorrelationId,
+        "header",
+        "string",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
     return await this.invokeApiForResult(
       "GET",
       path,
@@ -1266,13 +1360,154 @@ export class PetApi extends BaseApi {
   }
 
   /**
+   * Get a <plain> \"text\" summary & it's short
+   * Returns '''plain''' text for /pets/#{id} and <b> & \"c\" it's done
+   * @param petId  (required)
+   * @param asOf Summary date, sent as a matrix-style path segment (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.days Extra dates to summarise (optional)
+   * @param options.session Session token: \"a<b>\" & it's required (required)
+   * @return string
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetSummary(
+    petId: number,
+    asOf: Date,
+    options: GetPetSummaryOptions,
+  ): Promise<string> {
+    const getPetSummaryResult = await this.getPetSummaryWithHttpInfo(
+      petId,
+      asOf,
+      options,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getPetSummaryResult.data == null) {
+      throw new ApiError(
+        getPetSummaryResult.statusCode,
+        "Expected a response body for getPetSummary but received none",
+        getPetSummaryResult.headers,
+        getPetSummaryResult.rawBody,
+        null,
+      );
+    }
+    return getPetSummaryResult.data as string;
+  }
+
+  /**
+   * Get a <plain> \"text\" summary & it's short (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetSummaryWithHttpInfo(
+    petId: number,
+    asOf: Date,
+    options: GetPetSummaryOptions,
+  ): Promise<ApiResult<string>> {
+    if (petId == null) {
+      throw new TypeError(
+        "Missing the required parameter 'petId' when calling PetApi.getPetSummary",
+      );
+    }
+    if (asOf == null) {
+      throw new TypeError(
+        "Missing the required parameter 'asOf' when calling PetApi.getPetSummary",
+      );
+    }
+    if (options?.session == null || options.session === "") {
+      throw new TypeError(
+        "Missing the required parameter 'session' when calling PetApi.getPetSummary",
+      );
+    }
+    let path = `/pet/{petId}/summary/{asOf}`;
+    path = path.replace(
+      `{${"petId"}}`,
+      ValueSerializer.serializeStyled(
+        "petId",
+        petId,
+        "path",
+        "number",
+        null,
+        "simple",
+        false,
+      ) as string,
+    );
+    path = path.replace(
+      `{${"asOf"}}`,
+      ValueSerializer.serializeStyled(
+        "asOf",
+        ValueSerializer.stringifyDate(asOf),
+        "path",
+        "Date",
+        null,
+        "matrix",
+        false,
+      ) as string,
+    );
+    const queryParams: Record<string, unknown> = {};
+    if (options?.days != null) {
+      queryParams["days"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "days",
+          ValueSerializer.stringifyDates(options.days),
+          "query",
+          "Array<Date>",
+          "multi",
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    const cookieParts: string[] = [];
+    if (options?.session != null) {
+      const sessionCookieValue = `${ValueSerializer.serializeStyled("session", options.session, "cookie", "string", null, "form", true)}`;
+      /* RFC 6265 — reject CR/LF and other control characters in the
+       * serialized cookie value before it is joined into the Cookie
+       * header. This mirrors the validation the auth-cookie path applies
+       * in the base client, so a forbidden value fails closed with the
+       * same error instead of being injected raw into the header. */
+      if (
+        !/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(sessionCookieValue)
+      ) {
+        throw new TypeError(
+          `Cookie value for 'session' contains characters forbidden by RFC 6265`,
+        );
+      }
+      cookieParts.push(`session=${sessionCookieValue}`);
+    }
+    if (cookieParts.length > 0) {
+      headerParams["Cookie"] = cookieParts.join("; ");
+    }
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["text/plain"],
+      "application/json",
+      (json: unknown) => json as string,
+      undefined,
+    );
+  }
+
+  /**
    * Get a tag for a pet
    * @param petId  (required)
    * @param tagName  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.colors  (optional)
    * @param options.sizes  (optional)
    * @param options.filter  (optional)
    * @param options.revision Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon. (optional)
+   * @param options.criteria Object-valued query parameter, form style exploded (the OAS default for query) (optional)
+   * @param options.criteriaCsv  (optional)
+   * @param options.criteriaDeep  (optional)
+   * @param options.fingerprint Opaque bytes, base64 on the wire (OAS format byte) (optional)
+   * @param options.xCriteria  (optional)
+   * @param options.xFingerprint  (optional)
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
@@ -1402,7 +1637,78 @@ export class PetApi extends BaseApi {
         true,
       );
     }
+    if (options?.criteria != null) {
+      queryParams["criteria"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteria",
+          options.criteria,
+          "query",
+          "PetCriteria",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.criteriaCsv != null) {
+      queryParams["criteriaCsv"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "criteriaCsv",
+          options.criteriaCsv,
+          "query",
+          "PetCriteria",
+          null,
+          "form",
+          false,
+        ),
+        false,
+      );
+    }
+    if (options?.criteriaDeep != null) {
+      const deepObj = ValueSerializer.serializeDeepObject(
+        "criteriaDeep",
+        options.criteriaDeep as unknown as Record<string, unknown>,
+      );
+      Object.assign(queryParams, deepObj);
+    }
+    if (options?.fingerprint != null) {
+      queryParams["fingerprint"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "fingerprint",
+          options.fingerprint,
+          "query",
+          "Buffer",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
     const headerParams: Record<string, string> = {};
+    if (options?.xCriteria != null) {
+      headerParams["X-Criteria"] = ValueSerializer.serializeStyled(
+        "X-Criteria",
+        options.xCriteria,
+        "header",
+        "PetCriteria",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
+    if (options?.xFingerprint != null) {
+      headerParams["X-Fingerprint"] = ValueSerializer.serializeStyled(
+        "X-Fingerprint",
+        options.xFingerprint,
+        "header",
+        "Buffer",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
     return await this.invokeApiForResult(
       "GET",
       path,
@@ -1567,6 +1873,7 @@ export class PetApi extends BaseApi {
       contentType ?? "image/jpeg",
       null,
       undefined,
+      true,
     );
   }
 
@@ -1637,10 +1944,12 @@ export class PetApi extends BaseApi {
    * Update a pet's notification preferences
    * Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.nickname  (required)
    * @param options.tags  (optional)
    * @param options.note  (optional)
    * @param options.renewalDate  (optional)
+   * @param options.reminder  (optional)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1714,6 +2023,9 @@ export class PetApi extends BaseApi {
       formBody["renewalDate"] = ValueSerializer.stringifyDate(
         options.renewalDate,
       );
+    }
+    if (options?.reminder != null) {
+      formBody["reminder"] = options.reminder;
     }
 
     return await this.invokeApiForResult(
@@ -1803,6 +2115,7 @@ export class PetApi extends BaseApi {
    * Upload the pet's adoption certificate
    * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
    * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
    * @param options.file  (required)
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
@@ -1883,10 +2196,15 @@ export class PetApi extends BaseApi {
    * Attach a vet document or health record
    * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
    * @param petId  (required)
-   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
+   * @param options options for query, header, form, and cookie parameters
    * @param options.file  (required)
    * @param options.documentType  (optional)
    * @param options.notes  (optional)
+   * @param options.isPrimary  (optional)
+   * @param options.pageCount  (optional)
+   * @param options.takenAt  (optional)
+   * @param options.swatch  (optional)
+   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
@@ -1958,6 +2276,18 @@ export class PetApi extends BaseApi {
     }
     if (options?.notes != null) {
       formBody["notes"] = options.notes;
+    }
+    if (options?.isPrimary != null) {
+      formBody["isPrimary"] = options.isPrimary;
+    }
+    if (options?.pageCount != null) {
+      formBody["pageCount"] = options.pageCount;
+    }
+    if (options?.takenAt != null) {
+      formBody["takenAt"] = options.takenAt;
+    }
+    if (options?.swatch != null) {
+      formBody["swatch"] = options.swatch;
     }
     /* This operation declares multiple request content types. The
      * multipart/form-data envelope (formBody, a Record assembled above) is

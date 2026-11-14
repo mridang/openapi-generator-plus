@@ -247,6 +247,19 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
+    it 'sends the caller bytes verbatim when the JSON content type is selected' do
+      api, server, thread, captured_body, captured_content_type = capture_avatar_request
+      begin
+        raw = "\xFF\xD8\xFF\xE0".b
+        api.set_pet_avatar(1, StringIO.new(raw), content_type: 'application/json')
+        _(captured_content_type.pop).must_equal 'application/json'
+        _(captured_body.pop.b).must_equal raw
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical regression: setPetAvatar declares THREE request content-types
     # (image/jpeg, image/png, application/json). Before the optional
     # `content_type:` selector the wire Content-Type always collapsed to the
@@ -527,6 +540,21 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#get_pet_summary doc comments' do
+    it 'shows the summary, description and parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
+      _(source).must_include(%q(# Returns '''plain''' text for /pets/#{id} and <b> & "c" it's done))
+    end
+
+    it 'shows the options parameter prose without literal escapes' do
+      path = String(Object.const_source_location(Petstore::Client::Api::Options::GetPetSummaryOptions.name)&.first)
+      source = File.read(path)
+      _(source).must_include(%q(# @param session [String] Session token: "a<b>" & it's required))
+    end
+  end
+
   describe 'per-operation server variables' do
     it 'resolves the URL from enum values' do
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
@@ -595,14 +623,14 @@ describe Petstore::Client::Api::PetApi do
       # @type var missing: untyped
       missing = nil
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing))
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
       end
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
     it 'raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+        @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
       end
       _(err.message).must_include "Missing the required parameter 'name' when calling PetApi.get_pet_by_name"
     end
@@ -612,16 +640,37 @@ describe Petstore::Client::Api::PetApi do
       # string for a required string param means the caller omitted it,
       # so it must be rejected exactly like nil.
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: ''))
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: '', x_correlation_id: 'corr-1'))
       end
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
     it 'raises ArgumentError when the required string path param name is empty' do
       err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs'))
+        @api.get_pet_by_name('', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
       end
       _(err.message).must_include 'name'
+    end
+
+    ['.', '..'].each do |segment|
+      it "rejects the dot segment #{segment.inspect} as the path param name before dispatch" do
+        client = RecordingPetClient.new
+        config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+        api = Petstore::Client::Api::PetApi.new(client, config)
+        options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'c', x_correlation_id: 'corr-1')
+        err = assert_raises(ArgumentError) { api.get_pet_by_name(segment, options) }
+        _(err.message).must_equal "Path parameter 'name' must not be '.' or '..'"
+        _(client.calls).must_equal 0
+      end
+    end
+
+    it 'sends a name that only contains dots inside it' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      options = Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'c', x_correlation_id: 'corr-1')
+      api.get_pet_by_name('a..b', options)
+      _(client.url).must_include '/pet/byName/a..b?'
     end
   end
 
@@ -757,6 +806,31 @@ describe Petstore::Client::Api::PetApi do
       config = Petstore::Client::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
       api = Petstore::Client::Api::PetApi.new(nil, config)
       [api, server, thread, captured]
+    end
+
+    it 'sends format:byte query and header params as padded standard base64' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: 'hi', x_fingerprint: 'hi'))
+      _(client.url).must_include 'fingerprint=aGk%3D'
+      _(client.headers['X-Fingerprint']).must_equal 'aGk='
+    end
+
+    it 'uses the standard base64 alphabet for format:byte params' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: "\xFB\xFF".b))
+      _(client.url).must_include 'fingerprint=%2B%2F8%3D'
+    end
+
+    it 'percent-encodes a # in an allowReserved value instead of truncating the query' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+      api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(revision: 'v1.0/beta:rc1#frag'))
+      _(client.url).must_include 'revision=v1.0/beta:rc1%23frag'
     end
 
     it 'percent-encodes a path param value exactly once' do
@@ -1108,6 +1182,22 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
+    it 'serializes a format:date-time form property in the canonical form' do
+      api, server, thread, captured = capture_request_body
+      begin
+        options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(
+          nickname: 'Rex', reminder: Time.utc(2024, 1, 15, 10, 30, 0)
+        )
+        api.set_pet_preferences(1, options)
+        sent = captured.pop
+        _(sent).must_include 'reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00'
+        _(sent).wont_include '%20'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     # Canonical behavior 3 — a space inside a form value is encoded as '+',
     # never '%20' (WHATWG application/x-www-form-urlencoded rules).
     it 'encodes a space in a form value as + not %20' do
@@ -1247,7 +1337,7 @@ describe Petstore::Client::Api::PetApi do
       end
       regional = url_sent_to(
         Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(
-          region: Petstore::Client::Api::GetMultiServerPetInfoServerRegion::EU
+          region: Petstore::Client::Api::GetMultiServerPetInfoServerRegionalRegion::EU
         )
       ) { |api, server| api.get_multi_server_pet_info(7, server: server) }
 

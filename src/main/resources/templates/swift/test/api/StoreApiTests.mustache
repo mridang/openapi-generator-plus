@@ -113,6 +113,23 @@ import Testing
         #expect(info.statusCode == 200)
     }
 
+    /* readOnly and writeOnly have no wire effect: the writeOnly password is
+       sent and the readOnly id is decoded from the response. */
+    @Test func testCreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        let result = try await api.createAccount(account: Account(username: "u", password: "p"))
+
+        let sent = try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
+        #expect(sent?["password"] as? String == "p")
+        #expect(result.id == 7)
+        #expect(result.password == "p")
+    }
+
     @Test func testPlaceOrderServerError() async throws {
         let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
         let error = await #expect(throws: InternalServerError.self) {

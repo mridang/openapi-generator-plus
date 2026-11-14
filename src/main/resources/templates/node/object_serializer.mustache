@@ -102,23 +102,24 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
   });
 }
 
-/** Canonical base64 (standard alphabet, optional `=` padding), whitespace already stripped. */
+/** Canonical base64: RFC 4648 standard alphabet with `=` padding, no whitespace. */
 const BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
  * Decode a `format: byte` base64 string to a Buffer, REJECTING malformed input.
  *
  * `Buffer.from(s, 'base64')` silently ignores characters outside the base64
- * alphabet (so `"!!!!"` decodes to empty bytes rather than erroring), which
- * diverges from the strict decoders in ruby/php/python/elixir/go/rust. Validate
- * the alphabet and length first and throw on anything invalid, matching them.
+ * alphabet (so `"!!!!"` decodes to empty bytes rather than erroring) and
+ * accepts whitespace, the URL-safe alphabet and missing padding. The raw
+ * string must be RFC 4648 section 4 base64: standard alphabet, a length that
+ * is a multiple of 4 with `=` padding, and no whitespace or newline. Anything
+ * else is rejected, as the decoders in the other SDKs do.
  */
 export function decodeBase64(value: string): Buffer {
-  const compact = value.replace(/\s+/g, '');
-  if (compact.length % 4 !== 0 || !BASE64_PATTERN.test(compact)) {
+  if (value.length % 4 !== 0 || !BASE64_PATTERN.test(value)) {
     throw new SerializationError(`Invalid base64 string: ${JSON.stringify(value)}`);
   }
-  return Buffer.from(compact, 'base64');
+  return Buffer.from(value, 'base64');
 }
 
 /**
@@ -192,6 +193,71 @@ function decimalFieldNames(): ReadonlySet<string> {
 }
 
 /**
+ * Property names of every `format: uuid` field across the generated models,
+ * for plain-object request bodies (see {@link decimalFieldNames}). On such a
+ * body a value is lowercased only when it already has the UUID shape, so a
+ * same-named free-form string elsewhere is never rewritten.
+ */
+let globalUuidFields: ReadonlySet<string> | undefined;
+
+function uuidFieldNames(): ReadonlySet<string> {
+  if (globalUuidFields === undefined) {
+    const names = new Set<string>();
+    for (const exported of Object.values(models as Record<string, unknown>)) {
+      const fields = (exported as { __uuidFields?: unknown } | undefined)?.__uuidFields;
+      if (fields instanceof Set) {
+        for (const name of fields as Set<string>) {
+          names.add(name);
+        }
+      }
+    }
+    globalUuidFields = names;
+  }
+  return globalUuidFields;
+}
+
+const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Code-point order for strings. UTF-8 byte order equals Unicode code point
+ * order, which the default UTF-16 comparison breaks for astral characters.
+ */
+function compareCodePoints(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'));
+}
+
+/**
+ * The wire order of a `uniqueItems` array. Scalar members (strings, enum
+ * values, numbers, booleans) are written in ascending natural order so the
+ * bytes do not depend on insertion order; any other members keep the Set's
+ * own (unspecified) order.
+ */
+function setElements(value: Set<unknown>): unknown[] {
+  const elements = [...value];
+  if (elements.every((e) => typeof e === 'string')) {
+    return (elements as string[]).sort(compareCodePoints);
+  }
+  if (elements.every((e) => typeof e === 'number')) {
+    return (elements as number[]).sort((a, b) => a - b);
+  }
+  if (elements.every((e) => typeof e === 'boolean')) {
+    return (elements as boolean[]).sort((a, b) => Number(a) - Number(b));
+  }
+  return elements;
+}
+
+/**
+ * The `format: time` wire form: `HH:mm:ss`, plus `.SSS` only when the
+ * millisecond part is non-zero (sub-millisecond digits are truncated).
+ */
+function formatPlainTime(time: Temporal.PlainTime): string {
+  return time.toString({
+    fractionalSecondDigits: time.millisecond === 0 ? 0 : 3,
+    roundingMode: 'trunc',
+  });
+}
+
+/**
  * Nested-model validation. class-transformer builds every nested `@Type`
  * model with a no-argument `new X()`, so the nested model's constructor runs
  * with `data === undefined`: its required-field check is skipped and its
@@ -250,6 +316,41 @@ function revalidateNestedValue(value: unknown): unknown {
   }
   if (ctor === Object) {
     revalidateNestedFields(value as Record<string, unknown>);
+  }
+  return value;
+}
+
+/**
+ * Copies the free-form wire keys of `raw` onto `value` when `value` is a
+ * generated model that declares `additionalProperties` (its class carries
+ * `__additionalPropertiesDeclaredKeys`). plainToInstance with
+ * excludeExtraneousValues keeps only @Expose keys, so without this the extras
+ * of the root model, of a nested model field and of every array element would
+ * be lost. An array is matched element by element; any other value, or a model
+ * without the marker, is returned untouched.
+ *
+ * @param value the model instance (or array of them) built from `raw`
+ * @param raw the wire JSON the value was built from
+ * @returns `value`, with the undeclared keys of `raw` attached
+ */
+export function reattachAdditionalProperties(value: unknown, raw: unknown): unknown {
+  if (Array.isArray(value)) {
+    if (Array.isArray(raw)) {
+      value.forEach((element, i) => reattachAdditionalProperties(element, raw[i]));
+    }
+    return value;
+  }
+  if (value === null || typeof value !== 'object' || raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return value;
+  }
+  const declaredKeys = (value.constructor as { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> } | undefined)
+    ?.__additionalPropertiesDeclaredKeys;
+  if (declaredKeys) {
+    for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
+      if (!declaredKeys.has(key)) {
+        (value as Record<string, unknown>)[key] = extra;
+      }
+    }
   }
   return value;
 }
@@ -382,7 +483,7 @@ export class ObjectSerializer {
           }
         }
         if (value instanceof Set) {
-          const elements = [...value];
+          const elements = setElements(value);
           if (underModel.has(value)) underModel.add(elements);
           return elements;
         }
@@ -415,7 +516,7 @@ export class ObjectSerializer {
          * google.protobuf.Duration field rejects the ISO form. Without these
          * branches JSON.stringify would emit the polyfill's internal object.
          */
-        if (this[_key] instanceof Temporal.PlainTime) return (this[_key] as Temporal.PlainTime).toString();
+        if (this[_key] instanceof Temporal.PlainTime) return formatPlainTime(this[_key] as Temporal.PlainTime);
         if (this[_key] instanceof Temporal.Duration) return durationToProtoJson(this[_key] as Temporal.Duration);
         /**
          * 2.5 — `type: number` (no format) Decimal field. The model holds it
@@ -443,6 +544,16 @@ export class ObjectSerializer {
           const plainFallback = !underModel.has(this as unknown as object) && decimalFieldNames().has(_key);
           if (ownDecimals ? ownDecimals.has(_key) : plainFallback) {
             return rawDecimal(value);
+          }
+          const uuidCtor = ctor as { __uuidFields?: ReadonlySet<string> } | undefined;
+          const ownUuids = uuidCtor && uuidCtor.__uuidFields instanceof Set ? uuidCtor.__uuidFields : undefined;
+          if (ownUuids ? ownUuids.has(_key) : !underModel.has(this as unknown as object) && uuidFieldNames().has(_key)) {
+            if (UUID_SHAPE.test(value)) {
+              return value.toLowerCase();
+            }
+            if (ownUuids) {
+              throw new SerializationError(`${_key} is not a canonical UUID: ${JSON.stringify(value)}`);
+            }
           }
         }
         if (value === null && _key !== '') return undefined;
@@ -634,15 +745,7 @@ export class ObjectSerializer {
          * Re-attach any json key NOT in the model's declared-key set so free-form
          * data survives. Models without the marker intentionally discard extras.
          */
-        const declaredKeys = (cls as { __additionalPropertiesDeclaredKeys?: ReadonlySet<string> })
-          .__additionalPropertiesDeclaredKeys;
-        if (declaredKeys && json && typeof json === 'object') {
-          for (const [key, value] of Object.entries(json as Record<string, unknown>)) {
-            if (!declaredKeys.has(key)) {
-              (built as Record<string, unknown>)[key] = value;
-            }
-          }
-        }
+        reattachAdditionalProperties(built, json);
         return built;
       }
       return instance;
@@ -674,15 +777,20 @@ export class ObjectSerializer {
     const deserializeElement = ObjectSerializer.elementDeserializer(cls);
     const mapped = json.map((item: unknown) => deserializeElement(item));
     /**
-     * Only drop nulls for a model-class element type, where `deserialize`
-     * returns null for a null/absent element and dropping it is the
-     * established behaviour. For a primitive/enum element deserializer a
-     * `null` is a legitimate wire value (e.g. `items: { nullable: true }`),
-     * so preserving it keeps the array length and index alignment intact
-     * rather than silently losing data.
+     * A null element of a model-class element type is rejected: null is not
+     * an object, and the element type cannot express nullability, so it is
+     * neither kept nor silently dropped (dropping would shift indices). For a
+     * primitive/enum element deserializer a `null` is a legitimate wire value
+     * (e.g. `items: { nullable: true }`) and is preserved.
      */
     if (ObjectSerializer.isClassConstructor(cls)) {
-      return mapped.filter((x): x is T => x !== null);
+      mapped.forEach((x, index) => {
+        if (x === null || x === undefined) {
+          throw new SerializationError(
+            `Null element at index ${index} of an array of ${(cls as ClassConstructor<T>).name}`
+          );
+        }
+      });
     }
     return mapped as T[];
   }
@@ -741,18 +849,21 @@ export class ObjectSerializer {
     }
     const deserializeValue = ObjectSerializer.elementDeserializer(cls);
     /**
-     * As in deserializeArray: drop a null only for a model-class value type
-     * (where null is a failed-parse sentinel). For a primitive/enum value
-     * deserializer a null is a legitimate nullable wire value and the key
-     * must be retained so the map's key set is not silently mutated.
+     * As in deserializeArray: a null value of a model-class value type is
+     * rejected. For a primitive/enum value deserializer a null is a
+     * legitimate nullable wire value and the key is retained so the map's
+     * key set is not silently mutated.
      */
-    const dropNulls = ObjectSerializer.isClassConstructor(cls);
+    const rejectNulls = ObjectSerializer.isClassConstructor(cls);
     const out: Record<string, T> = {};
     for (const [k, v] of Object.entries(json as Record<string, unknown>)) {
       const deserialized = deserializeValue(v);
-      if (deserialized !== null || !dropNulls) {
-        out[k] = deserialized as T;
+      if (rejectNulls && (deserialized === null || deserialized === undefined)) {
+        throw new SerializationError(
+          `Null value for key ${JSON.stringify(k)} of a map of ${(cls as ClassConstructor<T>).name}`
+        );
       }
+      out[k] = deserialized as T;
     }
     return out;
   }
@@ -802,23 +913,29 @@ export class ObjectSerializer {
    * legitimate and a non-nullable one is not distinguished here. The error
    * names the expected and received types only, never the value.
    *
+   * `int32` (also used for a format-less integer) must be an integer inside
+   * [-2^31, 2^31-1]. `int64` must be an integer; values beyond 2^53 cannot be
+   * checked because JSON.parse has already rounded them.
+   *
    * @param value the parsed wire value
    * @param kind the expected leaf type
    * @returns the value, typed as the expected leaf
    */
   static deserializeLeaf<T>(
     value: unknown,
-    kind: 'integer' | 'boolean' | 'date',
+    kind: 'int32' | 'int64' | 'boolean' | 'date',
   ): T {
     if (value === null || value === undefined) {
       return null as T;
     }
     const valid =
-      kind === 'integer'
-        ? Number.isInteger(value)
-        : kind === 'boolean'
-          ? typeof value === 'boolean'
-          : typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
+      kind === 'int32'
+        ? Number.isInteger(value) && (value as number) >= -2147483648 && (value as number) <= 2147483647
+        : kind === 'int64'
+          ? Number.isInteger(value)
+          : kind === 'boolean'
+            ? typeof value === 'boolean'
+            : typeof value === 'string' && !Number.isNaN(new Date(value).getTime());
     if (!valid) {
       throw new SerializationError(`Expected ${kind} but received: ${typeof value}`);
     }
@@ -846,13 +963,20 @@ export class ObjectSerializer {
       return ObjectSerializer.formatDateTimeOffset(value);
     }
     /**
+     * `format: byte` parameters are standard-alphabet RFC 4648 base64 with
+     * padding, never the raw bytes as text.
+     */
+    if (value instanceof Uint8Array) {
+      return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('base64');
+    }
+    /**
      * 4.8 — Temporal types. PlainTime emits its canonical ISO 8601 form
      * (e.g. "14:30:00"). Duration emits the protobuf-JSON wire shape
      * (e.g. "3600s") rather than ISO-8601 ("PT15M"); google.protobuf.Duration
      * fields accept only the seconds-suffixed form.
      */
     if (value instanceof Temporal.PlainTime) {
-      return value.toString();
+      return formatPlainTime(value);
     }
     if (value instanceof Temporal.Duration) {
       return durationToProtoJson(value);

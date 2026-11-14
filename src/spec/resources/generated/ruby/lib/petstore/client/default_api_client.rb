@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -120,8 +120,12 @@ module Petstore::Client
       raise 'ApiClient has been closed and can no longer send requests' if @closed
 
       merged = @transport_options.default_headers.dup.merge(headers)
-      merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
-      merged['X-Request-ID'] ||= SecureRandom.uuid if @transport_options.inject_request_id
+      # RFC 9110 §5.1: field names are case-insensitive, so a caller's
+      # `user-agent` or `x-request-id` (any casing, even empty) wins and
+      # nothing is injected alongside it.
+      user_agent = @transport_options.user_agent
+      merged['User-Agent'] = user_agent if user_agent && !header?(merged, 'User-Agent')
+      merged['X-Request-ID'] = SecureRandom.uuid if @transport_options.inject_request_id && !header?(merged, 'X-Request-ID')
 
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
@@ -147,8 +151,13 @@ module Petstore::Client
 
       merged['Accept-Encoding'] ||= self.class.supported_encodings
 
+      # The timeout is one budget for the whole call: every redirect hop is
+      # sent with what is left of it, measured on the monotonic clock.
+      timeout_ms = @transport_options.timeout
+      deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
+
       begin
-        response = connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+        response = run_hop(method.downcase.to_sym, url, serialized_body, merged, deadline)
         # Gap BH: Faraday's follow_redirects middleware re-sends Authorization /
         # Cookie / Proxy-Authorization across cross-origin 3xx redirects by
         # default, which leaks bearer tokens to attacker-controlled hosts via
@@ -241,7 +250,7 @@ module Petstore::Client
             current_method = next_method
             current_body = next_body
             current_headers = redirect_headers
-            response = connection.run_request(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers)
+            response = run_hop(next_method.to_s.downcase.to_sym, next_url, next_body, redirect_headers, deadline)
             hops += 1
           end
           # Bucket 3: if we exhausted the redirect budget while the server is
@@ -319,6 +328,27 @@ module Petstore::Client
     end
 
     private
+
+    # Send one hop of a call. With a +deadline+ (a monotonic clock reading)
+    # the hop's connect, write and read timeouts are what remains of the
+    # call's budget, and a hop is never started once the budget is spent.
+    def run_hop(method, url, body, headers, deadline)
+      return connection.run_request(method, url, body, headers) if deadline.nil?
+
+      remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      raise Errors::NetworkTimeoutError.new(message: "Request timed out after #{@transport_options.timeout} ms") if remaining <= 0
+
+      connection.run_request(method, url, body, headers) do |request|
+        request.options.timeout = remaining
+        request.options.open_timeout = remaining
+        request.options.write_timeout = remaining
+      end
+    end
+
+    # Whether +headers+ already holds +name+ under ASCII case-folding.
+    def header?(headers, name)
+      headers.keys.any? { |key| key.to_s.casecmp?(name) }
+    end
 
     # Faraday's net_http adapter reports a connect timeout (Net::OpenTimeout)
     # as Faraday::ConnectionFailed, so the underlying cause decides whether a
@@ -463,7 +493,11 @@ module Petstore::Client
       Faraday.new do |f|
         # Send the query BaseApi built unchanged. See {QueryParamsEncoder}.
         f.options.params_encoder = QueryParamsEncoder
-        f.proxy = @transport_options.proxy if @transport_options.proxy
+        # TransportOptions#proxy is the only proxy source. Assigning it even
+        # when nil marks the proxy as set by hand, so Faraday never reads
+        # http_proxy / https_proxy / no_proxy and the adapter opens a direct
+        # connection.
+        f.proxy = @transport_options.proxy
         f.ssl.verify = @transport_options.verify_ssl
         if @transport_options.ca_cert_path
           f.ssl.ca_file = @transport_options.ca_cert_path
@@ -585,7 +619,10 @@ module Petstore::Client
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n" \
           "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
       else
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{value}\r\n"
+        # A primitive is a plain text part (no part Content-Type) carrying
+        # the canonical stringify form, the same one query and form values use.
+        text = ObjectSerializer.stringify(value)
+        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{safe_name}\"\r\n\r\n#{text}\r\n"
       end
     end
 
@@ -605,10 +642,12 @@ module Petstore::Client
 
     # Build a Content-Disposition header value for a multipart file part.
     #
-    # Rejects filenames containing CR, LF, or NUL to prevent header injection,
-    # backslash-escapes embedded quotes and backslashes, and emits an
-    # RFC 5987 +filename*+ parameter alongside the ASCII +filename+ fallback
-    # when the filename contains non-ASCII bytes.
+    # Rejects filenames containing CR, LF, or NUL to prevent header injection.
+    # An ASCII-only filename is sent as +filename="..."+ with quotes and
+    # backslashes escaped. Any other filename gets an ASCII fallback in which
+    # each non-ASCII or control character becomes one +_+, followed by an
+    # RFC 5987 +filename*+ that percent-encodes every UTF-8 byte outside the
+    # RFC 3986 unreserved set (A-Z a-z 0-9 - . _ ~).
     #
     # @param name [String, Symbol] form field name
     # @param filename [String] proposed filename
@@ -621,15 +660,27 @@ module Petstore::Client
               "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
       end
 
-      ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)
-      escaped = fname.gsub(/([\\"])/) { |c| "\\#{c}" }
-      base = %(Content-Disposition: form-data; name="#{name}"; filename="#{escaped}")
-      if ascii_safe.valid_encoding? && !ascii_safe.ascii_only?
-        encoded = URI.encode_www_form_component(ascii_safe).gsub('+', '%20')
-        base + %(; filename*=UTF-8''#{encoded})
-      else
-        base
-      end
+      text = fname.dup.force_encoding(Encoding::UTF_8)
+      text = text.scrub("\uFFFD") unless text.valid_encoding?
+      base = %(Content-Disposition: form-data; name="#{name}"; )
+      return base + %(filename="#{escape_quoted(text)}") if text.ascii_only?
+
+      fallback = text.each_char.map { |c| c.ord < 0x20 || c.ord > 0x7E ? '_' : c }.join
+      base + %(filename="#{escape_quoted(fallback)}"; filename*=UTF-8''#{rfc5987_encode(text)})
+    end
+
+    # Backslash-escape the quotes and backslashes of a quoted-string value.
+    def escape_quoted(value)
+      value.gsub(/([\\"])/) { |c| "\\#{c}" }
+    end
+
+    # Percent-encode every byte of +value+ outside the RFC 3986 unreserved
+    # set, the value-chars production of RFC 5987 section 3.2.1.
+    def rfc5987_encode(value)
+      value.b.each_byte.map do |byte|
+        char = byte.chr
+        char.match?(/\A[A-Za-z0-9\-._~]\z/) ? char : format('%%%02X', byte)
+      end.join
     end
 
     # Map a filename to a Content-Type by extension.

@@ -563,7 +563,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         // Plain (non-enum) string default → a TypeScript string literal.
         if (ModelUtils.isStringSchema(resolved)) {
-            return getQuoteChar() + escapeText(resolved.getDefault().toString()) + getQuoteChar();
+            return toStringLiteral(resolved.getDefault().toString());
         }
         // Numeric/boolean defaults render verbatim as TypeScript literals.
         if (ModelUtils.isBooleanSchema(resolved)
@@ -572,6 +572,86 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             return resolved.getDefault().toString();
         }
         return null;
+    }
+
+    /**
+     * Renders {@code value} as a single-quoted TypeScript string literal
+     * that evaluates to exactly that text: backslash, quote and line
+     * terminators are escaped, everything else is kept verbatim.
+     */
+    static String toStringLiteral(String value) {
+        final StringBuilder out = new StringBuilder(value.length() + 2).append('\'');
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '\'') {
+                out.append("\\'");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c == ' ') {
+                out.append("\\u2028");
+            } else if (c == ' ') {
+                out.append("\\u2029");
+            } else {
+                out.append(c);
+            }
+        }
+        return out.append('\'').toString();
+    }
+
+    /**
+     * Records the branded scalar types ({@code UUID}, {@code URI},
+     * {@code Email}, {@code Decimal}) that an API class's positional
+     * parameters use, as {@code brandImports}, so the API file imports them
+     * from the brand module instead of referencing an undeclared name.
+     */
+    private static void collectBrandImports(Map<String, Object> operations, OperationsMap objs) {
+        final Object opsObj = operations.get("operation");
+        final Set<String> brands = new java.util.TreeSet<>();
+        if (opsObj instanceof List<?>) {
+            for (final Object o : (List<?>) opsObj) {
+                final CodegenOperation op = (CodegenOperation) o;
+                final List<CodegenParameter> positional = new ArrayList<>(op.allParams);
+                if (op.pathParams != null) {
+                    positional.addAll(op.pathParams);
+                }
+                for (final CodegenParameter p : positional) {
+                    if (p.dataType != null && BRAND_TYPES.contains(p.dataType)) {
+                        brands.add(p.dataType);
+                    }
+                }
+            }
+        }
+        objs.put("brandImports", new ArrayList<>(brands));
+        objs.put("hasBrandImports", !brands.isEmpty());
+    }
+
+    private static final Set<String> BRAND_TYPES = Set.of("UUID", "URI", "Email", "Decimal");
+
+    /**
+     * Registers the node-only Mustache lambdas: {@code tsString} renders its
+     * raw content as an exact single-quoted string literal, and
+     * {@code tsComment} neutralises a block-comment terminator so spec prose
+     * cannot close a JSDoc comment early, and folds line breaks into spaces
+     * so a multi-line description stays inside its comment line.
+     */
+    @Override
+    protected com.google.common.collect.ImmutableMap.Builder<String, com.samskivert.mustache.Mustache.Lambda>
+            addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put("tsString", (fragment, writer) -> writer.write(toStringLiteral(fragment.execute())))
+                .put(
+                        "tsComment",
+                        (fragment, writer) ->
+                                writer.write(
+                                        fragment.execute()
+                                                .replace("*/", "*\\/")
+                                                .replaceAll("\\s*(\\r\\n|\\r|\\n)\\s*", " ")));
     }
 
     /** {@inheritDoc} */
@@ -605,7 +685,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         if (mapped != null) {
             return mapped;
         }
-        return super.toEnumVarName(value, datatype);
+        final String name = super.toEnumVarName(value, datatype);
+        if (!name.isEmpty()) {
+            return name;
+        }
+        // A value that sanitises to nothing still needs a legal member name:
+        // whitespace-only becomes SPACE_<length>, anything else VALUE_<hex
+        // code points>, so " " and "@@" stay distinct, valid identifiers.
+        if (!value.isEmpty() && value.isBlank()) {
+            return "SPACE_" + value.length();
+        }
+        final StringBuilder hex = new StringBuilder("VALUE");
+        value.codePoints()
+                .forEach(cp -> hex.append('_').append(String.format(java.util.Locale.ROOT, "%04X", cp)));
+        return hex.toString();
     }
 
     /**
@@ -670,6 +763,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             if (classname != null) {
                 operations.put("classFilename", getFilenameCasing().apply(classname));
             }
+            collectBrandImports(operations, objs);
 
             @SuppressWarnings("unchecked")
             final List<CodegenOperation> ops =
@@ -1181,21 +1275,42 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                     && p.dataType.matches("^[A-Z]\\w*$")) {
                 modelTypes.add(p.dataType);
             }
+            // An array of `format: date` items has the global `Date` as its
+            // item type, which is not a generated model and must not be imported.
             if ((p.isArray || p.isMap)
                     && p.items != null
                     && p.items.baseType != null
+                    && !"Date".equals(p.items.baseType)
                     && !languageSpecificPrimitives.contains(p.items.baseType)
                     && p.items.baseType.matches("^[A-Z]\\w*$")) {
                 modelTypes.add(p.items.baseType);
             }
+            // A `content`-encoded parameter has no baseType; its schema's
+            // model type is only in dataType.
+            if (p.baseType == null
+                    && p.dataType != null
+                    && !"Date".equals(p.dataType)
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && p.dataType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.dataType);
+            }
         }
+        final boolean usesTemporal =
+                optionsParams.stream()
+                        .anyMatch(
+                                p ->
+                                        (p.dataType != null && p.dataType.contains("Temporal."))
+                                                || (p.items != null
+                                                        && p.items.dataType != null
+                                                        && p.items.dataType.contains("Temporal.")));
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("modelImports", new ArrayList<>(modelTypes));
-        context.put("hasModelImports", !modelTypes.isEmpty());
+        context.put("hasModelImports", !modelTypes.isEmpty() || usesTemporal);
+        context.put("hasTemporalImport", usesTemporal);
         // Phase: per-operation auth folded into Options. Authed operations get
         // an optional `auth?: Authenticator` field on their Options interface;
         // the relative import path mirrors the other Options-file imports
@@ -1250,8 +1365,24 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 if (model == null || model.vars == null) {
                     continue;
                 }
+                final boolean nestsModel = model.vars.stream().anyMatch(BetterNodeCodegen::nestsModel);
                 modelMap.put("hasTypeDecorator", model.vars.stream().anyMatch(this::needsTypeDecorator));
-                modelMap.put("hasTransformDecorator", model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
+                modelMap.put(
+                        "hasTransformDecorator",
+                        nestsModel || model.vars.stream().anyMatch(BetterNodeCodegen::hasTransform));
+                final List<String> serializerImports = new ArrayList<>();
+                if (Boolean.TRUE.equals(modelMap.get("hasDurationImport"))) {
+                    serializerImports.add("durationFromProtoJson");
+                    serializerImports.add("durationToProtoJson");
+                }
+                if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))) {
+                    serializerImports.add("decodeBase64");
+                }
+                if (nestsModel) {
+                    serializerImports.add("reattachAdditionalProperties");
+                }
+                modelMap.put("serializerImports", String.join(", ", serializerImports));
+                modelMap.put("hasSerializerImports", !serializerImports.isEmpty());
                 modelMap.put("hasUuidImport", namesType(model, "UUID"));
                 modelMap.put("hasUriImport", namesType(model, "URI"));
                 modelMap.put("hasEmailImport", namesType(model, "Email"));
@@ -1270,6 +1401,19 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 || prop.isDateTime
                 || prop.isDate
                 || (prop.isArray && prop.items != null && prop.items.isByteArray);
+    }
+
+    /**
+     * Whether the property holds a generated model, directly or as array
+     * items. The model template gives such a property a {@code @Transform}
+     * that re-attaches the free-form keys of a nested model declaring
+     * {@code additionalProperties}, which class-transformer would drop.
+     */
+    private static boolean nestsModel(CodegenProperty prop) {
+        if (prop.isArray) {
+            return prop.items != null && prop.items.isModel;
+        }
+        return prop.isModel && !prop.isMap;
     }
 
     /** Whether any property's type names {@code type} as a whole word. */
@@ -1345,6 +1489,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             property.dataType = "Decimal";
             property.datatypeWithEnum = "Decimal";
             property.vendorExtensions.put("isDecimalFormat", true);
+            // The branded Decimal is a string, so a numeric schema default
+            // becomes its exact text as a string literal cast to the brand.
+            if (property.defaultValue != null
+                    && !property.defaultValue.isEmpty()
+                    && property.defaultValue.charAt(0) != getQuoteChar()) {
+                property.defaultValue = toStringLiteral(property.defaultValue) + " as Decimal";
+            }
         }
     }
 

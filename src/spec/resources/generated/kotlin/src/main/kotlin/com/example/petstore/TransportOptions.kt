@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -87,7 +87,7 @@ class TransportOptions private constructor(
         private var timeout: Long? = 10000L
         private var followRedirects: Boolean = true
         private var maxRedirects: Int? = null
-        private var userAgent: String? = "com.example.petstore/1.0.0 (kotlin)"
+        private var userAgent: String? = "petstore-client/1.0.0 (kotlin)"
         private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
         private var injectRequestId: Boolean = false
 

@@ -63,6 +63,28 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
+    test "authorization URL parameters are in the fixed order" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "s")
+
+      assert url ==
+               "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
+    end
+
+    test "empty state is omitted" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "")
+
+      refute String.contains?(url, "state")
+
+      assert url ==
+               PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+    end
+
     test "get_auth_headers returns Bearer after set_access_token" do
       auth = create_authenticator()
 
@@ -79,6 +101,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
 
     test "throws when access token not set" do
       auth = create_authenticator()
+
+      assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+      end
+    end
+
+    test "throws when access token was set to empty" do
+      auth = create_authenticator()
+      auth = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "")
 
       assert_raise RuntimeError, ~r/Must set the access token before making API requests/, fn ->
         PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)

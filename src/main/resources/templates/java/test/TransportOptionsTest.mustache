@@ -72,6 +72,13 @@ class TransportOptionsTest {
     }
 
     @Test
+    @DisplayName("userAgent defaults to the published artifact name")
+    void userAgentDefaultsToThePublishedArtifactName() {
+        TransportOptions opts = TransportOptions.builder().build();
+        assertEquals("{{artifactId}}/{{artifactVersion}} (java)", opts.getUserAgent());
+    }
+
+    @Test
     @DisplayName("defaultHeaders defaults to empty map")
     void defaultHeadersDefaultsToEmpty() {
         TransportOptions opts = TransportOptions.builder().build();

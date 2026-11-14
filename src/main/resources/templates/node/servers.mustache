@@ -26,15 +26,15 @@ export class Servers {
   /**
    * Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
    *
-   * {{serverDescription}}{{/serverDescription}}
+   * {{#lambda.tsComment}}{{{serverDescription}}}{{/lambda.tsComment}}{{/serverDescription}}
    */
 {{#hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration(
     '{{{serverUrl}}}',
-    {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+    {{#serverDescription}}{{#lambda.tsString}}{{{serverDescription}}}{{/lambda.tsString}}{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
     {
-{{#serverVariables}}      '{{varName}}': new ServerVariable('{{{varDefault}}}', {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}}, {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}){{^-last}},{{/-last}}
+{{#serverVariables}}      '{{varName}}': new ServerVariable({{#lambda.tsString}}{{{varDefault}}}{{/lambda.tsString}}, {{#varDescription}}{{#lambda.tsString}}{{{varDescription}}}{{/lambda.tsString}}{{/varDescription}}{{^varDescription}}null{{/varDescription}}, {{#hasEnumValues}}[{{#varEnumValues}}{{#lambda.tsString}}{{{.}}}{{/lambda.tsString}}{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}){{^-last}},{{/-last}}
 {{/serverVariables}}    }
-  );{{/hasVariables}}{{^hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration('{{{serverUrl}}}', {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, {});{{/hasVariables}}
+  );{{/hasVariables}}{{^hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration('{{{serverUrl}}}', {{#serverDescription}}{{#lambda.tsString}}{{{serverDescription}}}{{/lambda.tsString}}{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, {});{{/hasVariables}}
 
 {{/serverConfigs}}
   /** All server configurations in declaration order. */

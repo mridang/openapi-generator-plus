@@ -2,5 +2,10 @@
 class GetPetByNameOptions {
   final String category;
 
-  const GetPetByNameOptions({required this.category});
+  final String xCorrelationId;
+
+  const GetPetByNameOptions({
+    required this.category,
+    required this.xCorrelationId,
+  });
 }

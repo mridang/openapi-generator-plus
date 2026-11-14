@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -16,6 +16,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 import java.time.Duration
+import java.time.LocalTime
 import java.time.OffsetDateTime
 
 /** Edge-case property shapes mirrored from real protobuf-derived specs. */
@@ -76,4 +77,79 @@ data class EdgeCases(
     @SerialName("expiresAt")
     @Contextual
     val expiresAt: OffsetDateTime? = null,
-)
+    /**
+     * The `n2fa` property.
+     */
+    @SerialName("2fa")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
+    val n2fa: Boolean? = null,
+    /**
+     * The `separator` property.
+     */
+    @SerialName("separator")
+    val separator: Separator? = null,
+    /**
+     * The `_null` property.
+     */
+    @SerialName("null")
+    val _null: String? = null,
+    /**
+     * The `_true` property.
+     */
+    @SerialName("true")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
+    val _true: Boolean? = null,
+    /**
+     * The `_false` property.
+     */
+    @SerialName("false")
+    @Serializable(with = com.example.petstore.StrictBooleanSerializer::class)
+    val _false: Boolean? = null,
+    /**
+     * The `lastError` property.
+     */
+    @SerialName("lastError")
+    val lastError: Error? = null,
+    /**
+     * The `outcome` property.
+     */
+    @SerialName("outcome")
+    val outcome: Result? = null,
+    /**
+     * The `cutoff` property.
+     */
+    @SerialName("cutoff")
+    @Contextual
+    val cutoff: LocalTime? = null,
+    /**
+     * The `phase` property.
+     */
+    @SerialName("phase")
+    val phase: PhaseEnum? = null,
+    /**
+     * The `slug` property.
+     */
+    @SerialName("slug")
+    val slug: String? = null,
+) {
+    @Serializable
+    enum class PhaseEnum(
+        val value: String,
+    ) {
+        @SerialName("In-Stock")
+        IN_STOCK("In-Stock"),
+
+        @SerialName("on-hold")
+        ON_HOLD("on-hold"),
+
+        @SerialName("OUT_OF_STOCK")
+        OUT_OF_STOCK("OUT_OF_STOCK"),
+        ;
+
+        companion object {
+            fun fromValue(value: String): PhaseEnum =
+                entries.firstOrNull { it.value == value }
+                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+        }
+    }
+}

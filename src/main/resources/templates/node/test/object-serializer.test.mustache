@@ -1,9 +1,11 @@
 {{>api_info}}
 
+import { Expose, Transform, Type } from 'class-transformer';
 import {
   ObjectSerializer,
   durationToProtoJson,
   durationFromProtoJson,
+  reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
 import { Category, EdgeCases, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag } from '../src/models/index{{importFileExtension}}';
@@ -535,6 +537,10 @@ describe('ObjectSerializer', () => {
       expect(fromEmpty!.retries).toBe(3);
       expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
       expect(fromEmpty!.label).toBe('untitled');
+      expect(fromEmpty!.ratio).toBe('1.5');
+      expect(fromEmpty!.scale).toBe(0.25);
+      expect(fromEmpty!.weight).toBe(2.0);
+      expect(fromEmpty!.ceiling).toBe(9000000000);
 
       const fromNull = ObjectSerializer.deserialize(
         { label: null, retries: 7 },
@@ -748,6 +754,22 @@ describe('ObjectSerializer', () => {
       expect(pet.tags).toEqual([]);
     });
 
+    test('serializes a uniqueItems array of strings in code point order', () => {
+      const first = ObjectSerializer.serialize(new Pet({ name: 'x', photoUrls: new Set(['c', 'a', 'b']) }));
+      const second = ObjectSerializer.serialize(new Pet({ name: 'x', photoUrls: new Set(['b', 'c', 'a']) }));
+      expect(first).toContain('"photoUrls":["a","b","c"]');
+      expect(second).toBe(first);
+    });
+
+    test('orders astral characters after the rest of the BMP', () => {
+      const json = ObjectSerializer.serialize({ values: new Set(['\u{1F600}', '\uFFFD', 'z']) });
+      expect(JSON.parse(json)).toEqual({ values: ['z', '\uFFFD', '\u{1F600}'] });
+    });
+
+    test('serializes a Set of numbers in numeric order', () => {
+      expect(ObjectSerializer.serialize({ values: new Set([10, 2, 1]) })).toBe('{"values":[1,2,10]}');
+    });
+
     test('collapses a nested uniqueItems array into a Set and keeps Decimal as a string', () => {
       const json = { pet: { name: 'x', photoUrls: ['a', 'a', 'b'], weightKg: 12.5 } };
       const passport = ObjectSerializer.deserialize(json, PetPassport)!;
@@ -779,6 +801,47 @@ describe('ObjectSerializer', () => {
     });
 
     test.each([
+      ['an int32 above the range', { quantity: 3000000000 }],
+      ['an int32 below the range', { quantity: -2147483649 }],
+      ['a fractional int32', { quantity: 1.5 }],
+      ['a quoted int32', { quantity: '5' }],
+      ['a boolean int32', { quantity: true }],
+      ['a fractional int64', { id: 1.5 }],
+      ['a quoted int64', { id: '5' }],
+    ])('rejects %s', (_label, json) => {
+      expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(SerializationError);
+    });
+
+    test('decodes the int32 and int64 limits', () => {
+      expect(ObjectSerializer.deserialize({ quantity: 2147483647 }, Order)!.quantity).toBe(2147483647);
+      expect(ObjectSerializer.deserialize(JSON.parse('{"id":9223372036854775807}'), Order)!.id).toBe(
+        2 ** 63,
+      );
+    });
+
+    test('rejects an int32 outside the range handed to a model constructor', () => {
+      expect(() => new Order({ quantity: 3000000000 })).toThrow(
+        'quantity is outside the 32-bit integer range, got 3000000000',
+      );
+    });
+
+    const int32Leaf = (x: unknown) => ObjectSerializer.deserializeLeaf<number>(x, 'int32');
+
+    test.each([
+      ['a quoted element', { a: '5' }],
+      ['an out-of-range element', { a: 3000000000 }],
+      ['a fractional element', { a: 1.5 }],
+    ])('rejects %s of a map of int32', (_label, json) => {
+      expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(SerializationError);
+    });
+
+    test('rejects a fractional element of a nested array of int32', () => {
+      expect(() =>
+        ObjectSerializer.deserializeArray([[1.5]], (x: unknown) => ObjectSerializer.deserializeArray(x, int32Leaf)),
+      ).toThrow(SerializationError);
+    });
+
+    test.each([
       ['a number', 1700000000],
       ['a boolean', true],
       ['an array', [2024]],
@@ -796,23 +859,30 @@ describe('ObjectSerializer', () => {
 
     test('rejects an unparseable date-time string', () => {
       expect(() => ObjectSerializer.deserialize({ shipDate: 'garbage' }, Order)).toThrow(
-        /^Failed to deserialize object: shipDate must be a valid Date, got Invalid Date$/,
+        /^Failed to deserialize object: shipDate must be a valid Date, got garbage$/,
       );
     });
   });
 
   describe('deserializeLeaf', () => {
     test.each([
-      ['integer', 5],
+      ['int32', 5],
+      ['int32', 2147483647],
+      ['int32', -2147483648],
+      ['int64', 3000000000],
       ['boolean', false],
     ] as const)('passes a valid %s through', (kind, value) => {
       expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
     });
 
     test.each([
-      ['integer', '5', 'string'],
-      ['integer', 7.5, 'number'],
-      ['integer', true, 'boolean'],
+      ['int32', '5', 'string'],
+      ['int32', 7.5, 'number'],
+      ['int32', true, 'boolean'],
+      ['int32', 3000000000, 'number'],
+      ['int32', -2147483649, 'number'],
+      ['int64', '5', 'string'],
+      ['int64', 1.5, 'number'],
       ['boolean', 1, 'number'],
       ['date', 1700000000, 'number'],
       ['date', 'garbage', 'string'],
@@ -823,7 +893,7 @@ describe('ObjectSerializer', () => {
     });
 
     test('maps a null leaf to null and parses a date string', () => {
-      expect(ObjectSerializer.deserializeLeaf(null, 'integer')).toBeNull();
+      expect(ObjectSerializer.deserializeLeaf(null, 'int32')).toBeNull();
       expect(ObjectSerializer.deserializeLeaf<Date>('2024-01-02T03:04:05.000Z', 'date').getTime()).toBe(
         new Date('2024-01-02T03:04:05.000Z').getTime(),
       );
@@ -856,6 +926,23 @@ describe('ObjectSerializer', () => {
       // empty bytes; decodeBase64 must reject it, matching the strict decoders
       // in ruby/php/python/elixir/go/rust.
       expect(() => ObjectSerializer.deserialize({ thumbnail: '!!!!' }, PetPassport)).toThrow();
+    });
+
+    test.each(['dGVzdA', 'dGVz dA==', 'dGVz\ndA==', '-_8=', '!!!!'])(
+      'deserialize: non-canonical base64 %p is rejected with SerializationError',
+      (thumbnail) => {
+        expect(() => ObjectSerializer.deserialize({ thumbnail }, PetPassport)).toThrow(SerializationError);
+      },
+    );
+
+    test('deserialize: canonical padded base64 is accepted', () => {
+      const passport = ObjectSerializer.deserialize({ thumbnail: 'dGVzdA==' }, PetPassport);
+      expect(((passport as PetPassport).thumbnail as unknown as Buffer).toString('utf-8')).toBe('test');
+    });
+
+    test('stringify: bytes become standard padded base64', () => {
+      expect(ObjectSerializer.stringify(Buffer.from('hi', 'utf-8'))).toBe('aGk=');
+      expect(ObjectSerializer.stringify(new Uint8Array([0xfb, 0xff]))).toBe('+/8=');
     });
 
     test('round-trip: serialize then deserialize preserves the Buffer bytes', () => {
@@ -891,6 +978,26 @@ describe('ObjectSerializer', () => {
 
     test('uuid(): rejects a string with the wrong segment lengths', () => {
       expect(() => uuid('550e8400-e29b-41d4-a716-44665544000')).toThrow(TypeError);
+    });
+
+    const upperUuid = 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F';
+    const lowerUuid = 'e621e1f8-c36c-495a-93fc-0c247a3e6e5f';
+
+    test('serialize writes a uuid field in lowercase', () => {
+      const order = new Order({ trackingId: uuid(upperUuid) });
+      expect(JSON.parse(ObjectSerializer.serialize(order)).trackingId).toBe(lowerUuid);
+    });
+
+    test('serialize writes a uuid field of a plain request body in lowercase', () => {
+      expect(JSON.parse(ObjectSerializer.serialize({ trackingId: upperUuid }))).toEqual({ trackingId: lowerUuid });
+    });
+
+    test('decode accepts an uppercase uuid and returns it lowercase', () => {
+      expect(ObjectSerializer.deserialize({ trackingId: upperUuid }, Order)!.trackingId).toBe(lowerUuid);
+    });
+
+    test('decode rejects a malformed uuid', () => {
+      expect(() => ObjectSerializer.deserialize({ trackingId: 'not-a-uuid' }, Order)).toThrow(SerializationError);
     });
 
     test('isUuid(): narrows a valid string to UUID', () => {
@@ -989,11 +1096,52 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('date-time decode strictness', () => {
+    test.each(['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000'])(
+      'rejects the non-RFC 3339 date-time %p',
+      (shipDate) => {
+        expect(() => ObjectSerializer.deserialize({ shipDate }, Order)).toThrow(SerializationError);
+      },
+    );
+
+    test.each([
+      ['2024-01-01T10:00:00Z', '2024-01-01T10:00:00.000Z'],
+      ['2024-01-01T10:00:00.123456789+05:30', '2024-01-01T04:30:00.123Z'],
+    ])('accepts the RFC 3339 date-time %p', (shipDate, instant) => {
+      const order = ObjectSerializer.deserialize({ shipDate }, Order);
+      expect(order!.shipDate!.toISOString()).toBe(instant);
+    });
+  });
+
+  describe('format: uri decode', () => {
+    test.each(['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/sample'])(
+      'accepts the absolute URI %p and keeps its text',
+      (homepageUrl) => {
+        const pet = ObjectSerializer.deserialize({ name: 'sample', photoUrls: [], homepageUrl }, Pet);
+        expect(pet!.homepageUrl).toBe(homepageUrl);
+      },
+    );
+
+    test.each(['/relative', 'not a uri', ''])('rejects %p', (homepageUrl) => {
+      expect(() =>
+        ObjectSerializer.deserialize({ name: 'sample', photoUrls: [], homepageUrl }, Pet),
+      ).toThrow(SerializationError);
+    });
+
+    test('a uri-reference field still accepts a relative reference', () => {
+      const pet = ObjectSerializer.deserialize(
+        { name: 'sample', photoUrls: [], thumbnailRef: '/assets/thumb-sample.png' },
+        Pet,
+      );
+      expect(pet!.thumbnailRef).toBe('/assets/thumb-sample.png');
+    });
+  });
+
   describe('DeserializeArrayNullHandling', () => {
     // For a primitive/enum element deserializer a null is a legitimate
     // nullable wire value and must be preserved (array length and index
-    // alignment intact). For a model-class element type a null is a
-    // failed-parse sentinel and is dropped.
+    // alignment intact). For a model-class element type a null is not an
+    // object and is rejected, never kept and never silently dropped.
 
     test('preserves null elements for a primitive element deserializer', () => {
       const out = ObjectSerializer.deserializeArray(
@@ -1004,13 +1152,16 @@ describe('ObjectSerializer', () => {
       expect(out.length).toBe(3);
     });
 
-    test('drops null elements for a model-class element type', () => {
-      const out = ObjectSerializer.deserializeArray(
-        [{ id: 1, name: 'Dogs' }, null],
-        Category,
-      );
-      expect(out.length).toBe(1);
-      expect(out[0]).toBeInstanceOf(Category);
+    test('rejects a null element for a model-class element type', () => {
+      expect(() =>
+        ObjectSerializer.deserializeArray([null, { id: 1, name: 'sample' }], Category),
+      ).toThrow(SerializationError);
+    });
+
+    test('rejects a null value for a model-class map value type', () => {
+      expect(() =>
+        ObjectSerializer.deserializeMap({ first: null, second: { id: 1, name: 'sample' } }, Category),
+      ).toThrow(SerializationError);
     });
 
     test('deserializeMap preserves a null value for a primitive value type', () => {
@@ -1123,9 +1274,27 @@ describe('ObjectSerializer', () => {
         expect(ObjectSerializer.stringify(t)).toBe('14:30:00');
       });
 
-      test('stringify: PlainTime preserves sub-second precision', () => {
+      test('stringify: PlainTime writes a non-zero millisecond part as three digits', () => {
         const t = Temporal.PlainTime.from('09:15:30.250');
-        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.25');
+        expect(ObjectSerializer.stringify(t)).toBe('09:15:30.250');
+      });
+
+      test.each([
+        ['10:30:00', '10:30:00'],
+        ['10:30:00.123456789', '10:30:00.123'],
+        ['10:30:00.9996', '10:30:00.999'],
+        ['10:30:00.000999', '10:30:00'],
+      ])('stringify: %s is written as %s', (input, expected) => {
+        expect(ObjectSerializer.stringify(Temporal.PlainTime.from(input))).toBe(expected);
+      });
+
+      test('serialize: a time model field is truncated to milliseconds and decodes back', () => {
+        const json = ObjectSerializer.serialize(
+          new EdgeCases({ cutoff: Temporal.PlainTime.from('10:30:00.123456789') }),
+        );
+        expect(JSON.parse(json)).toEqual({ cutoff: '10:30:00.123' });
+        const decoded = ObjectSerializer.deserialize(JSON.parse(json), EdgeCases)!;
+        expect(decoded.cutoff!.equals(Temporal.PlainTime.from('10:30:00.123'))).toBe(true);
       });
 
       test('toQueryValue: PlainTime serialises to its ISO string', () => {
@@ -1696,5 +1865,63 @@ describe('model value-equality', () => {
       category: new Category({ id: 2, name: 'Cats' }),
     });
     expect(a.equals(c)).toBe(false);
+  });
+});
+
+class MetadataHolder {
+  @Expose({ name: 'meta' })
+  @Type(() => Metadata)
+  @Transform(({ value, obj }) => reattachAdditionalProperties(value, (obj as Record<string, unknown>)['meta']), {
+    toClassOnly: true,
+  })
+  meta?: Metadata;
+
+  @Expose({ name: 'entries' })
+  @Type(() => Metadata)
+  @Transform(({ value, obj }) => reattachAdditionalProperties(value, (obj as Record<string, unknown>)['entries']), {
+    toClassOnly: true,
+  })
+  entries?: Array<Metadata>;
+
+  constructor(data?: Partial<MetadataHolder>) {
+    Object.assign(this, data);
+  }
+}
+
+describe('reattachAdditionalProperties', () => {
+  test('copies the undeclared wire keys onto a model declaring additionalProperties', () => {
+    const metadata = reattachAdditionalProperties(new Metadata(), { createdAt: 'ignored', region: 'eu' });
+
+    expect({ ...(metadata as Record<string, unknown>) }).toEqual({ region: 'eu' });
+  });
+
+  test('matches an array element by element', () => {
+    const entries = reattachAdditionalProperties([new Metadata(), new Metadata()], [{ region: 'eu' }, { tier: 'gold' }]);
+
+    expect((entries as Array<Record<string, unknown>>).map((e) => ({ ...e }))).toEqual([{ region: 'eu' }, { tier: 'gold' }]);
+  });
+
+  test('leaves a model without additionalProperties untouched', () => {
+    const category = reattachAdditionalProperties(new Category({ id: 1 }), { id: 1, region: 'eu' });
+
+    expect((category as Record<string, unknown>)['region']).toBeUndefined();
+  });
+
+  test('a nested model field keeps its free-form keys through deserialize', () => {
+    const holder = ObjectSerializer.deserialize({ meta: { region: 'eu' } }, MetadataHolder);
+
+    expect((holder!.meta as Record<string, unknown>)['region']).toBe('eu');
+  });
+
+  test('every element of a nested model array keeps its free-form keys through deserialize', () => {
+    const holder = ObjectSerializer.deserialize({ entries: [{ region: 'eu' }, { tier: 'gold' }] }, MetadataHolder);
+
+    expect(holder!.entries!.map((e) => ({ ...(e as Record<string, unknown>) }))).toEqual([{ region: 'eu' }, { tier: 'gold' }]);
+  });
+
+  test('a nested model re-emits its free-form keys on serialize', () => {
+    const holder = ObjectSerializer.deserialize({ meta: { region: 'eu' } }, MetadataHolder);
+
+    expect(JSON.parse(ObjectSerializer.serialize(holder))).toEqual({ meta: { region: 'eu' } });
   });
 });

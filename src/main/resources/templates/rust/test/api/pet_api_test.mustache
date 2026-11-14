@@ -773,7 +773,7 @@ async fn test_pet_api_unsecured_op_has_no_auth_field() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_path_encoded_once() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions { category: "dogs".to_string() };
+    let opts = GetPetByNameOptions { category: "dogs".to_string(), x_correlation_id: "corr-1".to_string() };
     let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
@@ -817,7 +817,7 @@ async fn test_pet_api_get_pet_by_name_missing_required_query_errors() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
     let api = new_pet_api_for_integration();
-    let opts = GetPetByNameOptions { category: String::new() };
+    let opts = GetPetByNameOptions { category: String::new(), x_correlation_id: "corr-1".to_string() };
     let result = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
     assert!(
         result.is_err(),
@@ -835,7 +835,7 @@ async fn test_pet_api_get_pet_by_name_empty_required_query_errors() {
 #[tokio::test]
 async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions { category: "cats".to_string() };
+    let opts = GetPetByNameOptions { category: "cats".to_string(), x_correlation_id: "corr-1".to_string() };
     let _ = api.get_pet_by_name("rex".to_string(), Some(&opts)).await;
 
     let request = rx.recv().expect("expected a captured request");
@@ -843,6 +843,47 @@ async fn test_pet_api_get_pet_by_name_required_query_on_wire() {
     assert!(
         request_line.contains("category=cats"),
         "expected required query param on the wire, got request line: {}",
+        request_line
+    );
+}
+
+/// A path parameter of exactly `.` or `..` is a dot segment the URL parser
+/// would collapse, re-routing the request. It is rejected before dispatch: the
+/// client points at a closed port, so any request would fail with a network
+/// error instead of this ConfigurationError.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_rejects_dot_segments() {
+    let config = ConfigurationBuilder::new().base_url("http://127.0.0.1:1").build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let opts = GetPetByNameOptions { category: "cats".to_string(), x_correlation_id: "corr-1".to_string() };
+    for value in [".", ".."] {
+        let err = api
+            .get_pet_by_name(value.to_string(), Some(&opts))
+            .await
+            .expect_err("a dot-segment path parameter must be rejected");
+        assert_eq!(
+            err.downcast_ref::<ConfigurationError>(),
+            Some(&ConfigurationError::InvalidArgument(
+                "Path parameter 'name' must not be '.' or '..'".to_string()
+            )),
+            "path value {:?}",
+            value
+        );
+    }
+}
+
+/// Dots inside a longer segment are not dot segments and go out unchanged.
+#[tokio::test]
+async fn test_pet_api_get_pet_by_name_keeps_inner_dots() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNameOptions { category: "cats".to_string(), x_correlation_id: "corr-1".to_string() };
+    let _ = api.get_pet_by_name("a..b".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.starts_with("GET /pet/byName/a..b?"),
+        "expected the inner dots on the wire, got request line: {}",
         request_line
     );
 }
@@ -928,6 +969,62 @@ async fn test_pet_api_get_pet_tag_optional_array_query_params_styled_on_wire() {
     assert!(
         !request_line.contains('[') && !request_line.contains(']'),
         "array param leaked a Debug `[...]` blob, got request line: {}",
+        request_line
+    );
+}
+
+/// `revision` is `allowReserved`: the query-legal reserved characters stay
+/// literal, but a `#` is percent-encoded so it cannot start a fragment and cut
+/// the rest of the query off the wire.
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_allow_reserved_encodes_the_fragment_delimiter() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new()
+        .revision("v1.0/beta:rc1#frag".to_string())
+        .filter("blue".to_string());
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("revision=v1.0/beta:rc1%23frag"),
+        "got request line: {}",
+        request_line
+    );
+}
+
+/// `fingerprint` (query) and `X-Fingerprint` (header) are `format: byte`: the
+/// bytes go on the wire as padded standard-alphabet base64, never as a serde
+/// number array.
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_byte_params_are_base64() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new()
+        .fingerprint(b"hi".to_vec())
+        .x_fingerprint(b"hi".to_vec());
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.contains("fingerprint=aGk%3D"), "got request line: {}", request_line);
+    let header = request
+        .lines()
+        .find(|line| line.to_lowercase().starts_with("x-fingerprint:"))
+        .map(|line| line["x-fingerprint:".len()..].trim().to_string());
+    assert_eq!(Some("aGk=".to_string()), header, "{}", request);
+}
+
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetTagOptions::new().fingerprint(vec![0xFB, 0xFF]);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains("fingerprint=%2B%2F8%3D"),
+        "got request line: {}",
         request_line
     );
 }
@@ -1106,7 +1203,7 @@ fn test_pet_api_operation_server_variants_resolve_the_spec_urls() {
         "https://primary.example.com/v1"
     );
     assert_eq!(
-        GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegion::EU }.get_url(),
+        GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegionalRegion::EU }.get_url(),
         "https://eu.example.com/v1"
     );
     for (environment, version, expected) in [
@@ -1126,7 +1223,7 @@ async fn test_pet_api_operation_server_is_the_host_of_the_request() {
         version: GetStagingPetInfoServerVersion::V2,
     };
     let _ = api.get_staging_pet_info(7, Some(&staging)).await;
-    let regional = GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegion::AP };
+    let regional = GetMultiServerPetInfoServerRegional { region: GetMultiServerPetInfoServerRegionalRegion::AP };
     let _ = api.get_multi_server_pet_info(7, Some(&regional)).await;
     let _ = api.get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {})).await;
 
@@ -1169,4 +1266,24 @@ and an optional per-operation authenticator.\n    pub async fn add_pet(";
 pub async fn add_pet_photos(";
     assert!(source.contains(with_auth), "add_pet must document options with the authenticator");
     assert!(source.contains(without_auth), "add_pet_photos must document options without one");
+}
+
+/// Operation summary, description and parameter prose reach the doc comment as
+/// written: no HTML entity, no leaked backslash-quote, and the angle brackets
+/// rustdoc reads as HTML tags are escaped so `cargo doc -D warnings` passes.
+#[test]
+fn test_operation_prose_is_raw_and_rustdoc_safe() {
+    let source = include_str!("../src/api/pet_api.rs");
+    let expected = "    /// Get a \\<plain\\> \"text\" summary & it's short\n    \
+/// Returns '''plain''' text for /pets/#{id} and \\<b\\> & \"c\" it's done\n";
+    assert!(source.contains(expected), "operation summary and notes must be raw prose");
+    assert!(
+        source.contains("    /// * `session`: Session token: \"a\\<b\\>\" & it's required\n"),
+        "parameter description must be raw prose"
+    );
+    let options = include_str!("../src/api/options/get_pet_summary_options.rs");
+    assert!(
+        options.contains("    /// Session token: \"a\\<b\\>\" & it's required\n"),
+        "options field description must be raw prose"
+    );
 }

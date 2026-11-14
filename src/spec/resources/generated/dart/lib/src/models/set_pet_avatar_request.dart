@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -45,7 +45,7 @@ class SetPetAvatarRequest {
       );
     }
     return SetPetAvatarRequest(
-      data: base64Decode(json['data'] as String),
+      data: decodeBase64(json['data'] as String),
 
       mimeType: json['mimeType'] as String,
     );

@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -91,7 +91,7 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
         if ($this->scopes !== []) {
             $params['scope'] = implode(' ', $this->scopes);
         }
-        if ($state !== null) {
+        if ($state !== null && $state !== '') {
             $params['state'] = $state;
         }
 
@@ -152,7 +152,7 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAware
      */
     public function getAuthHeaders(): array
     {
-        if ($this->accessToken === null) {
+        if ($this->accessToken === null || $this->accessToken === '') {
             throw new \LogicException('Must set the access token before making API requests');
         }
 

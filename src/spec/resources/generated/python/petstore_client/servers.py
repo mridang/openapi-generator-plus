@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -62,8 +62,28 @@ SERVER_1: ServerConfiguration = ServerConfiguration(
 Main API server with variables
 """
 
+SERVER_2: ServerConfiguration = ServerConfiguration(
+    url_template="https://{tenant}.example.com/api",
+    description='Bob\'s "sandbox" & co: $5 #{x} a*/b',
+    variables={
+        "tenant": ServerVariable(
+            default_value="o'neil",
+            description='Tenant\'s "id"',
+            enum_values=(
+                "o'neil",
+                "a&b",
+            ),
+        ),
+    },
+)
+"""Server 2: https://{tenant}.example.com/api
+
+Bob's "sandbox" & co: $5 #{x} a*/b
+"""
+
 ALL: Tuple[ServerConfiguration, ...] = (
     SERVER_0,
     SERVER_1,
+    SERVER_2,
 )
 """All server configurations in declaration order, as an immutable tuple."""

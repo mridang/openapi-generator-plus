@@ -167,9 +167,12 @@ final class ValueSerializer {
      *
      * <p>Everything that is not RFC 3986 reserved or unreserved — spaces, control
      * characters, non-ASCII — is still percent-encoded, so the result
-     * is always a valid URL query segment. Only the reserved set
-     * {@code : / ? # [ ] @ ! $ & ' ( ) * + , ; =} (plus the unreserved
-     * {@code ~}) is restored after {@link URLEncoder} over-encodes it.
+     * is always a valid URL query segment. Only the characters RFC 3986
+     * section 3.4 permits in a query, {@code : / ? @ ! $ & ' ( ) * + , ; =}
+     * (plus the unreserved {@code ~}), are restored after {@link URLEncoder}
+     * over-encodes them. {@code #}, {@code [} and {@code ]} stay
+     * percent-encoded: a literal {@code #} would start the URL fragment and
+     * truncate the query.
      *
      * @param value the raw value to encode
      * @return the encoded value with reserved characters preserved
@@ -184,9 +187,6 @@ final class ValueSerializer {
                 .replace("%3A", ":")
                 .replace("%2F", "/")
                 .replace("%3F", "?")
-                .replace("%23", "#")
-                .replace("%5B", "[")
-                .replace("%5D", "]")
                 .replace("%40", "@")
                 .replace("%21", "!")
                 .replace("%24", "$")
@@ -235,6 +235,17 @@ final class ValueSerializer {
         if ("path".equals(location) && value instanceof String stringValue && stringValue.isEmpty()) {
             throw new IllegalArgumentException(
                     "Path parameter '" + paramName + "' must not be empty");
+        }
+        /* RFC 3986 section 5.2.4: a "." or ".." segment is path navigation, so a
+         * URL parser may collapse it and silently re-route the request to a
+         * different endpoint. Matrix and label styles prefix the value, so only
+         * the simple style can yield a bare dot segment. */
+        if ("path".equals(location)
+                && (style == null || style.isEmpty() || "simple".equals(style))
+                && value instanceof String dotValue
+                && (".".equals(dotValue) || "..".equals(dotValue))) {
+            throw new IllegalArgumentException(
+                    "Path parameter '" + paramName + "' must not be '.' or '..'");
         }
 
         if (value == null) {
@@ -314,16 +325,28 @@ final class ValueSerializer {
      * are not percent-encoded here; the query-string builder encodes them.</p>
      *
      * @param paramName the parameter name (e.g. "filter")
-     * @param value     the map value to serialize
+     * @param value     the map or model value to serialize; a model is read
+     *                  through its JSON form so its wire property names are used
      * @return a map of expanded keys to serialized values, or an empty map if value is null
      */
     public static Map<String, String> serializeDeepObject(
-            String paramName, @Nullable Map<?, ?> value) {
+            String paramName, @Nullable Object value) {
         Map<String, String> result = new LinkedHashMap<>();
         if (value == null) {
             return result;
         }
-        for (Map.Entry<?, ?> entry : value.entrySet()) {
+        Map<?, ?> fields;
+        if (value instanceof Map<?, ?> map) {
+            fields = map;
+        } else {
+            ObjectSerializer serializer = new ObjectSerializer();
+            Map<?, ?> decoded = serializer.deserialize(serializer.serialize(value), Map.class);
+            if (decoded == null) {
+                return result;
+            }
+            fields = decoded;
+        }
+        for (Map.Entry<?, ?> entry : fields.entrySet()) {
             String key = paramName + "[" + entry.getKey() + "]";
             String val = ObjectSerializer.stringify(entry.getValue());
             result.put(key, val);

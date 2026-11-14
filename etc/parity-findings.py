@@ -6,6 +6,7 @@
   parity-findings.py set <F001,F002,...> <status> [note]   record a status change
   parity-findings.py show <F001,F002,...>     print full details of the given findings
   parity-findings.py apply <results.json> <batch>   record per-language outcomes from a fix batch
+  parity-findings.py decision <D06,D11,...> [language]   print decisions from PARITY_DECISIONS.json
   parity-findings.py discovered <results.json> <batch>   list the new issues a batch reported
 
 Statuses: open, fixed, false-positive, forced, duplicate, deferred.
@@ -159,6 +160,26 @@ def do_discovered(path, batch):
             print("[%s] %s" % (r["language"], r["note"]))
 
 
+def do_decision(ids, language):
+    decs = json.load(open(os.path.join(ROOT, "PARITY_DECISIONS.json"), encoding="utf-8"))
+    for ref in ids.split(","):
+        n = int(ref.strip().lstrip("Dd"))
+        d = decs[n - 1]
+        print("=" * 78)
+        print("D%02d %s" % (n, d["title"]))
+        print("ledger ids: %s | still true: %s | effort: %s | wire-visible: %s" % (" ".join(d["ids"]), d["still_true"], d["effort"], d.get("wire_visible")))
+        print("\nCURRENT STATE:\n" + (d.get("current_state") or ""))
+        print("\nCANONICAL:\n" + d["canonical"])
+        print("\nWHY:\n" + d["rationale"])
+        for pl in d["per_language"]:
+            if language and pl["language"] != language:
+                continue
+            print("\n[%s] %s %s %s" % (pl["language"], "ALREADY CANONICAL" if pl.get("already_canonical") else "CHANGE:", pl["change"], ("(" + pl["files"] + ")") if pl.get("files") else ""))
+        print("\nTESTS:\n" + d["tests"])
+        if (d.get("spec_yaml") or "").strip():
+            print("\nSPEC FIXTURE (already merged into the petstore spec; see PARITY_FIXTURES.md):\n" + d["spec_yaml"])
+
+
 def render():
     fs = load()["findings"]
     by_status = collections.Counter(f["status"] for f in fs)
@@ -204,6 +225,9 @@ if __name__ == "__main__":
         do_apply(sys.argv[2], int(sys.argv[3]))
     elif cmd == "discovered":
         do_discovered(sys.argv[2], int(sys.argv[3]))
+        sys.exit(0)
+    elif cmd == "decision":
+        do_decision(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else None)
         sys.exit(0)
     elif cmd == "show":
         do_show(sys.argv[2])

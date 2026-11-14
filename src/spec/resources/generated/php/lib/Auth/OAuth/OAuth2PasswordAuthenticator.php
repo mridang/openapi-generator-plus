@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -135,27 +135,22 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator implements HttpAware
             $credentials = base64_encode($encodedId . ':' . $encodedSecret);
             $extraHeaders['Authorization'] = 'Basic ' . $credentials;
         }
-        if ($this->tokenManager->getRefreshToken() !== null) {
-            $params = [
-                'grant_type' => 'refresh_token',
-                'refresh_token' => $this->tokenManager->getRefreshToken(),
-            ];
-            $token = $this->tokenManager->getAccessToken($this->refreshUrl, $params, $extraHeaders);
-        } else {
-            $params = [
-                'grant_type' => 'password',
-                'username' => $this->username,
-                'password' => $this->password,
-            ];
-            if ($this->clientAuthMethod !== ClientAuthMethod::Basic) {
-                $params['client_id'] = $this->clientId;
-                $params['client_secret'] = $this->clientSecret;
-            }
-            if ($this->scopes !== []) {
-                $params['scope'] = implode(' ', $this->scopes);
-            }
-            $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params, $extraHeaders);
+        /* The manager refreshes against refreshUrl when it holds a refresh
+         * token (carrying the same client authentication, RFC 6749 section 6)
+         * and re-runs this password grant against tokenUrl if that fails. */
+        $params = [
+            'grant_type' => 'password',
+            'username' => $this->username,
+            'password' => $this->password,
+        ];
+        if ($this->clientAuthMethod !== ClientAuthMethod::Basic) {
+            $params['client_id'] = $this->clientId;
+            $params['client_secret'] = $this->clientSecret;
         }
+        if ($this->scopes !== []) {
+            $params['scope'] = implode(' ', $this->scopes);
+        }
+        $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params, $extraHeaders, $this->refreshUrl);
 
         return ['Authorization' => 'Bearer ' . $token];
     }

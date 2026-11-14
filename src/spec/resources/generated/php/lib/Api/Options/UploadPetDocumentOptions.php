@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api\Options;
 
+use PetstoreClient\Models\Swatch;
+
 /**
  * Options for the uploadPetDocument operation.
  */
@@ -22,6 +24,10 @@ class UploadPetDocumentOptions
         public readonly \SplFileObject $file,
         public readonly ?string $documentType = null,
         public readonly ?string $notes = null,
+        public readonly ?bool $isPrimary = null,
+        public readonly ?int $pageCount = null,
+        public readonly ?\DateTime $takenAt = null,
+        public readonly ?\PetstoreClient\Models\Swatch $swatch = null,
     ) {
     }
 }

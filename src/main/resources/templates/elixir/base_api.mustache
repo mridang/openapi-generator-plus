@@ -401,6 +401,10 @@ defmodule {{moduleName}}.Api.BaseApi do
 
   defp serialize_body(nil, _content_type), do: nil
 
+  # A format:binary body (tagged by the operation) is the caller's bytes, sent
+  # verbatim under any selected content-type, application/json included.
+  defp serialize_body({:raw_body, bytes}, _content_type), do: bytes
+
   defp serialize_body(body, "multipart/form-data"), do: body
 
   defp serialize_body(body, "application/octet-stream"), do: body
@@ -426,12 +430,28 @@ defmodule {{moduleName}}.Api.BaseApi do
   defp encode_form_pair({key, values}) when is_list(values) do
     encoded_key = URI.encode_www_form(to_string(key))
 
-    Enum.map(values, fn val ->
+    values
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(fn val ->
+      ensure_form_scalar!(key, val)
       "#{encoded_key}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(val))}"
     end)
   end
 
   defp encode_form_pair({key, value}) do
+    ensure_form_scalar!(key, value)
     ["#{URI.encode_www_form(to_string(key))}=#{URI.encode_www_form({{moduleName}}.ObjectSerializer.stringify(value))}"]
   end
+
+  # A model, map or array-of-objects has no defined form-urlencoded encoding
+  # (the generator does not surface the OAS encoding style/explode), so it is
+  # rejected rather than sent as the language's string conversion.
+  defp ensure_form_scalar!(_key, %struct{}) when struct in [DateTime, NaiveDateTime, Date, Time, Duration], do: :ok
+
+  defp ensure_form_scalar!(key, value) when is_map(value) or is_list(value) do
+    raise {{moduleName}}.Errors.SerializationError,
+      message: "form-urlencoded field #{key} must be a scalar or array of scalars"
+  end
+
+  defp ensure_form_scalar!(_key, _value), do: :ok
 end

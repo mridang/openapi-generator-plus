@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -40,6 +41,16 @@ defmodule PetstoreClient.Models.Surgery do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "procedureName",
+      "durationMinutes",
+      "notes"
+    ]
   end
 
   @doc """

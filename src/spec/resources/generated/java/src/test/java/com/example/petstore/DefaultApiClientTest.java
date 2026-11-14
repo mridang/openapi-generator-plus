@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -143,6 +144,55 @@ class DefaultApiClientTest {
 
       assertEquals(200, response.statusCode());
       assertTrue(response.body().contains("\"method\""));
+    }
+  }
+
+  @Nested
+  @org.junit.jupiter.api.parallel.Isolated("sets the JVM-wide proxy system properties")
+  @DisplayName("ambient proxy settings")
+  class AmbientProxySettings {
+
+    @Test
+    @DisplayName("ignores the JVM proxy properties when no proxy is configured")
+    void ignoresAmbientJvmProxyProperties() throws ApiException {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      String[] keys = {
+        "http.proxyHost",
+        "http.proxyPort",
+        "https.proxyHost",
+        "https.proxyPort",
+        "http.nonProxyHosts"
+      };
+      Map<String, String> saved = new HashMap<>();
+      for (String key : keys) {
+        String previous = System.getProperty(key);
+        if (previous != null) {
+          saved.put(key, previous);
+        }
+      }
+      System.setProperty("http.proxyHost", "127.0.0.1");
+      System.setProperty("http.proxyPort", "1");
+      System.setProperty("https.proxyHost", "127.0.0.1");
+      System.setProperty("https.proxyPort", "1");
+      /* Replace the default localhost exclusion so a local chasm host
+       * would also be routed through the dead proxy. */
+      System.setProperty("http.nonProxyHosts", "unused.invalid");
+      try {
+        DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+        ApiHttpResponse response =
+            client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null);
+
+        assertEquals(200, response.statusCode());
+      } finally {
+        for (String key : keys) {
+          String previous = saved.get(key);
+          if (previous == null) {
+            System.clearProperty(key);
+          } else {
+            System.setProperty(key, previous);
+          }
+        }
+      }
     }
   }
 
@@ -365,6 +415,25 @@ class DefaultApiClientTest {
           client.sendRequest("GET", chasmUrl + "/test/redirect/302", new HashMap<>(), null);
 
       assertEquals(200, response.statusCode());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+      "/test/redirect/malformed-location, malformed",
+      "/test/redirect/no-location, no-location"
+    })
+    @DisplayName("an unusable or missing Location returns the 3xx untouched")
+    void unusableLocationReturnsTheRedirectResponse(String path, String marker) throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+
+      TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      ApiHttpResponse response = client.sendRequest("GET", chasmUrl + path, new HashMap<>(), null);
+
+      assertEquals(302, response.statusCode());
+      JsonNode body = new ObjectMapper().readTree(response.body());
+      assertEquals(marker, body.path("redirect").asText());
     }
 
     @Test

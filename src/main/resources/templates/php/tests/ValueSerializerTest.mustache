@@ -45,6 +45,15 @@ test('path date only styled simple emits yyyy mm dd', function (): void {
     expect(ValueSerializer::serializeStyled('d', $dt, 'path', '\\DateTime|date', null, 'simple', false))->toBe('2024-01-15');
 });
 
+test('path styled simple rejects a dot segment', function (string $segment): void {
+    expect(fn () => ValueSerializer::serializeStyled('id', $segment, 'path', 'string', null, 'simple', false))
+        ->toThrow(\InvalidArgumentException::class, "Path parameter 'id' must not be '.' or '..'");
+})->with(['.', '..']);
+
+test('path styled simple keeps dots inside a value', function (): void {
+    expect(ValueSerializer::serializeStyled('id', 'a..b', 'path', 'string', null, 'simple', false))->toBe('a..b');
+});
+
 test('path date time without date marker keeps full iso', function (): void {
     $dt = new \DateTime('2024-01-15T10:30:45+00:00');
     $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
@@ -514,11 +523,11 @@ test('allow reserved leaves reserved chars literal but still encodes others', fu
     expect(ValueSerializer::encodeQueryAllowingReserved('a b:c'))->toBe('a%20b:c');
 });
 
-test('allow reserved preserves the full rfc 3986 reserved set', function (): void {
-    // The complete reserved set : / ? # [ ] @ ! $ & ' ( ) * + , ; = must pass
-    // through literally.
-    $reserved = ":/?#[]@!$&'()*+,;=";
-    expect(ValueSerializer::encodeQueryAllowingReserved($reserved))->toBe($reserved);
+test('allow reserved keeps only the query-legal reserved set literal', function (): void {
+    // RFC 3986 section 3.4: : / ? @ ! $ & ' ( ) * + , ; = stay literal; the
+    // fragment delimiter and the brackets are percent-encoded.
+    expect(ValueSerializer::encodeQueryAllowingReserved("a:b/c?d[e]f@g!h\$i&j'k(l)m*n+o,p;q=r~s#t u"))
+        ->toBe("a:b/c?d%5Be%5Df@g!h\$i&j'k(l)m*n+o,p;q=r~s%23t%20u");
 });
 
 test('allow reserved still percent encodes non ascii', function (): void {

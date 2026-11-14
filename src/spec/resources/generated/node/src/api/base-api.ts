@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -11,11 +11,12 @@ import type { Authenticator } from "../auth/authenticator.js";
 import { isNoAuth } from "../auth/authenticator.js";
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
-import { ApiError } from "../errors/index.js";
+import { ApiError, SerializationError } from "../errors/index.js";
 import { Configuration } from "../configuration.js";
 import { DefaultApiClient } from "#transport";
 import { HeaderSelector } from "../header-selector.js";
 import { ObjectSerializer } from "../object-serializer.js";
+import { Temporal } from "temporal-polyfill";
 import { AllowReservedValue, ValueSerializer } from "../value-serializer.js";
 import { injectTraceContext } from "../trace-context-util.js";
 
@@ -70,6 +71,7 @@ export abstract class BaseApi {
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
   protected async invokeApiForResult<T>(
@@ -82,6 +84,7 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    rawBody = false,
   ): Promise<ApiResult<T>> {
     let url: string;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -182,7 +185,7 @@ export abstract class BaseApi {
     }
     injectTraceContext(headers);
 
-    const serializedBody = this.serializeBody(body, contentType);
+    const serializedBody = this.serializeBody(body, contentType, rawBody);
     if (serializedBody === null) {
       delete headers["Content-Type"];
     }
@@ -265,6 +268,7 @@ export abstract class BaseApi {
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
+   * @param rawBody whether the body is `format: binary` bytes sent unchanged
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -277,6 +281,7 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null,
+    rawBody = false,
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -288,6 +293,7 @@ export abstract class BaseApi {
       contentType,
       returnType,
       auth,
+      rawBody,
     );
     return result.data;
   }
@@ -324,9 +330,21 @@ export abstract class BaseApi {
   private serializeBody(
     body: unknown,
     contentType: string,
+    rawBody = false,
   ): string | Buffer | Record<string, unknown> | null {
     if (body == null) {
       return null;
+    }
+    /* A `format: binary` request body is the caller's bytes, sent unchanged
+     * under whichever declared Content-Type was selected (application/json
+     * included): it is never routed through the JSON serializer. */
+    if (
+      rawBody &&
+      (Buffer.isBuffer(body) ||
+        body instanceof Uint8Array ||
+        body instanceof Blob)
+    ) {
+      return body as Buffer;
     }
     if (contentType === "multipart/form-data") {
       return body as Record<string, unknown>;
@@ -384,6 +402,30 @@ export abstract class BaseApi {
         }
         return text;
       };
+      /* A model, map or array of objects has no defined form-urlencoded
+       * encoding (no OAS encoding style is emitted), so it is rejected
+       * instead of being sent as '[object Object]'. */
+      const isScalarObject = (value: object): boolean =>
+        value instanceof Date ||
+        value instanceof Uint8Array ||
+        value instanceof Temporal.PlainDate ||
+        value instanceof Temporal.PlainTime ||
+        value instanceof Temporal.PlainDateTime ||
+        value instanceof Temporal.Instant ||
+        value instanceof Temporal.ZonedDateTime ||
+        value instanceof Temporal.Duration;
+      const scalar = (key: string, value: unknown): string => {
+        if (
+          typeof value === "object" &&
+          value !== null &&
+          !isScalarObject(value)
+        ) {
+          throw new SerializationError(
+            `form-urlencoded field ${key} must be a scalar or array of scalars`,
+          );
+        }
+        return wellFormed(ObjectSerializer.stringify(value));
+      };
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(
         body as Record<string, unknown>,
@@ -396,16 +438,10 @@ export abstract class BaseApi {
             if (item == null) {
               continue;
             }
-            params.append(
-              wellFormed(key),
-              wellFormed(ObjectSerializer.stringify(item)),
-            );
+            params.append(wellFormed(key), scalar(key, item));
           }
         } else {
-          params.append(
-            wellFormed(key),
-            wellFormed(ObjectSerializer.stringify(value)),
-          );
+          params.append(wellFormed(key), scalar(key, value));
         }
       }
       /* The serialized text only contains a percent sign as an escape, so

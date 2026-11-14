@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -12,4 +12,8 @@ public enum Availability: String, Codable, Sendable, CaseIterable {
   case available = "Available"
   case sold = "Sold"
   case onHold = "on-hold"
+  case oclock = "o'clock"
+  case ab = "a\\b"
+  case eq = "$eq"
+  case x = "#{x}"
 }

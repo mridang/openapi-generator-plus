@@ -1,7 +1,7 @@
 [project]
 name = "{{projectName}}"
 version = "{{packageVersion}}"
-description = "{{#appDescription}}{{appDescription}}{{/appDescription}}{{^appDescription}}{{projectName}} - OpenAPI client{{/appDescription}}"
+description = {{#lambda.doubleQuoted}}{{#appDescription}}{{#lambda.unescapeDocComment}}{{{appDescription}}}{{/lambda.unescapeDocComment}}{{/appDescription}}{{^appDescription}}{{projectName}} - OpenAPI client{{/appDescription}}{{/lambda.doubleQuoted}}
 license = "{{licenseId}}"
 requires-python = ">=3.13"
 dependencies = [

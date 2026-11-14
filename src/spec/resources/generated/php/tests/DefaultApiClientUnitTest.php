@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\TransportOptions;
@@ -1046,6 +1047,43 @@ test('non-existent caCertPath throws invalid argument exception at construction'
         });
 });
 
+test('a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'only-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->caCertPath($path)->build());
+        $http = new \ReflectionProperty(DefaultApiClient::class, 'client')->getValue($client);
+        assert(is_object($http));
+        $defaults = new \ReflectionProperty($http, 'defaultOptions')->getValue($http);
+        assert(is_array($defaults));
+
+        expect($defaults['cafile'])->toBe($path);
+        expect($defaults['capath'])->toBe($path);
+    } finally {
+        unlink($path);
+    }
+});
+
+test('no caCertPath leaves the system trust store in place', function (): void {
+    $client = new DefaultApiClient(TransportOptions::builder()->build());
+    $http = new \ReflectionProperty(DefaultApiClient::class, 'client')->getValue($client);
+    assert(is_object($http));
+    $defaults = new \ReflectionProperty($http, 'defaultOptions')->getValue($http);
+    assert(is_array($defaults));
+
+    expect($defaults['cafile'])->toBeNull();
+    expect($defaults['capath'])->toBeNull();
+});
+
 test('transport failure raises NetworkException with status 0 and the cause kept', function (): void {
     $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
     $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {
@@ -1417,3 +1455,53 @@ test('decompresses a valid stream whose content is falsy', function (string $pay
     'empty deflate' => ['', 'deflate'],
     'zero deflate' => ['0', 'deflate'],
 ]);
+
+test('multipart primitive parts are plain text and only models are json', function (): void {
+    $capturedBody = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+            $capturedBody = collectDefaultApiClientRequestBody($options['body'] ?? '');
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+
+    $client = new StubbedDefaultApiClient($mockClient);
+    $client->sendRequest(
+        'POST',
+        'http://example.com/upload',
+        [],
+        [
+            'flag' => true,
+            'total' => 3,
+            'at' => new \DateTime('2024-01-15T10:30:00Z'),
+            'choice' => ApiKeyLocation::QUERY,
+            'id' => \Symfony\Component\Uid\Uuid::fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'),
+            'model' => new MultipartModelPart(isEnabled: true),
+        ]
+    );
+
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"total\"\r\n\r\n3\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"at\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"choice\"\r\n\r\nquery\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"id\"\r\n\r\ne621e1f8-c36c-495a-93fc-0c247a3e6e5f\r\n");
+    expect($capturedBody)->toContain("Content-Disposition: form-data; name=\"model\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true}\r\n");
+    expect($capturedBody)->not->toContain('Content-Transfer-Encoding');
+    expect(substr_count($capturedBody, 'Content-Type:'))->toBe(1);
+});
+
+test('keeps an allowReserved query value byte for byte', function (): void {
+    $capturedUrl = '';
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url) use (&$capturedUrl): MockResponse {
+            $capturedUrl = $url;
+            return new MockResponse('{}', ['http_code' => 200]);
+        }
+    );
+    $client = new StubbedDefaultApiClient($mockClient);
+    $query = 'revision=' . \PetstoreClient\ValueSerializer::encodeQueryAllowingReserved("v1.0/beta:rc1[x]'y");
+
+    $client->sendRequest('GET', 'http://example.com/echo?' . $query, [], null);
+
+    expect($capturedUrl)->toBe("http://example.com/echo?revision=v1.0/beta:rc1%5Bx%5D'y");
+});

@@ -2,6 +2,10 @@
 
 package options
 
+import (
+	. "petstore/pkg/models"
+)
+
 // GetPetTagOptions carries the parameters for the GetPetTag operation.
 type GetPetTagOptions struct {
 	Colors *[]string
@@ -9,4 +13,12 @@ type GetPetTagOptions struct {
 	Filter *string
 	/* Revision Query value whose RFC 3986 reserved characters must be sent literally (OAS allowReserved), for example a version expression such as v1.0/beta:rc1 keeping the slash and colon. */
 	Revision *string
+	/* Criteria Object-valued query parameter, form style exploded (the OAS default for query) */
+	Criteria     *PetCriteria
+	CriteriaCsv  *PetCriteria
+	CriteriaDeep *PetCriteria
+	/* Fingerprint Opaque bytes, base64 on the wire (OAS format byte) */
+	Fingerprint  *[]byte
+	XCriteria    *PetCriteria
+	XFingerprint *[]byte
 }

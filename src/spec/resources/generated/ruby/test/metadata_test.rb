@@ -20,7 +20,7 @@ describe Petstore::Client::Models::Metadata do
   end
 
   it 'deserializes additional string properties' do
-    json = '{"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"}'
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
     _(metadata).wont_be_nil
@@ -28,7 +28,7 @@ describe Petstore::Client::Models::Metadata do
   end
 
   it 'captures and round-trips additionalProperties' do
-    json = '{"createdAt":"2024-01-01T00:00:00+0000","customField":"hello","count":3}'
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":3}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
     # Undeclared keys are captured (not silently dropped) so a round-trip
@@ -39,6 +39,17 @@ describe Petstore::Client::Models::Metadata do
     _(data['customField']).must_equal('hello')
     _(data['count']).must_equal(3)
     _(data['createdAt']).wont_be_nil
+  end
+
+  it 'writes a declared property once when an extra entry shares its wire name' do
+    metadata = Petstore::Client::Models::Metadata.new(
+      created_at: Time.utc(2024, 1, 1, 0, 0, 0),
+      additional_properties: { 'createdAt' => 'x' }
+    )
+    json = Petstore::Client::ObjectSerializer.serialize(metadata)
+
+    _(json.scan('"createdAt"').length).must_equal(1)
+    _(JSON.parse(json)['createdAt']).must_equal('2024-01-01T00:00:00.000+00:00')
   end
 end
 

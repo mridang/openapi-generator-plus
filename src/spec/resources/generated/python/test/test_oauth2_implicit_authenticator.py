@@ -1,5 +1,5 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -72,6 +72,16 @@ class TestOAuth2ImplicitAuthenticator:
 
     def test_throws_when_access_token_not_set(self) -> None:
         auth = _create_authenticator()
+
+        with pytest.raises(
+            RuntimeError, match="Must set the access token before making API requests"
+        ) as exc_info:
+            auth.get_auth_headers()
+        assert type(exc_info.value) is RuntimeError
+
+    def test_throws_when_access_token_set_to_empty_string(self) -> None:
+        auth = _create_authenticator()
+        auth.set_access_token("")
 
         with pytest.raises(
             RuntimeError, match="Must set the access token before making API requests"

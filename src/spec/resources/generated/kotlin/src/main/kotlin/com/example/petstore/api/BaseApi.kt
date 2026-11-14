@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -226,9 +226,11 @@ abstract class BaseApi {
                                 // single bracket-mangled `tags=[a, b]` value.
                                 for (item in value) {
                                     if (item == null) continue
+                                    requireFormScalar(key, item)
                                     parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
                                 }
                             } else {
+                                requireFormScalar(key, value)
                                 parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
                             }
                         }
@@ -487,6 +489,33 @@ abstract class BaseApi {
      * @return URL-encoded string
      */
     internal fun encode(value: String): String = value.encodeURLParameter(spaceToPlus = true)
+
+    /**
+     * Rejects a form-urlencoded field value that has no defined encoding. Only
+     * scalars (and arrays of them) are encoded; a model or map would otherwise
+     * reach the wire as its toString() text.
+     */
+    private fun requireFormScalar(
+        key: String,
+        value: Any,
+    ) {
+        val scalar =
+            value is String ||
+                value is Number ||
+                value is Boolean ||
+                value is Char ||
+                value is Enum<*> ||
+                value is java.time.temporal.TemporalAccessor ||
+                value is java.time.Duration ||
+                value::class.qualifiedName == "kotlin.uuid.Uuid" ||
+                value is io.ktor.http.Url ||
+                value is ByteArray
+        if (!scalar) {
+            throw com.example.petstore.errors.SerializationException(
+                "form-urlencoded field $key must be a scalar or array of scalars",
+            )
+        }
+    }
 
     /**
      * URL-encode a string for a URI query component, where a space is `%20`

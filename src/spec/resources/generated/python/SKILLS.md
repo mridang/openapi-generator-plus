@@ -229,9 +229,9 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as pydantic models in `petstore_client.models`.
 
 ```python
-from petstore_client.models.api_response import ApiResponse
+from petstore_client.models.account import Account
 
-model = ApiResponse()
+model = Account()
 ```
 
 ## Binary / File Uploads

@@ -201,6 +201,24 @@ class TestUserAgentHeader:
         # chasm envelope lowercases all header keys
         assert body["headers"]["user-agent"] == "MyApp/1.0"
 
+    def test_lowercase_caller_headers_suppress_injection(
+        self, chasm_http_url: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .default_header("user-agent", "MyApp")
+            .default_header("x-request-id", "abc")
+            .inject_request_id(True)
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        assert body["headers"]["user-agent"] == "MyApp"
+        assert body["headers"]["x-request-id"] == "abc"
+
 
 class TestRequestIdInjection:
     def test_injects_request_id_header(self, chasm_http_url: Any) -> None:

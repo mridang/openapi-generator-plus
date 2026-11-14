@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -81,6 +81,22 @@ import Testing
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("client_id=my-client-id"))
     #expect(bodyString.contains("client_secret=my-client-secret"))
+  }
+
+  @Test func testTokenBodyUsesFixedParameterOrder() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+    #expect(
+      bodyString
+        == "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
+    )
   }
 
   @Test func testSendsScopes() async throws {
@@ -240,5 +256,18 @@ import Testing
     dump(auth, to: &dumped)
     #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
     #expect(Mirror(reflecting: auth).children.isEmpty)
+  }
+
+  // MARK: - Generated scheme wrapper
+
+  /* The client-credentials securityScheme's wrapper carries the spec's
+   * token URL and scopes and masks the client secret. */
+  @Test func schemeWrapperCarriesTheSpecTokenUrlAndScopes() {
+    let auth = MachineAuthClientCredentialsAuthenticator(
+      host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
+    #expect(
+      String(describing: auth)
+        == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:write\", \"pets:read\"], clientAuthMethod: \(ClientAuthMethod.body))"
+    )
   }
 }

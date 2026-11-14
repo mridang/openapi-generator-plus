@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -10,6 +11,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import java.math.BigDecimal;
 import javax.annotation.Nullable;
 
 /** Defaults. */
@@ -73,6 +75,36 @@ public class Defaults {
   @Nullable
   public String label = "untitled";
 
+  /** The {@code greeting} property. */
+  @JsonProperty("greeting")
+  @Nullable
+  public String greeting = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b";
+
+  /** The {@code swatch} property. */
+  @JsonProperty("swatch")
+  @Nullable
+  public Swatch swatch;
+
+  /** The {@code ratio} property. */
+  @JsonProperty("ratio")
+  @Nullable
+  public BigDecimal ratio = new java.math.BigDecimal("1.5");
+
+  /** The {@code scale} property. */
+  @JsonProperty("scale")
+  @Nullable
+  public Float scale = 0.25F;
+
+  /** The {@code weight} property. */
+  @JsonProperty("weight")
+  @Nullable
+  public Double weight = 2D;
+
+  /** The {@code ceiling} property. */
+  @JsonProperty("ceiling")
+  @Nullable
+  public Long ceiling = 9000000000L;
+
   /** Creates an empty instance. */
   public Defaults() {}
 
@@ -91,12 +123,27 @@ public class Defaults {
     }
     return java.util.Objects.equals(this.retries, other.retries)
         && java.util.Objects.equals(this.mode, other.mode)
-        && java.util.Objects.equals(this.label, other.label);
+        && java.util.Objects.equals(this.label, other.label)
+        && java.util.Objects.equals(this.greeting, other.greeting)
+        && java.util.Objects.equals(this.swatch, other.swatch)
+        && com.example.petstore.ObjectSerializer.structuralEquals(this.ratio, other.ratio)
+        && java.util.Objects.equals(this.scale, other.scale)
+        && java.util.Objects.equals(this.weight, other.weight)
+        && java.util.Objects.equals(this.ceiling, other.ceiling);
   }
 
   @Override
   public int hashCode() {
-    return java.util.Objects.hash(retries, mode, label);
+    return java.util.Objects.hash(
+        retries,
+        mode,
+        label,
+        greeting,
+        swatch,
+        com.example.petstore.ObjectSerializer.structuralHashCode(ratio),
+        scale,
+        weight,
+        ceiling);
   }
 
   @Override
@@ -106,6 +153,12 @@ public class Defaults {
     sb.append("retries=").append(retries);
     sb.append(", mode=").append(mode);
     sb.append(", label=").append(label);
+    sb.append(", greeting=").append(greeting);
+    sb.append(", swatch=").append(swatch);
+    sb.append(", ratio=").append(ratio);
+    sb.append(", scale=").append(scale);
+    sb.append(", weight=").append(weight);
+    sb.append(", ceiling=").append(ceiling);
     sb.append("}");
     return sb.toString();
   }

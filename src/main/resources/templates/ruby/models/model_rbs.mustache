@@ -54,6 +54,7 @@ module {{moduleName}}::Models
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
     OPENAPI_FORMATS: Hash[Symbol, String]
+    REQUIRED_NULLABLE: Hash[Symbol, bool]
 {{#isAdditionalPropertiesTrue}}
     ADDITIONAL_PROPERTIES: bool
 {{#additionalPropertiesType}}

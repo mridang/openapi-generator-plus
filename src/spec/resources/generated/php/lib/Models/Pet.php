@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -85,6 +85,10 @@ class Pet
     #[SerializedName('weightKg')]
     public ?float $weightKg = null;
 
+    /** @example rex */
+    #[SerializedName('nickname')]
+    public ?string $nickname = null;
+
     /**
      * @param \Ds\Set<string> $photoUrls
      * @param \Ds\Vector<\PetstoreClient\Models\Tag>|null $tags
@@ -103,6 +107,7 @@ class Pet
         ?string $linkTemplate = null,
         ?string $ownerEmail = null,
         ?float $weightKg = null,
+        ?string $nickname = null,
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -116,5 +121,6 @@ class Pet
         $this->linkTemplate = $linkTemplate;
         $this->ownerEmail = $ownerEmail;
         $this->weightKg = $weightKg;
+        $this->nickname = $nickname;
     }
 }

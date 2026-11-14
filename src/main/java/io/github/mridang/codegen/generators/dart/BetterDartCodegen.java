@@ -1,5 +1,7 @@
 package io.github.mridang.codegen.generators.dart;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
@@ -593,7 +595,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return "'" + escapeText(String.valueOf(resolved.getDefault())) + "'";
+                return "'" + escapeDartString(String.valueOf(resolved.getDefault())) + "'";
             }
         }
         return null;
@@ -683,9 +685,43 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             for (final CodegenProperty prop : model.vars) {
                 setDefaultEnumVarName(prop);
+                resolveEnumRefDefault(prop);
             }
         }
         return result;
+    }
+
+    /**
+     * A property that is a {@code $ref} to a top-level enum carries the
+     * referenced schema's {@code default} as a bare wire literal ({@code
+     * 'green'}), which is not assignable to the typed enum field and is not a
+     * constant the {@code const} constructor can use. Rewrite it to the
+     * declared enum member ({@code Swatch.green}), named exactly as the
+     * enum's own declaration names it. A default that matches none of the
+     * enum's values is dropped, since no member could represent it.
+     */
+    @SuppressWarnings("rawtypes")
+    private void resolveEnumRefDefault(CodegenProperty property) {
+        if (!property.isEnumRef || property.defaultValue == null || this.openAPI == null) {
+            return;
+        }
+        final String enumName =
+                property.complexType != null ? property.complexType : property.dataType;
+        final Map<String, Schema> schemas =
+                openAPI.getComponents() == null ? null : openAPI.getComponents().getSchemas();
+        final Schema referenced = schemas == null ? null : schemas.get(enumName);
+        final String wanted = unquote(property.defaultValue);
+        if (referenced != null && referenced.getEnum() != null) {
+            for (final Object value : referenced.getEnum()) {
+                if (value != null && String.valueOf(value).equals(wanted)) {
+                    final String datatype = property.isInteger || property.isLong ? "int" : "String";
+                    property.defaultValue =
+                            property.dataType + "." + toEnumVarName(String.valueOf(value), datatype);
+                    return;
+                }
+            }
+        }
+        property.defaultValue = null;
     }
 
     /**
@@ -781,6 +817,21 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getModelImportContextKey() {
         return "dartImports";
+    }
+
+    /** Reports whether {@code name} is the generated class name of a component schema. */
+    private boolean isComponentModelName(final String name) {
+        if (openAPI == null
+                || openAPI.getComponents() == null
+                || openAPI.getComponents().getSchemas() == null) {
+            return false;
+        }
+        for (final String key : openAPI.getComponents().getSchemas().keySet()) {
+            if (name.equals(toModelName(key))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** {@inheritDoc} */
@@ -1029,6 +1080,16 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                 imp.put("filename", toModelFilename(p.dataType));
                 optionsImports.add(imp);
             }
+            // An object-typed parameter ($ref to a model under a style, or a
+            // `content` parameter) also carries the model name only in dataType.
+            if (p.dataType != null
+                    && isComponentModelName(p.dataType)
+                    && importedTypes.add(p.dataType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.dataType);
+                imp.put("filename", toModelFilename(p.dataType));
+                optionsImports.add(imp);
+            }
         }
 
         final Map<String, Object> context = new HashMap<>();
@@ -1084,5 +1145,66 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         } catch (IOException ex) {
             LOGGER.warn("Failed to append options exports to barrel: {}", ex.getMessage());
         }
+    }
+
+    /**
+     * Registers the {@code dartString} Mustache lambda, which escapes raw spec
+     * text for the inside of a single-quoted Dart string literal: a backslash,
+     * a single quote and the {@code $} interpolation sigil are backslash
+     * escaped and line breaks become escape sequences, so a description such as
+     * {@code Bob's $5} cannot terminate the literal or start an interpolation.
+     */
+    @Override
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "dartString",
+                        (fragment, writer) -> writer.write(escapeDartString(fragment.execute())))
+                .put(
+                        "dartDocLines",
+                        (fragment, writer) -> writer.write(toDartDocLines(fragment.execute())));
+    }
+
+    /**
+     * Continues a multi-line description inside a {@code ///} doc comment: every
+     * line break is followed by the {@code ///} prefix, so the second line of a
+     * block-scalar description cannot fall out of the comment into code.
+     */
+    static String toDartDocLines(final String text) {
+        return text.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\n/// ");
+    }
+
+    /**
+     * Escapes the {@code $} interpolation sigil of a single-quoted Dart
+     * literal. (The backslash is doubled by the shared escape and the quote
+     * character itself is handled by {@code quoteEnumValue}.)
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"\\$", "\\\\\\$"});
+    }
+
+    /** Escapes text for the inside of a single-quoted Dart string literal. */
+    static String escapeDartString(final String text) {
+        final StringBuilder sb = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '\'') {
+                sb.append("\\'");
+            } else if (c == '$') {
+                sb.append("\\$");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 }

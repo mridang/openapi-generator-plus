@@ -11,6 +11,7 @@ import (
 
 	"{{packageName}}/pkg/auth"
 	"{{packageName}}/pkg/auth/oauth"
+	apierrors "{{packageName}}/pkg/errors"
 )
 
 // fakeAuthCodeClient implements auth.ApiClient for auth code tests.
@@ -493,5 +494,140 @@ func TestOAuth2AuthCode_ReprShowsTheNonSecretFields(t *testing.T) {
 		if !strings.Contains(repr, want) {
 			t.Errorf("expected %q to contain %q", repr, want)
 		}
+	}
+}
+
+// The code exchange body and the authorize URL are emitted in the shared key
+// order, so the whole strings are pinned.
+func TestOAuth2AuthCode_ExchangeBodyAndAuthorizeUrlUseTheSharedOrder(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	wantURL := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id" +
+		"&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s"
+	if got := authObj.BuildAuthorizationURL("s"); got != wantURL {
+		t.Errorf("expected authorize URL %q, got %q", wantURL, got)
+	}
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	wantBody := "grant_type=authorization_code&code=C&client_id=my-client-id" +
+		"&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+	if got := client.requests[0].body; got != wantBody {
+		t.Errorf("expected exchange body %q, got %q", wantBody, got)
+	}
+}
+
+// RFC 6749 §6: the refresh authenticates the client like the code exchange
+// did, and a rejected refresh is one POST that surfaces as *OAuth2ServerError.
+func TestOAuth2AuthCode_RefreshCarriesClientCredentialsAndFailsAfterOnePost(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("C"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err := authObj.AuthHeadersOrError()
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) || serverErr.StatusCode() != 400 {
+		t.Fatalf("expected *OAuth2ServerError with status 400, got %T: %v", err, err)
+	}
+	if client.requestCount() != 2 {
+		t.Fatalf("expected the exchange and exactly one refresh POST, got %d requests", client.requestCount())
+	}
+	want := "grant_type=refresh_token&refresh_token=ref1&client_id=my-client-id&client_secret=my-client-secret"
+	if got := client.requests[1].body; got != want {
+		t.Errorf("expected refresh body %q, got %q", want, got)
+	}
+}
+
+// A second ExchangeCode really sends its code, even while the first token is
+// still valid, and its token replaces the first.
+func TestOAuth2AuthCode_SecondExchangeCodeSendsTheNewCode(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("b"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if client.requestCount() != 2 {
+		t.Fatalf("expected 2 token requests, got %d", client.requestCount())
+	}
+	if got := client.requests[1].body; !strings.HasPrefix(got, "grant_type=authorization_code&code=b&") {
+		t.Errorf("expected the second exchange to send code=b, got %q", got)
+	}
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok2" {
+		t.Errorf("expected the second exchange's token, got %q", got)
+	}
+}
+
+// A second exchange whose response has no refresh_token leaves no refresh
+// token behind: the later refresh sends an empty one, not the first session's.
+func TestOAuth2AuthCode_SecondExchangeWithoutRefreshTokenDropsTheOldOne(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"access_token":"tok2","expires_in":1}`, statusCode: 200},
+		{body: `{"access_token":"tok3","expires_in":3600}`, statusCode: 200},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := authObj.ExchangeCode("b"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := client.requests[2].body; !strings.HasPrefix(got, "grant_type=refresh_token&refresh_token=&") {
+		t.Errorf("expected the refresh to carry no refresh token, got %q", got)
+	}
+}
+
+// A rejected exchange keeps the previous session, so a mistyped code does not
+// log the user out.
+func TestOAuth2AuthCode_FailedExchangeKeepsThePreviousSession(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("a"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	err := authObj.ExchangeCode("bad")
+
+	var serverErr *apierrors.OAuth2ServerError
+	if !errors.As(err, &serverErr) {
+		t.Fatalf("expected *OAuth2ServerError, got %T: %v", err, err)
+	}
+	if got := authObj.AuthHeaders()["Authorization"]; got != "Bearer tok1" {
+		t.Errorf("expected the previous token to survive, got %q", got)
 	}
 }

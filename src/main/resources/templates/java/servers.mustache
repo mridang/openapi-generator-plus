@@ -26,18 +26,18 @@ public final class Servers {
 
 {{#serverConfigs}}
     /**
-     * Server {{serverIndex}}: {@code {{serverUrl}}}{{#serverDescription}}
+     * Server {{serverIndex}}: {@code {{{serverUrl}}}}{{#serverDescription}}
      *
-     * <p>{{serverDescription}}{{/serverDescription}}
+     * <p>{{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{/serverDescription}}
      */
     public static final ServerConfiguration SERVER_{{serverIndex}} = new ServerConfiguration(
-            "{{{serverUrl}}}",
-            {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+            "{{#lambda.javaString}}{{{serverUrl}}}{{/lambda.javaString}}",
+            {{#serverDescription}}"{{#lambda.javaString}}{{#lambda.unescapeDocComment}}{{{serverDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javaString}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
             {{#hasVariables}}Map.of(
 {{#serverVariables}}                    "{{varName}}", new ServerVariable(
-                            "{{{varDefault}}}",
-                            {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
-                            {{#hasEnumValues}}List.of({{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}List.of(){{/hasEnumValues}}){{^-last}},{{/-last}}
+                            "{{#lambda.javaString}}{{{varDefault}}}{{/lambda.javaString}}",
+                            {{#varDescription}}"{{#lambda.javaString}}{{#lambda.unescapeDocComment}}{{{varDescription}}}{{/lambda.unescapeDocComment}}{{/lambda.javaString}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                            {{#hasEnumValues}}List.of({{#varEnumValues}}"{{#lambda.javaString}}{{{.}}}{{/lambda.javaString}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}List.of(){{/hasEnumValues}}){{^-last}},{{/-last}}
 {{/serverVariables}}            ){{/hasVariables}}{{^hasVariables}}Map.of(){{/hasVariables}});
 
 {{/serverConfigs}}

@@ -255,6 +255,20 @@ class TestAllowReserved:
         # when reserved characters are preserved.
         assert ValueSerializer.encode_query_allowing_reserved('a b:c') == 'a%20b:c'
 
+    def test_only_query_legal_reserved_chars_stay_literal(self) -> None:
+        assert (
+            ValueSerializer.encode_query_allowing_reserved("a:b/c?d[e]f@g!h$i&j'k(l)m*n+o,p;q=r~s#t u")
+            == "a:b/c?d%5Be%5Df@g!h$i&j'k(l)m*n+o,p;q=r~s%23t%20u"
+        )
+
+    @pytest.mark.parametrize('value', ['.', '..'])
+    def test_path_dot_segment_is_rejected(self, value: str) -> None:
+        with pytest.raises(ValueError, match=r"Path parameter 'name' must not be '\.' or '\.\.'"):
+            ValueSerializer.serialize_styled('name', value, 'path', 'str', None, 'simple', False)
+
+    def test_path_value_with_inner_dots_is_kept(self) -> None:
+        assert ValueSerializer.serialize_styled('name', 'a..b', 'path', 'str', None, 'simple', False) == 'a..b'
+
     def test_maybe_allow_reserved_wraps_only_when_allow_reserved_true(self) -> None:
         assert ValueSerializer.maybe_allow_reserved('plain', False) == 'plain'
         wrapped = ValueSerializer.maybe_allow_reserved('v1/beta', True)

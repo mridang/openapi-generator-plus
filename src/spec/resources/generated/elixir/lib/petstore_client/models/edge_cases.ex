@@ -1,5 +1,6 @@
 # Swagger Petstore - OpenAPI 3.0
-# A simplified Pet Store API for integration testing.
+# A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and
+# #{x}.
 #
 # The version of the OpenAPI document: 1.0.0
 #
@@ -21,7 +22,17 @@ defmodule PetstoreClient.Models.EdgeCases do
           class: String.t() | nil,
           return: String.t() | nil,
           retry_after: Duration.t() | nil,
-          expires_at: DateTime.t() | nil
+          expires_at: DateTime.t() | nil,
+          n2fa: boolean() | nil,
+          separator: PetstoreClient.Models.Separator.t() | nil,
+          null: String.t() | nil,
+          _true: boolean() | nil,
+          _false: boolean() | nil,
+          last_error: PetstoreClient.Models.Error.t() | nil,
+          outcome: PetstoreClient.Models.Result.t() | nil,
+          cutoff: Time.t() | nil,
+          phase: :in_stock | :on_hold | :out_of_stock | nil,
+          slug: String.t() | nil
         }
 
   defstruct [
@@ -34,7 +45,17 @@ defmodule PetstoreClient.Models.EdgeCases do
     :class,
     :return,
     :retry_after,
-    :expires_at
+    :expires_at,
+    :n2fa,
+    :separator,
+    :null,
+    :_true,
+    :_false,
+    :last_error,
+    :outcome,
+    :cutoff,
+    :phase,
+    :slug
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
@@ -50,7 +71,17 @@ defmodule PetstoreClient.Models.EdgeCases do
       class: "class",
       return: "return",
       retry_after: "retryAfter",
-      expires_at: "expiresAt"
+      expires_at: "expiresAt",
+      n2fa: "2fa",
+      separator: "separator",
+      null: "null",
+      _true: "true",
+      _false: "false",
+      last_error: "lastError",
+      outcome: "outcome",
+      cutoff: "cutoff",
+      phase: "phase",
+      slug: "slug"
     }
   end
 
@@ -58,6 +89,33 @@ defmodule PetstoreClient.Models.EdgeCases do
   @spec json_key_map() :: %{String.t() => atom()}
   def json_key_map do
     attribute_map() |> Map.new(fn {k, v} -> {v, k} end)
+  end
+
+  @doc "JSON keys in schema declaration order, the order `ObjectSerializer.serialize/1` writes them in."
+  @spec json_key_order() :: [String.t()]
+  def json_key_order do
+    [
+      "freeFormAny",
+      "favoriteColor",
+      "permissionsNote",
+      "and",
+      "or",
+      "not",
+      "class",
+      "return",
+      "retryAfter",
+      "expiresAt",
+      "2fa",
+      "separator",
+      "null",
+      "true",
+      "false",
+      "lastError",
+      "outcome",
+      "cutoff",
+      "phase",
+      "slug"
+    ]
   end
 
   @doc """
@@ -88,7 +146,17 @@ defmodule PetstoreClient.Models.EdgeCases do
       class: "String.t()",
       return: "String.t()",
       retry_after: "Duration.t()",
-      expires_at: "DateTime.t()"
+      expires_at: "DateTime.t()",
+      n2fa: "boolean()",
+      separator: "Separator",
+      null: "String.t()",
+      _true: "boolean()",
+      _false: "boolean()",
+      last_error: "Error",
+      outcome: "Result",
+      cutoff: "Time.t()",
+      phase: "Enum<in_stock=In-Stock,on_hold=on-hold,out_of_stock=OUT_OF_STOCK>",
+      slug: "String.t()"
     }
   end
 end

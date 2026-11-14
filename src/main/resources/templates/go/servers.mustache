@@ -19,16 +19,16 @@ package {{packageName}}
 //		Server({{packageName}}.Server1, map[string]string{"environment": "staging"})
 var (
 {{#serverConfigs}}
-	/* Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}
-	 * {{serverDescription}}{{/serverDescription}} */
+	/* Server{{serverIndex}} is the server configuration for: {{#goBlockComment}}{{{serverUrl}}}{{/goBlockComment}}{{#serverDescription}}
+	 * {{#goBlockComment}}{{{serverDescription}}}{{/goBlockComment}}{{/serverDescription}} */
 	Server{{serverIndex}} = NewServerConfiguration(
-		"{{{serverUrl}}}",
-		"{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
+		"{{#goStringLiteral}}{{{serverUrl}}}{{/goStringLiteral}}",
+		"{{#serverDescription}}{{#goStringLiteral}}{{{serverDescription}}}{{/goStringLiteral}}{{/serverDescription}}",
 		{{#hasVariables}}map[string]ServerVariable{
-{{#serverVariables}}			"{{{varName}}}": NewServerVariable(
-				"{{{varDefault}}}",
-				"{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
-				{{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
+{{#serverVariables}}			"{{#goStringLiteral}}{{{varName}}}{{/goStringLiteral}}": NewServerVariable(
+				"{{#goStringLiteral}}{{{varDefault}}}{{/goStringLiteral}}",
+				"{{#varDescription}}{{#goStringLiteral}}{{{varDescription}}}{{/goStringLiteral}}{{/varDescription}}",
+				{{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{#goStringLiteral}}{{{.}}}{{/goStringLiteral}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
 			),
 {{/serverVariables}}		}{{/hasVariables}}{{^hasVariables}}map[string]ServerVariable{}{{/hasVariables}},
 	)

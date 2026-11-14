@@ -3,4 +3,5 @@
  */
 export interface GetPetByNameOptions {
   readonly category: string;
+  readonly xCorrelationId: string;
 }

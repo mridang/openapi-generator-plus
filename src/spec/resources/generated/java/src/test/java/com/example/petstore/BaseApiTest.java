@@ -1,5 +1,6 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted"
+// text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -1056,6 +1057,32 @@ class BaseApiTest {
           null,
           null);
       assertEquals("k~%2A=a~b%2Ac%21d%27e%28f%29g+h", client.capturedBody);
+    }
+
+    @Test
+    @DisplayName("form-urlencoded body rejects a nested object field")
+    void formUrlencodedBodyRejectsANestedObjectField() {
+      var client = new CapturingApiClient();
+      var testApi = new TestableApi(client, "http://localhost");
+      Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+      formParams.put("location", Map.of("lat", 1.5));
+      com.example.petstore.errors.SerializationException ex =
+          assertThrowsExactly(
+              com.example.petstore.errors.SerializationException.class,
+              () ->
+                  testApi.call(
+                      "POST",
+                      "/test/echo",
+                      new HashMap<>(),
+                      new HashMap<>(),
+                      formParams,
+                      new String[] {"application/json"},
+                      "application/x-www-form-urlencoded",
+                      null,
+                      null));
+      assertEquals(
+          "form-urlencoded field location must be a scalar or array of scalars", ex.getMessage());
+      assertNull(client.capturedBody);
     }
 
     @Test

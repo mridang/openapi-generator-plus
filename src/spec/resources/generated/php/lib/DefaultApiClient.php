@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -105,6 +105,14 @@ class DefaultApiClient extends AbstractApiClient
                 );
             }
             $options['cafile'] = $caCertPath;
+            /* The configured CA must be the only trust anchor. libcurl adds
+             * its compiled-in CA directory (e.g. /etc/ssl/certs) to CAINFO
+             * unless CAPATH is set, so a server with a public certificate
+             * would still be accepted. OpenSSL looks a CAPATH up as
+             * <dir>/<hash>.0, and a file path holds no such entries, so
+             * pointing it at the CA file itself leaves the configured CA as
+             * the sole root for both the curl and the native transport. */
+            $options['capath'] = $caCertPath;
         }
 
         if ($this->transportOptions->proxy !== null) {
@@ -163,6 +171,37 @@ class DefaultApiClient extends AbstractApiClient
     }
 
     /**
+     * Builds a JSON form field part for a model or map value.
+     *
+     * The part carries exactly Content-Disposition then
+     * `Content-Type: application/json`, like the in-memory encoder of
+     * {@see Psr18ApiClient}. Symfony's DataPart would put Content-Type first
+     * and add a Content-Transfer-Encoding of 8bit.
+     */
+    private function jsonFormPart(string $json): DataPart
+    {
+        return new class ($json) extends DataPart {
+            public function __construct(string $json)
+            {
+                parent::__construct($json, null, 'application/json');
+            }
+
+            public function getPreparedHeaders(): Headers
+            {
+                $prepared = parent::getPreparedHeaders();
+                $headers = new Headers();
+                $disposition = $prepared->get('Content-Disposition');
+                if ($disposition instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
+                    $headers->add($disposition);
+                }
+                $headers->addTextHeader('Content-Type', 'application/json');
+
+                return $headers;
+            }
+        };
+    }
+
+    /**
      * Perform a single Symfony HTTP request with no automatic redirect
      * following, returning the raw status, body, and multi-value headers.
      *
@@ -192,12 +231,13 @@ class DefaultApiClient extends AbstractApiClient
                 $values = is_array($value) ? $value : [$value];
                 $parts = [];
                 foreach ($values as $v) {
-                    if (is_object($v) && !($v instanceof \SplFileObject)) {
-                        $parts[] = new DataPart(
-                            ObjectSerializer::serialize($v),
-                            null,
-                            'application/json'
-                        );
+                    /* A primitive (scalar, date-time, enum, uuid, duration) is a plain
+                     * text part in its stringify form with no part Content-Type; only
+                     * a model or map is an application/json part. */
+                    if (ObjectSerializer::isPrimitiveValue($v)) {
+                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
+                    } elseif (is_object($v) && !($v instanceof \SplFileObject)) {
+                        $parts[] = $this->jsonFormPart(ObjectSerializer::serialize($v));
                     } elseif ($v instanceof \SplFileObject) {
                         $path = $v->getRealPath();
                         $filename = $v->getFilename();
@@ -246,8 +286,6 @@ class DefaultApiClient extends AbstractApiClient
                         } finally {
                             fclose($v);
                         }
-                    } elseif (is_scalar($v)) {
-                        $parts[] = $this->plainFormPart(ObjectSerializer::stringify($v));
                     } else {
                         $parts[] = $this->plainFormPart('');
                     }

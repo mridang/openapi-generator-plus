@@ -45,6 +45,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPythonCodegen.class);
 
+
+    /** An identifier inside a Python type annotation (dotted names kept whole). */
+    private static final Pattern TYPE_NAME_TOKEN = Pattern.compile("[A-Za-z_][A-Za-z0-9_.]*");
+
+    /** Generic names an options annotation may use, imported from typing. */
+    private static final Set<String> TYPING_NAMES = Set.of("List", "Dict", "Set", "Optional", "Any", "Union");
+
     /** Maps Python built-in datatype names to their required import statement. */
     private static final Map<String, String> TYPE_IMPORTS;
 
@@ -181,6 +188,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 // `<pkg>.models.OffsetDateTime`. Its real import
                                 // comes from getPropertyTypeImportMap.
                                 "OffsetDateTime",
+                                // PasswordStr (format: password) is the
+                                // `<pkg>._types` SecretStr alias that writes the
+                                // real value on the JSON wire; its import comes
+                                // from getPropertyTypeImportMap.
+                                "PasswordStr",
                                 "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional",
                                 // Pydantic 2 native types treated as primitives so the
@@ -357,7 +369,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             OperationsMap objs, List<ModelMap> allModels) {
         final Map<String, Object> operations =
                 (Map<String, Object>) objs.get("operations");
-        boolean needsDateImport = false;
+        final Set<String> scalarImports = new TreeSet<>();
         if (operations != null) {
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
@@ -372,7 +384,20 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                             "hasMultipleConsumes", hasMultipleConsumes);
                     for (final CodegenParameter param : op.allParams) {
                         if (param.isDate) {
-                            needsDateImport = true;
+                            scalarImports.add("from datetime import date");
+                        }
+                        /* uuid.UUID, datetime.time and datetime.timedelta are
+                         * lowercase dotted names the superclass import cleanup
+                         * drops just like date. */
+                        if (param.dataType != null) {
+                            final java.util.regex.Matcher names =
+                                    TYPE_NAME_TOKEN.matcher(param.dataType);
+                            while (names.find()) {
+                                final String name = names.group();
+                                if (name.indexOf('.') > 0 && TYPE_IMPORTS.containsKey(name)) {
+                                    scalarImports.add(TYPE_IMPORTS.get(name));
+                                }
+                            }
                         }
                     }
                 }
@@ -391,16 +416,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // name starts lowercase (a heuristic for bogus primitive imports), and
         // `date` is a legitimate lowercase class name it would otherwise drop.
         // Deduped against imports the model machinery already added.
-        if (needsDateImport) {
-            final List<Map<String, String>> imports =
-                    (List<Map<String, String>>) processed.get("imports");
-            if (imports != null) {
-                final String dateImport = "from datetime import date";
+        final List<Map<String, String>> imports =
+                (List<Map<String, String>>) processed.get("imports");
+        if (imports != null) {
+            for (final String scalarImport : scalarImports) {
                 final boolean alreadyPresent = imports.stream()
-                        .anyMatch(m -> dateImport.equals(m.get("import")));
+                        .anyMatch(m -> scalarImport.equals(m.get("import")));
                 if (!alreadyPresent) {
                     final Map<String, String> entry = new HashMap<>();
-                    entry.put("import", dateImport);
+                    entry.put("import", scalarImport);
                     imports.add(entry);
                 }
             }
@@ -477,7 +501,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         packageName = getPropertyOrDefault("packageName", packageName);
         packageVersion =
                 getPropertyOrDefault(CodegenConstants.PACKAGE_VERSION, packageVersion);
-        additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (python)");
+        /* The product token is the published PyPI distribution name (the
+         * pyproject name), not the import package, so the UA names what users
+         * install. */
+        final String distributionName = getPropertyOrDefault("projectName", packageName);
+        additionalProperties.put(
+                "userAgentDefault", distributionName + "/" + packageVersion + " (python)");
 
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
@@ -739,15 +768,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
     /**
-     * Overrides the base class because Python uses triple-quote
-     * docstrings instead of block comments. Breaks triple-quote
-     * sequences to prevent accidental docstring closure. Cannot
-     * be standardized because other languages use block comments
-     * (handled by the base class).
+     * Keeps spec prose verbatim. Python has no block comments, so the base
+     * class's comment-close rule does not apply, and every docstring the
+     * templates emit is double-quoted while escapeText already turns each
+     * double quote into an escaped one, so no prose sequence can close a
+     * docstring early. A triple single quote is therefore harmless and must
+     * not be rewritten.
+     *
+     * @param input the escaped prose
+     * @return the prose unchanged
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
-        return input.replace("'''", "'_'_'");
+        return input;
+    }
+
+    /**
+     * Keeps the spec pattern as written. The upstream default wraps it in
+     * Perl-style slash delimiters, which Python's re treats as literal
+     * characters, so no value could ever match.
+     *
+     * @param pattern the spec pattern
+     * @return the pattern unchanged
+     */
+    @Override
+    public String toRegularExpression(String pattern) {
+        return pattern;
     }
 
     /**
@@ -762,12 +808,32 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
         if (unaliased.getDefault() != null) {
+            /* A default written next to a $ref to an enum component (OAS 3.1
+             * sibling keywords): construct the enum member from its wire
+             * value, never the bare text (on-hold would parse as on - hold). */
+            String enumRef = unaliased.get$ref();
+            if (enumRef == null
+                    && unaliased.getAllOf() != null
+                    && unaliased.getAllOf().size() == 1) {
+                enumRef = ((Schema) unaliased.getAllOf().get(0)).get$ref();
+            }
+            if (enumRef != null && unaliased.getDefault() instanceof String) {
+                final Schema target = ModelUtils.getSchema(
+                        this.openAPI, ModelUtils.getSimpleRef(enumRef));
+                if (target != null && target.getEnum() != null) {
+                    return toModelName(ModelUtils.getSimpleRef(enumRef)) + "("
+                            + quoteEnumValue(escapeEnumStringValue(
+                                    unaliased.getDefault().toString())) + ")";
+                }
+            }
             if (ModelUtils.isBooleanSchema(unaliased)) {
                 return Boolean.parseBoolean(unaliased.getDefault().toString()) ? "True" : "False";
             }
             if (ModelUtils.isStringSchema(unaliased)) {
-                String val = unaliased.getDefault().toString();
-                return "'" + val.replace("'", "\\'") + "'";
+                // Same literal escaping as a string enum constant: backslash,
+                // quote and control characters, so the default evaluates to
+                // exactly the spec string.
+                return quoteEnumValue(escapeEnumStringValue(unaliased.getDefault().toString()));
             }
             return unaliased.getDefault().toString();
         }
@@ -794,8 +860,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
      *       the type from {@code HttpUrl} back to {@code str} — these may
      *       be relative or contain RFC 6570 placeholders.</li>
      *   <li>{@code format: email} → {@code EmailStr} (Item 2).</li>
-     *   <li>{@code format: password} → {@code SecretStr} (Item 3) — redacts
-     *       in {@code __repr__}/{@code __str__}.</li>
+     *   <li>{@code format: password} → the {@code <pkg>._types}
+     *       {@code PasswordStr} alias (Item 3): a {@code SecretStr} that redacts
+     *       in {@code __repr__}/{@code __str__} but writes the real value on
+     *       the JSON wire.</li>
      *   <li>{@code format: ipv4} → stdlib {@code ipaddress.IPv4Address}
      *       (Item 4).</li>
      *   <li>{@code format: ipv6} → stdlib {@code ipaddress.IPv6Address}
@@ -845,8 +913,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 property.datatypeWithEnum = "EmailStr";
                 break;
             case "password":
-                property.dataType = "SecretStr";
-                property.datatypeWithEnum = "SecretStr";
+                property.dataType = "PasswordStr";
+                property.datatypeWithEnum = "PasswordStr";
                 break;
             case "ipv4":
                 property.dataType = "IPv4Address";
@@ -942,11 +1010,37 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /** {@inheritDoc} */
     @Override
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // Only an inline enum's reference ({@code ModeEnum.MEDIUM}) is
+        // qualified; a number default such as 1.5 also contains a dot.
         if (prop.defaultValue != null
+                && prop.isEnum
                 && prop.defaultValue.contains(".")
                 && !prop.defaultValue.startsWith("'")
                 && !prop.defaultValue.startsWith(model.classname)) {
             prop.defaultValue = model.classname + prop.defaultValue;
+        }
+        /* A bare type: number field is JsonNumber (a Decimal alias). pydantic
+         * does not validate defaults, so a float literal would leave a float in
+         * a Decimal field; build the Decimal from the spec text instead. */
+        if (prop.defaultValue != null
+                && "JsonNumber".equals(prop.dataType)
+                && isNumericLiteral(prop.defaultValue)) {
+            prop.defaultValue = "Decimal(\"" + prop.defaultValue + "\")";
+        }
+    }
+
+    /**
+     * Whether a default value is a plain number literal.
+     *
+     * @param value the rendered default
+     * @return true when it parses as a decimal number
+     */
+    private static boolean isNumericLiteral(String value) {
+        try {
+            new java.math.BigDecimal(value);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 
@@ -1003,6 +1097,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         // Base64Bytes (format: byte) is the `<pkg>._types` alias that keeps raw
         // bytes in memory and base64 only on the wire; it replaces pydantic's.
         map.put("Base64Bytes", "from " + packageName + "._types import Base64Bytes");
+        // PasswordStr (format: password) is the `<pkg>._types` SecretStr alias
+        // whose JSON serializer writes the real value instead of the mask.
+        map.put("PasswordStr", "from " + packageName + "._types import PasswordStr");
         return map;
     }
 
@@ -1277,6 +1374,31 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                                 + toModelFilename(p.items.baseType)
                                 + " import "
                                 + p.items.baseType);
+            }
+        }
+        /* Every name inside a parameter annotation must resolve: a uniqueItems
+         * array is Set[StrictStr], a content-encoded or styled object parameter
+         * carries its model name only in dataType (baseType is null), and a
+         * container nests strict scalars. Scan each annotation's identifiers. */
+        for (final CodegenParameter p : optionsParams) {
+            if (p.dataType == null) {
+                continue;
+            }
+            final java.util.regex.Matcher names = TYPE_NAME_TOKEN.matcher(p.dataType);
+            while (names.find()) {
+                final String name = names.group();
+                if (TYPING_NAMES.contains(name)) {
+                    if (!typingNames.contains(name)) {
+                        typingNames.add(name);
+                    }
+                } else if (TYPE_IMPORTS.containsKey(name)) {
+                    addTypeImport(importSet, name);
+                } else if (Character.isUpperCase(name.charAt(0))
+                        && name.indexOf('.') < 0
+                        && !languageSpecificPrimitives.contains(name)) {
+                    importSet.add("from " + modelPackage + "." + toModelFilename(name)
+                            + " import " + name);
+                }
             }
         }
         if (needsOptional && !typingNames.contains("Optional")) {

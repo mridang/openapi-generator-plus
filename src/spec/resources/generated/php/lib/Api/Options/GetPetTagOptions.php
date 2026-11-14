@@ -2,7 +2,7 @@
 
 /**
  * Swagger Petstore - OpenAPI 3.0
- * A simplified Pet Store API for integration testing.
+ * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
  *
  * The version of the OpenAPI document: 1.0.0
  *
@@ -12,6 +12,8 @@
 declare(strict_types=1);
 
 namespace PetstoreClient\Api\Options;
+
+use PetstoreClient\Models\PetCriteria;
 
 /**
  * Options for the getPetTag operation.
@@ -27,6 +29,12 @@ class GetPetTagOptions
         public readonly ?array $sizes = null,
         public readonly ?string $filter = null,
         public readonly ?string $revision = null,
+        public readonly ?PetCriteria $criteria = null,
+        public readonly ?PetCriteria $criteriaCsv = null,
+        public readonly ?PetCriteria $criteriaDeep = null,
+        public readonly ?string $fingerprint = null,
+        public readonly ?PetCriteria $xCriteria = null,
+        public readonly ?string $xFingerprint = null,
     ) {
     }
 }

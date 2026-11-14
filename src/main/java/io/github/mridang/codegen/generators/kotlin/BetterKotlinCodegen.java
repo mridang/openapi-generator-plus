@@ -186,6 +186,125 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return NamingConvention.UPPER_SNAKE_CASE;
     }
 
+    /**
+     * Escapes the {@code $} template sigil of a Kotlin string literal; the
+     * backslash, the quote and the control characters are escaped by the
+     * shared enum literal escape.
+     */
+    @Override
+    protected List<String[]> getEnumStringEscapes() {
+        return List.<String[]>of(new String[] {"\\$", "\\\\\\$"});
+    }
+
+    /**
+     * Escapes raw spec text for the body of a Kotlin double-quoted string
+     * literal so the literal evaluates to exactly the spec's characters: the
+     * backslash, the quote, the template sigil {@code $} and the control
+     * characters newline, carriage return and tab are escaped.
+     *
+     * @param raw the unescaped text
+     * @return the literal body, without the surrounding quotes
+     */
+    static String escapeKotlinString(@Nullable String raw) {
+        if (raw == null) {
+            return "";
+        }
+        final StringBuilder sb = new StringBuilder(raw.length());
+        for (int i = 0; i < raw.length(); i++) {
+            final char c = raw.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '"') {
+                sb.append("\\\"");
+            } else if (c == '$') {
+                sb.append("\\$");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Splits an already-escaped string literal body into a concatenation of
+     * short literals, one per line, so a long spec text stays under the line
+     * length limit. A chunk never ends inside an escape sequence.
+     */
+    private static String chunkKotlinString(String body) {
+        final int max = 80;
+        if (body.length() <= max) {
+            return body;
+        }
+        final StringBuilder sb = new StringBuilder();
+        int start = 0;
+        while (start < body.length()) {
+            int end = Math.min(start + max, body.length());
+            while (end < body.length() && end > start + 1 && endsInsideEscape(body, start, end)) {
+                end--;
+            }
+            if (start > 0) {
+                sb.append("\" +\n                        \"");
+            }
+            sb.append(body, start, end);
+            start = end;
+        }
+        return sb.toString();
+    }
+
+    /** True when {@code body[start, end)} ends with an odd run of backslashes. */
+    private static boolean endsInsideEscape(String body, int start, int end) {
+        int count = 0;
+        for (int i = end - 1; i >= start && body.charAt(i) == '\\'; i--) {
+            count++;
+        }
+        return count % 2 != 0;
+    }
+
+    /**
+     * Neutralises the comment delimiters in prose placed inside a KDoc block.
+     * Kotlin block comments nest, so an opening delimiter is as harmful as a
+     * closing one.
+     */
+    private static String escapeKdoc(@Nullable String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.replace("*/", "* /").replace("/*", "/ *");
+    }
+
+    /**
+     * Registers the Kotlin escaping lambdas: {@code kotlinString} escapes raw
+     * text for a string literal body, {@code kotlinDollar} escapes only the
+     * template sigil in text that is already string-escaped, and {@code kdoc}
+     * neutralises comment delimiters in doc prose.
+     */
+    @Override
+    protected com.google.common.collect.ImmutableMap.Builder<
+                    String, com.samskivert.mustache.Mustache.Lambda>
+            addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "kotlinString",
+                        (fragment, writer) ->
+                                writer.write(escapeKotlinString(fragment.execute())))
+                .put(
+                        "kotlinDollar",
+                        (fragment, writer) ->
+                                writer.write(fragment.execute().replace("$", "\\$")))
+                .put(
+                        "kotlinChunked",
+                        (fragment, writer) -> writer.write(chunkKotlinString(fragment.execute())))
+                .put(
+                        "kdoc",
+                        (fragment, writer) -> writer.write(escapeKdoc(fragment.execute())));
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
@@ -341,7 +460,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         final String artifactVersion = getPropertyOrDefault("artifactVersion", "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
         additionalProperties.put(
-                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (kotlin)");
+                "userAgentDefault", artifactId + "/" + artifactVersion + " (kotlin)");
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
@@ -549,18 +668,34 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             // when the key is missing). String defaults become quoted literals;
             // numeric and boolean defaults are emitted verbatim.
             if (ModelUtils.isStringSchema(unaliased)) {
-                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+                return "\"" + escapeKotlinString(String.valueOf(unaliased.getDefault())) + "\"";
             }
+            final String raw = String.valueOf(unaliased.getDefault());
             if (ModelUtils.isLongSchema(unaliased)) {
-                return String.valueOf(unaliased.getDefault()) + "L";
+                return raw + "L";
             }
-            if (ModelUtils.isIntegerSchema(unaliased)
-                    || ModelUtils.isNumberSchema(unaliased)
-                    || ModelUtils.isBooleanSchema(unaliased)) {
-                return String.valueOf(unaliased.getDefault());
+            // Each numeric default is a literal of the field's exact type:
+            // Float needs the f suffix, Double a decimal point, and the
+            // format-less number (BigDecimal) an exact-text constructor.
+            if (ModelUtils.isFloatSchema(unaliased)) {
+                return withDecimalPoint(raw) + "f";
+            }
+            if (ModelUtils.isDoubleSchema(unaliased)) {
+                return withDecimalPoint(raw);
+            }
+            if (ModelUtils.isNumberSchema(unaliased)) {
+                return "java.math.BigDecimal(\"" + raw + "\")";
+            }
+            if (ModelUtils.isIntegerSchema(unaliased) || ModelUtils.isBooleanSchema(unaliased)) {
+                return raw;
             }
         }
         return null;
+    }
+
+    /** Appends {@code .0} to an integral numeric literal. */
+    private static String withDecimalPoint(String raw) {
+        return raw.contains(".") || raw.contains("e") || raw.contains("E") ? raw : raw + ".0";
     }
 
     /**
@@ -719,6 +854,18 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     && !typeMapping.containsValue(p.items.baseType)) {
                 modelTypes.add(p.items.baseType);
             }
+            // An object-valued query/header parameter (style form/deepObject, or
+            // OAS `content`) may carry its model type only in dataType.
+            if (p.dataType != null
+                    && p.dataType.matches("[A-Z][A-Za-z0-9_]*")
+                    && !languageSpecificPrimitives.contains(p.dataType)
+                    && !typeMapping.containsValue(p.dataType)
+                    && !importMapping.containsKey(p.dataType)
+                    && (p.isModel || p.isEnumRef || p.getContent() != null || p.isFreeFormObject
+                            || "deepObject".equals(p.style) || "form".equals(p.style)
+                            || "simple".equals(p.style))) {
+                modelTypes.add(p.dataType);
+            }
         }
 
         // Parameters typed as a JVM stdlib surface (e.g. an OffsetDateTime
@@ -812,6 +959,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         // property through the protobuf-JSON DurationSerializer registered in the
         // SerializersModule.
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        property.vendorExtensions.put("isLocalTime", "LocalTime".equals(property.dataType));
     }
 
     /**

@@ -1,5 +1,5 @@
 // Swagger Petstore - OpenAPI 3.0
-// A simplified Pet Store API for integration testing.
+// A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, \"quoted\" text, it's $USD and #{x}.
 //
 // The version of the OpenAPI document: 1.0.0
 //
@@ -56,6 +56,28 @@ class OAuth2ImplicitAuthenticatorTest {
         val url = auth.buildAuthorizationUrl("my-state")
 
         assertTrue(url.contains("state=my-state"))
+    }
+
+    @Test
+    fun emptyStateIsOmittedFromTheAuthorizationUrl() {
+        val auth = createAuthenticator()
+
+        val url = auth.buildAuthorizationUrl("")
+
+        assertFalse(url.contains("state"), url)
+        assertEquals(auth.buildAuthorizationUrl(null), url)
+    }
+
+    @Test
+    fun emptyAccessTokenIsTreatedAsUnset() {
+        val auth = createAuthenticator()
+        auth.setAccessToken("")
+
+        val ex =
+            assertThrowsExactly(IllegalStateException::class.java) {
+                runBlocking { auth.getAuthHeaders() }
+            }
+        assertEquals("Must set the access token before making API requests", ex.message)
     }
 
     @Test

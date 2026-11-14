@@ -1943,6 +1943,32 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "form body rejects a nested map field" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: BodyCapturingApiClient}
+
+    body = %{"location" => %{"lat" => 1.5}}
+
+    assert_raise PetstoreClient.Errors.SerializationError,
+                 "form-urlencoded field location must be a scalar or array of scalars",
+                 fn ->
+                   PetstoreClient.Api.BaseApi.invoke_api(
+                     state,
+                     :post,
+                     "/test/echo",
+                     %{},
+                     %{},
+                     body,
+                     ["application/json"],
+                     "application/x-www-form-urlencoded",
+                     nil
+                   )
+                 end
+
+    Agent.stop(name)
+  end
+
   # Behavior #4: a multipart file part derives its Content-Type from the
   # filename extension (.png -> image/png), falling back to
   # application/octet-stream for an unknown/extension-less filename.
