@@ -92,11 +92,16 @@ case "$cmd" in
       specs="$(printf '%s*Spec,' "$@")"
       run_step verify "$m" -B verify "-Dit.test=${specs%,}" -DfailIfNoTests=false
     fi
-    if [ -z "$dirty_before" ] && [ -n "$(git status --porcelain -- src/spec/resources/generated)" ]; then
-      echo "FAIL  regenerate  the committed goldens differ from a fresh regeneration:"
-      git status --porcelain -- src/spec/resources/generated | head -20
+    # go.mod and go.sum follow upstream module releases, so they drift without any change
+    # here; everything else regenerated must match what is committed.
+    generated=(src/spec/resources/generated generated-code
+      ':(exclude)src/spec/resources/generated/go/go.mod' ':(exclude)src/spec/resources/generated/go/go.sum')
+    if [ -z "$dirty_before" ] && [ -n "$(git status --porcelain -- "${generated[@]}")" ]; then
+      echo "FAIL  regenerate  the committed generated code differs from a fresh regeneration:"
+      git status --porcelain -- "${generated[@]}" | head -20
       exit 1
     fi
+    git checkout -q -- src/spec/resources/generated/go/go.mod src/spec/resources/generated/go/go.sum
     echo "ok    regenerate"
     if [ "$quick" -eq 0 ] && [ "$#" -eq 0 ] && [ -z "$dirty_before" ]; then
       mkdir -p "$marks"
