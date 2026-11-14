@@ -18,6 +18,22 @@ const PR = args.pr
 const RETRIES = args.retries ?? 2
 const LANGS = ['java', 'kotlin', 'csharp', 'php', 'python', 'ruby', 'node', 'dart', 'go', 'rust', 'swift', 'elixir']
 
+const MODEL = { 'parity-planner': 'opus', 'parity-guard': 'opus' }
+
+/* Runs an agent as its custom type (.claude/agents/<type>.md). A session that started
+ * before the agent files existed has not loaded them; the agent then runs as the default
+ * type on the same model and reads its definition first. */
+async function role(prompt, opts) {
+  const type = opts.agentType
+  try {
+    return await agent(prompt, opts)
+  } catch (e) {
+    if (!/agent type .* not found/.test(String(e))) throw e
+    return agent(`Your instructions are the body of ${PR}/.claude/agents/${type}.md (below its front matter): read that file first and follow it exactly; you are the ${type} agent.\n\n${prompt}`,
+      { ...opts, agentType: undefined, model: MODEL[type] || 'sonnet' })
+  }
+}
+
 const PLAN = {
   type: 'object',
   properties: {
@@ -75,7 +91,7 @@ const STEP = {
 function implement(set, plan, pre, lang, base, feedback) {
   const task = plan.tasks.find(t => t.language === lang)
   const state = pre.find(p => p.language === lang)
-  return agent(
+  return role(
     `Change set ${set.slug} (ledger ${set.ids.join(',')}). Base commit ${base}; branch parity/${set.slug}-${lang}` +
     (feedback ? ' (it already exists: check it out and continue on it; do not reset it).' : '.') +
     `\n\nCANONICAL BEHAVIOUR (all twelve SDKs):\n${plan.canonical}\n\nYOUR TASK (${lang}):\n${task ? task.task : 'Bring ' + lang + ' to the canonical behaviour.'}` +
@@ -92,17 +108,17 @@ let head = args.base
 const moved = step => { if (step && /^[0-9a-f]{7,40}$/.test(step.commit || '')) head = step.commit; return step }
 for (const set of args.sets) {
   phase('Plan')
-  const plan = await agent(`Plan change set ${set.slug} for ledger items ${set.ids.join(',')}.`, { label: `${set.slug}:plan`, phase: 'Plan', agentType: 'parity-planner', schema: PLAN })
+  const plan = await role(`Plan change set ${set.slug} for ledger items ${set.ids.join(',')}.`, { label: `${set.slug}:plan`, phase: 'Plan', agentType: 'parity-planner', schema: PLAN })
   if (!plan) { summary.push(`${set.slug}: planner failed`); continue }
   if (plan.verdict !== 'work') {
-    moved(await agent(`In ${PR}, record ledger items ${set.ids.join(',')} as ${plan.verdict === 'already-fixed' ? 'fixed' : plan.verdict} with note "${plan.reason.replace(/"/g, "'").slice(0, 300)}" (python3 etc/parity-findings.py set <ids> <status> "<note>", then render), and commit the ledger as "docs: record ${set.slug} in the findings ledger".${allowNote(plan)}`,
+    moved(await role(`In ${PR}, record ledger items ${set.ids.join(',')} as ${plan.verdict === 'already-fixed' ? 'fixed' : plan.verdict} with note "${plan.reason.replace(/"/g, "'").slice(0, 300)}" (python3 etc/parity-findings.py set <ids> <status> "<note>", then render), and commit the ledger as "docs: record ${set.slug} in the findings ledger".${allowNote(plan)}`,
       { label: `${set.slug}:record`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP }))
     summary.push(`${set.slug}: ${plan.verdict} (${plan.reason.slice(0, 120)})`)
     continue
   }
 
   phase('Pre-flight')
-  const pre = (await agent(`Pre-flight for change set ${set.slug}, area "${plan.area}". Canonical behaviour:\n${plan.canonical}\n\nPlanned tasks:\n${JSON.stringify(plan.tasks)}`,
+  const pre = (await role(`Pre-flight for change set ${set.slug}, area "${plan.area}". Canonical behaviour:\n${plan.canonical}\n\nPlanned tasks:\n${JSON.stringify(plan.tasks)}`,
     { label: `${set.slug}:preflight`, phase: 'Pre-flight', agentType: 'parity-preflight', schema: PREFLIGHT }))?.languages ?? []
   const work = LANGS.filter(l => {
     const t = plan.tasks.find(x => x.language === l)
@@ -113,11 +129,11 @@ for (const set of args.sets) {
   let base = head
   if (plan.shared_task && plan.shared_task.trim() && plan.shared_task.trim().toLowerCase() !== 'none') {
     phase('Shared')
-    const shared = await agent(`Change set ${set.slug} (ledger ${set.ids.join(',')}). Base commit ${base}; branch parity/${set.slug}-shared.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nSHARED TASK:\n${plan.shared_task}`,
+    const shared = await role(`Change set ${set.slug} (ledger ${set.ids.join(',')}). Base commit ${base}; branch parity/${set.slug}-shared.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nSHARED TASK:\n${plan.shared_task}`,
       { label: `${set.slug}:shared`, phase: 'Shared', agentType: 'sdk-shared', isolation: 'worktree', schema: REPORT })
     if (!shared || !shared.validation.passed || !/^[0-9a-f]{7,40}$/.test(shared.commit)) {
       summary.push(`${set.slug}: parked, shared step failed (${shared ? shared.validation.notes.slice(0, 120) : 'no report'})`)
-      moved(await agent(`In ${PR}, mark ledger items ${set.ids.join(',')} parked with note "shared step failed in ${set.slug}" (python3 etc/parity-findings.py set <ids> parked "<note>", render) and commit the ledger as "docs: record ${set.slug} in the findings ledger".`,
+      moved(await role(`In ${PR}, mark ledger items ${set.ids.join(',')} parked with note "shared step failed in ${set.slug}" (python3 etc/parity-findings.py set <ids> parked "<note>", render) and commit the ledger as "docs: record ${set.slug} in the findings ledger".`,
         { label: `${set.slug}:record`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP }))
       continue
     }
@@ -130,10 +146,10 @@ for (const set of args.sets) {
     const branches = reports.filter(r => r.validation.passed && /^[0-9a-f]{7,40}$/.test(r.commit)).map(r => r.branch)
     const broken = work.filter(l => !reports.find(r => r.language === l && r.validation.passed))
     phase('Integrate')
-    const staged = await agent(`In ${PR} (branch feat/better-generated-clients, if a previous attempt left a merge in progress run git merge --abort first), stage change set ${set.slug}: merge ${base !== head ? 'parity/' + set.slug + '-shared ' : ''}${branches.join(' ')} with --no-commit.`,
+    const staged = await role(`In ${PR} (branch feat/better-generated-clients, if a previous attempt left a merge in progress run git merge --abort first), stage change set ${set.slug}: merge ${base !== head ? 'parity/' + set.slug + '-shared ' : ''}${branches.join(' ')} with --no-commit.`,
       { label: `${set.slug}:stage${attempt}`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     phase('Guard')
-    verdict = await agent(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
+    verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
       { label: `${set.slug}:guard${attempt}`, phase: 'Guard', agentType: 'parity-guard', schema: VERDICT })
     if (verdict && verdict.approved) break
     if (attempt === RETRIES || !verdict) break
@@ -147,12 +163,12 @@ for (const set of args.sets) {
   phase('Integrate')
   const found = [...(verdict?.new_findings ?? []), ...reports.flatMap(r => (r.discovered ?? []).map(d => ({ title: d.slice(0, 200), severity: 'medium', languages: [r.language], description: d })))]
   if (verdict && verdict.approved) {
-    const done = await agent(`In ${PR}, the parity-guard approved the staged change set ${set.slug}. Commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}.${allowNote(plan)}`,
+    const done = await role(`In ${PR}, the parity-guard approved the staged change set ${set.slug}. Commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}.${allowNote(plan)}`,
       { label: `${set.slug}:commit`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     summary.push(`${set.slug}: ${done && done.ok ? 'landed ' + (done.commit || '') : 'gate failed: ' + (done ? done.notes.slice(0, 160) : 'no report')}`)
     moved(done)
   } else {
-    moved(await agent(`In ${PR}, run git merge --abort if a merge is in progress. Mark ledger items ${set.ids.join(',')} parked with note "parity-guard rejected ${set.slug}: ${(verdict ? verdict.summary : 'no verdict').replace(/"/g, "'").slice(0, 300)}", add these new findings (JSON list in a temp file): ${JSON.stringify(found)}, render, and commit the ledger as "docs: record ${set.slug} in the findings ledger".`,
+    moved(await role(`In ${PR}, run git merge --abort if a merge is in progress. Mark ledger items ${set.ids.join(',')} parked with note "parity-guard rejected ${set.slug}: ${(verdict ? verdict.summary : 'no verdict').replace(/"/g, "'").slice(0, 300)}", add these new findings (JSON list in a temp file): ${JSON.stringify(found)}, render, and commit the ledger as "docs: record ${set.slug} in the findings ledger".`,
       { label: `${set.slug}:park`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP }))
     summary.push(`${set.slug}: parked (${verdict ? verdict.summary.slice(0, 160) : 'no verdict'})`)
   }
