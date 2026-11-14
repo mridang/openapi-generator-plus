@@ -13,9 +13,18 @@ export const meta = {
 }
 
 /* args: { pr: <absolute path of the PR worktree>, base: <PR branch head sha>,
- *         sets: [{ slug, ids: ['F016', ...] }, ...], retries?: 2 } */
+ *         sets: [{ slug, ids: ['F016', ...] }, ...], retries?: 2, width?: 4 } */
 const PR = args.pr
 const RETRIES = args.retries ?? 2
+/* Language agents running at once. Each runs its own Docker specs, so this bounds load
+ * even in a session whose Docker hook is not active. */
+const WIDTH = args.width ?? 4
+
+async function batched(thunks) {
+  const out = []
+  for (let i = 0; i < thunks.length; i += WIDTH) out.push(...await parallel(thunks.slice(i, i + WIDTH)))
+  return out
+}
 const LANGS = ['java', 'kotlin', 'csharp', 'php', 'python', 'ruby', 'node', 'dart', 'go', 'rust', 'swift', 'elixir']
 
 const MODEL = { 'parity-planner': 'opus', 'parity-guard': 'opus' }
@@ -140,7 +149,7 @@ for (const set of args.sets) {
     base = shared.commit
   }
 
-  let reports = (await parallel(work.map(l => () => implement(set, plan, pre, l, base, null)))).filter(Boolean)
+  let reports = (await batched(work.map(l => () => implement(set, plan, pre, l, base, null)))).filter(Boolean)
   let verdict = null
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     const branches = reports.filter(r => r.validation.passed && /^[0-9a-f]{7,40}$/.test(r.commit)).map(r => r.branch)
@@ -155,7 +164,7 @@ for (const set of args.sets) {
     if (attempt === RETRIES || !verdict) break
     const failing = [...new Set([...broken, ...verdict.failures.map(f => f.language).filter(l => LANGS.includes(l))])]
     log(`${set.slug}: guard rejected attempt ${attempt + 1}; retrying ${failing.join(', ')}`)
-    const again = (await parallel(failing.map(l => () => implement(set, plan, pre, l, base,
+    const again = (await batched(failing.map(l => () => implement(set, plan, pre, l, base,
       verdict.failures.filter(f => f.language === l || !LANGS.includes(f.language)).map(f => `- ${f.problem} -> ${f.fix}`).join('\n') || 'Deliver a green branch.')))).filter(Boolean)
     reports = [...reports.filter(r => !failing.includes(r.language)), ...again]
   }
