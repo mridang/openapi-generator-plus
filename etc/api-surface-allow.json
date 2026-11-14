@@ -1,0 +1,685 @@
+{
+ "about": "Forced or idiom-only API-surface differences that `etc/api-surface.py check` must not report. Each rule names the element glob(s) (normalised keys, as `check` prints them), the aspect (type, kind, cases, member, params, optional, returns, ctor, ctor-optional, prop-optional, or *), the languages it covers, and the language feature that forces it. Optional `value` narrows the rule to a reported value glob; optional `kind` to a member that is a prop or a method in that language. Anything not listed here is a defect with a canonical decision in API_SURFACE.md.",
+ "allow": [
+  {
+   "element": [
+    "*.tryauthheaders",
+    "*.ashttpawaremut"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "AGENTS.md forced: rust has no exceptions (try_auth_headers is the Result variant) and trait objects have no RTTI (as_http_aware_mut is the downcast hook)"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "value": "extra  (Err*",
+   "reason": "AGENTS.md forced: go reports caller mistakes as exported sentinel error values (errors.Is), not exceptions"
+  },
+  {
+   "element": [
+    "*.authheadersorerror"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no exceptions: the error-returning variant of authHeaders sits beside the infallible interface method, as rust's try_auth_headers does"
+  },
+  {
+   "element": [
+    "*.as",
+    "*.unwrap",
+    "*.error",
+    "*.cause",
+    "*.msg"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go's error protocol: Error() string, Unwrap() error and As(any) bool are how errors.Is/As walk the chain; Cause/Msg are the fields behind them"
+  },
+  {
+   "element": [
+    "*.equal"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "go has no operator overloading or equals protocol; Equal is the go-cmp convention, the counterpart of equals/== that the extractor ignores elsewhere"
+  },
+  {
+   "element": [
+    "*.fromjson"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "dart has no reflection-based deserialiser; the fromJson factory is the dart:convert / json_serializable convention every dart model carries"
+  },
+  {
+   "element": [
+    "*.errordescription",
+    "*.custommirror"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "swift's LocalizedError.errorDescription and CustomReflectable.customMirror protocol requirements"
+  },
+  {
+   "element": [
+    "*.underlyingerror"
+   ],
+   "aspect": "member",
+   "languages": [
+    "swift"
+   ],
+   "reason": "swift's Foundation convention names a wrapped error underlyingError (NSUnderlyingErrorKey); swift keeps it, dart does not (see API_SURFACE.md)"
+  },
+  {
+   "element": [
+    "*.clienterror",
+    "*.servererror",
+    "*.apierror",
+    "*.networkerror",
+    "*.openapierror"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust",
+    "elixir"
+   ],
+   "reason": "no implementation inheritance: rust reaches the parent error by a composition accessor, elixir by an is-a predicate (api_error?/1)"
+  },
+  {
+   "element": "*",
+   "aspect": "member",
+   "languages": [
+    "elixir"
+   ],
+   "value": "extra*",
+   "kind": "prop",
+   "reason": "elixir structs are transparent maps: every field is readable, there is no private field to hide an authenticator's or client's state in"
+  },
+  {
+   "element": [
+    "*.startlink",
+    "baseauthenticator.using",
+    "openapierror.exceptions"
+   ],
+   "aspect": "member",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "OTP and module conventions: start_link/1 starts the token-manager GenServer, __using__/1 is the behaviour macro, exceptions/0 lists the hierarchy for rescue clauses"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*"
+   ],
+   "aspect": "optional",
+   "languages": [
+    "dart"
+   ],
+   "reason": "AGENTS.md forced: dart operations take an explicit options/server argument with no default, a deliberate uniform dart signature"
+  },
+  {
+   "element": [
+    "petapi.*",
+    "storeapi.*",
+    "baseapi.*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "elixir"
+   ],
+   "value": "(state,*",
+   "reason": "elixir has no receiver: the api struct is the first argument"
+  },
+  {
+   "element": [
+    "defaults.*",
+    "order.status",
+    "edgecases.freeformany"
+   ],
+   "aspect": "prop-optional",
+   "languages": [
+    "php"
+   ],
+   "reason": "AGENTS.md forced: php types a defaulted, schema-non-nullable property as non-nullable"
+  },
+  {
+   "element": [
+    "oauth2servererror.<ctor>",
+    "oauth2servererror.errorcode"
+   ],
+   "aspect": "*",
+   "languages": [
+    "php"
+   ],
+   "reason": "AGENTS.md forced: php's \\Exception declares protected int $code, so the OAuth2 error code is errorCode"
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "csharp"
+   ],
+   "value": "*innerexception)",
+   "reason": ".NET exception design (CA1032): every exception exposes the (message, innerException) chaining parameter, named innerException"
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "php"
+   ],
+   "value": "*previous)",
+   "reason": "php's \\Throwable chains through the constructor argument named $previous"
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "swift"
+   ],
+   "value": "*underlyingerror)",
+   "reason": "swift's Foundation convention names a wrapped error underlyingError"
+  },
+  {
+   "element": [
+    "client.close",
+    "defaultapiclient.close",
+    "apiclient.close"
+   ],
+   "aspect": "member",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "AGENTS.md forced: csharp releases resources through IDisposable.Dispose()"
+  },
+  {
+   "element": [
+    "configuration.builder",
+    "transportoptions.builder",
+    "configurationbuilder",
+    "transportoptionsbuilder"
+   ],
+   "aspect": "*",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "AGENTS.md forced: elixir has immutable data and no builder; new/1 takes a keyword list"
+  },
+  {
+   "element": [
+    "configuration.builder",
+    "transportoptions.builder"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go"
+   ],
+   "reason": "AGENTS.md forced: go has no static methods; the builder is the package-level NewConfigurationBuilder()/NewTransportOptionsBuilder()"
+  },
+  {
+   "element": [
+    "configuration.<ctor>",
+    "transportoptions.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "elixir",
+    "node"
+   ],
+   "reason": "elixir new/1 takes a keyword list (AGENTS.md); node takes one options object, the TypeScript named-argument idiom"
+  },
+  {
+   "element": [
+    "configuration.defaultconfiguration",
+    "configuration.default"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust",
+    "swift",
+    "elixir"
+   ],
+   "reason": "AGENTS.md forced: rust/swift expose the default configuration through Default/default(); elixir mirrors it as default/0"
+  },
+  {
+   "element": [
+    "petfood",
+    "pettreatment",
+    "treatmentrecord",
+    "setpetavatarthumbnailrequest"
+   ],
+   "aspect": "kind",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust models oneOf/anyOf as a sum type (enum with payloads), its only tagged union"
+  },
+  {
+   "element": [
+    "baseauthenticator"
+   ],
+   "aspect": "type",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no implementation inheritance; the shared behaviour is the Authenticator trait's default methods"
+  },
+  {
+   "element": [
+    "baseauthenticator.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "elixir",
+    "go"
+   ],
+   "value": "missing",
+   "reason": "no implementation inheritance (elixir behaviour, go embedding of an empty struct): the members live on each authenticator"
+  },
+  {
+   "element": [
+    "result",
+    "modelresult"
+   ],
+   "aspect": "type",
+   "languages": [
+    "rust",
+    "swift"
+   ],
+   "reason": "a model named Result would shadow the prelude Result (rust std::result::Result, Swift.Result) that the generated code itself uses"
+  },
+  {
+   "element": [
+    "error",
+    "modelerror"
+   ],
+   "aspect": "type",
+   "languages": [
+    "java",
+    "swift"
+   ],
+   "reason": "a model named Error would shadow java.lang.Error / the Swift.Error protocol that every throwing signature uses"
+  },
+  {
+   "element": [
+    "uuid",
+    "uri",
+    "email",
+    "decimal",
+    "brand",
+    "primitive",
+    "deepinput",
+    "sendrequestoptions",
+    "statuserrorfactory",
+    "findpetsbystatusstatusenum",
+    "uploadpetdocumentdocumenttypeenum",
+    "petfoodtype",
+    "pettreatmenttype",
+    "treatmentrecordtype"
+   ],
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "TypeScript has no nominal types: branded aliases (UUID, URI, Email, Decimal), inline literal unions and structural helper types are how node spells formats and enums the others give a class"
+  },
+  {
+   "element": [
+    "jsonvalue",
+    "datetime",
+    "requestbody",
+    "multipartvalue",
+    "queryvalue",
+    "serializedvalue",
+    "protoduration",
+    "base64serde",
+    "formurlencode",
+    "apierrorfields",
+    "apierrorkind",
+    "requestoptions"
+   ],
+   "aspect": "type",
+   "languages": [
+    "rust",
+    "go"
+   ],
+   "reason": "rust/go support types: newtypes for the orphan rule and serde (JsonValue, DateTime, Base64Serde), the request-option struct their APIs take instead of overloads, and the error-kind enum rust matches on"
+  },
+  {
+   "element": [
+    "set",
+    "duration",
+    "datetime",
+    "iso8601",
+    "tracecontextpropagatorfunc",
+    "errors"
+   ],
+   "aspect": "type",
+   "languages": [
+    "go"
+   ],
+   "reason": "go stdlib gaps and func types: no Set, no ISO-8601/protobuf duration or date-only type, a named func type for the trace hook"
+  },
+  {
+   "element": [
+    "anycodable",
+    "indirect",
+    "iso8601duration"
+   ],
+   "aspect": "type",
+   "languages": [
+    "swift",
+    "dart"
+   ],
+   "reason": "Codable has no Any (AnyCodable) and no recursive value types (Indirect); Foundation/dart have no ISO-8601 duration codec"
+  },
+  {
+   "element": [
+    "uuidvalue",
+    "noauthauthenticator"
+   ],
+   "aspect": "type",
+   "languages": [
+    "dart"
+   ],
+   "reason": "dart has no stdlib UUID; NO_AUTH needs a concrete class to be a const sentinel (AGENTS.md: sentinel shape is forced)"
+  },
+  {
+   "element": [
+    "noauth",
+    "psr18apiclient",
+    "rawhttpresponse",
+    "preciseduration",
+    "dsawareobjectnormalizer",
+    "dsmapnormalizer",
+    "dssetnormalizer",
+    "dsvectornormalizer",
+    "durationnormalizer",
+    "urinormalizer"
+   ],
+   "aspect": "type",
+   "languages": [
+    "php"
+   ],
+   "reason": "php: PSR-4 puts the NO_AUTH sentinel in its own file (AGENTS.md), the PSR-18 adapter and symfony serializer normalizers must be public classes to be registered, and php has no duration type"
+  },
+  {
+   "element": [
+    "types",
+    "defaultapiclientqueryparamsencoder",
+    "pettreatmentcomposite",
+    "treatmentrecordcomposite"
+   ],
+   "aspect": "type",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "ruby: the dry-types Types module and the Faraday params encoder are library integration points; the *Composite structs back dry-struct anyOf"
+  },
+  {
+   "element": [
+    "anyofcomposite"
+   ],
+   "aspect": "type",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir anyOf needs a struct to hold the matched variants"
+  },
+  {
+   "element": [
+    "configurationerror",
+    "oauth2authorizationcodeerror"
+   ],
+   "aspect": "type",
+   "languages": [
+    "rust",
+    "swift"
+   ],
+   "reason": "AGENTS.md forced: caller mistakes are a typed Err (rust) / ConfigurationError (swift), and the not-yet-exchanged code is OAuth2AuthorizationCodeError in both"
+  },
+  {
+   "element": [
+    "servers"
+   ],
+   "aspect": "type",
+   "languages": [
+    "python",
+    "dart"
+   ],
+   "reason": "module-level constants are the python/dart namespace for SERVER_0.. (a class of constants is not idiomatic); the extractor reads them as a module"
+  },
+  {
+   "element": [
+    "*.oneof0",
+    "*.oneof1",
+    "*.getdiscriminatorvalue",
+    "*.anyofmergeddump",
+    "*.openapioneof",
+    "*.openapianyof",
+    "*.serializeoneof",
+    "*.openapidiscriminatorname",
+    "*.openapidiscriminatormapping",
+    "*.oneofschemas",
+    "*.anyofschemas",
+    "*.discriminatorproperty",
+    "*.discriminatormapping",
+    "*.build",
+    "*.ofvalues",
+    "*.matchesany"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python",
+    "ruby",
+    "node",
+    "php",
+    "dart",
+    "rust",
+    "elixir"
+   ],
+   "reason": "composed-schema plumbing the language's serializer hooks require (pydantic RootModel, dry-struct, symfony normalizer, serde untagged enum); the caller-facing accessor is actualInstance/matchedInstances, decided in API_SURFACE.md"
+  },
+  {
+   "element": [
+    "oauth2clientcredentialsauthenticator.withclientauthmethod",
+    "oauth2passwordauthenticator.withclientauthmethod"
+   ],
+   "aspect": "member",
+   "languages": [
+    "go",
+    "rust"
+   ],
+   "reason": "go and rust have no default arguments: the trailing optional clientAuthMethod is set by a With* option instead of a constructor parameter"
+  },
+  {
+   "element": [
+    "oauth2clientcredentialsauthenticator.<ctor>",
+    "oauth2passwordauthenticator.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "go",
+    "rust"
+   ],
+   "reason": "go and rust have no default arguments: the constructor stops before clientAuthMethod, which WithClientAuthMethod sets"
+  },
+  {
+   "element": [
+    "oauth2tokenmanager.getaccesstoken",
+    "oauth2tokenmanager.exchange",
+    "oauth2tokenmanager.getaccesstokenwithheaders",
+    "oauth2tokenmanager.getaccesstokenwithrefresh",
+    "oauth2tokenmanager.getaccesstokenwithrefreshurl"
+   ],
+   "aspect": "*",
+   "languages": [
+    "go",
+    "rust"
+   ],
+   "reason": "go and rust have no default arguments or overloads: the optional extraHeaders/refreshUrl arguments become the *WithHeaders/*WithRefresh variants"
+  },
+  {
+   "element": [
+    "oauth2tokenmanager.getaccesstoken",
+    "oauth2tokenmanager.exchange"
+   ],
+   "aspect": "params",
+   "languages": [
+    "csharp"
+   ],
+   "reason": "params is a C# keyword (variadic modifier); the argument is named parameters"
+  },
+  {
+   "element": [
+    "apierror.gettypederrorbody"
+   ],
+   "aspect": "params",
+   "languages": [
+    "*"
+   ],
+   "reason": "the type witness is language-specific: Class<T> (java), a reified/generic type parameter with no value argument (kotlin, csharp, rust), a class-string (php), a decoder (dart), a target pointer (go), a metatype (swift), a module (elixir)"
+  },
+  {
+   "element": [
+    "serializationerror.cause"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php"
+   ],
+   "reason": "the platform exception base class already carries the cause (Throwable.getCause, Exception.InnerException, Throwable::getPrevious)"
+  },
+  {
+   "element": [
+    "*error.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "node"
+   ],
+   "value": "*options)",
+   "reason": "ES2022 Error takes the cause in an ErrorOptions object: new Error(message, { cause })"
+  },
+  {
+   "element": [
+    "petapi.setpetavatarwithcontenttype",
+    "petapi.uploadpetdocumentwithcontenttype"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust has no overloads or default arguments: the request-content-type variant is a separate *_with_content_type method"
+  },
+  {
+   "element": [
+    "petapi.setpetavatar*",
+    "petapi.uploadpetdocument*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "rust"
+   ],
+   "value": "(petid, *)",
+   "reason": "rust has no overloads or default arguments: the request content type is taken by the *_with_content_type variant"
+  },
+  {
+   "element": [
+    "apiclient.sendrequest*",
+    "defaultapiclient.sendrequest*",
+    "abstractapiclient.sendrequest*"
+   ],
+   "aspect": "*",
+   "languages": [
+    "go",
+    "rust"
+   ],
+   "reason": "go and rust have no default arguments: noRedirect and friends travel in the RequestOptions of send_request_with_options"
+  },
+  {
+   "element": [
+    "*"
+   ],
+   "aspect": "params",
+   "languages": [
+    "elixir"
+   ],
+   "value": "*opts)",
+   "reason": "elixir folds trailing optional arguments into a keyword opts list"
+  },
+  {
+   "element": [
+    "getpetbyidservercdn*",
+    "*.getpetbyidservercdn*"
+   ],
+   "aspect": "casing",
+   "languages": [
+    "*"
+   ],
+   "reason": "spec-derived: the server's description text (\"CDN-backed read endpoint\") names the type, not the generator"
+  },
+  {
+   "element": [
+    "httpawareauthenticator.host",
+    "httpawareauthenticator.authheaders",
+    "httpawareauthenticator.queryparams",
+    "httpawareauthenticator.cookieparams"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "ruby's HttpAwareAuthenticator is a mixin module included beside the Authenticator superclass; a module cannot inherit the class's methods"
+  },
+  {
+   "element": [
+    "tracecontextutil.propagator",
+    "tracecontextutil.settracecontextpropagator"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart",
+    "swift",
+    "go"
+   ],
+   "reason": "dart, swift and go cannot detect an optional OpenTelemetry dependency at runtime (no optional import), so the application registers the propagator through this hook"
+  },
+  {
+   "element": [
+    "apiresult.intodata"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust ownership: into_data(self) moves the payload out; borrowing languages have no by-value counterpart"
+  }
+ ]
+}
