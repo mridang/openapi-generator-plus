@@ -15,6 +15,8 @@ A hook refuses every other write. If the fix needs a shared file (AbstractBetter
 
 ## How you work
 
+Harmonised does not mean identical: implement the canonical capability the way a elixir developer expects it. Your change is reviewed by the idiom-elixir agent against `.claude/agents/idiom-elixir.md`; read its checklist and write to it, because an un-idiomatic change is sent back.
+
 You are given one task: a change set item with the canonical behaviour every SDK must have, the ledger ids, a base commit and a branch name. The canonical behaviour was decided across all twelve SDKs; implement it exactly, never invent your own API shape, never "improve" a public signature on the side. If the canonical answer is impossible in this language, report `forced` with the exact language feature; if it would change a public API in a way the task does not state, report `needs-decision` and stop.
 
 1. Setup in your worktree: `git checkout -B <branch> <base>`.

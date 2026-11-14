@@ -21,8 +21,11 @@ rules hold for every session and every agent, however the work starts:
   `.claude/workflows/parity-fix.js`: the planner fixes the one canonical behaviour, a
   pre-flight compares the area in all twelve, the language agents implement it in
   parallel, and the parity-guard (`.claude/agents/parity-guard.md`) reviews all twelve
-  together. A change found mid-session becomes a ledger item and a change set; it is
-  never fixed in one language alone.
+  together. Each language's part is also reviewed by its idiom agent
+  (`.claude/agents/idiom-<lang>.md`): harmonised means the same capabilities and
+  behaviour, expressed the way that language's developers expect, never a pattern
+  bolted on from another language. A change found mid-session becomes a ledger item
+  and a change set; it is never fixed in one language alone.
 - **One ledger.** `PARITY_FINDINGS.json`, maintained only through
   `etc/parity-findings.py`, is the only list of findings. Reviews (`/parity-review`),
   agents and the guard report into it; `etc/parity-findings.py count` is the single

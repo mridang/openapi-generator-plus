@@ -7,7 +7,7 @@ export const meta = {
     { title: 'Pre-flight', detail: 'parity-preflight compares the area across the twelve SDKs' },
     { title: 'Shared', detail: 'sdk-shared changes shared code first when needed' },
     { title: 'Implement', detail: 'one sdk-<lang> agent per language, in parallel' },
-    { title: 'Guard', detail: 'parity-guard reviews all twelve together (opus)' },
+    { title: 'Guard', detail: 'idiom-<lang> reviewers and the parity-guard (opus) review the staged change' },
     { title: 'Integrate', detail: 'parity-integrator commits, runs the local gate, records the ledger' },
   ],
 }
@@ -91,6 +91,15 @@ const VERDICT = {
   },
   required: ['approved', 'summary', 'failures'],
 }
+const IDIOM = {
+  type: 'object',
+  properties: {
+    idiomatic: { type: 'boolean' },
+    rejections: { type: 'array', items: { type: 'object', properties: { problem: { type: 'string' }, fix: { type: 'string' } }, required: ['problem', 'fix'] } },
+    notes: { type: 'string', description: 'conflicts between idiom and harmonisation, for the parity-guard' },
+  },
+  required: ['idiomatic', 'rejections', 'notes'],
+}
 const STEP = {
   type: 'object',
   properties: { ok: { type: 'boolean' }, commit: { type: 'string', description: 'git rev-parse HEAD of the PR branch when you finish' }, notes: { type: 'string' } },
@@ -158,8 +167,17 @@ for (const set of args.sets) {
     const staged = await role(`In ${PR} follow your Stage instructions for change set ${set.slug} (integration branch parity/integrate-${set.slug}): merge ${base !== head ? 'parity/' + set.slug + '-shared ' : ''}${branches.join(' ')}.`,
       { label: `${set.slug}:stage${attempt}`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     phase('Guard')
-    verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
+    const landed = reports.filter(r => branches.includes(r.branch)).map(r => r.language)
+    const idioms = (await batched(landed.map(l => () => role(`Review the ${l} part of change set ${set.slug}, staged in ${PR}. Canonical behaviour (all twelve SDKs):\n${plan.canonical}`,
+      { label: `${set.slug}:idiom-${l}`, phase: 'Guard', agentType: `idiom-${l}`, schema: IDIOM }).then(v => v && { language: l, ...v })))).filter(Boolean)
+    const unidiomatic = idioms.filter(v => !v.idiomatic)
+    verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nIDIOM REVIEWS (one per language; rejected ones block the change set regardless of your verdict, notes may flag idiom-versus-parity conflicts for you to rule on):\n${JSON.stringify(idioms)}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
       { label: `${set.slug}:guard${attempt}`, phase: 'Guard', agentType: 'parity-guard', schema: VERDICT })
+    if (verdict && unidiomatic.length) {
+      verdict.approved = false
+      verdict.failures = [...verdict.failures, ...unidiomatic.flatMap(v => v.rejections.map(r => ({ language: v.language, problem: 'not idiomatic: ' + r.problem, fix: r.fix })))]
+      verdict.summary = `${verdict.summary} Idiom review rejected ${unidiomatic.map(v => v.language).join(', ')}.`
+    }
     if (verdict && verdict.approved) break
     if (attempt === RETRIES || !verdict) break
     const failing = [...new Set([...broken, ...verdict.failures.map(f => f.language).filter(l => LANGS.includes(l))])]
