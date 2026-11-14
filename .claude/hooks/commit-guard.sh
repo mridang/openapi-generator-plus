@@ -8,7 +8,8 @@
 #             no commit on the PR branch and no push is allowed until the gap in
 #             etc/ci-local.sh is found and the file is removed
 #   trailers  commit messages may not carry Co-Authored-By or any attribution line
-#   approval  a commit on the PR branch that changes src/ needs the parity-guard's
+#   approval  a commit on the PR branch (or a parity/integrate-* branch that lands on it)
+#             that changes src/ needs the parity-guard's
 #             approval of exactly the staged tree (etc/ci-local.sh approve); only the
 #             parity-guard agent may run that command
 #   push      only a commit that passed a full etc/ci-local.sh check may be pushed
@@ -49,7 +50,7 @@ if grep -qiE 'co-authored-by|generated with \[?claude|noreply@anthropic' <<< "$c
   deny "Commit messages carry no trailer and no attribution of any kind. Remove the Co-Authored-By / Generated-with line."
 fi
 
-if grep -qE 'git[[:space:]].*commit' <<< "$command" && [ "$branch" = "$PR_BRANCH" ]; then
+if grep -qE 'git[[:space:]].*commit' <<< "$command" && { [ "$branch" = "$PR_BRANCH" ] || [[ "$branch" == parity/integrate-* ]]; }; then
   if [ -f "$common/parity-halt" ]; then
     deny "Halted: $(cat "$common/parity-halt"). Find what the local run missed, add it to etc/ci-local.sh, then remove $common/parity-halt."
   fi

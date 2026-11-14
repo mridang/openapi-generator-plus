@@ -146,7 +146,7 @@ for (const set of args.sets) {
     const branches = reports.filter(r => r.validation.passed && /^[0-9a-f]{7,40}$/.test(r.commit)).map(r => r.branch)
     const broken = work.filter(l => !reports.find(r => r.language === l && r.validation.passed))
     phase('Integrate')
-    const staged = await role(`In ${PR} (branch feat/better-generated-clients, if a previous attempt left a merge in progress run git merge --abort first), stage change set ${set.slug}: merge ${base !== head ? 'parity/' + set.slug + '-shared ' : ''}${branches.join(' ')} with --no-commit.`,
+    const staged = await role(`In ${PR} follow your Stage instructions for change set ${set.slug} (integration branch parity/integrate-${set.slug}): merge ${base !== head ? 'parity/' + set.slug + '-shared ' : ''}${branches.join(' ')}.`,
       { label: `${set.slug}:stage${attempt}`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     phase('Guard')
     verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
@@ -163,7 +163,7 @@ for (const set of args.sets) {
   phase('Integrate')
   const found = [...(verdict?.new_findings ?? []), ...reports.flatMap(r => (r.discovered ?? []).map(d => ({ title: d.slice(0, 200), severity: 'medium', languages: [r.language], description: d })))]
   if (verdict && verdict.approved) {
-    const done = await role(`In ${PR}, the parity-guard approved the staged change set ${set.slug}. Commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}.${allowNote(plan)}`,
+    const done = await role(`In ${PR}, the parity-guard approved the staged change set ${set.slug} on parity/integrate-${set.slug}. Follow your Commit instructions: commit it with subject "${plan.commit_subject}" and a one-line body naming the ledger items ${set.ids.join(',')}, run the quick local gate, and on success mark ${set.ids.join(',')} done in the ledger with the commit sha and add these new findings (write them as a JSON list to a temp file first): ${JSON.stringify(found)}.${allowNote(plan)}`,
       { label: `${set.slug}:commit`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
     summary.push(`${set.slug}: ${done && done.ok ? 'landed ' + (done.commit || '') : 'gate failed: ' + (done ? done.notes.slice(0, 160) : 'no report')}`)
     moved(done)
