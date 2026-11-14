@@ -1,12 +1,19 @@
 import json, os, re, sys, collections, importlib.util, fnmatch
 
-ROOT = "/Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/api-surface"
+"""Render API_SURFACE.md (the canonical public API and its numbered decisions) from the goldens.
+
+  python3 etc/api-surface-render.py
+"""
+import subprocess
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 spec = importlib.util.spec_from_file_location("a", ROOT + "/etc/api-surface.py")
 A = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(A)
 L = A.LANGS
 S = {l: A.extract(l) for l in L}
-mm = json.load(open("/tmp/claude-501/mm.json"))
+mm = json.loads(subprocess.run([sys.executable, os.path.join(ROOT, "etc/api-surface.py"), "check", "--json"],
+                               capture_output=True, text=True).stdout)
 
 # ------------------------------------------------------------ curated decisions
 # key: (element-glob, aspect-glob) -> dict(decision=..., changes={lang: text} | None, canon=...)
@@ -507,7 +514,6 @@ for m in live:
             changes[l][tpl].append(txt)
 
 TOTAL = sum(per_lang.values()) + sum(per_lang_cas.values())
-open("/tmp/claude-501/counts.json", "w").write(json.dumps({"surface": per_lang, "casing": per_lang_cas}))
 
 
 

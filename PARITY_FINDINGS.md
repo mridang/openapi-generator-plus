@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4, needs-spec 2, open 165, parked 9, partial 7. Severity: critical 3, high 59, medium 511, low 174.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4, needs-spec 2, open 174, partial 7. Severity: critical 3, high 59, medium 511, low 174.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -702,21 +702,21 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 382, forced 4,
 | F694 | medium | open | api-surface | csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `valueserializer` (22 differences) |
 | F695 | medium | open | api-surface | ruby | API surface: harmonise core `valueserializerallowreservedvalue` (1 differences) |
 | F696 | medium | open | api-surface | dart, elixir, go, node, python, ruby, rust, swift | API surface: harmonise error `apierror` (7 differences) |
-| F697 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `badrequesterror` (1 differences) |
-| F698 | medium | parked | api-surface | kotlin, node | API surface: harmonise error `clienterror` (1 differences) |
+| F697 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `badrequesterror` (1 differences) |
+| F698 | medium | open | api-surface | kotlin, node | API surface: harmonise error `clienterror` (1 differences) |
 | F699 | medium | open | api-surface | swift | API surface: harmonise error `configurationerror` (1 differences) |
-| F700 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `conflicterror` (1 differences) |
-| F701 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `forbiddenerror` (1 differences) |
-| F702 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `internalservererror` (1 differences) |
+| F700 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `conflicterror` (1 differences) |
+| F701 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `forbiddenerror` (1 differences) |
+| F702 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `internalservererror` (1 differences) |
 | F703 | medium | open | api-surface | dart, go, python, ruby | API surface: harmonise error `networkerror` (1 differences) |
 | F704 | medium | open | api-surface | dart, go | API surface: harmonise error `networktimeouterror` (1 differences) |
-| F705 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `notfounderror` (1 differences) |
+| F705 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `notfounderror` (1 differences) |
 | F706 | medium | open | api-surface | kotlin | API surface: harmonise error `oauth2servererror` (1 differences) |
 | F707 | medium | open | api-surface | java, kotlin, swift | API surface: harmonise error `oauth2tokenerror` (2 differences) |
 | F708 | medium | open | api-surface | dart | API surface: harmonise error `openapierror` (1 differences) |
-| F709 | medium | parked | api-surface | kotlin, node | API surface: harmonise error `servererror` (1 differences) |
-| F710 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `unauthorizederror` (1 differences) |
-| F711 | medium | parked | api-surface | java, kotlin, node | API surface: harmonise error `unprocessableentityerror` (1 differences) |
+| F709 | medium | open | api-surface | kotlin, node | API surface: harmonise error `servererror` (1 differences) |
+| F710 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `unauthorizederror` (1 differences) |
+| F711 | medium | open | api-surface | java, kotlin, node | API surface: harmonise error `unprocessableentityerror` (1 differences) |
 | F712 | medium | open | api-surface | php | API surface: harmonise model `binaryvault` (6 differences) |
 | F713 | medium | open | api-surface | go, rust | API surface: harmonise model `datetime` (2 differences) |
 | F714 | medium | open | api-surface | go | API surface: harmonise model `defaults` (1 differences) |
@@ -7769,14 +7769,14 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - apierror.<ctor> [ctor] majority (statuscode, message, responseheaders, responsebody, errorbody, cause) (2 SDKs); differs: dart=(statuscode, message, responsebody, responseheaders, errorbody, underlyingerror); go=(statuscode, msg, responsebody, responseheaders, errorbody, cause); python=(statuscode, message, responseheaders, responsebody, errorbody); ruby=(arg); rust=(statuscode, message, responsebody, responseheaders)
 
 ## F697 [medium] API surface: harmonise error `badrequesterror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `badrequesterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - badrequesterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F698 [medium] API surface: harmonise error `clienterror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `clienterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7790,21 +7790,21 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - configurationerror [cases] majority invalidargument,invalidcacertificate,invalidproxy,invalidservervariable,invalidstate,invalidtimeout (1 SDKs); differs: swift=invalidargument,invalidcacertificate,invalidproxyurl,invalidservervariable,invalidstate,proxyunsupported,tlsoptionsunsupported
 
 ## F700 [medium] API surface: harmonise error `conflicterror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `conflicterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - conflicterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F701 [medium] API surface: harmonise error `forbiddenerror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `forbiddenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - forbiddenerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F702 [medium] API surface: harmonise error `internalservererror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `internalservererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7825,7 +7825,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - networktimeouterror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause)
 
 ## F705 [medium] API surface: harmonise error `notfounderror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `notfounderror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7854,21 +7854,21 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - openapierror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=()
 
 ## F709 [medium] API surface: harmonise error `servererror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - servererror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)
 
 ## F710 [medium] API surface: harmonise error `unauthorizederror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `unauthorizederror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - unauthorizederror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)
 
 ## F711 [medium] API surface: harmonise error `unprocessableentityerror` (1 differences)
-- Status: **parked** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **open** (shared step failed in http-error-ctors) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java, kotlin, node
 
 `etc/api-surface.py check` reports these public-API differences for `unprocessableentityerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.

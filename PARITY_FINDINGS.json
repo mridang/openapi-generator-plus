@@ -32804,7 +32804,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `badrequesterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- badrequesterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -32821,7 +32821,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `clienterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- clienterror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -32855,7 +32855,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `conflicterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- conflicterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -32873,7 +32873,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `forbiddenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- forbiddenerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -32891,7 +32891,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `internalservererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- internalservererror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -32945,7 +32945,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `notfounderror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- notfounderror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -33012,7 +33012,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- servererror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -33030,7 +33030,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `unauthorizederror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- unauthorizederror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },
@@ -33048,7 +33048,7 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `unprocessableentityerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- unprocessableentityerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
+   "status": "open",
    "note": "shared step failed in http-error-ctors",
    "batch": null
   },

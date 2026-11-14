@@ -11,20 +11,20 @@ Legend for the tables: each language cell is that SDK's actual spelling; `✗` m
 | Language | Surface mismatches | Initialism casing | Total |
 | --- | --- | --- | --- |
 | java | 34 | 0 | 34 |
-| kotlin | 26 | 0 | 26 |
+| kotlin | 27 | 0 | 27 |
 | csharp | 16 | 0 | 16 |
 | php | 58 | 0 | 58 |
 | python | 43 | 0 | 43 |
-| ruby | 86 | 0 | 86 |
-| node | 53 | 0 | 53 |
-| dart | 93 | 0 | 93 |
-| go | 53 | 78 | 131 |
+| ruby | 89 | 0 | 89 |
+| node | 55 | 0 | 55 |
+| dart | 94 | 0 | 94 |
+| go | 54 | 0 | 54 |
 | rust | 63 | 0 | 63 |
-| swift | 43 | 69 | 112 |
-| elixir | 50 | 0 | 50 |
-| **all** | **618** | **147** | **765** |
+| swift | 43 | 0 | 43 |
+| elixir | 52 | 0 | 52 |
+| **all** | **628** | **0** | **628** |
 
-Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 470 further differences are allowed idioms (`etc/api-surface-allow.json`).
+Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 646 further differences are allowed idioms (`etc/api-surface-allow.json`).
 
 ## Per-language change list
 
@@ -85,11 +85,12 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `server_variable.mustache`
   - `ServerVariable` constructor defaults (defaultvalue, description, enumvalues) -> (defaultvalue, description?, enumvalues?)
 
-### kotlin (24 changes)
+### kotlin (25 changes)
 
 - `auth/oauth/oauth2_token_manager.mustache`
   - add `exchanged` to `OAuth2TokenManager`
   - make `OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS` non-public (or remove)
+  - make `OAuth2TokenManager.MAX_EXPIRES_IN_SECONDS` non-public (or remove)
   - make `OAuth2TokenManager.apiClient` non-public (or remove)
 - `default_api_client.mustache`
   - `DefaultApiClient.sendRequest`: optionality (method, url, headers, body, noredirect) -> (method, url, headers, body, noredirect?)
@@ -266,7 +267,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - add `resolveAnyOf` to `ObjectSerializer`
   - `ObjectSerializer.parse_json`: parameters (jsonstring) -> (data)
 
-### ruby (80 changes)
+### ruby (83 changes)
 
 - `api/api.mustache`
   - `PetApi.set_pet_avatar`: parameters (petid, body, contenttype) -> (petid, body, requestcontenttype)
@@ -294,9 +295,11 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `OAuth2PasswordAuthenticator.set_api_client`: parameters (client) -> (apiclient)
 - `auth/oauth/oauth2_token_manager.mustache`
   - make `OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_S` non-public (or remove)
+  - make `OAuth2TokenManager.MAX_EXPIRES_IN_S` non-public (or remove)
   - make `OAuth2TokenManager.mark_exchanged` non-public (or remove)
 - `auth/oauth/openid_connect_authenticator.mustache`
   - make `OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS` non-public (or remove)
+  - make `OpenIdConnectAuthenticator.MAX_DISCOVERY_MAX_AGE_SECONDS` non-public (or remove)
 - `base_api.mustache`
   - make `BaseApi.NO_AUTH` non-public (or remove)
   - make `BaseApi.config` non-public (or remove)
@@ -317,6 +320,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `NetworkError` constructor (message) -> (message, cause)
 - `models/model.mustache`
   - generate `<Model><Prop>Enum` constant classes for inline enums (models/model.mustache)
+  - add type `EdgeCasesPhaseEnum`
   - generate the named inline enum (models/model.mustache)
   - add `actualInstance` to `PetFood`
   - add `actualInstance` to `PetTreatment`
@@ -368,7 +372,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `(codegen: BetterRubyCodegen.java)`
   - rename `Petstore` to `Client` (client.mustache)
 
-### node (41 changes)
+### node (42 changes)
 
 - `abstract_api_client.mustache`
   - stop exporting `AbstractApiClient` (abstract_api_client.mustache, index.mustache)
@@ -424,6 +428,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - make `ObjectSerializer.durationToProtoJson` non-public (or remove)
   - make `ObjectSerializer.durationFromProtoJson` non-public (or remove)
   - make `ObjectSerializer.decodeBase64` non-public (or remove)
+  - make `ObjectSerializer.reattachAdditionalProperties` non-public (or remove)
   - make `ObjectSerializer.deserializeArray` non-public (or remove)
   - make `ObjectSerializer.deserializeMap` non-public (or remove)
   - make `ObjectSerializer.deserializeEnum` non-public (or remove)
@@ -542,50 +547,8 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `value_serializer.mustache`
   - stop exporting `AllowReservedValue`
 
-### go (125 changes)
+### go (56 changes)
 
-- `api/api.mustache`
-  - rename `AddPetWithHTTPInfo` to `AddPetWithHttpInfo`
-  - rename `AddPetPhotosWithHTTPInfo` to `AddPetPhotosWithHttpInfo`
-  - rename `AddPetTreatmentWithHTTPInfo` to `AddPetTreatmentWithHttpInfo`
-  - rename `DeletePetWithHTTPInfo` to `DeletePetWithHttpInfo`
-  - rename `DownloadPetDocumentWithHTTPInfo` to `DownloadPetDocumentWithHttpInfo`
-  - rename `FindPetsBornOnWithHTTPInfo` to `FindPetsBornOnWithHttpInfo`
-  - rename `FindPetsByStatusWithHTTPInfo` to `FindPetsByStatusWithHttpInfo`
-  - rename `GetExternalPetInfoWithHTTPInfo` to `GetExternalPetInfoWithHttpInfo`
-  - rename `GetMultiServerPetInfoWithHTTPInfo` to `GetMultiServerPetInfoWithHttpInfo`
-  - rename `GetPetAvatarWithHTTPInfo` to `GetPetAvatarWithHttpInfo`
-  - rename `GetPetAvatarThumbnailWithHTTPInfo` to `GetPetAvatarThumbnailWithHttpInfo`
-  - rename `GetPetByIdWithHTTPInfo` to `GetPetByIdWithHttpInfo`
-  - rename `GetPetByNameWithHTTPInfo` to `GetPetByNameWithHttpInfo`
-  - rename `GetPetPassportWithHTTPInfo` to `GetPetPassportWithHttpInfo`
-  - rename `GetPetPhotoWithHTTPInfo` to `GetPetPhotoWithHttpInfo`
-  - rename `GetPetSummaryWithHTTPInfo` to `GetPetSummaryWithHttpInfo`
-  - rename `GetPetTagWithHTTPInfo` to `GetPetTagWithHttpInfo`
-  - rename `GetStagingPetInfoWithHTTPInfo` to `GetStagingPetInfoWithHttpInfo`
-  - rename `SetPetAvatarWithHTTPInfo` to `SetPetAvatarWithHttpInfo`
-  - rename `SetPetAvatarThumbnailWithHTTPInfo` to `SetPetAvatarThumbnailWithHttpInfo`
-  - rename `SetPetPreferencesWithHTTPInfo` to `SetPetPreferencesWithHttpInfo`
-  - rename `UpdatePetWithHTTPInfo` to `UpdatePetWithHttpInfo`
-  - rename `UploadPetCertificateWithHTTPInfo` to `UploadPetCertificateWithHttpInfo`
-  - rename `UploadPetDocumentWithHTTPInfo` to `UploadPetDocumentWithHttpInfo`
-  - rename `GetDefaultsWithHTTPInfo` to `GetDefaultsWithHttpInfo`
-  - rename `GetDepartmentWithHTTPInfo` to `GetDepartmentWithHttpInfo`
-  - rename `GetGroupedCategoriesWithHTTPInfo` to `GetGroupedCategoriesWithHttpInfo`
-  - rename `GetInventoryWithHTTPInfo` to `GetInventoryWithHttpInfo`
-  - rename `GetMatrixWithHTTPInfo` to `GetMatrixWithHttpInfo`
-  - rename `GetSwatchWithHTTPInfo` to `GetSwatchWithHttpInfo`
-  - rename `GetSwatchGroupsWithHTTPInfo` to `GetSwatchGroupsWithHttpInfo`
-  - rename `GetTimestampGroupsWithHTTPInfo` to `GetTimestampGroupsWithHttpInfo`
-  - rename `GetTreeWithHTTPInfo` to `GetTreeWithHttpInfo`
-  - rename `CreateAccountWithHTTPInfo` to `CreateAccountWithHttpInfo`
-  - rename `DeleteOrderWithHTTPInfo` to `DeleteOrderWithHttpInfo`
-  - rename `GetBySwatchWithHTTPInfo` to `GetBySwatchWithHttpInfo`
-  - rename `GetOrderByIdWithHTTPInfo` to `GetOrderByIdWithHttpInfo`
-  - rename `GetOrderByTrackingIdWithHTTPInfo` to `GetOrderByTrackingIdWithHttpInfo`
-  - rename `GetStockItemWithHTTPInfo` to `GetStockItemWithHttpInfo`
-  - rename `PlaceOrderWithHTTPInfo` to `PlaceOrderWithHttpInfo`
-  - rename `SearchStoreWithHTTPInfo` to `SearchStoreWithHttpInfo`
 - `api/options.mustache`
   - `AddPetOptions.Auth`: required -> optional
   - `AddPetTreatmentOptions.Auth`: required -> optional
@@ -599,52 +562,27 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `HttpAwareAuthenticator.SetApiClient`: parameters (client) -> (apiclient)
 - `auth/oauth/oauth2_auth_code_authenticator.mustache`
   - `OAuth2AuthorizationCodeAuthenticator.SetApiClient`: parameters (client) -> (apiclient)
-  - rename `BuildAuthorizationURL` to `BuildAuthorizationUrl`
-  - rename `clientID` to `clientId`
-  - rename `authorizationURL` to `authorizationUrl`
-  - rename `tokenURL` to `tokenUrl`
-  - rename `redirectURI` to `redirectUri`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/oauth2_client_credentials_authenticator.mustache`
   - `OAuth2ClientCredentialsAuthenticator.SetApiClient`: parameters (client) -> (apiclient)
-  - rename `clientID` to `clientId`
-  - rename `tokenURL` to `tokenUrl`
 - `auth/oauth/oauth2_implicit_authenticator.mustache`
   - `OAuth2ImplicitAuthenticator.SetApiClient`: parameters () -> (apiclient)
-  - rename `BuildAuthorizationURL` to `BuildAuthorizationUrl`
-  - rename `clientID` to `clientId`
-  - rename `authorizationURL` to `authorizationUrl`
 - `auth/oauth/oauth2_password_authenticator.mustache`
   - `OAuth2PasswordAuthenticator.SetApiClient`: parameters (client) -> (apiclient)
-  - rename `clientID` to `clientId`
-  - rename `tokenURL` to `tokenUrl`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/oauth2_token_manager.mustache`
   - add `exchanged` to `OAuth2TokenManager`
   - `OAuth2TokenManager.SetApiClient`: parameters (client) -> (apiclient)
-  - rename `tokenURL` to `tokenUrl`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/openid_connect_authenticator.mustache`
   - `OpenIdConnectAuthenticator.SetApiClient`: parameters (client) -> (apiclient)
-  - rename `BuildAuthorizationURL` to `BuildAuthorizationUrl`
-  - rename `openIDConnectURL` to `openIdConnectUrl`
-  - rename `clientID` to `clientId`
-  - rename `redirectURI` to `redirectUri`
-- `auth/scheme_authenticator.mustache`
-  - rename `BuildAuthorizationURL` to `BuildAuthorizationUrl`
 - `configuration.mustache`
   - `ConfigurationBuilder.BaseURL`: parameters (val) -> (baseurl)
   - `ConfigurationBuilder.Server`: parameters (server, variables) -> (serverconfig, variables)
-  - rename `BaseURL` to `BaseUrl`
 - `errors/network_error.mustache`
   - `NetworkError` constructor (msg, cause) -> (message, cause)
 - `errors/network_timeout_error.mustache`
   - `NetworkTimeoutError` constructor (msg, cause) -> (message, cause)
-- `iso8601.mustache`
-  - rename `MarshalDurationProtoJSON` to `MarshalDurationProtoJson`
-  - rename `UnmarshalDurationProtoJSON` to `UnmarshalDurationProtoJson`
 - `models/model.mustache`
   - make `Defaults.AllDefaultsModeEnumValues` non-public (or remove)
+  - make `EdgeCases.AllEdgeCasesPhaseEnumValues` non-public (or remove)
   - rename `ModelError` to `Error` (BetterGoCodegen collision rename)
   - make `Order.AllOrderStatusEnumValues` non-public (or remove)
   - make `Pet.AllPetStatusEnumValues` non-public (or remove)
@@ -671,8 +609,6 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - add `intoInner` to `DateTime`
 - `object_serializer.mustache`
   - export `Serialize`/`Deserialize` package functions (object_serializer.mustache)
-- `server_configuration.mustache`
-  - rename `URLTemplate` to `UrlTemplate`
 - `servers.mustache`
   - add `all` to `servers`
   - make `servers.AllServers` non-public (or remove)
@@ -685,10 +621,6 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.MaxRedirects`: parameters (val) -> (maxredirects)
   - `TransportOptionsBuilder.UserAgent`: parameters (val) -> (useragent)
   - `TransportOptionsBuilder.InjectRequestID`: parameters (val) -> (injectrequestid)
-  - rename `ErrInvalidProxyURL` to `ErrInvalidProxyUrl`
-  - rename `ErrInvalidCACertificate` to `ErrInvalidCaCertificate`
-  - rename `CACertPath` to `CaCertPath`
-  - rename `InjectRequestID` to `InjectRequestId`
 
 ### rust (56 changes)
 
@@ -766,96 +698,31 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.inject_request_id`: parameters (val) -> (injectrequestid)
   - make `TransportOptionsBuilder.user_agent_opt` non-public (or remove)
 
-### swift (109 changes)
+### swift (45 changes)
 
-- `api/api.mustache`
-  - rename `addPetWithHTTPInfo` to `addPetWithHttpInfo`
-  - rename `addPetPhotosWithHTTPInfo` to `addPetPhotosWithHttpInfo`
-  - rename `addPetTreatmentWithHTTPInfo` to `addPetTreatmentWithHttpInfo`
-  - rename `deletePetWithHTTPInfo` to `deletePetWithHttpInfo`
-  - rename `downloadPetDocumentWithHTTPInfo` to `downloadPetDocumentWithHttpInfo`
-  - rename `findPetsBornOnWithHTTPInfo` to `findPetsBornOnWithHttpInfo`
-  - rename `findPetsByStatusWithHTTPInfo` to `findPetsByStatusWithHttpInfo`
-  - rename `getExternalPetInfoWithHTTPInfo` to `getExternalPetInfoWithHttpInfo`
-  - rename `getMultiServerPetInfoWithHTTPInfo` to `getMultiServerPetInfoWithHttpInfo`
-  - rename `getPetAvatarWithHTTPInfo` to `getPetAvatarWithHttpInfo`
-  - rename `getPetAvatarThumbnailWithHTTPInfo` to `getPetAvatarThumbnailWithHttpInfo`
-  - rename `getPetByIdWithHTTPInfo` to `getPetByIdWithHttpInfo`
-  - rename `getPetByNameWithHTTPInfo` to `getPetByNameWithHttpInfo`
-  - rename `getPetPassportWithHTTPInfo` to `getPetPassportWithHttpInfo`
-  - rename `getPetPhotoWithHTTPInfo` to `getPetPhotoWithHttpInfo`
-  - rename `getPetSummaryWithHTTPInfo` to `getPetSummaryWithHttpInfo`
-  - rename `getPetTagWithHTTPInfo` to `getPetTagWithHttpInfo`
-  - rename `getStagingPetInfoWithHTTPInfo` to `getStagingPetInfoWithHttpInfo`
-  - rename `setPetAvatarWithHTTPInfo` to `setPetAvatarWithHttpInfo`
-  - rename `setPetAvatarThumbnailWithHTTPInfo` to `setPetAvatarThumbnailWithHttpInfo`
-  - rename `setPetPreferencesWithHTTPInfo` to `setPetPreferencesWithHttpInfo`
-  - rename `updatePetWithHTTPInfo` to `updatePetWithHttpInfo`
-  - rename `uploadPetCertificateWithHTTPInfo` to `uploadPetCertificateWithHttpInfo`
-  - rename `uploadPetDocumentWithHTTPInfo` to `uploadPetDocumentWithHttpInfo`
-  - rename `getDefaultsWithHTTPInfo` to `getDefaultsWithHttpInfo`
-  - rename `getDepartmentWithHTTPInfo` to `getDepartmentWithHttpInfo`
-  - rename `getGroupedCategoriesWithHTTPInfo` to `getGroupedCategoriesWithHttpInfo`
-  - rename `getInventoryWithHTTPInfo` to `getInventoryWithHttpInfo`
-  - rename `getMatrixWithHTTPInfo` to `getMatrixWithHttpInfo`
-  - rename `getSwatchWithHTTPInfo` to `getSwatchWithHttpInfo`
-  - rename `getSwatchGroupsWithHTTPInfo` to `getSwatchGroupsWithHttpInfo`
-  - rename `getTimestampGroupsWithHTTPInfo` to `getTimestampGroupsWithHttpInfo`
-  - rename `getTreeWithHTTPInfo` to `getTreeWithHttpInfo`
-  - rename `createAccountWithHTTPInfo` to `createAccountWithHttpInfo`
-  - rename `deleteOrderWithHTTPInfo` to `deleteOrderWithHttpInfo`
-  - rename `getBySwatchWithHTTPInfo` to `getBySwatchWithHttpInfo`
-  - rename `getOrderByIdWithHTTPInfo` to `getOrderByIdWithHttpInfo`
-  - rename `getOrderByTrackingIdWithHTTPInfo` to `getOrderByTrackingIdWithHttpInfo`
-  - rename `getStockItemWithHTTPInfo` to `getStockItemWithHttpInfo`
-  - rename `placeOrderWithHTTPInfo` to `placeOrderWithHttpInfo`
-  - rename `searchStoreWithHTTPInfo` to `searchStoreWithHttpInfo`
 - `auth/http_aware_authenticator.mustache`
   - `HttpAwareAuthenticator.setApiClient`: parameters (client) -> (apiclient)
 - `auth/oauth/oauth2_auth_code_authenticator.mustache`
   - `OAuth2AuthorizationCodeAuthenticator.setApiClient`: parameters (client) -> (apiclient)
   - make `OAuth2AuthorizationCodeAuthenticator.authHeadersOrThrow` non-public (or remove)
   - `OAuth2AuthorizationCodeAuthenticator` constructor defaults (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes?, refreshurl?) -> (host, clientid, clientsecret, authorizationurl, tokenurl, redirecturi, scopes, refreshurl?)
-  - rename `buildAuthorizationURL` to `buildAuthorizationUrl`
-  - rename `clientID` to `clientId`
-  - rename `authorizationURL` to `authorizationUrl`
-  - rename `tokenURL` to `tokenUrl`
-  - rename `redirectURI` to `redirectUri`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/oauth2_client_credentials_authenticator.mustache`
   - `OAuth2ClientCredentialsAuthenticator.setApiClient`: parameters (client) -> (apiclient)
   - `OAuth2ClientCredentialsAuthenticator` constructor defaults (host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?) -> (host, clientid, clientsecret, tokenurl, scopes, clientauthmethod?)
-  - rename `clientID` to `clientId`
-  - rename `tokenURL` to `tokenUrl`
 - `auth/oauth/oauth2_implicit_authenticator.mustache`
   - `OAuth2ImplicitAuthenticator.setApiClient`: parameters (client) -> (apiclient)
   - `OAuth2ImplicitAuthenticator` constructor defaults (host, clientid, authorizationurl, scopes?) -> (host, clientid, authorizationurl, scopes)
-  - rename `buildAuthorizationURL` to `buildAuthorizationUrl`
-  - rename `clientID` to `clientId`
-  - rename `authorizationURL` to `authorizationUrl`
 - `auth/oauth/oauth2_password_authenticator.mustache`
   - `OAuth2PasswordAuthenticator.setApiClient`: parameters (client) -> (apiclient)
   - `OAuth2PasswordAuthenticator` constructor defaults (host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?) -> (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl?, clientauthmethod?)
-  - rename `clientID` to `clientId`
-  - rename `tokenURL` to `tokenUrl`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/oauth2_token_manager.mustache`
   - `OAuth2TokenManager.setApiClient`: parameters (client) -> (apiclient)
-  - rename `tokenURL` to `tokenUrl`
-  - rename `refreshURL` to `refreshUrl`
 - `auth/oauth/openid_connect_authenticator.mustache`
   - `OpenIdConnectAuthenticator.setApiClient`: parameters (client) -> (apiclient)
   - `OpenIdConnectAuthenticator` constructor defaults (host, openidconnecturl, clientid, clientsecret, redirecturi, scopes?) -> (host, openidconnecturl, clientid, clientsecret, redirecturi, scopes)
-  - rename `buildAuthorizationURL` to `buildAuthorizationUrl`
-  - rename `openIDConnectURL` to `openIdConnectUrl`
-  - rename `clientID` to `clientId`
-  - rename `redirectURI` to `redirectUri`
-- `auth/scheme_authenticator.mustache`
-  - rename `buildAuthorizationURL` to `buildAuthorizationUrl`
 - `configuration.mustache`
   - `ConfigurationBuilder.baseURL`: parameters (val) -> (baseurl)
   - `ConfigurationBuilder.server`: parameters (server, variables) -> (serverconfig, variables)
-  - rename `baseURL` to `baseUrl`
 - `errors/api_error.mustache`
   - `ApiError.fromResponse`: parameters (statuscode, headers, body) -> (statuscode, responseheaders, responsebody)
 - `errors/configuration_error.mustache`
@@ -893,15 +760,15 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.maxRedirects`: parameters (val) -> (maxredirects)
   - `TransportOptionsBuilder.userAgent`: parameters (val) -> (useragent)
   - `TransportOptionsBuilder.injectRequestID`: parameters (val) -> (injectrequestid)
-  - rename `injectRequestID` to `injectRequestId`
 
-### elixir (52 changes)
+### elixir (54 changes)
 
 - `api/options.mustache`
   - `AddPetPhotosOptions.files`: optional -> required
   - `AddPetPhotosOptions.metadata`: optional -> required
   - `GetPetByNameOptions.category`: optional -> required
   - `GetPetByNameOptions.x_correlation_id`: optional -> required
+  - `GetPetSummaryOptions.session`: optional -> required
   - `SetPetPreferencesOptions.nickname`: optional -> required
   - `UploadPetCertificateOptions.file`: optional -> required
   - `UploadPetDocumentOptions.file`: optional -> required
@@ -938,6 +805,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `models/model.mustache`
   - generate `<Model><Prop>Enum` modules for inline enums (models/model.mustache)
   - `DryFood.food_type`: optional -> required
+  - add type `EdgeCasesPhaseEnum`
   - `Metadata.additional_properties`: optional -> required
   - generate the named inline enum (models/model.mustache)
   - add `actualInstance` to `PetFood`
@@ -1060,8 +928,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | BaseApi.noAuth | noAuth | — | — | — | — | — | NO_AUTH ✗ | — | — | — | — | — | — | D19 |
 | BaseApi.config | config | — | — | — | — | — | config ✗ | — | config ✗ | — | — | — | — | D19 |
 | BaseApi.apiClient | apiClient | — | — | — | — | — | — | — | apiClient ✗ | — | — | — | — | D19 |
-| BaseApi.invokeApi | invokeApi | — | — | — | — | — | — | — | invokeApi(method, path, queryParams?, headerParams?, body?, accepts?, contentType?, returnType?, auth?, rawBody?) ✗ | — | invoke_api(params) ✗ | — | invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth?) ✗ | D19 Parameters `(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody)` (majority) in rust, elixir. |
-| BaseApi.invokeApiForResult | invokeApiForResult | — | — | — | — | — | — | — | invokeApiForResult(method, path, queryParams?, headerParams?, body?, accepts?, contentType?, returnType?, auth?, rawBody?, deserialize?) ✗ | — | invoke_api_for_result(params) ✗ | — | invoke_api_for_result(method, path, query_params, header_params, body, accepts, content_type, return_type, auth?) ✗ | D19 Parameters `(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody, deserialize)` (majority) in rust, elixir. |
+| BaseApi.invokeApi | invokeApi | — | — | — | — | — | — | — | invokeApi(method, path, queryParams?, headerParams?, body?, accepts?, contentType?, returnType?, auth?, rawBody?) ✗ | — | invoke_api(params) ✗ | — | invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth?) ✗ | D19 Parameters `(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody)` (majority) in elixir, rust. |
+| BaseApi.invokeApiForResult | invokeApiForResult | — | — | — | — | — | — | — | invokeApiForResult(method, path, queryParams?, headerParams?, body?, accepts?, contentType?, returnType?, auth?, rawBody?, deserialize?) ✗ | — | invoke_api_for_result(params) ✗ | — | invoke_api_for_result(method, path, query_params, header_params, body, accepts, content_type, return_type, auth?) ✗ | D19 Parameters `(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody, deserialize)` (majority) in elixir, rust. |
 | BaseApi.errMissingRequiredParameter | errMissingRequiredParameter | — | — | — | — | — | — | — | — | ErrMissingRequiredParameter ~ | — | — | — | idiom (allow-list) |
 | BaseApi.errInvalidPathParameter | errInvalidPathParameter | — | — | — | — | — | — | — | — | ErrInvalidPathParameter ~ | — | — | — | idiom (allow-list) |
 | BaseApi.errInvalidCookie | errInvalidCookie | — | — | — | — | — | — | — | — | ErrInvalidCookie ~ | — | — | — | idiom (allow-list) |
@@ -1070,53 +938,53 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **PetApi** | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi | PetApi |  |
 | PetApi ctor | new(apiClient?, config?, authenticator?) | (apiClient?, config?, authenticator?) | (apiClient?, config?, authenticator?) | (apiClient?, config?, authenticator?) | — | (api_client?, config?, authenticator?) | (api_client?, config?, authenticator?) | (apiClient?, config?, authenticator?) | (apiClient?, config?, authenticator?) | (apiClient, config, authenticator) | (api_client, config, authenticator) | (apiClient?, config?, authenticator?) | (api_client?, config?, authenticator?) |  |
 | PetApi.addPet | addPet(pet, options?) | addPet(pet, options?) | addPet(pet, options?) | AddPetAsync(pet, options?) | addPet(pet, options?) | add_pet(pet, options?) | add_pet(pet, options?) | addPet(pet, options?) | addPet(pet, options) ~ | AddPet(pet, options) | add_pet(pet, options) | addPet(pet, options?) | add_pet(pet, options?, opts?) | idiom (allow-list) |
-| PetApi.addPetWithHttpInfo | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options?) | AddPetWithHttpInfoAsync(pet, options?) | addPetWithHttpInfo(pet, options?) | add_pet_with_http_info(pet, options?) | add_pet_with_http_info(pet, options?) | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options) ~ | AddPetWithHTTPInfo(pet, options) ✗ | add_pet_with_http_info(pet, options) | addPetWithHTTPInfo(pet, options?) ✗ | add_pet_with_http_info(pet, options?, opts?) | D82 |
+| PetApi.addPetWithHttpInfo | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options?) | AddPetWithHttpInfoAsync(pet, options?) | addPetWithHttpInfo(pet, options?) | add_pet_with_http_info(pet, options?) | add_pet_with_http_info(pet, options?) | addPetWithHttpInfo(pet, options?) | addPetWithHttpInfo(pet, options) ~ | AddPetWithHTTPInfo(pet, options) ~ | add_pet_with_http_info(pet, options) | addPetWithHTTPInfo(pet, options?) ~ | add_pet_with_http_info(pet, options?, opts?) | idiom (allow-list) |
 | PetApi.addPetPhotos | addPetPhotos(petId, options) | addPetPhotos(petId, options) | addPetPhotos(petId, options) | AddPetPhotosAsync(petId, options) | addPetPhotos(petId, options) | add_pet_photos(pet_id, options) | add_pet_photos(pet_id, options) | addPetPhotos(petId, options) | addPetPhotos(petId, options) | AddPetPhotos(petId, options) | add_pet_photos(pet_id, options) | addPetPhotos(petId, options) | add_pet_photos(pet_id, options, opts?) |  |
-| PetApi.addPetPhotosWithHttpInfo | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | AddPetPhotosWithHttpInfoAsync(petId, options) | addPetPhotosWithHttpInfo(petId, options) | add_pet_photos_with_http_info(pet_id, options) | add_pet_photos_with_http_info(pet_id, options) | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | AddPetPhotosWithHTTPInfo(petId, options) ✗ | add_pet_photos_with_http_info(pet_id, options) | addPetPhotosWithHTTPInfo(petId, options) ✗ | add_pet_photos_with_http_info(pet_id, options, opts?) | D82 |
+| PetApi.addPetPhotosWithHttpInfo | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | AddPetPhotosWithHttpInfoAsync(petId, options) | addPetPhotosWithHttpInfo(petId, options) | add_pet_photos_with_http_info(pet_id, options) | add_pet_photos_with_http_info(pet_id, options) | addPetPhotosWithHttpInfo(petId, options) | addPetPhotosWithHttpInfo(petId, options) | AddPetPhotosWithHTTPInfo(petId, options) ~ | add_pet_photos_with_http_info(pet_id, options) | addPetPhotosWithHTTPInfo(petId, options) ~ | add_pet_photos_with_http_info(pet_id, options, opts?) | idiom (allow-list) |
 | PetApi.addPetTreatment | addPetTreatment(petId, petTreatment, options?) | addPetTreatment(petId, petTreatment, options?) | addPetTreatment(petId, petTreatment, options?) | AddPetTreatmentAsync(petId, petTreatment, options?) | addPetTreatment(petId, petTreatment, options?) | add_pet_treatment(pet_id, pet_treatment, options?) | add_pet_treatment(pet_id, pet_treatment, options?) | addPetTreatment(petId, petTreatment, options?) | addPetTreatment(petId, petTreatment, options) ~ | AddPetTreatment(petId, petTreatment, options) | add_pet_treatment(pet_id, pet_treatment, options) | addPetTreatment(petId, petTreatment, options?) | add_pet_treatment(pet_id, pet_treatment, options?, opts?) | idiom (allow-list) |
-| PetApi.addPetTreatmentWithHttpInfo | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | AddPetTreatmentWithHttpInfoAsync(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?) | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options) ~ | AddPetTreatmentWithHTTPInfo(petId, petTreatment, options) ✗ | add_pet_treatment_with_http_info(pet_id, pet_treatment, options) | addPetTreatmentWithHTTPInfo(petId, petTreatment, options?) ✗ | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?, opts?) | D82 |
+| PetApi.addPetTreatmentWithHttpInfo | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | AddPetTreatmentWithHttpInfoAsync(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?) | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options?) | addPetTreatmentWithHttpInfo(petId, petTreatment, options) ~ | AddPetTreatmentWithHTTPInfo(petId, petTreatment, options) ~ | add_pet_treatment_with_http_info(pet_id, pet_treatment, options) | addPetTreatmentWithHTTPInfo(petId, petTreatment, options?) ~ | add_pet_treatment_with_http_info(pet_id, pet_treatment, options?, opts?) | idiom (allow-list) |
 | PetApi.deletePet | deletePet(petId, options?) | deletePet(petId, options?) | deletePet(petId, options?) | DeletePetAsync(petId, options?) | deletePet(petId, options?) | delete_pet(pet_id, options?) | delete_pet(pet_id, options?) | deletePet(petId, options?) | deletePet(petId, options) ~ | DeletePet(petId, options) | delete_pet(pet_id, options) | deletePet(petId, options?) | delete_pet(pet_id, options?, opts?) | idiom (allow-list) |
-| PetApi.deletePetWithHttpInfo | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options?) | DeletePetWithHttpInfoAsync(petId, options?) | deletePetWithHttpInfo(petId, options?) | delete_pet_with_http_info(pet_id, options?) | delete_pet_with_http_info(pet_id, options?) | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options) ~ | DeletePetWithHTTPInfo(petId, options) ✗ | delete_pet_with_http_info(pet_id, options) | deletePetWithHTTPInfo(petId, options?) ✗ | delete_pet_with_http_info(pet_id, options?, opts?) | D82 |
+| PetApi.deletePetWithHttpInfo | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options?) | DeletePetWithHttpInfoAsync(petId, options?) | deletePetWithHttpInfo(petId, options?) | delete_pet_with_http_info(pet_id, options?) | delete_pet_with_http_info(pet_id, options?) | deletePetWithHttpInfo(petId, options?) | deletePetWithHttpInfo(petId, options) ~ | DeletePetWithHTTPInfo(petId, options) ~ | delete_pet_with_http_info(pet_id, options) | deletePetWithHTTPInfo(petId, options?) ~ | delete_pet_with_http_info(pet_id, options?, opts?) | idiom (allow-list) |
 | PetApi.downloadPetDocument | downloadPetDocument(petId, documentId) | downloadPetDocument(petId, documentId) | downloadPetDocument(petId, documentId) | DownloadPetDocumentAsync(petId, documentId) | downloadPetDocument(petId, documentId) | download_pet_document(pet_id, document_id) | download_pet_document(pet_id, document_id) | downloadPetDocument(petId, documentId) | downloadPetDocument(petId, documentId) | DownloadPetDocument(petId, documentId) | download_pet_document(pet_id, document_id) | downloadPetDocument(petId, documentId) | download_pet_document(pet_id, document_id, opts?) |  |
-| PetApi.downloadPetDocumentWithHttpInfo | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | DownloadPetDocumentWithHttpInfoAsync(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | download_pet_document_with_http_info(pet_id, document_id) | download_pet_document_with_http_info(pet_id, document_id) | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | DownloadPetDocumentWithHTTPInfo(petId, documentId) ✗ | download_pet_document_with_http_info(pet_id, document_id) | downloadPetDocumentWithHTTPInfo(petId, documentId) ✗ | download_pet_document_with_http_info(pet_id, document_id, opts?) | D82 |
+| PetApi.downloadPetDocumentWithHttpInfo | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | DownloadPetDocumentWithHttpInfoAsync(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | download_pet_document_with_http_info(pet_id, document_id) | download_pet_document_with_http_info(pet_id, document_id) | downloadPetDocumentWithHttpInfo(petId, documentId) | downloadPetDocumentWithHttpInfo(petId, documentId) | DownloadPetDocumentWithHTTPInfo(petId, documentId) ~ | download_pet_document_with_http_info(pet_id, document_id) | downloadPetDocumentWithHTTPInfo(petId, documentId) ~ | download_pet_document_with_http_info(pet_id, document_id, opts?) | idiom (allow-list) |
 | PetApi.findPetsBornOn | findPetsBornOn(bornOn) | findPetsBornOn(bornOn) | findPetsBornOn(bornOn) | FindPetsBornOnAsync(bornOn) | findPetsBornOn(bornOn) | find_pets_born_on(born_on) | find_pets_born_on(born_on) | findPetsBornOn(bornOn) | findPetsBornOn(bornOn) | FindPetsBornOn(bornOn) | find_pets_born_on(born_on) | findPetsBornOn(bornOn) | find_pets_born_on(born_on, opts?) |  |
-| PetApi.findPetsBornOnWithHttpInfo | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | FindPetsBornOnWithHttpInfoAsync(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | find_pets_born_on_with_http_info(born_on) | find_pets_born_on_with_http_info(born_on) | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | FindPetsBornOnWithHTTPInfo(bornOn) ✗ | find_pets_born_on_with_http_info(born_on) | findPetsBornOnWithHTTPInfo(bornOn) ✗ | find_pets_born_on_with_http_info(born_on, opts?) | D82 |
+| PetApi.findPetsBornOnWithHttpInfo | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | FindPetsBornOnWithHttpInfoAsync(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | find_pets_born_on_with_http_info(born_on) | find_pets_born_on_with_http_info(born_on) | findPetsBornOnWithHttpInfo(bornOn) | findPetsBornOnWithHttpInfo(bornOn) | FindPetsBornOnWithHTTPInfo(bornOn) ~ | find_pets_born_on_with_http_info(born_on) | findPetsBornOnWithHTTPInfo(bornOn) ~ | find_pets_born_on_with_http_info(born_on, opts?) | idiom (allow-list) |
 | PetApi.findPetsByStatus | findPetsByStatus(options?) | findPetsByStatus(options?) | findPetsByStatus(options?) | FindPetsByStatusAsync(options?) | findPetsByStatus(options?) | find_pets_by_status(options?) | find_pets_by_status(options?) | findPetsByStatus(options?) | findPetsByStatus(options) ~ | FindPetsByStatus(options) | find_pets_by_status(options) | findPetsByStatus(options?) | find_pets_by_status(options?, opts?) | idiom (allow-list) |
-| PetApi.findPetsByStatusWithHttpInfo | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options?) | FindPetsByStatusWithHttpInfoAsync(options?) | findPetsByStatusWithHttpInfo(options?) | find_pets_by_status_with_http_info(options?) | find_pets_by_status_with_http_info(options?) | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options) ~ | FindPetsByStatusWithHTTPInfo(options) ✗ | find_pets_by_status_with_http_info(options) | findPetsByStatusWithHTTPInfo(options?) ✗ | find_pets_by_status_with_http_info(options?, opts?) | D82 |
+| PetApi.findPetsByStatusWithHttpInfo | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options?) | FindPetsByStatusWithHttpInfoAsync(options?) | findPetsByStatusWithHttpInfo(options?) | find_pets_by_status_with_http_info(options?) | find_pets_by_status_with_http_info(options?) | findPetsByStatusWithHttpInfo(options?) | findPetsByStatusWithHttpInfo(options) ~ | FindPetsByStatusWithHTTPInfo(options) ~ | find_pets_by_status_with_http_info(options) | findPetsByStatusWithHTTPInfo(options?) ~ | find_pets_by_status_with_http_info(options?, opts?) | idiom (allow-list) |
 | PetApi.getExternalPetInfo | getExternalPetInfo(petId, server?) | getExternalPetInfo(petId, server?) | getExternalPetInfo(petId, server?) | GetExternalPetInfoAsync(petId, server?) | getExternalPetInfo(petId, server?) | get_external_pet_info(pet_id, server?) | get_external_pet_info(pet_id, server?) | getExternalPetInfo(petId, server?) | getExternalPetInfo(petId, server) ~ | GetExternalPetInfo(petId, server) | get_external_pet_info(pet_id, server) | getExternalPetInfo(petId, server?) | get_external_pet_info(pet_id, opts?) | idiom (allow-list) |
-| PetApi.getExternalPetInfoWithHttpInfo | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | GetExternalPetInfoWithHttpInfoAsync(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | get_external_pet_info_with_http_info(pet_id, server?) | get_external_pet_info_with_http_info(pet_id, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server) ~ | GetExternalPetInfoWithHTTPInfo(petId, server) ✗ | get_external_pet_info_with_http_info(pet_id, server) | getExternalPetInfoWithHTTPInfo(petId, server?) ✗ | get_external_pet_info_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getExternalPetInfoWithHttpInfo | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | GetExternalPetInfoWithHttpInfoAsync(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | get_external_pet_info_with_http_info(pet_id, server?) | get_external_pet_info_with_http_info(pet_id, server?) | getExternalPetInfoWithHttpInfo(petId, server?) | getExternalPetInfoWithHttpInfo(petId, server) ~ | GetExternalPetInfoWithHTTPInfo(petId, server) ~ | get_external_pet_info_with_http_info(pet_id, server) | getExternalPetInfoWithHTTPInfo(petId, server?) ~ | get_external_pet_info_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getMultiServerPetInfo | getMultiServerPetInfo(petId, server?) | getMultiServerPetInfo(petId, server?) | getMultiServerPetInfo(petId, server?) | GetMultiServerPetInfoAsync(petId, server?) | getMultiServerPetInfo(petId, server?) | get_multi_server_pet_info(pet_id, server?) | get_multi_server_pet_info(pet_id, server?) | getMultiServerPetInfo(petId, server?) | getMultiServerPetInfo(petId, server) ~ | GetMultiServerPetInfo(petId, server) | get_multi_server_pet_info(pet_id, server) | getMultiServerPetInfo(petId, server?) | get_multi_server_pet_info(pet_id, opts?) | idiom (allow-list) |
-| PetApi.getMultiServerPetInfoWithHttpInfo | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | GetMultiServerPetInfoWithHttpInfoAsync(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | get_multi_server_pet_info_with_http_info(pet_id, server?) | get_multi_server_pet_info_with_http_info(pet_id, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server) ~ | GetMultiServerPetInfoWithHTTPInfo(petId, server) ✗ | get_multi_server_pet_info_with_http_info(pet_id, server) | getMultiServerPetInfoWithHTTPInfo(petId, server?) ✗ | get_multi_server_pet_info_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getMultiServerPetInfoWithHttpInfo | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | GetMultiServerPetInfoWithHttpInfoAsync(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | get_multi_server_pet_info_with_http_info(pet_id, server?) | get_multi_server_pet_info_with_http_info(pet_id, server?) | getMultiServerPetInfoWithHttpInfo(petId, server?) | getMultiServerPetInfoWithHttpInfo(petId, server) ~ | GetMultiServerPetInfoWithHTTPInfo(petId, server) ~ | get_multi_server_pet_info_with_http_info(pet_id, server) | getMultiServerPetInfoWithHTTPInfo(petId, server?) ~ | get_multi_server_pet_info_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getPetAvatar | getPetAvatar(petId) | getPetAvatar(petId) | getPetAvatar(petId) | GetPetAvatarAsync(petId) | getPetAvatar(petId) | get_pet_avatar(pet_id) | get_pet_avatar(pet_id) | getPetAvatar(petId) | getPetAvatar(petId) | GetPetAvatar(petId) | get_pet_avatar(pet_id) | getPetAvatar(petId) | get_pet_avatar(pet_id, opts?) |  |
-| PetApi.getPetAvatarWithHttpInfo | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | GetPetAvatarWithHttpInfoAsync(petId) | getPetAvatarWithHttpInfo(petId) | get_pet_avatar_with_http_info(pet_id) | get_pet_avatar_with_http_info(pet_id) | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | GetPetAvatarWithHTTPInfo(petId) ✗ | get_pet_avatar_with_http_info(pet_id) | getPetAvatarWithHTTPInfo(petId) ✗ | get_pet_avatar_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getPetAvatarWithHttpInfo | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | GetPetAvatarWithHttpInfoAsync(petId) | getPetAvatarWithHttpInfo(petId) | get_pet_avatar_with_http_info(pet_id) | get_pet_avatar_with_http_info(pet_id) | getPetAvatarWithHttpInfo(petId) | getPetAvatarWithHttpInfo(petId) | GetPetAvatarWithHTTPInfo(petId) ~ | get_pet_avatar_with_http_info(pet_id) | getPetAvatarWithHTTPInfo(petId) ~ | get_pet_avatar_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getPetAvatarThumbnail | getPetAvatarThumbnail(petId) | getPetAvatarThumbnail(petId) | getPetAvatarThumbnail(petId) | GetPetAvatarThumbnailAsync(petId) | getPetAvatarThumbnail(petId) | get_pet_avatar_thumbnail(pet_id) | get_pet_avatar_thumbnail(pet_id) | getPetAvatarThumbnail(petId) | getPetAvatarThumbnail(petId) | GetPetAvatarThumbnail(petId) | get_pet_avatar_thumbnail(pet_id) | getPetAvatarThumbnail(petId) | get_pet_avatar_thumbnail(pet_id, opts?) |  |
-| PetApi.getPetAvatarThumbnailWithHttpInfo | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | GetPetAvatarThumbnailWithHttpInfoAsync(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | get_pet_avatar_thumbnail_with_http_info(pet_id) | get_pet_avatar_thumbnail_with_http_info(pet_id) | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | GetPetAvatarThumbnailWithHTTPInfo(petId) ✗ | get_pet_avatar_thumbnail_with_http_info(pet_id) | getPetAvatarThumbnailWithHTTPInfo(petId) ✗ | get_pet_avatar_thumbnail_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getPetAvatarThumbnailWithHttpInfo | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | GetPetAvatarThumbnailWithHttpInfoAsync(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | get_pet_avatar_thumbnail_with_http_info(pet_id) | get_pet_avatar_thumbnail_with_http_info(pet_id) | getPetAvatarThumbnailWithHttpInfo(petId) | getPetAvatarThumbnailWithHttpInfo(petId) | GetPetAvatarThumbnailWithHTTPInfo(petId) ~ | get_pet_avatar_thumbnail_with_http_info(pet_id) | getPetAvatarThumbnailWithHTTPInfo(petId) ~ | get_pet_avatar_thumbnail_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getPetById | getPetById(petId, server?) | getPetById(petId, server?) | getPetById(petId, server?) | GetPetByIdAsync(petId, server?) | getPetById(petId, server?) | get_pet_by_id(pet_id, server?) | get_pet_by_id(pet_id, server?) | getPetById(petId, server?) | getPetById(petId, server) ~ | GetPetById(petId, server) | get_pet_by_id(pet_id, server) | getPetById(petId, server?) | get_pet_by_id(pet_id, opts?) | idiom (allow-list) |
-| PetApi.getPetByIdWithHttpInfo | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | GetPetByIdWithHttpInfoAsync(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | get_pet_by_id_with_http_info(pet_id, server?) | get_pet_by_id_with_http_info(pet_id, server?) | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server) ~ | GetPetByIdWithHTTPInfo(petId, server) ✗ | get_pet_by_id_with_http_info(pet_id, server) | getPetByIdWithHTTPInfo(petId, server?) ✗ | get_pet_by_id_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getPetByIdWithHttpInfo | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | GetPetByIdWithHttpInfoAsync(petId, server?) | getPetByIdWithHttpInfo(petId, server?) | get_pet_by_id_with_http_info(pet_id, server?) | get_pet_by_id_with_http_info(pet_id, server?) | getPetByIdWithHttpInfo(petId, server?) | getPetByIdWithHttpInfo(petId, server) ~ | GetPetByIdWithHTTPInfo(petId, server) ~ | get_pet_by_id_with_http_info(pet_id, server) | getPetByIdWithHTTPInfo(petId, server?) ~ | get_pet_by_id_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getPetByName | getPetByName(name, options) | getPetByName(name, options) | getPetByName(name, options) | GetPetByNameAsync(name, options) | getPetByName(name, options) | get_pet_by_name(name, options) | get_pet_by_name(name, options) | getPetByName(name, options) | getPetByName(name, options) | GetPetByName(name, options) | get_pet_by_name(name, options) | getPetByName(name, options) | get_pet_by_name(name, options, opts?) |  |
-| PetApi.getPetByNameWithHttpInfo | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | GetPetByNameWithHttpInfoAsync(name, options) | getPetByNameWithHttpInfo(name, options) | get_pet_by_name_with_http_info(name, options) | get_pet_by_name_with_http_info(name, options) | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | GetPetByNameWithHTTPInfo(name, options) ✗ | get_pet_by_name_with_http_info(name, options) | getPetByNameWithHTTPInfo(name, options) ✗ | get_pet_by_name_with_http_info(name, options, opts?) | D82 |
+| PetApi.getPetByNameWithHttpInfo | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | GetPetByNameWithHttpInfoAsync(name, options) | getPetByNameWithHttpInfo(name, options) | get_pet_by_name_with_http_info(name, options) | get_pet_by_name_with_http_info(name, options) | getPetByNameWithHttpInfo(name, options) | getPetByNameWithHttpInfo(name, options) | GetPetByNameWithHTTPInfo(name, options) ~ | get_pet_by_name_with_http_info(name, options) | getPetByNameWithHTTPInfo(name, options) ~ | get_pet_by_name_with_http_info(name, options, opts?) | idiom (allow-list) |
 | PetApi.getPetPassport | getPetPassport(petId) | getPetPassport(petId) | getPetPassport(petId) | GetPetPassportAsync(petId) | getPetPassport(petId) | get_pet_passport(pet_id) | get_pet_passport(pet_id) | getPetPassport(petId) | getPetPassport(petId) | GetPetPassport(petId) | get_pet_passport(pet_id) | getPetPassport(petId) | get_pet_passport(pet_id, opts?) |  |
-| PetApi.getPetPassportWithHttpInfo | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | GetPetPassportWithHttpInfoAsync(petId) | getPetPassportWithHttpInfo(petId) | get_pet_passport_with_http_info(pet_id) | get_pet_passport_with_http_info(pet_id) | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | GetPetPassportWithHTTPInfo(petId) ✗ | get_pet_passport_with_http_info(pet_id) | getPetPassportWithHTTPInfo(petId) ✗ | get_pet_passport_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getPetPassportWithHttpInfo | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | GetPetPassportWithHttpInfoAsync(petId) | getPetPassportWithHttpInfo(petId) | get_pet_passport_with_http_info(pet_id) | get_pet_passport_with_http_info(pet_id) | getPetPassportWithHttpInfo(petId) | getPetPassportWithHttpInfo(petId) | GetPetPassportWithHTTPInfo(petId) ~ | get_pet_passport_with_http_info(pet_id) | getPetPassportWithHTTPInfo(petId) ~ | get_pet_passport_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.getPetPhoto | getPetPhoto(petId, photoId) | getPetPhoto(petId, photoId) | getPetPhoto(petId, photoId) | GetPetPhotoAsync(petId, photoId) | getPetPhoto(petId, photoId) | get_pet_photo(pet_id, photo_id) | get_pet_photo(pet_id, photo_id) | getPetPhoto(petId, photoId) | getPetPhoto(petId, photoId) | GetPetPhoto(petId, photoId) | get_pet_photo(pet_id, photo_id) | getPetPhoto(petId, photoId) | get_pet_photo(pet_id, photo_id, opts?) |  |
-| PetApi.getPetPhotoWithHttpInfo | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | GetPetPhotoWithHttpInfoAsync(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | get_pet_photo_with_http_info(pet_id, photo_id) | get_pet_photo_with_http_info(pet_id, photo_id) | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | GetPetPhotoWithHTTPInfo(petId, photoId) ✗ | get_pet_photo_with_http_info(pet_id, photo_id) | getPetPhotoWithHTTPInfo(petId, photoId) ✗ | get_pet_photo_with_http_info(pet_id, photo_id, opts?) | D82 |
-| PetApi.getPetSummary | getPetSummary(petId) | getPetSummary(petId) | getPetSummary(petId) | GetPetSummaryAsync(petId) | getPetSummary(petId) | get_pet_summary(pet_id) | get_pet_summary(pet_id) | getPetSummary(petId) | getPetSummary(petId) | GetPetSummary(petId) | get_pet_summary(pet_id) | getPetSummary(petId) | get_pet_summary(pet_id, opts?) |  |
-| PetApi.getPetSummaryWithHttpInfo | getPetSummaryWithHttpInfo(petId) | getPetSummaryWithHttpInfo(petId) | getPetSummaryWithHttpInfo(petId) | GetPetSummaryWithHttpInfoAsync(petId) | getPetSummaryWithHttpInfo(petId) | get_pet_summary_with_http_info(pet_id) | get_pet_summary_with_http_info(pet_id) | getPetSummaryWithHttpInfo(petId) | getPetSummaryWithHttpInfo(petId) | GetPetSummaryWithHTTPInfo(petId) ✗ | get_pet_summary_with_http_info(pet_id) | getPetSummaryWithHTTPInfo(petId) ✗ | get_pet_summary_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getPetPhotoWithHttpInfo | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | GetPetPhotoWithHttpInfoAsync(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | get_pet_photo_with_http_info(pet_id, photo_id) | get_pet_photo_with_http_info(pet_id, photo_id) | getPetPhotoWithHttpInfo(petId, photoId) | getPetPhotoWithHttpInfo(petId, photoId) | GetPetPhotoWithHTTPInfo(petId, photoId) ~ | get_pet_photo_with_http_info(pet_id, photo_id) | getPetPhotoWithHTTPInfo(petId, photoId) ~ | get_pet_photo_with_http_info(pet_id, photo_id, opts?) | idiom (allow-list) |
+| PetApi.getPetSummary | getPetSummary(petId, asOf, options) | getPetSummary(petId, asOf, options) | getPetSummary(petId, asOf, options) | GetPetSummaryAsync(petId, asOf, options) | getPetSummary(petId, asOf, options) | get_pet_summary(pet_id, as_of, options) | get_pet_summary(pet_id, as_of, options) | getPetSummary(petId, asOf, options) | getPetSummary(petId, asOf, options) | GetPetSummary(petId, asOf, options) | get_pet_summary(pet_id, as_of, options) | getPetSummary(petId, asOf, options) | get_pet_summary(pet_id, as_of, options, opts?) |  |
+| PetApi.getPetSummaryWithHttpInfo | getPetSummaryWithHttpInfo(petId, asOf, options) | getPetSummaryWithHttpInfo(petId, asOf, options) | getPetSummaryWithHttpInfo(petId, asOf, options) | GetPetSummaryWithHttpInfoAsync(petId, asOf, options) | getPetSummaryWithHttpInfo(petId, asOf, options) | get_pet_summary_with_http_info(pet_id, as_of, options) | get_pet_summary_with_http_info(pet_id, as_of, options) | getPetSummaryWithHttpInfo(petId, asOf, options) | getPetSummaryWithHttpInfo(petId, asOf, options) | GetPetSummaryWithHTTPInfo(petId, asOf, options) ~ | get_pet_summary_with_http_info(pet_id, as_of, options) | getPetSummaryWithHTTPInfo(petId, asOf, options) ~ | get_pet_summary_with_http_info(pet_id, as_of, options, opts?) | idiom (allow-list) |
 | PetApi.getPetTag | getPetTag(petId, tagName, options?) | getPetTag(petId, tagName, options?) | getPetTag(petId, tagName, options?) | GetPetTagAsync(petId, tagName, options?) | getPetTag(petId, tagName, options?) | get_pet_tag(pet_id, tag_name, options?) | get_pet_tag(pet_id, tag_name, options?) | getPetTag(petId, tagName, options?) | getPetTag(petId, tagName, options) ~ | GetPetTag(petId, tagName, options) | get_pet_tag(pet_id, tag_name, options) | getPetTag(petId, tagName, options?) | get_pet_tag(pet_id, tag_name, options?, opts?) | idiom (allow-list) |
-| PetApi.getPetTagWithHttpInfo | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | GetPetTagWithHttpInfoAsync(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options) ~ | GetPetTagWithHTTPInfo(petId, tagName, options) ✗ | get_pet_tag_with_http_info(pet_id, tag_name, options) | getPetTagWithHTTPInfo(petId, tagName, options?) ✗ | get_pet_tag_with_http_info(pet_id, tag_name, options?, opts?) | D82 |
+| PetApi.getPetTagWithHttpInfo | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | GetPetTagWithHttpInfoAsync(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options) ~ | GetPetTagWithHTTPInfo(petId, tagName, options) ~ | get_pet_tag_with_http_info(pet_id, tag_name, options) | getPetTagWithHTTPInfo(petId, tagName, options?) ~ | get_pet_tag_with_http_info(pet_id, tag_name, options?, opts?) | idiom (allow-list) |
 | PetApi.getStagingPetInfo | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server?) | GetStagingPetInfoAsync(petId, server?) | getStagingPetInfo(petId, server?) | get_staging_pet_info(pet_id, server?) | get_staging_pet_info(pet_id, server?) | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server) ~ | GetStagingPetInfo(petId, server) | get_staging_pet_info(pet_id, server) | getStagingPetInfo(petId, server?) | get_staging_pet_info(pet_id, opts?) | idiom (allow-list) |
-| PetApi.getStagingPetInfoWithHttpInfo | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | GetStagingPetInfoWithHttpInfoAsync(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server) ~ | GetStagingPetInfoWithHTTPInfo(petId, server) ✗ | get_staging_pet_info_with_http_info(pet_id, server) | getStagingPetInfoWithHTTPInfo(petId, server?) ✗ | get_staging_pet_info_with_http_info(pet_id, opts?) | D82 |
+| PetApi.getStagingPetInfoWithHttpInfo | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | GetStagingPetInfoWithHttpInfoAsync(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server) ~ | GetStagingPetInfoWithHTTPInfo(petId, server) ~ | get_staging_pet_info_with_http_info(pet_id, server) | getStagingPetInfoWithHTTPInfo(petId, server?) ~ | get_staging_pet_info_with_http_info(pet_id, opts?) | idiom (allow-list) |
 | PetApi.setPetAvatar | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | SetPetAvatarAsync(petId, body, requestContentType?) | setPetAvatar(petId, body, contentType?) ✗ | set_pet_avatar(pet_id, body, request_content_type?) | set_pet_avatar(pet_id, body, content_type?) ✗ | setPetAvatar(petId, body, contentType?) ✗ | setPetAvatar(petId, body, requestContentType?) | SetPetAvatar(petId, body, requestContentType) | set_pet_avatar(pet_id, body) ~ | setPetAvatar(petId, body, requestContentType?) | set_pet_avatar(pet_id, body, opts?) | D53 |
-| PetApi.setPetAvatarWithHttpInfo | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHttpInfoAsync(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | set_pet_avatar_with_http_info(pet_id, body, request_content_type?) | set_pet_avatar_with_http_info(pet_id, body, content_type?) ✗ | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHTTPInfo(petId, body, requestContentType) ✗ | set_pet_avatar_with_http_info(pet_id, body) ~ | setPetAvatarWithHTTPInfo(petId, body, requestContentType?) ✗ | set_pet_avatar_with_http_info(pet_id, body, opts?) | D53 D82 |
+| PetApi.setPetAvatarWithHttpInfo | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHttpInfoAsync(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | set_pet_avatar_with_http_info(pet_id, body, request_content_type?) | set_pet_avatar_with_http_info(pet_id, body, content_type?) ✗ | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHTTPInfo(petId, body, requestContentType) ~ | set_pet_avatar_with_http_info(pet_id, body) ~ | setPetAvatarWithHTTPInfo(petId, body, requestContentType?) ~ | set_pet_avatar_with_http_info(pet_id, body, opts?) | D53 |
 | PetApi.setPetAvatarThumbnail | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailAsync(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request, opts?) |  |
-| PetApi.setPetAvatarThumbnailWithHttpInfo | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHttpInfoAsync(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ✗ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ✗ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, opts?) | D82 |
+| PetApi.setPetAvatarThumbnailWithHttpInfo | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHttpInfoAsync(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ~ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ~ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, opts?) | idiom (allow-list) |
 | PetApi.setPetPreferences | setPetPreferences(petId, options) | setPetPreferences(petId, options) | setPetPreferences(petId, options) | SetPetPreferencesAsync(petId, options) | setPetPreferences(petId, options) | set_pet_preferences(pet_id, options) | set_pet_preferences(pet_id, options) | setPetPreferences(petId, options) | setPetPreferences(petId, options) | SetPetPreferences(petId, options) | set_pet_preferences(pet_id, options) | setPetPreferences(petId, options) | set_pet_preferences(pet_id, options, opts?) |  |
-| PetApi.setPetPreferencesWithHttpInfo | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | SetPetPreferencesWithHttpInfoAsync(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | set_pet_preferences_with_http_info(pet_id, options) | set_pet_preferences_with_http_info(pet_id, options) | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | SetPetPreferencesWithHTTPInfo(petId, options) ✗ | set_pet_preferences_with_http_info(pet_id, options) | setPetPreferencesWithHTTPInfo(petId, options) ✗ | set_pet_preferences_with_http_info(pet_id, options, opts?) | D82 |
+| PetApi.setPetPreferencesWithHttpInfo | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | SetPetPreferencesWithHttpInfoAsync(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | set_pet_preferences_with_http_info(pet_id, options) | set_pet_preferences_with_http_info(pet_id, options) | setPetPreferencesWithHttpInfo(petId, options) | setPetPreferencesWithHttpInfo(petId, options) | SetPetPreferencesWithHTTPInfo(petId, options) ~ | set_pet_preferences_with_http_info(pet_id, options) | setPetPreferencesWithHTTPInfo(petId, options) ~ | set_pet_preferences_with_http_info(pet_id, options, opts?) | idiom (allow-list) |
 | PetApi.updatePet | updatePet(petId, pet) | updatePet(petId, pet) | updatePet(petId, pet) | UpdatePetAsync(petId, pet) | updatePet(petId, pet) | update_pet(pet_id, pet) | update_pet(pet_id, pet) | updatePet(petId, pet) | updatePet(petId, pet) | UpdatePet(petId, pet) | update_pet(pet_id, pet) | updatePet(petId, pet) | update_pet(pet_id, pet, opts?) |  |
-| PetApi.updatePetWithHttpInfo | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHttpInfoAsync(petId, pet) | updatePetWithHttpInfo(petId, pet) | update_pet_with_http_info(pet_id, pet) | update_pet_with_http_info(pet_id, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHTTPInfo(petId, pet) ✗ | update_pet_with_http_info(pet_id, pet) | updatePetWithHTTPInfo(petId, pet) ✗ | update_pet_with_http_info(pet_id, pet, opts?) | D82 |
+| PetApi.updatePetWithHttpInfo | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHttpInfoAsync(petId, pet) | updatePetWithHttpInfo(petId, pet) | update_pet_with_http_info(pet_id, pet) | update_pet_with_http_info(pet_id, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHTTPInfo(petId, pet) ~ | update_pet_with_http_info(pet_id, pet) | updatePetWithHTTPInfo(petId, pet) ~ | update_pet_with_http_info(pet_id, pet, opts?) | idiom (allow-list) |
 | PetApi.uploadPetCertificate | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | UploadPetCertificateAsync(petId, options) | uploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options) | upload_pet_certificate(pet_id, options) | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | UploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options) | uploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options, opts?) |  |
-| PetApi.uploadPetCertificateWithHttpInfo | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHttpInfoAsync(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | upload_pet_certificate_with_http_info(pet_id, options) | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHTTPInfo(petId, options) ✗ | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHTTPInfo(petId, options) ✗ | upload_pet_certificate_with_http_info(pet_id, options, opts?) | D82 |
+| PetApi.uploadPetCertificateWithHttpInfo | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHttpInfoAsync(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | upload_pet_certificate_with_http_info(pet_id, options) | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHTTPInfo(petId, options) ~ | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHTTPInfo(petId, options) ~ | upload_pet_certificate_with_http_info(pet_id, options, opts?) | idiom (allow-list) |
 | PetApi.uploadPetDocument | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocumentAsync(petId, options, requestContentType?) | uploadPetDocument(petId, options, contentType?) ✗ | upload_pet_document(pet_id, options, request_content_type?) | upload_pet_document(pet_id, options, content_type?) ✗ | uploadPetDocument(petId, options, contentType?) ✗ | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocument(petId, options, requestContentType) | upload_pet_document(pet_id, options) ~ | uploadPetDocument(petId, options, requestContentType?) | upload_pet_document(pet_id, options, opts?) | D54 |
-| PetApi.uploadPetDocumentWithHttpInfo | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHttpInfoAsync(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | upload_pet_document_with_http_info(pet_id, options, request_content_type?) | upload_pet_document_with_http_info(pet_id, options, content_type?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHTTPInfo(petId, options, requestContentType) ✗ | upload_pet_document_with_http_info(pet_id, options) ~ | uploadPetDocumentWithHTTPInfo(petId, options, requestContentType?) ✗ | upload_pet_document_with_http_info(pet_id, options, opts?) | D54 D82 |
+| PetApi.uploadPetDocumentWithHttpInfo | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHttpInfoAsync(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | upload_pet_document_with_http_info(pet_id, options, request_content_type?) | upload_pet_document_with_http_info(pet_id, options, content_type?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHTTPInfo(petId, options, requestContentType) ~ | upload_pet_document_with_http_info(pet_id, options) ~ | uploadPetDocumentWithHTTPInfo(petId, options, requestContentType?) ~ | upload_pet_document_with_http_info(pet_id, options, opts?) | D54 |
 | PetApi.config | config | — | — | — | — | — | config ✗ | — | config ✗ | — | — | — | config ~ | D21 |
 | PetApi.apiClient | apiClient | — | — | — | — | — | — | — | apiClient ✗ | — | — | — | api_client ~ | D23 |
 | PetApi.setPetAvatarWithContentType | setPetAvatarWithContentType | — | — | — | — | — | — | — | — | — | set_pet_avatar_with_content_type(pet_id, body, request_content_type) ~ | — | — | idiom (allow-list) |
@@ -1174,42 +1042,42 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | StoreApi.getTree | getTree | getTree | getTree | GetTreeAsync | getTree | get_tree | get_tree | getTree | getTree | GetTree | get_tree | getTree | — |  |
 | StoreApi.getTreeWithHttpInfo | getTreeWithHttpInfo | getTreeWithHttpInfo | getTreeWithHttpInfo | GetTreeWithHttpInfoAsync | getTreeWithHttpInfo | get_tree_with_http_info | get_tree_with_http_info | getTreeWithHttpInfo | getTreeWithHttpInfo | GetTreeWithHTTPInfo | get_tree_with_http_info | getTreeWithHTTPInfo | — |  |
 | StoreApi.createAccount | createAccount(account) | createAccount(account) | createAccount(account) | CreateAccountAsync(account) | createAccount(account) | create_account(account) | create_account(account) | createAccount(account) | createAccount(account) | CreateAccount(account) | create_account(account) | createAccount(account) | create_account(account, opts?) |  |
-| StoreApi.createAccountWithHttpInfo | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | CreateAccountWithHttpInfoAsync(account) | createAccountWithHttpInfo(account) | create_account_with_http_info(account) | create_account_with_http_info(account) | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | CreateAccountWithHTTPInfo(account) ✗ | create_account_with_http_info(account) | createAccountWithHTTPInfo(account) ✗ | create_account_with_http_info(account, opts?) | D82 |
+| StoreApi.createAccountWithHttpInfo | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | CreateAccountWithHttpInfoAsync(account) | createAccountWithHttpInfo(account) | create_account_with_http_info(account) | create_account_with_http_info(account) | createAccountWithHttpInfo(account) | createAccountWithHttpInfo(account) | CreateAccountWithHTTPInfo(account) ~ | create_account_with_http_info(account) | createAccountWithHTTPInfo(account) ~ | create_account_with_http_info(account, opts?) | idiom (allow-list) |
 | StoreApi.deleteOrder | deleteOrder(orderId) | deleteOrder(orderId) | deleteOrder(orderId) | DeleteOrderAsync(orderId) | deleteOrder(orderId) | delete_order(order_id) | delete_order(order_id) | deleteOrder(orderId) | deleteOrder(orderId) | DeleteOrder(orderId) | delete_order(order_id) | deleteOrder(orderId) | delete_order(order_id, opts?) |  |
-| StoreApi.deleteOrderWithHttpInfo | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | DeleteOrderWithHttpInfoAsync(orderId) | deleteOrderWithHttpInfo(orderId) | delete_order_with_http_info(order_id) | delete_order_with_http_info(order_id) | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | DeleteOrderWithHTTPInfo(orderId) ✗ | delete_order_with_http_info(order_id) | deleteOrderWithHTTPInfo(orderId) ✗ | delete_order_with_http_info(order_id, opts?) | D82 |
+| StoreApi.deleteOrderWithHttpInfo | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | DeleteOrderWithHttpInfoAsync(orderId) | deleteOrderWithHttpInfo(orderId) | delete_order_with_http_info(order_id) | delete_order_with_http_info(order_id) | deleteOrderWithHttpInfo(orderId) | deleteOrderWithHttpInfo(orderId) | DeleteOrderWithHTTPInfo(orderId) ~ | delete_order_with_http_info(order_id) | deleteOrderWithHTTPInfo(orderId) ~ | delete_order_with_http_info(order_id, opts?) | idiom (allow-list) |
 | StoreApi.getBySwatch | getBySwatch(pathSwatch, options?) | getBySwatch(pathSwatch, options?) | getBySwatch(pathSwatch, options?) | GetBySwatchAsync(pathSwatch, options?) | getBySwatch(pathSwatch, options?) | get_by_swatch(path_swatch, options?) | get_by_swatch(path_swatch, options?) | getBySwatch(pathSwatch, options?) | getBySwatch(pathSwatch, options) ~ | GetBySwatch(pathSwatch, options) | get_by_swatch(path_swatch, options) | getBySwatch(pathSwatch, options?) | get_by_swatch(path_swatch, options?, opts?) | idiom (allow-list) |
-| StoreApi.getBySwatchWithHttpInfo | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | GetBySwatchWithHttpInfoAsync(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | get_by_swatch_with_http_info(path_swatch, options?) | get_by_swatch_with_http_info(path_swatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options) ~ | GetBySwatchWithHTTPInfo(pathSwatch, options) ✗ | get_by_swatch_with_http_info(path_swatch, options) | getBySwatchWithHTTPInfo(pathSwatch, options?) ✗ | get_by_swatch_with_http_info(path_swatch, options?, opts?) | D82 |
+| StoreApi.getBySwatchWithHttpInfo | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | GetBySwatchWithHttpInfoAsync(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | get_by_swatch_with_http_info(path_swatch, options?) | get_by_swatch_with_http_info(path_swatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options?) | getBySwatchWithHttpInfo(pathSwatch, options) ~ | GetBySwatchWithHTTPInfo(pathSwatch, options) ~ | get_by_swatch_with_http_info(path_swatch, options) | getBySwatchWithHTTPInfo(pathSwatch, options?) ~ | get_by_swatch_with_http_info(path_swatch, options?, opts?) | idiom (allow-list) |
 | StoreApi.getOrderById | getOrderById(orderId) | getOrderById(orderId) | getOrderById(orderId) | GetOrderByIdAsync(orderId) | getOrderById(orderId) | get_order_by_id(order_id) | get_order_by_id(order_id) | getOrderById(orderId) | getOrderById(orderId) | GetOrderById(orderId) | get_order_by_id(order_id) | getOrderById(orderId) | get_order_by_id(order_id, opts?) |  |
-| StoreApi.getOrderByIdWithHttpInfo | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | GetOrderByIdWithHttpInfoAsync(orderId) | getOrderByIdWithHttpInfo(orderId) | get_order_by_id_with_http_info(order_id) | get_order_by_id_with_http_info(order_id) | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | GetOrderByIdWithHTTPInfo(orderId) ✗ | get_order_by_id_with_http_info(order_id) | getOrderByIdWithHTTPInfo(orderId) ✗ | get_order_by_id_with_http_info(order_id, opts?) | D82 |
+| StoreApi.getOrderByIdWithHttpInfo | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | GetOrderByIdWithHttpInfoAsync(orderId) | getOrderByIdWithHttpInfo(orderId) | get_order_by_id_with_http_info(order_id) | get_order_by_id_with_http_info(order_id) | getOrderByIdWithHttpInfo(orderId) | getOrderByIdWithHttpInfo(orderId) | GetOrderByIdWithHTTPInfo(orderId) ~ | get_order_by_id_with_http_info(order_id) | getOrderByIdWithHTTPInfo(orderId) ~ | get_order_by_id_with_http_info(order_id, opts?) | idiom (allow-list) |
 | StoreApi.getOrderByTrackingId | getOrderByTrackingId(trackingId) | getOrderByTrackingId(trackingId) | getOrderByTrackingId(trackingId) | GetOrderByTrackingIdAsync(trackingId) | getOrderByTrackingId(trackingId) | get_order_by_tracking_id(tracking_id) | get_order_by_tracking_id(tracking_id) | getOrderByTrackingId(trackingId) | getOrderByTrackingId(trackingId) | GetOrderByTrackingId(trackingId) | get_order_by_tracking_id(tracking_id) | getOrderByTrackingId(trackingId) | get_order_by_tracking_id(tracking_id, opts?) |  |
-| StoreApi.getOrderByTrackingIdWithHttpInfo | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | GetOrderByTrackingIdWithHttpInfoAsync(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | get_order_by_tracking_id_with_http_info(tracking_id) | get_order_by_tracking_id_with_http_info(tracking_id) | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | GetOrderByTrackingIdWithHTTPInfo(trackingId) ✗ | get_order_by_tracking_id_with_http_info(tracking_id) | getOrderByTrackingIdWithHTTPInfo(trackingId) ✗ | get_order_by_tracking_id_with_http_info(tracking_id, opts?) | D82 |
+| StoreApi.getOrderByTrackingIdWithHttpInfo | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | GetOrderByTrackingIdWithHttpInfoAsync(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | get_order_by_tracking_id_with_http_info(tracking_id) | get_order_by_tracking_id_with_http_info(tracking_id) | getOrderByTrackingIdWithHttpInfo(trackingId) | getOrderByTrackingIdWithHttpInfo(trackingId) | GetOrderByTrackingIdWithHTTPInfo(trackingId) ~ | get_order_by_tracking_id_with_http_info(tracking_id) | getOrderByTrackingIdWithHTTPInfo(trackingId) ~ | get_order_by_tracking_id_with_http_info(tracking_id, opts?) | idiom (allow-list) |
 | StoreApi.getStockItem | getStockItem(options?) | getStockItem(options?) | getStockItem(options?) | GetStockItemAsync(options?) | getStockItem(options?) | get_stock_item(options?) | get_stock_item(options?) | getStockItem(options?) | getStockItem(options) ~ | GetStockItem(options) | get_stock_item(options) | getStockItem(options?) | get_stock_item(options?, opts?) | idiom (allow-list) |
-| StoreApi.getStockItemWithHttpInfo | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options?) | GetStockItemWithHttpInfoAsync(options?) | getStockItemWithHttpInfo(options?) | get_stock_item_with_http_info(options?) | get_stock_item_with_http_info(options?) | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options) ~ | GetStockItemWithHTTPInfo(options) ✗ | get_stock_item_with_http_info(options) | getStockItemWithHTTPInfo(options?) ✗ | get_stock_item_with_http_info(options?, opts?) | D82 |
+| StoreApi.getStockItemWithHttpInfo | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options?) | GetStockItemWithHttpInfoAsync(options?) | getStockItemWithHttpInfo(options?) | get_stock_item_with_http_info(options?) | get_stock_item_with_http_info(options?) | getStockItemWithHttpInfo(options?) | getStockItemWithHttpInfo(options) ~ | GetStockItemWithHTTPInfo(options) ~ | get_stock_item_with_http_info(options) | getStockItemWithHTTPInfo(options?) ~ | get_stock_item_with_http_info(options?, opts?) | idiom (allow-list) |
 | StoreApi.placeOrder | placeOrder(order?) | placeOrder(order) ✗ | placeOrder(order?) | PlaceOrderAsync(order?) | placeOrder(order?) | place_order(order?) | place_order(order?) | placeOrder(order?) | placeOrder(order) ~ | PlaceOrder(order) | place_order(order) | placeOrder(order?) | place_order(order?, opts?) | Optionality `(order?)` (majority) in java. |
-| StoreApi.placeOrderWithHttpInfo | placeOrderWithHttpInfo(order?) | placeOrderWithHttpInfo(order) ✗ | placeOrderWithHttpInfo(order?) | PlaceOrderWithHttpInfoAsync(order?) | placeOrderWithHttpInfo(order?) | place_order_with_http_info(order?) | place_order_with_http_info(order?) | placeOrderWithHttpInfo(order?) | placeOrderWithHttpInfo(order) ~ | PlaceOrderWithHTTPInfo(order) ✗ | place_order_with_http_info(order) | placeOrderWithHTTPInfo(order?) ✗ | place_order_with_http_info(order?, opts?) | Optionality `(order?)` (majority) in java. D82 |
+| StoreApi.placeOrderWithHttpInfo | placeOrderWithHttpInfo(order?) | placeOrderWithHttpInfo(order) ✗ | placeOrderWithHttpInfo(order?) | PlaceOrderWithHttpInfoAsync(order?) | placeOrderWithHttpInfo(order?) | place_order_with_http_info(order?) | place_order_with_http_info(order?) | placeOrderWithHttpInfo(order?) | placeOrderWithHttpInfo(order) ~ | PlaceOrderWithHTTPInfo(order) ~ | place_order_with_http_info(order) | placeOrderWithHTTPInfo(order?) ~ | place_order_with_http_info(order?, opts?) | Optionality `(order?)` (majority) in java. |
 | StoreApi.searchStore | searchStore(options?) | searchStore(options?) | searchStore(options?) | SearchStoreAsync(options?) | searchStore(options?) | search_store(options?) | search_store(options?) | searchStore(options?) | searchStore(options) ~ | SearchStore(options) | search_store(options) | searchStore(options?) | search_store(options?, opts?) | idiom (allow-list) |
-| StoreApi.searchStoreWithHttpInfo | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options?) | SearchStoreWithHttpInfoAsync(options?) | searchStoreWithHttpInfo(options?) | search_store_with_http_info(options?) | search_store_with_http_info(options?) | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options) ~ | SearchStoreWithHTTPInfo(options) ✗ | search_store_with_http_info(options) | searchStoreWithHTTPInfo(options?) ✗ | search_store_with_http_info(options?, opts?) | D82 |
+| StoreApi.searchStoreWithHttpInfo | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options?) | SearchStoreWithHttpInfoAsync(options?) | searchStoreWithHttpInfo(options?) | search_store_with_http_info(options?) | search_store_with_http_info(options?) | searchStoreWithHttpInfo(options?) | searchStoreWithHttpInfo(options) ~ | SearchStoreWithHTTPInfo(options) ~ | search_store_with_http_info(options) | searchStoreWithHTTPInfo(options?) ~ | search_store_with_http_info(options?, opts?) | idiom (allow-list) |
 | StoreApi.config | config | — | — | — | — | — | config ✗ | — | config ✗ | — | — | — | config ~ | D22 |
 | StoreApi.apiClient | apiClient | — | — | — | — | — | — | — | apiClient ✗ | — | — | — | api_client ~ | D24 |
 | StoreApi.authenticator | authenticator | — | — | — | — | — | — | — | — | — | — | — | authenticator ~ | idiom (allow-list) |
 | StoreApi.getDefaults | getDefaults(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_defaults(opts?) |  |
-| StoreApi.getDefaultsWithHttpInfo | getDefaultsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_defaults_with_http_info(opts?) | D82 |
+| StoreApi.getDefaultsWithHttpInfo | getDefaultsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_defaults_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getDepartment | getDepartment(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_department(opts?) |  |
-| StoreApi.getDepartmentWithHttpInfo | getDepartmentWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_department_with_http_info(opts?) | D82 |
+| StoreApi.getDepartmentWithHttpInfo | getDepartmentWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_department_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getGroupedCategories | getGroupedCategories(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_grouped_categories(opts?) |  |
-| StoreApi.getGroupedCategoriesWithHttpInfo | getGroupedCategoriesWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_grouped_categories_with_http_info(opts?) | D82 |
+| StoreApi.getGroupedCategoriesWithHttpInfo | getGroupedCategoriesWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_grouped_categories_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getInventory | getInventory(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_inventory(opts?) |  |
-| StoreApi.getInventoryWithHttpInfo | getInventoryWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_inventory_with_http_info(opts?) | D82 |
+| StoreApi.getInventoryWithHttpInfo | getInventoryWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_inventory_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getMatrix | getMatrix(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_matrix(opts?) |  |
-| StoreApi.getMatrixWithHttpInfo | getMatrixWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_matrix_with_http_info(opts?) | D82 |
+| StoreApi.getMatrixWithHttpInfo | getMatrixWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_matrix_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getSwatch | getSwatch(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_swatch(opts?) |  |
-| StoreApi.getSwatchWithHttpInfo | getSwatchWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_swatch_with_http_info(opts?) | D82 |
+| StoreApi.getSwatchWithHttpInfo | getSwatchWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_swatch_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getSwatchGroups | getSwatchGroups(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_swatch_groups(opts?) |  |
-| StoreApi.getSwatchGroupsWithHttpInfo | getSwatchGroupsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_swatch_groups_with_http_info(opts?) | D82 |
+| StoreApi.getSwatchGroupsWithHttpInfo | getSwatchGroupsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_swatch_groups_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getTimestampGroups | getTimestampGroups(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_timestamp_groups(opts?) |  |
-| StoreApi.getTimestampGroupsWithHttpInfo | getTimestampGroupsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_timestamp_groups_with_http_info(opts?) | D82 |
+| StoreApi.getTimestampGroupsWithHttpInfo | getTimestampGroupsWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_timestamp_groups_with_http_info(opts?) | idiom (allow-list) |
 | StoreApi.getTree | getTree(opts?) | — | — | — | — | — | — | — | — | — | — | — | get_tree(opts?) |  |
-| StoreApi.getTreeWithHttpInfo | getTreeWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ✗ | — | — ✗ | get_tree_with_http_info(opts?) | D82 |
+| StoreApi.getTreeWithHttpInfo | getTreeWithHttpInfo(opts?) | — | — | — | — | — | — | — | — | — ~ | — | — ~ | get_tree_with_http_info(opts?) | idiom (allow-list) |
 
 ## Options (request) types
 
@@ -1232,6 +1100,9 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **GetPetByNameOptions** | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions | GetPetByNameOptions |  |
 | GetPetByNameOptions.category | category | category | category | Category | category | category | category | category | category | Category | category | category | category ✗ | D70 |
 | GetPetByNameOptions.xCorrelationId | xCorrelationId | xCorrelationId | xCorrelationId | XCorrelationId | xCorrelationId | x_correlation_id | x_correlation_id | xCorrelationId | xCorrelationId | XCorrelationId | x_correlation_id | xCorrelationId | x_correlation_id ✗ | D70 |
+| **GetPetSummaryOptions** | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions | GetPetSummaryOptions |  |
+| GetPetSummaryOptions.session | session | session | session | Session | session | session | session | session | session | Session | session | session | session ✗ | D70 |
+| GetPetSummaryOptions (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **GetPetTagOptions** | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions | GetPetTagOptions |  |
 | GetPetTagOptions (10 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **GetStockItemOptions** | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions | GetStockItemOptions |  |
@@ -1256,10 +1127,12 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **Account** | Account | Account | Account | Account | Account | Account | Account | Account | Account | Account | Account | Account | Account |  |
 | Account.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Account.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Account.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Account (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **ApiResponse** | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse | ApiResponse |  |
 | ApiResponse.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | ApiResponse.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| ApiResponse.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | ApiResponse (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **BinaryVault** | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault | BinaryVault |  |
 | BinaryVault.getSealAsBytes | getSealAsBytes | — | — | — | getSealAsBytes ✗ | — | — | — | — | — | — | — | — | D47 |
@@ -1270,10 +1143,12 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | BinaryVault.setLabelsFromBytes | setLabelsFromBytes | — | — | — | setLabelsFromBytes(raw) ✗ | — | — | — | — | — | — | — | — | D48 |
 | BinaryVault.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | BinaryVault.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| BinaryVault.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | BinaryVault (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Category** | Category | Category | Category | Category | Category | Category | Category | Category | Category | Category | Category | Category | Category |  |
 | Category.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Category.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Category.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Category (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Defaults** | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults | Defaults |  |
 | Defaults.retries | retries | retries | retries | Retries | retries ~ | retries | retries | retries | retries | Retries | retries | retries | retries | idiom (allow-list) |
@@ -1286,34 +1161,42 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | Defaults.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Defaults.allDefaultsModeEnumValues | allDefaultsModeEnumValues | — | — | — | — | — | — | — | — | AllDefaultsModeEnumValues ✗ | — | — | — | Not part of the canonical surface: make it non-public in go. |
 | Defaults.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Defaults.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Defaults (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Department** | Department | Department | Department | Department | Department | Department | Department | Department | Department | Department | Department | Department | Department |  |
 | Department.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Department.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Department.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Department (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **DryFood** | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood | DryFood |  |
 | DryFood.foodType | foodType | foodType | foodType | FoodType | foodType | food_type | food_type | foodType | foodType | FoodType | food_type | foodType | food_type ✗ | D79 |
 | DryFood.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | DryFood.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| DryFood.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | DryFood (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **EdgeCases** | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases | EdgeCases |  |
 | EdgeCases.freeFormAny | freeFormAny | freeFormAny | freeFormAny | FreeFormAny | freeFormAny ~ | free_form_any | free_form_any | freeFormAny | freeFormAny | FreeFormAny | free_form_any | freeFormAny | free_form_any | idiom (allow-list) |
 | EdgeCases.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
+| EdgeCases.allEdgeCasesPhaseEnumValues | allEdgeCasesPhaseEnumValues | — | — | — | — | — | — | — | — | AllEdgeCasesPhaseEnumValues ✗ | — | — | — | Not part of the canonical surface: make it non-public in go. |
 | EdgeCases.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
-| EdgeCases (17 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| EdgeCases.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
+| EdgeCases (19 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Employee** | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee | Employee |  |
 | Employee.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Employee.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Employee.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Employee (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Medication** | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication | Medication |  |
 | Medication.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Medication.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Medication.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Medication (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Metadata** | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata |  |
 | Metadata.additionalProperties | additionalProperties | getAdditionalProperties | additionalProperties | AdditionalProperties ✗ | additionalProperties ✗ | additional_properties | ADDITIONAL_PROPERTIES | — ✗ | additionalProperties | AdditionalProperties | additional_properties | additionalProperties | additional_properties ✗ | D77 |
 | Metadata.setAdditionalProperty | setAdditionalProperty | setAdditionalProperty(key, value) ✗ | — | — | — | — | — | — | — | — | — | — | — | D51 |
 | Metadata.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Metadata.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Metadata.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Metadata (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **ModelError** | Error | ModelError ~ | — | — | — | — | — | — | — | ModelError ✗ | — | ModelError ~ | — | D02 |
 | ModelError.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
@@ -1325,15 +1208,18 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | Order.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Order.allOrderStatusEnumValues | allOrderStatusEnumValues | — | — | — | — | — | — | — | — | AllOrderStatusEnumValues ✗ | — | — | — | Not part of the canonical surface: make it non-public in go. |
 | Order.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Order.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Order (6 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Pet** | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet | Pet |  |
 | Pet.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Pet.allPetStatusEnumValues | allPetStatusEnumValues | — | — | — | — | — | — | — | — | AllPetStatusEnumValues ✗ | — | — | — | Not part of the canonical surface: make it non-public in go. |
 | Pet.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Pet.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Pet (13 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PetCriteria** | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria | PetCriteria |  |
 | PetCriteria.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | PetCriteria.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| PetCriteria.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PetCriteria (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PetFood** | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood | PetFood ~ | PetFood | PetFood | idiom (allow-list) |
 | PetFood.actualInstance | actualInstance | — | actualInstance ✗ | — | getActualInstance ✗ | actual_instance ✗ | — | getActualInstance ✗ | — | — | — | — | — | D41 |
@@ -1361,6 +1247,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetPassport.setBiometricChipFromBytes | setBiometricChipFromBytes | — | — | — | setBiometricChipFromBytes(raw) ✗ | — | — | — | — | — | — | — | — | D48 |
 | PetPassport.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | PetPassport.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| PetPassport.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PetPassport (5 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PetTreatment** | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment |  |
 | PetTreatment.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ✗ | getActualInstance | — ✗ | — ✗ | — ✗ | — ✗ | — ✗ | D41 |
@@ -1375,35 +1262,41 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetTreatment.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | PetTreatment.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | PetTreatment.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
-| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
+| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
 | PetTreatment.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **PetWithOwner** | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner |  |
 | PetWithOwner.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | PetWithOwner.allPetWithOwnerStatusEnumValues | allPetWithOwnerStatusEnumValues | — | — | — | — | — | — | — | — | AllPetWithOwnerStatusEnumValues ✗ | — | — | — | Not part of the canonical surface: make it non-public in go. |
 | PetWithOwner.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| PetWithOwner.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PetWithOwner (14 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Photo** | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo | Photo |  |
 | Photo.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Photo.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Photo.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Photo (4 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PhotoMetadata** | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata | PhotoMetadata |  |
 | PhotoMetadata.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | PhotoMetadata.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| PhotoMetadata.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PhotoMetadata (4 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PhotoMetadataLocation** | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation | PhotoMetadataLocation |  |
 | PhotoMetadataLocation.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | PhotoMetadataLocation.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| PhotoMetadataLocation.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PhotoMetadataLocation (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **RequiredNullable** | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable | RequiredNullable |  |
 | RequiredNullable.note | note | note | note ✗ | Note | note | note | note | note | note | Note | note | note | note | D78 |
 | RequiredNullable.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | RequiredNullable.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| RequiredNullable.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | **SetPetAvatarRequest** | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest | SetPetAvatarRequest |  |
 | SetPetAvatarRequest.getDataAsBytes | getDataAsBytes | — | — | — | getDataAsBytes ✗ | — | — | — | — | — | — | — | — | D47 |
 | SetPetAvatarRequest.setDataFromBytes | setDataFromBytes | — | — | — | setDataFromBytes(raw) ✗ | — | — | — | — | — | — | — | — | D48 |
 | SetPetAvatarRequest.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | SetPetAvatarRequest.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| SetPetAvatarRequest.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | SetPetAvatarRequest (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **SetPetAvatarThumbnailRequest** | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest ~ | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | idiom (allow-list) |
 | SetPetAvatarThumbnailRequest.actualInstance | actualInstance | getActualInstance ✗ | actualInstance ✗ | ActualInstance ✗ | getActualInstance ✗ | actual_instance ✗ | — | — | — | — | — | — | — | D41 |
@@ -1424,6 +1317,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **StockItem** | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem | StockItem |  |
 | StockItem.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | StockItem.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| StockItem.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | StockItem (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **StrictTag** | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag | StrictTag |  |
 | StrictTag.setUnknownProperty | setUnknownProperty | setUnknownProperty(key, value) ✗ | — | — | — | — | — | — | — | — | — | — | — | D52 |
@@ -1434,15 +1328,18 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | StrictTag.fromJsonStrict | fromJsonStrict | — | — | — | — | — | — | fromJsonStrict(raw) ✗ | — | — | — | — | — | D52 |
 | StrictTag.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | StrictTag.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| StrictTag.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | StrictTag.fromMapStrict | fromMapStrict | — | — | — | — | — | — | — | — | — | — | — | from_map_strict(data) ✗ | D52 |
 | StrictTag (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Surgery** | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery | Surgery |  |
 | Surgery.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Surgery.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Surgery.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Surgery (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Tag** | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag | Tag |  |
 | Tag.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Tag.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Tag.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Tag (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **TreatmentRecord** | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord |  |
 | TreatmentRecord.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ✗ | getActualInstance | — ✗ | — ✗ | — ✗ | — ✗ | — ✗ | D41 |
@@ -1457,24 +1354,28 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | TreatmentRecord.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | TreatmentRecord.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | TreatmentRecord.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
-| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
+| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
 | TreatmentRecord.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **TreeNode** | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode |  |
 | TreeNode.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | TreeNode.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| TreeNode.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | TreeNode (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **WetFood** | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood | WetFood |  |
 | WetFood.foodType | foodType | foodType | foodType | FoodType | foodType | food_type | food_type | foodType | foodType | FoodType | food_type | foodType | food_type ✗ | D80 |
 | WetFood.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | WetFood.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| WetFood.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | WetFood (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Error** | Error | — ~ | Error | Error | Error | Error | Error | Error | Error | — ✗ | Error | — ~ | Error | D01 |
 | Error.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
+| Error.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Error (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Result** | Result | — ✗ | Result | Result | Result | Result | Result | Result | Result | Result | — ~ | — ~ | Result | D03 |
 | Result.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Result.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
+| Result.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Result (1 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 
 ## Enums
@@ -1491,6 +1392,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **Availability** | Availability {ab, available, eq, oclock, onhold, sold, x} | Availability | Availability | Availability | Availability | Availability | Availability | Availability | Availability | Availability | Availability | Availability | Availability |  |
 | **Color** | Color {blue, green, red} | Color | Color | Color | Color | Color | Color | Color | Color | Color | Color | Color | Color |  |
 | **DefaultsModeEnum** | DefaultsModeEnum {high, low, medium} | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | — ✗ | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | DefaultsModeEnum | — ✗ | D72 |
+| **EdgeCasesPhaseEnum** | EdgeCasesPhaseEnum {instock, onhold, outofstock} | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | — ✗ | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | EdgeCasesPhaseEnum | — ✗ | Generate `EdgeCasesPhaseEnum` in ruby, elixir (majority has it). |
 | **OrderStatusEnum** | OrderStatusEnum {approved, delivered, placed} | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | — ✗ | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | OrderStatusEnum | — ✗ | D73 |
 | **PetStatusEnum** | PetStatusEnum {available, pending, sold} | PetStatusEnum | PetStatusEnum | PetStatusEnum | PetStatusEnum | PetStatusEnum | — ✗ | PetStatusEnum | PetStatusEnum | PetStatusEnum | PetStatusEnum | PetStatusEnum | — ✗ | D73 |
 | **PetWithOwnerStatusEnum** | PetWithOwnerStatusEnum {available, pending, sold} | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | — ✗ | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | PetWithOwnerStatusEnum | — ✗ | D73 |
@@ -1587,7 +1489,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | SessionCookieAuthenticator.asHttpAwareMut | asHttpAwareMut | — | — | — | — | — | — | — | — | — | as_http_aware_mut ~ | — | — | idiom (allow-list) |
 | **BrowserAuthImplicitAuthenticator** | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator | BrowserAuthImplicitAuthenticator |  |
 | BrowserAuthImplicitAuthenticator ctor | new(host, clientId) | (host, clientId) | (host, clientId) | (host, clientId) | (host, clientId) | (host, client_id) | (host, client_id) | (host, clientId) | (host, clientId) | (host, clientId) | (host, client_id) | (host, clientId) | (host, client_id) |  |
-| BrowserAuthImplicitAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | — | buildAuthorizationURL(state?) ✗ | — | D82 |
+| BrowserAuthImplicitAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | — | buildAuthorizationURL(state?) ~ | — | idiom (allow-list) |
 | BrowserAuthImplicitAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
 | BrowserAuthImplicitAuthenticator.asHttpAwareMut | asHttpAwareMut | — | — | — | — | — | — | — | — | — | as_http_aware_mut ~ | — | — | idiom (allow-list) |
 | **LegacyAuthPasswordAuthenticator** | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator | LegacyAuthPasswordAuthenticator |  |
@@ -1603,7 +1505,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OAuth2AuthorizationCodeAuthenticator.getHost | getHost | getHost | getHost | GetHost | getHost | get_host | host | getHost | host | Host | host | host | host |  |
 | OAuth2AuthorizationCodeAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | OAuth2AuthorizationCodeAuthenticator.setApiClient | setApiClient(apiClient) | setApiClient(apiClient) | setApiClient(apiClient) | SetApiClient(apiClient) | setApiClient(apiClient) | set_api_client(api_client) | set_api_client(client) ✗ | setApiClient(apiClient) | setApiClient(client) ✗ | SetApiClient(client) ✗ | set_api_client(client) ✗ | setApiClient(client) ✗ | set_api_client(client) ✗ | D35 |
-| OAuth2AuthorizationCodeAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | build_authorization_url(state) | buildAuthorizationURL(state?) ✗ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. D82 |
+| OAuth2AuthorizationCodeAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | build_authorization_url(state) | buildAuthorizationURL(state?) ~ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. |
 | OAuth2AuthorizationCodeAuthenticator.exchangeCode | exchangeCode(code) | exchangeCode(code) | exchangeCode(code) | ExchangeCodeAsync(code) | exchangeCode(code) | exchange_code(code) | exchange_code(code) | exchangeCode(code) | exchangeCode(code) | ExchangeCode(code) | exchange_code(code) | exchangeCode(code) | exchange_code(code) |  |
 | OAuth2AuthorizationCodeAuthenticator.tokenManager | tokenManager | — | — | — | — | — | token_manager ✗ | — | — | — | — | — | token_manager ~ | D40 |
 | OAuth2AuthorizationCodeAuthenticator.errAuthCodeNotExchanged | errAuthCodeNotExchanged | — | — | — | — | — | — | — | — | ErrAuthCodeNotExchanged ~ | — | — | — | idiom (allow-list) |
@@ -1639,7 +1541,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OAuth2ImplicitAuthenticator.getHost | getHost | getHost | getHost | GetHost | getHost | get_host | host | getHost | host | Host | host | host | host |  |
 | OAuth2ImplicitAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | OAuth2ImplicitAuthenticator.setApiClient | setApiClient(apiClient) | setApiClient(apiClient) | setApiClient(apiClient) | SetApiClient(apiClient) | setApiClient(apiClient) | set_api_client(api_client) | set_api_client(_client) ✗ | setApiClient(_apiClient) | setApiClient(client) ✗ | SetApiClient(_) ✗ | set_api_client(_client) ✗ | setApiClient(client) ✗ | set_api_client(client) ✗ | D35 |
-| OAuth2ImplicitAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | build_authorization_url(state) | buildAuthorizationURL(state?) ✗ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. D82 |
+| OAuth2ImplicitAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | build_authorization_url(state) | buildAuthorizationURL(state?) ~ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. |
 | OAuth2ImplicitAuthenticator.setAccessToken | setAccessToken(token) | setAccessToken(token) | setAccessToken(token) | SetAccessToken(token) | setAccessToken(token) | set_access_token(token) | set_access_token(token) | setAccessToken(token) | setAccessToken(token) | SetAccessToken(token) | set_access_token(token) | setAccessToken(token) | — |  |
 | OAuth2ImplicitAuthenticator.errInvalidAccessToken | errInvalidAccessToken | — | — | — | — | — | — | — | — | ErrInvalidAccessToken ~ | — | — | — | idiom (allow-list) |
 | OAuth2ImplicitAuthenticator.errAccessTokenNotSet | errAccessTokenNotSet | — | — | — | — | — | — | — | — | ErrAccessTokenNotSet ~ | — | — | — | idiom (allow-list) |
@@ -1673,9 +1575,10 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OpenIdConnectAuthenticator.getHost | getHost | getHost | getHost | GetHost | getHost | get_host | host | getHost | host | Host | host | host | host |  |
 | OpenIdConnectAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | OpenIdConnectAuthenticator.setApiClient | setApiClient(apiClient) | setApiClient(apiClient) | setApiClient(apiClient) | SetApiClient(apiClient) | setApiClient(apiClient) | set_api_client(api_client) | set_api_client(api_client) | setApiClient(apiClient) | setApiClient(client) ✗ | SetApiClient(client) ✗ | set_api_client(client) ✗ | setApiClient(client) ✗ | — | D35 |
-| OpenIdConnectAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrlAsync(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | build_authorization_url(state) | buildAuthorizationURL(state?) ✗ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. D82 |
+| OpenIdConnectAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state) ✗ | buildAuthorizationUrl(state?) | BuildAuthorizationUrlAsync(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | build_authorization_url(state) | buildAuthorizationURL(state?) ~ | build_authorization_url(state?) | Optionality `(state?)` (majority) in java. |
 | OpenIdConnectAuthenticator.exchangeCode | exchangeCode(code) | exchangeCode(code) | exchangeCode(code) | ExchangeCodeAsync(code) | exchangeCode(code) | exchange_code(code) | exchange_code(code) | exchangeCode(code) | exchangeCode(code) | ExchangeCode(code) | exchange_code(code) | exchangeCode(code) | exchange_code(code) |  |
 | OpenIdConnectAuthenticator.defaultDiscoveryMaxAgeSeconds | defaultDiscoveryMaxAgeSeconds | — | — | — | — | — | DEFAULT_DISCOVERY_MAX_AGE_SECONDS ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
+| OpenIdConnectAuthenticator.maxDiscoveryMaxAgeSeconds | maxDiscoveryMaxAgeSeconds | — | — | — | — | — | MAX_DISCOVERY_MAX_AGE_SECONDS ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
 | OpenIdConnectAuthenticator.authHeadersOrError | authHeadersOrError | — | — | — | — | — | — | — | — | AuthHeadersOrError ~ | — | — | — | idiom (allow-list) |
 | OpenIdConnectAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
 | OpenIdConnectAuthenticator.asHttpAwareMut | asHttpAwareMut | — | — | — | — | — | — | — | — | — | as_http_aware_mut ~ | — | — | idiom (allow-list) |
@@ -1690,12 +1593,12 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OpenIdConnectAuthenticator.discoveryCache | discoveryCache | — | — | — | — | — | — | — | — | — | — | — | discovery_cache ~ | idiom (allow-list) |
 | **SsoAuthAuthenticator** | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator | SsoAuthAuthenticator |  |
 | SsoAuthAuthenticator ctor | new(host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) | (host, client_id, client_secret, redirect_uri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) |  |
-| SsoAuthAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrlAsync(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | — | buildAuthorizationURL(state?) ✗ | — | D82 |
+| SsoAuthAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrlAsync(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | — | buildAuthorizationURL(state?) ~ | — | idiom (allow-list) |
 | SsoAuthAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
 | SsoAuthAuthenticator.asHttpAwareMut | asHttpAwareMut | — | — | — | — | — | — | — | — | — | as_http_aware_mut ~ | — | — | idiom (allow-list) |
 | **UserAuthAuthorizationCodeAuthenticator** | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator | UserAuthAuthorizationCodeAuthenticator |  |
 | UserAuthAuthorizationCodeAuthenticator ctor | new(host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) | (host, client_id, client_secret, redirect_uri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) | (host, clientId, clientSecret, redirectUri) | (host, client_id, client_secret, redirect_uri) |  |
-| UserAuthAuthorizationCodeAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ✗ | — | buildAuthorizationURL(state?) ✗ | — | D82 |
+| UserAuthAuthorizationCodeAuthenticator.buildAuthorizationUrl | buildAuthorizationUrl(state) | buildAuthorizationUrl(state) | buildAuthorizationUrl(state?) | BuildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | build_authorization_url(state?) | build_authorization_url(state?) | buildAuthorizationUrl(state?) | buildAuthorizationUrl(state?) | BuildAuthorizationURL(state) ~ | — | buildAuthorizationURL(state?) ~ | — | idiom (allow-list) |
 | UserAuthAuthorizationCodeAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
 | UserAuthAuthorizationCodeAuthenticator.asHttpAwareMut | asHttpAwareMut | — | — | — | — | — | — | — | — | — | as_http_aware_mut ~ | — | — | idiom (allow-list) |
 
@@ -1713,8 +1616,10 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OAuth2TokenManager.exchange | exchange(tokenUrl, params, extraHeaders?) | exchange(tokenUrl, params, extraHeaders) ✗ | exchange(tokenUrl, params, extraHeaders?) | ExchangeAsync(tokenUrl, parameters, extraHeaders?) ~ | exchange(tokenUrl, params, extraHeaders?) | exchange(token_url, params, extra_headers?) | exchange(token_url, params, extra_headers?) | exchange(tokenUrl, params, extraHeaders?) | exchange(tokenUrl, params, extraHeaders?) | Exchange(tokenURL, params) ~ | exchange(token_url, params, extra_headers) | exchange(tokenURL, params, extraHeaders?) | exchange(token_url, params, extra_headers?) | Optionality `(tokenurl, params, extraheaders?)` (majority) in java. |
 | OAuth2TokenManager.setAccessToken | setAccessToken(token) | setAccessToken(token) | setAccessToken(token) | SetAccessToken(token) | setAccessToken(token) | set_access_token(token) | set_access_token(token) | setAccessToken(token) | setAccessToken(token) | SetAccessToken(token) | set_access_token(token) | setAccessToken(token) | set_access_token(token) |  |
 | OAuth2TokenManager.expirySafetyMarginMs | expirySafetyMarginMs | — | EXPIRY_SAFETY_MARGIN_MS ✗ | — | — | — | — | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in kotlin. |
+| OAuth2TokenManager.maxExpiresInSeconds | maxExpiresInSeconds | — | MAX_EXPIRES_IN_SECONDS ✗ | — | — | — | — | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in kotlin. |
 | OAuth2TokenManager.apiClient | apiClient | — | apiClient ✗ | — | — | — | — | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in kotlin. |
 | OAuth2TokenManager.expirySafetyMarginS | expirySafetyMarginS | — | — | — | — | — | EXPIRY_SAFETY_MARGIN_S ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
+| OAuth2TokenManager.maxExpiresInS | maxExpiresInS | — | — | — | — | — | MAX_EXPIRES_IN_S ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
 | OAuth2TokenManager.markExchanged | markExchanged | — | — | — | — | — | mark_exchanged ✗ | markExchanged ✗ | — | — | mark_exchanged ✗ | — | mark_exchanged ~ | D39 |
 | OAuth2TokenManager.errApiClientNotInjected | errApiClientNotInjected | — | — | — | — | — | — | — | — | ErrApiClientNotInjected ~ | — | — | — | idiom (allow-list) |
 | OAuth2TokenManager.getAccessTokenWithHeaders | getAccessTokenWithHeaders | — | — | — | — | — | — | — | — | GetAccessTokenWithHeaders(tokenURL, params, extraHeaders) ~ | get_access_token_with_headers(token_url, params, extra_headers) ~ | — | — | idiom (allow-list) |
@@ -1729,24 +1634,24 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **TransportOptions** | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions | TransportOptions |  |
 | TransportOptions ctor | new(verifySsl, caCertPath, proxy, timeout, followRedirects, maxRedirects, userAgent, defaultHeaders, injectRequestId) | — | — | — | (verifySsl?, caCertPath?, proxy?, timeout?, followRedirects?, maxRedirects?, userAgent?, defaultHeaders?, injectRequestId?) | (verify_ssl?, ca_cert_path?, proxy?, timeout?, follow_redirects?, max_redirects?, user_agent?, default_headers?, inject_request_id?) | (verify_ssl, ca_cert_path, proxy, timeout, follow_redirects, max_redirects, user_agent, default_headers, inject_request_id) ✗ | (options) ~ | — | — | — | — | (opts?) | D62 |
 | TransportOptions.verifySsl | verifySsl | isVerifySsl | verifySsl | VerifySsl | verifySsl | verify_ssl | verify_ssl | verifySsl | verifySsl | VerifySsl | verify_ssl | verifySsl | verify_ssl |  |
-| TransportOptions.caCertPath | caCertPath | getCaCertPath | caCertPath | CaCertPath | caCertPath | ca_cert_path | ca_cert_path | caCertPath | caCertPath | CACertPath ✗ | ca_cert_path | caCertPath | ca_cert_path | D82 |
+| TransportOptions.caCertPath | caCertPath | getCaCertPath | caCertPath | CaCertPath | caCertPath | ca_cert_path | ca_cert_path | caCertPath | caCertPath | CACertPath ~ | ca_cert_path | caCertPath | ca_cert_path | idiom (allow-list) |
 | TransportOptions.proxy | proxy | getProxy | proxy | Proxy | proxy | proxy | proxy | proxy | proxy | Proxy | proxy | proxy | proxy |  |
 | TransportOptions.timeout | timeout | getTimeout | timeout | Timeout | timeout | timeout | timeout | timeout | timeout | Timeout | timeout | timeout | timeout |  |
 | TransportOptions.followRedirects | followRedirects | isFollowRedirects | followRedirects | FollowRedirects | followRedirects | follow_redirects | follow_redirects | followRedirects | followRedirects | FollowRedirects | follow_redirects | followRedirects | follow_redirects |  |
 | TransportOptions.maxRedirects | maxRedirects | getMaxRedirects | maxRedirects | MaxRedirects | maxRedirects | max_redirects | max_redirects | maxRedirects | maxRedirects | MaxRedirects | max_redirects | maxRedirects | max_redirects |  |
 | TransportOptions.userAgent | userAgent | getUserAgent | userAgent | UserAgent | userAgent | user_agent | user_agent | userAgent | userAgent | UserAgent | user_agent | userAgent | user_agent |  |
 | TransportOptions.defaultHeaders | defaultHeaders | getDefaultHeaders | defaultHeaders | DefaultHeaders | defaultHeaders | default_headers | default_headers | defaultHeaders | defaultHeaders | DefaultHeaders | default_headers | defaultHeaders | default_headers |  |
-| TransportOptions.injectRequestId | injectRequestId | isInjectRequestId | injectRequestId | InjectRequestId | injectRequestId | inject_request_id | inject_request_id | injectRequestId | injectRequestId | InjectRequestID ✗ | inject_request_id | injectRequestID ✗ | inject_request_id | D82 |
+| TransportOptions.injectRequestId | injectRequestId | isInjectRequestId | injectRequestId | InjectRequestId | injectRequestId | inject_request_id | inject_request_id | injectRequestId | injectRequestId | InjectRequestID ~ | inject_request_id | injectRequestID ~ | inject_request_id | idiom (allow-list) |
 | TransportOptions.builder | builder() | builder | builder | Builder | builder | builder | builder | builder | builder | — ~ | builder | builder | — ~ | idiom (allow-list) |
 | TransportOptions.assertValidProxy | assertValidProxy | — | — | — | assertValidProxy(proxy) ✗ | — | — | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in php. |
 | TransportOptions.validateProxy | validateProxy | — | — | — | — | — | validate_proxy!(val) ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
-| TransportOptions.errInvalidProxyUrl | errInvalidProxyUrl | — | — | — | — | — | — | — | — | ErrInvalidProxyURL ✗ | — | — | — | D82 |
-| TransportOptions.errInvalidCaCertificate | errInvalidCaCertificate | — | — | — | — | — | — | — | — | ErrInvalidCACertificate ✗ | — | — | — | D82 |
+| TransportOptions.errInvalidProxyUrl | errInvalidProxyUrl | — | — | — | — | — | — | — | — | ErrInvalidProxyURL ~ | — | — | — | idiom (allow-list) |
+| TransportOptions.errInvalidCaCertificate | errInvalidCaCertificate | — | — | — | — | — | — | — | — | ErrInvalidCACertificate ~ | — | — | — | idiom (allow-list) |
 | **TransportOptionsBuilder** | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | TransportOptionsBuilder | — ~ | idiom (allow-list) |
 | TransportOptionsBuilder ctor | new() | — | — | — | — | () | () | — | — | () | () | () | — |  |
 | TransportOptionsBuilder.build | build | build | build | Build | build | build | build | build | build | Build | build | build | — |  |
 | TransportOptionsBuilder.verifySsl | verifySsl(verifySsl) | verifySsl(verifySsl) | verifySsl(verifySsl) | VerifySsl(verifySsl) | verifySsl(verifySsl) | verify_ssl(verify_ssl) | verify_ssl(val) ✗ | verifySsl(verifySsl) | verifySsl(val) ✗ | VerifySsl(val) ✗ | verify_ssl(val) ✗ | verifySsl(val) ✗ | — | D56 |
-| TransportOptionsBuilder.caCertPath | caCertPath(caCertPath) | caCertPath(caCertPath) | caCertPath(caCertPath) | CaCertPath(caCertPath) | caCertPath(caCertPath) | ca_cert_path(ca_cert_path) | ca_cert_path(val) ✗ | caCertPath(caCertPath) | caCertPath(val) ✗ | CACertPath(val) ✗ | ca_cert_path(val) ✗ | caCertPath(val) ✗ | — | D56 D82 |
+| TransportOptionsBuilder.caCertPath | caCertPath(caCertPath) | caCertPath(caCertPath) | caCertPath(caCertPath) | CaCertPath(caCertPath) | caCertPath(caCertPath) | ca_cert_path(ca_cert_path) | ca_cert_path(val) ✗ | caCertPath(caCertPath) | caCertPath(val) ✗ | CACertPath(val) ✗ | ca_cert_path(val) ✗ | caCertPath(val) ✗ | — | D56 |
 | TransportOptionsBuilder.proxy | proxy(proxy) | proxy(proxy) | proxy(proxy) | Proxy(proxy) | proxy(proxy) | proxy(proxy) | proxy(val) ✗ | proxy(proxy) | proxy(val) ✗ | Proxy(val) ✗ | proxy(val) ✗ | proxy(val) ✗ | — | D56 |
 | TransportOptionsBuilder.timeout | timeout(timeout) | timeout(timeout) | timeout(timeout) | Timeout(timeout) | timeout(timeout) | timeout(timeout) | timeout(val) ✗ | timeout(timeout) | timeout(val) ✗ | Timeout(val) ✗ | timeout(val) ✗ | timeout(val) ✗ | — | D56 |
 | TransportOptionsBuilder.followRedirects | followRedirects(followRedirects) | followRedirects(followRedirects) | followRedirects(followRedirects) | FollowRedirects(followRedirects) | followRedirects(followRedirects) | follow_redirects(follow_redirects) | follow_redirects(val) ✗ | followRedirects(followRedirects) | followRedirects(val) ✗ | FollowRedirects(val) ✗ | follow_redirects(val) ✗ | followRedirects(val) ✗ | — | D56 |
@@ -1754,7 +1659,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | TransportOptionsBuilder.userAgent | userAgent(userAgent) | userAgent(userAgent) | userAgent(userAgent) | UserAgent(userAgent) | userAgent(userAgent) | user_agent(user_agent) | user_agent(val) ✗ | userAgent(userAgent) | userAgent(val) ✗ | UserAgent(val) ✗ | user_agent(val) ✗ | userAgent(val) ✗ | — | D56 |
 | TransportOptionsBuilder.defaultHeader | defaultHeader(name, value) | defaultHeader(name, value) | defaultHeader(name, value) | DefaultHeader(name, value) | defaultHeader(name, value) | default_header(name, value) | default_header(name, value) | defaultHeader(name, value) | defaultHeader(name, value) | DefaultHeader(name, value) | default_header(name, value) | defaultHeader(name, value) | — |  |
 | TransportOptionsBuilder.defaultHeaders | defaultHeaders(headers) | defaultHeaders(headers) | defaultHeaders(headers) | DefaultHeaders(headers) | defaultHeaders(headers) | default_headers(headers) | default_headers(headers) | defaultHeaders(headers) | defaultHeaders(headers) | DefaultHeaders(headers) | default_headers(headers) | defaultHeaders(headers) | — |  |
-| TransportOptionsBuilder.injectRequestId | injectRequestId(injectRequestId) | injectRequestId(injectRequestId) | injectRequestId(injectRequestId) | InjectRequestId(injectRequestId) | injectRequestId(injectRequestId) | inject_request_id(inject_request_id) | inject_request_id(val) ✗ | injectRequestId(injectRequestId) | injectRequestId(val) ✗ | InjectRequestID(val) ✗ | inject_request_id(val) ✗ | injectRequestID(val) ✗ | — | D56 D82 |
+| TransportOptionsBuilder.injectRequestId | injectRequestId(injectRequestId) | injectRequestId(injectRequestId) | injectRequestId(injectRequestId) | InjectRequestId(injectRequestId) | injectRequestId(injectRequestId) | inject_request_id(inject_request_id) | inject_request_id(val) ✗ | injectRequestId(injectRequestId) | injectRequestId(val) ✗ | InjectRequestID(val) ✗ | inject_request_id(val) ✗ | injectRequestID(val) ✗ | — | D56 |
 | TransportOptionsBuilder.userAgentOpt | userAgentOpt | — | — | — | — | — | — | — | — | — | user_agent_opt(val) ✗ | — | — | Not part of the canonical surface: make it non-public in rust. |
 
 ## Server configuration
@@ -1763,7 +1668,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **ServerConfiguration** | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration | ServerConfiguration |  |
 | ServerConfiguration ctor | new(urlTemplate, description?, variables?) | (urlTemplate, description, variables) ✗ | (urlTemplate, description, variables) ✗ | (urlTemplate, description, variables) ✗ | (urlTemplate, description?, variables?) | (url_template, description?, variables?) | (url_template, description?, variables?) | (urlTemplate, description, variables) ✗ | (urlTemplate, description?, variables?) | (urlTemplate, description, variables) | (url_template, description, variables) | (urlTemplate, description?, variables?) | (url_template, description?, variables?) | D63 |
-| ServerConfiguration.urlTemplate | urlTemplate | getUrlTemplate | urlTemplate | UrlTemplate | urlTemplate | url_template | url_template | urlTemplate | urlTemplate | URLTemplate ✗ | url_template | urlTemplate | url_template | D82 |
+| ServerConfiguration.urlTemplate | urlTemplate | getUrlTemplate | urlTemplate | UrlTemplate | urlTemplate | url_template | url_template | urlTemplate | urlTemplate | URLTemplate ~ | url_template | urlTemplate | url_template | idiom (allow-list) |
 | ServerConfiguration.variables | variables | getVariables | variables | Variables | variables | variables | variables | variables | variables | Variables | variables | variables | variables |  |
 | ServerConfiguration.getUrl | getUrl(overrides?) | getUrl(overrides?) | getUrl(overrides?) | GetUrl(overrides?) | getUrl(overrides?) | get_url(overrides?) | — | getUrl(overrides?) | — | — | — | — | — |  |
 | ServerConfiguration.url | url(overrides?) | — | — | — | — | — | url(overrides?) | — | url(overrides?) | URL(overrides) | url(overrides) | url(overrides?) | url(overrides?) |  |
@@ -1808,7 +1713,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | Client.dispose | dispose | — | — | Dispose ~ | — | — | — | — | — | — | — | — | — | idiom (allow-list) |
 | **Configuration** | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration | Configuration |  |
 | Configuration ctor | new(baseUrl, defaultHeaders) | — | — | (baseUrl?, defaultHeaders?) | (baseUrl?, defaultHeaders?) | (base_url?, default_headers?) | (base_url, default_headers) ✗ | (options?) ~ | — | — | — | — | (opts?) | D61 |
-| Configuration.baseUrl | baseUrl | getBaseUrl | baseUrl | BaseUrl | baseUrl | base_url | base_url | baseUrl | baseUrl | BaseURL ✗ | base_url | baseURL ✗ | base_url | D82 |
+| Configuration.baseUrl | baseUrl | getBaseUrl | baseUrl | BaseUrl | baseUrl | base_url | base_url | baseUrl | baseUrl | BaseURL ~ | base_url | baseURL ~ | base_url | idiom (allow-list) |
 | Configuration.defaultHeaders | defaultHeaders | getDefaultHeaders | defaultHeaders | DefaultHeaders | defaultHeaders | default_headers | default_headers | defaultHeaders | defaultHeaders | DefaultHeaders | default_headers | defaultHeaders | default_headers |  |
 | Configuration.builder | builder() | builder | builder | Builder | builder | builder | builder | builder | builder | — ~ | builder | builder | — ~ | idiom (allow-list) |
 | Configuration.defaultConfiguration | defaultConfiguration() | defaultConfiguration | defaultConfiguration | DefaultConfiguration | defaultConfiguration | default_configuration | default_configuration | defaultConfiguration | defaultConfiguration | DefaultConfiguration | — ~ | — ~ | — ~ | idiom (allow-list) |
@@ -1817,14 +1722,14 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **ConfigurationBuilder** | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | ConfigurationBuilder | — ~ | idiom (allow-list) |
 | ConfigurationBuilder ctor | new() | — | — | — | — | () | () | — | — | () | () | () | — |  |
 | ConfigurationBuilder.build | build | build | build | Build | build | build | build | build | build | Build | build | build | — |  |
-| ConfigurationBuilder.baseUrl | baseUrl(baseUrl) | baseUrl(baseUrl) | baseUrl(baseUrl) | BaseUrl(baseUrl) | baseUrl(baseUrl) | base_url(base_url) | base_url(val) ✗ | baseUrl(baseUrl) | baseUrl(val) ✗ | BaseURL(val) ✗ | base_url(val) ✗ | baseURL(val) ✗ | — | D55 D82 |
+| ConfigurationBuilder.baseUrl | baseUrl(baseUrl) | baseUrl(baseUrl) | baseUrl(baseUrl) | BaseUrl(baseUrl) | baseUrl(baseUrl) | base_url(base_url) | base_url(val) ✗ | baseUrl(baseUrl) | baseUrl(val) ✗ | BaseURL(val) ✗ | base_url(val) ✗ | baseURL(val) ✗ | — | D55 |
 | ConfigurationBuilder.defaultHeader | defaultHeader(name, value) | defaultHeader(name, value) | defaultHeader(name, value) | DefaultHeader(name, value) | defaultHeader(name, value) | default_header(name, value) | default_header(name, value) | defaultHeader(name, value) | defaultHeader(name, value) | DefaultHeader(name, value) | default_header(name, value) | defaultHeader(name, value) | — |  |
 | ConfigurationBuilder.defaultHeaders | defaultHeaders(headers) | defaultHeaders(headers) | defaultHeaders(headers) | DefaultHeaders(headers) | defaultHeaders(headers) | default_headers(headers) | default_headers(headers) | defaultHeaders(headers) | defaultHeaders(headers) | DefaultHeaders(headers) | default_headers(headers) | defaultHeaders(headers) | — |  |
 | ConfigurationBuilder.server | server(serverConfig, variables?) | server(serverConfig, variables?) | server(serverConfig, variables?) | Server(serverConfig, variables?) | server(serverConfig, variables?) | server(server_config, variables?) | server(server_config, variables?) | server(serverConfig, variables?) | server(server, variables?) ✗ | Server(server, variables) ✗ | server(server, variables) ✗ | server(server, variables?) ✗ | — | D55 |
 | **DefaultApiClient** | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient |  |
 | DefaultApiClient ctor | new(transportOptions) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transport_options?, pool_manager?) ✗ | (transport_options?) | (transportOptions?) | (transportOptions?) | (transportOptions) | (transport_options) | (transportOptions?) | (transport_options?) | D81 |
 | DefaultApiClient.close | close | close | close | Dispose | close | close | close | close | close | Close | close | close | close |  |
-| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in kotlin, python. |
+| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in python, kotlin. |
 | DefaultApiClient.sensitiveHeaderNames | sensitiveHeaderNames | — | — | SensitiveHeaderNames ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.proxyAuthorizationHeader | proxyAuthorizationHeader | — | — | ProxyAuthorizationHeader ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.validateMultipartFilename | validateMultipartFilename | — | — | ValidateMultipartFilename(filename) ✗ | — | — | — | — | — | — | validate_multipart_filename(filename) ✗ | — | — | D16 |
@@ -2025,6 +1930,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ObjectSerializer.durationToProtoJson | durationToProtoJson | — | — | — | — | — | — | durationToProtoJson(d) ✗ | — | — | — | — | — | D14 |
 | ObjectSerializer.durationFromProtoJson | durationFromProtoJson | — | — | — | — | — | — | durationFromProtoJson(value) ✗ | — | — | — | — | — | D14 |
 | ObjectSerializer.decodeBase64 | decodeBase64 | — | — | — | — | — | — | decodeBase64(value) ✗ | decodeBase64(text) ✗ | — | — | — | — | D14 D15 |
+| ObjectSerializer.reattachAdditionalProperties | reattachAdditionalProperties | — | — | — | — | — | — | reattachAdditionalProperties(value, raw) ✗ | — | — | — | — | — | D14 |
 | ObjectSerializer.deserializeArray | deserializeArray | — | — | — | — | — | — | deserializeArray(json, cls?) ✗ | deserializeArray(json, deserializeElement) ✗ | — | — | — | — | D14 D15 |
 | ObjectSerializer.deserializeMap | deserializeMap | — | — | — | — | — | — | deserializeMap(json, cls?) ✗ | deserializeMap(json, deserializeValue) ✗ | — | — | — | — | D14 D15 |
 | ObjectSerializer.deserializeEnum | deserializeEnum | — | — | — | — | — | — | deserializeEnum(value, enumObj) ✗ | — | — | — | — | — | D14 |
@@ -2067,6 +1973,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ValueSerializer.encodeItem | encodeItem | — | — | — | — | — | encode_item(value, location) ✗ | — | — | — | — | — | — | D09 |
 | ValueSerializer.normalize | normalize | — | — | — | — | — | — | normalize(value, schemaType, paramName) ✗ | — | — | — | — | — | D09 |
 | ValueSerializer.stringifyDate | stringifyDate | — | — | — | — | — | — | stringifyDate(value) ✗ | stringifyDate(value) ✗ | — | — | — | — | D09 |
+| ValueSerializer.stringifyDates | stringifyDates | — | — | — | — | — | — | stringifyDates(values) ✗ | stringifyDates(values) ✗ | — | — | — | — | D09 |
 | ValueSerializer.encodeQueryComponent | encodeQueryComponent | — | — | — | — | — | — | encodeQueryComponent(value) ✗ | — | — | — | — | — | D09 |
 | ValueSerializer.serializeValue | serializeValue | — | — | — | — | — | — | — | serializeValue(value, location, schemaType, collectionFormat) ✗ | — | serialize_value(value, location, _schema_type, _collection_format) ✗ | — | — | D09 |
 | ValueSerializer.encodeRfc3986QueryComponent | encodeRfc3986QueryComponent | — | — | — | — | — | — | — | encodeRfc3986QueryComponent(s, spaceToPlus?) ✗ | — | — | — | — | D09 |
@@ -2124,8 +2031,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | RequestOptions ctor | — | — | — | — | — | — | — | — | — | — | () | — | — |  |
 | **Errors** | Errors | — | — | — | — | — | — | — | — | errors ~ | — | — | — | idiom (allow-list) |
 | **Iso8601** | Iso8601 | — | — | — | — | — | — | — | — | iso8601 ~ | — | — | — | idiom (allow-list) |
-| Iso8601.marshalDurationProtoJson | marshalDurationProtoJson | — | — | — | — | — | — | — | — | MarshalDurationProtoJSON(d) ✗ | — | — | — | D82 |
-| Iso8601.unmarshalDurationProtoJson | unmarshalDurationProtoJson | — | — | — | — | — | — | — | — | UnmarshalDurationProtoJSON(s) ✗ | — | — | — | D82 |
+| Iso8601.marshalDurationProtoJson | marshalDurationProtoJson | — | — | — | — | — | — | — | — | MarshalDurationProtoJSON(d) ~ | — | — | — | idiom (allow-list) |
+| Iso8601.unmarshalDurationProtoJson | unmarshalDurationProtoJson | — | — | — | — | — | — | — | — | UnmarshalDurationProtoJSON(s) ~ | — | — | — | idiom (allow-list) |
 | **TraceContextPropagatorFunc** | TraceContextPropagatorFunc | — | — | — | — | — | — | — | — | TraceContextPropagatorFunc ~ | — | — | — | idiom (allow-list) |
 | **DateTime** | DateTime | — | — | — | — | — | — | — | — | DateTime ~ | DateTime ~ | — | — | idiom (allow-list) |
 | DateTime ctor | — | — | — | — | — | — | — | — | — | — | (value) | — | — |  |
@@ -2157,151 +2064,4 @@ D82 applies. Every identifier below spells an initialism in capitals where the c
 
 | Language | Element | Actual | Canonical |
 | --- | --- | --- | --- |
-| go | configuration.baseurl | BaseURL | BaseUrl |
-| go | configurationbuilder.baseurl | BaseURL | BaseUrl |
-| go | iso8601.marshaldurationprotojson | MarshalDurationProtoJSON | MarshalDurationProtoJson |
-| go | iso8601.unmarshaldurationprotojson | UnmarshalDurationProtoJSON | UnmarshalDurationProtoJson |
-| go | petapi.addpetwithhttpinfo | AddPetWithHTTPInfo | AddPetWithHttpInfo |
-| go | petapi.addpetphotoswithhttpinfo | AddPetPhotosWithHTTPInfo | AddPetPhotosWithHttpInfo |
-| go | petapi.addpettreatmentwithhttpinfo | AddPetTreatmentWithHTTPInfo | AddPetTreatmentWithHttpInfo |
-| go | petapi.deletepetwithhttpinfo | DeletePetWithHTTPInfo | DeletePetWithHttpInfo |
-| go | petapi.downloadpetdocumentwithhttpinfo | DownloadPetDocumentWithHTTPInfo | DownloadPetDocumentWithHttpInfo |
-| go | petapi.findpetsbornonwithhttpinfo | FindPetsBornOnWithHTTPInfo | FindPetsBornOnWithHttpInfo |
-| go | petapi.findpetsbystatuswithhttpinfo | FindPetsByStatusWithHTTPInfo | FindPetsByStatusWithHttpInfo |
-| go | petapi.getexternalpetinfowithhttpinfo | GetExternalPetInfoWithHTTPInfo | GetExternalPetInfoWithHttpInfo |
-| go | petapi.getmultiserverpetinfowithhttpinfo | GetMultiServerPetInfoWithHTTPInfo | GetMultiServerPetInfoWithHttpInfo |
-| go | petapi.getpetavatarwithhttpinfo | GetPetAvatarWithHTTPInfo | GetPetAvatarWithHttpInfo |
-| go | petapi.getpetavatarthumbnailwithhttpinfo | GetPetAvatarThumbnailWithHTTPInfo | GetPetAvatarThumbnailWithHttpInfo |
-| go | petapi.getpetbyidwithhttpinfo | GetPetByIdWithHTTPInfo | GetPetByIdWithHttpInfo |
-| go | petapi.getpetbynamewithhttpinfo | GetPetByNameWithHTTPInfo | GetPetByNameWithHttpInfo |
-| go | petapi.getpetpassportwithhttpinfo | GetPetPassportWithHTTPInfo | GetPetPassportWithHttpInfo |
-| go | petapi.getpetphotowithhttpinfo | GetPetPhotoWithHTTPInfo | GetPetPhotoWithHttpInfo |
-| go | petapi.getpetsummarywithhttpinfo | GetPetSummaryWithHTTPInfo | GetPetSummaryWithHttpInfo |
-| go | petapi.getpettagwithhttpinfo | GetPetTagWithHTTPInfo | GetPetTagWithHttpInfo |
-| go | petapi.getstagingpetinfowithhttpinfo | GetStagingPetInfoWithHTTPInfo | GetStagingPetInfoWithHttpInfo |
-| go | petapi.setpetavatarwithhttpinfo | SetPetAvatarWithHTTPInfo | SetPetAvatarWithHttpInfo |
-| go | petapi.setpetavatarthumbnailwithhttpinfo | SetPetAvatarThumbnailWithHTTPInfo | SetPetAvatarThumbnailWithHttpInfo |
-| go | petapi.setpetpreferenceswithhttpinfo | SetPetPreferencesWithHTTPInfo | SetPetPreferencesWithHttpInfo |
-| go | petapi.updatepetwithhttpinfo | UpdatePetWithHTTPInfo | UpdatePetWithHttpInfo |
-| go | petapi.uploadpetcertificatewithhttpinfo | UploadPetCertificateWithHTTPInfo | UploadPetCertificateWithHttpInfo |
-| go | petapi.uploadpetdocumentwithhttpinfo | UploadPetDocumentWithHTTPInfo | UploadPetDocumentWithHttpInfo |
-| go | serverconfiguration.urltemplate | URLTemplate | UrlTemplate |
-| go | storeapi.getdefaultswithhttpinfo | GetDefaultsWithHTTPInfo | GetDefaultsWithHttpInfo |
-| go | storeapi.getdepartmentwithhttpinfo | GetDepartmentWithHTTPInfo | GetDepartmentWithHttpInfo |
-| go | storeapi.getgroupedcategorieswithhttpinfo | GetGroupedCategoriesWithHTTPInfo | GetGroupedCategoriesWithHttpInfo |
-| go | storeapi.getinventorywithhttpinfo | GetInventoryWithHTTPInfo | GetInventoryWithHttpInfo |
-| go | storeapi.getmatrixwithhttpinfo | GetMatrixWithHTTPInfo | GetMatrixWithHttpInfo |
-| go | storeapi.getswatchwithhttpinfo | GetSwatchWithHTTPInfo | GetSwatchWithHttpInfo |
-| go | storeapi.getswatchgroupswithhttpinfo | GetSwatchGroupsWithHTTPInfo | GetSwatchGroupsWithHttpInfo |
-| go | storeapi.gettimestampgroupswithhttpinfo | GetTimestampGroupsWithHTTPInfo | GetTimestampGroupsWithHttpInfo |
-| go | storeapi.gettreewithhttpinfo | GetTreeWithHTTPInfo | GetTreeWithHttpInfo |
-| go | storeapi.createaccountwithhttpinfo | CreateAccountWithHTTPInfo | CreateAccountWithHttpInfo |
-| go | storeapi.deleteorderwithhttpinfo | DeleteOrderWithHTTPInfo | DeleteOrderWithHttpInfo |
-| go | storeapi.getbyswatchwithhttpinfo | GetBySwatchWithHTTPInfo | GetBySwatchWithHttpInfo |
-| go | storeapi.getorderbyidwithhttpinfo | GetOrderByIdWithHTTPInfo | GetOrderByIdWithHttpInfo |
-| go | storeapi.getorderbytrackingidwithhttpinfo | GetOrderByTrackingIdWithHTTPInfo | GetOrderByTrackingIdWithHttpInfo |
-| go | storeapi.getstockitemwithhttpinfo | GetStockItemWithHTTPInfo | GetStockItemWithHttpInfo |
-| go | storeapi.placeorderwithhttpinfo | PlaceOrderWithHTTPInfo | PlaceOrderWithHttpInfo |
-| go | storeapi.searchstorewithhttpinfo | SearchStoreWithHTTPInfo | SearchStoreWithHttpInfo |
-| go | transportoptions.errinvalidproxyurl | ErrInvalidProxyURL | ErrInvalidProxyUrl |
-| go | transportoptions.errinvalidcacertificate | ErrInvalidCACertificate | ErrInvalidCaCertificate |
-| go | transportoptions.cacertpath | CACertPath | CaCertPath |
-| go | transportoptions.injectrequestid | InjectRequestID | InjectRequestId |
-| go | transportoptionsbuilder.cacertpath | CACertPath | CaCertPath |
-| go | transportoptionsbuilder.injectrequestid | InjectRequestID | InjectRequestId |
-| go | browserauthimplicitauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| go | oauth2authorizationcodeauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| go | oauth2authorizationcodeauthenticator.<ctor>(clientid) | clientID | clientId |
-| go | oauth2authorizationcodeauthenticator.<ctor>(authorizationurl) | authorizationURL | authorizationUrl |
-| go | oauth2authorizationcodeauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2authorizationcodeauthenticator.<ctor>(redirecturi) | redirectURI | redirectUri |
-| go | oauth2authorizationcodeauthenticator.<ctor>(refreshurl) | refreshURL | refreshUrl |
-| go | oauth2clientcredentialsauthenticator.<ctor>(clientid) | clientID | clientId |
-| go | oauth2clientcredentialsauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2implicitauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| go | oauth2implicitauthenticator.<ctor>(clientid) | clientID | clientId |
-| go | oauth2implicitauthenticator.<ctor>(authorizationurl) | authorizationURL | authorizationUrl |
-| go | oauth2passwordauthenticator.<ctor>(clientid) | clientID | clientId |
-| go | oauth2passwordauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2passwordauthenticator.<ctor>(refreshurl) | refreshURL | refreshUrl |
-| go | oauth2tokenmanager.getaccesstoken(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2tokenmanager.getaccesstokenwithheaders(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2tokenmanager.getaccesstokenwithrefresh(tokenurl) | tokenURL | tokenUrl |
-| go | oauth2tokenmanager.getaccesstokenwithrefresh(refreshurl) | refreshURL | refreshUrl |
-| go | oauth2tokenmanager.exchange(tokenurl) | tokenURL | tokenUrl |
-| go | openidconnectauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| go | openidconnectauthenticator.<ctor>(openidconnecturl) | openIDConnectURL | openIdConnectUrl |
-| go | openidconnectauthenticator.<ctor>(clientid) | clientID | clientId |
-| go | openidconnectauthenticator.<ctor>(redirecturi) | redirectURI | redirectUri |
-| go | ssoauthauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| go | userauthauthorizationcodeauthenticator.buildauthorizationurl | BuildAuthorizationURL | BuildAuthorizationUrl |
-| swift | configuration.baseurl | baseURL | baseUrl |
-| swift | configurationbuilder.baseurl | baseURL | baseUrl |
-| swift | transportoptions.injectrequestid | injectRequestID | injectRequestId |
-| swift | transportoptionsbuilder.injectrequestid | injectRequestID | injectRequestId |
-| swift | petapi.addpetwithhttpinfo | addPetWithHTTPInfo | addPetWithHttpInfo |
-| swift | petapi.addpetphotoswithhttpinfo | addPetPhotosWithHTTPInfo | addPetPhotosWithHttpInfo |
-| swift | petapi.addpettreatmentwithhttpinfo | addPetTreatmentWithHTTPInfo | addPetTreatmentWithHttpInfo |
-| swift | petapi.deletepetwithhttpinfo | deletePetWithHTTPInfo | deletePetWithHttpInfo |
-| swift | petapi.downloadpetdocumentwithhttpinfo | downloadPetDocumentWithHTTPInfo | downloadPetDocumentWithHttpInfo |
-| swift | petapi.findpetsbornonwithhttpinfo | findPetsBornOnWithHTTPInfo | findPetsBornOnWithHttpInfo |
-| swift | petapi.findpetsbystatuswithhttpinfo | findPetsByStatusWithHTTPInfo | findPetsByStatusWithHttpInfo |
-| swift | petapi.getexternalpetinfowithhttpinfo | getExternalPetInfoWithHTTPInfo | getExternalPetInfoWithHttpInfo |
-| swift | petapi.getmultiserverpetinfowithhttpinfo | getMultiServerPetInfoWithHTTPInfo | getMultiServerPetInfoWithHttpInfo |
-| swift | petapi.getpetavatarwithhttpinfo | getPetAvatarWithHTTPInfo | getPetAvatarWithHttpInfo |
-| swift | petapi.getpetavatarthumbnailwithhttpinfo | getPetAvatarThumbnailWithHTTPInfo | getPetAvatarThumbnailWithHttpInfo |
-| swift | petapi.getpetbyidwithhttpinfo | getPetByIdWithHTTPInfo | getPetByIdWithHttpInfo |
-| swift | petapi.getpetbynamewithhttpinfo | getPetByNameWithHTTPInfo | getPetByNameWithHttpInfo |
-| swift | petapi.getpetpassportwithhttpinfo | getPetPassportWithHTTPInfo | getPetPassportWithHttpInfo |
-| swift | petapi.getpetphotowithhttpinfo | getPetPhotoWithHTTPInfo | getPetPhotoWithHttpInfo |
-| swift | petapi.getpetsummarywithhttpinfo | getPetSummaryWithHTTPInfo | getPetSummaryWithHttpInfo |
-| swift | petapi.getpettagwithhttpinfo | getPetTagWithHTTPInfo | getPetTagWithHttpInfo |
-| swift | petapi.getstagingpetinfowithhttpinfo | getStagingPetInfoWithHTTPInfo | getStagingPetInfoWithHttpInfo |
-| swift | petapi.setpetavatarwithhttpinfo | setPetAvatarWithHTTPInfo | setPetAvatarWithHttpInfo |
-| swift | petapi.setpetavatarthumbnailwithhttpinfo | setPetAvatarThumbnailWithHTTPInfo | setPetAvatarThumbnailWithHttpInfo |
-| swift | petapi.setpetpreferenceswithhttpinfo | setPetPreferencesWithHTTPInfo | setPetPreferencesWithHttpInfo |
-| swift | petapi.updatepetwithhttpinfo | updatePetWithHTTPInfo | updatePetWithHttpInfo |
-| swift | petapi.uploadpetcertificatewithhttpinfo | uploadPetCertificateWithHTTPInfo | uploadPetCertificateWithHttpInfo |
-| swift | petapi.uploadpetdocumentwithhttpinfo | uploadPetDocumentWithHTTPInfo | uploadPetDocumentWithHttpInfo |
-| swift | storeapi.getdefaultswithhttpinfo | getDefaultsWithHTTPInfo | getDefaultsWithHttpInfo |
-| swift | storeapi.getdepartmentwithhttpinfo | getDepartmentWithHTTPInfo | getDepartmentWithHttpInfo |
-| swift | storeapi.getgroupedcategorieswithhttpinfo | getGroupedCategoriesWithHTTPInfo | getGroupedCategoriesWithHttpInfo |
-| swift | storeapi.getinventorywithhttpinfo | getInventoryWithHTTPInfo | getInventoryWithHttpInfo |
-| swift | storeapi.getmatrixwithhttpinfo | getMatrixWithHTTPInfo | getMatrixWithHttpInfo |
-| swift | storeapi.getswatchwithhttpinfo | getSwatchWithHTTPInfo | getSwatchWithHttpInfo |
-| swift | storeapi.getswatchgroupswithhttpinfo | getSwatchGroupsWithHTTPInfo | getSwatchGroupsWithHttpInfo |
-| swift | storeapi.gettimestampgroupswithhttpinfo | getTimestampGroupsWithHTTPInfo | getTimestampGroupsWithHttpInfo |
-| swift | storeapi.gettreewithhttpinfo | getTreeWithHTTPInfo | getTreeWithHttpInfo |
-| swift | storeapi.createaccountwithhttpinfo | createAccountWithHTTPInfo | createAccountWithHttpInfo |
-| swift | storeapi.deleteorderwithhttpinfo | deleteOrderWithHTTPInfo | deleteOrderWithHttpInfo |
-| swift | storeapi.getbyswatchwithhttpinfo | getBySwatchWithHTTPInfo | getBySwatchWithHttpInfo |
-| swift | storeapi.getorderbyidwithhttpinfo | getOrderByIdWithHTTPInfo | getOrderByIdWithHttpInfo |
-| swift | storeapi.getorderbytrackingidwithhttpinfo | getOrderByTrackingIdWithHTTPInfo | getOrderByTrackingIdWithHttpInfo |
-| swift | storeapi.getstockitemwithhttpinfo | getStockItemWithHTTPInfo | getStockItemWithHttpInfo |
-| swift | storeapi.placeorderwithhttpinfo | placeOrderWithHTTPInfo | placeOrderWithHttpInfo |
-| swift | storeapi.searchstorewithhttpinfo | searchStoreWithHTTPInfo | searchStoreWithHttpInfo |
-| swift | browserauthimplicitauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
-| swift | oauth2authorizationcodeauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
-| swift | oauth2authorizationcodeauthenticator.<ctor>(clientid) | clientID | clientId |
-| swift | oauth2authorizationcodeauthenticator.<ctor>(authorizationurl) | authorizationURL | authorizationUrl |
-| swift | oauth2authorizationcodeauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| swift | oauth2authorizationcodeauthenticator.<ctor>(redirecturi) | redirectURI | redirectUri |
-| swift | oauth2authorizationcodeauthenticator.<ctor>(refreshurl) | refreshURL | refreshUrl |
-| swift | oauth2clientcredentialsauthenticator.<ctor>(clientid) | clientID | clientId |
-| swift | oauth2clientcredentialsauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| swift | oauth2implicitauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
-| swift | oauth2implicitauthenticator.<ctor>(clientid) | clientID | clientId |
-| swift | oauth2implicitauthenticator.<ctor>(authorizationurl) | authorizationURL | authorizationUrl |
-| swift | oauth2passwordauthenticator.<ctor>(clientid) | clientID | clientId |
-| swift | oauth2passwordauthenticator.<ctor>(tokenurl) | tokenURL | tokenUrl |
-| swift | oauth2passwordauthenticator.<ctor>(refreshurl) | refreshURL | refreshUrl |
-| swift | oauth2tokenmanager.getaccesstoken(tokenurl) | tokenURL | tokenUrl |
-| swift | oauth2tokenmanager.getaccesstoken(refreshurl) | refreshURL | refreshUrl |
-| swift | oauth2tokenmanager.exchange(tokenurl) | tokenURL | tokenUrl |
-| swift | openidconnectauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
-| swift | openidconnectauthenticator.<ctor>(openidconnecturl) | openIDConnectURL | openIdConnectUrl |
-| swift | openidconnectauthenticator.<ctor>(clientid) | clientID | clientId |
-| swift | openidconnectauthenticator.<ctor>(redirecturi) | redirectURI | redirectUri |
-| swift | ssoauthauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
-| swift | userauthauthorizationcodeauthenticator.buildauthorizationurl | buildAuthorizationURL | buildAuthorizationUrl |
 
