@@ -32804,9 +32804,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `badrequesterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- badrequesterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F698",
@@ -32821,9 +32822,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `clienterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- clienterror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F699",
@@ -32855,9 +32857,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `conflicterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- conflicterror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F701",
@@ -32873,9 +32876,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `forbiddenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- forbiddenerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F702",
@@ -32891,9 +32895,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `internalservererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- internalservererror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F703",
@@ -32945,9 +32950,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `notfounderror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- notfounderror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F706",
@@ -33012,9 +33018,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- servererror.<ctor> [ctor-optional] majority (statuscode, message, responseheaders, responsebody, errorbody) (1 SDKs); differs: kotlin=(statuscode, message, responseheaders, responsebody, errorbody?); node=(statuscode, message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F710",
@@ -33030,9 +33037,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `unauthorizederror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- unauthorizederror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F711",
@@ -33048,9 +33056,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `unprocessableentityerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- unprocessableentityerror.<ctor> [ctor-optional] majority (message?, responseheaders?, responsebody?, errorbody?) (2 SDKs); differs: java=(message, responseheaders, responsebody, errorbody); kotlin=(message, responseheaders, responsebody, errorbody?); node=(message, responseheaders?, responsebody?, errorbody?)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "shared step failed in http-error-ctors",
-   "batch": null
+   "status": "fixed",
+   "note": "status error constructors harmonised: statusCode and message required, headers/body/errorBody optional",
+   "batch": null,
+   "commit": "6d837c346"
   },
   {
    "id": "F712",
@@ -33679,6 +33688,38 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `uploadpetdocumentoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- uploadpetdocumentoptions.isprimary [params] majority () (11 SDKs); differs: rust=(isprimary)\n- uploadpetdocumentoptions.primary [member] majority absent (11 SDKs); differs: rust=extra\n- uploadpetdocumentoptions.file [prop-optional] majority required (8 SDKs); differs: elixir=optional; go=optional",
    "evidence": [],
    "unit_testable": false,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F748",
+   "severity": "medium",
+   "title": "php status-leaf ctor defaults responseHeaders to [] instead of null",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "php/errors/*Exception.mustache leaves declare `?array $responseHeaders = []`. This conflicts with the AGENTS.md and PARITY_DECISIONS rule that constructors never default headers to an empty map, because null means no response arrived. The other languages default to null, node now included. The plan excluded this as a separate headers-null decision, so it remains open.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F749",
+   "severity": "low",
+   "title": "node base-api.test status 400 exception test is flaky on a cold start (NetworkError on the first request)",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "base-api.test 'status 400 throws correct exception' is flaky on a cold start (NetworkError on the first request), seen once.",
+   "evidence": [],
+   "unit_testable": null,
    "status": "open",
    "note": "",
    "batch": null

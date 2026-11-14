@@ -10,19 +10,19 @@ Legend for the tables: each language cell is that SDK's actual spelling; `✗` m
 
 | Language | Surface mismatches | Initialism casing | Total |
 | --- | --- | --- | --- |
-| java | 34 | 0 | 34 |
-| kotlin | 27 | 0 | 27 |
+| java | 27 | 0 | 27 |
+| kotlin | 18 | 0 | 18 |
 | csharp | 16 | 0 | 16 |
 | php | 58 | 0 | 58 |
 | python | 43 | 0 | 43 |
 | ruby | 89 | 0 | 89 |
-| node | 55 | 0 | 55 |
+| node | 46 | 0 | 46 |
 | dart | 94 | 0 | 94 |
 | go | 54 | 0 | 54 |
 | rust | 63 | 0 | 63 |
 | swift | 43 | 0 | 43 |
 | elixir | 52 | 0 | 52 |
-| **all** | **628** | **0** | **628** |
+| **all** | **603** | **0** | **603** |
 
 Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 646 further differences are allowed idioms (`etc/api-surface-allow.json`).
 
@@ -30,7 +30,7 @@ Counts are per (element, aspect, language) as `etc/api-surface.py check` reports
 
 One fix agent per language can execute its list. Paths are under `src/main/resources/templates/<lang>/`; `(codegen: …)` means the name comes from the generator class under `src/main/java/io/github/mridang/codegen/generators/<lang>/`. Parameter lists use the normalised keys (`clientid` = `clientId`/`client_id`); apply them in the language's own case. After the change, regenerate the goldens and rerun `python3 etc/api-surface.py check` until the language's count is zero.
 
-### java (34 changes)
+### java (27 changes)
 
 - `api/api.mustache`
   - `StoreApi.placeOrder`: optionality (order) -> (order?)
@@ -46,22 +46,8 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `OAuth2TokenManager.exchange`: optionality (tokenurl, params, extraheaders) -> (tokenurl, params, extraheaders?)
 - `auth/oauth/openid_connect_authenticator.mustache`
   - `OpenIdConnectAuthenticator.buildAuthorizationUrl`: optionality (state) -> (state?)
-- `errors/BadRequestException.mustache`
-  - `BadRequestException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/ConflictException.mustache`
-  - `ConflictException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/ForbiddenException.mustache`
-  - `ForbiddenException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/InternalServerErrorException.mustache`
-  - `InternalServerErrorException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/NotFoundException.mustache`
-  - `NotFoundException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
 - `errors/OAuth2TokenException.mustache`
   - `OAuth2TokenException` constructor (message, cause) -> (message)
-- `errors/UnauthorizedException.mustache`
-  - `UnauthorizedException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/UnprocessableEntityException.mustache`
-  - `UnprocessableEntityException` constructor defaults (message, responseheaders, responsebody, errorbody) -> (message?, responseheaders?, responsebody?, errorbody?)
 - `models/model.mustache`
   - make `Metadata.setAdditionalProperty` non-public (or remove)
   - rename `ModelResult` to `Result` (BetterJavaCodegen)
@@ -85,7 +71,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `server_variable.mustache`
   - `ServerVariable` constructor defaults (defaultvalue, description, enumvalues) -> (defaultvalue, description?, enumvalues?)
 
-### kotlin (25 changes)
+### kotlin (16 changes)
 
 - `auth/oauth/oauth2_token_manager.mustache`
   - add `exchanged` to `OAuth2TokenManager`
@@ -94,28 +80,10 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - make `OAuth2TokenManager.apiClient` non-public (or remove)
 - `default_api_client.mustache`
   - `DefaultApiClient.sendRequest`: optionality (method, url, headers, body, noredirect) -> (method, url, headers, body, noredirect?)
-- `errors/BadRequestException.mustache`
-  - `BadRequestException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/ClientException.mustache`
-  - `ClientException` constructor defaults (statuscode, message, responseheaders, responsebody, errorbody?) -> (statuscode, message, responseheaders, responsebody, errorbody)
-- `errors/ConflictException.mustache`
-  - `ConflictException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/ForbiddenException.mustache`
-  - `ForbiddenException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/InternalServerErrorException.mustache`
-  - `InternalServerErrorException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/NotFoundException.mustache`
-  - `NotFoundException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
 - `errors/OAuth2ServerException.mustache`
   - make `OAuth2ServerException.buildMessage` non-public (or remove)
 - `errors/OAuth2TokenException.mustache`
   - `OAuth2TokenException` constructor (message, cause) -> (message)
-- `errors/ServerException.mustache`
-  - `ServerException` constructor defaults (statuscode, message, responseheaders, responsebody, errorbody?) -> (statuscode, message, responseheaders, responsebody, errorbody)
-- `errors/UnauthorizedException.mustache`
-  - `UnauthorizedException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/UnprocessableEntityException.mustache`
-  - `UnprocessableEntityException` constructor defaults (message, responseheaders, responsebody, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
 - `models/model.mustache`
   - make `PetTreatment.instances` non-public (or remove)
   - add `matchedInstances` to `PetTreatment`
@@ -372,7 +340,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `(codegen: BetterRubyCodegen.java)`
   - rename `Petstore` to `Client` (client.mustache)
 
-### node (42 changes)
+### node (33 changes)
 
 - `abstract_api_client.mustache`
   - stop exporting `AbstractApiClient` (abstract_api_client.mustache, index.mustache)
@@ -397,24 +365,6 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - make `DefaultApiClient.buildDispatcher` non-public (or remove)
 - `errors/api-error.mustache`
   - make `ApiError.registerStatusError` non-public (or remove)
-- `errors/bad-request-error.mustache`
-  - `BadRequestError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/client-error.mustache`
-  - `ClientError` constructor defaults (statuscode, message, responseheaders?, responsebody?, errorbody?) -> (statuscode, message, responseheaders, responsebody, errorbody)
-- `errors/conflict-error.mustache`
-  - `ConflictError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/forbidden-error.mustache`
-  - `ForbiddenError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/internal-server-error.mustache`
-  - `InternalServerError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/not-found-error.mustache`
-  - `NotFoundError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/server-error.mustache`
-  - `ServerError` constructor defaults (statuscode, message, responseheaders?, responsebody?, errorbody?) -> (statuscode, message, responseheaders, responsebody, errorbody)
-- `errors/unauthorized-error.mustache`
-  - `UnauthorizedError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
-- `errors/unprocessable-entity-error.mustache`
-  - `UnprocessableEntityError` constructor defaults (message, responseheaders?, responsebody?, errorbody?) -> (message?, responseheaders?, responsebody?, errorbody?)
 - `models/model.mustache`
   - add `additionalProperties` to `Metadata`
   - add `actualInstance` to `SetPetAvatarThumbnailRequest`
@@ -1729,7 +1679,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **DefaultApiClient** | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient |  |
 | DefaultApiClient ctor | new(transportOptions) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transport_options?, pool_manager?) ✗ | (transport_options?) | (transportOptions?) | (transportOptions?) | (transportOptions) | (transport_options) | (transportOptions?) | (transport_options?) | D81 |
 | DefaultApiClient.close | close | close | close | Dispose | close | close | close | close | close | Close | close | close | close |  |
-| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in python, kotlin. |
+| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in kotlin, python. |
 | DefaultApiClient.sensitiveHeaderNames | sensitiveHeaderNames | — | — | SensitiveHeaderNames ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.proxyAuthorizationHeader | proxyAuthorizationHeader | — | — | ProxyAuthorizationHeader ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.validateMultipartFilename | validateMultipartFilename | — | — | ValidateMultipartFilename(filename) ✗ | — | — | — | — | — | — | validate_multipart_filename(filename) ✗ | — | — | D16 |
@@ -1807,21 +1757,21 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ApiException.errorDescription | errorDescription | — | — | — | — | — | — | — | — | — | — | errorDescription ~ | — | idiom (allow-list) |
 | ApiException.apiError | apiError | — | — | — | — | — | — | — | — | — | — | — | api_error?(term) ~ | idiom (allow-list) |
 | **BadRequestException** | BadRequestException | BadRequestException | BadRequestException | BadRequestException | BadRequestException | BadRequestException | BadRequestError | BadRequestError | BadRequestException | BadRequestError | BadRequestError | BadRequestError | BadRequestError |  |
-| BadRequestException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| BadRequestException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | BadRequestException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 | **ClientException** | ClientException | ClientException | ClientException | ClientException | ClientException | ClientException | ClientError | ClientError | ClientException | ClientError | ClientError | ClientError | ClientError |  |
-| ClientException ctor | new(statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders, responseBody, errorBody?) ✗ | (statusCode?, message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | — | — | — | (statusCode, message, responseHeaders?, responseBody?, errorBody?) ✗ | (statusCode, message, responseBody?, responseHeaders?, errorBody?) | — | — | — | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| ClientException ctor | new(statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode?, message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | — | — | — | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode, message, responseBody?, responseHeaders?, errorBody?) | — | — | — | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | ClientException.as | as | — | — | — | — | — | — | — | — | As(target) ~ | — | — | — | idiom (allow-list) |
 | ClientException.apiError | apiError | — | — | — | — | — | — | — | — | — | api_error ~ | — | — | idiom (allow-list) |
 | ClientException.clientError | clientError | — | — | — | — | — | — | — | — | — | — | — | client_error?(term) ~ | idiom (allow-list) |
 | **ConflictException** | ConflictException | ConflictException | ConflictException | ConflictException | ConflictException | ConflictException | ConflictError | ConflictError | ConflictException | ConflictError | ConflictError | ConflictError | ConflictError |  |
-| ConflictException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| ConflictException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | ConflictException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 | **ForbiddenException** | ForbiddenException | ForbiddenException | ForbiddenException | ForbiddenException | ForbiddenException | ForbiddenException | ForbiddenError | ForbiddenError | ForbiddenException | ForbiddenError | ForbiddenError | ForbiddenError | ForbiddenError |  |
-| ForbiddenException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| ForbiddenException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | ForbiddenException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 | **InternalServerErrorException** | InternalServerErrorException | InternalServerErrorException | InternalServerErrorException | InternalServerErrorException | InternalServerErrorException | InternalServerErrorException | InternalServerError | InternalServerError | InternalServerErrorException | InternalServerError | InternalServerError | InternalServerError | InternalServerError |  |
-| InternalServerErrorException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| InternalServerErrorException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | InternalServerErrorException.serverError | serverError | — | — | — | — | — | — | — | — | — | server_error ~ | — | — | idiom (allow-list) |
 | **NetworkException** | NetworkException | NetworkException | NetworkException | NetworkException | NetworkException | NetworkException | NetworkError | NetworkError | NetworkException | NetworkError | NetworkError | NetworkError | NetworkError |  |
 | NetworkException ctor | new(message, cause) | (message, cause) | (message, cause) | (message?, innerException?) ~ | (message?, previous?) ~ | (message?) ✗ | (message?) ✗ | (message, options?) ~ | (message, underlyingError?) ✗ | (msg, cause) ✗ | — | — | (message?, status_code?, response_headers?, response_body?, error_body?, cause?) | D27 |
@@ -1834,7 +1784,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | NetworkTimeoutException.cause | cause | — | — | — | — | — | — | — | — | Cause ~ | — | — | cause ~ | idiom (allow-list) |
 | NetworkTimeoutException.networkError | networkError | — | — | — | — | — | — | — | — | — | network_error ~ | — | — | idiom (allow-list) |
 | **NotFoundException** | NotFoundException | NotFoundException | NotFoundException | NotFoundException | NotFoundException | NotFoundException | NotFoundError | NotFoundError | NotFoundException | NotFoundError | NotFoundError | NotFoundError | NotFoundError |  |
-| NotFoundException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| NotFoundException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | NotFoundException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 | **OAuth2ServerException** | OAuth2ServerException | OAuth2ServerException | OAuth2ServerException | OAuth2ServerException | OAuth2ServerException | OAuth2ServerException | OAuth2ServerError | OAuth2ServerError | OAuth2ServerException | OAuth2ServerError | OAuth2ServerError | OAuth2ServerError | OAuth2ServerError |  |
 | OAuth2ServerException ctor | new(statusCode, code, description, uri, rawBody) | (statusCode, code, description, uri, rawBody) | (statusCode, code, description, uri, rawBody) | (statusCode, code, description, uri, rawBody) | (statusCode, errorCode, description, uri, rawBody) ~ | (status_code, code, description, uri, raw_body) | (status_code, code, description, uri, raw_body) | (statusCode, code, description, uri, rawBody) | (statusCode, code, description, uri, rawBody) | (statusCode, code, description, uri, rawBody) | (status_code, code, description, uri, raw_body) | (statusCode, code, description, uri, rawBody) | (status_code?, code?, description?, uri?, raw_body?, message?) | idiom (allow-list) |
@@ -1861,15 +1811,15 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | SerializationException.unwrap | unwrap | — | — | — | — | — | — | — | — | Unwrap ~ | — | — | — | idiom (allow-list) |
 | SerializationException.errorDescription | errorDescription | — | — | — | — | — | — | — | — | — | — | errorDescription ~ | — | idiom (allow-list) |
 | **ServerException** | ServerException | ServerException | ServerException | ServerException | ServerException | ServerException | ServerError | ServerError | ServerException | ServerError | ServerError | ServerError | ServerError |  |
-| ServerException ctor | new(statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders, responseBody, errorBody?) ✗ | (statusCode?, message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | — | — | — | (statusCode, message, responseHeaders?, responseBody?, errorBody?) ✗ | (statusCode, message, responseBody?, responseHeaders?, errorBody?) | — | — | — | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| ServerException ctor | new(statusCode, message, responseHeaders, responseBody, errorBody) | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode?, message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | — | — | — | (statusCode, message, responseHeaders?, responseBody?, errorBody?) | (statusCode, message, responseBody?, responseHeaders?, errorBody?) | — | — | — | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | ServerException.as | as | — | — | — | — | — | — | — | — | As(target) ~ | — | — | — | idiom (allow-list) |
 | ServerException.apiError | apiError | — | — | — | — | — | — | — | — | — | api_error ~ | — | — | idiom (allow-list) |
 | ServerException.serverError | serverError | — | — | — | — | — | — | — | — | — | — | — | server_error?(term) ~ | idiom (allow-list) |
 | **UnauthorizedException** | UnauthorizedException | UnauthorizedException | UnauthorizedException | UnauthorizedException | UnauthorizedException | UnauthorizedException | UnauthorizedError | UnauthorizedError | UnauthorizedException | UnauthorizedError | UnauthorizedError | UnauthorizedError | UnauthorizedError |  |
-| UnauthorizedException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| UnauthorizedException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | UnauthorizedException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 | **UnprocessableEntityException** | UnprocessableEntityException | UnprocessableEntityException | UnprocessableEntityException | UnprocessableEntityException | UnprocessableEntityException | UnprocessableEntityException | UnprocessableEntityError | UnprocessableEntityError | UnprocessableEntityException | UnprocessableEntityError | UnprocessableEntityError | UnprocessableEntityError | UnprocessableEntityError |  |
-| UnprocessableEntityException ctor | new(message, responseHeaders, responseBody, errorBody) | (message, responseHeaders, responseBody, errorBody) ✗ | (message, responseHeaders, responseBody, errorBody?) ✗ | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message, responseHeaders?, responseBody?, errorBody?) ✗ | (message, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | D71 |
+| UnprocessableEntityException ctor | new(message, responseHeaders, responseBody, errorBody) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseHeaders?, responseBody?, errorBody?, innerException?) ~ | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, response_headers?, response_body?, error_body?) | (message?, response_body?, response_headers?, error_body?) | (message?, responseHeaders?, responseBody?, errorBody?) | (message?, responseBody?, responseHeaders?, errorBody?) | — | — | (message?, responseBody?, responseHeaders?, errorBody?, underlyingError?) | (message?, status_code?, response_headers?, response_body?, error_body?) | idiom (allow-list) |
 | UnprocessableEntityException.clientError | clientError | — | — | — | — | — | — | — | — | — | client_error ~ | — | — | idiom (allow-list) |
 
 ## Serializer and support helpers
