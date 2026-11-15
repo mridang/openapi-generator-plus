@@ -688,7 +688,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         if (unaliased.getDefault() != null) {
             if (ModelUtils.isStringSchema(unaliased)) {
-                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+                return quoteEnumValue(escapeEnumStringValue(String.valueOf(unaliased.getDefault())));
             }
             if (ModelUtils.isLongSchema(unaliased)) {
                 return unaliased.getDefault() + "L";

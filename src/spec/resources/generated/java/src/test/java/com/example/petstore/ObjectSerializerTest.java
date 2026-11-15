@@ -1110,6 +1110,7 @@ class ObjectSerializerTest {
       assertEquals(3, filled.retries);
       assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, filled.mode);
       assertEquals("untitled", filled.label);
+      assertEquals("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", filled.greeting);
 
       // (b) Explicit null on the nullable field is PRESERVED, not defaulted;
       // the supplied retries overrides its default.
