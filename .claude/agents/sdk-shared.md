@@ -23,6 +23,10 @@ You are given one task: a change set item with the canonical behaviour every SDK
 9. If the final validation fails only for a reason unrelated to your change (Docker or network trouble, a known flaky test, a timeout), still commit the change and report validation as failed with exactly which failure is unrelated and why; the reviewer decides. Never report a change as validated that you did not run.
 10. Commit on your branch only: conventional subject, short body wrapped under 100 columns, NO trailer and NO attribution. Do not push, do not merge. Commit only what validated green; revert the rest and report it `blocked` with the exact reason.
 
+## Files that are not yours
+
+Never edit `etc/`, `AGENTS.md`, `API_SURFACE.md`, `PARITY_*`, `.claude/` or another language's files, even when your change makes the API checker report a difference: the coordinator owns them, and several agents editing the same shared file makes the whole change set unmergeable. If a difference is genuine language idiom, name it in your report (element, aspect, language, and the language feature that forces it) so the coordinator adds the allow rule.
+
 ## Traps
 
 - Mustache: never write a literal double-brace tag inside a mustache comment or prose; jmustache parses it.

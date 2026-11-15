@@ -228,8 +228,13 @@ async function review(set, plan, reports, work, sharedBranch, last) {
   return { verdict, broken }
 }
 
+/* A set may carry `existing` ({lang: {branch, commit}}, committed work from an earlier
+ * run) and `canonicalFile`: planning and implementation are skipped and the branches go
+ * straight to staging, idiom review and the guard. */
 async function runSet(set) {
-  const { plan, pre, ids } = await prepare(set)
+  const { plan, pre, ids } = set.existing
+    ? { plan: { verdict: 'work', reason: 'resumed', area: set.slug, canonical: `Read ${set.canonicalFile}: it holds the canonical behaviour for this change set.`, commit_subject: set.subject, shared_task: 'none', allow_rules: '[]', tasks: [] }, pre: [], ids: set.ids }
+    : await prepare(set)
   if (ids && ids.length && ids.length !== set.ids.length) set = { ...set, ids }
   if (!plan) { summary.push(`${set.slug}: planner failed`); return }
   if (plan.verdict !== 'work') {
@@ -237,7 +242,7 @@ async function runSet(set) {
     summary.push(`${set.slug}: ${plan.verdict} (${plan.reason.slice(0, 120)})`)
     return
   }
-  const work = LANGS.filter(l => {
+  const work = set.existing ? Object.keys(set.existing) : LANGS.filter(l => {
     const t = plan.tasks.find(x => x.language === l)
     const p = pre.find(x => x.language === l)
     return !(t && t.action === 'skip' && (!p || p.state === 'already-compliant'))
@@ -257,7 +262,9 @@ async function runSet(set) {
     sharedBranch = `parity/${set.slug}-shared`
   }
 
-  let reports = (await parallel(work.map(l => () => implement(set, plan, pre, l, base, null)))).filter(Boolean)
+  let reports = set.existing
+    ? Object.entries(set.existing).map(([language, x]) => ({ language, branch: x.branch, commit: x.commit, validation: { ran: true, passed: true, notes: 'committed in an earlier run' }, results: [] }))
+    : (await parallel(work.map(l => () => implement(set, plan, pre, l, base, null)))).filter(Boolean)
   let result = null
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     result = await withLock('pr', () => review(set, plan, reports, work, sharedBranch, attempt === RETRIES))
