@@ -18,7 +18,7 @@ import Testing
     let jsonData = Data("{\"foodType\":\"dry\",\"weightKg\":2.5}".utf8)
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-    let val = food.value()
+    let val = food.actualInstance()
     #expect(val != nil)
     #expect(val is DryFood)
   }
@@ -27,7 +27,7 @@ import Testing
     let jsonData = Data("{\"foodType\":\"wet\",\"volumeMl\":400}".utf8)
 
     let food = try JSONDecoder().decode(PetFood.self, from: jsonData)
-    let val = food.value()
+    let val = food.actualInstance()
     #expect(val != nil)
     #expect(val is WetFood)
   }
@@ -135,23 +135,23 @@ import Testing
      wrapped value is what goes on the wire. */
   @Test func testPetFoodConstructedFromVariantSerializesThatVariant() throws {
     let food = PetFood(DryFood(weightKg: 2.5))
-    #expect(food.value() is DryFood)
-    #expect(food.value(as: DryFood.self)?.weightKg == 2.5)
+    #expect(food.actualInstance() is DryFood)
+    #expect(food.actualInstance(as: DryFood.self)?.weightKg == 2.5)
     #expect(try ObjectSerializer.serialize(food) == "{\"foodType\":\"dry\",\"weightKg\":2.5}")
 
     let wet = PetFood(WetFood(volumeMl: 400))
-    #expect(wet.value() is WetFood)
+    #expect(wet.actualInstance() is WetFood)
     #expect(try ObjectSerializer.serialize(wet) == "{\"foodType\":\"wet\",\"volumeMl\":400}")
   }
 
   /* The primitive-union variants are accepted by the same initializer. */
   @Test func testByteUnionConstructedFromVariantSerializesAsBase64() throws {
     let scalar = SetPetAvatarThumbnailRequest(Data([0xFF, 0xFE]))
-    #expect(scalar.value(as: Data.self) == Data([0xFF, 0xFE]))
+    #expect(scalar.actualInstance(as: Data.self) == Data([0xFF, 0xFE]))
     #expect(try ObjectSerializer.serialize(scalar) == "\"//4=\"")
 
     let list = SetPetAvatarThumbnailRequest([Data([0xFF, 0xFE]), Data([0x01])])
-    #expect(list.value(as: [Data].self)?.count == 2)
+    #expect(list.actualInstance(as: [Data].self)?.count == 2)
     #expect(try ObjectSerializer.serialize(list) == "[\"//4=\",\"AQ==\"]")
   }
 
@@ -164,10 +164,11 @@ import Testing
     let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
     let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-    let medication = treatment.value(as: Medication.self)
+    #expect(treatment.actualInstance() is Medication)
+    let medication = treatment.actualInstance() as? Medication
     #expect(medication?.drugName == "Amoxicillin")
     #expect(medication?.dosage == "250mg")
-    #expect(treatment.value(as: Surgery.self) == nil)
+    #expect(treatment.matchedInstances().count == 1)
   }
 
   @Test func testPetTreatmentDeserializeSurgery() throws {
@@ -176,10 +177,10 @@ import Testing
     let jsonData = Data("{\"procedureName\":\"Spay\",\"durationMinutes\":45}".utf8)
 
     let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
-    let surgery = treatment.value(as: Surgery.self)
+    let surgery = treatment.actualInstance() as? Surgery
     #expect(surgery?.procedureName == "Spay")
     #expect(surgery?.durationMinutes == 45)
-    #expect(treatment.value(as: Medication.self) == nil)
+    #expect(treatment.matchedInstances().count == 1)
   }
 
   @Test func testPetTreatmentNoMatchThrows() {
@@ -218,13 +219,15 @@ import Testing
     let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
 
     // Both variants are retained and accessible, not just the first match.
-    let medication = treatment.value(as: Medication.self)
+    #expect(treatment.matchedInstances().count == 2)
+    #expect(treatment.matchedInstances()[0] is Medication)
+    #expect(treatment.matchedInstances()[1] is Surgery)
+    let medication = treatment.matchedInstances()[0] as? Medication
     #expect(medication?.drugName == "Amoxicillin")
     #expect(medication?.dosage == "250mg")
-    let surgery = treatment.value(as: Surgery.self)
+    let surgery = treatment.matchedInstances()[1] as? Surgery
     #expect(surgery?.procedureName == "Spay")
     #expect(surgery?.durationMinutes == 45)
-    #expect(treatment.values().count == 2)
 
     // Re-serialise and confirm ALL FOUR fields survive the round trip with
     // no silent drop of the co-satisfied variant.

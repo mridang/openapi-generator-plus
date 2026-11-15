@@ -66,13 +66,13 @@ public struct SetPetAvatarThumbnailRequest: Codable, @unchecked Sendable {
     }
   }
 
-  /// Returns the underlying value of the union type.
-  public func value() -> Any {
+  /// Returns the matched value of the union type.
+  public func actualInstance() -> Any {
     return _value
   }
 
-  /// Returns the underlying value cast to the specified type.
-  public func value<T>(as type: T.Type) -> T? {
+  /// Returns the matched value cast to the specified type.
+  public func actualInstance<T>(as type: T.Type) -> T? {
     return _value as? T
   }
 }

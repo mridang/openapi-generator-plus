@@ -13,13 +13,13 @@ public struct TreatmentRecord: Codable, @unchecked Sendable {
      not just the first match. A payload co-satisfying several variants keeps
      them all so re-encoding emits the union of their fields with no silent
      drop. `_values` holds each decoded variant in declaration order; `_value`
-     exposes the first for the single-variant convenience accessors. */
+     exposes the first for `actualInstance()`. */
   private let _values: [Any]
   private var _value: Any { _values[0] }
 
   /// Wraps every retained variant of this anyOf, in declaration order. Mirrors
   /// the multi-instance constructors the other SDKs expose (e.g. Java's
-  /// `List<Object>` form and Kotlin's `instances = …`) so a co-satisfying
+  /// `List<Object>` form and Kotlin's `matchedInstances = …`) so a co-satisfying
   /// value can be built in code, not only decoded.
   public init(_ values: [Any]) {
     self._values = values
@@ -107,18 +107,13 @@ public struct TreatmentRecord: Codable, @unchecked Sendable {
   }
 
   /// Returns the first retained variant of the union type.
-  public func value() -> Any {
+  public func actualInstance() -> Any {
     return _value
   }
 
-  /// Returns the first retained variant cast to the specified type.
-  public func value<T>(as type: T.Type) -> T? {
-    return _values.first(where: { $0 is T }) as? T
-  }
-
-  /// Returns every retained variant. A lossless anyOf may hold more than one
-  /// when a payload co-satisfies multiple schemas.
-  public func values() -> [Any] {
+  /// Returns every retained variant, in declaration order. A lossless anyOf
+  /// may hold more than one when a payload co-satisfies multiple schemas.
+  public func matchedInstances() -> [Any] {
     return _values
   }
 }

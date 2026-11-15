@@ -522,7 +522,7 @@ import Testing
     let payload = try ObjectSerializer.serialize(dry)
 
     let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
-    #expect(food.value() is DryFood)
+    #expect(food.actualInstance() is DryFood)
   }
 
   // MARK: - Every wire-shape failure is a SerializationError
@@ -1162,10 +1162,10 @@ import Testing
     let scalar = try ObjectSerializer.deserialize(
       scalarJson, as: SetPetAvatarThumbnailRequest.self)
     #expect(
-      scalar?.value(as: Data.self) == original,
+      scalar?.actualInstance(as: Data.self) == original,
       "base64 string must resolve to the SCALAR Data variant with the exact 4 bytes")
     #expect(
-      scalar?.value(as: [Data].self) == nil,
+      scalar?.actualInstance(as: [Data].self) == nil,
       "scalar base64 string must NOT be mis-parsed element-by-element into a [Data] list")
 
     // Re-encode the scalar variant: it must serialize back to the base64
@@ -1181,7 +1181,7 @@ import Testing
     let scalarRoundTripped = try ObjectSerializer.deserialize(
       scalarReencoded, as: SetPetAvatarThumbnailRequest.self)
     #expect(
-      scalarRoundTripped?.value(as: Data.self) == original,
+      scalarRoundTripped?.actualInstance(as: Data.self) == original,
       "scalar byte variant must round-trip the exact bytes through base64")
 
     // (2) ARRAY variant. Two byte payloads on the wire as an array of
@@ -1193,7 +1193,7 @@ import Testing
     let array = try ObjectSerializer.deserialize(
       arrayJson, as: SetPetAvatarThumbnailRequest.self)
     #expect(
-      array?.value(as: [Data].self) == [p0, p1],
+      array?.actualInstance(as: [Data].self) == [p0, p1],
       "array of base64 strings must resolve to the [Data] variant with both payloads")
     let arrayReencoded = try ObjectSerializer.serialize(array!)
     let p0Encoded = p0.base64EncodedString()
@@ -1204,7 +1204,7 @@ import Testing
     let arrayRoundTripped = try ObjectSerializer.deserialize(
       arrayReencoded, as: SetPetAvatarThumbnailRequest.self)
     #expect(
-      arrayRoundTripped?.value(as: [Data].self) == [p0, p1],
+      arrayRoundTripped?.actualInstance(as: [Data].self) == [p0, p1],
       "array byte variant must round-trip both payloads' bytes through base64")
   }
 
