@@ -32786,8 +32786,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `apierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- apierror.fromresponse [params] majority (statuscode, responseheaders, responsebody) (6 SDKs); differs: elixir=(statuscode, headers, body); go=(statuscode, headers, body); python=(statuscode, headers, body); ruby=(statuscode, headers, body); rust=(statuscode, headers, body); swift=(statuscode, headers, body)\n- apierror.detailmessage [member] majority absent (11 SDKs); differs: ruby=extra\n- apierror.parseerrorbody [member] majority absent (11 SDKs); differs: ruby=extra\n- apierror.registerstatuserror [member] majority absent (11 SDKs); differs: node=extra\n- apierror.underlyingerror [member] majority absent (10 SDKs); differs: dart=extra\n- apierror.withsource [member] majority absent (11 SDKs); differs: rust=extra\n- apierror.<ctor> [ctor] majority (statuscode, message, responseheaders, responsebody, errorbody, cause) (2 SDKs); differs: dart=(statuscode, message, responsebody, responseheaders, errorbody, underlyingerror); go=(statuscode, msg, responsebody, responseheaders, errorbody, cause); python=(statuscode, message, responseheaders, responsebody, errorbody); ruby=(arg); rust=(statuscode, message, responsebody, responseheaders)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -32839,8 +32839,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `configurationerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- configurationerror [cases] majority invalidargument,invalidcacertificate,invalidproxy,invalidservervariable,invalidstate,invalidtimeout (1 SDKs); differs: swift=invalidargument,invalidcacertificate,invalidproxyurl,invalidservervariable,invalidstate,proxyunsupported,tlsoptionsunsupported",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -32915,8 +32915,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `networkerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- networkerror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause); python=(message); ruby=(message)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -32932,8 +32932,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `networktimeouterror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- networktimeouterror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=(message, underlyingerror); go=(msg, cause)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -32967,8 +32967,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2servererror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2servererror.buildmessage [member] majority absent (11 SDKs); differs: kotlin=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -32985,8 +32985,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `oauth2tokenerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- oauth2tokenerror [kind] majority type (11 SDKs); differs: swift=enum\n- oauth2tokenerror.<ctor> [ctor] majority (message) (3 SDKs); differs: java=(message, cause); kotlin=(message, cause)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -33001,8 +33001,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `openapierror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- openapierror.<ctor> [ctor] majority (message, cause) (2 SDKs); differs: dart=()",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "parity-guard rejected error-api: Not approved. The API surface is correct. Running `etc/api-surface.py check --json` on the staged tree and on HEAD (ce213b509) shows the change set clears every error-area mismatch it targets: the apierror/networkerror/networktimeouterror/openapierror constructors, apierror.fromresponse params, deta",
    "batch": null
   },
   {
@@ -33718,6 +33718,200 @@
     "node"
    ],
    "description": "base-api.test 'status 400 throws correct exception' is flaky on a cold start (NetworkError on the first request), seen once.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F750",
+   "severity": "medium",
+   "title": "Negative transport timeout is rejected only in rust and swift; the other ten accept it silently",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "php",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "go",
+    "elixir"
+   ],
+   "description": "rust/transport_options.mustache:292-299 rejects a negative timeout in TransportOptionsBuilder::build with ConfigurationError::InvalidTimeout ('invalid timeout: N ms; must not be negative'). After this change set, swift rejects it in DefaultApiClient.init (swift/default_api_client.mustache:894-896) with ConfigurationError.invalidTimeout. A grep of the other ten languages' transport options and client templates finds no negative-timeout check, so `timeout(-1)` is accepted and passed to the HTTP library, where the behaviour is library-defined. rust and swift also reject at different stages: rust at builder build(), swift at client construction. One rule is needed: reject at the same point with each language's argument error and the canonical message.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F751",
+   "severity": "medium",
+   "title": "php TraceContextUtilTest hard-codes trace flags 01 and fails with current open-telemetry/sdk",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `isSampled() ? '01' : '00'`, and line 144 compares them with the injected traceparent. composer.mustache:35 allows open-telemetry/sdk ^1.0. Newer SDK releases set the W3C Trace Context level-2 random flag (0x02), so the traceparent ends in -03 and the test fails. This was observed in the php error-api agent run (PhpClientSpec, 1 of 1013 failing), in code this change set does not touch. Fix: derive the expected flags from `$span->getContext()->getTraceFlags()` as two hex digits, or assert only the sampled bit.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F752",
+   "severity": "low",
+   "title": "Status-specific error constructors accept a cause in some SDKs only",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "csharp",
+    "swift",
+    "java",
+    "kotlin",
+    "python",
+    "ruby",
+    "node",
+    "dart",
+    "php",
+    "elixir"
+   ],
+   "description": "After this change set, every ApiError base takes a cause. The status subclasses (NotFound, BadRequest and the rest) differ. swift (underlyingError, e.g. swift/errors/not_found_error.mustache:13) and csharp (an innerException overload, NotFoundException.cs:22) accept one. python (python/errors/not_found_exception.mustache:11-16), ruby, dart and node take only (message, headers, body, errorBody). API_SURFACE.md currently files this under 'idiom (allow-list)'. Decide whether status subclasses carry a cause, and apply that decision in all 12.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F753",
+   "severity": "medium",
+   "title": "The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The worktree was created at an older commit without kotlin templates; I ran git checkout -b parity/error-api-kotlin 8731130e first.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F754",
+   "severity": "medium",
+   "title": "Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "Root exception (message, cause) previously required non-null Throwable; widened to Throwable? as a side effect of the six-arg ApiException constructor, which is a minor public signature widening.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F755",
+   "severity": "medium",
+   "title": "The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there).",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The agent file .claude/agents/sdk-csharp.md exists only in the pr35 worktree, not in this worktree's base commit (read it from there).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F756",
+   "severity": "medium",
+   "title": "The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "The worktree was created at an unrelated commit (no .claude/agents, AGENTS.md or dart templates); I had to create the branch from base 8731130e3 myself.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F757",
+   "severity": "medium",
+   "title": "etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for d",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "dart"
+   ],
+   "description": "etc/api-surface-allow.json (shared) needs dart and ruby allow rules for the public cause member (apierror, networkerror, networktimeouterror, openapierror) as the task states; ctor-optional rows for dart named args on ApiError/NetworkError/NetworkTimeoutError are also new and need an allow or the keyword-argument idiom rule (needs-shared).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F758",
+   "severity": "medium",
+   "title": "Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task specified.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F759",
+   "severity": "medium",
+   "title": "Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after bulk edits.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F760",
+   "severity": "medium",
+   "title": "php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or flakiness.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
