@@ -18,10 +18,10 @@ class PetFood {
 
   /// Wraps a variant value, so a oneOf body can be built in code and not
   /// only decoded from JSON.
-  const PetFood.value(Object? value) : _value = value;
+  const PetFood(Object? actualInstance) : _value = actualInstance;
 
-  /// Returns the underlying value of the union type.
-  Object? get value => _value;
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
 
   /// Converts this union type to a JSON value.
   Object? toJson() {

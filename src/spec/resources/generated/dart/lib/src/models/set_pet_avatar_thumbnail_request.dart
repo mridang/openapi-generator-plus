@@ -23,10 +23,11 @@ class SetPetAvatarThumbnailRequest {
 
   /// Wraps an already-decoded value. The value must match one of the
   /// declared oneOf variants; it is re-encoded verbatim by [toJson].
-  const SetPetAvatarThumbnailRequest.value(Object? value) : _value = value;
+  const SetPetAvatarThumbnailRequest(Object? actualInstance)
+    : _value = actualInstance;
 
-  /// Returns the underlying value of the union type.
-  Object? get value => _value;
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
 
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);

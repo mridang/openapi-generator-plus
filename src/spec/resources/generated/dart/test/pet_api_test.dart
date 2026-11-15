@@ -327,9 +327,7 @@ void main() {
           );
           await api.setPetAvatarThumbnail(
             1,
-            SetPetAvatarThumbnailRequest.value(
-              Uint8List.fromList(<int>[1, 2, 3]),
-            ),
+            SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
           );
 
           expect(bodies[0], equals([0xFF, 0xD8, 0xFF, 0xE0]));
@@ -360,7 +358,7 @@ void main() {
 
       await api.setPetAvatarThumbnail(
         1,
-        SetPetAvatarThumbnailRequest.value(Uint8List.fromList(<int>[1, 2, 3])),
+        SetPetAvatarThumbnailRequest(Uint8List.fromList(<int>[1, 2, 3])),
       );
     });
 
