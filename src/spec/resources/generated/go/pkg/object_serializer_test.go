@@ -1917,7 +1917,7 @@ func TestDeserialize_IntegerFormatBoundaries(t *testing.T) {
 	}
 }
 
-func TestModelError_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
+func TestError_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
 	t.Parallel()
 	wire := []byte(`{"lastError":{"code":1,"message":"m"}}`)
 
