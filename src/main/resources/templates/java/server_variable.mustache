@@ -24,6 +24,25 @@ public final class ServerVariable {
     private final List<String> enumValues;
 
     /**
+     * Create a server variable with no description and no restriction on its values.
+     *
+     * @param defaultValue the default value used when no override is provided
+     */
+    public ServerVariable(String defaultValue) {
+        this(defaultValue, null, Collections.emptyList());
+    }
+
+    /**
+     * Create a server variable with a description and no restriction on its values.
+     *
+     * @param defaultValue the default value used when no override is provided
+     * @param description  human-readable description of the variable, or {@code null}
+     */
+    public ServerVariable(String defaultValue, @Nullable String description) {
+        this(defaultValue, description, Collections.emptyList());
+    }
+
+    /**
      * Create a new server variable.
      *
      * @param defaultValue the default value used when no override is provided

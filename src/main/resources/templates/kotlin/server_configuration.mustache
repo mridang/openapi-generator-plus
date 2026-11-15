@@ -18,8 +18,8 @@ class ServerConfiguration(
     /** The raw URL template before variable substitution. */
     val urlTemplate: String,
     /** Human-readable description of this server, or null if not specified. */
-    val description: String?,
-    variables: Map<String, ServerVariable>
+    val description: String? = null,
+    variables: Map<String, ServerVariable> = emptyMap()
 ) {
     /** The server variables and their definitions (an unmodifiable copy). */
     val variables: Map<String, ServerVariable> = variables.toMap()
@@ -66,7 +66,7 @@ data class ServerVariable(
     /** The default value used when no override is provided. */
     val defaultValue: String,
     /** Human-readable description of the variable, or null if not specified. */
-    val description: String?,
+    val description: String? = null,
     /** The allowed values; an empty list means any value is accepted. */
-    val enumValues: List<String>
+    val enumValues: List<String> = emptyList()
 )

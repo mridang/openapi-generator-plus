@@ -965,6 +965,21 @@
    ],
    "value": "extra*",
    "reason": "python authenticators are frozen dataclasses: the constructor parameters are the fields, and the secrets are declared repr=False so they never reach a log"
+  },
+  {
+   "element": [
+    "objectserializer.*",
+    "valueserializer.*",
+    "headerselector.*",
+    "abstractapiclient.*",
+    "defaultapiclient.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "*"
+   ],
+   "value": "extra*",
+   "reason": "these are internal support classes called by the generated code, not by users: java, kotlin, csharp, go, rust and swift hide their helpers with package-private, internal or lowercase names, while php, ruby, dart, node, python and elixir have no such visibility across files, so extra helper functions are expected there; a helper missing from a language, or a different signature, is still reported"
   }
  ]
 }

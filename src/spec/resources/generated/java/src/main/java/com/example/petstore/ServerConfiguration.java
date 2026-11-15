@@ -32,6 +32,25 @@ public final class ServerConfiguration {
   private final Map<String, ServerVariable> variables;
 
   /**
+   * Create a server configuration with no description and no variables.
+   *
+   * @param urlTemplate the URL template
+   */
+  public ServerConfiguration(String urlTemplate) {
+    this(urlTemplate, null, Collections.emptyMap());
+  }
+
+  /**
+   * Create a server configuration with a description and no variables.
+   *
+   * @param urlTemplate the URL template
+   * @param description human-readable description of this server, or {@code null}
+   */
+  public ServerConfiguration(String urlTemplate, @Nullable String description) {
+    this(urlTemplate, description, Collections.emptyMap());
+  }
+
+  /**
    * Create a new server configuration.
    *
    * @param urlTemplate the URL template, possibly containing {@code {variable}} placeholders

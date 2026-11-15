@@ -65,7 +65,15 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       String tokenUrl,
       String redirectUri,
       List<String> scopes) {
-    this(host, clientId, clientSecret, authorizationUrl, tokenUrl, null, redirectUri, scopes);
+    this(
+        host,
+        clientId,
+        clientSecret,
+        authorizationUrl,
+        tokenUrl,
+        redirectUri,
+        scopes,
+        (String) null);
   }
 
   /**
@@ -76,9 +84,9 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param clientSecret OAuth2 client secret
    * @param authorizationUrl authorization endpoint URL
    * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    * @param redirectUri redirect URI registered with the OAuth2 provider
    * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    */
   public OAuth2AuthorizationCodeAuthenticator(
       String host,
@@ -86,9 +94,9 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       String clientSecret,
       String authorizationUrl,
       String tokenUrl,
-      @Nullable String refreshUrl,
       String redirectUri,
-      List<String> scopes) {
+      List<String> scopes,
+      @Nullable String refreshUrl) {
     this(
         host,
         clientId,

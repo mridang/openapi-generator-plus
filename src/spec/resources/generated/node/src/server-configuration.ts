@@ -35,8 +35,8 @@ export class ServerVariable {
    */
   constructor(
     defaultValue: string,
-    description: string | null,
-    enumValues: string[],
+    description: string | null = null,
+    enumValues: string[] = [],
   ) {
     this.defaultValue = defaultValue;
     this.description = description;
@@ -75,8 +75,8 @@ export class ServerConfiguration {
    */
   constructor(
     urlTemplate: string,
-    description: string | null,
-    variables: Record<string, ServerVariable>,
+    description: string | null = null,
+    variables: Record<string, ServerVariable> = {},
   ) {
     this.urlTemplate = urlTemplate;
     this.description = description;

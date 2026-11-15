@@ -1052,15 +1052,15 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "null";
             return List.of("host", "clientId", "clientSecret",
-                    "\"" + spec.tokenUrl() + "\"", refreshArg,
-                    "username", "password", formatJavaScopes(spec.scopes()));
+                    "\"" + spec.tokenUrl() + "\"", "username", "password",
+                    formatJavaScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
                     ? "\"" + spec.refreshUrl() + "\"" : "null";
             return List.of("host", "clientId", "clientSecret",
                     "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
-                    refreshArg, "redirectUri", formatJavaScopes(spec.scopes()));
+                    "redirectUri", formatJavaScopes(spec.scopes()), refreshArg);
         }
         if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId",

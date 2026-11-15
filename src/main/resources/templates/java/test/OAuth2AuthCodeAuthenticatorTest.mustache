@@ -110,9 +110,9 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
                 "my-client-secret",
                 "https://auth.example.com/authorize",
                 "https://auth.example.com/token",
-                "https://auth.example.com/oauth/refresh",
                 "https://app.example.com/callback",
-                List.of("read"));
+                List.of("read"),
+                "https://auth.example.com/oauth/refresh");
         auth.setApiClient(client);
 
         auth.exchangeCode("auth-code-123");

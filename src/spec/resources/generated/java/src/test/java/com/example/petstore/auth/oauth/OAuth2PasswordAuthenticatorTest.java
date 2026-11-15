@@ -189,10 +189,10 @@ class OAuth2PasswordAuthenticatorTest {
             "my-client-id",
             "my-client-secret",
             "https://auth.example.com/token",
-            "https://auth.example.com/oauth/refresh",
             "testuser",
             "testpass",
-            List.of("read"));
+            List.of("read"),
+            "https://auth.example.com/oauth/refresh");
     auth.setApiClient(client);
 
     auth.getAuthHeaders();
@@ -229,10 +229,10 @@ class OAuth2PasswordAuthenticatorTest {
             "my-client-id",
             "my-client-secret",
             "https://auth.example.com/token",
-            null,
             "testuser",
             "testpass",
             List.of("read"),
+            null,
             ClientAuthMethod.BASIC);
     auth.setApiClient(client);
 
@@ -275,10 +275,10 @@ class OAuth2PasswordAuthenticatorTest {
             "my-client-id",
             "my-client-secret",
             "https://auth.example.com/token",
-            "https://auth.example.com/oauth/refresh",
             "testuser",
             "testpass",
-            List.of("read"));
+            List.of("read"),
+            "https://auth.example.com/oauth/refresh");
     auth.setApiClient(client);
 
     auth.getAuthHeaders();
@@ -322,10 +322,10 @@ class OAuth2PasswordAuthenticatorTest {
             "id+with/special",
             "secret&with=stuff",
             "https://auth.example.com/token",
-            null,
             "testuser",
             "testpass",
             List.of("read"),
+            null,
             ClientAuthMethod.BASIC);
     auth.setApiClient(client);
 
@@ -368,10 +368,10 @@ class OAuth2PasswordAuthenticatorTest {
             "my-client-id",
             "my-client-secret",
             "https://auth.example.com/token",
-            "https://auth.example.com/oauth/refresh",
             "testuser",
             "testpass",
-            List.of("read"));
+            List.of("read"),
+            "https://auth.example.com/oauth/refresh");
     auth.setApiClient(client);
 
     auth.getAuthHeaders();
@@ -474,10 +474,10 @@ class OAuth2PasswordAuthenticatorTest {
             "id-._~*!'()",
             "sec ret",
             "https://auth.example.com/token",
-            null,
             "testuser",
             "testpass",
             List.of("read"),
+            null,
             ClientAuthMethod.BASIC);
     basicAuth.setApiClient(client);
     basicAuth.getAuthHeaders();

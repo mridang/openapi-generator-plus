@@ -29,8 +29,8 @@ public final class UserAuthAuthorizationCodeAuthenticator
         clientSecret,
         "https://auth.example.com/authorize",
         "https://auth.example.com/oauth/token",
-        "https://auth.example.com/oauth/refresh",
         redirectUri,
-        List.of("pets:write", "pets:read"));
+        List.of("pets:write", "pets:read"),
+        "https://auth.example.com/oauth/refresh");
   }
 }

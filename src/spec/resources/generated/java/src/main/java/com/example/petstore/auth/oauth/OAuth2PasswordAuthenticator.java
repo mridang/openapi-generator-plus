@@ -62,10 +62,10 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
         clientId,
         clientSecret,
         tokenUrl,
-        null,
         username,
         password,
         scopes,
+        null,
         ClientAuthMethod.BODY);
   }
 
@@ -76,29 +76,29 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
    * @param clientId OAuth2 client ID
    * @param clientSecret OAuth2 client secret
    * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    * @param username resource owner username
    * @param password resource owner password
    * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    */
   public OAuth2PasswordAuthenticator(
       String host,
       String clientId,
       String clientSecret,
       String tokenUrl,
-      @Nullable String refreshUrl,
       String username,
       String password,
-      List<String> scopes) {
+      List<String> scopes,
+      @Nullable String refreshUrl) {
     this(
         host,
         clientId,
         clientSecret,
         tokenUrl,
-        refreshUrl,
         username,
         password,
         scopes,
+        refreshUrl,
         ClientAuthMethod.BODY);
   }
 
@@ -110,10 +110,10 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
    * @param clientId OAuth2 client ID
    * @param clientSecret OAuth2 client secret
    * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    * @param username resource owner username
    * @param password resource owner password
    * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
    * @param clientAuthMethod how to transmit the client credentials
    */
   public OAuth2PasswordAuthenticator(
@@ -121,10 +121,10 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
       String clientId,
       String clientSecret,
       String tokenUrl,
-      @Nullable String refreshUrl,
       String username,
       String password,
       List<String> scopes,
+      @Nullable String refreshUrl,
       ClientAuthMethod clientAuthMethod) {
     this.host = host;
     this.clientId = clientId;
