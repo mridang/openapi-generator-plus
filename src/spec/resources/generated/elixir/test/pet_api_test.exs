@@ -1176,9 +1176,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
 
     {:ok, thumb_name} = BodyCapturingApiClient.start()
-
-    {:ok, _result} =
-      PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, 5, Base.encode64("hi"))
+    {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, 5, "hi")
 
     assert BodyCapturingApiClient.captured(thumb_name).body == ~s("aGk=")
     Agent.stop(thumb_name)
