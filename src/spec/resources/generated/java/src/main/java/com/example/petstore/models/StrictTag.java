@@ -34,7 +34,7 @@ public class StrictTag {
    * @throws IllegalArgumentException always, since unknown properties are not allowed
    */
   @com.fasterxml.jackson.annotation.JsonAnySetter
-  public void setUnknownProperty(String key, Object value) {
+  void setUnknownProperty(String key, Object value) {
     throw new IllegalArgumentException(
         "Unknown property '" + key + "' on StrictTag (unevaluatedProperties:false)");
   }

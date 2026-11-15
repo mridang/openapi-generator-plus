@@ -160,6 +160,18 @@ class ComposedSchemaTest {
     }
 
     @Test
+    @DisplayName("anyOf with a single matching variant has one matched instance")
+    void testSingleMatchedInstance() {
+      String json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+      PetTreatment result =
+          Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
+
+      assertThat(result.getMatchedInstances()).hasSize(1);
+      assertThat(result.getActualInstance()).isSameAs(result.getMatchedInstances().get(0));
+      assertThat(result.getActualInstance()).isInstanceOf(Medication.class);
+    }
+
+    @Test
     @DisplayName("anyOf retains all matching variants (medication and surgery) losslessly")
     void testRetainsAllMatchingVariants() {
       // anyOf is inclusive: PetTreatment is documented as matching a
@@ -173,14 +185,17 @@ class ComposedSchemaTest {
           Objects.requireNonNull(serializer.deserialize(json, PET_TREATMENT_TYPE));
 
       // Both variants are retained and accessible, not just the first.
+      assertThat(result.getMatchedInstances()).hasSize(2);
+      assertThat(result.getMatchedInstances().get(0)).isInstanceOf(Medication.class);
+      assertThat(result.getMatchedInstances().get(1)).isInstanceOf(Surgery.class);
       Medication medication =
-          result.getInstances().stream()
+          result.getMatchedInstances().stream()
               .filter(Medication.class::isInstance)
               .map(Medication.class::cast)
               .findFirst()
               .orElseThrow();
       Surgery surgery =
-          result.getInstances().stream()
+          result.getMatchedInstances().stream()
               .filter(Surgery.class::isInstance)
               .map(Surgery.class::cast)
               .findFirst()

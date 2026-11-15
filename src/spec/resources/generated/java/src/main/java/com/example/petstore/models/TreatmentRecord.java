@@ -24,7 +24,7 @@ public class TreatmentRecord {
    * successfully decodes is retained here so a co-satisfying payload
    * round-trips losslessly instead of silently dropping the variants past
    * the first match. The list preserves schema declaration order. */
-  private final java.util.List<Object> instances = new java.util.ArrayList<>();
+  private final java.util.List<Object> matchedInstances = new java.util.ArrayList<>();
 
   /**
    * Wraps a single concrete variant of this union.
@@ -32,7 +32,7 @@ public class TreatmentRecord {
    * @param value the concrete variant instance
    */
   public TreatmentRecord(Object value) {
-    this.instances.add(value);
+    this.matchedInstances.add(value);
   }
 
   /**
@@ -41,7 +41,7 @@ public class TreatmentRecord {
    * @param values the concrete variant instances, in schema declaration order
    */
   public TreatmentRecord(java.util.List<Object> values) {
-    this.instances.addAll(values);
+    this.matchedInstances.addAll(values);
   }
 
   /**
@@ -50,8 +50,8 @@ public class TreatmentRecord {
    * <p>For a payload that matched a single variant this is that variant instance. For an anyOf
    * payload that satisfied several variants at once this is the union of all their fields (see
    * {@link #mergedValue()}), so the value round-trips losslessly through Jackson's
-   * {@code @JsonValue} serialization. Use {@link #getInstances()} to access each retained variant
-   * as its concrete type.
+   * {@code @JsonValue} serialization. Use {@link #getMatchedInstances()} to access each retained
+   * variant as its concrete type.
    *
    * @return the single matched variant, or the merged field-set when several variants matched;
    *     {@code null} only if none were retained
@@ -59,11 +59,11 @@ public class TreatmentRecord {
   @JsonValue
   @Nullable
   public Object getActualInstance() {
-    if (instances.isEmpty()) {
+    if (matchedInstances.isEmpty()) {
       return null;
     }
-    if (instances.size() == 1) {
-      return instances.get(0);
+    if (matchedInstances.size() == 1) {
+      return matchedInstances.get(0);
     }
     return mergedValue();
   }
@@ -76,8 +76,8 @@ public class TreatmentRecord {
    *
    * @return the matched concrete variant instances, in schema declaration order
    */
-  public java.util.List<Object> getInstances() {
-    return java.util.Collections.unmodifiableList(instances);
+  public java.util.List<Object> getMatchedInstances() {
+    return java.util.Collections.unmodifiableList(matchedInstances);
   }
 
   /* Re-encode as the union of every retained variant's fields. When the
@@ -90,7 +90,7 @@ public class TreatmentRecord {
     com.fasterxml.jackson.databind.ObjectMapper mapper =
         new com.fasterxml.jackson.databind.ObjectMapper();
     com.fasterxml.jackson.databind.node.ObjectNode merged = mapper.getNodeFactory().objectNode();
-    for (Object instance : instances) {
+    for (Object instance : matchedInstances) {
       com.fasterxml.jackson.databind.JsonNode node = mapper.valueToTree(instance);
       if (node instanceof com.fasterxml.jackson.databind.node.ObjectNode objectNode) {
         for (java.util.Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> entry :

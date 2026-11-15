@@ -36,7 +36,7 @@ public class Metadata {
    * @param value the property value
    */
   @com.fasterxml.jackson.annotation.JsonAnySetter
-  public void setAdditionalProperty(String key, Object value) {
+  void setAdditionalProperty(String key, Object value) {
     this.additionalProperties.put(key, value);
   }
 

@@ -27,6 +27,14 @@ class BetterJavaCodegenTypeMappingTest {
         assertEquals("java.time.LocalTime", codegen.importMapping().get("LocalTime"));
     }
 
+    /* Only Error clashes with java.lang; Result keeps its own name. */
+    @Test
+    void onlyErrorIsPrefixedAsModelName() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("Result", codegen.toModelName("Result"));
+        assertEquals("ModelError", codegen.toModelName("Error"));
+    }
+
     /* Bucket 4.8 — typeMapping + importMapping for java.time.Duration. */
     @Test
     void durationFormatMapsToDuration() {

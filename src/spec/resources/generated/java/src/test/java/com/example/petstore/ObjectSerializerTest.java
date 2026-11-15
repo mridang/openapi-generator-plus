@@ -465,6 +465,55 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("a schema named Result keeps its own name and Error is prefixed")
+    void resultKeepsNameAndErrorIsPrefixed() {
+      com.example.petstore.models.EdgeCases edge =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"outcome\":{\"ok\":true}}", com.example.petstore.models.EdgeCases.class));
+      com.example.petstore.models.Result outcome = java.util.Objects.requireNonNull(edge.outcome);
+      assertTrue(Boolean.TRUE.equals(outcome.ok));
+
+      com.example.petstore.models.EdgeCases failed =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  serializer.serialize(
+                      serializer.deserialize(
+                          "{\"lastError\":{\"code\":7,\"message\":\"boom\"}}",
+                          com.example.petstore.models.EdgeCases.class)),
+                  com.example.petstore.models.EdgeCases.class));
+      com.example.petstore.models.ModelError error =
+          assertInstanceOf(com.example.petstore.models.ModelError.class, failed.lastError);
+      assertEquals(Integer.valueOf(7), error.code);
+    }
+
+    @Test
+    @DisplayName("unevaluatedProperties:false rejects an undeclared key while deserializing")
+    void strictModelRejectsUnknownKey() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"id\":1,\"name\":\"x\",\"unexpected\":true}",
+                      com.example.petstore.models.StrictTag.class));
+      StringBuilder chain = new StringBuilder();
+      for (Throwable t = ex; t != null; t = t.getCause()) {
+        chain.append(t.getMessage()).append('\n');
+      }
+      String messages = chain.toString();
+      assertTrue(messages.contains("unexpected"), "unexpected message: " + messages);
+      assertTrue(
+          messages.contains("unevaluatedProperties:false"), "unexpected message: " + messages);
+
+      com.example.petstore.models.StrictTag ok =
+          java.util.Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"id\":1,\"name\":\"x\"}", com.example.petstore.models.StrictTag.class));
+      assertEquals("x", ok.name);
+    }
+
+    @Test
     @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
     void roundTripDateTime() {
       OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");

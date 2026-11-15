@@ -449,6 +449,44 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("a schema named Result keeps its own name and Error is prefixed")
+        void resultKeepsNameAndErrorIsPrefixed() {
+            {{modelPackage}}.EdgeCases edge = java.util.Objects.requireNonNull(
+                serializer.deserialize("{\"outcome\":{\"ok\":true}}", {{modelPackage}}.EdgeCases.class));
+            {{modelPackage}}.Result outcome = java.util.Objects.requireNonNull(edge.outcome);
+            assertTrue(Boolean.TRUE.equals(outcome.ok));
+
+            {{modelPackage}}.EdgeCases failed = java.util.Objects.requireNonNull(
+                serializer.deserialize(
+                    serializer.serialize(serializer.deserialize(
+                        "{\"lastError\":{\"code\":7,\"message\":\"boom\"}}",
+                        {{modelPackage}}.EdgeCases.class)),
+                    {{modelPackage}}.EdgeCases.class));
+            {{modelPackage}}.ModelError error = assertInstanceOf(
+                {{modelPackage}}.ModelError.class, failed.lastError);
+            assertEquals(Integer.valueOf(7), error.code);
+        }
+
+        @Test
+        @DisplayName("unevaluatedProperties:false rejects an undeclared key while deserializing")
+        void strictModelRejectsUnknownKey() {
+            SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
+                serializer.deserialize(
+                    "{\"id\":1,\"name\":\"x\",\"unexpected\":true}", {{modelPackage}}.StrictTag.class));
+            StringBuilder chain = new StringBuilder();
+            for (Throwable t = ex; t != null; t = t.getCause()) {
+                chain.append(t.getMessage()).append('\n');
+            }
+            String messages = chain.toString();
+            assertTrue(messages.contains("unexpected"), "unexpected message: " + messages);
+            assertTrue(messages.contains("unevaluatedProperties:false"), "unexpected message: " + messages);
+
+            {{modelPackage}}.StrictTag ok = java.util.Objects.requireNonNull(
+                serializer.deserialize("{\"id\":1,\"name\":\"x\"}", {{modelPackage}}.StrictTag.class));
+            assertEquals("x", ok.name);
+        }
+
+        @Test
         @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
         void roundTripDateTime() {
             OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
