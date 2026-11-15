@@ -21,7 +21,7 @@ import kotlinx.serialization.UseSerializers
  * that satisfies more than one variant must retain ALL of them — dropping the
  * extras and keeping only the first match loses data on re-encode.
  *
- * This wrapper holds EVERY variant that successfully decodes in [instances].
+ * This wrapper holds EVERY variant that successfully decodes in [matchedInstances].
  * On decode each declared variant is tried leniently (a variant matches when
  * its own required fields are present; sibling keys it does not declare are
  * ignored, NOT rejected) and every match is retained. On encode the JSON
@@ -37,7 +37,7 @@ import kotlinx.serialization.UseSerializers
 @Serializable(with = TreatmentRecord.Serializer::class)
 class TreatmentRecord(
     @Contextual
-    val instances: List<Any?> = emptyList(),
+    val matchedInstances: List<Any?> = emptyList(),
 ) {
     // Convenience constructor for the common single-variant case; keeps the
     // historical `TreatmentRecord(actualInstance = x)` call-site working.
@@ -48,7 +48,7 @@ class TreatmentRecord(
     // The first retained variant, or null when none decoded. Callers that expect
     // a single wrapped value (byte/scalar variants) read this.
     val actualInstance: Any?
-        get() = instances.firstOrNull()
+        get() = matchedInstances.firstOrNull()
 
     internal object Serializer : kotlinx.serialization.KSerializer<TreatmentRecord> {
         override val descriptor =
@@ -64,7 +64,7 @@ class TreatmentRecord(
                     ?: throw kotlinx.serialization.SerializationException(
                         "TreatmentRecord can only be serialized to JSON",
                     )
-            if (value.instances.isEmpty()) {
+            if (value.matchedInstances.isEmpty()) {
                 throw kotlinx.serialization.SerializationException(
                     "TreatmentRecord has no instance to serialize",
                 )
@@ -79,7 +79,7 @@ class TreatmentRecord(
             // variant loop, so the byte variant is base64-encoded on the wire. Byte/scalar
             // variants are mutually exclusive and cannot be merged, so only the first
             // retained instance is consulted here.
-            val firstInstance = value.instances.first()
+            val firstInstance = value.matchedInstances.first()
             when (firstInstance) {
                 is ByteArray -> {
                     jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, firstInstance)
@@ -102,7 +102,7 @@ class TreatmentRecord(
             // (or that no declared serializer accepts) is skipped. encodeSerializableValue
             // is an Encoder member, so no extra import is needed.
             val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
-            for (instance in value.instances) {
+            for (instance in value.matchedInstances) {
                 var element: kotlinx.serialization.json.JsonElement? = null
                 if (element == null) {
                     try {
@@ -134,7 +134,7 @@ class TreatmentRecord(
             if (merged.isEmpty()) {
                 throw kotlinx.serialization.SerializationException(
                     "Unsupported TreatmentRecord variant: " +
-                        "${value.instances.first()!!::class.simpleName}",
+                        "${value.matchedInstances.first()!!::class.simpleName}",
                 )
             }
             jsonEncoder.encodeJsonElement(kotlinx.serialization.json.JsonObject(merged))
@@ -181,7 +181,7 @@ class TreatmentRecord(
                 // variant did not match; try the next
             }
             if (retained.isNotEmpty()) {
-                return TreatmentRecord(instances = retained)
+                return TreatmentRecord(matchedInstances = retained)
             }
             // Base64 fallback for format:byte variants. A base64 scalar arrives as a
             // JSON STRING and an array of base64 values as a JSON array of strings --
@@ -192,7 +192,7 @@ class TreatmentRecord(
             // mis-parsed element-by-element into a List<ByteArray>.
             try {
                 return TreatmentRecord(
-                    instances =
+                    matchedInstances =
                         listOf<Any?>(lenientJson.decodeFromJsonElement(Base64ByteArraySerializer, element)),
                 )
             } catch (_: Exception) {
@@ -200,7 +200,7 @@ class TreatmentRecord(
             }
             try {
                 return TreatmentRecord(
-                    instances =
+                    matchedInstances =
                         listOf<Any?>(
                             lenientJson.decodeFromJsonElement(
                                 kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer),

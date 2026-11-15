@@ -15,6 +15,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
+@com.example.petstore.UnevaluatedPropertiesFalse
 @Serializable
 data class StrictTag(
     /**
@@ -28,33 +29,4 @@ data class StrictTag(
      */
     @SerialName("name")
     val name: String? = null,
-) {
-    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-     * deserializers must reject any JSON key not declared above. Callers should
-     * decode this class with [parseStrict] (or a Json configured with
-     * ignoreUnknownKeys = false) so unknown keys raise SerializationException. */
-    companion object {
-        fun parseStrict(raw: String): StrictTag {
-            val strict =
-                kotlinx.serialization.json.Json {
-                    ignoreUnknownKeys = false
-                    isLenient = false
-                    // Reuse the SDK's configured contextual serializers (date-time, date,
-                    // uuid, decimal, duration, uri, free-form Any). A bare `Json {}` carries
-                    // no serializersModule, so a model with a @Contextual field would throw
-                    // "serializer not found" here even though normal decoding handles it.
-                    serializersModule = com.example.petstore.ObjectSerializer.contextualSerializersModule
-                }
-            try {
-                return strict.decodeFromString(serializer(), raw)
-            } catch (e: com.example.petstore.errors.OpenAPIException) {
-                throw e
-            } catch (e: IllegalArgumentException) {
-                throw com.example.petstore.errors.SerializationException(
-                    "Unknown property on StrictTag (unevaluatedProperties:false): " + e.message,
-                    e,
-                )
-            }
-        }
-    }
-}
+)

@@ -42,6 +42,14 @@ import java.util.Base64
 import kotlin.uuid.Uuid
 
 /**
+ * Marks a model whose schema sets unevaluatedProperties:false. Internal: the
+ * serializer reads it from the decoded class and rejects undeclared keys.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+internal annotation class UnevaluatedPropertiesFalse
+
+/**
  * Serializer for [ByteArray] properties that uses Base64 encoding in JSON.
  *
  * OpenAPI `format: byte` fields are represented as base64-encoded strings
@@ -711,8 +719,38 @@ internal class ObjectSerializer(
         // same way the other SDKs do. No-op when the model has no such map.
         if (decoded != null) {
             populateAdditionalProperties(decoded, stripped)
+            rejectUnevaluatedProperties(decoded, stripped)
         }
         return decoded
+    }
+
+    /**
+     * Enforces unevaluatedProperties:false: when the decoded model carries the
+     * [UnevaluatedPropertiesFalse] marker, any wire key that is not a declared
+     * property (descriptor element names, which honour @SerialName) is rejected.
+     */
+    @PublishedApi
+    internal fun rejectUnevaluatedProperties(
+        model: Any,
+        rawJson: String,
+    ) {
+        if (!model.javaClass.isAnnotationPresent(UnevaluatedPropertiesFalse::class.java)) return
+        val root =
+            try {
+                json.parseToJsonElement(rawJson)
+            } catch (_: Exception) {
+                return
+            }
+        val descriptor = modelDescriptor(model) ?: return
+        if (root !is JsonObject) return
+        val declared = (0 until descriptor.elementsCount).map { descriptor.getElementName(it) }.toSet()
+        for (key in root.keys) {
+            if (key !in declared) {
+                throw SerializationException(
+                    "Unknown property '$key' on ${model.javaClass.simpleName} (unevaluatedProperties:false)",
+                )
+            }
+        }
     }
 
     /**
@@ -1321,11 +1359,9 @@ internal class ObjectSerializer(
 
         // The contextual (de)serializers for OpenAPI formats (date-time, date,
         // decimal, uuid, uri, duration, free-form Any). Exposed @PublishedApi
-        // internal so a generated model's strict parser — e.g. parseStrict() on
-        // an unevaluatedProperties:false model with a @Contextual field — can
-        // reuse it. Building a bare `Json {}` without this module throws
-        // "serializer not found" for any @Contextual property, so the strict
-        // path must copy the same module the SDK uses for normal decoding.
+        // internal so a strict decoder over a @Contextual field can reuse it.
+        // A bare `Json {}` without this module throws "serializer not found"
+        // for any @Contextual property.
         @PublishedApi
         internal val contextualSerializersModule: SerializersModule =
             SerializersModule {

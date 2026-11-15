@@ -1497,9 +1497,28 @@ class ObjectSerializerTest {
     @Nested
     @DisplayName("StrictModuleTests")
     inner class StrictModuleTests {
+        @Test
+        @DisplayName("deserialize rejects an undeclared key on an unevaluatedProperties:false model")
+        fun deserializeRejectsUndeclaredKey() {
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.StrictTag>(
+                        "{\"id\":1,\"name\":\"x\",\"unexpected\":true}",
+                    )
+                }
+            assertTrue(ex.message!!.contains("unexpected"))
+            assertTrue(ex.message!!.contains("unevaluatedProperties:false"))
+
+            val ok =
+                serializer.deserialize<com.example.petstore.models.StrictTag>(
+                    "{\"id\":1,\"name\":\"x\"}",
+                )
+            assertEquals("x", ok!!.name)
+        }
+
         // Mirrors a unevaluatedProperties:false model that carries a @Contextual
-        // field (date-time / uuid / decimal / duration). The generated
-        // parseStrict() builds a STRICT Json (ignoreUnknownKeys = false); the M7
+        // field (date-time / uuid / decimal / duration). The strict
+        // decoder builds a STRICT Json (ignoreUnknownKeys = false); the M7
         // defect was that it built a BARE Json {} with no serializersModule, so a
         // @Contextual property had no serializer and decoding threw
         // "serializer not found". The fix reuses
@@ -1527,7 +1546,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("a strict Json reusing the SDK contextual module decodes a @Contextual field")
         fun strictJsonWithSdkModuleDecodesContextual() {
-            // The fix: parseStrict() copies ObjectSerializer.contextualSerializersModule
+            // The fix: the strict decoder copies ObjectSerializer.contextualSerializersModule
             // into the strict Json, so the @Contextual OffsetDateTime resolves and
             // the unknown-key rejection still applies.
             val strict =
