@@ -29,7 +29,8 @@ You are given one task: a change set item with the canonical behaviour every SDK
    then grep the file for `<<< FAIL`, `ERROR]`, `Tests run:`. Never pipe or tail maven output.
 7. API check: `python3 etc/api-surface.py check --json` before and after; your change may not add any mismatch for go that the task does not ask for.
 8. Before committing: `etc/ci-local.sh mvn -B compile spotbugs:check` and `etc/ci-local.sh mvn -B test -Dtest=FixtureVocabularyLeakTest`.
-9. Commit on your branch only: conventional subject, short body wrapped under 100 columns, NO trailer and NO attribution. Do not push, do not merge. Commit only what validated green; revert the rest and report it `blocked` with the exact reason.
+9. If the final validation fails only for a reason unrelated to your change (Docker or network trouble, a known flaky test, a timeout), still commit the change and report validation as failed with exactly which failure is unrelated and why; the reviewer decides. Never report a change as validated that you did not run.
+10. Commit on your branch only: conventional subject, short body wrapped under 100 columns, NO trailer and NO attribution. Do not push, do not merge. Commit only what validated green; revert the rest and report it `blocked` with the exact reason.
 
 ## Traps
 

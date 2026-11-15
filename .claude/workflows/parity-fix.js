@@ -125,16 +125,20 @@ async function withSlot(fn) {
   try { return await fn() } finally { const next = waiting.shift(); if (next) next(); else free++ }
 }
 
-function implement(set, plan, pre, lang, base, feedback) {
+function implement(set, plan, pre, lang, base, feedback, attempt = 0) {
   const task = plan.tasks.find(t => t.language === lang)
   const state = pre.find(p => p.language === lang)
-  return withLock(lang, () => withSlot(() => role(
-    `Change set ${set.slug} (ledger ${set.ids.join(',')}). Base commit ${base}; branch parity/${set.slug}-${lang}` +
-    (feedback ? ' (it already exists: check it out and continue on it; do not reset it).' : '.') +
-    `\n\nCANONICAL BEHAVIOUR (all twelve SDKs):\n${plan.canonical}\n\nYOUR TASK (${lang}):\n${task ? task.task : 'Bring ' + lang + ' to the canonical behaviour.'}` +
-    `\n\nPRE-FLIGHT for ${lang}: ${state ? state.state + ': ' + state.notes : 'none'}` +
-    (feedback ? `\n\nTHE REVIEW REJECTED YOUR PREVIOUS ATTEMPT. Fix exactly this:\n${feedback}` : ''),
-    { label: `${set.slug}:${lang}`, phase: 'Implement', agentType: `sdk-${lang}`, isolation: 'worktree', schema: REPORT })))
+  const body = `\n\nCANONICAL BEHAVIOUR (all twelve SDKs):\n${plan.canonical}\n\nYOUR TASK (${lang}):\n${task ? task.task : 'Bring ' + lang + ' to the canonical behaviour.'}` +
+    `\n\nPRE-FLIGHT for ${lang}: ${state ? state.state + ': ' + state.notes : 'none'}`
+  /* A retry continues on a new branch cut from the previous attempt's commit: the earlier
+   * agent's worktree may still hold the old branch, so it cannot be checked out again. */
+  const prompt = !feedback
+    ? `Change set ${set.slug} (ledger ${set.ids.join(',')}). Base commit ${base}; branch parity/${set.slug}-${lang}.` + body
+    : `Change set ${set.slug} (ledger ${set.ids.join(',')}). Setup: git checkout -B parity/${set.slug}-${lang}-r${attempt} ${base} (${base} is your previous attempt; keep its work and fix only what the review found).` + body +
+      `\n\nTHE REVIEW REJECTED YOUR PREVIOUS ATTEMPT. Fix exactly this:\n${feedback}` +
+      `\n\nIf your final validation fails only for a reason unrelated to this change (Docker or network trouble, a known flaky test, a timeout), still commit the change and say exactly which failure is unrelated and why: the reviewer decides.`
+  return withLock(lang, () => withSlot(() => role(prompt,
+    { label: `${set.slug}:${lang}${attempt ? ':r' + attempt : ''}`, phase: 'Implement', agentType: `sdk-${lang}`, isolation: 'worktree', schema: REPORT })))
 }
 
 const allowNote = plan => (plan.allow_rules && plan.allow_rules.trim() && plan.allow_rules.trim() !== '[]')
@@ -155,7 +159,9 @@ async function prepare(set) {
 }
 
 async function review(set, plan, reports, work, sharedBranch) {
-  const branches = reports.filter(r => r.validation.passed && /^[0-9a-f]{7,40}$/.test(r.commit)).map(r => r.branch)
+  /* Every language that committed is staged, green or not; the reviewer reads each
+   * validation report and decides whether a red run is the change or the environment. */
+  const branches = reports.filter(r => /^[0-9a-f]{7,40}$/.test(r.commit || '')).map(r => r.branch)
   const broken = work.filter(l => !reports.find(r => r.language === l && r.validation.passed))
   const staged = await role(`In ${PR} follow your Stage instructions for change set ${set.slug} (integration branch parity/integrate-${set.slug}): merge ${sharedBranch ? sharedBranch + ' ' : ''}${branches.join(' ')}.`,
     { label: `${set.slug}:stage`, phase: 'Integrate', agentType: 'parity-integrator', schema: STEP })
@@ -218,8 +224,11 @@ async function runSet(set) {
     if (!verdict || verdict.approved || attempt === RETRIES) break
     const failing = [...new Set([...result.broken, ...verdict.failures.map(f => f.language).filter(l => LANGS.includes(l))])]
     log(`${set.slug}: review rejected attempt ${attempt + 1}; retrying ${failing.join(', ')}`)
-    const again = (await parallel(failing.map(l => () => implement(set, plan, pre, l, base,
-      verdict.failures.filter(f => f.language === l || !LANGS.includes(f.language)).map(f => `- ${f.problem} -> ${f.fix}`).join('\n') || 'Deliver a green branch.')))).filter(Boolean)
+    const again = (await parallel(failing.map(l => () => {
+      const prev = reports.find(r => r.language === l && /^[0-9a-f]{7,40}$/.test(r.commit || ''))
+      return implement(set, plan, pre, l, prev ? prev.commit : base,
+        verdict.failures.filter(f => f.language === l || !LANGS.includes(f.language)).map(f => `- ${f.problem} -> ${f.fix}`).join('\n') || 'Deliver a working branch.', attempt + 1)
+    }))).filter(Boolean)
     reports = [...reports.filter(r => !failing.includes(r.language)), ...again]
   }
   const verdict = result && result.verdict
