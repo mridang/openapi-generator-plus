@@ -1212,8 +1212,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetTreatment.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | PetTreatment.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | PetTreatment.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
-| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
+| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
 | PetTreatment.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **PetWithOwner** | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner |  |
 | PetWithOwner.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
@@ -1304,8 +1304,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | TreatmentRecord.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | TreatmentRecord.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | TreatmentRecord.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
-| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in go, rust. |
+| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
 | TreatmentRecord.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **TreeNode** | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode |  |
 | TreeNode.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |

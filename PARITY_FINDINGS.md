@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4, needs-spec 2, open 175, parked 8, partial 7. Severity: critical 3, high 59, medium 526, low 177.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4, needs-spec 2, open 175, parked 7, partial 7. Severity: critical 3, high 59, medium 526, low 177.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -50,7 +50,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4,
 | F042 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Sending the refresh grant to refreshUrl (not tokenUrl) is untested in all 12 SDKs |
 | F043 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The R8-10 OAuth2 percent-encoding change has no test in any SDK |
 | F044 | high | fixed | L14-codegen-java | python, dart, php, ruby, java, kotlin, csharp, go, rust, swift, node, elixir | Enum string literals: python/dart/php/ruby silently STRIP a single quote from the wire value; no language escapes backslash |
-| F045 | high | parked | L14-codegen-java | ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift | String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals |
+| F045 | high | fixed | L14-codegen-java | ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift | String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals |
 | F046 | high | fixed | L14-codegen-java | python | python maps format: password to pydantic SecretStr, so model bodies send "**********" on the wire |
 | F047 | high | fixed | L15-template-mechanics | python, ruby, php, dart, kotlin, elixir, node | Enum string literal quoting differs by language: apostrophes are silently stripped in 4 SDKs and '$' / '#{' are interpolated in 3 |
 | F048 | high | fixed | L15-template-mechanics | php, python, ruby, node, dart, java, kotlin, csharp, go, rust, swift, elixir | Global server and server-variable descriptions are raw spec text placed inside string literals, so one apostrophe breaks 5 SDKs and one double quote breaks the other 7 |
@@ -1340,11 +1340,7 @@ Reviewer suspected this is forced: None. Single-quoted literals can escape the q
 - `src/main/resources/templates/python/models/model.mustache:19` — {{{name}}} = {{{value}}}
 
 ## F045 [high] String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals
-- Status: **parked** (review rejected string-default-literals: I did not approve change set string-default-literals (F045) and did not run etc/ci-local.sh approve. Two things block it.
-
-Fine as staged:
-- **java, go, rust:** each now uses quoteEnumValue(escapeEnumStringValue(v)).
-- **csharp:** uses '\'' + escapeEnumStringValue(v) + '\''. Its escape table already) | Lens: L14-codegen-java | Category: codegen | Unit-testable (reviewer's view): True
+- Status: **fixed** (string schema defaults emitted as exact literals in every SDK) | Lens: L14-codegen-java | Category: codegen | Unit-testable (reviewer's view): True
 - SDKs: ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift
 
 Eleven toDefaultValue overrides wrap a string schema default in the target quote and escape it with DefaultCodegen.escapeText. escapeText was written for comments and double-quoted text: it turns \t, \n and \r into spaces, doubles backslashes, escapes `"` (never `'`), and then runs escapeUnsafeCharacters (`*/`→`*_/`, `/*`→`/_*`; ruby adds `=end`→`=_end` and `#{`→`\#{`). The effects differ by language. (a) ruby/php/dart/node wrap the default in single quotes but leave `'` unescaped, so a default such as `it's` is a syntax error. (b) ruby and php single-quoted strings keep `\"` literally, so the default `say "hi"` becomes the runtime value `say \"hi\"` (and ruby `#{x}` becomes `\#{x}`) and goes on the wire wrong. (c) A newline or tab in a default becomes a space in those 11 SDKs. (d) `a*/b` becomes `a*_/b` in every escapeText user. (e) kotlin `"...$x"` and dart `'$x'` interpolate, and elixir `#{}` does too. python alone uses its own escaping (`val.replace("'","\\'")`), which never escapes backslashes or newlines, so a newline breaks the literal and `\n` is reinterpreted. The same default value therefore produces different in-memory and wire values, or no compiling SDK at all, depending on language. Latent because petstore string defaults are plain words (api, v3, placed, medium, untitled).

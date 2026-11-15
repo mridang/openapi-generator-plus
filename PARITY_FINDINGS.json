@@ -3449,10 +3449,11 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F045",
-   "status": "parked",
-   "note": "review rejected string-default-literals: I did not approve change set string-default-literals (F045) and did not run etc/ci-local.sh approve. Two things block it.\n\nFine as staged:\n- **java, go, rust:** each now uses quoteEnumValue(escapeEnumStringValue(v)).\n- **csharp:** uses '\\'' + escapeEnumStringValue(v) + '\\''. Its escape table already",
+   "status": "fixed",
+   "note": "string schema defaults emitted as exact literals in every SDK",
    "priority_triage": "medium",
-   "plain": "String default values from the spec are mangled (tabs and newlines flattened, '*/' altered, quotes handled differently) so defaults are not byte-exact across SDKs."
+   "plain": "String default values from the spec are mangled (tabs and newlines flattened, '*/' altered, quotes handled differently) so defaults are not byte-exact across SDKs.",
+   "commit": "7e0190839"
   },
   {
    "title": "python maps format: password to pydantic SecretStr, so model bodies send \"**********\" on the wire",
