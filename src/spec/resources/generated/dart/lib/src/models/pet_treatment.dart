@@ -28,8 +28,8 @@ class PetTreatment {
   /// only decoded.
   factory PetTreatment.ofValues(List<Object?> values) = PetTreatment._;
 
-  /// Returns the first decoded variant, for single-variant
-  /// callers. Use [matchedInstances] or [valueOf] to reach every retained variant.
+  /// Returns the first decoded variant, for single-variant callers. Use
+  /// [matchedInstances] or [valueOf] to reach every retained variant.
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Returns every variant that successfully decoded from the wire payload.
@@ -80,8 +80,8 @@ class PetTreatment {
     return merged;
   }
 
-  /// Creates a [PetTreatment] from a JSON value, retaining every variant that
-  /// decodes so a payload satisfying several variants keeps all their data.
+  /// Creates a [PetTreatment] from a JSON value, retaining every variant
+  /// that decodes so a payload satisfying several variants keeps all data.
   factory PetTreatment.fromJson(Map<String, dynamic> json) {
     final decoded = <Object?>[];
     try {

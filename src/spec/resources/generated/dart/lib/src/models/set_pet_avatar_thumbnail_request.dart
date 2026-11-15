@@ -32,9 +32,10 @@ class SetPetAvatarThumbnailRequest {
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
 
-  /// Creates a [SetPetAvatarThumbnailRequest] from a decoded JSON value (a base64 [String]
-  /// for a `byte` variant, a [List] for an array variant, or a
-  /// `Map<String, dynamic>` for an object variant).
+  /// Creates a [SetPetAvatarThumbnailRequest] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
   factory SetPetAvatarThumbnailRequest.fromJson(Object? json) {
     try {
       return SetPetAvatarThumbnailRequest._(decodeBase64(json as String));

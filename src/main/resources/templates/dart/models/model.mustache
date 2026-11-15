@@ -878,9 +878,10 @@ class {{classname}} {
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
 
-  /// Creates a [{{classname}}] from a decoded JSON value (a base64 [String]
-  /// for a `byte` variant, a [List] for an array variant, or a
-  /// `Map<String, dynamic>` for an object variant).
+  /// Creates a [{{classname}}] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
   factory {{classname}}.fromJson(Object? json) {
 {{#composedSchemas}}
 {{#oneOf}}
@@ -984,9 +985,10 @@ class {{classname}} {
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
 
-  /// Creates a [{{classname}}] from a decoded JSON value (a base64 [String]
-  /// for a `byte` variant, a [List] for an array variant, or a
-  /// `Map<String, dynamic>` for an object variant).
+  /// Creates a [{{classname}}] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
   factory {{classname}}.fromJson(Object? json) {
 {{#composedSchemas}}
 {{#anyOf}}
@@ -1161,8 +1163,8 @@ class {{classname}} {
   /// only decoded.
   factory {{classname}}.ofValues(List<Object?> values) = {{classname}}._;
 
-  /// Returns the first decoded variant, for single-variant
-  /// callers. Use [matchedInstances] or [valueOf] to reach every retained variant.
+  /// Returns the first decoded variant, for single-variant callers. Use
+  /// [matchedInstances] or [valueOf] to reach every retained variant.
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Returns every variant that successfully decoded from the wire payload.
@@ -1213,8 +1215,8 @@ class {{classname}} {
     return merged;
   }
 
-  /// Creates a [{{classname}}] from a JSON value, retaining every variant that
-  /// decodes so a payload satisfying several variants keeps all their data.
+  /// Creates a [{{classname}}] from a JSON value, retaining every variant
+  /// that decodes so a payload satisfying several variants keeps all data.
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
     final decoded = <Object?>[];
 {{#anyOf}}

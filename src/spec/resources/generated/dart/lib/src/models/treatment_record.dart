@@ -28,8 +28,8 @@ class TreatmentRecord {
   /// only decoded.
   factory TreatmentRecord.ofValues(List<Object?> values) = TreatmentRecord._;
 
-  /// Returns the first decoded variant, for single-variant
-  /// callers. Use [matchedInstances] or [valueOf] to reach every retained variant.
+  /// Returns the first decoded variant, for single-variant callers. Use
+  /// [matchedInstances] or [valueOf] to reach every retained variant.
   Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Returns every variant that successfully decoded from the wire payload.
@@ -80,8 +80,8 @@ class TreatmentRecord {
     return merged;
   }
 
-  /// Creates a [TreatmentRecord] from a JSON value, retaining every variant that
-  /// decodes so a payload satisfying several variants keeps all their data.
+  /// Creates a [TreatmentRecord] from a JSON value, retaining every variant
+  /// that decodes so a payload satisfying several variants keeps all data.
   factory TreatmentRecord.fromJson(Map<String, dynamic> json) {
     final decoded = <Object?>[];
     try {
