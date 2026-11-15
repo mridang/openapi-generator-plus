@@ -1748,7 +1748,14 @@ def run_ruby(surface, path, rel):
                         owner_t["_consts"].remove(nm)
             i += 1
             continue
-        if re.match(r"private_class_method\b", line):
+        pcm2 = re.match(r"private_class_method\b(.*)$", line)
+        if pcm2:
+            stmt = pcm2.group(1)
+            while stmt.rstrip().endswith(",") and i + 1 < len(lines):
+                i += 1
+                stmt += " " + lines[i].strip()
+            for nm in re.findall(r":(\w+[?!]?)", stmt):
+                t["members"].pop(member_key(nm, "ruby", 0), None)
             i += 1
             continue
         pm = re.match(r"private\s+(def\s+.*|:\w+.*)$", line)

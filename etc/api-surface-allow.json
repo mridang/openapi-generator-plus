@@ -950,6 +950,21 @@
     "elixir"
    ],
    "reason": "elixir checks required operation options at call time and raises ArgumentError for a missing one; @enforce_keys would raise a KeyError when the struct is built instead, so the error would differ from the other SDKs"
+  },
+  {
+   "element": [
+    "apikeyauthenticator.*",
+    "basicauthenticator.*",
+    "bearerauthenticator.*",
+    "oauth2clientcredentialsauthenticator.*",
+    "oauth2passwordauthenticator.*"
+   ],
+   "aspect": "member",
+   "languages": [
+    "python"
+   ],
+   "value": "extra*",
+   "reason": "python authenticators are frozen dataclasses: the constructor parameters are the fields, and the secrets are declared repr=False so they never reach a log"
   }
  ]
 }

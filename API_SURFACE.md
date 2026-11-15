@@ -14,17 +14,17 @@ Legend for the tables: each language cell is that SDK's actual spelling; `✗` m
 | kotlin | 13 | 0 | 13 |
 | csharp | 11 | 0 | 11 |
 | php | 28 | 0 | 28 |
-| python | 33 | 0 | 33 |
-| ruby | 76 | 0 | 76 |
+| python | 14 | 0 | 14 |
+| ruby | 68 | 0 | 68 |
 | node | 42 | 0 | 42 |
 | dart | 81 | 0 | 81 |
 | go | 10 | 0 | 10 |
 | rust | 37 | 0 | 37 |
 | swift | 31 | 0 | 31 |
-| elixir | 47 | 0 | 47 |
-| **all** | **429** | **0** | **429** |
+| elixir | 46 | 0 | 46 |
+| **all** | **401** | **0** | **401** |
 
-Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 684 further differences are allowed idioms (`etc/api-surface-allow.json`).
+Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 703 further differences are allowed idioms (`etc/api-surface-allow.json`).
 
 ## Per-language change list
 
@@ -132,7 +132,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `transport_options.mustache`
   - make `TransportOptions.assertValidProxy` non-public (or remove)
 
-### python (31 changes)
+### python (12 changes)
 
 - `__init__.mustache`
   - `ApiException.from_response`: parameters (statuscode, headers, body) -> (statuscode, responseheaders, responsebody)
@@ -140,31 +140,9 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `api_client.mustache`
   - add `close` to `ApiClient`
   - `ApiClient.send_request`: optionality (method, url, headers, body?, noredirect?) -> (method, url, headers, body, noredirect?)
-- `auth/api_key_authenticator.mustache`
-  - make `ApiKeyAuthenticator.key_param_name` non-public (or remove)
-  - make `ApiKeyAuthenticator.api_key` non-public (or remove)
-  - make `ApiKeyAuthenticator.location` non-public (or remove)
-- `auth/basic_authenticator.mustache`
-  - make `BasicAuthenticator.username` non-public (or remove)
-  - make `BasicAuthenticator.password` non-public (or remove)
-- `auth/bearer_authenticator.mustache`
-  - make `BearerAuthenticator.token` non-public (or remove)
 - `auth/oauth/oauth2_client_credentials_authenticator.mustache`
-  - make `OAuth2ClientCredentialsAuthenticator.client_id` non-public (or remove)
-  - make `OAuth2ClientCredentialsAuthenticator.client_secret` non-public (or remove)
-  - make `OAuth2ClientCredentialsAuthenticator.token_url` non-public (or remove)
-  - make `OAuth2ClientCredentialsAuthenticator.scopes` non-public (or remove)
-  - make `OAuth2ClientCredentialsAuthenticator.client_auth_method` non-public (or remove)
   - `OAuth2ClientCredentialsAuthenticator` constructor defaults (host, clientid, clientsecret, tokenurl, scopes?, clientauthmethod?) -> (host, clientid, clientsecret, tokenurl, scopes, clientauthmethod?)
 - `auth/oauth/oauth2_password_authenticator.mustache`
-  - make `OAuth2PasswordAuthenticator.client_id` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.client_secret` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.token_url` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.username` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.password` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.scopes` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.refresh_url` non-public (or remove)
-  - make `OAuth2PasswordAuthenticator.client_auth_method` non-public (or remove)
   - `OAuth2PasswordAuthenticator` constructor defaults (host, clientid, clientsecret, tokenurl, username, password, scopes?, refreshurl?, clientauthmethod?) -> (host, clientid, clientsecret, tokenurl, username, password, scopes, refreshurl?, clientauthmethod?)
 - `default_api_client.mustache`
   - `DefaultApiClient.send_request`: optionality (method, url, headers, body?, noredirect?) -> (method, url, headers, body, noredirect?)
@@ -176,7 +154,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - add `resolveOneOf` to `ObjectSerializer`
   - add `resolveAnyOf` to `ObjectSerializer`
 
-### ruby (68 changes)
+### ruby (64 changes)
 
 - `api/api.mustache`
   - `PetApi.set_pet_avatar`: parameters (petid, body, contenttype) -> (petid, body, requestcontenttype)
@@ -218,7 +196,6 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
 - `errors/api_error.mustache`
   - `ApiError.from_response`: parameters (statuscode, headers, body) -> (statuscode, responseheaders, responsebody)
   - make `ApiError.detail_message` non-public (or remove)
-  - make `ApiError.parse_error_body` non-public (or remove)
   - `ApiError` constructor (arg) -> (statuscode, message, responseheaders, responsebody, errorbody, cause)
 - `errors/network_error.mustache`
   - `NetworkError` constructor (message) -> (message, cause)
@@ -233,14 +210,11 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - make `ObjectSerializer.URI_REGEX` non-public (or remove)
   - make `ObjectSerializer.PROTOBUF_DURATION_REGEX` non-public (or remove)
   - make `ObjectSerializer.UUID_REGEX` non-public (or remove)
-  - make `ObjectSerializer.json_max_depth` non-public (or remove)
   - make `ObjectSerializer.encode_oneof_body` non-public (or remove)
-  - make `ObjectSerializer.sanitize_for_serialization` non-public (or remove)
   - make `ObjectSerializer.sort_scalar_set` non-public (or remove)
   - make `ObjectSerializer.convert_element` non-public (or remove)
   - make `ObjectSerializer.model_type?` non-public (or remove)
   - make `ObjectSerializer.convert_to_type` non-public (or remove)
-  - make `ObjectSerializer.deserialize_model` non-public (or remove)
   - make `ObjectSerializer.apply_format_on_deserialize` non-public (or remove)
   - make `ObjectSerializer.decode_byte` non-public (or remove)
   - make `ObjectSerializer.validate_uuid` non-public (or remove)
@@ -508,7 +482,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.userAgent`: parameters (val) -> (useragent)
   - `TransportOptionsBuilder.injectRequestID`: parameters (val) -> (injectrequestid)
 
-### elixir (46 changes)
+### elixir (45 changes)
 
 - `api/api.mustache`
   - `PetApi.get_external_pet_info`: optionality (petid, opts?) -> (petid, server?)
@@ -563,11 +537,10 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - make `ObjectSerializer.parse_protobuf_duration` non-public (or remove)
   - `ObjectSerializer.parse_protobuf_duration`: optionality (text) -> (value)
   - `ObjectSerializer.parse_json`: optionality (data) -> (jsonstring)
-  - make `ObjectSerializer.json_max_depth` non-public (or remove)
-  - make `ObjectSerializer.sanitize_for_serialization` non-public (or remove)
-  - `ObjectSerializer.sanitize_for_serialization`: parameters (value) -> (object, visited)
   - make `ObjectSerializer.convert_to_type` non-public (or remove)
   - `ObjectSerializer.convert_to_type`: optionality (data, type) -> (data, returntype)
+  - make `ObjectSerializer.json_max_depth` non-public (or remove)
+  - make `ObjectSerializer.sanitize_for_serialization` non-public (or remove)
   - make `ObjectSerializer.find_and_cast_into_type` non-public (or remove)
 
 ## Canonical decisions
@@ -711,8 +684,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetApi.getPetTagWithHttpInfo | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | GetPetTagWithHttpInfoAsync(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | get_pet_tag_with_http_info(pet_id, tag_name, options?) | getPetTagWithHttpInfo(petId, tagName, options?) | getPetTagWithHttpInfo(petId, tagName, options) ~ | GetPetTagWithHTTPInfo(petId, tagName, options) ~ | get_pet_tag_with_http_info(pet_id, tag_name, options) | getPetTagWithHTTPInfo(petId, tagName, options?) ~ | get_pet_tag_with_http_info(pet_id, tag_name, options?, opts?) | idiom (allow-list) |
 | PetApi.getStagingPetInfo | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server?) | GetStagingPetInfoAsync(petId, server?) | getStagingPetInfo(petId, server?) | get_staging_pet_info(pet_id, server?) | get_staging_pet_info(pet_id, server?) | getStagingPetInfo(petId, server?) | getStagingPetInfo(petId, server) ~ | GetStagingPetInfo(petId, server) | get_staging_pet_info(pet_id, server) | getStagingPetInfo(petId, server?) | get_staging_pet_info(pet_id, opts?) ✗ | Optionality `(petid, server?)` (majority) in elixir. |
 | PetApi.getStagingPetInfoWithHttpInfo | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | GetStagingPetInfoWithHttpInfoAsync(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | get_staging_pet_info_with_http_info(pet_id, server?) | getStagingPetInfoWithHttpInfo(petId, server?) | getStagingPetInfoWithHttpInfo(petId, server) ~ | GetStagingPetInfoWithHTTPInfo(petId, server) ~ | get_staging_pet_info_with_http_info(pet_id, server) | getStagingPetInfoWithHTTPInfo(petId, server?) ~ | get_staging_pet_info_with_http_info(pet_id, opts?) ✗ | Optionality `(petid, server?)` (majority) in elixir. |
-| PetApi.setPetAvatar | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | SetPetAvatarAsync(petId, body, requestContentType?) | setPetAvatar(petId, body, contentType?) ✗ | set_pet_avatar(pet_id, body, request_content_type?) | set_pet_avatar(pet_id, body, content_type?) ✗ | setPetAvatar(petId, body, contentType?) ✗ | setPetAvatar(petId, body, requestContentType?) | SetPetAvatar(petId, body, requestContentType) | set_pet_avatar(pet_id, body) ~ | setPetAvatar(petId, body, requestContentType?) | set_pet_avatar(pet_id, body, opts?) ✗ | D53 Optionality `(petid, body, requestcontenttype?)` (majority) in elixir, node. |
-| PetApi.setPetAvatarWithHttpInfo | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHttpInfoAsync(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | set_pet_avatar_with_http_info(pet_id, body, request_content_type?) | set_pet_avatar_with_http_info(pet_id, body, content_type?) ✗ | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHTTPInfo(petId, body, requestContentType) ~ | set_pet_avatar_with_http_info(pet_id, body) ~ | setPetAvatarWithHTTPInfo(petId, body, requestContentType?) ~ | set_pet_avatar_with_http_info(pet_id, body, opts?) ✗ | D53 Optionality `(petid, body, requestcontenttype?)` (majority) in elixir, node. |
+| PetApi.setPetAvatar | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | setPetAvatar(petId, body, requestContentType?) | SetPetAvatarAsync(petId, body, requestContentType?) | setPetAvatar(petId, body, contentType?) ✗ | set_pet_avatar(pet_id, body, request_content_type?) | set_pet_avatar(pet_id, body, content_type?) ✗ | setPetAvatar(petId, body, contentType?) ✗ | setPetAvatar(petId, body, requestContentType?) | SetPetAvatar(petId, body, requestContentType) | set_pet_avatar(pet_id, body) ~ | setPetAvatar(petId, body, requestContentType?) | set_pet_avatar(pet_id, body, opts?) ✗ | D53 Optionality `(petid, body, requestcontenttype?)` (majority) in node, elixir. |
+| PetApi.setPetAvatarWithHttpInfo | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHttpInfoAsync(petId, body, requestContentType?) | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | set_pet_avatar_with_http_info(pet_id, body, request_content_type?) | set_pet_avatar_with_http_info(pet_id, body, content_type?) ✗ | setPetAvatarWithHttpInfo(petId, body, contentType?) ✗ | setPetAvatarWithHttpInfo(petId, body, requestContentType?) | SetPetAvatarWithHTTPInfo(petId, body, requestContentType) ~ | set_pet_avatar_with_http_info(pet_id, body) ~ | setPetAvatarWithHTTPInfo(petId, body, requestContentType?) ~ | set_pet_avatar_with_http_info(pet_id, body, opts?) ✗ | D53 Optionality `(petid, body, requestcontenttype?)` (majority) in node, elixir. |
 | PetApi.setPetAvatarThumbnail | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailAsync(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnail(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request, opts?) |  |
 | PetApi.setPetAvatarThumbnailWithHttpInfo | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHttpInfoAsync(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest) | SetPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ~ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request) | setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest) ~ | set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request, opts?) | idiom (allow-list) |
 | PetApi.setPetPreferences | setPetPreferences(petId, options) | setPetPreferences(petId, options) | setPetPreferences(petId, options) | SetPetPreferencesAsync(petId, options) | setPetPreferences(petId, options) | set_pet_preferences(pet_id, options) | set_pet_preferences(pet_id, options) | setPetPreferences(petId, options) | setPetPreferences(petId, options) | SetPetPreferences(petId, options) | set_pet_preferences(pet_id, options) | setPetPreferences(petId, options) | set_pet_preferences(pet_id, options, opts?) |  |
@@ -721,8 +694,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetApi.updatePetWithHttpInfo | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHttpInfoAsync(petId, pet) | updatePetWithHttpInfo(petId, pet) | update_pet_with_http_info(pet_id, pet) | update_pet_with_http_info(pet_id, pet) | updatePetWithHttpInfo(petId, pet) | updatePetWithHttpInfo(petId, pet) | UpdatePetWithHTTPInfo(petId, pet) ~ | update_pet_with_http_info(pet_id, pet) | updatePetWithHTTPInfo(petId, pet) ~ | update_pet_with_http_info(pet_id, pet, opts?) | idiom (allow-list) |
 | PetApi.uploadPetCertificate | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | UploadPetCertificateAsync(petId, options) | uploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options) | upload_pet_certificate(pet_id, options) | uploadPetCertificate(petId, options) | uploadPetCertificate(petId, options) | UploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options) | uploadPetCertificate(petId, options) | upload_pet_certificate(pet_id, options, opts?) |  |
 | PetApi.uploadPetCertificateWithHttpInfo | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHttpInfoAsync(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | upload_pet_certificate_with_http_info(pet_id, options) | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHttpInfo(petId, options) | uploadPetCertificateWithHttpInfo(petId, options) | UploadPetCertificateWithHTTPInfo(petId, options) ~ | upload_pet_certificate_with_http_info(pet_id, options) | uploadPetCertificateWithHTTPInfo(petId, options) ~ | upload_pet_certificate_with_http_info(pet_id, options, opts?) | idiom (allow-list) |
-| PetApi.uploadPetDocument | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocumentAsync(petId, options, requestContentType?) | uploadPetDocument(petId, options, contentType?) ✗ | upload_pet_document(pet_id, options, request_content_type?) | upload_pet_document(pet_id, options, content_type?) ✗ | uploadPetDocument(petId, options, contentType?) ✗ | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocument(petId, options, requestContentType) | upload_pet_document(pet_id, options) ~ | uploadPetDocument(petId, options, requestContentType?) | upload_pet_document(pet_id, options, opts?) ✗ | D54 Optionality `(petid, options, requestcontenttype?)` (majority) in elixir, node. |
-| PetApi.uploadPetDocumentWithHttpInfo | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHttpInfoAsync(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | upload_pet_document_with_http_info(pet_id, options, request_content_type?) | upload_pet_document_with_http_info(pet_id, options, content_type?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHTTPInfo(petId, options, requestContentType) ~ | upload_pet_document_with_http_info(pet_id, options) ~ | uploadPetDocumentWithHTTPInfo(petId, options, requestContentType?) ~ | upload_pet_document_with_http_info(pet_id, options, opts?) ✗ | D54 Optionality `(petid, options, requestcontenttype?)` (majority) in elixir, node. |
+| PetApi.uploadPetDocument | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocumentAsync(petId, options, requestContentType?) | uploadPetDocument(petId, options, contentType?) ✗ | upload_pet_document(pet_id, options, request_content_type?) | upload_pet_document(pet_id, options, content_type?) ✗ | uploadPetDocument(petId, options, contentType?) ✗ | uploadPetDocument(petId, options, requestContentType?) | UploadPetDocument(petId, options, requestContentType) | upload_pet_document(pet_id, options) ~ | uploadPetDocument(petId, options, requestContentType?) | upload_pet_document(pet_id, options, opts?) ✗ | D54 Optionality `(petid, options, requestcontenttype?)` (majority) in node, elixir. |
+| PetApi.uploadPetDocumentWithHttpInfo | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHttpInfoAsync(petId, options, requestContentType?) | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | upload_pet_document_with_http_info(pet_id, options, request_content_type?) | upload_pet_document_with_http_info(pet_id, options, content_type?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, contentType?) ✗ | uploadPetDocumentWithHttpInfo(petId, options, requestContentType?) | UploadPetDocumentWithHTTPInfo(petId, options, requestContentType) ~ | upload_pet_document_with_http_info(pet_id, options) ~ | uploadPetDocumentWithHTTPInfo(petId, options, requestContentType?) ~ | upload_pet_document_with_http_info(pet_id, options, opts?) ✗ | D54 Optionality `(petid, options, requestcontenttype?)` (majority) in node, elixir. |
 | PetApi.config | config | — | — | — | — | — | config ✗ | — | config ✗ | — | — | — | config ~ | D21 |
 | PetApi.apiClient | apiClient | — | — | — | — | — | — | — | apiClient ✗ | — | — | — | api_client ~ | D23 |
 | PetApi.setPetAvatarWithContentType | setPetAvatarWithContentType | — | — | — | — | — | — | — | — | — | set_pet_avatar_with_content_type(pet_id, body, request_content_type) ~ | — | — | idiom (allow-list) |
@@ -1106,9 +1079,9 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ApiKeyAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | ApiKeyAuthenticator.getQueryParams | getQueryParams | getQueryParams | getQueryParams | GetQueryParams | getQueryParams | get_query_params | query_params | getQueryParams | queryParams | QueryParams | query_params | queryParams | query_params |  |
 | ApiKeyAuthenticator.getCookieParams | getCookieParams | getCookieParams | getCookieParams | GetCookieParams | getCookieParams | get_cookie_params | cookie_params | getCookieParams | cookieParams | CookieParams | cookie_params | cookieParams | cookie_params |  |
-| ApiKeyAuthenticator.keyParamName | keyParamName | — | — | — | — | key_param_name ✗ | — | — | — | — | — | — | key_param_name ~ | Not part of the canonical surface: make it non-public in python. |
-| ApiKeyAuthenticator.apiKey | apiKey | — | — | — | — | api_key ✗ | — | — | — | — | — | — | api_key ~ | Not part of the canonical surface: make it non-public in python. |
-| ApiKeyAuthenticator.location | location | — | — | — | — | location ✗ | — | — | — | — | — | — | location ~ | Not part of the canonical surface: make it non-public in python. |
+| ApiKeyAuthenticator.keyParamName | keyParamName | — | — | — | — | key_param_name ~ | — | — | — | — | — | — | key_param_name ~ | idiom (allow-list) |
+| ApiKeyAuthenticator.apiKey | apiKey | — | — | — | — | api_key ~ | — | — | — | — | — | — | api_key ~ | idiom (allow-list) |
+| ApiKeyAuthenticator.location | location | — | — | — | — | location ~ | — | — | — | — | — | — | location ~ | idiom (allow-list) |
 | ApiKeyAuthenticator.errInvalidApiKey | errInvalidApiKey | — | — | — | — | — | — | — | — | ErrInvalidApiKey ~ | — | — | — | idiom (allow-list) |
 | **ApiKeyHeaderAuthenticator** | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator | ApiKeyHeaderAuthenticator |  |
 | ApiKeyHeaderAuthenticator ctor | new(host, apiKey) | (host, apiKey) | (host, apiKey) | (host, apiKey) | (host, apiKey) | (host, api_key) | (host, api_key) | (host, apiKey) | (host, apiKey) | (host, apiKey) | (host, api_key) | (host, apiKey) | (host, api_key) |  |
@@ -1139,8 +1112,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | BasicAuthenticator ctor | new(host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) | (host, username, password) |  |
 | BasicAuthenticator.host | host | getHost | getHost | GetHost | getHost | host | host | getHost | host | Host | host | host | host |  |
 | BasicAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
-| BasicAuthenticator.username | username | — | — | — | — | username ✗ | — | — | — | — | — | — | username ~ | Not part of the canonical surface: make it non-public in python. |
-| BasicAuthenticator.password | password | — | — | — | — | password ✗ | — | — | — | — | — | — | password ~ | Not part of the canonical surface: make it non-public in python. |
+| BasicAuthenticator.username | username | — | — | — | — | username ~ | — | — | — | — | — | — | username ~ | idiom (allow-list) |
+| BasicAuthenticator.password | password | — | — | — | — | password ~ | — | — | — | — | — | — | password ~ | idiom (allow-list) |
 | BasicAuthenticator.errBasicAuthUsernameControlChar | errBasicAuthUsernameControlChar | — | — | — | — | — | — | — | — | ErrBasicAuthUsernameControlChar ~ | — | — | — | idiom (allow-list) |
 | BasicAuthenticator.errBasicAuthUsernameColon | errBasicAuthUsernameColon | — | — | — | — | — | — | — | — | ErrBasicAuthUsernameColon ~ | — | — | — | idiom (allow-list) |
 | BasicAuthenticator.errBasicAuthPasswordControlChar | errBasicAuthPasswordControlChar | — | — | — | — | — | — | — | — | ErrBasicAuthPasswordControlChar ~ | — | — | — | idiom (allow-list) |
@@ -1148,7 +1121,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | BearerAuthenticator ctor | new(host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) | (host, token) |  |
 | BearerAuthenticator.host | host | getHost | getHost | GetHost | getHost | host | host | getHost | host | Host | host | host | host |  |
 | BearerAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
-| BearerAuthenticator.token | token | — | — | — | — | token ✗ | — | — | — | — | — | — | token ~ | Not part of the canonical surface: make it non-public in python. |
+| BearerAuthenticator.token | token | — | — | — | — | token ~ | — | — | — | — | — | — | token ~ | idiom (allow-list) |
 | BearerAuthenticator.errInvalidBearerToken | errInvalidBearerToken | — | — | — | — | — | — | — | — | ErrInvalidBearerToken ~ | — | — | — | idiom (allow-list) |
 | **HttpAwareAuthenticator** | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator | HttpAwareAuthenticator |  |
 | HttpAwareAuthenticator.getHost | getHost | getHost | getHost | GetHost | getHost | get_host | — ~ | getHost | host | Host | — | host | — | idiom (allow-list) |
@@ -1216,11 +1189,11 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OAuth2ClientCredentialsAuthenticator.host | host | getHost | getHost | GetHost | getHost | host | host | getHost | host | Host | host | host | host |  |
 | OAuth2ClientCredentialsAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | OAuth2ClientCredentialsAuthenticator.setApiClient | setApiClient(apiClient) | setApiClient(apiClient) | setApiClient(apiClient) | SetApiClient(apiClient) | setApiClient(apiClient) | set_api_client(api_client) | set_api_client(client) ✗ | setApiClient(apiClient) | setApiClient(client) ✗ | SetApiClient(client) | set_api_client(client) | setApiClient(client) ✗ | set_api_client(client) ✗ | D35 Optionality `(apiclient)` (majority) in elixir. |
-| OAuth2ClientCredentialsAuthenticator.clientId | clientId | — | — | — | — | client_id ✗ | — | — | — | — | — | — | client_id ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2ClientCredentialsAuthenticator.clientSecret | clientSecret | — | — | — | — | client_secret ✗ | — | — | — | — | — | — | client_secret ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2ClientCredentialsAuthenticator.tokenUrl | tokenUrl | — | — | — | — | token_url ✗ | — | — | — | — | — | — | token_url ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2ClientCredentialsAuthenticator.scopes | scopes | — | — | — | — | scopes ✗ | — | — | — | — | — | — | scopes ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2ClientCredentialsAuthenticator.clientAuthMethod | clientAuthMethod | — | — | — | — | client_auth_method ✗ | — | — | — | — | — | — | client_auth_method ~ | Not part of the canonical surface: make it non-public in python. |
+| OAuth2ClientCredentialsAuthenticator.clientId | clientId | — | — | — | — | client_id ~ | — | — | — | — | — | — | client_id ~ | idiom (allow-list) |
+| OAuth2ClientCredentialsAuthenticator.clientSecret | clientSecret | — | — | — | — | client_secret ~ | — | — | — | — | — | — | client_secret ~ | idiom (allow-list) |
+| OAuth2ClientCredentialsAuthenticator.tokenUrl | tokenUrl | — | — | — | — | token_url ~ | — | — | — | — | — | — | token_url ~ | idiom (allow-list) |
+| OAuth2ClientCredentialsAuthenticator.scopes | scopes | — | — | — | — | scopes ~ | — | — | — | — | — | — | scopes ~ | idiom (allow-list) |
+| OAuth2ClientCredentialsAuthenticator.clientAuthMethod | clientAuthMethod | — | — | — | — | client_auth_method ~ | — | — | — | — | — | — | client_auth_method ~ | idiom (allow-list) |
 | OAuth2ClientCredentialsAuthenticator.authHeadersOrError | authHeadersOrError | — | — | — | — | — | — | — | — | AuthHeadersOrError ~ | — | — | — | idiom (allow-list) |
 | OAuth2ClientCredentialsAuthenticator.withClientAuthMethod | withClientAuthMethod | — | — | — | — | — | — | — | — | WithClientAuthMethod(method) ~ | with_client_auth_method(method) ~ | — | — | idiom (allow-list) |
 | OAuth2ClientCredentialsAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
@@ -1247,14 +1220,14 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | OAuth2PasswordAuthenticator.host | host | getHost | getHost | GetHost | getHost | host | host | getHost | host | Host | host | host | host |  |
 | OAuth2PasswordAuthenticator.getAuthHeaders | getAuthHeaders | getAuthHeaders | getAuthHeaders | GetAuthHeaders | getAuthHeaders | get_auth_headers | auth_headers | getAuthHeaders | authHeaders | AuthHeaders | auth_headers | authHeaders | auth_headers |  |
 | OAuth2PasswordAuthenticator.setApiClient | setApiClient(apiClient) | setApiClient(apiClient) | setApiClient(apiClient) | SetApiClient(apiClient) | setApiClient(apiClient) | set_api_client(api_client) | set_api_client(client) ✗ | setApiClient(apiClient) | setApiClient(client) ✗ | SetApiClient(client) | set_api_client(client) | setApiClient(client) ✗ | set_api_client(client) ✗ | D35 Optionality `(apiclient)` (majority) in elixir. |
-| OAuth2PasswordAuthenticator.clientId | clientId | — | — | — | — | client_id ✗ | — | — | — | — | — | — | client_id ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.clientSecret | clientSecret | — | — | — | — | client_secret ✗ | — | — | — | — | — | — | client_secret ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.tokenUrl | tokenUrl | — | — | — | — | token_url ✗ | — | — | — | — | — | — | token_url ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.username | username | — | — | — | — | username ✗ | — | — | — | — | — | — | username ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.password | password | — | — | — | — | password ✗ | — | — | — | — | — | — | password ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.scopes | scopes | — | — | — | — | scopes ✗ | — | — | — | — | — | — | scopes ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.refreshUrl | refreshUrl | — | — | — | — | refresh_url ✗ | — | — | — | — | — | — | refresh_url ~ | Not part of the canonical surface: make it non-public in python. |
-| OAuth2PasswordAuthenticator.clientAuthMethod | clientAuthMethod | — | — | — | — | client_auth_method ✗ | — | — | — | — | — | — | client_auth_method ~ | Not part of the canonical surface: make it non-public in python. |
+| OAuth2PasswordAuthenticator.clientId | clientId | — | — | — | — | client_id ~ | — | — | — | — | — | — | client_id ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.clientSecret | clientSecret | — | — | — | — | client_secret ~ | — | — | — | — | — | — | client_secret ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.tokenUrl | tokenUrl | — | — | — | — | token_url ~ | — | — | — | — | — | — | token_url ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.username | username | — | — | — | — | username ~ | — | — | — | — | — | — | username ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.password | password | — | — | — | — | password ~ | — | — | — | — | — | — | password ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.scopes | scopes | — | — | — | — | scopes ~ | — | — | — | — | — | — | scopes ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.refreshUrl | refreshUrl | — | — | — | — | refresh_url ~ | — | — | — | — | — | — | refresh_url ~ | idiom (allow-list) |
+| OAuth2PasswordAuthenticator.clientAuthMethod | clientAuthMethod | — | — | — | — | client_auth_method ~ | — | — | — | — | — | — | client_auth_method ~ | idiom (allow-list) |
 | OAuth2PasswordAuthenticator.authHeadersOrError | authHeadersOrError | — | — | — | — | — | — | — | — | AuthHeadersOrError ~ | — | — | — | idiom (allow-list) |
 | OAuth2PasswordAuthenticator.withClientAuthMethod | withClientAuthMethod | — | — | — | — | — | — | — | — | WithClientAuthMethod(method) ~ | with_client_auth_method(method) ~ | — | — | idiom (allow-list) |
 | OAuth2PasswordAuthenticator.tryAuthHeaders | tryAuthHeaders | — | — | — | — | — | — | — | — | — | try_auth_headers ~ | — | — | idiom (allow-list) |
@@ -1380,7 +1353,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **ApiClient** | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient | ApiClient |  |
 | ApiClient.close | close | close | close | — ~ | close | — ✗ | close | — ✗ | — ✗ | Close | close | close | close | D60 |
-| ApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | — ✗ | Add `sendrequest` in elixir. Optionality `(method, url, headers, body, noredirect?)` (majority) in node, python. |
+| ApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | — ✗ | Add `sendrequest` in elixir. Optionality `(method, url, headers, body, noredirect?)` (majority) in python, node. |
 | ApiClient.sendRequestWithOptions | sendRequestWithOptions | — | — | — | — | — | — | — | — | SendRequestWithOptions(method, url, headers, body, opts) ~ | send_request_with_options(method, url, headers, body, _options) ~ | — | — | idiom (allow-list) |
 | **ApiHttpResponse** | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse | ApiHttpResponse |  |
 | ApiHttpResponse ctor | new(statusCode, body, headers) | (statusCode, body, headers) | (statusCode, body, headers) | (statusCode, body, headers) | (statusCode, body, headers) | (status_code, body, headers) | (status_code, body, headers) | — | (statusCode, body, headers) | — | (status_code, body, headers) | (statusCode, body, headers) | (status_code?, body?, headers?) |  |
@@ -1419,7 +1392,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **DefaultApiClient** | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient |  |
 | DefaultApiClient ctor | new(transportOptions) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transport_options?, pool_manager?) ✗ | (transport_options?) | (transportOptions?) | (transportOptions?) | (transportOptions) | (transport_options) | (transportOptions?) | (transport_options?) | D81 |
 | DefaultApiClient.close | close | close | close | Dispose | close | close | close | close | close | Close | close | close | close |  |
-| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ✗ | Optionality `(method, url, headers, body, noredirect?)` (majority) in elixir, node, kotlin, python. |
+| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ✗ | Optionality `(method, url, headers, body, noredirect?)` (majority) in python, kotlin, node, elixir. |
 | DefaultApiClient.sensitiveHeaderNames | sensitiveHeaderNames | — | — | SensitiveHeaderNames ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.proxyAuthorizationHeader | proxyAuthorizationHeader | — | — | ProxyAuthorizationHeader ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.validateMultipartFilename | validateMultipartFilename | — | — | ValidateMultipartFilename(filename) ✗ | — | — | — | — | — | — | validate_multipart_filename(filename) ✗ | — | — | D16 |
@@ -1485,7 +1458,6 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ApiException.getTypedErrorBody | getTypedErrorBody | getTypedErrorBody(clazz) ~ | — | — | getTypedErrorBody(class) ~ | get_typed_error_body(clazz) ~ | — ~ | getTypedErrorBody(clazz) ~ | getTypedErrorBody(fromJson) ~ | GetTypedErrorBody(target) ~ | — | getTypedErrorBody(type) ~ | — ~ | idiom (allow-list) |
 | ApiException.typedErrorBody | typedErrorBody | — | getTypedErrorBody | GetTypedErrorBody | — | — | typed_error_body(klass) | — | — | — | typed_error_body | — | typed_error_body(type_name) |  |
 | ApiException.detailMessage | detailMessage | — | — | — | — | — | detail_message ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
-| ApiException.parseErrorBody | parseErrorBody | — | — | — | — | — | parse_error_body(body) ✗ | — | — | — | — | — | — | Not part of the canonical surface: make it non-public in ruby. |
 | ApiException.registerStatusError | registerStatusError | — | — | — | — | — | — | registerStatusError(statusCode, factory, statusClass?) ✗ | — | — | — | — | — | Not part of the canonical surface: make it non-public in node. |
 | ApiException.underlyingError | underlyingError | — | — | — | — | — | — | — | underlyingError ✗ | — | — | underlyingError ~ | — | Not part of the canonical surface: make it non-public in dart. |
 | ApiException.msg | msg | — | — | — | — | — | — | — | — | Msg ~ | — | — | — | idiom (allow-list) |
@@ -1570,16 +1542,16 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ObjectSerializer ctor | new() | () | — | — | — | () | — | — | — | — | — | — | — |  |
 | ObjectSerializer.maxJsonDepth | maxJsonDepth | MAX_JSON_DEPTH ✗ | — | — | — | — | MAX_JSON_DEPTH ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.serialize | serialize(object) | serialize(object) | — | — | serialize(data) ✗ | serialize(obj) ✗ | serialize(object) | serialize(obj) ✗ | serialize(object) | — | serialize(value) | — | serialize(object) | D15 Optionality `(object)` (majority) in node. |
-| ObjectSerializer.deserialize | deserialize(jsonString, targetType) | deserialize(jsonString, type) ✗ | — | — | deserialize(data, class, httpHeaders?) ✗ | deserialize(json_string, target_type) | deserialize(json_string, target_type) | deserialize(json, cls) ✗ | deserialize(data, fromJson) ✗ | — | deserialize(data) ✗ | — | deserialize(json_string, target_type) | D15 Optionality `(jsonstring, targettype)` (majority) in node, java. |
+| ObjectSerializer.deserialize | deserialize(jsonString, targetType) | deserialize(jsonString, type) ✗ | — | — | deserialize(data, class, httpHeaders?) ✗ | deserialize(json_string, target_type) | deserialize(json_string, target_type) | deserialize(json, cls) ✗ | deserialize(data, fromJson) ✗ | — | deserialize(data) ✗ | — | deserialize(json_string, target_type) | D15 Optionality `(jsonstring, targettype)` (majority) in java, node. |
 | ObjectSerializer.stringify | stringify(value) | stringify(value) | — | — | stringify(value) | stringify(value) | stringify(value) | stringify(value) | stringify(value) | — | stringify(value) | — | stringify(dt) ✗ | Optionality `(value)` (majority) in elixir. |
 | ObjectSerializer.toPathValue | toPathValue(value) | toPathValue(value) | — | — | toPathValue(value) | to_path_value(value) | to_path_value(value) | toPathValue(value) | toPathValue(value) | — | to_path_value(value) | — | to_path_value(value) |  |
-| ObjectSerializer.toQueryValue | toQueryValue(value, collectionFormat?) | toQueryValue(value, collectionFormat) ✗ | — | — | toQueryValue(value, collectionFormat?) | to_query_value(value, collection_format?) | to_query_value(value, collection_format?) | toQueryValue(value, collectionFormat?) | toQueryValue(value, collectionFormat) ✗ | — | to_query_value(value, collection_format) | — | to_query_value(value, collection_format?) | Optionality `(value, collectionformat?)` (majority) in dart, java. |
+| ObjectSerializer.toQueryValue | toQueryValue(value, collectionFormat?) | toQueryValue(value, collectionFormat) ✗ | — | — | toQueryValue(value, collectionFormat?) | to_query_value(value, collection_format?) | to_query_value(value, collection_format?) | toQueryValue(value, collectionFormat?) | toQueryValue(value, collectionFormat) ✗ | — | to_query_value(value, collection_format) | — | to_query_value(value, collection_format?) | Optionality `(value, collectionformat?)` (majority) in java, dart. |
 | ObjectSerializer.toHeaderValue | toHeaderValue(value) | toHeaderValue(value) | — | — | toHeaderValue(value) | to_header_value(value) | to_header_value(value) | toHeaderValue(value) | toHeaderValue(value) | — | to_header_value(value) | — | to_header_value(value) |  |
 | ObjectSerializer.toCookieValue | toCookieValue(value) | toCookieValue(value) | — | — | toCookieValue(value) | to_cookie_value(value) | to_cookie_value(value) | toCookieValue(value) | toCookieValue(value) | — | to_cookie_value(value) | — | to_cookie_value(value) |  |
 | ObjectSerializer.toFormValue | toFormValue(value) | toFormValue(value) | — | — | toFormValue(value) | to_form_value(value) | to_form_value(value) | toFormValue(value) | toFormValue(value) | — | to_form_value(value) | — | to_form_value(value) |  |
 | ObjectSerializer.formatTime | formatTime | formatTime(value) ✗ | — | — | — | — | — | — | — | — | format_time(value) ✗ | — | — | D14 |
-| ObjectSerializer.resolveOneOf | resolveOneOf(json, candidates) | resolveOneOf(json, candidates) | — | — | resolveOneOf(data, candidates) ✗ | — ✗ | — ✗ | resolveOneOf(json, candidates?) ✗ | resolveOneOf(data, fromJsonCandidates) ✗ | — | — ✗ | — | — ✗ | D14 D15 Optionality `(json, candidates)` (majority) in node, php. |
-| ObjectSerializer.resolveAnyOf | resolveAnyOf(json, candidates) | resolveAnyOf(json, candidates) | — | — | resolveAnyOf(data, candidates) ✗ | — ✗ | — ✗ | resolveAnyOf(json, candidates?) ✗ | resolveAnyOf(data, fromJsonCandidates) ✗ | — | — ✗ | — | — ✗ | D14 D15 Optionality `(json, candidates)` (majority) in node, php. |
+| ObjectSerializer.resolveOneOf | resolveOneOf(json, candidates) | resolveOneOf(json, candidates) | — | — | resolveOneOf(data, candidates) ✗ | — ✗ | — ✗ | resolveOneOf(json, candidates?) ✗ | resolveOneOf(data, fromJsonCandidates) ✗ | — | — ✗ | — | — ✗ | D14 D15 Optionality `(json, candidates)` (majority) in php, node. |
+| ObjectSerializer.resolveAnyOf | resolveAnyOf(json, candidates) | resolveAnyOf(json, candidates) | — | — | resolveAnyOf(data, candidates) ✗ | — ✗ | — ✗ | resolveAnyOf(json, candidates?) ✗ | resolveAnyOf(data, fromJsonCandidates) ✗ | — | — ✗ | — | — ✗ | D14 D15 Optionality `(json, candidates)` (majority) in php, node. |
 | ObjectSerializer.structuralEquals | structuralEquals | structuralEquals(left, right) ✗ | — | — | — | — | — | — | — | — | — | — | — | D14 |
 | ObjectSerializer.structuralHashCode | structuralHashCode | structuralHashCode(value) ✗ | — | — | — | — | — | — | — | — | — | — | — | D14 |
 | ObjectSerializer.parseRfc3339 | parseRfc3339 | — | — | — | parseRfc3339(text) ✗ | — | — | — | — | — | — | — | — | D14 |
@@ -1594,20 +1566,17 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ObjectSerializer.decodeByteOneOfArray | decodeByteOneOfArray | — | — | — | decodeByteOneOfArray(data) ✗ | — | — | — | — | — | — | — | — | D14 |
 | ObjectSerializer.formatProtobufDuration | formatProtobufDuration | — | — | — | formatProtobufDuration(interval) ✗ | — | — | — | — | — | — | — | format_protobuf_duration(duration) ✗ | D14 Optionality `(interval)` (majority) in elixir. |
 | ObjectSerializer.parseProtobufDuration | parseProtobufDuration | — | — | — | parseProtobufDuration(value) ✗ | — | — | — | — | — | — | — | parse_protobuf_duration(text) ✗ | D14 Optionality `(value)` (majority) in elixir. |
-| ObjectSerializer.parseJson | parseJson(jsonString) | — ✗ | — | — | — ✗ | parse_json(json_string) | parse_json(json_string, symbolize_names?) ✗ | parseJson(json) ✗ | parseJson(data) ✗ | — | — ✗ | — | parse_json(data) ✗ | D14 D15 Optionality `(jsonstring)` (majority) in elixir, node. |
+| ObjectSerializer.parseJson | parseJson(jsonString) | — ✗ | — | — | — ✗ | parse_json(json_string) | parse_json(json_string, symbolize_names?) ✗ | parseJson(json) ✗ | parseJson(data) ✗ | — | — ✗ | — | parse_json(data) ✗ | D14 D15 Optionality `(jsonstring)` (majority) in node, elixir. |
 | ObjectSerializer.defaultDatetimeFormat | defaultDatetimeFormat | — | — | — | — | — | DEFAULT_DATETIME_FORMAT ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.rfc3339DatetimeRegex | rfc3339DatetimeRegex | — | — | — | — | — | RFC3339_DATETIME_REGEX ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.uriRegex | uriRegex | — | — | — | — | — | URI_REGEX ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.protobufDurationRegex | protobufDurationRegex | — | — | — | — | — | PROTOBUF_DURATION_REGEX ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.uuidRegex | uuidRegex | — | — | — | — | — | UUID_REGEX ✗ | — | — | — | — | — | — | D14 |
-| ObjectSerializer.jsonMaxDepth | jsonMaxDepth | — | — | — | — | — | json_max_depth(data) ✗ | — | — | — | — | — | json_max_depth(data) ✗ | D14 |
 | ObjectSerializer.encodeOneofBody | encodeOneofBody | — | — | — | — | — | encode_oneof_body(value, type) ✗ | — | — | — | — | — | — | D14 |
-| ObjectSerializer.sanitizeForSerialization | sanitizeForSerialization | — | — | — | — | — | sanitize_for_serialization(object, visited?) ✗ | — | — | — | — | — | sanitize_for_serialization(value) ✗ | D14 D15 |
 | ObjectSerializer.sortScalarSet | sortScalarSet | — | — | — | — | — | sort_scalar_set(items) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.convertElement | convertElement | — | — | — | — | — | convert_element(item, sub_type) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.modelType | modelType | — | — | — | — | — | model_type?(type_name) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.convertToType | convertToType | — | — | — | — | — | convert_to_type(data, return_type) ✗ | — | — | — | — | — | convert_to_type(data, type) ✗ | D14 Optionality `(data, returntype)` (majority) in elixir. |
-| ObjectSerializer.deserializeModel | deserializeModel | — | — | — | — | — | deserialize_model(data, klass) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.applyFormatOnDeserialize | applyFormatOnDeserialize | — | — | — | — | — | apply_format_on_deserialize(value, fmt) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.decodeByte | decodeByte | — | — | — | — | — | decode_byte(value) ✗ | — | — | — | — | — | — | D14 |
 | ObjectSerializer.validateUuid | validateUuid | — | — | — | — | — | validate_uuid(value) ✗ | — | — | — | — | — | — | D14 |
@@ -1635,6 +1604,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ObjectSerializer.formatDateTimeOffset | formatDateTimeOffset | — | — | — | — | — | — | — | formatDateTimeOffset(date) ✗ | — | — | — | — | D14 |
 | ObjectSerializer.toDeepObjectMap | toDeepObjectMap | — | — | — | — | — | — | — | — | — | to_deep_object_map(value) ✗ | — | — | D14 |
 | ObjectSerializer.serializeExtras | serializeExtras | — | — | — | — | — | — | — | — | — | serialize_extras(extras, declared, serializer) ✗ | — | — | D14 |
+| ObjectSerializer.jsonMaxDepth | jsonMaxDepth | — | — | — | — | — | — | — | — | — | — | — | json_max_depth(data) ✗ | D14 |
+| ObjectSerializer.sanitizeForSerialization | sanitizeForSerialization | — | — | — | — | — | — | — | — | — | — | — | sanitize_for_serialization(value) ✗ | D14 |
 | ObjectSerializer.findAndCastIntoType | findAndCastIntoType | — | — | — | — | — | — | — | — | — | — | — | find_and_cast_into_type(type_name, data) ✗ | D14 |
 | **TraceContextUtil** | TraceContextUtil | TraceContextUtil | TraceContextUtil | TraceContextUtil | TraceContextUtil | trace_context_util | TraceContextUtil | trace-context-util | TraceContextUtil | trace_context_util | trace_context_util | TraceContextUtil | TraceContextUtil |  |
 | TraceContextUtil.injectTraceContext | injectTraceContext(headers) | injectTraceContext(headers) | injectTraceContext(headers) | InjectTraceContext(headers) | injectTraceContext(headers) | inject_trace_context(headers) | inject_trace_context(headers) | injectTraceContext(headers) | injectTraceContext(headers) | InjectTraceContext(headers) | inject_trace_context(headers) | injectTraceContext(headers) | inject_trace_context(headers) |  |
@@ -1656,10 +1627,6 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | ValueSerializer.maybeAllowReserved | maybeAllowReserved(value, allowReserved) | — | — | — | — ✗ | maybe_allow_reserved(value, allow_reserved) | maybe_allow_reserved(value, allow_reserved) | maybeAllowReserved(value, allowReserved) | maybeAllowReserved(value, allowReserved) | — | — ✗ | — | maybe_allow_reserved(value, allow_reserved) | D09 |
 | ValueSerializer.preserveEncoded | preserveEncoded | — | — | — | — | — | PRESERVE_ENCODED ✗ | — | — | — | — | — | — | D09 |
 | ValueSerializer.reservedPreserved | reservedPreserved | — | — | — | — | — | RESERVED_PRESERVED ✗ | — | — | — | — | — | — | D09 |
-| ValueSerializer.serializeNil | serializeNil | — | — | — | — | — | serialize_nil(location) ✗ | — | — | — | — | — | — | D09 |
-| ValueSerializer.serializeArray | serializeArray | — | — | — | — | — | serialize_array(value, location, collection_format) ✗ | — | — | — | — | — | — | D09 |
-| ValueSerializer.serializeQueryArray | serializeQueryArray | — | — | — | — | — | serialize_query_array(value, collection_format) ✗ | — | — | — | — | — | — | D09 |
-| ValueSerializer.encodeItem | encodeItem | — | — | — | — | — | encode_item(value, location) ✗ | — | — | — | — | — | — | D09 |
 | ValueSerializer.normalize | normalize | — | — | — | — | — | — | normalize(value, schemaType, paramName) ✗ | — | — | — | — | — | D09 |
 | ValueSerializer.stringifyDate | stringifyDate | — | — | — | — | — | — | stringifyDate(value) ✗ | stringifyDate(value) ✗ | — | — | — | — | D09 |
 | ValueSerializer.stringifyDates | stringifyDates | — | — | — | — | — | — | stringifyDates(values) ✗ | stringifyDates(values) ✗ | — | — | — | — | D09 |
