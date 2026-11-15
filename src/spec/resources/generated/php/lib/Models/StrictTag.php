@@ -31,7 +31,7 @@ class StrictTag
      *
      * @param array<string, mixed> $data
      */
-    public static function assertNoUnknownProperties(array $data): void
+    protected static function assertNoUnknownProperties(array $data): void
     {
         $declared = ['id', 'name'];
         foreach (array_keys($data) as $key) {

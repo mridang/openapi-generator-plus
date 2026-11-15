@@ -20,8 +20,8 @@ class Metadata
     #[SerializedName('createdAt')]
     public ?\DateTime $createdAt = null;
 
-    /** @var \Ds\Map<string, mixed>|null */
-    public ?\Ds\Map $additionalProperties = null;
+    /** @var \Ds\Map<string, mixed> */
+    public \Ds\Map $additionalProperties;
 
     /**
      */
@@ -29,5 +29,6 @@ class Metadata
         ?\DateTime $createdAt = null,
     ) {
         $this->createdAt = $createdAt;
+        $this->additionalProperties = new \Ds\Map();
     }
 }

@@ -108,8 +108,12 @@ test('any of retains all matching variants (medication and surgery) losslessly',
     $result = PetTreatment::build($data);
 
     // Both variants are accessible — locate each by type rather than position.
-    $instances = $result->getActualInstances();
+    $instances = $result->getMatchedInstances();
     expect($instances)->toHaveCount(2);
+
+    expect($instances[0])->toBeInstanceOf(Medication::class);
+    expect($instances[1])->toBeInstanceOf(Surgery::class);
+    expect($result->getActualInstance())->toBe($instances[0]);
 
     $medication = null;
     $surgery = null;
@@ -185,8 +189,9 @@ test('any of single variant still round-trips after retain-all', function (): vo
     // medication-only payload still decodes and serializes as just Medication.
     $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
     $result = PetTreatment::build($data);
-    expect($result->getActualInstances())->toHaveCount(1);
+    expect($result->getMatchedInstances())->toHaveCount(1);
     expect($result->getActualInstance())->toBeInstanceOf(Medication::class);
+    expect($result->getActualInstance())->toBe($result->getMatchedInstances()[0]);
 
     $serialized = ObjectSerializer::serialize($result);
     /** @var array<string, mixed> $roundTripped */
@@ -261,49 +266,55 @@ test('one of non-string discriminator ref throws', function (): void {
 // element-by-element into a list.
 
 test('set pet avatar thumbnail byte oneOf round-trips through base64', function (): void {
-    // (1) SCALAR variant: construct from raw bytes [0x01,0x02,0x03,0x04].
+    // (1) SCALAR variant: constructed from raw bytes [0x01,0x02,0x03,0x04].
     $raw = "\x01\x02\x03\x04";
-    $request = SetPetAvatarThumbnailRequest::fromBytes($raw);
+    $request = new SetPetAvatarThumbnailRequest($raw);
+    expect($request->getActualInstance())->toBe($raw);
 
-    // Serialize and assert the JSON value is the base64 STRING "AQIDBA==" —
-    // not a JSON int-array [1,2,3,4], not the raw bytes, not object garbage.
+    // The wire value is the base64 STRING "AQIDBA==" — not a JSON int-array
+    // [1,2,3,4], not the raw bytes, not object garbage.
     $json = ObjectSerializer::serialize($request);
     expect($json)->toBe('"AQIDBA=="');
 
-    // Deserialize that JSON back and recover exactly the original 4 bytes.
+    // Deserializing recovers exactly the original 4 bytes.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
-    expect($restored->getActualInstance())->toBe('AQIDBA==');
-    expect($restored->getActualInstanceAsBytes())->toBe($raw);
+    expect($restored->getActualInstance())->toBe($raw);
 });
 
 test('set pet avatar thumbnail byte oneOf array variant round-trips', function (): void {
-    // (2) ARRAY variant: construct from a list of two byte payloads. Both
-    // payloads are chosen so their base64 contains no '/' (json_encode
-    // escapes '/' to '\/' by default) to keep the literal assertion exact.
+    // (2) ARRAY variant: a list of two raw byte payloads. Both payloads are
+    // chosen so their base64 contains no '/' (json_encode escapes '/' to '\/'
+    // by default) to keep the literal assertion exact.
     $first = "\x01\x02\x03\x04";   // base64: AQIDBA==
     $second = "\x00\x10\x83";       // base64: ABCD
-    $request = SetPetAvatarThumbnailRequest::fromByteList([$first, $second]);
+    $request = new SetPetAvatarThumbnailRequest(new \Ds\Vector([$first, $second]));
 
     // Serialize: the JSON is an array of base64 strings, not int-arrays.
     $json = ObjectSerializer::serialize($request);
     expect($json)->toBe('["AQIDBA==","ABCD"]');
 
-    // Round-trips back to the same two byte payloads.
+    // The list variant is a Vector of the raw strings.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
-    expect($restored->getActualInstanceAsByteList())->toBe([$first, $second]);
+    $instance = $restored->getActualInstance();
+    expect($instance)->toBeInstanceOf(\Ds\Vector::class);
+    assert($instance instanceof \Ds\Vector);
+    expect($instance->toArray())->toBe([$first, $second]);
 });
 
 test('set pet avatar thumbnail scalar base64 does not parse as a list', function (): void {
     // ORDERING: a scalar base64 STRING input must deserialize to the SCALAR
-    // variant (one value), NOT be mis-parsed element-by-element into a list.
-    // The scalar branch is declared first, so resolveOneOf must select it.
+    // variant (one decoded value), NOT be mis-parsed element-by-element into a
+    // list. The scalar branch is declared first, so resolveOneOf selects it.
     /** @var SetPetAvatarThumbnailRequest $restored */
     $restored = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
     expect($restored->getActualInstance())->toBeString();
-    expect($restored->getActualInstance())->toBe('AQIDBA==');
-    expect($restored->getActualInstanceAsBytes())->toBe("\x01\x02\x03\x04");
-    // The array accessor must yield null for a scalar payload.
-    expect($restored->getActualInstanceAsByteList())->toBeNull();
+    expect($restored->getActualInstance())->toBe("\x01\x02\x03\x04");
+});
+
+test('set pet avatar thumbnail byte oneOf has no raw-bytes helpers', function (): void {
+    foreach (['fromBytes', 'getActualInstanceAsBytes', 'fromByteList', 'getActualInstanceAsByteList'] as $method) {
+        expect(method_exists(SetPetAvatarThumbnailRequest::class, $method))->toBeFalse();
+    }
 });

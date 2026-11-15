@@ -203,9 +203,9 @@ class ObjectSerializer
              * than silently dropping all but the first. Later variants win on a
              * key collision, so when two members declare the same wire key the
              * last-declared member's value is the one emitted, exactly once. */
-            if (method_exists($data, 'getActualInstances')) {
+            if (method_exists($data, 'getMatchedInstances')) {
                 /** @var array<int, mixed> $instances */
-                $instances = $data->getActualInstances();
+                $instances = $data->getMatchedInstances();
                 $merged = [];
                 $keyed = false;
                 foreach ($instances as $instance) {
@@ -225,7 +225,7 @@ class ObjectSerializer
             }
 
             if (method_exists($data, 'getActualInstance')) {
-                return self::sanitizeForSerialization($data->getActualInstance());
+                return self::sanitizeForSerialization(self::encodeByteVariant($data, $data->getActualInstance()));
             }
 
             /** @var array<string, mixed> $normalized */
@@ -248,7 +248,7 @@ class ObjectSerializer
      * own JSON object, walking the value and its normalized form together.
      *
      * A model that declares an open additionalProperties map carries a public
-     * `?\Ds\Map $additionalProperties` property. The Symfony normalizer walks
+     * `\Ds\Map $additionalProperties` property. The Symfony normalizer walks
      * every public property, so the map is emitted under a literal nested
      * `additionalProperties` key, and it does so for a model nested in another
      * model or in a list or map as well as for the root. The wire contract
@@ -290,7 +290,7 @@ class ObjectSerializer
         if (
             !is_object($value)
             || method_exists($value, 'getActualInstance')
-            || method_exists($value, 'getActualInstances')
+            || method_exists($value, 'getMatchedInstances')
         ) {
             return $normalized;
         }
@@ -1208,41 +1208,86 @@ class ObjectSerializer
     }
 
     /**
+     * The `format: byte` properties of a model, as property name => shape
+     * (`scalar`, `list` or `map`). A model marks them in its private
+     * BYTE_PROPERTIES constant, read here through reflection so the marker
+     * is not part of the model's public surface; a subclass adds to what
+     * its parents declare.
+     *
+     * @return array<string, string>
+     */
+    private static function byteProperties(string $class): array
+    {
+        if (!class_exists($class)) {
+            return [];
+        }
+        $found = [];
+        $reflection = new \ReflectionClass($class);
+        while ($reflection !== false) {
+            $constant = $reflection->getReflectionConstant('BYTE_PROPERTIES');
+            if ($constant !== false && $constant->getDeclaringClass()->getName() === $reflection->getName()) {
+                $value = $constant->getValue();
+                if (is_array($value)) {
+                    foreach ($value as $name => $shape) {
+                        if (is_string($name) && is_string($shape)) {
+                            $found[$name] = $shape;
+                        }
+                    }
+                }
+            }
+            $reflection = $reflection->getParentClass();
+        }
+        return $found;
+    }
+
+    /**
+     * Base64-encode the raw bytes a oneOf wrapper holds for a `format: byte`
+     * variant, so the wire form is the base64 string (or list of strings).
+     * The wrapper marks its byte variants in its protected BYTE_VARIANTS
+     * constant; any other instance is returned unchanged.
+     */
+    private static function encodeByteVariant(object $wrapper, mixed $instance): mixed
+    {
+        $constant = (new \ReflectionClass($wrapper))->getReflectionConstant('BYTE_VARIANTS');
+        $variants = $constant === false ? [] : $constant->getValue();
+        if (!is_array($variants)) {
+            return $instance;
+        }
+        if (is_string($instance) && in_array('scalar', $variants, true)) {
+            return base64_encode($instance);
+        }
+        if ($instance instanceof \Ds\Vector && in_array('list', $variants, true)) {
+            return new \Ds\Vector(array_map(
+                static fn (mixed $element): mixed => is_string($element) ? base64_encode($element) : $element,
+                $instance->toArray()
+            ));
+        }
+        return $instance;
+    }
+
+    /**
      * Reject a `format: byte` model field whose wire value is not strict
      * base64 (see isStrictBase64), so malformed text fails at decode time
-     * rather than when the raw-bytes accessor is first called.
+     * rather than being handed to the model as bytes.
      *
-     * php models bytes as a string-typed property, so a byte field is
-     * recognised by the raw-bytes accessor the model template emits for
-     * every `format: byte` field (scalar, list element or map value):
-     * `get<Property>AsBytes()`. Each string element is checked; null is
-     * left alone.
+     * A byte field (scalar, list element or map value) is recognised by the
+     * model's protected BYTE_PROPERTIES constant (see byteProperties). Each
+     * string element is checked; null is left alone.
      *
      * @param array<array-key, mixed> $data
      */
     private static function assertBase64Fields(array $data, string $class): void
     {
-        if (!class_exists($class)) {
+        $byteProperties = self::byteProperties($class);
+        if ($byteProperties === [] || !class_exists($class)) {
             return;
         }
         $reflection = new \ReflectionClass($class);
         foreach ($reflection->getProperties() as $property) {
-            $name = $property->getName();
-            $accessor = 'get' . str_replace('_', '', ucwords($name, '_')) . 'AsBytes';
-            if (!$reflection->hasMethod($accessor)) {
+            if (!isset($byteProperties[$property->getName()])) {
                 continue;
             }
-            $wireName = $name;
-            foreach (
-                $property->getAttributes(
-                    \Symfony\Component\Serializer\Attribute\SerializedName::class
-                ) as $attr
-            ) {
-                $args = $attr->getArguments();
-                if (isset($args[0]) && is_string($args[0])) {
-                    $wireName = $args[0];
-                }
-            }
+            $wireName = self::wireNameOf($property);
             if (!array_key_exists($wireName, $data)) {
                 continue;
             }
@@ -1263,7 +1308,7 @@ class ObjectSerializer
     /**
      * OAS `additionalProperties` capture.
      *
-     * The model template emits a public `?\Ds\Map $additionalProperties`
+     * The model template emits a public `\Ds\Map $additionalProperties`
      * property on every schema that declares an open `additionalProperties`
      * map. Symfony's denormalizer maps only the declared/SerializedName-tagged
      * properties and drops every other decoded key, so without this step the
@@ -1308,9 +1353,9 @@ class ObjectSerializer
             }
         }
         if ($extra !== []) {
-            /* The declared property type is `?\Ds\Map`; assign a populated map
-             * so callers read undeclared keys back through the same container
-             * type the model documents. */
+            /* The property is a non-null `\Ds\Map` (empty by default); assign a
+             * populated map so callers read undeclared keys back through the
+             * same container type the model documents. */
             $result->additionalProperties = new \Ds\Map($extra);
         }
         return $result;
@@ -1504,7 +1549,7 @@ class ObjectSerializer
      * lossless round-trip. Each retained variant is held independently; the
      * union of their fields is re-emitted on serialize via
      * {@see sanitizeForSerialization} (which merges the field-set of every
-     * variant exposed through getActualInstances()).
+     * variant exposed through getMatchedInstances()).
      *
      * @param mixed           $data       the data to match
      * @param array<callable> $candidates list of deserializer closures
@@ -1548,19 +1593,12 @@ class ObjectSerializer
     }
 
     /**
-     * 2.1 — Decode an OAS `format: byte` field value to its raw binary string.
-     * Returns null for null/empty input. Invalid base64 THROWS a
-     * SerializationException (matching ruby/elixir), rather than silently
-     * returning null, so a wire-shape violation surfaces to the caller.
-     *
-     * The wire form for `format: byte` is a base64-encoded string; SDK users
-     * call this helper to recover the underlying bytes.
+     * Decode an OAS `format: byte` wire value (strict RFC 4648 base64) to its
+     * raw binary string. Invalid base64 THROWS a SerializationException
+     * (matching ruby/elixir) so a wire-shape violation surfaces to the caller.
      */
-    public static function decodeBytes(?string $encoded): ?string
+    private static function decodeBytes(string $encoded): string
     {
-        if ($encoded === null || $encoded === '') {
-            return null;
-        }
         $decoded = self::isStrictBase64($encoded) ? base64_decode($encoded, true) : false;
         if ($decoded === false) {
             throw new SerializationException(
@@ -1571,30 +1609,17 @@ class ObjectSerializer
     }
 
     /**
-     * 2.1 — Encode raw bytes as a base64 string suitable for an OAS
-     * `format: byte` field. Returns null for null input.
-     */
-    public static function encodeBytes(?string $raw): ?string
-    {
-        if ($raw === null) {
-            return null;
-        }
-        return base64_encode($raw);
-    }
-
-    /**
      * Resolve the scalar `format: byte` branch of a oneOf/anyOf union.
      *
      * The wire form for `format: byte` is a base64 STRING. This candidate is
      * invoked by {@see resolveOneOf} with already-decoded PHP data (the
      * composed model's build() json_decodes the body before dispatching), so
-     * it receives a PHP string for the scalar branch and returns it unchanged
-     * as the union's actual instance — the same wire-form-in-place convention
-     * the bare scalar byte field uses, so serializing the union re-emits the
-     * base64 string verbatim. A non-string payload (e.g. a decoded JSON array)
-     * throws so {@see resolveOneOf} falls through to the next declared branch;
-     * this is what keeps a scalar base64 string from being mis-parsed as the
-     * array variant when both byte branches exist.
+     * it receives a PHP string for the scalar branch and returns the decoded
+     * raw bytes as the union's actual instance; serializing the union
+     * base64-encodes them again. A non-string or non-base64 payload throws so
+     * {@see resolveOneOf} falls through to the next declared branch; this is
+     * what keeps a scalar base64 string from being mis-parsed as the array
+     * variant when both byte branches exist.
      */
     public static function decodeByteOneOfScalar(mixed $data): string
     {
@@ -1604,7 +1629,7 @@ class ObjectSerializer
                 . get_debug_type($data)
             );
         }
-        return $data;
+        return self::decodeBytes($data);
     }
 
     /**
@@ -1612,11 +1637,10 @@ class ObjectSerializer
      *
      * Each element travels on the wire as a base64 STRING. This candidate is
      * invoked by {@see resolveOneOf} with already-decoded PHP data, so it
-     * receives a PHP array of strings for the array branch, validates every
-     * element is a string, and returns a {@see \Ds\Vector} holding the base64
-     * strings unchanged — serializing the union re-emits the array of base64
-     * strings verbatim. A non-array payload, or one with a non-string element,
-     * throws so {@see resolveOneOf} falls through to the next branch.
+     * receives a PHP array of strings for the array branch, validates and
+     * decodes every element, and returns a {@see \Ds\Vector} holding the raw
+     * bytes. A non-array payload, or one with a non-string or non-base64
+     * element, throws so {@see resolveOneOf} falls through to the next branch.
      *
      * @return \Ds\Vector<string>
      */
@@ -1636,7 +1660,7 @@ class ObjectSerializer
                     . get_debug_type($element)
                 );
             }
-            $items[] = $element;
+            $items[] = self::decodeBytes($element);
         }
         return new \Ds\Vector($items);
     }

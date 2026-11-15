@@ -742,7 +742,7 @@ test('setPetAvatar sends the bytes verbatim under the json selector', function (
 
 test('setPetAvatarThumbnail still sends a byte body as a base64 json string', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
-    $api->setPetAvatarThumbnail(1, SetPetAvatarThumbnailRequest::fromBytes("\xFF\xD8\xFF\xE0"));
+    $api->setPetAvatarThumbnail(1, new SetPetAvatarThumbnailRequest("\xFF\xD8\xFF\xE0"));
 
     expect($captured->body)->toBe('"/9j/4A=="');
     expect($captured->headers['Content-Type'] ?? '')->toBe('application/json');

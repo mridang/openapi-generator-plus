@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\Models\Account;
 use PetstoreClient\Models\Availability;
+use PetstoreClient\Models\BinaryVault;
 use PetstoreClient\Models\Category;
 use PetstoreClient\Models\Defaults;
 use PetstoreClient\Models\DefaultsModeEnum;
@@ -16,6 +17,8 @@ use PetstoreClient\Models\Pet;
 use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PhotoMetadataLocation;
 use PetstoreClient\Models\Priority;
+use PetstoreClient\Models\SetPetAvatarRequest;
+use PetstoreClient\Models\StrictTag;
 use PetstoreClient\Models\StockItem;
 use PetstoreClient\Models\Swatch;
 use PetstoreClient\Models\TreeNode;
@@ -627,43 +630,6 @@ test('deserialize throws on int overflow', function (): void {
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-// -- 2.1 format:byte helpers --
-
-test('decode bytes returns raw binary from base64', function (): void {
-    expect(ObjectSerializer::decodeBytes('aGVsbG8='))->toBe('hello');
-});
-
-test('decode bytes returns null for null input', function (): void {
-    expect(ObjectSerializer::decodeBytes(null))->toBeNull();
-});
-
-test('decode bytes returns null for empty string', function (): void {
-    expect(ObjectSerializer::decodeBytes(''))->toBeNull();
-});
-
-test('decode bytes throws on invalid base64', function (): void {
-    // Invalid base64 is a wire-shape violation; decodeBytes throws (matching
-    // ruby/elixir) rather than silently returning null.
-    expect(fn () => ObjectSerializer::decodeBytes('!!!not-base64!!!'))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
-});
-
-test('encode bytes returns base64 of raw bytes', function (): void {
-    expect(ObjectSerializer::encodeBytes('hello'))->toBe('aGVsbG8=');
-});
-
-test('encode bytes returns null for null input', function (): void {
-    expect(ObjectSerializer::encodeBytes(null))->toBeNull();
-});
-
-test('encode decode bytes roundtrip preserves binary', function (): void {
-    $raw = "\x00\x01\x02\xff\xfe\xfd";
-    $encoded = ObjectSerializer::encodeBytes($raw);
-    expect($encoded)->not->toBeNull();
-    /** @var string $encoded */
-    expect(ObjectSerializer::decodeBytes($encoded))->toBe($raw);
-});
-
 // -- 4.6 deep map-of-model deserialization --
 
 test('deep deserialize map of model values into typed instances', function (): void {
@@ -1200,43 +1166,94 @@ test('unknown availability wire value is rejected on deserialize', function (): 
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-// -- Canonical #3: format:byte fields round-trip through base64 on a model --
+// -- Canonical #3: format:byte fields hold raw bytes, base64 only on the wire --
 //
 // PetPassport carries BOTH a scalar `format: byte` field (thumbnail) and an
-// array-of-byte field (scans: array<string format:byte>). The property holds
-// the base64 wire string; the model exposes byte-getters that base64-decode.
-// The serialize/deserialize round-trip must preserve the base64 wire form, and
-// the byte-getters must hand back the decoded raw bytes.
+// array-of-byte field (scans: array<string format:byte>). The properties hold
+// the DECODED binary strings; ObjectSerializer base64-encodes them when it
+// builds the wire value and base64-decodes them when it reads it.
 
-test('byte fields round-trip through base64 on a model', function (): void {
-    $thumb = base64_encode('thumb-bytes');
-    $scanA = base64_encode("scan-A\x00\xff");
-    $scanB = base64_encode('scan-B');
+test('byte fields hold raw bytes and are base64 only on the wire', function (): void {
+    $scanA = "scan-A\x00\xff";
 
     /** @var \Ds\Vector<string> $scans */
-    $scans = new \Ds\Vector([$scanA, $scanB]);
+    $scans = new \Ds\Vector([$scanA, 'scan-B']);
     $passport = new PetPassport(
-        thumbnail: $thumb,
+        thumbnail: 'thumb-bytes',
         scans: $scans,
     );
 
     $json = ObjectSerializer::serialize($passport);
     /** @var array<string, mixed> $data */
     $data = json_decode($json, true);
-    // Scalar byte field and each array element stay base64 on the wire.
-    expect($data['thumbnail'])->toBe($thumb);
-    expect($data['scans'])->toBe([$scanA, $scanB]);
+    expect($data['thumbnail'])->toBe('dGh1bWItYnl0ZXM=');
+    expect($data['scans'])->toBe([base64_encode($scanA), 'c2Nhbi1C']);
 
     /** @var PetPassport $back */
     $back = ObjectSerializer::deserialize($json, PetPassport::class);
     expect($back)->toBeInstanceOf(PetPassport::class);
-    expect($back->thumbnail)->toBe($thumb);
-    // The byte-getter decodes the scalar back to raw bytes.
-    expect($back->getThumbnailAsBytes())->toBe('thumb-bytes');
-    /** @var \Ds\Vector<string> $scans */
-    $scans = $back->scans;
-    expect($scans)->toBeInstanceOf(\Ds\Vector::class);
-    expect($scans->toArray())->toBe([$scanA, $scanB]);
+    expect($back->thumbnail)->toBe('thumb-bytes');
+    /** @var \Ds\Vector<string> $backScans */
+    $backScans = $back->scans;
+    expect($backScans)->toBeInstanceOf(\Ds\Vector::class);
+    expect($backScans->toArray())->toBe([$scanA, 'scan-B']);
+});
+
+test('byte models expose no raw-bytes accessors', function (): void {
+    foreach (['getThumbnailAsBytes', 'setThumbnailFromBytes', 'getScansAsBytes', 'setScansFromBytes'] as $method) {
+        expect(method_exists(PetPassport::class, $method))->toBeFalse();
+    }
+    expect(method_exists(BinaryVault::class, 'getSealAsBytes'))->toBeFalse();
+    expect(method_exists(SetPetAvatarRequest::class, 'setDataFromBytes'))->toBeFalse();
+});
+
+test('byte list and map fields round-trip raw bytes through base64', function (): void {
+    /** @var \Ds\Vector<string> $shards */
+    $shards = new \Ds\Vector(["\x02", "\x03"]);
+    /** @var \Ds\Map<string, string> $labels */
+    $labels = new \Ds\Map(['a' => "\x04"]);
+    $vault = new BinaryVault(seal: "\x01", shards: $shards, labels: $labels);
+
+    $json = ObjectSerializer::serialize($vault);
+    expect($json)->toBe('{"seal":"AQ==","shards":["Ag==","Aw=="],"labels":{"a":"BA=="}}');
+
+    /** @var BinaryVault $back */
+    $back = ObjectSerializer::deserialize($json, BinaryVault::class);
+    expect($back->seal)->toBe("\x01");
+    expect($back->shards?->toArray())->toBe(["\x02", "\x03"]);
+    expect($back->labels?->toArray())->toBe(['a' => "\x04"]);
+});
+
+test('byte property with a description serializes raw bytes as base64', function (): void {
+    $request = new SetPetAvatarRequest("\x01\x02", 'image/png');
+
+    $json = ObjectSerializer::serialize($request);
+    /** @var array<string, mixed> $data */
+    $data = json_decode($json, true);
+    expect($data['data'])->toBe(base64_encode("\x01\x02"));
+
+    /** @var SetPetAvatarRequest $back */
+    $back = ObjectSerializer::deserialize($json, SetPetAvatarRequest::class);
+    expect($back->data)->toBe("\x01\x02");
+    expect($back->mimeType)->toBe('image/png');
+});
+
+test('byte property with bad base64 on the wire is rejected', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"data":"!!!","mimeType":"image/png"}', SetPetAvatarRequest::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+// -- unevaluatedProperties:false is enforced inside deserialize --
+
+test('strict model rejects an undeclared key through deserialize', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"name":"x","extra":1}', StrictTag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, "Unknown property 'extra'");
+    expect(fn () => ObjectSerializer::deserialize('{"name":"x","extra":1}', StrictTag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, '(unevaluatedProperties:false)');
+});
+
+test('strict model has no public unknown-property hook', function (): void {
+    expect(new \ReflectionMethod(StrictTag::class, 'assertNoUnknownProperties')->isPublic())->toBeFalse();
 });
 
 // -- Canonical #4: a double field deserializes from an INTEGRAL JSON value --
@@ -1267,7 +1284,6 @@ test('additional property re-serializes at the top level not nested', function (
     /** @var Metadata $meta */
     $meta = ObjectSerializer::deserialize($json, Metadata::class);
     expect($meta->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
-    assert($meta->additionalProperties !== null);
     expect($meta->additionalProperties->get('customField'))->toBe('hello');
 
     $out = ObjectSerializer::serialize($meta);
@@ -1302,7 +1318,6 @@ test('a list of models keeps each element\'s additional properties both ways', f
     /** @var \Ds\Vector<Metadata> $list */
     $list = ObjectSerializer::deserialize($json, '\Ds\Vector<Metadata>');
     $first = $list->get(0);
-    assert($first->additionalProperties !== null);
     expect($first->additionalProperties->toArray())->toBe(['extra' => 'a']);
 
     expect(ObjectSerializer::serialize($list))->toBe($json);
@@ -1317,7 +1332,7 @@ test('a model nested in another model keeps its additional properties both ways'
 
     $decoded = ObjectSerializer::deserialize($json, $holder::class);
     assert($decoded instanceof $holder);
-    assert($decoded->meta instanceof \PetstoreClient\Models\Metadata && $decoded->meta->additionalProperties instanceof \Ds\Map);
+    assert($decoded->meta instanceof \PetstoreClient\Models\Metadata);
     expect($decoded->meta->additionalProperties->toArray())->toBe(['extra' => 'a']);
 
     expect(ObjectSerializer::serialize($decoded))->toBe($json);
@@ -1542,7 +1557,7 @@ test('byte list element decode rejects base64 that is not strict RFC 4648', func
 test('byte field decode accepts strict base64', function (): void {
     /** @var PetPassport $passport */
     $passport = ObjectSerializer::deserialize('{"thumbnail":"dGVzdA=="}', PetPassport::class);
-    expect($passport->getThumbnailAsBytes())->toBe('test');
+    expect($passport->thumbnail)->toBe('test');
     expect(ObjectSerializer::deserialize('"dGVzdA=="', 'byte'))->toBe('test');
 });
 

@@ -109,6 +109,31 @@ enum {{classname}}: string
 {{/isDeprecated}}
 class {{classname}}
 {
+{{^discriminator}}
+{{#hasByteVariants}}
+    /**
+     * The `format: byte` variants of this oneOf: the actual instance holds raw
+     * bytes and the serializer applies base64 at the wire boundary.
+     *
+     * @var list<string>
+     */
+    protected const array BYTE_VARIANTS = [
+{{#composedSchemas.oneOf}}
+{{#isByteArray}}
+        'scalar',
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isArray}}
+{{#items.isByteArray}}
+        'list',
+{{/items.isByteArray}}
+{{/isArray}}
+{{/isByteArray}}
+{{/composedSchemas.oneOf}}
+    ];
+
+{{/hasByteVariants}}
+{{/discriminator}}
 {{#discriminator}}
     private const string DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
 
@@ -166,90 +191,6 @@ class {{classname}}
     {
         return $this->actualInstance;
     }
-{{^discriminator}}
-{{#composedSchemas.oneOf}}
-{{#isByteArray}}
-
-    /**
-     * Wraps raw bytes as the scalar `format: byte` variant of this oneOf.
-     * The wire form for `format: byte` is a base64 STRING, so the bytes are
-     * base64-encoded before being stored as the actual instance; serializing
-     * the wrapper then emits the base64 string the server expects. This
-     * mirrors the scalar byte field accessor on the sibling request models.
-     */
-    public static function fromBytes(string $raw): self
-    {
-        $encoded = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
-        return new self($encoded ?? '');
-    }
-
-    /**
-     * Returns the raw decoded bytes when the actual instance is the scalar
-     * `format: byte` variant (a base64 wire string), or null otherwise. The
-     * stored instance holds the base64-encoded wire form; this applies
-     * base64_decode so callers recover the underlying binary string.
-     */
-    public function getActualInstanceAsBytes(): ?string
-    {
-        if (!is_string($this->actualInstance)) {
-            return null;
-        }
-        return \{{invokerPackage}}\ObjectSerializer::decodeBytes($this->actualInstance);
-    }
-{{/isByteArray}}
-{{^isByteArray}}
-{{#isArray}}
-{{#items.isByteArray}}
-
-    /**
-     * Wraps a list of raw byte payloads as the array `format: byte` variant
-     * of this oneOf. Each element is base64-encoded (the `format: byte` wire
-     * form is a base64 STRING) and stored in a {{{dataType}}}; serializing the
-     * wrapper then emits an array of base64 strings.
-     *
-     * @param list<string> $raw
-     */
-    public static function fromByteList(array $raw): self
-    {
-        $encoded = [];
-        foreach ($raw as $element) {
-            $value = \{{invokerPackage}}\ObjectSerializer::encodeBytes($element);
-            if ($value !== null) {
-                $encoded[] = $value;
-            }
-        }
-        return new self(new {{{dataType}}}($encoded));
-    }
-
-    /**
-     * Returns the raw decoded bytes of each element when the actual instance
-     * is the array `format: byte` variant (a list of base64 wire strings), or
-     * null otherwise.
-     *
-     * @return list<string>|null
-     */
-    public function getActualInstanceAsByteList(): ?array
-    {
-        if (!($this->actualInstance instanceof {{{dataType}}})) {
-            return null;
-        }
-        $decoded = [];
-        foreach ($this->actualInstance as $element) {
-            if (!is_string($element)) {
-                continue;
-            }
-            $bytes = \{{invokerPackage}}\ObjectSerializer::decodeBytes($element);
-            if ($bytes !== null) {
-                $decoded[] = $bytes;
-            }
-        }
-        return $decoded;
-    }
-{{/items.isByteArray}}
-{{/isArray}}
-{{/isByteArray}}
-{{/composedSchemas.oneOf}}
-{{/discriminator}}
 
     public static function build(mixed $data): self
     {
@@ -347,26 +288,26 @@ class {{classname}}
      *
      * @var array<int, mixed>
      */
-    private array $actualInstances;
+    private array $matchedInstances;
 
     /**
-     * @param array<int, mixed> $actualInstances the matched anyOf variants
+     * @param array<int, mixed> $matchedInstances the matched anyOf variants
      */
-    public function __construct(array $actualInstances = [])
+    public function __construct(array $matchedInstances = [])
     {
-        $this->actualInstances = $actualInstances;
+        $this->matchedInstances = $matchedInstances;
     }
 
     /**
      * The first matched anyOf variant.
      *
      * Retained for the common single-variant case and for callers that only
-     * need one instance; use {@see getActualInstances} to access every variant
+     * need one instance; use {@see getMatchedInstances} to access every variant
      * a co-satisfying payload matched.
      */
     public function getActualInstance(): mixed
     {
-        return $this->actualInstances[0] ?? null;
+        return $this->matchedInstances[0] ?? null;
     }
 
     /**
@@ -378,9 +319,9 @@ class {{classname}}
      *
      * @return array<int, mixed>
      */
-    public function getActualInstances(): array
+    public function getMatchedInstances(): array
     {
-        return $this->actualInstances;
+        return $this->matchedInstances;
     }
 
     public static function build(mixed $data): self
@@ -430,10 +371,46 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{/isDeprecated}}
 class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {
+{{#hasByteVars}}
+    /**
+     * The `format: byte` properties: they hold raw bytes and the serializer
+     * applies base64 at the wire boundary.
+     *
+     * @var array<string, string>
+     */
+    protected const array BYTE_PROPERTIES = [
+{{#vars}}
+{{#isArray}}
+{{#items.isByteArray}}
+        '{{name}}' => 'list',
+{{/items.isByteArray}}
+{{/isArray}}
+{{#isMap}}
+{{#items.isByteArray}}
+        '{{name}}' => 'map',
+{{/items.isByteArray}}
+{{/isMap}}
+{{^isContainer}}
+{{#isByteArray}}
+        '{{name}}' => 'scalar',
+{{/isByteArray}}
+{{/isContainer}}
+{{/vars}}
+    ];
+
+{{/hasByteVars}}
 {{#vars}}
 {{#description}}
     /**
      * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{#isByteArray}}
+     * Raw bytes (base64 on the wire).
+{{/isByteArray}}
+{{#isContainer}}
+{{#items.isByteArray}}
+     * Raw bytes (base64 on the wire).
+{{/items.isByteArray}}
+{{/isContainer}}
 {{#isContainer}}
 {{#isArray}}
 {{#required}}
@@ -579,8 +556,8 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}>|null */
-    public ?\Ds\Map $additionalProperties = null;
+    /** @var \Ds\Map<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
+    public \Ds\Map $additionalProperties;
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
 
@@ -592,7 +569,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      *
      * @param array<string, mixed> $data
      */
-    public static function assertNoUnknownProperties(array $data): void
+    protected static function assertNoUnknownProperties(array $data): void
     {
         $declared = [{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}];
         foreach (array_keys($data) as $key) {
@@ -680,156 +657,10 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#vars}}
         $this->{{name}} = ${{name}};
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+        $this->additionalProperties = new \Ds\Map();
+{{/isAdditionalPropertiesTrue}}
     }
-{{#vars}}
-{{#isByteArray}}
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for the `{{baseName}}`
-     * field (OAS `format: byte`). The stored property holds the
-     * base64-encoded wire form; this getter applies base64_decode
-     * so callers receive the underlying binary string. Returns
-     * null when the field is unset or empty.
-     */
-    public function {{getter}}AsBytes(): ?string
-    {
-        return \{{invokerPackage}}\ObjectSerializer::decodeBytes($this->{{name}});
-    }
-
-    /**
-     * 2.1 — Stores raw bytes in the `{{baseName}}` field (OAS
-     * `format: byte`) by base64-encoding before assignment. The
-     * property keeps the wire form so serialization stays a
-     * straight string pass-through.
-     */
-    public function {{setter}}FromBytes(?string $raw): void
-    {
-        $encoded = \{{invokerPackage}}\ObjectSerializer::encodeBytes($raw);
-        if ($encoded !== null) {
-            $this->{{name}} = $encoded;
-        }
-    }
-{{/isByteArray}}
-{{#isArray}}
-{{! Dotted access keeps the parent property's context current so the
-    getter / setter / name / dataType below resolve to the array field
-    itself, not to the inner item property. The block only renders when
-    the array's items carry OAS format: byte. }}
-{{#items.isByteArray}}
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for every element of the
-     * `{{baseName}}` array field (OAS items `format: byte`). The stored
-     * container holds the base64-encoded wire form of each element;
-     * this getter applies base64_decode element-by-element so callers
-     * receive a plain array of underlying binary strings. Returns null
-     * when the field itself is unset, mirroring the scalar byte
-     * accessor pair so array-of-byte fields expose the same first-class
-     * raw-bytes API.
-     *
-     * @return list<string>|null
-     */
-    public function {{getter}}AsBytes(): ?array
-    {
-        if ($this->{{name}} === null) {
-            return null;
-        }
-        $decoded = [];
-        foreach ($this->{{name}} as $element) {
-            $bytes = \{{invokerPackage}}\ObjectSerializer::decodeBytes($element);
-            if ($bytes !== null) {
-                $decoded[] = $bytes;
-            }
-        }
-        return $decoded;
-    }
-
-    /**
-     * 2.1 — Stores raw bytes for every element of the `{{baseName}}`
-     * array field (OAS items `format: byte`) by base64-encoding each
-     * element before assignment. The container keeps the wire form so
-     * serialization stays a straight string pass-through, matching the
-     * scalar byte setter.
-     *
-     * @param list<string>|null $raw
-     */
-    public function {{setter}}FromBytes(?array $raw): void
-    {
-        if ($raw === null) {
-            $this->{{name}} = null;
-            return;
-        }
-        $encoded = [];
-        foreach ($raw as $element) {
-            $value = \{{invokerPackage}}\ObjectSerializer::encodeBytes($element);
-            if ($value !== null) {
-                $encoded[] = $value;
-            }
-        }
-        $this->{{name}} = new {{{dataType}}}($encoded);
-    }
-{{/items.isByteArray}}
-{{/isArray}}
-{{#isMap}}
-{{! Dotted access keeps the parent property's context current so the
-    getter / setter / name / dataType below resolve to the map field
-    itself, not to the inner value property. The block only renders when
-    the map's values carry OAS format: byte. }}
-{{#items.isByteArray}}
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for every value of the
-     * `{{baseName}}` map field (OAS additionalProperties `format: byte`).
-     * The stored container holds the base64-encoded wire form of each
-     * value; this getter applies base64_decode value-by-value so callers
-     * receive a map of the underlying binary strings. Returns null when the
-     * field itself is unset, mirroring the scalar/array byte accessor pairs
-     * so map-of-byte fields expose the same first-class raw-bytes API.
-     *
-     * @return array<string, string>|null
-     */
-    public function {{getter}}AsBytes(): ?array
-    {
-        if ($this->{{name}} === null) {
-            return null;
-        }
-        $decoded = [];
-        foreach ($this->{{name}} as $key => $value) {
-            $bytes = \{{invokerPackage}}\ObjectSerializer::decodeBytes($value);
-            if ($bytes !== null) {
-                $decoded[(string) $key] = $bytes;
-            }
-        }
-        return $decoded;
-    }
-
-    /**
-     * 2.1 — Stores raw bytes for every value of the `{{baseName}}` map
-     * field (OAS additionalProperties `format: byte`) by base64-encoding
-     * each value before assignment. The container keeps the wire form so
-     * serialization stays a straight string pass-through, matching the
-     * scalar/array byte setters.
-     *
-     * @param array<string, string>|null $raw
-     */
-    public function {{setter}}FromBytes(?array $raw): void
-    {
-        if ($raw === null) {
-            $this->{{name}} = null;
-            return;
-        }
-        $encoded = [];
-        foreach ($raw as $key => $value) {
-            $encodedValue = \{{invokerPackage}}\ObjectSerializer::encodeBytes($value);
-            if ($encodedValue !== null) {
-                $encoded[(string) $key] = $encodedValue;
-            }
-        }
-        $this->{{name}} = new {{{dataType}}}($encoded);
-    }
-{{/items.isByteArray}}
-{{/isMap}}
-{{/vars}}
 }
 {{/anyOf}}
 {{/oneOf}}

@@ -18,7 +18,18 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class SetPetAvatarRequest
 {
     /**
+     * The `format: byte` properties: they hold raw bytes and the serializer
+     * applies base64 at the wire boundary.
+     *
+     * @var array<string, string>
+     */
+    protected const array BYTE_PROPERTIES = [
+        'data' => 'scalar',
+    ];
+
+    /**
      * Base64-encoded image data
+     * Raw bytes (base64 on the wire).
      */
     #[SerializedName('data')]
     public string $data;
@@ -35,31 +46,5 @@ class SetPetAvatarRequest
     ) {
         $this->data = $data;
         $this->mimeType = $mimeType;
-    }
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for the `data`
-     * field (OAS `format: byte`). The stored property holds the
-     * base64-encoded wire form; this getter applies base64_decode
-     * so callers receive the underlying binary string. Returns
-     * null when the field is unset or empty.
-     */
-    public function getDataAsBytes(): ?string
-    {
-        return \PetstoreClient\ObjectSerializer::decodeBytes($this->data);
-    }
-
-    /**
-     * 2.1 — Stores raw bytes in the `data` field (OAS
-     * `format: byte`) by base64-encoding before assignment. The
-     * property keeps the wire form so serialization stays a
-     * straight string pass-through.
-     */
-    public function setDataFromBytes(?string $raw): void
-    {
-        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
-        if ($encoded !== null) {
-            $this->data = $encoded;
-        }
     }
 }
