@@ -19,16 +19,9 @@ type SetPetAvatarThumbnailRequest struct {
 	value any
 }
 
-// NewSetPetAvatarThumbnailRequestFromByteSliceSlice wraps a [][]byte as a SetPetAvatarThumbnailRequest, so a request
-// body can be built without decoding JSON text.
-func NewSetPetAvatarThumbnailRequestFromByteSliceSlice(v [][]byte) SetPetAvatarThumbnailRequest {
-	return SetPetAvatarThumbnailRequest{value: v}
-}
-
-// NewSetPetAvatarThumbnailRequestFromByteSlice wraps a []byte as a SetPetAvatarThumbnailRequest, so a request
-// body can be built without decoding JSON text.
-func NewSetPetAvatarThumbnailRequestFromByteSlice(v []byte) SetPetAvatarThumbnailRequest {
-	return SetPetAvatarThumbnailRequest{value: v}
+// NewSetPetAvatarThumbnailRequest wraps an already-decoded variant so a request body can be built without decoding JSON text.
+func NewSetPetAvatarThumbnailRequest(actualInstance any) SetPetAvatarThumbnailRequest {
+	return SetPetAvatarThumbnailRequest{value: actualInstance}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -52,7 +45,7 @@ func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("data does not match any oneOf schemas for SetPetAvatarThumbnailRequest")
 }
 
-// Value returns the underlying value of the union type.
-func (o *SetPetAvatarThumbnailRequest) Value() any {
+// ActualInstance returns the matched variant of the union type.
+func (o *SetPetAvatarThumbnailRequest) ActualInstance() any {
 	return o.value
 }

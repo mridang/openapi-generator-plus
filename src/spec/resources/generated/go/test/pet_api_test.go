@@ -585,7 +585,7 @@ func TestPetApi_SetPetAvatarThumbnailStillSendsBase64Json(t *testing.T) {
 	defer server.Close()
 
 	api := newPetApiForMock(t, server)
-	thumbnail := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0xFF, 0xD8, 0xFF, 0xE0})
+	thumbnail := models.NewSetPetAvatarThumbnailRequest([]byte{0xFF, 0xD8, 0xFF, 0xE0})
 	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
 		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
 	}
@@ -621,7 +621,7 @@ func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
 	t.Parallel()
 	api := newPetApiForIntegration(t)
 
-	thumbnail := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0xFF, 0xD8, 0xFF, 0xE0})
+	thumbnail := models.NewSetPetAvatarThumbnailRequest([]byte{0xFF, 0xD8, 0xFF, 0xE0})
 	if err := api.SetPetAvatarThumbnail(int64(1), thumbnail); err != nil {
 		t.Fatalf("SetPetAvatarThumbnail failed: %v", err)
 	}

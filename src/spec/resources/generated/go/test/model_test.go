@@ -104,3 +104,45 @@ func TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t
 		t.Fatalf("field Status not found in %s", path)
 	}
 }
+
+/* The helper listing an inline enum's members is internal: the public surface of
+ * an inline enum is its named type and its members. The top-level enum helper is
+ * a different element and is not checked here. */
+func TestModel_InlineEnumValueListIsNotExported(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"../pkg/models/defaults.go", "../pkg/models/edge_cases.go", "../pkg/models/pet_with_owner.go"} {
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			t.Fatalf("failed to parse %s: %v", path, err)
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil {
+				continue
+			}
+			name := fn.Name.Name
+			if strings.HasPrefix(name, "All") && strings.HasSuffix(name, "EnumValues") {
+				t.Errorf("%s: %s must be unexported", path, name)
+			}
+		}
+	}
+	want := map[string]string{
+		"../pkg/models/defaults.go":   "allDefaultsModeEnumValues",
+		"../pkg/models/edge_cases.go": "allEdgeCasesPhaseEnumValues",
+	}
+	for path, name := range want {
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
+		if err != nil {
+			t.Fatalf("failed to parse %s: %v", path, err)
+		}
+		found := false
+		for _, decl := range file.Decls {
+			if fn, ok := decl.(*ast.FuncDecl); ok && fn.Recv == nil && fn.Name.Name == name {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: expected the unexported helper %s", path, name)
+		}
+	}
+}

@@ -26,8 +26,8 @@ const (
 	OrderStatusEnumDelivered OrderStatusEnum = "delivered"
 )
 
-// AllOrderStatusEnumValues returns all allowed values.
-func AllOrderStatusEnumValues() []OrderStatusEnum {
+// allOrderStatusEnumValues returns all allowed values.
+func allOrderStatusEnumValues() []OrderStatusEnum {
 	return []OrderStatusEnum{
 		OrderStatusEnumPlaced,
 		OrderStatusEnumApproved,
@@ -49,7 +49,7 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := OrderStatusEnum(raw)
-	for _, allowed := range AllOrderStatusEnumValues() {
+	for _, allowed := range allOrderStatusEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -61,7 +61,7 @@ func (v *OrderStatusEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v OrderStatusEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range AllOrderStatusEnumValues() {
+	for _, allowed := range allOrderStatusEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}

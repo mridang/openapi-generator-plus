@@ -13,19 +13,19 @@ import (
 	"encoding/json"
 )
 
-// ModelError is a model class generated from the OpenAPI schema.
-type ModelError struct {
+// Error is a model class generated from the OpenAPI schema.
+type Error struct {
 	Code    *int32  `json:"code,omitempty"`
 	Message *string `json:"message,omitempty"`
 }
 
-// Equal reports whether this ModelError is value-equal to other.
+// Equal reports whether this Error is value-equal to other.
 //
 // Models may carry map / slice fields (e.g. additionalProperties), so the
 // built-in `==` operator panics at runtime on such values. Comparing the
 // canonical JSON encodings gives a value-equality contract that works for every
 // field shape, matching the equality semantics of the other SDKs.
-func (o ModelError) Equal(other ModelError) bool {
+func (o Error) Equal(other Error) bool {
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {
@@ -34,24 +34,24 @@ func (o ModelError) Equal(other ModelError) bool {
 	return string(a) == string(b)
 }
 
-// NewModelError creates a new ModelError instance.
-func NewModelError() *ModelError {
-	return &ModelError{}
+// NewError creates a new Error instance.
+func NewError() *Error {
+	return &Error{}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
-func (o ModelError) MarshalJSON() ([]byte, error) {
-	type Alias ModelError
+func (o Error) MarshalJSON() ([]byte, error) {
+	type Alias Error
 	return marshalJSON((Alias)(o))
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
-func (o *ModelError) UnmarshalJSON(data []byte) error {
-	type Alias ModelError
+func (o *Error) UnmarshalJSON(data []byte) error {
+	type Alias Error
 	aux := &Alias{}
 	if err := json.Unmarshal(dropMiscasedKeys(data, "code", "message"), aux); err != nil {
 		return err
 	}
-	*o = ModelError(*aux)
+	*o = Error(*aux)
 	return nil
 }

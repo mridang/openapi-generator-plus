@@ -663,9 +663,27 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Keeps a schema named {@code Error} as {@code Error}. The shared
+     * reserved-word guard turns {@code error} into {@code ModelError}, but the
+     * Go predeclared identifier is lowercase, so the exported {@code Error}
+     * type cannot shadow it. A schema literally named {@code ModelError} is
+     * left as is.
+     */
+    @Override
+    public String toModelName(String name) {
+        final String modelName = super.toModelName(name);
+        if ("ModelError".equals(modelName)
+                && "Error".equals(NamingConvention.PASCAL_CASE.apply(sanitizeName(name)))) {
+            return "Error";
+        }
+        return modelName;
+    }
+
+    /**
      * Resolves a reference to a component schema through {@link #toModelName}
-     * so a schema renamed for a collision (Error to ModelError) is referenced
-     * by the same name its type is declared with.
+     * so a reference uses the same name its type is declared with. A model
+     * keeps its own name (Error stays Error: it does not clash with the
+     * predeclared lowercase error); toModelName only guards go keywords.
      */
     @SuppressWarnings("rawtypes")
     @Override

@@ -136,7 +136,7 @@ func TestSerialize_AdditionalPropertiesAreNotHTMLEscaped(t *testing.T) {
 
 func TestSerialize_AnyOfMergedVariantsAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
-	treatment := models.PetTreatment{Medication: &models.Medication{DrugName: "a<b>&c"}}
+	treatment := models.NewPetTreatment(models.Medication{DrugName: "a<b>&c"})
 
 	data, err := serialize(treatment)
 	if err != nil {
@@ -1906,5 +1906,27 @@ func TestDeserialize_IntegerFormatBoundaries(t *testing.T) {
 	}
 	if order.Id == nil || *order.Id != 9007199254740993 {
 		t.Errorf("expected id 9007199254740993 to survive exactly, got %v", order.Id)
+	}
+}
+
+func TestModelError_SchemaNamedErrorKeepsItsNameAndRoundTrips(t *testing.T) {
+	t.Parallel()
+	wire := []byte(`{"lastError":{"code":1,"message":"m"}}`)
+
+	var e models.EdgeCases
+	if err := json.Unmarshal(wire, &e); err != nil {
+		t.Fatalf("failed to deserialize EdgeCases: %v", err)
+	}
+	code := int32(1)
+	message := "m"
+	if e.LastError == nil || !e.LastError.Equal(models.Error{Code: &code, Message: &message}) {
+		t.Fatalf("expected lastError to decode into models.Error, got %+v", e.LastError)
+	}
+	out, err := json.Marshal(e)
+	if err != nil {
+		t.Fatalf("failed to serialize EdgeCases: %v", err)
+	}
+	if string(out) != string(wire) {
+		t.Errorf("expected %s on the wire, got %s", wire, out)
 	}
 }

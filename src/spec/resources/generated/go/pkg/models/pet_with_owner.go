@@ -24,8 +24,8 @@ const (
 	PetWithOwnerStatusEnumSold      PetWithOwnerStatusEnum = "sold"
 )
 
-// AllPetWithOwnerStatusEnumValues returns all allowed values.
-func AllPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
+// allPetWithOwnerStatusEnumValues returns all allowed values.
+func allPetWithOwnerStatusEnumValues() []PetWithOwnerStatusEnum {
 	return []PetWithOwnerStatusEnum{
 		PetWithOwnerStatusEnumAvailable,
 		PetWithOwnerStatusEnumPending,
@@ -47,7 +47,7 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := PetWithOwnerStatusEnum(raw)
-	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
+	for _, allowed := range allPetWithOwnerStatusEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +59,7 @@ func (v *PetWithOwnerStatusEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v PetWithOwnerStatusEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range AllPetWithOwnerStatusEnumValues() {
+	for _, allowed := range allPetWithOwnerStatusEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}

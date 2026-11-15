@@ -17,38 +17,33 @@ import (
 // TreatmentRecord Same members as PetTreatment declared in non-alphabetical order
 //
 // A non-discriminated anyOf is documented as matching ANY
-// subset of its variants — including SEVERAL at once. A first-match union
+// subset of its variants, including SEVERAL at once. A first-match union
 // would keep only the first variant that decoded and silently drop the fields
 // of every other co-satisfied variant on re-encode, losing data. To make the
 // round-trip lossless this wrapper RETAINS every variant that successfully
-// decodes (each stored in its own typed slot) and, on encode, emits the UNION
-// of all retained variants' fields by merging their JSON objects.
+// decodes, in declaration order, and, on encode, emits the UNION of all
+// retained variants' fields by merging their JSON objects.
 type TreatmentRecord struct {
-	Medication *Medication
-	Surgery    *Surgery
+	matchedInstances []any
 }
 
-// MarshalJSON implements the json.Marshaler interface. It merges the fields of
-// every retained variant into a single JSON object so that co-satisfied data
-// round-trips losslessly. Earlier variants are merged first; a key present in a
-// later variant overrides the same key from an earlier one.
+// NewTreatmentRecord wraps already-decoded variants so a request body can be built without decoding JSON text.
+func NewTreatmentRecord(matchedInstances ...any) TreatmentRecord {
+	return TreatmentRecord{matchedInstances: append([]any(nil), matchedInstances...)}
+}
+
+// MarshalJSON implements the json.Marshaler interface. A single retained
+// variant is marshalled directly; several are merged into one JSON object so
+// that co-satisfied data round-trips losslessly. Earlier variants are merged
+// first; a key present in a later variant overrides the same key from an
+// earlier one.
 func (o TreatmentRecord) MarshalJSON() ([]byte, error) {
-	merged := map[string]json.RawMessage{}
-	if o.Medication != nil {
-		part, err := marshalJSON(o.Medication)
-		if err != nil {
-			return nil, err
-		}
-		var fields map[string]json.RawMessage
-		if err := json.Unmarshal(part, &fields); err != nil {
-			return nil, err
-		}
-		for k, v := range fields {
-			merged[k] = v
-		}
+	if len(o.matchedInstances) == 1 {
+		return marshalJSON(o.matchedInstances[0])
 	}
-	if o.Surgery != nil {
-		part, err := marshalJSON(o.Surgery)
+	merged := map[string]json.RawMessage{}
+	for _, instance := range o.matchedInstances {
+		part, err := marshalJSON(instance)
 		if err != nil {
 			return nil, err
 		}
@@ -67,32 +62,33 @@ func (o TreatmentRecord) MarshalJSON() ([]byte, error) {
 // variant that decodes successfully rather than stopping at the first match,
 // so a payload satisfying several variants keeps all of their fields.
 func (o *TreatmentRecord) UnmarshalJSON(data []byte) error {
-	matched := false
+	var matched []any
 	var medication Medication
 	if err := json.Unmarshal(data, &medication); err == nil {
-		o.Medication = &medication
-		matched = true
+		matched = append(matched, medication)
 	}
 	var surgery Surgery
 	if err := json.Unmarshal(data, &surgery); err == nil {
-		o.Surgery = &surgery
-		matched = true
+		matched = append(matched, surgery)
 	}
-	if !matched {
+	if len(matched) == 0 {
 		return fmt.Errorf("data does not match any anyOf schemas for TreatmentRecord")
 	}
+	o.matchedInstances = matched
 	return nil
 }
 
-// Value returns the first retained variant of the union type, preserving the
-// single-variant accessor used by callers. Use the per-variant fields to read
-// every retained variant when a payload satisfies more than one.
-func (o *TreatmentRecord) Value() any {
-	if o.Medication != nil {
-		return *o.Medication
+// MatchedInstances returns a copy of every variant the payload matched, in
+// schema declaration order.
+func (o TreatmentRecord) MatchedInstances() []any {
+	return append([]any(nil), o.matchedInstances...)
+}
+
+// ActualInstance returns the first matched variant of the union type, or nil
+// when none matched.
+func (o TreatmentRecord) ActualInstance() any {
+	if len(o.matchedInstances) == 0 {
+		return nil
 	}
-	if o.Surgery != nil {
-		return *o.Surgery
-	}
-	return nil
+	return o.matchedInstances[0]
 }
