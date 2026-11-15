@@ -84,7 +84,7 @@ public class Defaults : IEquatable<Defaults>
     public string? Label { get; set; } = "untitled";
 
     [JsonPropertyName("greeting")]
-    public string? Greeting { get; set; } = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b";
+    public string? Greeting { get; set; } = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
 
     [JsonPropertyName("swatch")]
     public Swatch? Swatch { get; set; } = global::PetstoreClient.Models.Swatch.Green;
