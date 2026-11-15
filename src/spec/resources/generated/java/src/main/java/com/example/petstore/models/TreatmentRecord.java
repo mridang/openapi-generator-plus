@@ -63,6 +63,9 @@ public class TreatmentRecord {
    * losslessly. Kept private so it is not part of the public surface. */
   @JsonValue
   @Nullable
+  @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+      value = {"UPM_UNCALLED_PRIVATE_METHOD"},
+      justification = "Jackson invokes this method through the JsonValue annotation")
   private Object jsonValue() {
     if (matchedInstances.isEmpty()) {
       return null;
