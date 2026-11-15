@@ -934,6 +934,22 @@
     "elixir"
    ],
    "reason": "elixir cannot put a defaulted struct field in @enforce_keys without forcing every %Metadata{} literal to pass an empty map, so it is non-nil by its %{} default and typespec"
+  },
+  {
+   "element": "*options.*",
+   "aspect": "prop-optional",
+   "languages": [
+    "go"
+   ],
+   "reason": "go struct fields cannot be required: a required file or reader is a pointer or interface that is checked for nil at call time, and the per-operation auth field is an interface that defaults to nil"
+  },
+  {
+   "element": "*options.*",
+   "aspect": "prop-optional",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir checks required operation options at call time and raises ArgumentError for a missing one; @enforce_keys would raise a KeyError when the struct is built instead, so the error would differ from the other SDKs"
   }
  ]
 }

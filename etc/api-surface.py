@@ -57,6 +57,9 @@ ALLOW_PATH = os.path.join(ROOT, "etc", "api-surface-allow.json")
 LANGS = ["java", "kotlin", "csharp", "php", "python", "ruby", "node", "dart", "go",
          "rust", "swift", "elixir"]
 
+# Languages whose call syntax has no named arguments: only the argument count matters.
+POSITIONAL_ONLY = {"java", "go", "rust", "node", "elixir"}
+
 # Source roots (non-test) and file extensions per language.
 SOURCES = {
     "java": (["src/main/java"], (".java",)),
@@ -2349,8 +2352,14 @@ def compare(surfaces):
             if not any(sigs.values()):
                 continue
             names = {l: tuple(p["key"] for p in v) for l, v in sigs.items()}
-            nv, nc = majority({l: v for l, v in names.items() if not opts_tail(l, sigs[l])}
-                              or names)
+            named = {l: v for l, v in names.items()
+                     if l not in POSITIONAL_ONLY and not opts_tail(l, sigs[l])}
+            nv, nc = majority(named or {l: v for l, v in names.items()
+                                        if not opts_tail(l, sigs[l])} or names)
+            # a call that cannot name its arguments does not depend on parameter names
+            for l in POSITIONAL_ONLY:
+                if l in names and len(names[l]) == len(nv):
+                    names[l] = nv
             canon_sig = next(sigs[l] for l in LANGS if l in names and names[l] == nv)
             oddn = {l: "(" + ", ".join(v) + ")" for l, v in names.items()
                     if v != nv and not opts_matches(l, sigs[l], canon_sig)}
