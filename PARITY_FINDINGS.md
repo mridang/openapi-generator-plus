@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4, needs-spec 2, open 145, parked 33, partial 5. Severity: critical 3, high 59, medium 537, low 185.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4, needs-spec 2, open 152, parked 43, partial 5. Severity: critical 3, high 59, medium 543, low 196.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -666,12 +666,12 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F658 | medium | duplicate | batch5-discovered | node | The header comment emitted by api_info (a // line in every generated node source file) still shows escapeText's backslash-escaped quotes (\"quoted\") from info.description; that is D41 territory |
 | F659 | medium | duplicate | batch5-discovered | node | ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only and date-time leaves, so the D57 offset requirement is not enforced on container or top-level date-time values |
 | F660 | medium | false-positive | batch5-discovered | node | The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec |
-| F661 | medium | open | api-surface | dart, elixir, ruby, rust | API surface: harmonise api `baseapi` (9 differences) |
+| F661 | medium | parked | api-surface | dart, elixir, ruby, rust | API surface: harmonise api `baseapi` (9 differences) |
 | F662 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoservermirror` (2 differences) |
 | F663 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getmultiserverpetinfoserverregional` (1 differences) |
 | F664 | medium | open | api-surface | dart, php, python, ruby | API surface: harmonise api `getstagingpetinfoserverstagingserver` (2 differences) |
-| F665 | medium | open | api-surface | dart, node, php, ruby | API surface: harmonise api `petapi` (6 differences) |
-| F666 | medium | open | api-surface | dart, java, ruby | API surface: harmonise api `storeapi` (4 differences) |
+| F665 | medium | parked | api-surface | dart, node, php, ruby | API surface: harmonise api `petapi` (6 differences) |
+| F666 | medium | parked | api-surface | dart, java, ruby | API surface: harmonise api `storeapi` (4 differences) |
 | F667 | medium | open | api-surface | python | API surface: harmonise auth `apikeyauthenticator` (3 differences) |
 | F668 | medium | open | api-surface | dart, node | API surface: harmonise auth `authenticator` (2 differences) |
 | F669 | medium | open | api-surface | python | API surface: harmonise auth `basicauthenticator` (2 differences) |
@@ -684,23 +684,23 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F676 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, ruby, rust, swift | API surface: harmonise auth `oauth2tokenmanager` (9 differences) |
 | F677 | medium | open | api-surface | dart, go, java, ruby, rust, swift | API surface: harmonise auth `openidconnectauthenticator` (5 differences) |
 | F678 | medium | open | api-surface | dart, node, php | API surface: harmonise core `abstractapiclient` (17 differences) |
-| F679 | medium | open | api-surface | dart, node, python | API surface: harmonise core `allowreservedvalue` (1 differences) |
+| F679 | medium | parked | api-surface | dart, node, python | API surface: harmonise core `allowreservedvalue` (1 differences) |
 | F680 | medium | open | api-surface | dart, elixir, node, python | API surface: harmonise core `apiclient` (4 differences) |
-| F681 | medium | open | api-surface | php, ruby | API surface: harmonise core `client` (4 differences) |
-| F682 | medium | open | api-surface | elixir, ruby | API surface: harmonise core `configuration` (2 differences) |
+| F681 | medium | parked | api-surface | php, ruby | API surface: harmonise core `client` (4 differences) |
+| F682 | medium | parked | api-surface | elixir, ruby | API surface: harmonise core `configuration` (2 differences) |
 | F683 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `configurationbuilder` (2 differences) |
 | F684 | medium | open | api-surface | csharp, dart, elixir, kotlin, node, python, ruby, rust | API surface: harmonise core `defaultapiclient` (25 differences) |
 | F685 | medium | open | api-surface | csharp, go, java, kotlin, ruby, swift | API surface: harmonise core `headerselector` (2 differences) |
-| F686 | medium | open | api-surface | swift | API surface: harmonise core `iso8601duration` (2 differences) |
+| F686 | medium | parked | api-surface | swift | API surface: harmonise core `iso8601duration` (2 differences) |
 | F687 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `objectserializer` (78 differences) |
-| F688 | medium | open | api-surface | ruby | API surface: harmonise core `petstore` (1 differences) |
+| F688 | medium | parked | api-surface | ruby | API surface: harmonise core `petstore` (1 differences) |
 | F689 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `serverconfiguration` (1 differences) |
 | F690 | medium | open | api-surface | dart, go, ruby, rust | API surface: harmonise core `servers` (2 differences) |
 | F691 | medium | open | api-surface | csharp, java, kotlin, node | API surface: harmonise core `servervariable` (1 differences) |
-| F692 | medium | open | api-surface | php, ruby | API surface: harmonise core `transportoptions` (3 differences) |
+| F692 | medium | parked | api-surface | php, ruby | API surface: harmonise core `transportoptions` (3 differences) |
 | F693 | medium | open | api-surface | dart, go, ruby, rust, swift | API surface: harmonise core `transportoptionsbuilder` (9 differences) |
 | F694 | medium | open | api-surface | csharp, dart, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise core `valueserializer` (22 differences) |
-| F695 | medium | open | api-surface | ruby | API surface: harmonise core `valueserializerallowreservedvalue` (1 differences) |
+| F695 | medium | parked | api-surface | ruby | API surface: harmonise core `valueserializerallowreservedvalue` (1 differences) |
 | F696 | medium | parked | api-surface | dart, elixir, go, node, python, ruby, rust, swift | API surface: harmonise error `apierror` (7 differences) |
 | F697 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `badrequesterror` (1 differences) |
 | F698 | medium | fixed | api-surface | kotlin, node | API surface: harmonise error `clienterror` (1 differences) |
@@ -790,6 +790,23 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F782 | medium | open | review | node | node: the get additionalProperties() accessor sits in the same class as an index signature of a different type |
 | F783 | low | open | review | php | php: byte-property docblocks contradict the property, and the byteProperties reflection walker is duplicated in ObjectSerializer and the model base |
 | F784 | low | open | review | java | java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively |
+| F785 | medium | open | review | kotlin, csharp, dart, swift | Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter |
+| F786 | low | open | review | java | Java hasOnlyOptionalBody is a vendorExtensions flag read by a template |
+| F787 | low | open | review | java | Java TransportOptions constants declared after the instance fields |
+| F788 | low | open | review | rust | Rust setPetAvatar/uploadPetDocument have no requestContentType argument |
+| F789 | low | open | review | java | java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first |
+| F790 | low | open | review | php | php: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generat |
+| F791 | low | open | review | php | php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct') |
+| F792 | low | open | review | php | php: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options. |
+| F793 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block |
+| F794 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b |
+| F795 | low | open | review | elixir | elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che |
+| F796 | low | open | review | ruby | ruby: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still sa |
+| F797 | medium | open | review | python | Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python |
+| F798 | medium | open | review | java | devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies. |
+| F799 | medium | open | review | java | Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f |
+| F800 | medium | open | review | java | etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background. |
+| F801 | medium | open | review | java | etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -7331,7 +7348,7 @@ ObjectSerializer.deserializeLeaf 'date' uses new Date(value) for both date-only 
 The hostname-verification TLS test in default-api-client.test.ts fails when jest runs directly on macOS (the request resolves) but passes inside the Docker NodeClientSpec.
 
 ## F661 [medium] API surface: harmonise api `baseapi` (9 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, elixir, ruby, rust
 
 `etc/api-surface.py check` reports these public-API differences for `baseapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7369,7 +7386,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - getstagingpetinfoserverstagingserver.version [member] majority present (8 SDKs); differs: dart=missing; php=missing; python=missing; ruby=missing
 
 ## F665 [medium] API surface: harmonise api `petapi` (6 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, node, php, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7381,7 +7398,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - petapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra
 
 ## F666 [medium] API surface: harmonise api `storeapi` (4 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, java, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `storeapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7531,7 +7548,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - abstractapiclient.<ctor> [ctor] majority (transportoptions) (2 SDKs); differs: dart=(transportoptions, httpclient, proxyauthheader)
 
 ## F679 [medium] API surface: harmonise core `allowreservedvalue` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, node, python
 
 `etc/api-surface.py check` reports these public-API differences for `allowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7548,7 +7565,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - apiclient.sendrequest [optional] majority (method, url, headers, body, noredirect?) (7 SDKs); differs: python=(method, url, headers, body?, noredirect?)
 
 ## F681 [medium] API surface: harmonise core `client` (4 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `client`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7558,7 +7575,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - client.<ctor> [ctor] majority (authenticator, transportoptions) (7 SDKs); differs: php=(authenticator, transportoptions, apiclient)
 
 ## F682 [medium] API surface: harmonise core `configuration` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `configuration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7613,7 +7630,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - headerselector.jsonmimepattern [member] majority absent (6 SDKs); differs: ruby=extra
 
 ## F686 [medium] API surface: harmonise core `iso8601duration` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: swift
 
 `etc/api-surface.py check` reports these public-API differences for `iso8601duration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7705,7 +7722,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - objectserializer.findandcastintotype [member] majority absent (7 SDKs); differs: elixir=extra
 
 ## F688 [medium] API surface: harmonise core `petstore` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petstore`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7734,7 +7751,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - servervariable.<ctor> [ctor-optional] majority (defaultvalue, description?, enumvalues?) (5 SDKs); differs: csharp=(defaultvalue, description, enumvalues); java=(defaultvalue, description, enumvalues); kotlin=(defaultvalue, description, enumvalues); node=(defaultvalue, description, enumvalues)
 
 ## F692 [medium] API surface: harmonise core `transportoptions` (3 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `transportoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7786,7 +7803,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - valueserializer.serializearrayvalue [member] majority absent (6 SDKs); differs: rust=extra
 
 ## F695 [medium] API surface: harmonise core `valueserializerallowreservedvalue` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: ruby
 
 `etc/api-surface.py check` reports these public-API differences for `valueserializerallowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8437,3 +8454,121 @@ Generated docblocks on byte properties keep the spec description 'Base64-encoded
 - SDKs: java
 
 Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.
+
+## F785 [medium] Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin, csharp, dart, swift
+
+This change makes invalid-proxy errors raise at build() in php, ruby and java, as in python, node, go, rust and elixir. Kotlin, csharp, dart and swift still validate and throw inside the builder's proxy() setter. Evidence: kotlin/transport_options.mustache ~110-140, csharp/transport_options.mustache ~180-197, dart/transport_options.mustache ~150-167, swift/transport_options.mustache ~157-170 (`proxy(_:) throws`). The same `.proxy(bad)` call therefore fails at different points across the SDKs. Decide the canonical timing and harmonise the remaining four, or record an allow rule.
+
+## F786 [low] Java hasOnlyOptionalBody is a vendorExtensions flag read by a template
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+BetterJavaCodegen.postProcessOperationsWithModels puts `hasOnlyOptionalBody` in op.vendorExtensions and api.mustache reads `{{#vendorExtensions.hasOnlyOptionalBody}}`. The repo CLAUDE.md says never to use vendor extensions in templates. It copies the existing hasMultipleConsumes pattern, so it is consistent with neighbouring code, but it conflicts with the written rule. Decide whether to move it to a native field or document the exception.
+
+## F787 [low] Java TransportOptions constants declared after the instance fields
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templates/java/transport_options.mustache (~lines 40-41) and the golden TransportOptions.java (~46-47). Configuration puts DEFAULT_BASE_URL first. Move the static constants above the first instance field in both.
+
+## F788 [low] Rust setPetAvatar/uploadPetDocument have no requestContentType argument
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+The surface check shows rust petapi.setpetavatar(petid, body) and uploadpetdocument(petid, options) with extra setpetavatarwithcontenttype and uploadpetdocumentwithcontenttype methods, whereas the canonical F665 shape is an optional requestContentType argument. This difference predates the change and is outside the staged set. Rule on it as an allow rule (no optional arguments in rust) or as a rename.
+
+## F789 [low] java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Idiom review of api-small-classes: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first, so the two classes disagree. Affects src/main/resources/templates/java/transport_options.mustache (the DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT lines, template lines 40-41) and src/spec/resources/generated/java/src/main/java/com/example/petstore/TransportOptions.java lines 46-47.
+
+Suggested form: Move the two lines `private static final int DEFAULT_TIMEOUT_MS = 10000;` and `private static final String DEFAULT_USER_AGENT = "...";` above the first instance field (`private final boolean verifySsl;`, generated TransportOptions.java line 36, template equivalent) in both the template and the generated file, matching Configuration.java line 34. Keep the values and the blank line before the constructor unchanged.
+
+## F790 [low] php: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generat
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of api-small-classes: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generated/php/README.md:386) reads `config: \PetstoreClient\Configuration::builder()->baseUrl('/api/v3')->build()`.
+
+Suggested form: Write `config: new \{{invokerPackage}}\Configuration(baseUrl: '{{basePath}}')` (golden: `config: new \PetstoreClient\Configuration(baseUrl: '/api/v3')`). This depends on canonical item 1 (Configuration's constructor takes optional baseUrl), so it must land in the same change set; until then the snippet cannot be made idiomatic.
+
+## F791 [low] php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct')
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of api-small-classes: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \ReflectionMethod(Client::class, '__construct')->getNumberOfParameters()` without parentheses, while src/main/resources/templates/php/tests/ClientTest.mustache:89-91 uses `(new \ReflectionMethod(...))->getNumberOfParameters()`. The same drift exists at src/spec/resources/generated/php/tests/TransportOptionsTest.php:244 against TransportOptionsTest.mustache:316. The goldens are not the template's output, and the unparenthesised form is not a form the template emits.
+
+Suggested form: Regenerate the goldens from the templates so they are byte-identical. Use the parenthesised form `(new \ReflectionMethod(Client::class, '__construct'))->getNumberOfParameters()` and `(new ReflectionMethod(TransportOptions::class, 'assertValidProxy'))->isPrivate()`, which the templates already use and which parses on every PHP 8 version.
+
+## F792 [low] php: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of api-small-classes: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options.mustache (golden src/spec/resources/generated/php/lib/TransportOptions.php:70 and :81) changes `self::assertValidProxy` to `$this->assertValidProxy` and `public static` to `private function`.
+
+Suggested form: Keep it stateless: declare `private static function assertValidProxy(?string $proxy): void` and call `self::assertValidProxy($proxy);` from the constructor. That matches the canonical `private static` and keeps the constructor's call form as it was.
+
+## F793 [low] elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block that replaces the docstring for `invoke_api/10`. No tool reads that block, and an Elixir developer reads the pattern as a docstring in the wrong place.
+
+Suggested form: Keep only `@doc false` directly above `@spec invoke_api(` and delete the `#` block (or reduce it to a single `# Internal: ...` line). Do the same at base_api.mustache:71 (generated base_api.ex:99) for `invoke_api_for_result/10`.
+
+## F794 [low] elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-block-as-docstring pattern for `invoke_api_for_result/10`.
+
+Suggested form: Keep `@doc false` alone above `@spec invoke_api_for_result(`; drop the `#` block that restates the parameters and return value.
+
+## F795 [low] elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Idiom review of api-small-classes: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which checks the public surface of BaseApi, under the `# Server variable overrides` section heading. The test is misfiled and reads as a server-URL test.
+
+Suggested form: Move the test out of the server-overrides block into its own heading such as `# Public surface` (or the top of the module), leaving the `# Server variable overrides` heading to the server tests that follow it.
+
+## F796 [low] ruby: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still sa
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Idiom review of api-small-classes: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still says "an unspecified content_type still sends the first", but the keyword is now request_content_type, so the comment names an argument that no longer exists.
+
+Suggested form: Change the comment line to: # backward compatible: an unspecified request_content_type still sends the first. Apply the same change in the template and in the generated pet_api_test.rb so they stay in step.
+
+## F797 [medium] Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real PythonClientSpec run may differ, and the reviewer should confirm with the full spec.
+
+## F798 [medium] devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.
+
+## F799 [medium] Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm fixture copy uses /app paths); seven live-endpoint tests still fail with ConnectException in that setup.
+
+## F800 [medium] etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.
+
+## F801 [medium] etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.

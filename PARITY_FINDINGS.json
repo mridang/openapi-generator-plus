@@ -32099,8 +32099,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `baseapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- baseapi.noauth [member] majority absent (11 SDKs); differs: ruby=extra\n- baseapi.config [member] majority absent (10 SDKs); differs: dart=extra; ruby=extra\n- baseapi.apiclient [member] majority absent (11 SDKs); differs: dart=extra\n- baseapi.invokeapi [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra\n- baseapi.invokeapi [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)\n- baseapi.invokeapiforresult [member] majority absent (9 SDKs); differs: dart=extra; elixir=extra; rust=extra\n- baseapi.invokeapiforresult [params] majority (method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth, rawbody, deserialize) (1 SDKs); differs: elixir=(method, path, queryparams, headerparams, body, accepts, contenttype, returntype, auth); rust=(params)\n- baseapi.invokeapiforemptyresult [member] majority absent (11 SDKs); differs: rust=extra\n- baseapi.buildcollectionparam [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32175,8 +32175,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petapi.setpetavatar [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)\n- petapi.setpetavatarwithhttpinfo [params] majority (petid, body, requestcontenttype) (7 SDKs); differs: node=(petid, body, contenttype); php=(petid, body, contenttype); ruby=(petid, body, contenttype)\n- petapi.uploadpetdocument [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)\n- petapi.uploadpetdocumentwithhttpinfo [params] majority (petid, options, requestcontenttype) (7 SDKs); differs: node=(petid, options, contenttype); php=(petid, options, contenttype); ruby=(petid, options, contenttype)\n- petapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra\n- petapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32193,8 +32193,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `storeapi`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- storeapi.placeorder [optional] majority (order?) (7 SDKs); differs: java=(order)\n- storeapi.placeorderwithhttpinfo [optional] majority (order?) (7 SDKs); differs: java=(order)\n- storeapi.config [member] majority absent (9 SDKs); differs: dart=extra; ruby=extra\n- storeapi.apiclient [member] majority absent (10 SDKs); differs: dart=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32452,8 +32452,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `allowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- allowreservedvalue [type] majority absent (9 SDKs); differs: dart=AllowReservedValue; node=AllowReservedValue; python=AllowReservedValue",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32488,8 +32488,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `client`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- client [type] majority present (11 SDKs); differs: ruby=missing\n- client.withtoken [params] majority (host, accesstoken, transportoptions) (10 SDKs); differs: php=(host, accesstoken, transportoptions, apiclient)\n- client.withauthenticator [params] majority (authenticator, transportoptions) (10 SDKs); differs: php=(authenticator, transportoptions, apiclient)\n- client.<ctor> [ctor] majority (authenticator, transportoptions) (7 SDKs); differs: php=(authenticator, transportoptions, apiclient)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32505,8 +32505,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `configuration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- configuration.fromserver [member] majority absent (11 SDKs); differs: elixir=extra\n- configuration.<ctor> [ctor-optional] majority (baseurl?, defaultheaders?) (3 SDKs); differs: ruby=(baseurl, defaultheaders)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32585,8 +32585,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `iso8601duration`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- iso8601duration.formatprotobufduration [params] majority (duration) (1 SDKs); differs: swift=(interval)\n- iso8601duration.validatepartialtime [member] majority present (1 SDKs); differs: swift=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32628,8 +32628,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petstore`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petstore [type] majority absent (11 SDKs); differs: ruby=Petstore",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32702,8 +32702,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `transportoptions`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- transportoptions.assertvalidproxy [member] majority absent (11 SDKs); differs: php=extra\n- transportoptions.validateproxy [member] majority absent (11 SDKs); differs: ruby=extra\n- transportoptions.<ctor> [ctor-optional] majority (verifyssl?, cacertpath?, proxy?, timeout?, followredirects?, maxredirects?, useragent?, defaultheaders?, injectrequestid?) (2 SDKs); differs: ruby=(verifyssl, cacertpath, proxy, timeout, followredirects, maxredirects, useragent, defaultheaders, injectrequestid)",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -32764,8 +32764,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `valueserializerallowreservedvalue`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- valueserializerallowreservedvalue [type] majority absent (11 SDKs); differs: ruby=ValueSerializerAllowReservedValue",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-small-classes: Not approved, and I did not run etc/ci-local.sh approve. I read the staged diff, ran `python3 etc/api-surface.py check --json`, and read the agent reports. I did not re-run any language's test suite myself. Three blockers. (1) Ruby: GenerateRubyClientTest.java is not staged and still passes clientCl",
    "batch": null
   },
   {
@@ -34324,6 +34324,281 @@
     "java"
    ],
    "description": "Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F785",
+   "severity": "medium",
+   "title": "Proxy validation timing differs: kotlin, csharp, dart and swift still validate in the builder proxy() setter",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin",
+    "csharp",
+    "dart",
+    "swift"
+   ],
+   "description": "This change makes invalid-proxy errors raise at build() in php, ruby and java, as in python, node, go, rust and elixir. Kotlin, csharp, dart and swift still validate and throw inside the builder's proxy() setter. Evidence: kotlin/transport_options.mustache ~110-140, csharp/transport_options.mustache ~180-197, dart/transport_options.mustache ~150-167, swift/transport_options.mustache ~157-170 (`proxy(_:) throws`). The same `.proxy(bad)` call therefore fails at different points across the SDKs. Decide the canonical timing and harmonise the remaining four, or record an allow rule.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F786",
+   "severity": "low",
+   "title": "Java hasOnlyOptionalBody is a vendorExtensions flag read by a template",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "BetterJavaCodegen.postProcessOperationsWithModels puts `hasOnlyOptionalBody` in op.vendorExtensions and api.mustache reads `{{#vendorExtensions.hasOnlyOptionalBody}}`. The repo CLAUDE.md says never to use vendor extensions in templates. It copies the existing hasMultipleConsumes pattern, so it is consistent with neighbouring code, but it conflicts with the written rule. Decide whether to move it to a native field or document the exception.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F787",
+   "severity": "low",
+   "title": "Java TransportOptions constants declared after the instance fields",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT sit after the instance fields in templates/java/transport_options.mustache (~lines 40-41) and the golden TransportOptions.java (~46-47). Configuration puts DEFAULT_BASE_URL first. Move the static constants above the first instance field in both.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F788",
+   "severity": "low",
+   "title": "Rust setPetAvatar/uploadPetDocument have no requestContentType argument",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The surface check shows rust petapi.setpetavatar(petid, body) and uploadpetdocument(petid, options) with extra setpetavatarwithcontenttype and uploadpetdocumentwithcontenttype methods, whereas the canonical F665 shape is an optional requestContentType argument. This difference predates the change and is outside the staged set. Rule on it as an allow rule (no optional arguments in rust) or as a rename.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F789",
+   "severity": "low",
+   "title": "java: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Idiom review of api-small-classes: TransportOptions declares its two new static constants after the instance fields, against the Java convention of static fields first. Configuration in the same change puts DEFAULT_BASE_URL first, so the two classes disagree. Affects src/main/resources/templates/java/transport_options.mustache (the DEFAULT_TIMEOUT_MS and DEFAULT_USER_AGENT lines, template lines 40-41) and src/spec/resources/generated/java/src/main/java/com/example/petstore/TransportOptions.java lines 46-47.\n\nSuggested form: Move the two lines `private static final int DEFAULT_TIMEOUT_MS = 10000;` and `private static final String DEFAULT_USER_AGENT = \"...\";` above the first instance field (`private final boolean verifySsl;`, generated TransportOptions.java line 36, template equivalent) in both the template and the generated file, matching Configuration.java line 34. Keep the values and the blank line before the constructor unchanged.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F790",
+   "severity": "low",
+   "title": "php: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generat",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of api-small-classes: The README snippet builds the Configuration with the builder chain, which is the awkward call site: src/main/resources/templates/php/readme.mustache:208 (and the golden src/spec/resources/generated/php/README.md:386) reads `config: \\PetstoreClient\\Configuration::builder()->baseUrl('/api/v3')->build()`.\n\nSuggested form: Write `config: new \\{{invokerPackage}}\\Configuration(baseUrl: '{{basePath}}')` (golden: `config: new \\PetstoreClient\\Configuration(baseUrl: '/api/v3')`). This depends on canonical item 1 (Configuration's constructor takes optional baseUrl), so it must land in the same change set; until then the snippet cannot be made idiomatic.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F791",
+   "severity": "low",
+   "title": "php: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \\ReflectionMethod(Client::class, '__construct')",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of api-small-classes: The reflection assertions in the golden tests do not match their templates. src/spec/resources/generated/php/tests/ClientTest.php:84-86 writes `new \\ReflectionMethod(Client::class, '__construct')->getNumberOfParameters()` without parentheses, while src/main/resources/templates/php/tests/ClientTest.mustache:89-91 uses `(new \\ReflectionMethod(...))->getNumberOfParameters()`. The same drift exists at src/spec/resources/generated/php/tests/TransportOptionsTest.php:244 against TransportOptionsTest.mustache:316. The goldens are not the template's output, and the unparenthesised form is not a form the template emits.\n\nSuggested form: Regenerate the goldens from the templates so they are byte-identical. Use the parenthesised form `(new \\ReflectionMethod(Client::class, '__construct'))->getNumberOfParameters()` and `(new ReflectionMethod(TransportOptions::class, 'assertValidProxy'))->isPrivate()`, which the templates already use and which parses on every PHP 8 version.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F792",
+   "severity": "low",
+   "title": "php: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of api-small-classes: assertValidProxy is made a non-static instance method, which is not the canonical shape and is not how a stateless validator should be written. src/main/resources/templates/php/transport_options.mustache (golden src/spec/resources/generated/php/lib/TransportOptions.php:70 and :81) changes `self::assertValidProxy` to `$this->assertValidProxy` and `public static` to `private function`.\n\nSuggested form: Keep it stateless: declare `private static function assertValidProxy(?string $proxy): void` and call `self::assertValidProxy($proxy);` from the constructor. That matches the canonical `private static` and keeps the constructor's call form as it was.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F793",
+   "severity": "low",
+   "title": "elixir: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:34 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:40) puts `@doc false` above a long `#` comment block that replaces the docstring for `invoke_api/10`. No tool reads that block, and an Elixir developer reads the pattern as a docstring in the wrong place.\n\nSuggested form: Keep only `@doc false` directly above `@spec invoke_api(` and delete the `#` block (or reduce it to a single `# Internal: ...` line). Do the same at base_api.mustache:71 (generated base_api.ex:99) for `invoke_api_for_result/10`.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F794",
+   "severity": "low",
+   "title": "elixir: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-b",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/base_api.mustache:71 (generated src/spec/resources/generated/elixir/lib/petstore_client/api/base_api.ex:99) repeats the same `@doc false` plus `#` comment-block-as-docstring pattern for `invoke_api_for_result/10`.\n\nSuggested form: Keep `@doc false` alone above `@spec invoke_api_for_result(`; drop the `#` block that restates the parameters and return value.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F795",
+   "severity": "low",
+   "title": "elixir: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which che",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Idiom review of api-small-classes: src/main/resources/templates/elixir/test/base_api_test.mustache:192-194 (generated src/spec/resources/generated/elixir/test/base_api_test.exs:355-357) places the new visibility test, which checks the public surface of BaseApi, under the `# Server variable overrides` section heading. The test is misfiled and reads as a server-URL test.\n\nSuggested form: Move the test out of the server-overrides block into its own heading such as `# Public surface` (or the top of the module), leaving the `# Server variable overrides` heading to the server tests that follow it.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F796",
+   "severity": "low",
+   "title": "ruby: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still sa",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Idiom review of api-small-classes: Stale selector name in a comment. src/main/resources/templates/ruby/test/api/pet_api_test.mustache:268 (and the generated src/spec/resources/generated/ruby/test/api/pet_api_test.rb:268) still says \"an unspecified content_type still sends the first\", but the keyword is now request_content_type, so the comment names an argument that no longer exists.\n\nSuggested form: Change the comment line to: # backward compatible: an unspecified request_content_type still sends the first. Apply the same change in the template and in the generated pet_api_test.rb so they stay in step.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F797",
+   "severity": "medium",
+   "title": "Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real Python",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Python test_base_api.py session fixtures in conftest.py (proxy-network docker.from_env and chasm container) need a Docker socket, so a plain container run of that file shows 23 errors; the real PythonClientSpec run may differ, and the reviewer should confirm with the full spec.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F798",
+   "severity": "medium",
+   "title": "devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "devbox run cannot start in this environment: the nix package darwin.apple_sdk_11_0 has been removed, so etc/ci-local.sh was run directly as the agent file specifies.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F799",
+   "severity": "medium",
+   "title": "Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm fixture copy uses /app paths); seven live-endpoint tests still fail with ConnectException in that setup.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F800",
+   "severity": "medium",
+   "title": "etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F801",
+   "severity": "medium",
+   "title": "etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
