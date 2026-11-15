@@ -19,6 +19,9 @@ set -uo pipefail
 MAX_RUNNING="${PARITY_MAX_CONTAINERS:-8}"
 MAX_AGE_MIN="${PARITY_MAX_CONTAINER_AGE_MIN:-60}"
 HAND_AGE_MIN=30
+# The mock server and proxy live only as long as one test suite; Testcontainers' reaper is
+# off inside the spec runtimes, so these outlive a killed run and pile up fastest.
+HELPER_AGE_MIN=25
 WAIT_SEC=540
 LOG="${TMPDIR:-/tmp}/parity-docker-guard.log"
 
@@ -52,14 +55,19 @@ sweep() {
     [ -n "$started" ] || continue
     age=$(( ($(date -u +%s) - $(date -u -j -f '%Y-%m-%dT%H:%M:%S' "$started" +%s 2> /dev/null || date -u -d "$started" +%s)) / 60 ))
     hand="$(docker inspect -f '{{index .Config.Labels "parity.guard"}}' "$id" 2> /dev/null)"
+    image="$(docker inspect -f '{{.Config.Image}}' "$id" 2> /dev/null)"
     limit="$MAX_AGE_MIN"
     [ "$hand" = "1" ] && limit="$HAND_AGE_MIN"
+    case "$image" in mridang/chasm* | ubuntu/squid*) limit="$HELPER_AGE_MIN" ;; esac
     if [ "$age" -ge "$limit" ]; then
       docker rm -f "$id" > /dev/null 2>&1 && log "removed $id (running ${age} min)"
     elif [ "$maven_alive" -eq 0 ] && [ "$hand" != "1" ]; then
       docker rm -f "$id" > /dev/null 2>&1 && log "removed $id (no maven process owns it)"
     fi
   done
+  # Leaked test networks exhaust Docker's address pools ("all predefined address pools
+  # have been fully subnetted"); prune only Testcontainers' networks that nothing uses.
+  docker network prune -f --filter label=org.testcontainers=true > /dev/null 2>&1
 }
 
 if ! timeout 20 docker ps -q > /dev/null 2>&1; then
