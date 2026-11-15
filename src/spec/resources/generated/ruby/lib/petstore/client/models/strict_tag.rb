@@ -71,6 +71,7 @@ module Petstore::Client
       # attribute-keyed hash to .new, so a model-level guard would never see
       # the extras (it would silently drop them — the original bug).
       UNEVALUATED_PROPERTIES_FALSE = true
+      private_constant :UNEVALUATED_PROPERTIES_FALSE
       attribute :id, Types::Any.optional.meta(omittable: true)
       attribute :name, Types::Any.optional.meta(omittable: true)
     end

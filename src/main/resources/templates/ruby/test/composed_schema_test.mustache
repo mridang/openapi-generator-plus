@@ -126,6 +126,21 @@ describe 'Composed Schema' do
       _(serialized.scan('"notes"').length).must_equal(1)
     end
 
+    it 'exposes actual_instance and matched_instances for anyOf values' do
+      both = {{moduleName}}::ObjectSerializer.deserialize(
+        '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+      _({{moduleName}}::Models::PetTreatment.matched_instances(both).map(&:class))
+        .must_equal([{{moduleName}}::Models::Medication, {{moduleName}}::Models::Surgery])
+      _({{moduleName}}::Models::PetTreatment.actual_instance(both)).must_be_kind_of({{moduleName}}::Models::Medication)
+
+      single = {{moduleName}}::ObjectSerializer.deserialize('{"drugName":"Amoxicillin","dosage":"500mg"}', 'PetTreatment')
+      _({{moduleName}}::Models::PetTreatment.matched_instances(single)).must_equal([single])
+      _({{moduleName}}::Models::PetTreatment.actual_instance(single)).must_be_same_as(single)
+      _({{moduleName}}::Models::PetTreatment.actual_instance(nil)).must_be_nil
+      _({{moduleName}}::Models::PetTreatment.matched_instances(nil)).must_equal([])
+    end
+
     it 'serializes round-trip for a single-variant anyOf payload' do
       json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
       result = {{moduleName}}::ObjectSerializer.deserialize(json, 'PetTreatment')

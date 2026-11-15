@@ -44,12 +44,28 @@ module {{moduleName}}::Models
       def respond_to_missing?: (Symbol, ?bool) -> bool
     end
     def self.openapi_any_of: () -> Array[Symbol]
+    def self.actual_instance: (untyped) -> untyped
+    def self.matched_instances: (untyped) -> Array[untyped]
     def self.build: (untyped) -> untyped
   end
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
   class {{classname}} < {{#parent}}{{#lambda.rbsType}}{{{.}}}{{/lambda.rbsType}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+{{#vars}}
+{{#isEnum}}
+{{#allowableValues}}
+    class {{enumName}}
+{{#enumVars}}
+      {{{name}}}: {{{dataType}}}
+{{/enumVars}}
+      VALUES: Array[{{{dataType}}}]
+      def self.all_vars: () -> Array[{{{dataType}}}]
+      def self.validate!: ({{{dataType}}}?) -> {{{dataType}}}?
+    end
+{{/allowableValues}}
+{{/isEnum}}
+{{/vars}}
     ATTRIBUTE_MAP: Hash[Symbol, String]
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]

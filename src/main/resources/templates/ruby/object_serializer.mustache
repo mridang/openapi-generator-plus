@@ -537,7 +537,7 @@ module {{moduleName}}
       # otherwise never see the extras. Aligns with Python's pydantic
       # extra="forbid". (Models with additionalProperties:true skip this and
       # capture extras instead — the two are mutually exclusive.)
-      if klass.const_defined?(:UNEVALUATED_PROPERTIES_FALSE) && klass::UNEVALUATED_PROPERTIES_FALSE
+      if klass.const_defined?(:UNEVALUATED_PROPERTIES_FALSE) && klass.const_get(:UNEVALUATED_PROPERTIES_FALSE)
         declared_keys = klass::ATTRIBUTE_MAP.values
         data.each_key do |json_key|
           next if declared_keys.include?(json_key)

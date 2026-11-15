@@ -19,6 +19,31 @@ module Petstore::Client
   module Models
     # A pet record extended with owner information
     class PetWithOwner < Dry::Struct
+      # Allowed values of the status property.
+      class StatusEnum
+        AVAILABLE = 'available'
+        PENDING = 'pending'
+        SOLD = 'sold'
+
+        # Frozen set of all allowed values, used for validation.
+        VALUES = [AVAILABLE, PENDING, SOLD].freeze
+
+        def self.all_vars
+          VALUES
+        end
+
+        # Validate that +value+ is a recognized enum value.
+        #
+        # @param value [Object] the value to validate
+        # @return [Object] the value, if valid
+        # @raise [ArgumentError] if +value+ is not in {VALUES}
+        def self.validate!(value)
+          return value if value.nil? || VALUES.include?(value)
+
+          raise ArgumentError, "Unknown enum value for PetWithOwner::StatusEnum: #{value.inspect} (allowed: #{VALUES.inspect})"
+        end
+      end
+
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         id: 'id',
@@ -100,7 +125,7 @@ module Petstore::Client
       attribute :tags, Types::Any.optional.meta(omittable: true)
       # pet status in the store
       # @deprecated This property is deprecated.
-      attribute :status, Types::String.enum('available', 'pending', 'sold').optional.meta(omittable: true)
+      attribute :status, Types::String.enum(*StatusEnum::VALUES).optional.meta(omittable: true)
       attribute :location, Types::Any.optional.meta(omittable: true)
       # Absolute URL to the pet's public profile page
       # @example https://example.com/pets/fido

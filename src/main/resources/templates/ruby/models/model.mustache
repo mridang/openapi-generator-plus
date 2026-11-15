@@ -281,6 +281,25 @@ module {{moduleName}}
 
         {{/-last}}
         {{/anyOf}}
+        # The first retained variant of a built anyOf value.
+        #
+        # @param value [Object] the result of build
+        # @return [Object, nil] the first matched variant, or nil
+        def actual_instance(value)
+          value.is_a?(Composite) ? value.anyof_matched_instances.first : value
+        end
+
+        # Every retained variant of a built anyOf value, in declared order.
+        #
+        # @param value [Object] the result of build
+        # @return [Array<Object>] the matched variants
+        def matched_instances(value)
+          return value.anyof_matched_instances.dup if value.is_a?(Composite)
+          return [] if value.nil?
+
+          [value]
+        end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of anyOf items
         # @return [Object] Returns a single variant when exactly one matches, a
@@ -338,6 +357,35 @@ module {{moduleName}}
     # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
     {{/externalDocumentation}}
     class {{classname}} < {{#parent}}{{#lambda.stripGenerics}}{{{.}}}{{/lambda.stripGenerics}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+{{#vars}}
+{{#isEnum}}
+{{#allowableValues}}
+      # Allowed values of the {{name}} property.
+      class {{enumName}}{{#enumVars}}
+        {{{name}}} = {{{value}}}{{/enumVars}}
+
+        # Frozen set of all allowed values, used for validation.
+        VALUES = [{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}].freeze
+
+        def self.all_vars
+          VALUES
+        end
+
+        # Validate that +value+ is a recognized enum value.
+        #
+        # @param value [Object] the value to validate
+        # @return [Object] the value, if valid
+        # @raise [ArgumentError] if +value+ is not in {VALUES}
+        def self.validate!(value)
+          return value if value.nil? || VALUES.include?(value)
+
+          raise ArgumentError, "Unknown enum value for {{classname}}::{{enumName}}: #{value.inspect} (allowed: #{VALUES.inspect})"
+        end
+      end
+
+{{/allowableValues}}
+{{/isEnum}}
+{{/vars}}
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         {{#vars}}
@@ -447,6 +495,7 @@ module {{moduleName}}
       # attribute-keyed hash to .new, so a model-level guard would never see
       # the extras (it would silently drop them — the original bug).
       UNEVALUATED_PROPERTIES_FALSE = true
+      private_constant :UNEVALUATED_PROPERTIES_FALSE
 {{/isUnevaluatedPropertiesFalse}}
       {{#vars}}
       {{#description}}
@@ -471,7 +520,7 @@ module {{moduleName}}
       {{/isWriteOnly}}
       {{#required}}
       {{#isEnum}}
-      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{^isEnum}}
       attribute :{{name}}, {{#isNullable}}Types::Any{{/isNullable}}{{^isNullable}}Types::Required{{/isNullable}}{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
@@ -479,7 +528,7 @@ module {{moduleName}}
       {{/required}}
       {{^required}}
       {{#isEnum}}
-      attribute :{{name}}, Types::String.enum({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
+      attribute :{{name}}, Types::String.enum(*{{enumName}}::VALUES).optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/isEnum}}
       {{^isEnum}}
       attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
