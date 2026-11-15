@@ -33091,9 +33091,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `datetime`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- datetime.time [member] majority present (1 SDKs); differs: rust=missing\n- datetime.intoinner [member] majority present (1 SDKs); differs: go=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F714",
@@ -33107,9 +33108,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `defaults`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- defaults.alldefaultsmodeenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F715",
@@ -33124,9 +33126,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `defaultsmodeenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- defaultsmodeenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F716",
@@ -33140,9 +33143,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `dryfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- dryfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F717",
@@ -33156,9 +33160,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `edgecases`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- edgecases.alledgecasesphaseenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F718",
@@ -33173,9 +33178,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `edgecasesphaseenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- edgecasesphaseenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F719",
@@ -33189,9 +33195,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `error`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- error [type] majority present (9 SDKs); differs: go=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F720",
@@ -33209,9 +33216,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `metadata`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- metadata.additionalproperties [member] majority present (11 SDKs); differs: node=missing\n- metadata.setadditionalproperty [member] majority absent (11 SDKs); differs: java=extra\n- metadata.additionalproperties [prop-optional] majority required (6 SDKs); differs: csharp=optional; elixir=optional; php=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F721",
@@ -33225,9 +33233,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `modelerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- modelerror [type] majority absent (9 SDKs); differs: go=ModelError",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F722",
@@ -33241,9 +33250,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `modelresult`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- modelresult [type] majority absent (9 SDKs); differs: java=ModelResult",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F723",
@@ -33257,9 +33267,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `order`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- order.allorderstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F724",
@@ -33274,9 +33285,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `orderstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- orderstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F725",
@@ -33290,9 +33302,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `pet`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- pet.allpetstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F726",
@@ -33312,9 +33325,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petfood.actualinstance [member] majority absent (8 SDKs); differs: kotlin=extra; node=extra; php=extra; python=extra\n- petfood.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- petfood.value [params] majority () (2 SDKs); differs: swift=(type)\n- petfood.newpetfoodfromdryfood [member] majority absent (11 SDKs); differs: go=extra\n- petfood.newpetfoodfromwetfood [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F727",
@@ -33328,9 +33342,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petpassport`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petpassport.thumbnailasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.scansasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.biometricchipasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setthumbnailfrombytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setscansfrombytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setbiometricchipfrombytes [member] majority absent (11 SDKs); differs: php=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F728",
@@ -33345,9 +33360,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F729",
@@ -33372,9 +33388,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `pettreatment`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- pettreatment.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing\n- pettreatment.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra\n- pettreatment.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra\n- pettreatment.actualinstances [member] majority absent (11 SDKs); differs: php=extra\n- pettreatment.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- pettreatment.value [params] majority () (2 SDKs); differs: swift=(type)\n- pettreatment.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra\n- pettreatment.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra\n- pettreatment.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F730",
@@ -33388,9 +33405,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petwithowner`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petwithowner.allpetwithownerstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F731",
@@ -33405,9 +33423,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petwithownerstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petwithownerstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F732",
@@ -33421,9 +33440,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `requirednullable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- requirednullable.note [prop-optional] majority required (11 SDKs); differs: kotlin=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F733",
@@ -33437,9 +33457,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `result`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- result [type] majority present (9 SDKs); differs: java=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F734",
@@ -33453,9 +33474,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `setpetavatarrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- setpetavatarrequest.dataasbytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarrequest.setdatafrombytes [member] majority absent (11 SDKs); differs: php=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F735",
@@ -33477,9 +33499,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `setpetavatarthumbnailrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- setpetavatarthumbnailrequest.actualinstance [member] majority absent (7 SDKs); differs: csharp=extra; java=extra; kotlin=extra; php=extra; python=extra\n- setpetavatarthumbnailrequest.actualinstanceasbytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.actualinstanceasbytelist [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.frombytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.frombytelist [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- setpetavatarthumbnailrequest.value [params] majority () (2 SDKs); differs: swift=(type)\n- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombytesliceslice [member] majority absent (11 SDKs); differs: go=extra\n- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombyteslice [member] majority absent (11 SDKs); differs: go=extra\n- setpetavatarthumbnailrequest.serialize [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F736",
@@ -33499,9 +33522,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `stricttag`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- stricttag.setunknownproperty [member] majority absent (11 SDKs); differs: java=extra\n- stricttag.parsestrict [member] majority absent (11 SDKs); differs: kotlin=extra\n- stricttag.unknownproperties [member] majority absent (11 SDKs); differs: csharp=extra\n- stricttag.assertnounknownproperties [member] majority absent (11 SDKs); differs: php=extra\n- stricttag.unevaluatedpropertiesfalse [member] majority absent (11 SDKs); differs: ruby=extra\n- stricttag.fromjsonstrict [member] majority absent (11 SDKs); differs: node=extra\n- stricttag.frommapstrict [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F737",
@@ -33526,9 +33550,10 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `treatmentrecord`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- treatmentrecord.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing\n- treatmentrecord.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra\n- treatmentrecord.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra\n- treatmentrecord.actualinstances [member] majority absent (11 SDKs); differs: php=extra\n- treatmentrecord.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- treatmentrecord.value [params] majority () (2 SDKs); differs: swift=(type)\n- treatmentrecord.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra\n- treatmentrecord.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra\n- treatmentrecord.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "parked",
-   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
-   "batch": null
+   "status": "fixed",
+   "note": "model public API harmonised in ten SDKs; idiom follow-ups tracked separately",
+   "batch": null,
+   "commit": "3952d7233"
   },
   {
    "id": "F738",
@@ -34219,6 +34244,86 @@
     "node"
    ],
    "description": "Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F780",
+   "severity": "low",
+   "title": "go: oneOf ActualInstance() keeps a pointer receiver while MarshalJSON and the new anyOf accessors use value receivers",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "Mixed receiver kinds on one generated model type. Make the receivers consistent (idiom review of the model API change set).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F781",
+   "severity": "low",
+   "title": "kotlin: rejectUnevaluatedKeys spells kotlinx.serialization.descriptors.StructureKind out in full instead of importing it",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "src/main/resources/templates/kotlin/object_serializer.mustache (about lines 346-370).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F782",
+   "severity": "medium",
+   "title": "node: the get additionalProperties() accessor sits in the same class as an index signature of a different type",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "src/main/resources/templates/node/models/model.mustache (about lines 517-532). The getter type can conflict with the string index signature under strict type checking; rejected twice by the idiom review. Verify with tsc strict on a model that has additionalProperties and fix.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F783",
+   "severity": "low",
+   "title": "php: byte-property docblocks contradict the property, and the byteProperties reflection walker is duplicated in ObjectSerializer and the model base",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Generated docblocks on byte properties keep the spec description 'Base64-encoded ...' although values are raw; the private static byteProperties(string $class) helper (about 25 lines) is copy-pasted into two templates.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F784",
+   "severity": "low",
+   "title": "java: MetadataTest mixes a fully-qualified JUnit assertThrows into a file that uses AssertJ exclusively",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Use AssertJ assertThatThrownBy consistently in the generated MetadataTest.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
