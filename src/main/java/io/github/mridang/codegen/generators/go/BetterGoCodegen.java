@@ -627,7 +627,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+                return "\"" + goStringBody(String.valueOf(resolved.getDefault())) + "\"";
             }
         }
         return null;

@@ -99,7 +99,7 @@ func NewDefaults() *Defaults {
 	var defaultRetries int32 = 3
 	var defaultMode DefaultsModeEnum = "medium"
 	var defaultLabel string = "untitled"
-	var defaultGreeting string = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b"
+	var defaultGreeting string = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
 	var defaultSwatch Swatch = SwatchGreen
 	var defaultRatio float64 = 1.5
 	var defaultScale float32 = 0.25
@@ -138,7 +138,7 @@ func (o *Defaults) UnmarshalJSON(data []byte) error {
 	aux.Mode = &defaultMode
 	var defaultLabel string = "untitled"
 	aux.Label = &defaultLabel
-	var defaultGreeting string = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b"
+	var defaultGreeting string = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
 	aux.Greeting = &defaultGreeting
 	var defaultSwatch Swatch = SwatchGreen
 	aux.Swatch = &defaultSwatch
