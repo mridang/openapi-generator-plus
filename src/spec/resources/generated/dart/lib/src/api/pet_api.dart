@@ -97,9 +97,7 @@ class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
   final GetMultiServerPetInfoServerRegionalRegion region;
 
-  GetMultiServerPetInfoServerRegional(
-    GetMultiServerPetInfoServerRegionalRegion region,
-  ) : this.region = region;
+  GetMultiServerPetInfoServerRegional(this.region);
 
   @override
   String getUrl() {
@@ -119,11 +117,7 @@ class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
   final GetMultiServerPetInfoServerMirrorRegion region;
   final GetMultiServerPetInfoServerChannel channel;
 
-  GetMultiServerPetInfoServerMirror(
-    GetMultiServerPetInfoServerMirrorRegion region,
-    GetMultiServerPetInfoServerChannel channel,
-  ) : this.region = region,
-      this.channel = channel;
+  GetMultiServerPetInfoServerMirror(this.region, this.channel);
 
   @override
   String getUrl() {
@@ -191,11 +185,7 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
   final GetStagingPetInfoServerEnvironment environment;
   final GetStagingPetInfoServerVersion version;
 
-  GetStagingPetInfoServerStagingServer(
-    GetStagingPetInfoServerEnvironment environment,
-    GetStagingPetInfoServerVersion version,
-  ) : this.environment = environment,
-      this.version = version;
+  GetStagingPetInfoServerStagingServer(this.environment, this.version);
 
   @override
   String getUrl() {

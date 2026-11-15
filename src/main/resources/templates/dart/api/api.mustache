@@ -47,8 +47,7 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
   final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}};
 {{/serverVariables}}
 
-  {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}){{#serverVariables}}{{#-first}} : {{/-first}}this.{{camelName}} = {{camelName}}{{^-last}},
-        {{/-last}}{{/serverVariables}};
+  {{serverTypeName}}{{variantName}}({{#serverVariables}}this.{{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}});
 
   @override
   String getUrl() {

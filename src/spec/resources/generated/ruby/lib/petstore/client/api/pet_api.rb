@@ -79,8 +79,7 @@ module Petstore::Client
 
     # Mirror
     class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
-      attr_reader :region
-      attr_reader :channel
+      attr_reader :region, :channel
 
       def initialize(region:, channel:)
         super()
@@ -138,8 +137,7 @@ module Petstore::Client
 
     # Staging server
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
-      attr_reader :environment
-      attr_reader :version
+      attr_reader :environment, :version
 
       def initialize(environment:, version:)
         super()
