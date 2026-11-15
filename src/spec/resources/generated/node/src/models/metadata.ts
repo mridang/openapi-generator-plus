@@ -68,7 +68,33 @@ export class Metadata {
 
   [key: string]: unknown;
 
+  /**
+   * The undeclared keys this instance carries, as a fresh record. Empty when
+   * there are none, never undefined. Read-only: assign extra keys on the
+   * instance itself.
+   */
+  get additionalProperties(): Record<string, unknown> {
+    const extras: Record<string, unknown> = {};
+    for (const key of Object.keys(this)) {
+      if (!Metadata.__additionalPropertiesDeclaredKeys.has(key)) {
+        extras[key] = (this as Record<string, unknown>)[key];
+      }
+    }
+    return extras;
+  }
+
   constructor(data?: Partial<Metadata>) {
+    if (
+      data &&
+      Object.prototype.hasOwnProperty.call(data, "additionalProperties")
+    ) {
+      Object.defineProperty(this, "additionalProperties", {
+        value: data["additionalProperties"],
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+    }
     Object.assign(this, data);
     /* `format: date-time`: an unparseable wire value becomes an Invalid Date
      * rather than an error, so reject it here. */

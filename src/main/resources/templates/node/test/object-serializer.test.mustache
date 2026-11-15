@@ -633,15 +633,10 @@ describe('ObjectSerializer', () => {
       expect((tag as StrictTag).name).toBe('Fine');
     });
 
-    test('fromJsonStrict and __strictDeclaredKeys agree on the declared set', () => {
-      // The deserialize gate keys off the same static set fromJsonStrict
-      // validates against, so both reject the identical undeclared key.
+    test('__strictDeclaredKeys lists exactly the declared wire keys', () => {
       expect(StrictTag.__strictDeclaredKeys.has('id')).toBe(true);
       expect(StrictTag.__strictDeclaredKeys.has('name')).toBe(true);
       expect(StrictTag.__strictDeclaredKeys.has('unexpected')).toBe(false);
-      expect(() =>
-        StrictTag.fromJsonStrict({ id: 1, name: 'x', unexpected: true }),
-      ).toThrow(/Unknown property 'unexpected'/);
     });
   });
 

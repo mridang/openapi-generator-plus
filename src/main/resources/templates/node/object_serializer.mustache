@@ -348,7 +348,12 @@ export function reattachAdditionalProperties(value: unknown, raw: unknown): unkn
   if (declaredKeys) {
     for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
       if (!declaredKeys.has(key)) {
-        (value as Record<string, unknown>)[key] = extra;
+        Object.defineProperty(value, key, {
+          value: extra,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
     }
   }
@@ -707,7 +712,7 @@ export class ObjectSerializer {
        * violation that must be REJECTED, not silently dropped. plainToInstance
        * with excludeExtraneousValues discards every non-@Expose key, so without
        * this gate the strict contract would be unenforced on the real
-       * deserialize path (the model's own fromJsonStrict was never reached).
+       * deserialize path.
        * The static `__strictDeclaredKeys` set (present only on strict models)
        * lists the allowed wire keys; reject any json key not in it before
        * building the instance. Models without the marker are non-strict and
