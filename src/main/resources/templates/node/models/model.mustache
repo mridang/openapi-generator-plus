@@ -514,7 +514,15 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   static readonly __additionalPropertiesDeclaredKeys: ReadonlySet<string> =
     new Set([{{#vars}}'{{baseName}}'{{^-last}}, {{/-last}}{{/vars}}]);
 
-  [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
+  [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}} | Record<string, {{{additionalPropertiesType}}}>{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
+
+  /**
+   * A wire key literally named `additionalProperties`. It cannot live on the
+   * instance under that name because the accessor below owns the name, so it is
+   * held here, merged into the accessor's record and emitted by the serializer
+   * under its wire name.
+   */
+  #additionalPropertiesKey?: { value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} };
 
   /**
    * The undeclared keys this instance carries, as a fresh record. Empty when
@@ -525,10 +533,29 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     const extras: Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}> = {};
     for (const key of Object.keys(this)) {
       if (!{{classname}}.__additionalPropertiesDeclaredKeys.has(key)) {
-        extras[key] = (this as Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}>)[key];
+        extras[key] = (this as unknown as Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}>)[key];
       }
     }
+    if (this.#additionalPropertiesKey) {
+      extras['additionalProperties'] = this.#additionalPropertiesKey.value;
+    }
     return extras;
+  }
+
+  /**
+   * Internal: the value held for a wire key named `additionalProperties`, or
+   * undefined when the instance has none. Read by the serializer.
+   */
+  static __additionalPropertiesKeyOf(instance: object): { value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} } | undefined {
+    return #additionalPropertiesKey in instance ? (instance as {{classname}}).#additionalPropertiesKey : undefined;
+  }
+
+  /**
+   * Internal: hold the value of a wire key named `additionalProperties` on an
+   * instance. Used by the serializer when it re-attaches free-form keys.
+   */
+  static __holdAdditionalPropertiesKey(instance: object, value: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}): void {
+    (instance as {{classname}}).#additionalPropertiesKey = { value };
   }
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
@@ -550,16 +577,19 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     super(data);
 {{/parent}}
 {{#isAdditionalPropertiesTrue}}
-    if (data && Object.prototype.hasOwnProperty.call(data, 'additionalProperties')) {
-      Object.defineProperty(this, 'additionalProperties', {
-        value: data['additionalProperties'],
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
+    if (data) {
+      this.#additionalPropertiesKey = Object.prototype.hasOwnProperty.call(data, 'additionalProperties')
+        ? { value: data['additionalProperties'] as {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}} }
+        : {{classname}}.__additionalPropertiesKeyOf(data);
     }
+    Object.assign(
+      this,
+      Object.fromEntries(Object.entries(data ?? {}).filter(([key]) => key !== 'additionalProperties')),
+    );
 {{/isAdditionalPropertiesTrue}}
+{{^isAdditionalPropertiesTrue}}
     Object.assign(this, data);
+{{/isAdditionalPropertiesTrue}}
 {{! default-on-deserialize: a field whose schema declares a default falls
     back to that default ONLY when the wire payload OMITS the key. An
     explicit JSON null is a provided value and is PRESERVED, not replaced
@@ -1030,6 +1060,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
         if (!{{classname}}.__deepEquals(selfRec[k], otherRec[k])) {
           return false;
         }
+      }
+      if (
+        !{{classname}}.__deepEquals(
+          {{classname}}.__additionalPropertiesKeyOf(this)?.value,
+          {{classname}}.__additionalPropertiesKeyOf(other as object)?.value,
+        )
+      ) {
+        return false;
       }
     }
 {{/isAdditionalPropertiesTrue}}

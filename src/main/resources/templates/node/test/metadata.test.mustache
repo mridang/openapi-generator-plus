@@ -190,8 +190,12 @@ describe('Metadata additionalProperties accessor', () => {
       { createdAt: '2024-01-01T00:00:00Z', additionalProperties: 'x' },
       Metadata,
     ) as Metadata;
-    expect(metadata.additionalProperties).toBe('x' as unknown);
+    expect(metadata.additionalProperties).toEqual({ additionalProperties: 'x' });
+    expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({
+      createdAt: '2024-01-01T00:00:00.000+00:00',
+      additionalProperties: 'x',
+    });
     const built = new Metadata({ additionalProperties: 'y' } as unknown as Partial<Metadata>);
-    expect(built.additionalProperties).toBe('y' as unknown);
+    expect(built.additionalProperties).toEqual({ additionalProperties: 'y' });
   });
 });

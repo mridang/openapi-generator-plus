@@ -376,7 +376,16 @@ export function reattachAdditionalProperties(
   )?.__additionalPropertiesDeclaredKeys;
   if (declaredKeys) {
     for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
-      if (!declaredKeys.has(key)) {
+      if (key === "additionalProperties") {
+        (
+          value.constructor as {
+            __holdAdditionalPropertiesKey?: (
+              instance: object,
+              held: unknown,
+            ) => void;
+          }
+        ).__holdAdditionalPropertiesKey?.(value, extra);
+      } else if (!declaredKeys.has(key)) {
         Object.defineProperty(value, key, {
           value: extra,
           enumerable: true,
@@ -387,6 +396,35 @@ export function reattachAdditionalProperties(
     }
   }
   return value;
+}
+
+/**
+ * A model holds a wire key named `additionalProperties` privately, because the
+ * accessor of that name owns the property. Return a copy that carries it as an
+ * own property so JSON.stringify emits it under its wire name; any other value
+ * is returned untouched.
+ */
+function withAdditionalPropertiesKey(value: object): object {
+  const ctor = value.constructor as
+    | {
+        __additionalPropertiesKeyOf?: (
+          instance: object,
+        ) => { value: unknown } | undefined;
+      }
+    | undefined;
+  const held = ctor?.__additionalPropertiesKeyOf?.(value);
+  if (!held) {
+    return value;
+  }
+  const copy = Object.create(Object.getPrototypeOf(value) as object) as object;
+  Object.defineProperties(copy, Object.getOwnPropertyDescriptors(value));
+  Object.defineProperty(copy, "additionalProperties", {
+    value: held.value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+  return copy;
 }
 
 function revalidateNestedFields(holder: Record<string, unknown>): void {
@@ -509,6 +547,13 @@ export class ObjectSerializer {
     const underModel = new WeakSet<object>();
     try {
       return JSON.stringify(obj, function (_key, value) {
+        if (
+          value !== null &&
+          typeof value === "object" &&
+          !Array.isArray(value)
+        ) {
+          value = withAdditionalPropertiesKey(value as object);
+        }
         if (value !== null && typeof value === "object") {
           const holder = this as unknown as object;
           const holderCtor = (
