@@ -512,6 +512,12 @@ fn test_defaults_absent_applies_schema_defaults() {
         "absent `label` must deserialize to the schema default \"untitled\", got: {:?}",
         defaults.label
     );
+    assert_eq!(
+        defaults.greeting,
+        Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b".to_string()),
+        "absent `greeting` must deserialize to the exact schema default, got: {:?}",
+        defaults.greeting
+    );
 }
 
 #[test]
