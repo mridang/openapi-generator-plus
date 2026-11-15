@@ -52,19 +52,7 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
     end
   end
 
-  @doc """
-  Serialize a built union value to its JSON-ready (sanitized) form.
-
-  For a `oneOf` whose variants carry `format: byte` (descriptor `binary()`,
-  or `[binary()]` for an array of bytes), the native Elixir representation is
-  a bare `binary()` (raw bytes) or a list of them — which is indistinguishable
-  from a plain string at the generic serializer, so those raw bytes would
-  otherwise be written to the wire UNENCODED. `format: byte` mandates a base64
-  STRING on the wire, so re-encode each byte leaf here, mirroring the base64
-  decode the matching `build/1` variant performs (and the bare scalar
-  `format: byte` field path in `ObjectSerializer`). Non-byte unions fall
-  through to the generic serializer unchanged.
-  """
+  @doc false
   @spec serialize(term()) :: term()
   def serialize(value) do
     if byte_union?() do

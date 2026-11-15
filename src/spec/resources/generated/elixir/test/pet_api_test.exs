@@ -1441,4 +1441,16 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     Agent.stop(name)
   end
+
+  test "set_pet_avatar_thumbnail sends raw bytes as a base64 string" do
+    {:ok, name} = BodyCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(BodyCapturingApiClient, config)
+
+    {:ok, _result} = PetstoreClient.Api.PetApi.set_pet_avatar_thumbnail(api, 1, <<1, 2, 3, 4>>)
+
+    assert BodyCapturingApiClient.captured(name).body |> to_string() == ~s("AQIDBA==")
+
+    Agent.stop(name)
+  end
 end

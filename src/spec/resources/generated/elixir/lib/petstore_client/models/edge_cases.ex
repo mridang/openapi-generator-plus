@@ -12,6 +12,45 @@ defmodule PetstoreClient.Models.EdgeCases do
 
   """
 
+  defmodule PhaseEnum do
+    @moduledoc "Allowed values of EdgeCases.phase"
+
+    @typedoc "One of the allowed enum atoms for EdgeCases.phase."
+    @type t :: :in_stock | :on_hold | :out_of_stock
+
+    @doc "Enum value `in_stock`"
+    def in_stock, do: :in_stock
+
+    @doc "Enum value `on_hold`"
+    def on_hold, do: :on_hold
+
+    @doc "Enum value `out_of_stock`"
+    def out_of_stock, do: :out_of_stock
+
+    @doc "All allowed values as atoms."
+    @spec all_values() :: [t(), ...]
+    def all_values do
+      [in_stock(), on_hold(), out_of_stock()]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(t()) :: String.t()
+    def value(:in_stock), do: "In-Stock"
+    def value(:on_hold), do: "on-hold"
+    def value(:out_of_stock), do: "OUT_OF_STOCK"
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: t() | {:error, term()}
+    def from_value("In-Stock"), do: :in_stock
+    def from_value("on-hold"), do: :on_hold
+    def from_value("OUT_OF_STOCK"), do: :out_of_stock
+    def from_value(value), do: {:error, value}
+  end
+
   @type t :: %__MODULE__{
           free_form_any: any() | nil,
           favorite_color: PetstoreClient.Models.Color.t() | nil,
@@ -31,7 +70,7 @@ defmodule PetstoreClient.Models.EdgeCases do
           last_error: PetstoreClient.Models.Error.t() | nil,
           outcome: PetstoreClient.Models.Result.t() | nil,
           cutoff: Time.t() | nil,
-          phase: :in_stock | :on_hold | :out_of_stock | nil,
+          phase: PhaseEnum.t() | nil,
           slug: String.t() | nil
         }
 

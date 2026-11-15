@@ -335,7 +335,7 @@ defmodule PetstoreClient.Api.PetApi do
     path = "/pet"
     query_params = %{}
     header_params = %{}
-    request_body = pet
+    request_body = PetstoreClient.ObjectSerializer.prepare_body(pet, PetstoreClient.Models.Pet)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -619,7 +619,12 @@ defmodule PetstoreClient.Api.PetApi do
 
     query_params = %{}
     header_params = %{}
-    request_body = pet_treatment
+
+    request_body =
+      PetstoreClient.ObjectSerializer.prepare_body(
+        pet_treatment,
+        PetstoreClient.Models.PetTreatment
+      )
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -3238,7 +3243,12 @@ defmodule PetstoreClient.Api.PetApi do
 
     query_params = %{}
     header_params = %{}
-    request_body = set_pet_avatar_thumbnail_request
+
+    request_body =
+      PetstoreClient.ObjectSerializer.prepare_body(
+        set_pet_avatar_thumbnail_request,
+        PetstoreClient.Models.SetPetAvatarThumbnailRequest
+      )
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -3505,7 +3515,7 @@ defmodule PetstoreClient.Api.PetApi do
 
     query_params = %{}
     header_params = %{}
-    request_body = pet
+    request_body = PetstoreClient.ObjectSerializer.prepare_body(pet, PetstoreClient.Models.Pet)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,

@@ -14,13 +14,52 @@ defmodule PetstoreClient.Models.PetWithOwner do
 
   """
 
+  defmodule StatusEnum do
+    @moduledoc "Allowed values of PetWithOwner.status"
+
+    @typedoc "One of the allowed enum atoms for PetWithOwner.status."
+    @type t :: :available | :pending | :sold
+
+    @doc "Enum value `available`"
+    def available, do: :available
+
+    @doc "Enum value `pending`"
+    def pending, do: :pending
+
+    @doc "Enum value `sold`"
+    def sold, do: :sold
+
+    @doc "All allowed values as atoms."
+    @spec all_values() :: [t(), ...]
+    def all_values do
+      [available(), pending(), sold()]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(t()) :: String.t()
+    def value(:available), do: "available"
+    def value(:pending), do: "pending"
+    def value(:sold), do: "sold"
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: t() | {:error, term()}
+    def from_value("available"), do: :available
+    def from_value("pending"), do: :pending
+    def from_value("sold"), do: :sold
+    def from_value(value), do: {:error, value}
+  end
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           name: String.t(),
           category: PetstoreClient.Models.Category.t() | nil,
           photo_urls: MapSet.t(String.t()),
           tags: [PetstoreClient.Models.Tag.t()] | nil,
-          status: :available | :pending | :sold | nil,
+          status: StatusEnum.t() | nil,
           location: [any()] | nil,
           homepage_url: String.t() | nil,
           thumbnail_ref: String.t() | nil,

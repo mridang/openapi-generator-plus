@@ -150,19 +150,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   end
 
   {{^discriminator}}
-  @doc """
-  Serialize a built union value to its JSON-ready (sanitized) form.
-
-  For a `oneOf` whose variants carry `format: byte` (descriptor `binary()`,
-  or `[binary()]` for an array of bytes), the native Elixir representation is
-  a bare `binary()` (raw bytes) or a list of them — which is indistinguishable
-  from a plain string at the generic serializer, so those raw bytes would
-  otherwise be written to the wire UNENCODED. `format: byte` mandates a base64
-  STRING on the wire, so re-encode each byte leaf here, mirroring the base64
-  decode the matching `build/1` variant performs (and the bare scalar
-  `format: byte` field path in `ObjectSerializer`). Non-byte unions fall
-  through to the generic serializer unchanged.
-  """
+  @doc false
   @spec serialize(term()) :: term()
   def serialize(value) do
     if byte_union?() do
@@ -294,6 +282,17 @@ defmodule {{moduleName}}.Models.{{classname}} do
       {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
     end
   end
+
+  @doc "The first retained variant of a built value."
+  @spec actual_instance(t()) :: term()
+  def actual_instance(%{{moduleName}}.AnyOfComposite{instances: [first | _]}), do: first
+  def actual_instance(value), do: value
+
+  @doc "Every variant that matched, in schema declaration order."
+  @spec matched_instances(t()) :: [term()]
+  def matched_instances(%{{moduleName}}.AnyOfComposite{instances: instances}), do: instances
+  def matched_instances(nil), do: []
+  def matched_instances(value), do: [value]
 end
 {{/-first}}
 {{/anyOf}}
@@ -356,9 +355,52 @@ defmodule {{moduleName}}.Models.{{classname}} do
   """
   {{/description}}
 
+{{#vars}}
+{{#isEnum}}
+{{^isArray}}
+{{#allowableValues}}
+  defmodule {{enumName}} do
+    @moduledoc "Allowed values of {{classname}}.{{baseName}}"
+
+    @typedoc "One of the allowed enum atoms for {{classname}}.{{baseName}}."
+    @type t :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}
+{{#enumVars}}
+
+    @doc "Enum value `{{nameLowercase}}`"
+    def {{nameLowercase}}, do: :"{{nameLowercase}}"
+{{/enumVars}}
+
+    @doc "All allowed values as atoms."
+    @spec all_values() :: [t(), ...]
+    def all_values do
+      [{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(t()) :: {{#isInteger}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isInteger}}{{#isLong}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
+{{#enumVars}}
+    def value(:"{{nameLowercase}}"), do: {{{value}}}
+{{/enumVars}}
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: t() | {:error, term()}
+{{#enumVars}}
+    def from_value({{{value}}}), do: :"{{nameLowercase}}"
+{{/enumVars}}
+    def from_value(value), do: {:error, value}
+  end
+
+{{/allowableValues}}
+{{/isArray}}
+{{/isEnum}}
+{{/vars}}
   @type t :: %__MODULE__{
   {{#vars}}
-          {{name}}: {{#isEnum}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
+          {{name}}: {{#isEnum}}{{^isArray}}{{enumName}}.t(){{/isArray}}{{#isArray}}{{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isArray}}{{/isEnum}}{{^isEnum}}{{#lambda.elixirTypespec}}{{{dataType}}}{{/lambda.elixirTypespec}}{{/isEnum}}{{^required}} | nil{{/required}}{{#required}}{{#isNullable}} | nil{{/isNullable}}{{/required}}{{^-last}},{{/-last}}{{#-last}}{{#isAdditionalPropertiesTrue}},{{/isAdditionalPropertiesTrue}}{{/-last}}
   {{/vars}}
   {{#isAdditionalPropertiesTrue}}
           additional_properties: %{String.t() => any()}
@@ -370,6 +412,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{#requiredVars}}
   {{^defaultValue}}
     :{{name}}{{^-last}},{{/-last}}
+  {{/defaultValue}}
+  {{#defaultValue}}
+  {{#isDiscriminator}}
+    :{{name}}{{^-last}},{{/-last}}
+  {{/isDiscriminator}}
   {{/defaultValue}}
   {{/requiredVars}}
   ]
@@ -456,27 +503,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
 {{/additionalPropertiesType}}
 {{/isAdditionalPropertiesTrue}}
 {{#isUnevaluatedPropertiesFalse}}
-  @doc """
-  Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-  Decodes a JSON-decoded map into this struct, raising
-  `{{moduleName}}.Errors.SerializationError` if any key is not declared in
-  `attribute_map/0`.
-  """
-  @spec from_map_strict(map()) :: t()
-  def from_map_strict(data) when is_map(data) do
-    declared = attribute_map() |> Map.values() |> MapSet.new()
-
-    Enum.each(Map.keys(data), fn key ->
-      key_str = to_string(key)
-
-      unless MapSet.member?(declared, key_str) do
-        raise {{moduleName}}.Errors.SerializationError,
-              message: "Unknown property '#{key_str}' on {{classname}} (unevaluatedProperties:false)"
-      end
-    end)
-
-    struct(__MODULE__, for({k, v} <- data, do: {String.to_existing_atom(to_string(k)), v}))
-  end
+  @doc false
+  @spec strict_properties?() :: true
+  def strict_properties?, do: true
 {{/isUnevaluatedPropertiesFalse}}
 end
 {{/hasVars}}

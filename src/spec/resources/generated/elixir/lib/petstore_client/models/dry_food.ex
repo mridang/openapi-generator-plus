@@ -18,6 +18,7 @@ defmodule PetstoreClient.Models.DryFood do
         }
 
   @enforce_keys [
+    :food_type,
     :weight_kg
   ]
   defstruct [
