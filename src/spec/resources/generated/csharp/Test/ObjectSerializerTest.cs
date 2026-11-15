@@ -951,6 +951,25 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void StrictModelRejectsUndeclaredKey()
+        {
+            var json = "{\"id\":1,\"name\":\"x\",\"unexpected\":true}";
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<StrictTag>(json)
+            );
+            Assert.Contains("unexpected", ex.InnerException!.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void StrictModelAcceptsDeclaredKeys()
+        {
+            var tag = _serializer.Deserialize<StrictTag>("{\"id\":1,\"name\":\"x\"}");
+            Assert.NotNull(tag);
+            Assert.Equal(1L, tag!.Id);
+            Assert.Equal("x", tag.Name);
+        }
+
+        [Fact]
         public void MultipleUnknownPropertiesAreSilentlySkipped()
         {
             var json =

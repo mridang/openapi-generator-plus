@@ -325,6 +325,9 @@ namespace {{packageName}}.Models;
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
+{{#isUnevaluatedPropertiesFalse}}
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+{{/isUnevaluatedPropertiesFalse}}
 public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
     /// <summary>
@@ -502,31 +505,8 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; set; } = new();
 {{/isAdditionalPropertiesTrue}}
-{{#isUnevaluatedPropertiesFalse}}
-
-    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-     * Any JSON key not declared above is captured here so the JsonExtensionData
-     * setter can throw, surfacing unknown-key errors during deserialization. */
-    private Dictionary<string, object>? _unknownProperties;
-
-    [JsonExtensionData]
-    public Dictionary<string, object>? UnknownProperties
-    {
-        get => _unknownProperties;
-        set
-        {
-            if (value is not null && value.Count > 0)
-            {
-                throw new global::{{packageName}}.Errors.SerializationException(
-                    "Unknown property '" + value.Keys.First()
-                        + "' on {{classname}} (unevaluatedProperties:false)");
-            }
-            _unknownProperties = value;
-        }
-    }
-{{/isUnevaluatedPropertiesFalse}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
@@ -582,6 +562,9 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{#lambda.escapeXml}}{{{description}}}{{/lambda.escapeXml}}</seealso>
 {{/externalDocumentation}}
+{{#isUnevaluatedPropertiesFalse}}
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+{{/isUnevaluatedPropertiesFalse}}
 public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
     {{#vars}}
@@ -672,30 +655,8 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}> AdditionalProperties { get; set; } = new();
 {{/isAdditionalPropertiesTrue}}
-{{#isUnevaluatedPropertiesFalse}}
-
-    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-     * any JSON key not declared above is rejected at deserialization time. */
-    private Dictionary<string, object>? _unknownProperties;
-
-    [JsonExtensionData]
-    public Dictionary<string, object>? UnknownProperties
-    {
-        get => _unknownProperties;
-        set
-        {
-            if (value is not null && value.Count > 0)
-            {
-                throw new global::{{packageName}}.Errors.SerializationException(
-                    "Unknown property '" + value.Keys.First()
-                        + "' on {{classname}} (unevaluatedProperties:false)");
-            }
-            _unknownProperties = value;
-        }
-    }
-{{/isUnevaluatedPropertiesFalse}}
 
     /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>

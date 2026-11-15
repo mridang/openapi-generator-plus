@@ -16,7 +16,7 @@ public class Metadata : IEquatable<Metadata>
     public DateTimeOffset? CreatedAt { get; set; }
 
     [JsonExtensionData]
-    public Dictionary<string, object>? AdditionalProperties { get; set; }
+    public Dictionary<string, object> AdditionalProperties { get; set; } = new();
 
     /// <summary>Value-equality based on all declared fields
     /// (including the AdditionalProperties dictionary).</summary>
