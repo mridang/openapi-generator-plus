@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4, needs-spec 2, open 135, parked 58, partial 5. Severity: critical 3, high 59, medium 534, low 178.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4, needs-spec 2, open 140, parked 58, partial 5. Severity: critical 3, high 59, medium 536, low 181.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -780,6 +780,11 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4,
 | F772 | medium | open | review | swift | The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a. |
 | F773 | medium | open | review | elixir | The worktree had no .claude directory, so I read the agent file from the pr35 checkout. |
 | F774 | medium | open | review | elixir | BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body). |
+| F775 | low | open | review | kotlin | kotlin RequiredNullable.note required-nullable is not in the api-surface allow-list |
+| F776 | low | open | review | go, rust | DateTime unwrap accessor (go Time() / rust into_inner()) is not allow-listed |
+| F777 | low | open | review | go | go oneOf constructor accepts pointer variants, unlike the decode path |
+| F778 | medium | open | review | node | The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al |
+| F779 | medium | open | review | node | Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled. |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -7914,7 +7919,9 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - binaryvault.setlabelsfrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F713 [medium] API surface: harmonise model `datetime` (2 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go, rust
 
 `etc/api-surface.py check` reports these public-API differences for `datetime`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7922,49 +7929,63 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - datetime.intoinner [member] majority present (1 SDKs); differs: go=missing
 
 ## F714 [medium] API surface: harmonise model `defaults` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `defaults`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - defaults.alldefaultsmodeenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F715 [medium] API surface: harmonise model `defaultsmodeenum` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `defaultsmodeenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - defaultsmodeenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F716 [medium] API surface: harmonise model `dryfood` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `dryfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - dryfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional
 
 ## F717 [medium] API surface: harmonise model `edgecases` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `edgecases`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - edgecases.alledgecasesphaseenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F718 [medium] API surface: harmonise model `edgecasesphaseenum` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `edgecasesphaseenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - edgecasesphaseenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F719 [medium] API surface: harmonise model `error` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `error`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - error [type] majority present (9 SDKs); differs: go=missing
 
 ## F720 [medium] API surface: harmonise model `metadata` (3 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, elixir, java, node, php
 
 `etc/api-surface.py check` reports these public-API differences for `metadata`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7973,42 +7994,54 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - metadata.additionalproperties [prop-optional] majority required (6 SDKs); differs: csharp=optional; elixir=optional; php=optional
 
 ## F721 [medium] API surface: harmonise model `modelerror` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `modelerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - modelerror [type] majority absent (9 SDKs); differs: go=ModelError
 
 ## F722 [medium] API surface: harmonise model `modelresult` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java
 
 `etc/api-surface.py check` reports these public-API differences for `modelresult`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - modelresult [type] majority absent (9 SDKs); differs: java=ModelResult
 
 ## F723 [medium] API surface: harmonise model `order` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `order`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - order.allorderstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F724 [medium] API surface: harmonise model `orderstatusenum` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `orderstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - orderstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F725 [medium] API surface: harmonise model `pet` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `pet`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - pet.allpetstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F726 [medium] API surface: harmonise model `petfood` (5 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, go, kotlin, node, php, python, swift
 
 `etc/api-surface.py check` reports these public-API differences for `petfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8019,7 +8052,9 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - petfood.newpetfoodfromwetfood [member] majority absent (11 SDKs); differs: go=extra
 
 ## F727 [medium] API surface: harmonise model `petpassport` (6 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php
 
 `etc/api-surface.py check` reports these public-API differences for `petpassport`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8031,14 +8066,18 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - petpassport.setbiometricchipfrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F728 [medium] API surface: harmonise model `petstatusenum` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F729 [medium] API surface: harmonise model `pettreatment` (9 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `pettreatment`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8053,35 +8092,45 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - pettreatment.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra
 
 ## F730 [medium] API surface: harmonise model `petwithowner` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `petwithowner`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petwithowner.allpetwithownerstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F731 [medium] API surface: harmonise model `petwithownerstatusenum` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petwithownerstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petwithownerstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F732 [medium] API surface: harmonise model `requirednullable` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: kotlin
 
 `etc/api-surface.py check` reports these public-API differences for `requirednullable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - requirednullable.note [prop-optional] majority required (11 SDKs); differs: kotlin=optional
 
 ## F733 [medium] API surface: harmonise model `result` (1 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java
 
 `etc/api-surface.py check` reports these public-API differences for `result`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - result [type] majority present (9 SDKs); differs: java=missing
 
 ## F734 [medium] API surface: harmonise model `setpetavatarrequest` (2 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php
 
 `etc/api-surface.py check` reports these public-API differences for `setpetavatarrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8089,7 +8138,9 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - setpetavatarrequest.setdatafrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F735 [medium] API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, php, python, swift
 
 `etc/api-surface.py check` reports these public-API differences for `setpetavatarthumbnailrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8105,7 +8156,9 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - setpetavatarthumbnailrequest.serialize [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F736 [medium] API surface: harmonise model `stricttag` (7 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, elixir, java, kotlin, node, php, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `stricttag`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8118,7 +8171,9 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - stricttag.frommapstrict [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F737 [medium] API surface: harmonise model `treatmentrecord` (9 differences)
-- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.
+
+The rest passed. `python3 etc/api-surface) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `treatmentrecord`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8367,3 +8422,33 @@ The worktree had no .claude directory, so I read the agent file from the pr35 ch
 - SDKs: elixir
 
 BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).
+
+## F775 [low] kotlin RequiredNullable.note required-nullable is not in the api-surface allow-list
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+The canonical text (F732, D78) says kotlin `String?` with no default is already allow-listed. `etc/api-surface.py check --json` still reports `model requirednullable.note prop-optional {kotlin: optional}` with no allowed reason, because the extractor reads `?` as optional. Either add the allow-list entry (or fix the extractor so it recognises a `String?` constructor parameter with no default as required), or treat F732 as unresolved.
+
+## F776 [low] DateTime unwrap accessor (go Time() / rust into_inner()) is not allow-listed
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go, rust
+
+The canonical file (api-models part 1, item 1) says go `DateTime.Time()` and rust `DateTime::into_inner()` are the same operation spelled per language, and that the allow rules are merged. The surface check still reports two rows with no allowed reason: `model datetime.time member {rust: missing}` and `model datetime.intoinner member {go: missing}`. Add a single allow entry that pairs them.
+
+## F777 [low] go oneOf constructor accepts pointer variants, unlike the decode path
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: go
+
+From the go idiom review notes, confirmed against the canonical shape. `NewPetFood(actualInstance any)` accepts `&DryFood`, while decoding stores the `DryFood` value. A type switch on `ActualInstance()` then sees different dynamic types depending on how the value was built. To keep the canonical single-`any` constructor, normalise pointers to values in the constructor, or reject them, so that construction matches what decoding produces.
+
+## F778 [medium] The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an allow rule or the helper should be made non-exported.
+
+## F779 [medium] Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled.

@@ -10,21 +10,21 @@ Legend for the tables: each language cell is that SDK's actual spelling; `✗` m
 
 | Language | Surface mismatches | Initialism casing | Total |
 | --- | --- | --- | --- |
-| java | 27 | 0 | 27 |
+| java | 26 | 0 | 26 |
 | kotlin | 18 | 0 | 18 |
-| csharp | 16 | 0 | 16 |
+| csharp | 15 | 0 | 15 |
 | php | 58 | 0 | 58 |
 | python | 43 | 0 | 43 |
-| ruby | 89 | 0 | 89 |
+| ruby | 87 | 0 | 87 |
 | node | 46 | 0 | 46 |
 | dart | 94 | 0 | 94 |
 | go | 54 | 0 | 54 |
-| rust | 63 | 0 | 63 |
+| rust | 57 | 0 | 57 |
 | swift | 43 | 0 | 43 |
-| elixir | 52 | 0 | 52 |
-| **all** | **603** | **0** | **603** |
+| elixir | 49 | 0 | 49 |
+| **all** | **590** | **0** | **590** |
 
-Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 646 further differences are allowed idioms (`etc/api-surface-allow.json`).
+Counts are per (element, aspect, language) as `etc/api-surface.py check` reports them; 659 further differences are allowed idioms (`etc/api-surface-allow.json`).
 
 ## Per-language change list
 
@@ -235,7 +235,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - add `resolveAnyOf` to `ObjectSerializer`
   - `ObjectSerializer.parse_json`: parameters (jsonstring) -> (data)
 
-### ruby (83 changes)
+### ruby (81 changes)
 
 - `api/api.mustache`
   - `PetApi.set_pet_avatar`: parameters (petid, body, contenttype) -> (petid, body, requestcontenttype)
@@ -291,11 +291,9 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - add type `EdgeCasesPhaseEnum`
   - generate the named inline enum (models/model.mustache)
   - add `actualInstance` to `PetFood`
-  - add `actualInstance` to `PetTreatment`
   - add `matchedInstances` to `PetTreatment`
   - add `actualInstance` to `SetPetAvatarThumbnailRequest`
   - make `StrictTag.UNEVALUATED_PROPERTIES_FALSE` non-public (or remove)
-  - add `actualInstance` to `TreatmentRecord`
   - add `matchedInstances` to `TreatmentRecord`
 - `object_serializer.mustache`
   - make `ObjectSerializer.MAX_JSON_DEPTH` non-public (or remove)
@@ -572,7 +570,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.UserAgent`: parameters (val) -> (useragent)
   - `TransportOptionsBuilder.InjectRequestID`: parameters (val) -> (injectrequestid)
 
-### rust (56 changes)
+### rust (50 changes)
 
 - `api/options.mustache`
   - `UploadPetDocumentOptions.is_primary`: parameters (isprimary) -> ()
@@ -618,13 +616,6 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `ApiError.from_response`: parameters (statuscode, headers, body) -> (statuscode, responseheaders, responsebody)
   - make `ApiError.with_source` non-public (or remove)
   - `ApiError` constructor (statuscode, message, responsebody, responseheaders) -> (statuscode, message, responseheaders, responsebody, errorbody, cause)
-- `models/model.mustache`
-  - add `actualInstance` to `PetTreatment`
-  - make `PetTreatment.medication` non-public (or remove)
-  - make `PetTreatment.surgery` non-public (or remove)
-  - add `actualInstance` to `TreatmentRecord`
-  - make `TreatmentRecord.medication` non-public (or remove)
-  - make `TreatmentRecord.surgery` non-public (or remove)
 - `object_serializer.mustache`
   - `object_serializer.serialize`: parameters (value) -> (object)
   - `object_serializer.deserialize`: parameters (data) -> (jsonstring, targettype)
@@ -711,7 +702,7 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - `TransportOptionsBuilder.userAgent`: parameters (val) -> (useragent)
   - `TransportOptionsBuilder.injectRequestID`: parameters (val) -> (injectrequestid)
 
-### elixir (54 changes)
+### elixir (51 changes)
 
 - `api/options.mustache`
   - `AddPetPhotosOptions.files`: optional -> required
@@ -756,15 +747,12 @@ One fix agent per language can execute its list. Paths are under `src/main/resou
   - generate `<Model><Prop>Enum` modules for inline enums (models/model.mustache)
   - `DryFood.food_type`: optional -> required
   - add type `EdgeCasesPhaseEnum`
-  - `Metadata.additional_properties`: optional -> required
   - generate the named inline enum (models/model.mustache)
   - add `actualInstance` to `PetFood`
-  - add `actualInstance` to `PetTreatment`
   - add `matchedInstances` to `PetTreatment`
   - add `actualInstance` to `SetPetAvatarThumbnailRequest`
   - make `SetPetAvatarThumbnailRequest.serialize` non-public (or remove)
   - make `StrictTag.from_map_strict` non-public (or remove)
-  - add `actualInstance` to `TreatmentRecord`
   - add `matchedInstances` to `TreatmentRecord`
   - `WetFood.food_type`: optional -> required
 - `object_serializer.mustache`
@@ -1142,7 +1130,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | Medication.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Medication (3 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **Metadata** | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata | Metadata |  |
-| Metadata.additionalProperties | additionalProperties | getAdditionalProperties | additionalProperties | AdditionalProperties ✗ | additionalProperties ✗ | additional_properties | ADDITIONAL_PROPERTIES | — ✗ | additionalProperties | AdditionalProperties | additional_properties | additionalProperties | additional_properties ✗ | D77 |
+| Metadata.additionalProperties | additionalProperties | getAdditionalProperties | additionalProperties | AdditionalProperties ✗ | additionalProperties ✗ | additional_properties | ADDITIONAL_PROPERTIES | — ✗ | additionalProperties | AdditionalProperties | additional_properties | additionalProperties | additional_properties ~ | D77 |
 | Metadata.setAdditionalProperty | setAdditionalProperty | setAdditionalProperty(key, value) ✗ | — | — | — | — | — | — | — | — | — | — | — | D51 |
 | Metadata.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
 | Metadata.equal | equal | — | — | — | — | — | — | — | — | Equal(other) ~ | — | — | — | idiom (allow-list) |
@@ -1200,7 +1188,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetPassport.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | PetPassport (5 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **PetTreatment** | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment | PetTreatment |  |
-| PetTreatment.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ✗ | getActualInstance | — ✗ | — ✗ | — ✗ | — ✗ | — ✗ | D41 |
+| PetTreatment.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ~ | getActualInstance | — ✗ | — ✗ | — ~ | — ✗ | — ~ | D41 |
 | PetTreatment.getInstances | getInstances | getInstances ✗ | instances ✗ | — | — | — | — | — | — | — | — | — | — | D43 |
 | PetTreatment.matchedInstances | matchedInstances | — | — | MatchedInstances ✗ | — | matched_instances ✗ | — | getMatchedInstances ✗ | — | — | — | — | — | D42 |
 | PetTreatment.getActualInstances | getActualInstances | — | — | — | getActualInstances ✗ | — | — | — | — | — | — | — | — | D44 |
@@ -1212,8 +1200,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | PetTreatment.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | PetTreatment.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | PetTreatment.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
-| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| PetTreatment.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ~ | — | — | Not part of the canonical surface: make it non-public in go. |
+| PetTreatment.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ~ | — | — | Not part of the canonical surface: make it non-public in go. |
 | PetTreatment.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **PetWithOwner** | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner | PetWithOwner |  |
 | PetWithOwner.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
@@ -1249,7 +1237,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | SetPetAvatarRequest.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | SetPetAvatarRequest (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **SetPetAvatarThumbnailRequest** | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest ~ | SetPetAvatarThumbnailRequest | SetPetAvatarThumbnailRequest | idiom (allow-list) |
-| SetPetAvatarThumbnailRequest.actualInstance | actualInstance | getActualInstance ✗ | actualInstance ✗ | ActualInstance ✗ | getActualInstance ✗ | actual_instance ✗ | — | — | — | — | — | — | — | D41 |
+| SetPetAvatarThumbnailRequest.actualInstance | actualInstance | getActualInstance ~ | actualInstance ✗ | ActualInstance ~ | getActualInstance ✗ | actual_instance ✗ | — | — | — | — | — | — | — | D41 |
 | SetPetAvatarThumbnailRequest.getActualInstanceAsBytes | getActualInstanceAsBytes | — | — | — | getActualInstanceAsBytes ✗ | — | — | — | — | — | — | — | — | D47 |
 | SetPetAvatarThumbnailRequest.getActualInstanceAsByteList | getActualInstanceAsByteList | — | — | — | getActualInstanceAsByteList ✗ | — | — | — | — | — | — | — | — | D50 |
 | SetPetAvatarThumbnailRequest.fromBytes | fromBytes | — | — | — | fromBytes(raw) ✗ | — | — | — | — | — | — | — | — | D48 |
@@ -1292,7 +1280,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | Tag.jsonKeyOrder | jsonKeyOrder | — | — | — | — | — | — | — | — | — | — | — | json_key_order ~ | idiom (allow-list) |
 | Tag (2 other properties) | identical |  |  |  |  |  |  |  |  |  |  |  |  |  |
 | **TreatmentRecord** | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord | TreatmentRecord |  |
-| TreatmentRecord.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ✗ | getActualInstance | — ✗ | — ✗ | — ✗ | — ✗ | — ✗ | D41 |
+| TreatmentRecord.actualInstance | actualInstance | getActualInstance | actualInstance | ActualInstance | getActualInstance | actual_instance | — ~ | getActualInstance | — ✗ | — ✗ | — ~ | — ✗ | — ~ | D41 |
 | TreatmentRecord.getInstances | getInstances | getInstances ✗ | instances ✗ | — | — | — | — | — | — | — | — | — | — | D43 |
 | TreatmentRecord.matchedInstances | matchedInstances | — | — | MatchedInstances ✗ | — | matched_instances ✗ | — | getMatchedInstances ✗ | — | — | — | — | — | D42 |
 | TreatmentRecord.getActualInstances | getActualInstances | — | — | — | getActualInstances ✗ | — | — | — | — | — | — | — | — | D44 |
@@ -1304,8 +1292,8 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | TreatmentRecord.values | values | — | — | — | — | — | — | — | values ✗ | — | — | values ✗ | — | D46 |
 | TreatmentRecord.ofValues | ofValues | — | — | — | — | — | — | — | ofValues(values) ~ | — | — | — | — | idiom (allow-list) |
 | TreatmentRecord.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
-| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
-| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ✗ | — | — | Not part of the canonical surface: make it non-public in rust, go. |
+| TreatmentRecord.medication | medication | — | — | — | — | — | — | — | — | Medication ✗ | medication ~ | — | — | Not part of the canonical surface: make it non-public in go. |
+| TreatmentRecord.surgery | surgery | — | — | — | — | — | — | — | — | Surgery ✗ | surgery ~ | — | — | Not part of the canonical surface: make it non-public in go. |
 | TreatmentRecord.matchesAny | matchesAny | — | — | — | — | — | — | — | — | — | matches_any ~ | — | — | idiom (allow-list) |
 | **TreeNode** | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode | TreeNode |  |
 | TreeNode.fromJson | fromJson | — | — | — | — | — | — | — | fromJson(json) ~ | — | — | — | — | idiom (allow-list) |
@@ -1679,7 +1667,7 @@ Chosen by (1) the majority, (2) the documented rules in AGENTS.md, (3) least sur
 | **DefaultApiClient** | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient | DefaultApiClient |  |
 | DefaultApiClient ctor | new(transportOptions) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transportOptions?) | (transport_options?, pool_manager?) ✗ | (transport_options?) | (transportOptions?) | (transportOptions?) | (transportOptions) | (transport_options) | (transportOptions?) | (transport_options?) | D81 |
 | DefaultApiClient.close | close | close | close | Dispose | close | close | close | close | close | Close | close | close | close |  |
-| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in kotlin, python. |
+| DefaultApiClient.sendRequest | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect) ✗ | SendRequestAsync(method, url, headers, body, noRedirect?) | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body?, no_redirect?) ✗ | send_request(method, url, headers, body, no_redirect?) | sendRequest(method, url, headers, body, options?) ✗ | sendRequest(method, url, headers, body, noRedirect?) | SendRequest(method, url, headers, body) ~ | send_request(method, url, headers, body) ~ | sendRequest(method, url, headers, body, noRedirect?) | send_request(method, url, headers, body, request_opts?) ~ | Parameters `(method, url, headers, body, noredirect)` (majority) in node. Optionality `(method, url, headers, body, noredirect?)` (majority) in python, kotlin. |
 | DefaultApiClient.sensitiveHeaderNames | sensitiveHeaderNames | — | — | SensitiveHeaderNames ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.proxyAuthorizationHeader | proxyAuthorizationHeader | — | — | ProxyAuthorizationHeader ✗ | — | — | — | — | — | — | — | — | — | D16 |
 | DefaultApiClient.validateMultipartFilename | validateMultipartFilename | — | — | ValidateMultipartFilename(filename) ✗ | — | — | — | — | — | — | validate_multipart_filename(filename) ✗ | — | — | D16 |

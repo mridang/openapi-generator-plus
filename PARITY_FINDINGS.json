@@ -33092,7 +33092,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33108,7 +33108,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33125,7 +33125,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33141,7 +33141,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33157,7 +33157,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33174,7 +33174,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33190,7 +33190,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33210,7 +33210,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33226,7 +33226,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33242,7 +33242,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33258,7 +33258,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33275,7 +33275,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33291,7 +33291,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33313,7 +33313,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33329,7 +33329,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33346,7 +33346,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33373,7 +33373,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33389,7 +33389,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33406,7 +33406,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33422,7 +33422,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33438,7 +33438,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33454,7 +33454,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33478,7 +33478,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33500,7 +33500,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -33527,7 +33527,7 @@
    "evidence": [],
    "unit_testable": false,
    "status": "parked",
-   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
+   "note": "review rejected api-models-resume: Not approved. Three idiom reviews rejected the staged tree (java, node and php), and I checked each one against the code. A rejected idiom review blocks the change set. It also rules out partial_ok, because a staged change that is not idiomatic cannot land.\n\nThe rest passed. `python3 etc/api-surface",
    "batch": null
   },
   {
@@ -34138,6 +34138,87 @@
     "elixir"
    ],
    "description": "BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F775",
+   "severity": "low",
+   "title": "kotlin RequiredNullable.note required-nullable is not in the api-surface allow-list",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "The canonical text (F732, D78) says kotlin `String?` with no default is already allow-listed. `etc/api-surface.py check --json` still reports `model requirednullable.note prop-optional {kotlin: optional}` with no allowed reason, because the extractor reads `?` as optional. Either add the allow-list entry (or fix the extractor so it recognises a `String?` constructor parameter with no default as required), or treat F732 as unresolved.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F776",
+   "severity": "low",
+   "title": "DateTime unwrap accessor (go Time() / rust into_inner()) is not allow-listed",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "go",
+    "rust"
+   ],
+   "description": "The canonical file (api-models part 1, item 1) says go `DateTime.Time()` and rust `DateTime::into_inner()` are the same operation spelled per language, and that the allow rules are merged. The surface check still reports two rows with no allowed reason: `model datetime.time member {rust: missing}` and `model datetime.intoinner member {go: missing}`. Add a single allow entry that pairs them.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F777",
+   "severity": "low",
+   "title": "go oneOf constructor accepts pointer variants, unlike the decode path",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "go"
+   ],
+   "description": "From the go idiom review notes, confirmed against the canonical shape. `NewPetFood(actualInstance any)` accepts `&DryFood`, while decoding stores the `DryFood` value. A type switch on `ActualInstance()` then sees different dynamic types depending on how the value was built. To keep the canonical single-`any` constructor, normalise pointers to values in the constructor, or reject them, so that construction matches what decoding produces.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F778",
+   "severity": "medium",
+   "title": "The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an al",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "The exported reattachAdditionalProperties helper in object_serializer.mustache shows as a node-only api-surface mismatch (objectserializer.reattachadditionalproperties); the coordinator may need an allow rule or the helper should be made non-exported.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F779",
+   "severity": "medium",
+   "title": "Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Spec change needed (shared): petstore openapi.yaml needs a model with `additionalProperties: {type: string}` so the typed index-signature case is compiled.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
