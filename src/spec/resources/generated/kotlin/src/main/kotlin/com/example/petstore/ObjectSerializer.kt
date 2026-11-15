@@ -42,9 +42,12 @@ import java.util.Base64
 import kotlin.uuid.Uuid
 
 /**
- * Marks a model whose schema sets unevaluatedProperties:false. Internal: the
- * serializer reads it from the decoded class and rejects undeclared keys.
+ * Marks a model whose schema sets unevaluatedProperties:false. Internal: being
+ * serialization info, it is recorded on the model's descriptor, so the
+ * serializer finds it at every depth of the decoded tree.
  */
+@OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+@kotlinx.serialization.SerialInfo
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 internal annotation class UnevaluatedPropertiesFalse
@@ -397,6 +400,41 @@ internal fun validateScalarLeaves(
 }
 
 /**
+ * Enforces unevaluatedProperties:false at every depth: walks the parsed tree
+ * beside the descriptor and, for any object whose model carries the
+ * [UnevaluatedPropertiesFalse] marker, rejects a key that is not a declared
+ * property (descriptor element names, which honour @SerialName). Models nested
+ * in other models, lists and maps are checked the same as a top-level one.
+ */
+@PublishedApi
+internal fun rejectUnevaluatedKeys(
+    element: JsonElement,
+    descriptor: kotlinx.serialization.descriptors.SerialDescriptor,
+) {
+    when {
+        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.CLASS -> {
+            val strict = descriptor.annotations.any { it is UnevaluatedPropertiesFalse }
+            for ((key, value) in element) {
+                val index = descriptor.getElementIndex(key)
+                if (index >= 0) {
+                    rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(index))
+                } else if (strict) {
+                    throw SerializationException(
+                        "Unknown property '$key' on ${descriptor.serialName.removeSuffix("?").substringAfterLast('.')} " +
+                            "(unevaluatedProperties:false)",
+                    )
+                }
+            }
+        }
+        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.MAP ->
+            for (value in element.values) rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(1))
+        element is JsonArray && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.LIST ->
+            for (value in element) rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(0))
+        else -> return
+    }
+}
+
+/**
  * Handles JSON serialization and deserialization for API requests and responses.
  *
  * All serde operations in the generated client route through this class.
@@ -700,7 +738,9 @@ internal class ObjectSerializer(
         val decoded =
             try {
                 val target = json.serializersModule.serializer<T>()
-                validateScalarLeaves(json.parseToJsonElement(stripped), target.descriptor)
+                val tree = json.parseToJsonElement(stripped)
+                validateScalarLeaves(tree, target.descriptor)
+                rejectUnevaluatedKeys(tree, target.descriptor)
                 json.decodeFromString(target, stripped)
             } catch (e: OpenAPIException) {
                 throw e
@@ -719,38 +759,8 @@ internal class ObjectSerializer(
         // same way the other SDKs do. No-op when the model has no such map.
         if (decoded != null) {
             populateAdditionalProperties(decoded, stripped)
-            rejectUnevaluatedProperties(decoded, stripped)
         }
         return decoded
-    }
-
-    /**
-     * Enforces unevaluatedProperties:false: when the decoded model carries the
-     * [UnevaluatedPropertiesFalse] marker, any wire key that is not a declared
-     * property (descriptor element names, which honour @SerialName) is rejected.
-     */
-    @PublishedApi
-    internal fun rejectUnevaluatedProperties(
-        model: Any,
-        rawJson: String,
-    ) {
-        if (!model.javaClass.isAnnotationPresent(UnevaluatedPropertiesFalse::class.java)) return
-        val root =
-            try {
-                json.parseToJsonElement(rawJson)
-            } catch (_: Exception) {
-                return
-            }
-        val descriptor = modelDescriptor(model) ?: return
-        if (root !is JsonObject) return
-        val declared = (0 until descriptor.elementsCount).map { descriptor.getElementName(it) }.toSet()
-        for (key in root.keys) {
-            if (key !in declared) {
-                throw SerializationException(
-                    "Unknown property '$key' on ${model.javaClass.simpleName} (unevaluatedProperties:false)",
-                )
-            }
-        }
     }
 
     /**

@@ -1439,6 +1439,29 @@ class ObjectSerializerTest {
             assertEquals("x", ok!!.name)
         }
 
+        @Test
+        @DisplayName("deserialize rejects an undeclared key on a strict model inside a list")
+        fun deserializeRejectsUndeclaredKeyInList() {
+            val ex = assertThrows(SerializationException::class.java) {
+                serializer.deserialize<List<{{modelPackage}}.StrictTag>>(
+                    "[{\"id\":1,\"name\":\"x\",\"unexpected\":true}]",
+                )
+            }
+            assertTrue(ex.message!!.contains("unexpected"))
+            assertTrue(ex.message!!.contains("unevaluatedProperties:false"))
+        }
+
+        @Test
+        @DisplayName("deserialize rejects an undeclared key on a strict model inside a map")
+        fun deserializeRejectsUndeclaredKeyInMap() {
+            val ex = assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, {{modelPackage}}.StrictTag>>(
+                    "{\"a\":{\"id\":1,\"name\":\"x\",\"unexpected\":true}}",
+                )
+            }
+            assertTrue(ex.message!!.contains("unexpected"))
+        }
+
         // Mirrors a unevaluatedProperties:false model that carries a @Contextual
         // field (date-time / uuid / decimal / duration). The strict
         // decoder builds a STRICT Json (ignoreUnknownKeys = false); the M7

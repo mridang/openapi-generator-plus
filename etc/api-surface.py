@@ -1734,7 +1734,15 @@ def run_ruby(surface, path, rel):
             owner["private"] = False
             i += 1
             continue
-        if re.match(r"(private_class_method|private_constant)\b", line):
+        pcm = re.match(r"private_constant\s+(.*)$", line)
+        if pcm:
+            for nm in re.findall(r":(\w+)", pcm.group(1)):
+                t["props"].pop(member_key(nm, "ruby", 0), None)
+                if nm in t.get("_consts", []):
+                    t["_consts"].remove(nm)
+            i += 1
+            continue
+        if re.match(r"private_class_method\b", line):
             i += 1
             continue
         pm = re.match(r"private\s+(def\s+.*|:\w+.*)$", line)
