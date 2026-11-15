@@ -613,6 +613,9 @@ describe("ObjectSerializer", () => {
       expect(fromEmpty!.retries).toBe(3);
       expect(fromEmpty!.mode).toBe(DefaultsModeEnum.Medium);
       expect(fromEmpty!.label).toBe("untitled");
+      expect(fromEmpty!.greeting).toBe(
+        'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b',
+      );
       expect(fromEmpty!.ratio).toBe("1.5");
       expect(fromEmpty!.scale).toBe(0.25);
       expect(fromEmpty!.weight).toBe(2.0);
