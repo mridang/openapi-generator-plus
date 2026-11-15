@@ -188,6 +188,9 @@ class ComposedSchemaTest {
       assertThat(result.getMatchedInstances()).hasSize(2);
       assertThat(result.getMatchedInstances().get(0)).isInstanceOf(Medication.class);
       assertThat(result.getMatchedInstances().get(1)).isInstanceOf(Surgery.class);
+      assertThat(result.getActualInstance())
+          .isSameAs(result.getMatchedInstances().get(0))
+          .isInstanceOf(Medication.class);
       Medication medication =
           result.getMatchedInstances().stream()
               .filter(Medication.class::isInstance)

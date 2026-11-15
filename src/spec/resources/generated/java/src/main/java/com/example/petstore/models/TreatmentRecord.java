@@ -45,20 +45,25 @@ public class TreatmentRecord {
   }
 
   /**
-   * Returns the value used to re-encode this union.
+   * Returns the first variant that this union matched.
    *
-   * <p>For a payload that matched a single variant this is that variant instance. For an anyOf
-   * payload that satisfied several variants at once this is the union of all their fields (see
-   * {@link #mergedValue()}), so the value round-trips losslessly through Jackson's
-   * {@code @JsonValue} serialization. Use {@link #getMatchedInstances()} to access each retained
-   * variant as its concrete type.
+   * <p>For an anyOf payload that satisfied several variants at once this is still only the first
+   * retained variant in schema declaration order. Use {@link #getMatchedInstances()} to access
+   * every retained variant.
    *
-   * @return the single matched variant, or the merged field-set when several variants matched;
-   *     {@code null} only if none were retained
+   * @return the first matched variant, or {@code null} if none were retained
    */
-  @JsonValue
   @Nullable
   public Object getActualInstance() {
+    return matchedInstances.isEmpty() ? null : matchedInstances.get(0);
+  }
+
+  /* The wire value: the single matched variant, or the merged field-set when
+   * several variants matched, so a co-satisfying payload round-trips
+   * losslessly. Kept private so it is not part of the public surface. */
+  @JsonValue
+  @Nullable
+  private Object jsonValue() {
     if (matchedInstances.isEmpty()) {
       return null;
     }
