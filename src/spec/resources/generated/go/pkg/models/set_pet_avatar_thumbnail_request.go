@@ -46,6 +46,6 @@ func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
 }
 
 // ActualInstance returns the matched variant of the union type.
-func (o *SetPetAvatarThumbnailRequest) ActualInstance() any {
+func (o SetPetAvatarThumbnailRequest) ActualInstance() any {
 	return o.value
 }

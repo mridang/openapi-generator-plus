@@ -141,6 +141,9 @@ func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	if _, ok := food.ActualInstance().(models.DryFood); !ok {
 		t.Fatalf("expected the wrapped DryFood, got %T", food.ActualInstance())
 	}
+	if _, ok := models.NewPetFood(*models.NewDryFood(2.5)).ActualInstance().(models.DryFood); !ok {
+		t.Fatalf("expected ActualInstance on the constructor result to be DryFood")
+	}
 	data, err := json.Marshal(food)
 	if err != nil {
 		t.Fatalf("failed to serialize PetFood: %v", err)

@@ -564,7 +564,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 }
 
 // ActualInstance returns the matched variant of the union type.
-func (o *{{classname}}) ActualInstance() any {
+func (o {{classname}}) ActualInstance() any {
 	return o.value
 }
 {{/-first}}

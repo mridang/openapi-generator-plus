@@ -62,6 +62,6 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 }
 
 // ActualInstance returns the matched variant of the union type.
-func (o *PetFood) ActualInstance() any {
+func (o PetFood) ActualInstance() any {
 	return o.value
 }
