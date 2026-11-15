@@ -13,27 +13,37 @@ The twelve SDKs must be perfectly harmonised: the same public API shape, wire by
 accepted and rejected inputs and errors, differing only by genuine language idiom. These
 rules hold for every session and every agent, however the work starts:
 
-- **One language, one agent.** SDK code is changed only by its owner agent
-  (`.claude/agents/sdk-<lang>.md`; shared code by `sdk-shared`). The main session
-  coordinates and never edits SDK code. `.claude/hooks/ownership-guard.sh` refuses
-  every other write.
-- **Every change goes through `/parity-fix`.** It runs the saved workflow
-  `.claude/workflows/parity-fix.js`: the planner fixes the one canonical behaviour, a
-  pre-flight compares the area in all twelve, the language agents implement it in
-  parallel, and the parity-guard (`.claude/agents/parity-guard.md`) reviews all twelve
-  together. Each language's part is also reviewed by its idiom agent
-  (`.claude/agents/idiom-<lang>.md`): harmonised means the same capabilities and
-  behaviour, expressed the way that language's developers expect, never a pattern
-  bolted on from another language. A change found mid-session becomes a ledger item
-  and a change set; it is never fixed in one language alone.
+- **Default: fix in direct batches.** The main session fixes open ledger items itself, 15 to 20
+  at a time, grouped by bug class: edit the templates and codegen, regenerate with
+  `etc/ci-local.sh mvn -B test`, run `python3 etc/api-surface.py check` (it must not get worse),
+  run `etc/ci-local.sh check --quick` on a clean tree, make one commit per batch, push, and let CI
+  decide. Start with the simple items and leave the cross-language ones (`objectserializer`,
+  `defaultapiclient`, the auth classes) for last. Every fix needs a test or a golden that fails
+  without it. Updating `etc/api-surface-allow.json` is allowed only for genuine idiom, and each rule
+  states why in its `reason`. The agent workflow below cost about 650k tokens per landed item with
+  cheap models and landed nothing in its last round (`etc/parity-findings.py tokens`), so use it only
+  for a hard item that spans all twelve languages, and then with Sonnet language agents.
+- **Review before the PR leaves draft.** After every few batches, run one independent review of the
+  cumulative diff and of every allow rule added (one Sonnet agent, or the `idiom-<lang>` agents for
+  the languages touched). Harmonised means the same capabilities and behaviour, expressed the way
+  that language's developers expect, never a pattern bolted on from another language.
+- **One language, one agent (agent workflow only).** When the workflow is used, SDK code is changed
+  only by its owner agent (`.claude/agents/sdk-<lang>.md`; shared code by `sdk-shared`).
+  `.claude/hooks/ownership-guard.sh` holds agents to their own paths; the main session may edit
+  anything.
+- **The agent workflow (`/parity-fix`)** runs `.claude/workflows/parity-fix.js`: the planner fixes the
+  one canonical behaviour, a pre-flight compares the area in all twelve, the language agents implement
+  it in parallel, and the parity-guard (`.claude/agents/parity-guard.md`) reviews all twelve together,
+  with each language's part also reviewed by its idiom agent. A change found mid-session becomes a
+  ledger item; it is never fixed in one language alone.
 - **One ledger.** `PARITY_FINDINGS.json`, maintained only through
   `etc/parity-findings.py`, is the only list of findings. Reviews (`/parity-review`),
   agents and the guard report into it; `etc/parity-findings.py count` is the single
   progress number, and `/parity-status` says where things stand.
 - **Green before it lands.** `etc/ci-local.sh` is the one definition of green (CI runs
-  the same steps). `.claude/hooks/commit-guard.sh` refuses SDK commits on the PR branch
+  the same steps). `.claude/hooks/commit-guard.sh` refuses agent commits on the PR branch
   without the parity-guard's approval of the staged tree, refuses pushes of commits that
-  have not passed a full local check, and refuses all of it while `parity-halt` exists
+  have not passed a local check (`--quick` is enough for the main session; CI runs the full suites), and refuses all of it while `parity-halt` exists
   in the git common dir (set when CI fails after a local pass, until the local check
   catches the cause).
 - **Docker.** `.claude/hooks/docker-guard.sh` removes leaked test containers and holds

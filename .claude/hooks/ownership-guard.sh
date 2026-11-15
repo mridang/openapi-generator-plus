@@ -11,8 +11,9 @@
 #   coordinator    everything else (.claude/, etc/, AGENTS.md, the ledger): the main
 #                  session and the parity-integrator agent, never a language agent
 #
-# The main session has no agent_type and owns no SDK code, so it cannot hand-edit a
-# language. For Bash only obvious writes are checked (sed -i, perl -i, tee, cp, mv, rm,
+# The main session has no agent_type and may edit any file, SDK code included (batches of
+# simple items are fixed directly, see AGENTS.md); only agents are held to their own paths.
+# For Bash only obvious writes are checked (sed -i, perl -i, tee, cp, mv, rm,
 # patch, git apply, redirection); maven regeneration and git operations are allowed, and
 # the parity-guard review catches anything this misses.
 set -uo pipefail
@@ -39,6 +40,7 @@ owner_of() {
 
 allowed() {
   local owner="$1"
+  [ -z "$agent" ] && return 0
   case "$owner" in
     coordinator) [ -z "$agent" ] || [ "$agent" = "parity-integrator" ] ;;
     sdk-shared) [ "$agent" = "sdk-shared" ] ;;

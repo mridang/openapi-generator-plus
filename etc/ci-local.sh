@@ -103,6 +103,11 @@ case "$cmd" in
     fi
     git checkout -q -- src/spec/resources/generated/go/go.mod src/spec/resources/generated/go/go.sum
     echo "ok    regenerate"
+    if [ "$quick" -eq 1 ] && [ -z "$dirty_before" ]; then
+      mkdir -p "$marks"
+      touch "$marks/quick-$sha"
+      echo "quick-green ${sha:0:9}"
+    fi
     if [ "$quick" -eq 0 ] && [ "$#" -eq 0 ] && [ -z "$dirty_before" ]; then
       mkdir -p "$marks"
       touch "$marks/$sha"
