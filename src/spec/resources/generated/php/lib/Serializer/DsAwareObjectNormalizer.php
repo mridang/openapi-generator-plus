@@ -130,43 +130,9 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
     protected function getAttributeValue(object $object, string $attribute, ?string $format = null, array $context = []): mixed
     {
         $value = $this->propertyAccessor->getValue($object, $attribute);
-        $shape = $this->byteProperties($object::class)[$attribute] ?? null;
+        $shape = \PetstoreClient\ObjectSerializer::byteProperties($object::class)[$attribute] ?? null;
 
         return $shape === null ? $value : $this->encodeBytes($value, $shape);
-    }
-
-    /**
-     * The `format: byte` properties of a model (the same lookup
-     * ObjectSerializer uses to validate the wire text), as property name => shape
-     * (`scalar`, `list` or `map`). A model marks them in its private
-     * BYTE_PROPERTIES constant, read here through reflection so the marker
-     * is not part of the model's public surface; a subclass adds to what
-     * its parents declare.
-     *
-     * @return array<string, string>
-     */
-    private function byteProperties(string $class): array
-    {
-        if (!class_exists($class)) {
-            return [];
-        }
-        $found = [];
-        $reflection = new \ReflectionClass($class);
-        while ($reflection !== false) {
-            $constant = $reflection->getReflectionConstant('BYTE_PROPERTIES');
-            if ($constant !== false && $constant->getDeclaringClass()->getName() === $reflection->getName()) {
-                $value = $constant->getValue();
-                if (is_array($value)) {
-                    foreach ($value as $name => $shape) {
-                        if (is_string($name) && is_string($shape)) {
-                            $found[$name] = $shape;
-                        }
-                    }
-                }
-            }
-            $reflection = $reflection->getParentClass();
-        }
-        return $found;
     }
 
     /**
@@ -253,7 +219,7 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
         array $context,
         ?string $format = null,
     ): mixed {
-        $byteShape = $this->byteProperties($class->getName())[$parameter->getName()] ?? null;
+        $byteShape = \PetstoreClient\ObjectSerializer::byteProperties($class->getName())[$parameter->getName()] ?? null;
         if ($byteShape !== null) {
             $parameterData = $this->decodeBytes($parameterData, $byteShape, $class->getName(), $parameter->getName());
         }

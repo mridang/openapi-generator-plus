@@ -28,8 +28,7 @@ class SetPetAvatarRequest
     ];
 
     /**
-     * Base64-encoded image data
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('data')]
     public string $data;

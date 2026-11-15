@@ -30,23 +30,20 @@ class BinaryVault
     ];
 
     /**
-     * A bare byte array; equality compares its contents.
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('seal')]
     public ?string $seal = null;
 
     /**
-     * A list of byte arrays; equality compares element contents.
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Vector<string>|null
      */
     #[SerializedName('shards')]
     public ?\Ds\Vector $shards = null;
 
     /**
-     * A map of byte arrays; equality compares each value's contents.
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Map<string, string>|null
      */
     #[SerializedName('labels')]

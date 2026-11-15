@@ -33,16 +33,13 @@ class PetPassport
     public ?\PetstoreClient\Models\Pet $pet = null;
 
     /**
-     * Base64-encoded primary thumbnail
-     * Raw bytes (base64 on the wire).
-     * @example dGVzdC10aHVtYm5haWw=
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('thumbnail')]
     public ?string $thumbnail = null;
 
     /**
-     * Base64-encoded scans of each passport page
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Vector<string>|null
      */
     #[SerializedName('scans')]
@@ -52,8 +49,7 @@ class PetPassport
     public ?\DateTime $issuedAt = null;
 
     /**
-     * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('biometricChip')]
     public ?string $biometricChip = null;

@@ -402,15 +402,22 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#vars}}
 {{#description}}
     /**
-     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{#isByteArray}}
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
 {{/isByteArray}}
+{{^isByteArray}}
 {{#isContainer}}
 {{#items.isByteArray}}
-     * Raw bytes (base64 on the wire).
+     * Raw bytes; base64-encoded only on the wire.
+{{/items.isByteArray}}
+{{^items.isByteArray}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
 {{/items.isByteArray}}
 {{/isContainer}}
+{{^isContainer}}
+     * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/isContainer}}
+{{/isByteArray}}
 {{#isContainer}}
 {{#isArray}}
 {{#required}}
@@ -429,9 +436,13 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/required}}
 {{/isMap}}
 {{/isContainer}}
+{{^isByteArray}}
+{{^items.isByteArray}}
 {{#example}}
      * @example {{{.}}}
 {{/example}}
+{{/items.isByteArray}}
+{{/isByteArray}}
 {{#vendorExtensions.pluralExamples}}
      * @example {{#lambda.phpdocDescription}}{{{value}}} {{{summary}}}{{/lambda.phpdocDescription}}
 {{/vendorExtensions.pluralExamples}}

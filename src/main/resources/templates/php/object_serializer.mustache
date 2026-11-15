@@ -1210,13 +1210,14 @@ class ObjectSerializer
     /**
      * The `format: byte` properties of a model, as property name => shape
      * (`scalar`, `list` or `map`). A model marks them in its private
-     * BYTE_PROPERTIES constant, read here through reflection so the marker
-     * is not part of the model's public surface; a subclass adds to what
-     * its parents declare.
+     * protected BYTE_PROPERTIES constant, read here through reflection so the
+     * marker is not part of the model's public surface; a subclass adds to
+     * what its parents declare.
      *
+     * @internal
      * @return array<string, string>
      */
-    private static function byteProperties(string $class): array
+    public static function byteProperties(string $class): array
     {
         if (!class_exists($class)) {
             return [];
