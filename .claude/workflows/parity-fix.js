@@ -21,7 +21,7 @@ const RETRIES = args.retries ?? 2
 const WIDTH = args.width ?? 6
 const LANGS = ['java', 'kotlin', 'csharp', 'php', 'python', 'ruby', 'node', 'dart', 'go', 'rust', 'swift', 'elixir']
 
-const MODEL = { 'parity-guard': 'opus' }
+const modelFor = type => ((type.startsWith('sdk-') && type !== 'sdk-shared') || type.startsWith('idiom-') || type === 'parity-preflight') ? 'haiku' : 'sonnet'
 
 /* Runs an agent as its custom type (.claude/agents/<type>.md). A session that started
  * before the agent files existed has not loaded them; the agent then runs as the default
@@ -33,7 +33,7 @@ async function role(prompt, opts) {
   } catch (e) {
     if (!/agent type .* not found/.test(String(e))) throw e
     return agent(`Your instructions are the body of ${PR}/.claude/agents/${type}.md (below its front matter): read that file first and follow it exactly; you are the ${type} agent.\n\n${prompt}`,
-      { ...opts, agentType: undefined, model: MODEL[type] || 'sonnet' })
+      { ...opts, agentType: undefined, model: modelFor(type) })
   }
 }
 
@@ -203,15 +203,13 @@ async function review(set, plan, reports, work, sharedBranch, last) {
   const landed = reports.filter(r => branches.includes(r.branch)).map(r => r.language)
   const idioms = (await parallel(landed.map(l => () => role(`Review the ${l} part of change set ${set.slug}, staged in ${PR}. Canonical behaviour (all twelve SDKs):\n${plan.canonical}`,
     { label: `${set.slug}:idiom-${l}`, phase: 'Guard', agentType: `idiom-${l}`, schema: IDIOM }).then(v => v && { language: l, ...v })))).filter(Boolean)
-  const verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nIDIOM REVIEWS (one per language; rejected ones block the change set regardless of your verdict, notes may flag idiom-versus-parity conflicts for you to rule on):\n${JSON.stringify(idioms)}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
+  const verdict = await role(`Review change set ${set.slug} (ledger ${set.ids.join(',')}), staged in ${PR}.\n\nCANONICAL BEHAVIOUR:\n${plan.canonical}\n\nPLAN:\n${JSON.stringify(plan.tasks)}\n\nLANGUAGES THAT DID NOT DELIVER A GREEN BRANCH: ${broken.join(', ') || 'none'}\n\nAGENT REPORTS:\n${JSON.stringify(reports.map(r => ({ language: r.language, validation: r.validation, results: r.results })))}\n\nIDIOM REVIEWS (advisory: they never block; they become low-severity ledger items. Notes may flag idiom-versus-parity conflicts for you to rule on):\n${JSON.stringify(idioms)}\n\nSTAGING: ${staged ? staged.notes : 'failed'}`,
     { label: `${set.slug}:guard`, phase: 'Guard', agentType: 'parity-guard', schema: VERDICT })
   if (!verdict) return { verdict: null, broken }
-  const unidiomatic = idioms.filter(v => !v.idiomatic)
-  if (unidiomatic.length) {
-    verdict.approved = false
-    verdict.failures = [...verdict.failures, ...unidiomatic.flatMap(v => v.rejections.map(r => ({ language: v.language, problem: 'not idiomatic: ' + r.problem, fix: r.fix })))]
-    verdict.summary = `${verdict.summary} Idiom review rejected ${unidiomatic.map(v => v.language).join(', ')}.`
-  }
+  /* Idiom findings are advisory: they never block a change set, they become ledger
+   * items (low severity) so a nitpick cannot hold back verified, harmonised work. */
+  const unidiomatic = []
+  verdict.new_findings = [...(verdict.new_findings || []), ...idioms.filter(v => !v.idiomatic).flatMap(v => v.rejections.map(r => ({ title: `${v.language}: ${r.problem}`.slice(0, 200), severity: 'low', languages: [v.language], description: `Idiom review of ${set.slug}: ${r.problem}\n\nSuggested form: ${r.fix}` })))]
   if (!verdict.approved && last && verdict.partial_ok && !unidiomatic.length) {
     verdict.approved = true
     verdict.partial = (verdict.open_ids || []).filter(id => set.ids.includes(id))

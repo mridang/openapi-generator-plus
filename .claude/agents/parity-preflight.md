@@ -1,7 +1,7 @@
 ---
 name: parity-preflight
 description: Quick read-only sanity check before a change set is dispatched - compares the area's current behaviour, public API and tests across all twelve SDKs and reports existing differences so every language starts level.
-model: sonnet
+model: haiku
 ---
 You do a fast, read-only check of one area (for example the object serializer's date handling) across the twelve SDKs of this generator, before work is dispatched. You change no files.
 

@@ -12,6 +12,8 @@
   parity-findings.py next [n]                 print the next n open items, highest severity first
   parity-findings.py done <F001,...> <commit> [note]   mark items fixed by the given commit
   parity-findings.py count                    print the single progress number (open ledger items)
+  parity-findings.py tokens add <label> <agent-tokens> <items-landed> [note]   record a round's cost
+  parity-findings.py tokens                   print every round, the total and tokens per landed item
   parity-findings.py classes                  print the bug-class catalogue: every review lens with
                                               examples of real findings, for /parity-review
 
@@ -250,6 +252,26 @@ def do_classes():
             print("  - [%s] %s" % (f["severity"], f["title"][:160]))
 
 
+TOKENS_PATH = os.path.join(ROOT, "PARITY_TOKENS.json")
+
+
+def do_tokens(args):
+    """Agent tokens spent per round (the figure a workflow reports when it finishes), so the
+    cost of the parity work is always known. Main-session tokens are not included."""
+    data = json.load(open(TOKENS_PATH, encoding="utf-8")) if os.path.exists(TOKENS_PATH) else {"rounds": []}
+    if args and args[0] == "add":
+        data["rounds"].append({"label": args[1], "tokens": int(args[2]), "items_landed": int(args[3]),
+                               "note": args[4] if len(args) > 4 else ""})
+        json.dump(data, open(TOKENS_PATH, "w", encoding="utf-8"), indent=1, ensure_ascii=False)
+        open(TOKENS_PATH, "a").write("\n")
+    total = sum(r["tokens"] for r in data["rounds"])
+    landed = sum(r["items_landed"] for r in data["rounds"])
+    for r in data["rounds"]:
+        print("%-34s %10s tokens  %3d items  %s" % (r["label"], "{:,}".format(r["tokens"]) if r["tokens"] else "unmeasured", r["items_landed"], r["note"]))
+    print("%-34s %10s tokens  %3d items  (%s per landed item)" % ("TOTAL (measured rounds only)", "{:,}".format(total), landed,
+          "{:,}".format(total // landed) if landed else "n/a"))
+
+
 def render():
     fs = load()["findings"]
     by_status = collections.Counter(f["status"] for f in fs)
@@ -309,6 +331,9 @@ if __name__ == "__main__":
         sys.exit(0)
     elif cmd == "done":
         do_done(sys.argv[2], sys.argv[3], sys.argv[4] if len(sys.argv) > 4 else "")
+    elif cmd == "tokens":
+        do_tokens(sys.argv[2:])
+        sys.exit(0)
     elif cmd == "classes":
         do_classes()
         sys.exit(0)

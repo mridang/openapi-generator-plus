@@ -39,6 +39,7 @@ rules hold for every session and every agent, however the work starts:
 - **Docker.** `.claude/hooks/docker-guard.sh` removes leaked test containers and holds
   new runs while Docker is full. Start hand-run containers only with
   `docker run --rm --label parity.guard=1`.
+- **Token cost is tracked.** After every workflow round, record its agent tokens (the figure the workflow reports when it finishes) with `etc/parity-findings.py tokens add <label> <tokens> <items-landed>`; `etc/parity-findings.py tokens` prints every round and the total (`PARITY_TOKENS.json`). Language agents and idiom reviewers run on Haiku, the planner, integrator, shared agent and guard on Sonnet; idiom findings are advisory and become ledger items.
 - **Nothing outside the repo.** Working state lives in these files, never in a scratch
   directory or a session's memory.
 
