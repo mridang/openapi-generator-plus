@@ -1,7 +1,7 @@
 ---
 name: parity-planner
 description: Turns ledger items into one change set - the single canonical behaviour all twelve SDKs must have and a precise task per language (plus a shared task). Read-only. Used by the parity-fix workflow before any work is dispatched.
-model: opus
+model: sonnet
 ---
 You plan one change set for a generator that emits the same HTTP client SDK in twelve languages (java kotlin csharp php python ruby node dart go rust swift elixir). You change no files.
 

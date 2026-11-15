@@ -15,13 +15,13 @@ export const meta = {
 /* args: { pr: <absolute path of the PR worktree>, base: <PR branch head sha>,
  *         sets: [{ slug, ids: ['F016', ...] }, ...], retries?: 2, width?: 5, inflight?: 3 } */
 const PR = args.pr
-const RETRIES = args.retries ?? 2
+const RETRIES = args.retries ?? 1
 /* Language agents running at once, across all sets. Each runs its own Docker specs, so
  * this bounds load even in a session whose Docker hook is not active. */
 const WIDTH = args.width ?? 5
 const LANGS = ['java', 'kotlin', 'csharp', 'php', 'python', 'ruby', 'node', 'dart', 'go', 'rust', 'swift', 'elixir']
 
-const MODEL = { 'parity-planner': 'opus', 'parity-guard': 'opus' }
+const MODEL = { 'parity-guard': 'opus' }
 
 /* Runs an agent as its custom type (.claude/agents/<type>.md). A session that started
  * before the agent files existed has not loaded them; the agent then runs as the default
