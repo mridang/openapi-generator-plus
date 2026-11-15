@@ -101,6 +101,14 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert %PetstoreClient.Models.Surgery{} = result
     end
 
+    test "a single-variant anyOf is its own actual and matched instance" do
+      json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
+
+      assert PetstoreClient.Models.PetTreatment.matched_instances(result) == [result]
+      assert PetstoreClient.Models.PetTreatment.actual_instance(result) == result
+    end
+
     test "serializes round-trip for anyOf" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
@@ -123,6 +131,12 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
       # Both variant structs are retained on the composite.
       assert %PetstoreClient.AnyOfComposite{instances: instances} = result
+
+      assert [%PetstoreClient.Models.Medication{}, %PetstoreClient.Models.Surgery{}] =
+               PetstoreClient.Models.PetTreatment.matched_instances(result)
+
+      assert %PetstoreClient.Models.Medication{} =
+               PetstoreClient.Models.PetTreatment.actual_instance(result)
 
       medication =
         Enum.find(instances, &match?(%PetstoreClient.Models.Medication{}, &1))

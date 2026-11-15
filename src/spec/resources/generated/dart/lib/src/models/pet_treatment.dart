@@ -28,13 +28,13 @@ class PetTreatment {
   /// only decoded.
   factory PetTreatment.ofValues(List<Object?> values) = PetTreatment._;
 
-  /// Returns the first decoded variant, for back-compat with single-variant
-  /// callers. Use [values] or [valueOf] to reach every retained variant.
-  Object? get value => _values.isEmpty ? null : _values.first;
+  /// Returns the first decoded variant, for single-variant callers. Use
+  /// [matchedInstances] or [valueOf] to reach every retained variant.
+  Object? get actualInstance => _values.isEmpty ? null : _values.first;
 
   /// Returns every variant that successfully decoded from the wire payload.
   /// For a co-satisfied anyOf this holds more than one element.
-  List<Object?> get values => List.unmodifiable(_values);
+  List<Object?> get matchedInstances => List.unmodifiable(_values);
 
   /// Returns the retained variant of type [T], or null if no decoded variant
   /// is a [T]. Lets callers reach a specific variant in a multi-match union.
@@ -80,8 +80,8 @@ class PetTreatment {
     return merged;
   }
 
-  /// Creates a [PetTreatment] from a JSON value, retaining every variant that
-  /// decodes so a payload satisfying several variants keeps all their data.
+  /// Creates a [PetTreatment] from a JSON value, retaining every variant
+  /// that decodes so a payload satisfying several variants keeps all data.
   factory PetTreatment.fromJson(Map<String, dynamic> json) {
     final decoded = <Object?>[];
     try {

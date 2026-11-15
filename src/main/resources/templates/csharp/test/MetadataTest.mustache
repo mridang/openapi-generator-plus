@@ -31,6 +31,32 @@ public class MetadataTest
     }
 
     [Fact]
+    public void AdditionalPropertiesIsEmptyAndNeverNullOnNewInstance()
+    {
+        var metadata = new Metadata();
+        Assert.NotNull(metadata.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void AdditionalPropertiesIsEmptyWhenNoUnknownKeysArrive()
+    {
+        var metadata = _serializer.Deserialize<Metadata>("{}");
+        Assert.NotNull(metadata!.AdditionalProperties);
+        Assert.Empty(metadata.AdditionalProperties);
+    }
+
+    [Fact]
+    public void SerializesAdditionalPropertyEntryFlat()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties["customField"] = "hello";
+        var json = _serializer.Serialize(metadata);
+        Assert.Contains("\"customField\":\"hello\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("AdditionalProperties", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void DeserializesAdditionalStringProperties()
     {
         var json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";

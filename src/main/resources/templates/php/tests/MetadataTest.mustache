@@ -13,6 +13,29 @@ test('serializes empty metadata', function (): void {
     expect($json)->not->toBeEmpty();
 });
 
+test('additional properties start as an empty map, never null', function (): void {
+    $metadata = new Metadata();
+
+    expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    expect($metadata->additionalProperties)->toHaveCount(0);
+});
+
+test('undeclared wire keys land in the map and are written back flat', function (): void {
+    $json = '{"customField":"hello"}';
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize($json, Metadata::class);
+
+    expect($metadata->additionalProperties->toArray())->toBe(['customField' => 'hello']);
+    expect(ObjectSerializer::serialize($metadata))->toBe($json);
+});
+
+test('a metadata without undeclared keys keeps an empty map after deserializing', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
+
+    expect($metadata->additionalProperties)->toHaveCount(0);
+});
+
 test('deserializes empty object', function (): void {
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
@@ -26,7 +49,6 @@ test('deserializes additional string properties', function (): void {
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
     expect($metadata)->toBeInstanceOf(Metadata::class);
     expect($metadata->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
-    assert($metadata->additionalProperties !== null);
     expect($metadata->additionalProperties->hasKey('customField'))->toBeTrue();
     expect($metadata->additionalProperties->get('customField'))->toBe('hello');
 });

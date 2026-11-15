@@ -542,6 +542,29 @@ describe Petstore::Client::ObjectSerializer do
       _(from_null.retries).must_equal(7)
     end
 
+    # Inline property enums are nested constants classes named
+    # <Model>::<Prop>Enum with the same shape as a top-level enum class.
+    it 'exposes inline property enums as nested constants classes' do
+      mode = Petstore::Client::Models::Defaults::ModeEnum
+      _(mode::VALUES).must_equal(%w[low medium high])
+      _(mode.validate!('high')).must_equal('high')
+      _ { mode.validate!('nope') }.must_raise(ArgumentError)
+
+      phase = Petstore::Client::Models::EdgeCases::PhaseEnum
+      _(phase::VALUES).must_equal(%w[In-Stock on-hold OUT_OF_STOCK])
+      _ { phase.validate!('bogus') }.must_raise(ArgumentError)
+      edge = Petstore::Client::ObjectSerializer.deserialize('{"phase":"on-hold"}', 'EdgeCases')
+      _(edge.phase).must_equal('on-hold')
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"phase":"bogus"}', 'EdgeCases') }.must_raise(StandardError)
+
+      status = Petstore::Client::Models::Order::StatusEnum
+      _(status::PLACED).must_equal('placed')
+      _(status::VALUES).must_equal(%w[placed approved delivered])
+      _ { status.validate!('bogus') }.must_raise(ArgumentError)
+      order = Petstore::Client::ObjectSerializer.deserialize('{"status":"approved"}', 'Order')
+      _(order.status).must_equal('approved')
+    end
+
     # A keyword that Ruby accepts as a method name stays plain (`and`,
     # `return`); only `class`, which would shadow Object#class, and the
     # literals keep the underscore. The wire keys are unchanged either way.

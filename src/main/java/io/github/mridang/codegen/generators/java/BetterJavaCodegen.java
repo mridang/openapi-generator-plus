@@ -212,14 +212,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Prefixes a model named {@code Error} or {@code Result} with
-     * {@code Model}: {@code Error} would shadow {@code java.lang.Error}
-     * (error-prone JavaLangClash), and both names are prefixed in every SDK.
+     * Prefixes a model named {@code Error} with {@code Model}: {@code Error}
+     * would shadow {@code java.lang.Error} (error-prone JavaLangClash).
+     * {@code Result} has no java.lang counterpart and keeps its own name.
      */
     @Override
     public String toModelName(String name) {
         final String modelName = super.toModelName(name);
-        if ("Error".equals(modelName) || "Result".equals(modelName)) {
+        if ("Error".equals(modelName)) {
             return "Model" + modelName;
         }
         return modelName;
@@ -230,7 +230,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("rawtypes")
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
-        if ("Error".equals(type) || "Result".equals(type)) {
+        if ("Error".equals(type)) {
             return "Model" + type;
         }
         return type;

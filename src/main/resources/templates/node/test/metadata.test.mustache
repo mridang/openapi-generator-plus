@@ -136,3 +136,66 @@ describe('Metadata additionalProperties round-trip (H11)', () => {
     expect(roundTripped.tier).toBe('gold');
   });
 });
+
+describe('Metadata additionalProperties accessor', () => {
+  test('exposes the undeclared keys of a deserialized instance', () => {
+    const metadata = ObjectSerializer.deserialize(
+      { createdAt: '2024-01-01T00:00:00Z', customField: 'hello' },
+      Metadata,
+    ) as Metadata;
+    expect(metadata.additionalProperties).toEqual({ customField: 'hello' });
+  });
+
+  test('exposes the undeclared keys of a constructed instance', () => {
+    const metadata = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z'), foo: 1 });
+    expect(metadata.additionalProperties).toEqual({ foo: 1 });
+  });
+
+  test('is an empty record, never undefined, when there are no extras', () => {
+    const metadata = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z') });
+    expect(metadata.additionalProperties).toEqual({});
+    expect(new Metadata().additionalProperties).toEqual({});
+  });
+
+  test('is typed like the index signature so typed values read without a cast', () => {
+    const metadata = new Metadata({ foo: 'a', bar: 'b' });
+    const extras: Record<string, Metadata[string]> = metadata.additionalProperties;
+    expect(extras).toEqual({ foo: 'a', bar: 'b' });
+  });
+
+  test('returns a fresh record on every read', () => {
+    const metadata = new Metadata({ foo: 1 });
+    metadata.additionalProperties['bar'] = 2;
+    expect(metadata.additionalProperties).toEqual({ foo: 1 });
+  });
+
+  test('is not serialised as a data key', () => {
+    const metadata = new Metadata({ createdAt: new Date('2024-01-01T00:00:00Z'), foo: 1 });
+    const wire = JSON.parse(ObjectSerializer.serialize(metadata)) as Record<string, unknown>;
+    expect(Object.keys(wire).sort()).toEqual(['createdAt', 'foo']);
+    expect(wire).not.toHaveProperty('additionalProperties');
+    const empty = JSON.parse(ObjectSerializer.serialize(new Metadata())) as Record<string, unknown>;
+    expect(empty).not.toHaveProperty('additionalProperties');
+  });
+
+  test('does not affect equality', () => {
+    const left = new Metadata({ foo: 1 });
+    const right = new Metadata({ foo: 1 });
+    expect(left.equals(right)).toBe(true);
+    expect(left.equals(new Metadata({ foo: 2 }))).toBe(false);
+  });
+
+  test('a wire key literally named additionalProperties is kept as data', () => {
+    const metadata = ObjectSerializer.deserialize(
+      { createdAt: '2024-01-01T00:00:00Z', additionalProperties: 'x' },
+      Metadata,
+    ) as Metadata;
+    expect(metadata.additionalProperties).toEqual({ additionalProperties: 'x' });
+    expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({
+      createdAt: '2024-01-01T00:00:00.000+00:00',
+      additionalProperties: 'x',
+    });
+    const built = new Metadata({ additionalProperties: 'y' } as unknown as Partial<Metadata>);
+    expect(built.additionalProperties).toEqual({ additionalProperties: 'y' });
+  });
+});

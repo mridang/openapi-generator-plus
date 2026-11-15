@@ -124,7 +124,9 @@ defmodule PetstoreClient.Api.StoreApi do
     path = "/store/account"
     query_params = %{}
     header_params = %{}
-    request_body = account
+
+    request_body =
+      PetstoreClient.ObjectSerializer.prepare_body(account, PetstoreClient.Models.Account)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,
@@ -1603,7 +1605,9 @@ defmodule PetstoreClient.Api.StoreApi do
     path = "/store/order"
     query_params = %{}
     header_params = %{}
-    request_body = order
+
+    request_body =
+      PetstoreClient.ObjectSerializer.prepare_body(order, PetstoreClient.Models.Order)
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,

@@ -17,18 +17,29 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PetPassport
 {
+    /**
+     * The `format: byte` properties: they hold raw bytes and the serializer
+     * applies base64 at the wire boundary.
+     *
+     * @var array<string, string>
+     */
+    protected const array BYTE_PROPERTIES = [
+        'thumbnail' => 'scalar',
+        'scans' => 'list',
+        'biometricChip' => 'scalar',
+    ];
+
     #[SerializedName('pet')]
     public ?\PetstoreClient\Models\Pet $pet = null;
 
     /**
-     * Base64-encoded primary thumbnail
-     * @example dGVzdC10aHVtYm5haWw=
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('thumbnail')]
     public ?string $thumbnail = null;
 
     /**
-     * Base64-encoded scans of each passport page
+     * Raw bytes; base64-encoded only on the wire.
      * @var \Ds\Vector<string>|null
      */
     #[SerializedName('scans')]
@@ -38,7 +49,7 @@ class PetPassport
     public ?\DateTime $issuedAt = null;
 
     /**
-     * Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
+     * Raw bytes; base64-encoded only on the wire.
      */
     #[SerializedName('biometricChip')]
     public ?string $biometricChip = null;
@@ -58,109 +69,5 @@ class PetPassport
         $this->scans = $scans;
         $this->issuedAt = $issuedAt;
         $this->biometricChip = $biometricChip;
-    }
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for the `thumbnail`
-     * field (OAS `format: byte`). The stored property holds the
-     * base64-encoded wire form; this getter applies base64_decode
-     * so callers receive the underlying binary string. Returns
-     * null when the field is unset or empty.
-     */
-    public function getThumbnailAsBytes(): ?string
-    {
-        return \PetstoreClient\ObjectSerializer::decodeBytes($this->thumbnail);
-    }
-
-    /**
-     * 2.1 — Stores raw bytes in the `thumbnail` field (OAS
-     * `format: byte`) by base64-encoding before assignment. The
-     * property keeps the wire form so serialization stays a
-     * straight string pass-through.
-     */
-    public function setThumbnailFromBytes(?string $raw): void
-    {
-        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
-        if ($encoded !== null) {
-            $this->thumbnail = $encoded;
-        }
-    }
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for every element of the
-     * `scans` array field (OAS items `format: byte`). The stored
-     * container holds the base64-encoded wire form of each element;
-     * this getter applies base64_decode element-by-element so callers
-     * receive a plain array of underlying binary strings. Returns null
-     * when the field itself is unset, mirroring the scalar byte
-     * accessor pair so array-of-byte fields expose the same first-class
-     * raw-bytes API.
-     *
-     * @return list<string>|null
-     */
-    public function getScansAsBytes(): ?array
-    {
-        if (!$this->scans instanceof \Ds\Vector) {
-            return null;
-        }
-        $decoded = [];
-        foreach ($this->scans as $element) {
-            $bytes = \PetstoreClient\ObjectSerializer::decodeBytes($element);
-            if ($bytes !== null) {
-                $decoded[] = $bytes;
-            }
-        }
-        return $decoded;
-    }
-
-    /**
-     * 2.1 — Stores raw bytes for every element of the `scans`
-     * array field (OAS items `format: byte`) by base64-encoding each
-     * element before assignment. The container keeps the wire form so
-     * serialization stays a straight string pass-through, matching the
-     * scalar byte setter.
-     *
-     * @param list<string>|null $raw
-     */
-    public function setScansFromBytes(?array $raw): void
-    {
-        if ($raw === null) {
-            $this->scans = null;
-            return;
-        }
-        $encoded = [];
-        foreach ($raw as $element) {
-            $value = \PetstoreClient\ObjectSerializer::encodeBytes($element);
-            if ($value !== null) {
-                $encoded[] = $value;
-            }
-        }
-        $this->scans = new \Ds\Vector($encoded);
-    }
-
-    /**
-     * 2.1 — Returns the raw decoded bytes for the `biometricChip`
-     * field (OAS `format: byte`). The stored property holds the
-     * base64-encoded wire form; this getter applies base64_decode
-     * so callers receive the underlying binary string. Returns
-     * null when the field is unset or empty.
-     */
-    public function getBiometricChipAsBytes(): ?string
-    {
-        return \PetstoreClient\ObjectSerializer::decodeBytes($this->biometricChip);
-    }
-
-    /**
-     * 2.1 — Stores raw bytes in the `biometricChip` field (OAS
-     * `format: byte`) by base64-encoding before assignment. The
-     * property keeps the wire form so serialization stays a
-     * straight string pass-through.
-     */
-    public function setBiometricChipFromBytes(?string $raw): void
-    {
-        $encoded = \PetstoreClient\ObjectSerializer::encodeBytes($raw);
-        if ($encoded !== null) {
-            $this->biometricChip = $encoded;
-        }
     }
 }

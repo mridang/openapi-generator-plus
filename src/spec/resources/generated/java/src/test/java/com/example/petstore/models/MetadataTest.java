@@ -50,6 +50,9 @@ class MetadataTest {
     Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));
 
     assertThat(metadata.getAdditionalProperties().get("customField")).isEqualTo("hello");
+    java.util.Map<String, Object> extras = metadata.getAdditionalProperties();
+    org.junit.jupiter.api.Assertions.assertThrows(
+        UnsupportedOperationException.class, () -> extras.put("other", "x"));
   }
 
   @Test

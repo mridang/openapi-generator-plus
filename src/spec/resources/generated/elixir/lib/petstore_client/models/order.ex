@@ -12,6 +12,45 @@ defmodule PetstoreClient.Models.Order do
 
   """
 
+  defmodule StatusEnum do
+    @moduledoc "Allowed values of Order.status"
+
+    @typedoc "One of the allowed enum atoms for Order.status."
+    @type t :: :placed | :approved | :delivered
+
+    @doc "Enum value `placed`"
+    def placed, do: :placed
+
+    @doc "Enum value `approved`"
+    def approved, do: :approved
+
+    @doc "Enum value `delivered`"
+    def delivered, do: :delivered
+
+    @doc "All allowed values as atoms."
+    @spec all_values() :: [t(), ...]
+    def all_values do
+      [placed(), approved(), delivered()]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(t()) :: String.t()
+    def value(:placed), do: "placed"
+    def value(:approved), do: "approved"
+    def value(:delivered), do: "delivered"
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: t() | {:error, term()}
+    def from_value("placed"), do: :placed
+    def from_value("approved"), do: :approved
+    def from_value("delivered"), do: :delivered
+    def from_value(value), do: {:error, value}
+  end
+
   @type t :: %__MODULE__{
           id: integer() | nil,
           pet_id: integer() | nil,
@@ -19,7 +58,7 @@ defmodule PetstoreClient.Models.Order do
           tracking_id: String.t() | nil,
           ship_date: DateTime.t() | nil,
           complete: boolean() | nil,
-          status: :placed | :approved | :delivered | nil
+          status: StatusEnum.t() | nil
         }
 
   defstruct [

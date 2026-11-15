@@ -148,7 +148,7 @@ public class EdgeCases {
   /** The {@code outcome} property. */
   @JsonProperty("outcome")
   @Nullable
-  public ModelResult outcome;
+  public Result outcome;
 
   /** The {@code cutoff} property. */
   @JsonProperty("cutoff")

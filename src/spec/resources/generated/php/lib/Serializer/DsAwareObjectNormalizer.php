@@ -129,7 +129,61 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
      */
     protected function getAttributeValue(object $object, string $attribute, ?string $format = null, array $context = []): mixed
     {
-        return $this->propertyAccessor->getValue($object, $attribute);
+        $value = $this->propertyAccessor->getValue($object, $attribute);
+        $shape = \PetstoreClient\ObjectSerializer::byteProperties($object::class)[$attribute] ?? null;
+
+        return $shape === null ? $value : $this->encodeBytes($value, $shape);
+    }
+
+    /**
+     * Base64-encode the raw bytes of a `format: byte` property for the wire:
+     * a scalar string, every element of a list or every value of a map.
+     */
+    private function encodeBytes(mixed $value, string $shape): mixed
+    {
+        $encode = static fn (mixed $raw): mixed => is_string($raw) ? base64_encode($raw) : $raw;
+        if ($shape === 'scalar') {
+            return $encode($value);
+        }
+        if ($value instanceof \Ds\Map) {
+            return new \Ds\Map(array_map($encode, $value->toArray()));
+        }
+        if ($value instanceof \Ds\Sequence) {
+            return new \Ds\Vector(array_map($encode, $value->toArray()));
+        }
+
+        return $value;
+    }
+
+    /**
+     * Base64-decode the wire value of a `format: byte` property into raw
+     * bytes: a scalar string, every element of a list or every value of a
+     * map. Text that is not strict base64 is rejected.
+     *
+     * @param class-string $class
+     */
+    private function decodeBytes(mixed $wire, string $shape, string $class, string $property): mixed
+    {
+        $decode = static function (mixed $encoded) use ($class, $property): mixed {
+            if (!is_string($encoded)) {
+                return $encoded;
+            }
+            $raw = \PetstoreClient\ObjectSerializer::isStrictBase64($encoded) ? base64_decode($encoded, true) : false;
+            if ($raw === false) {
+                throw new \InvalidArgumentException(sprintf(
+                    "Invalid base64 for format: byte property '%s' on %s",
+                    $property,
+                    $class
+                ));
+            }
+
+            return $raw;
+        };
+        if ($shape === 'scalar') {
+            return $decode($wire);
+        }
+
+        return is_array($wire) ? array_map($decode, $wire) : $wire;
     }
 
     /**
@@ -165,6 +219,10 @@ final class DsAwareObjectNormalizer extends AbstractObjectNormalizer
         array $context,
         ?string $format = null,
     ): mixed {
+        $byteShape = \PetstoreClient\ObjectSerializer::byteProperties($class->getName())[$parameter->getName()] ?? null;
+        if ($byteShape !== null) {
+            $parameterData = $this->decodeBytes($parameterData, $byteShape, $class->getName(), $parameter->getName());
+        }
         $parameterType = $parameter->getType();
         if ($parameterType instanceof \ReflectionNamedType) {
             $className = $parameterType->getName();

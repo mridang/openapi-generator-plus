@@ -12,9 +12,48 @@ defmodule PetstoreClient.Models.Defaults do
 
   """
 
+  defmodule ModeEnum do
+    @moduledoc "Allowed values of Defaults.mode"
+
+    @typedoc "One of the allowed enum atoms for Defaults.mode."
+    @type t :: :low | :medium | :high
+
+    @doc "Enum value `low`"
+    def low, do: :low
+
+    @doc "Enum value `medium`"
+    def medium, do: :medium
+
+    @doc "Enum value `high`"
+    def high, do: :high
+
+    @doc "All allowed values as atoms."
+    @spec all_values() :: [t(), ...]
+    def all_values do
+      [low(), medium(), high()]
+    end
+
+    @doc "Map an atom to its wire value."
+    @spec value(t()) :: String.t()
+    def value(:low), do: "low"
+    def value(:medium), do: "medium"
+    def value(:high), do: "high"
+
+    @doc """
+    Map a wire value back to its atom, the inverse of `value/1`.
+
+    Returns `{:error, value}` for an unrecognised wire value.
+    """
+    @spec from_value(term()) :: t() | {:error, term()}
+    def from_value("low"), do: :low
+    def from_value("medium"), do: :medium
+    def from_value("high"), do: :high
+    def from_value(value), do: {:error, value}
+  end
+
   @type t :: %__MODULE__{
           retries: integer() | nil,
-          mode: :low | :medium | :high | nil,
+          mode: ModeEnum.t() | nil,
           label: String.t() | nil,
           greeting: String.t() | nil,
           swatch: PetstoreClient.Models.Swatch.t() | nil,

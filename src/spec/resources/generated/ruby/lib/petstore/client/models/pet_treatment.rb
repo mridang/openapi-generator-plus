@@ -76,6 +76,25 @@ module Petstore::Client
           ]
         end
 
+        # The first retained variant of a built anyOf value.
+        #
+        # @param value [Object] the result of build
+        # @return [Object, nil] the first matched variant, or nil
+        def actual_instance(value)
+          value.is_a?(Composite) ? value.anyof_matched_instances.first : value
+        end
+
+        # Every retained variant of a built anyOf value, in declared order.
+        #
+        # @param value [Object] the result of build
+        # @return [Array<Object>] the matched variants
+        def matched_instances(value)
+          return value.anyof_matched_instances.dup if value.is_a?(Composite)
+          return [] if value.nil?
+
+          [value]
+        end
+
         # Builds the object
         # @param data [Object] data to be matched against the list of anyOf items
         # @return [Object] Returns a single variant when exactly one matches, a

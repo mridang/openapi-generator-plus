@@ -19,6 +19,31 @@ module Petstore::Client
   module Models
     # Model class for Defaults.
     class Defaults < Dry::Struct
+      # Allowed values of the mode property.
+      class ModeEnum
+        LOW = 'low'
+        MEDIUM = 'medium'
+        HIGH = 'high'
+
+        # Frozen set of all allowed values, used for validation.
+        VALUES = [LOW, MEDIUM, HIGH].freeze
+
+        def self.all_vars
+          VALUES
+        end
+
+        # Validate that +value+ is a recognized enum value.
+        #
+        # @param value [Object] the value to validate
+        # @return [Object] the value, if valid
+        # @raise [ArgumentError] if +value+ is not in {VALUES}
+        def self.validate!(value)
+          return value if value.nil? || VALUES.include?(value)
+
+          raise ArgumentError, "Unknown enum value for Defaults::ModeEnum: #{value.inspect} (allowed: #{VALUES.inspect})"
+        end
+      end
+
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         retries: 'retries',
@@ -78,7 +103,7 @@ module Petstore::Client
       end
 
       attribute :retries, Types::Any.optional.meta(omittable: true).default(3)
-      attribute :mode, Types::String.enum('low', 'medium', 'high').optional.meta(omittable: true).default('medium')
+      attribute :mode, Types::String.enum(*ModeEnum::VALUES).optional.meta(omittable: true).default('medium')
       attribute :label, Types::Any.optional.meta(omittable: true).default('untitled')
       attribute :greeting, Types::Any.optional.meta(omittable: true).default("it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b")
       attribute :swatch, Types::Any.optional.meta(omittable: true).default('green')

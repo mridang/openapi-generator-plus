@@ -384,7 +384,7 @@ class {{classname}}(
  * that satisfies more than one variant must retain ALL of them — dropping the
  * extras and keeping only the first match loses data on re-encode.
  *
- * This wrapper holds EVERY variant that successfully decodes in [instances].
+ * This wrapper holds EVERY variant that successfully decodes in [matchedInstances].
  * On decode each declared variant is tried leniently (a variant matches when
  * its own required fields are present; sibling keys it does not declare are
  * ignored, NOT rejected) and every match is retained. On encode the JSON
@@ -435,7 +435,7 @@ class {{classname}}(
 @Serializable(with = {{classname}}.Serializer::class)
 class {{classname}}(
   @Contextual
-  val instances: List<Any?> = emptyList()
+  val matchedInstances: List<Any?> = emptyList()
 ) {
   // Convenience constructor for the common single-variant case; keeps the
   // historical `{{classname}}(actualInstance = x)` call-site working.
@@ -445,7 +445,7 @@ class {{classname}}(
   // The first retained variant, or null when none decoded. Callers that expect
   // a single wrapped value (byte/scalar variants) read this.
   val actualInstance: Any?
-    get() = instances.firstOrNull()
+    get() = matchedInstances.firstOrNull()
 
   internal object Serializer : kotlinx.serialization.KSerializer<{{classname}}> {
     override val descriptor =
@@ -459,7 +459,7 @@ class {{classname}}(
       val jsonEncoder = encoder as? kotlinx.serialization.json.JsonEncoder
         ?: throw kotlinx.serialization.SerializationException(
           "{{classname}} can only be serialized to JSON")
-      if (value.instances.isEmpty()) {
+      if (value.matchedInstances.isEmpty()) {
         throw kotlinx.serialization.SerializationException(
           "{{classname}} has no instance to serialize")
       }
@@ -473,7 +473,7 @@ class {{classname}}(
       // variant loop, so the byte variant is base64-encoded on the wire. Byte/scalar
       // variants are mutually exclusive and cannot be merged, so only the first
       // retained instance is consulted here.
-      val firstInstance = value.instances.first()
+      val firstInstance = value.matchedInstances.first()
       when (firstInstance) {
         is ByteArray -> {
           jsonEncoder.encodeSerializableValue(Base64ByteArraySerializer, firstInstance)
@@ -495,7 +495,7 @@ class {{classname}}(
       // (or that no declared serializer accepts) is skipped. encodeSerializableValue
       // is an Encoder member, so no extra import is needed.
       val merged = linkedMapOf<String, kotlinx.serialization.json.JsonElement>()
-      for (instance in value.instances) {
+      for (instance in value.matchedInstances) {
         var element: kotlinx.serialization.json.JsonElement? = null
         {{#anyOf}}
         if (element == null) {
@@ -515,7 +515,7 @@ class {{classname}}(
       if (merged.isEmpty()) {
         throw kotlinx.serialization.SerializationException(
           "Unsupported {{classname}} variant: " +
-            "${value.instances.first()!!::class.simpleName}")
+            "${value.matchedInstances.first()!!::class.simpleName}")
       }
       jsonEncoder.encodeJsonElement(kotlinx.serialization.json.JsonObject(merged))
     }
@@ -547,7 +547,7 @@ class {{classname}}(
       }
       {{/anyOf}}
       if (retained.isNotEmpty()) {
-        return {{classname}}(instances = retained)
+        return {{classname}}(matchedInstances = retained)
       }
       // Base64 fallback for format:byte variants. A base64 scalar arrives as a
       // JSON STRING and an array of base64 values as a JSON array of strings --
@@ -557,13 +557,13 @@ class {{classname}}(
       // base64 string deserializes to the scalar ByteArray variant and is never
       // mis-parsed element-by-element into a List<ByteArray>.
       try {
-        return {{classname}}(instances =
+        return {{classname}}(matchedInstances =
           listOf<Any?>(lenientJson.decodeFromJsonElement(Base64ByteArraySerializer, element)))
       } catch (_: Exception) {
         // not a base64 scalar; try the array-of-base64 form
       }
       try {
-        return {{classname}}(instances =
+        return {{classname}}(matchedInstances =
           listOf<Any?>(lenientJson.decodeFromJsonElement(
             kotlinx.serialization.builtins.ListSerializer(Base64ByteArraySerializer), element)))
       } catch (_: Exception) {
@@ -621,6 +621,9 @@ class {{classname}}(
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
+{{#isUnevaluatedPropertiesFalse}}
+@{{invokerPackage}}.UnevaluatedPropertiesFalse
+{{/isUnevaluatedPropertiesFalse}}
 @Serializable
 {{#parent}}open {{/parent}}data class {{classname}}(
 {{#vars}}
@@ -776,34 +779,6 @@ class {{classname}}(
   @kotlinx.serialization.Transient
   val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf()
 {{/isAdditionalPropertiesTrue}}
-{{#isUnevaluatedPropertiesFalse}}
-
-  /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-   * deserializers must reject any JSON key not declared above. Callers should
-   * decode this class with [parseStrict] (or a Json configured with
-   * ignoreUnknownKeys = false) so unknown keys raise SerializationException. */
-  companion object {
-    fun parseStrict(raw: String): {{classname}} {
-      val strict = kotlinx.serialization.json.Json {
-        ignoreUnknownKeys = false
-        isLenient = false
-        // Reuse the SDK's configured contextual serializers (date-time, date,
-        // uuid, decimal, duration, uri, free-form Any). A bare `Json {}` carries
-        // no serializersModule, so a model with a @Contextual field would throw
-        // "serializer not found" here even though normal decoding handles it.
-        serializersModule = {{invokerPackage}}.ObjectSerializer.contextualSerializersModule
-      }
-      try {
-        return strict.decodeFromString(serializer(), raw)
-      } catch (e: {{invokerPackage}}.errors.{{errorPrefix}}Exception) {
-        throw e
-      } catch (e: IllegalArgumentException) {
-        throw {{invokerPackage}}.errors.SerializationException(
-          "Unknown property on {{classname}} (unevaluatedProperties:false): " + e.message, e)
-      }
-    }
-  }
-{{/isUnevaluatedPropertiesFalse}}
 {{#hasContentEqualsField}}
 
   /* Kotlin's synthesized data-class equals/hashCode compare Array and

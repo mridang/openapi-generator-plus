@@ -37,26 +37,26 @@ class TreatmentRecord
      *
      * @var array<int, mixed>
      */
-    private array $actualInstances;
+    private array $matchedInstances;
 
     /**
-     * @param array<int, mixed> $actualInstances the matched anyOf variants
+     * @param array<int, mixed> $matchedInstances the matched anyOf variants
      */
-    public function __construct(array $actualInstances = [])
+    public function __construct(array $matchedInstances = [])
     {
-        $this->actualInstances = $actualInstances;
+        $this->matchedInstances = $matchedInstances;
     }
 
     /**
      * The first matched anyOf variant.
      *
      * Retained for the common single-variant case and for callers that only
-     * need one instance; use {@see getActualInstances} to access every variant
+     * need one instance; use {@see getMatchedInstances} to access every variant
      * a co-satisfying payload matched.
      */
     public function getActualInstance(): mixed
     {
-        return $this->actualInstances[0] ?? null;
+        return $this->matchedInstances[0] ?? null;
     }
 
     /**
@@ -68,9 +68,9 @@ class TreatmentRecord
      *
      * @return array<int, mixed>
      */
-    public function getActualInstances(): array
+    public function getMatchedInstances(): array
     {
-        return $this->actualInstances;
+        return $this->matchedInstances;
     }
 
     public static function build(mixed $data): self

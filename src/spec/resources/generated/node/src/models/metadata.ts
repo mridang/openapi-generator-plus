@@ -68,8 +68,69 @@ export class Metadata {
 
   [key: string]: unknown;
 
+  /**
+   * A wire key literally named `additionalProperties`. It cannot live on the
+   * instance under that name because the accessor below owns the name, so it is
+   * held here, merged into the accessor's record and emitted by the serializer
+   * under its wire name.
+   */
+  #additionalPropertiesKey?: { value: unknown };
+
+  /**
+   * The undeclared keys this instance carries, as a fresh record. Empty when
+   * there are none, never undefined. Read-only: assign extra keys on the
+   * instance itself.
+   */
+  get additionalProperties(): Record<string, unknown> {
+    const extras: Record<string, unknown> = {};
+    for (const key of Object.keys(this)) {
+      if (!Metadata.__additionalPropertiesDeclaredKeys.has(key)) {
+        extras[key] = (this as unknown as Record<string, unknown>)[key];
+      }
+    }
+    if (this.#additionalPropertiesKey) {
+      extras["additionalProperties"] = this.#additionalPropertiesKey.value;
+    }
+    return extras;
+  }
+
+  /**
+   * Internal: the value held for a wire key named `additionalProperties`, or
+   * undefined when the instance has none. Read by the serializer.
+   */
+  static __additionalPropertiesKeyOf(
+    instance: object,
+  ): { value: unknown } | undefined {
+    return #additionalPropertiesKey in instance
+      ? (instance as Metadata).#additionalPropertiesKey
+      : undefined;
+  }
+
+  /**
+   * Internal: hold the value of a wire key named `additionalProperties` on an
+   * instance. Used by the serializer when it re-attaches free-form keys.
+   */
+  static __holdAdditionalPropertiesKey(instance: object, value: unknown): void {
+    (instance as Metadata).#additionalPropertiesKey = { value };
+  }
+
   constructor(data?: Partial<Metadata>) {
-    Object.assign(this, data);
+    if (data) {
+      this.#additionalPropertiesKey = Object.prototype.hasOwnProperty.call(
+        data,
+        "additionalProperties",
+      )
+        ? { value: data["additionalProperties"] as unknown }
+        : Metadata.__additionalPropertiesKeyOf(data);
+    }
+    Object.assign(
+      this,
+      Object.fromEntries(
+        Object.entries(data ?? {}).filter(
+          ([key]) => key !== "additionalProperties",
+        ),
+      ),
+    );
     /* `format: date-time`: an unparseable wire value becomes an Invalid Date
      * rather than an error, so reject it here. */
     if (
@@ -118,6 +179,14 @@ export class Metadata {
         if (!Metadata.__deepEquals(selfRec[k], otherRec[k])) {
           return false;
         }
+      }
+      if (
+        !Metadata.__deepEquals(
+          Metadata.__additionalPropertiesKeyOf(this)?.value,
+          Metadata.__additionalPropertiesKeyOf(other as object)?.value,
+        )
+      ) {
+        return false;
       }
     }
     return true;

@@ -1,5 +1,13 @@
 module Petstore::Client::Models
   class PetWithOwner < Dry::Struct
+    class StatusEnum
+      AVAILABLE: String
+      PENDING: String
+      SOLD: String
+      VALUES: Array[String]
+      def self.all_vars: () -> Array[String]
+      def self.validate!: (String?) -> String?
+    end
     ATTRIBUTE_MAP: Hash[Symbol, String]
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]

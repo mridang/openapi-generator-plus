@@ -11,8 +11,8 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
-/** ModelResult. */
-public class ModelResult {
+/** Result. */
+public class Result {
 
   /** The {@code ok} property. */
   @JsonProperty("ok")
@@ -20,7 +20,7 @@ public class ModelResult {
   public Boolean ok;
 
   /** Creates an empty instance. */
-  public ModelResult() {}
+  public Result() {}
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
@@ -32,7 +32,7 @@ public class ModelResult {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof ModelResult other)) {
+    if (!(o instanceof Result other)) {
       return false;
     }
     return java.util.Objects.equals(this.ok, other.ok);

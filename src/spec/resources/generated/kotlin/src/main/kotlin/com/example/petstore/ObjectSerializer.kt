@@ -12,9 +12,14 @@ package com.example.petstore
 import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
 import io.ktor.http.Url
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialInfo
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
+import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
@@ -40,6 +45,17 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAccessor
 import java.util.Base64
 import kotlin.uuid.Uuid
+
+/**
+ * Marks a model whose schema sets unevaluatedProperties:false. Internal: being
+ * serialization info, it is recorded on the model's descriptor, so the
+ * serializer finds it at every depth of the decoded tree.
+ */
+@OptIn(ExperimentalSerializationApi::class)
+@SerialInfo
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.RUNTIME)
+internal annotation class UnevaluatedPropertiesFalse
 
 /**
  * Serializer for [ByteArray] properties that uses Base64 encoding in JSON.
@@ -236,12 +252,12 @@ internal object StrictBooleanSerializer : KSerializer<Boolean> {
  * number, boolean) or an enum. Contextual and polymorphic descriptors are not
  * scalars here because their wire shape is decided by the serializer itself.
  */
-private fun isScalarDescriptor(descriptor: kotlinx.serialization.descriptors.SerialDescriptor): Boolean =
-    descriptor.kind is PrimitiveKind || descriptor.kind == kotlinx.serialization.descriptors.SerialKind.ENUM
+private fun isScalarDescriptor(descriptor: SerialDescriptor): Boolean =
+    descriptor.kind is PrimitiveKind || descriptor.kind == SerialKind.ENUM
 
 /** True for the descriptor of a kotlin Set (LinkedHashSet or HashSet), nullable or not. */
-private fun isSetDescriptor(descriptor: kotlinx.serialization.descriptors.SerialDescriptor): Boolean =
-    descriptor.kind == kotlinx.serialization.descriptors.StructureKind.LIST &&
+private fun isSetDescriptor(descriptor: SerialDescriptor): Boolean =
+    descriptor.kind == StructureKind.LIST &&
         descriptor.serialName.removeSuffix("?").endsWith("Set")
 
 /** Compares two strings by Unicode code point, not by UTF-16 unit. */
@@ -287,19 +303,19 @@ private val SCALAR_ORDER: Comparator<JsonElement> =
  */
 internal fun sortScalarSets(
     element: JsonElement,
-    descriptor: kotlinx.serialization.descriptors.SerialDescriptor,
+    descriptor: SerialDescriptor,
 ): JsonElement =
     when {
-        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.CLASS ->
+        element is JsonObject && descriptor.kind == StructureKind.CLASS ->
             JsonObject(
                 element.mapValues { (key, value) ->
                     val index = descriptor.getElementIndex(key)
                     if (index < 0) value else sortScalarSets(value, descriptor.getElementDescriptor(index))
                 },
             )
-        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.MAP ->
+        element is JsonObject && descriptor.kind == StructureKind.MAP ->
             JsonObject(element.mapValues { (_, value) -> sortScalarSets(value, descriptor.getElementDescriptor(1)) })
-        element is JsonArray && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.LIST -> {
+        element is JsonArray && descriptor.kind == StructureKind.LIST -> {
             val item = descriptor.getElementDescriptor(0)
             val children = element.map { sortScalarSets(it, item) }
             JsonArray(if (isSetDescriptor(descriptor) && isScalarDescriptor(item)) children.sortedWith(SCALAR_ORDER) else children)
@@ -308,7 +324,7 @@ internal fun sortScalarSets(
     }
 
 /** Inclusive bounds of each integer kind on the wire. */
-private fun integerBounds(kind: kotlinx.serialization.descriptors.SerialKind): LongRange? =
+private fun integerBounds(kind: SerialKind): LongRange? =
     when (kind) {
         PrimitiveKind.INT -> Int.MIN_VALUE.toLong()..Int.MAX_VALUE.toLong()
         PrimitiveKind.LONG -> Long.MIN_VALUE..Long.MAX_VALUE
@@ -328,7 +344,7 @@ private val INTEGER_TOKEN = Regex("-?(0|[1-9][0-9]*)")
  */
 private fun requireStrictScalar(
     primitive: JsonPrimitive,
-    kind: kotlinx.serialization.descriptors.SerialKind,
+    kind: SerialKind,
     path: String,
 ) {
     val bounds = integerBounds(kind)
@@ -364,26 +380,61 @@ private fun requireStrictScalar(
 @PublishedApi
 internal fun validateScalarLeaves(
     element: JsonElement,
-    descriptor: kotlinx.serialization.descriptors.SerialDescriptor,
+    descriptor: SerialDescriptor,
     path: String = "$",
 ) {
     when {
         element is JsonNull -> return
         element is JsonPrimitive && descriptor.kind is PrimitiveKind ->
             requireStrictScalar(element, descriptor.kind, path)
-        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.CLASS ->
+        element is JsonObject && descriptor.kind == StructureKind.CLASS ->
             for ((key, value) in element) {
                 val index = descriptor.getElementIndex(key)
                 if (index >= 0) validateScalarLeaves(value, descriptor.getElementDescriptor(index), "$path.$key")
             }
-        element is JsonObject && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.MAP ->
+        element is JsonObject && descriptor.kind == StructureKind.MAP ->
             for ((key, value) in element) {
                 validateScalarLeaves(value, descriptor.getElementDescriptor(1), "$path.$key")
             }
-        element is JsonArray && descriptor.kind == kotlinx.serialization.descriptors.StructureKind.LIST ->
+        element is JsonArray && descriptor.kind == StructureKind.LIST ->
             element.forEachIndexed { i, value ->
                 validateScalarLeaves(value, descriptor.getElementDescriptor(0), "$path[$i]")
             }
+        else -> return
+    }
+}
+
+/**
+ * Enforces unevaluatedProperties:false at every depth: walks the parsed tree
+ * beside the descriptor and, for any object whose model carries the
+ * [UnevaluatedPropertiesFalse] marker, rejects a key that is not a declared
+ * property (descriptor element names, which honour @SerialName). Models nested
+ * in other models, lists and maps are checked the same as a top-level one.
+ */
+@PublishedApi
+internal fun rejectUnevaluatedKeys(
+    element: JsonElement,
+    descriptor: SerialDescriptor,
+) {
+    when {
+        element is JsonObject && descriptor.kind == StructureKind.CLASS -> {
+            val strict = descriptor.annotations.any { it is UnevaluatedPropertiesFalse }
+            for ((key, value) in element) {
+                val index = descriptor.getElementIndex(key)
+                if (index >= 0) {
+                    rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(index))
+                } else if (strict) {
+                    throw SerializationException(
+                        "Unknown property '$key' on ${descriptor.serialName.removeSuffix("?").substringAfterLast('.')} " +
+                            "(unevaluatedProperties:false)",
+                    )
+                }
+            }
+        }
+        element is JsonObject && descriptor.kind == StructureKind.MAP ->
+            for (value in element.values) rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(1))
+        element is JsonArray && descriptor.kind == StructureKind.LIST ->
+            for (value in element) rejectUnevaluatedKeys(value, descriptor.getElementDescriptor(0))
         else -> return
     }
 }
@@ -462,7 +513,7 @@ internal class ObjectSerializer(
         // each field's kotlinx default. This post-encode null filter keeps the
         // wire output identical to the other SDKs for both default-valued and
         // explicitly-nulled fields.
-        var modelDescriptor: kotlinx.serialization.descriptors.SerialDescriptor? = null
+        var modelDescriptor: SerialDescriptor? = null
         val encoded =
             try {
                 val modelSerializer = serializer(unwrapped::class.java)
@@ -552,11 +603,11 @@ internal class ObjectSerializer(
         }
 
     /** The descriptor of a generated model class, or null for anything else. */
-    private fun modelDescriptor(model: Any): kotlinx.serialization.descriptors.SerialDescriptor? =
+    private fun modelDescriptor(model: Any): SerialDescriptor? =
         try {
             serializer(model::class.java)
                 .descriptor
-                .takeIf { it.kind == kotlinx.serialization.descriptors.StructureKind.CLASS }
+                .takeIf { it.kind == StructureKind.CLASS }
         } catch (_: Exception) {
             null
         }
@@ -569,7 +620,7 @@ internal class ObjectSerializer(
      */
     private inline fun forEachModelElement(
         model: Any,
-        descriptor: kotlinx.serialization.descriptors.SerialDescriptor,
+        descriptor: SerialDescriptor,
         action: (String, Any?) -> Unit,
     ) {
         for (i in 0 until descriptor.elementsCount) {
@@ -610,11 +661,11 @@ internal class ObjectSerializer(
      */
     private fun stripJsonNulls(
         element: JsonElement,
-        descriptor: kotlinx.serialization.descriptors.SerialDescriptor? = null,
+        descriptor: SerialDescriptor? = null,
     ): JsonElement =
         when (element) {
             is JsonObject -> {
-                val model = descriptor?.takeIf { it.kind == kotlinx.serialization.descriptors.StructureKind.CLASS }
+                val model = descriptor?.takeIf { it.kind == StructureKind.CLASS }
                 JsonObject(
                     element.entries
                         .filter { it.value !is JsonNull || (model != null && isRequiredNullable(model, it.key)) }
@@ -626,7 +677,7 @@ internal class ObjectSerializer(
                 )
             }
             is JsonArray -> {
-                val item = descriptor?.takeIf { it.kind == kotlinx.serialization.descriptors.StructureKind.LIST }
+                val item = descriptor?.takeIf { it.kind == StructureKind.LIST }
                 JsonArray(element.map { stripJsonNulls(it, item?.getElementDescriptor(0)) })
             }
             else -> element
@@ -638,7 +689,7 @@ internal class ObjectSerializer(
      * written, as `null` when unset, because required constrains presence.
      */
     private fun isRequiredNullable(
-        model: kotlinx.serialization.descriptors.SerialDescriptor,
+        model: SerialDescriptor,
         key: String,
     ): Boolean {
         val index = model.getElementIndex(key)
@@ -692,7 +743,9 @@ internal class ObjectSerializer(
         val decoded =
             try {
                 val target = json.serializersModule.serializer<T>()
-                validateScalarLeaves(json.parseToJsonElement(stripped), target.descriptor)
+                val tree = json.parseToJsonElement(stripped)
+                validateScalarLeaves(tree, target.descriptor)
+                rejectUnevaluatedKeys(tree, target.descriptor)
                 json.decodeFromString(target, stripped)
             } catch (e: OpenAPIException) {
                 throw e
@@ -1043,7 +1096,7 @@ internal class ObjectSerializer(
         private object BigDecimalSerializer : KSerializer<BigDecimal> {
             override val descriptor = PrimitiveSerialDescriptor("BigDecimal", PrimitiveKind.STRING)
 
-            @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+            @OptIn(ExperimentalSerializationApi::class)
             override fun serialize(
                 encoder: Encoder,
                 value: BigDecimal,
@@ -1254,7 +1307,7 @@ internal class ObjectSerializer(
          * Routes everything through JsonElement so any JSON shape
          * round-trips: numbers, strings, arrays, objects, booleans,
          * null. */
-        @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+        @OptIn(ExperimentalSerializationApi::class)
         private object AnySerializer : KSerializer<Any> {
             override val descriptor = PrimitiveSerialDescriptor("Any", PrimitiveKind.STRING)
 
@@ -1321,11 +1374,9 @@ internal class ObjectSerializer(
 
         // The contextual (de)serializers for OpenAPI formats (date-time, date,
         // decimal, uuid, uri, duration, free-form Any). Exposed @PublishedApi
-        // internal so a generated model's strict parser — e.g. parseStrict() on
-        // an unevaluatedProperties:false model with a @Contextual field — can
-        // reuse it. Building a bare `Json {}` without this module throws
-        // "serializer not found" for any @Contextual property, so the strict
-        // path must copy the same module the SDK uses for normal decoding.
+        // internal so a strict decoder over a @Contextual field can reuse it.
+        // A bare `Json {}` without this module throws "serializer not found"
+        // for any @Contextual property.
         @PublishedApi
         internal val contextualSerializersModule: SerializersModule =
             SerializersModule {

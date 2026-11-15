@@ -24,8 +24,8 @@ const (
 	DefaultsModeEnumHigh   DefaultsModeEnum = "high"
 )
 
-// AllDefaultsModeEnumValues returns all allowed values.
-func AllDefaultsModeEnumValues() []DefaultsModeEnum {
+// allDefaultsModeEnumValues returns all allowed values.
+func allDefaultsModeEnumValues() []DefaultsModeEnum {
 	return []DefaultsModeEnum{
 		DefaultsModeEnumLow,
 		DefaultsModeEnumMedium,
@@ -47,7 +47,7 @@ func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := DefaultsModeEnum(raw)
-	for _, allowed := range AllDefaultsModeEnumValues() {
+	for _, allowed := range allDefaultsModeEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +59,7 @@ func (v *DefaultsModeEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v DefaultsModeEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range AllDefaultsModeEnumValues() {
+	for _, allowed := range allDefaultsModeEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}

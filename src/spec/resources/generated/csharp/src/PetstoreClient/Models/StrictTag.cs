@@ -10,6 +10,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public class StrictTag : IEquatable<StrictTag>
 {
     [JsonPropertyName("id")]
@@ -17,28 +18,6 @@ public class StrictTag : IEquatable<StrictTag>
 
     [JsonPropertyName("name")]
     public string? Name { get; set; }
-
-    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false:
-     * any JSON key not declared above is rejected at deserialization time. */
-    private Dictionary<string, object>? _unknownProperties;
-
-    [JsonExtensionData]
-    public Dictionary<string, object>? UnknownProperties
-    {
-        get => _unknownProperties;
-        set
-        {
-            if (value is not null && value.Count > 0)
-            {
-                throw new global::PetstoreClient.Errors.SerializationException(
-                    "Unknown property '"
-                        + value.Keys.First()
-                        + "' on StrictTag (unevaluatedProperties:false)"
-                );
-            }
-            _unknownProperties = value;
-        }
-    }
 
     /// <summary>Value-equality based on all declared fields.</summary>
     public bool Equals(StrictTag? other)

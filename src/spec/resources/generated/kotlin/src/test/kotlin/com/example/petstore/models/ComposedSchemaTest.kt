@@ -237,12 +237,16 @@ class ComposedSchemaTest {
             val result = json.decodeFromString<PetTreatment>(both)
 
             // BOTH variants are retained and accessible — not just the first.
-            val medication = result.instances.filterIsInstance<Medication>().single()
-            val surgery = result.instances.filterIsInstance<Surgery>().single()
+            val medication = result.matchedInstances.filterIsInstance<Medication>().single()
+            val surgery = result.matchedInstances.filterIsInstance<Surgery>().single()
             assertEquals("Amoxicillin", medication.drugName)
             assertEquals("250mg", medication.dosage)
             assertEquals("Spay", surgery.procedureName)
             assertEquals(45, surgery.durationMinutes)
+            assertEquals(
+                listOf(Medication::class, Surgery::class),
+                result.matchedInstances.map { it!!::class },
+            )
 
             // Re-serialize: the union of all retained variants' fields must
             // survive, so the co-satisfied payload round-trips with no drop.
@@ -258,7 +262,7 @@ class ComposedSchemaTest {
                 json.decodeFromString<PetTreatment>(
                     """{"drugName":"Amoxicillin","dosage":"500mg"}""",
                 )
-            assertEquals(1, medOnly.instances.size)
+            assertEquals(1, medOnly.matchedInstances.size)
             assertTrue(medOnly.actualInstance is Medication)
             assertEquals("Amoxicillin", (medOnly.actualInstance as Medication).drugName)
 
@@ -266,7 +270,7 @@ class ComposedSchemaTest {
                 json.decodeFromString<PetTreatment>(
                     """{"procedureName":"Spay","durationMinutes":45}""",
                 )
-            assertEquals(1, surgeryOnly.instances.size)
+            assertEquals(1, surgeryOnly.matchedInstances.size)
             assertTrue(surgeryOnly.actualInstance is Surgery)
             assertEquals("Spay", (surgeryOnly.actualInstance as Surgery).procedureName)
         }
@@ -281,7 +285,7 @@ class ComposedSchemaTest {
             // duplicate JSON key.
             val treatment =
                 PetTreatment(
-                    instances =
+                    matchedInstances =
                         listOf(
                             Medication(drugName = "Amoxicillin", notes = "from-medication"),
                             Surgery(procedureName = "Spay", notes = "from-surgery"),

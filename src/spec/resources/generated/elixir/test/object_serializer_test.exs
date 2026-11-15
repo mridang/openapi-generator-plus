@@ -1062,16 +1062,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
   describe "discriminator auto-injection" do
     test "dry subtype serialize auto-emits the discriminator" do
-      # DryFood defaults food_type to "dry", so a caller that omits it
-      # still gets the discriminator on the wire.
-      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5}
+      # The discriminator is an enforced key, so the caller always supplies it
+      # and it is the value that reaches the wire.
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(dry))
       assert data["foodType"] == "dry"
       assert data["weightKg"] == 2.5
     end
 
     test "wet subtype serialize auto-emits the discriminator" do
-      wet = %PetstoreClient.Models.WetFood{volume_ml: 350}
+      wet = %PetstoreClient.Models.WetFood{volume_ml: 350, food_type: "wet"}
       data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(wet))
       assert data["foodType"] == "wet"
     end
@@ -1252,6 +1252,83 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(beyond, "Object")
       end
+    end
+  end
+
+  describe "inline enum modules" do
+    test "Defaults.ModeEnum exposes its members" do
+      mode = PetstoreClient.Models.Defaults.ModeEnum
+      assert mode.all_values() == [:low, :medium, :high]
+      assert mode.value(:high) == "high"
+      assert mode.from_value("nope") == {:error, "nope"}
+    end
+
+    test "EdgeCases.PhaseEnum maps non-identifier wire values" do
+      phase = PetstoreClient.Models.EdgeCases.PhaseEnum
+      assert phase.value(:on_hold) == "on-hold"
+      assert phase.from_value("OUT_OF_STOCK") == :out_of_stock
+      assert phase.from_value("x") == {:error, "x"}
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"phase":"on-hold"}), "EdgeCases")
+
+      assert decoded.phase == :on_hold
+    end
+
+    test "Order.StatusEnum exposes its members and still decodes the field" do
+      status = PetstoreClient.Models.Order.StatusEnum
+      assert status.all_values() == [:placed, :approved, :delivered]
+      assert status.value(:placed) == "placed"
+      assert status.from_value("approved") == :approved
+      assert status.from_value("bogus") == {:error, "bogus"}
+
+      decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"status":"delivered"}), "Order")
+      assert decoded.status == :delivered
+    end
+
+    test "Pet.StatusEnum and PetWithOwner.StatusEnum expose their members" do
+      for mod <- [
+            PetstoreClient.Models.Pet.StatusEnum,
+            PetstoreClient.Models.PetWithOwner.StatusEnum
+          ] do
+        assert mod.all_values() == [:available, :pending, :sold]
+        assert mod.value(:pending) == "pending"
+        assert mod.from_value("sold") == :sold
+        assert mod.from_value("banana") == {:error, "banana"}
+      end
+    end
+  end
+
+  describe "discriminator is an enforced key" do
+    test "building a subtype without the discriminator raises" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Code.eval_string("%PetstoreClient.Models.DryFood{weight_kg: 1.0}")
+        end
+
+      assert Exception.message(error) =~ ":food_type"
+    end
+  end
+
+  describe "strict models (unevaluatedProperties:false)" do
+    test "an undeclared key raises SerializationError naming the key" do
+      error =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(~s({"id":1,"extra":true}), "StrictTag")
+        end
+
+      assert Exception.message(error) =~ "extra"
+    end
+
+    test "declared keys decode" do
+      decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"id":1,"name":"a"}), "StrictTag")
+      assert decoded.id == 1
+      assert decoded.name == "a"
+    end
+
+    test "the model exposes no public from_map_strict" do
+      refute function_exported?(PetstoreClient.Models.StrictTag, :from_map_strict, 1)
+      assert PetstoreClient.Models.StrictTag.strict_properties?()
     end
   end
 end

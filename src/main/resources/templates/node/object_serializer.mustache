@@ -347,12 +347,45 @@ export function reattachAdditionalProperties(value: unknown, raw: unknown): unkn
     ?.__additionalPropertiesDeclaredKeys;
   if (declaredKeys) {
     for (const [key, extra] of Object.entries(raw as Record<string, unknown>)) {
-      if (!declaredKeys.has(key)) {
-        (value as Record<string, unknown>)[key] = extra;
+      if (key === 'additionalProperties') {
+        (value.constructor as { __holdAdditionalPropertiesKey?: (instance: object, held: unknown) => void })
+          .__holdAdditionalPropertiesKey?.(value, extra);
+      } else if (!declaredKeys.has(key)) {
+        Object.defineProperty(value, key, {
+          value: extra,
+          enumerable: true,
+          writable: true,
+          configurable: true,
+        });
       }
     }
   }
   return value;
+}
+
+/**
+ * A model holds a wire key named `additionalProperties` privately, because the
+ * accessor of that name owns the property. Return a copy that carries it as an
+ * own property so JSON.stringify emits it under its wire name; any other value
+ * is returned untouched.
+ */
+function withAdditionalPropertiesKey(value: object): object {
+  const ctor = value.constructor as
+    | { __additionalPropertiesKeyOf?: (instance: object) => { value: unknown } | undefined }
+    | undefined;
+  const held = ctor?.__additionalPropertiesKeyOf?.(value);
+  if (!held) {
+    return value;
+  }
+  const copy = Object.create(Object.getPrototypeOf(value) as object) as object;
+  Object.defineProperties(copy, Object.getOwnPropertyDescriptors(value));
+  Object.defineProperty(copy, 'additionalProperties', {
+    value: held.value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+  return copy;
 }
 
 function revalidateNestedFields(holder: Record<string, unknown>): void {
@@ -475,6 +508,9 @@ export class ObjectSerializer {
     const underModel = new WeakSet<object>();
     try {
       return JSON.stringify(obj, function (_key, value) {
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+          value = withAdditionalPropertiesKey(value as object);
+        }
         if (value !== null && typeof value === 'object') {
           const holder = this as unknown as object;
           const holderCtor = (holder as { constructor?: { __decimalFields?: unknown } }).constructor;
@@ -707,7 +743,7 @@ export class ObjectSerializer {
        * violation that must be REJECTED, not silently dropped. plainToInstance
        * with excludeExtraneousValues discards every non-@Expose key, so without
        * this gate the strict contract would be unenforced on the real
-       * deserialize path (the model's own fromJsonStrict was never reached).
+       * deserialize path.
        * The static `__strictDeclaredKeys` set (present only on strict models)
        * lists the allowed wire keys; reject any json key not in it before
        * building the instance. Models without the marker are non-strict and

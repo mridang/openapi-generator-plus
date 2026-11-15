@@ -102,6 +102,14 @@ defmodule {{moduleName}}.ComposedSchemaTest do
       assert %{{moduleName}}.Models.Surgery{} = result
     end
 
+    test "a single-variant anyOf is its own actual and matched instance" do
+      json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
+      result = {{moduleName}}.ObjectSerializer.deserialize(json, "PetTreatment")
+
+      assert {{moduleName}}.Models.PetTreatment.matched_instances(result) == [result]
+      assert {{moduleName}}.Models.PetTreatment.actual_instance(result) == result
+    end
+
     test "serializes round-trip for anyOf" do
       json = ~s({"drugName":"Amoxicillin","dosage":"500mg"})
       result = {{moduleName}}.ObjectSerializer.deserialize(json, "PetTreatment")
@@ -124,6 +132,12 @@ defmodule {{moduleName}}.ComposedSchemaTest do
 
       # Both variant structs are retained on the composite.
       assert %{{moduleName}}.AnyOfComposite{instances: instances} = result
+
+      assert [%{{moduleName}}.Models.Medication{}, %{{moduleName}}.Models.Surgery{}] =
+               {{moduleName}}.Models.PetTreatment.matched_instances(result)
+
+      assert %{{moduleName}}.Models.Medication{} =
+               {{moduleName}}.Models.PetTreatment.actual_instance(result)
 
       medication =
         Enum.find(instances, &match?(%{{moduleName}}.Models.Medication{}, &1))

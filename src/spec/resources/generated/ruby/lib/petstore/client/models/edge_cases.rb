@@ -19,6 +19,31 @@ module Petstore::Client
   module Models
     # Edge-case property shapes mirrored from real protobuf-derived specs.
     class EdgeCases < Dry::Struct
+      # Allowed values of the phase property.
+      class PhaseEnum
+        IN_STOCK = 'In-Stock'
+        ON_HOLD = 'on-hold'
+        OUT_OF_STOCK = 'OUT_OF_STOCK'
+
+        # Frozen set of all allowed values, used for validation.
+        VALUES = [IN_STOCK, ON_HOLD, OUT_OF_STOCK].freeze
+
+        def self.all_vars
+          VALUES
+        end
+
+        # Validate that +value+ is a recognized enum value.
+        #
+        # @param value [Object] the value to validate
+        # @return [Object] the value, if valid
+        # @raise [ArgumentError] if +value+ is not in {VALUES}
+        def self.validate!(value)
+          return value if value.nil? || VALUES.include?(value)
+
+          raise ArgumentError, "Unknown enum value for EdgeCases::PhaseEnum: #{value.inspect} (allowed: #{VALUES.inspect})"
+        end
+      end
+
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         free_form_any: 'freeFormAny',
@@ -120,7 +145,7 @@ module Petstore::Client
       attribute :last_error, Types::Any.optional.meta(omittable: true)
       attribute :outcome, Types::Any.optional.meta(omittable: true)
       attribute :cutoff, Types::Any.optional.meta(omittable: true)
-      attribute :phase, Types::String.enum('In-Stock', 'on-hold', 'OUT_OF_STOCK').optional.meta(omittable: true)
+      attribute :phase, Types::String.enum(*PhaseEnum::VALUES).optional.meta(omittable: true)
       attribute :slug, Types::Any.optional.meta(omittable: true)
     end
   end

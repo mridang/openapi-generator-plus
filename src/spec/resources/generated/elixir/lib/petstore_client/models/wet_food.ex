@@ -18,6 +18,7 @@ defmodule PetstoreClient.Models.WetFood do
         }
 
   @enforce_keys [
+    :food_type,
     :volume_ml
   ]
   defstruct [

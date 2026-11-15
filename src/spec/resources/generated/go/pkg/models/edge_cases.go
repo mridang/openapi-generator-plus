@@ -24,8 +24,8 @@ const (
 	EdgeCasesPhaseEnumOUTOFSTOCK EdgeCasesPhaseEnum = "OUT_OF_STOCK"
 )
 
-// AllEdgeCasesPhaseEnumValues returns all allowed values.
-func AllEdgeCasesPhaseEnumValues() []EdgeCasesPhaseEnum {
+// allEdgeCasesPhaseEnumValues returns all allowed values.
+func allEdgeCasesPhaseEnumValues() []EdgeCasesPhaseEnum {
 	return []EdgeCasesPhaseEnum{
 		EdgeCasesPhaseEnumInStock,
 		EdgeCasesPhaseEnumOnHold,
@@ -47,7 +47,7 @@ func (v *EdgeCasesPhaseEnum) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	candidate := EdgeCasesPhaseEnum(raw)
-	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
+	for _, allowed := range allEdgeCasesPhaseEnumValues() {
 		if allowed == candidate {
 			*v = candidate
 			return nil
@@ -59,7 +59,7 @@ func (v *EdgeCasesPhaseEnum) UnmarshalJSON(data []byte) error {
 // MarshalJSON enforces the same membership on the way out, so a value outside
 // the declared members is rejected instead of being sent.
 func (v EdgeCasesPhaseEnum) MarshalJSON() ([]byte, error) {
-	for _, allowed := range AllEdgeCasesPhaseEnumValues() {
+	for _, allowed := range allEdgeCasesPhaseEnumValues() {
 		if allowed == v {
 			return marshalJSON(string(v))
 		}
@@ -86,7 +86,7 @@ type EdgeCases struct {
 	Null      *string             `json:"null,omitempty"`
 	True      *bool               `json:"true,omitempty"`
 	False     *bool               `json:"false,omitempty"`
-	LastError *ModelError         `json:"lastError,omitempty"`
+	LastError *Error              `json:"lastError,omitempty"`
 	Outcome   *Result             `json:"outcome,omitempty"`
 	Cutoff    *string             `json:"cutoff,omitempty"`
 	Phase     *EdgeCasesPhaseEnum `json:"phase,omitempty"`

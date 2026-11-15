@@ -44,4 +44,15 @@ defmodule PetstoreClient.Models.TreatmentRecord do
       PetstoreClient.ObjectSerializer.resolve_any_of(data, candidates)
     end
   end
+
+  @doc "The first retained variant of a built value."
+  @spec actual_instance(t()) :: term()
+  def actual_instance(%PetstoreClient.AnyOfComposite{instances: [first | _]}), do: first
+  def actual_instance(value), do: value
+
+  @doc "Every variant that matched, in schema declaration order."
+  @spec matched_instances(t()) :: [term()]
+  def matched_instances(%PetstoreClient.AnyOfComposite{instances: instances}), do: instances
+  def matched_instances(nil), do: []
+  def matched_instances(value), do: [value]
 end

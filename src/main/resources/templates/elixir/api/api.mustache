@@ -433,7 +433,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
     request_body = {:raw_body, {{paramName}}}
 {{/isBinary}}
 {{^isBinary}}
+{{#isModel}}
+    request_body = {{moduleName}}.ObjectSerializer.prepare_body({{paramName}}, {{moduleName}}.Models.{{dataType}})
+{{/isModel}}
+{{^isModel}}
     request_body = {{paramName}}
+{{/isModel}}
 {{/isBinary}}
 {{/bodyParam}}
 {{^bodyParam}}

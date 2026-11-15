@@ -14,16 +14,16 @@ void main() {
       final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
       final food = PetFood.fromJson(json);
-      expect(food.value, isNotNull);
-      expect(food.value, isA<DryFood>());
+      expect(food.actualInstance, isNotNull);
+      expect(food.actualInstance, isA<DryFood>());
     });
 
     test('PetFood deserialize wet food', () {
       final json = <String, dynamic>{'foodType': 'wet', 'volumeMl': 400};
 
       final food = PetFood.fromJson(json);
-      expect(food.value, isNotNull);
-      expect(food.value, isA<WetFood>());
+      expect(food.actualInstance, isNotNull);
+      expect(food.actualInstance, isA<WetFood>());
     });
 
     test('PetFood unknown discriminator throws SerializationException', () {
@@ -85,18 +85,18 @@ void main() {
       expect(restored['foodType'], equals('dry'));
     });
 
-    test('PetFood.value wraps a variant that serializes with its discriminator', () {
-      final food = PetFood.value(DryFood(weightKg: 2.5));
+    test('PetFood constructor wraps a variant that serializes with its discriminator', () {
+      final food = PetFood(DryFood(weightKg: 2.5));
 
-      expect(food.value, isA<DryFood>());
+      expect(food.actualInstance, isA<DryFood>());
       expect(food.toJson(), equals(<String, dynamic>{'foodType': 'dry', 'weightKg': 2.5}));
     });
 
-    test('PetFood.value round trips through fromJson', () {
-      final wire = jsonDecode(jsonEncode(PetFood.value(WetFood(volumeMl: 400)).toJson()))
+    test('PetFood constructor round trips through fromJson', () {
+      final wire = jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
           as Map<String, dynamic>;
 
-      expect(PetFood.fromJson(wire).value, isA<WetFood>());
+      expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
     });
 
     // anyOf without discriminator: PetTreatment
@@ -108,8 +108,8 @@ void main() {
       };
 
       final treatment = PetTreatment.fromJson(json);
-      expect(treatment.value, isNotNull);
-      expect(treatment.value, isA<Medication>());
+      expect(treatment.actualInstance, isNotNull);
+      expect(treatment.actualInstance, isA<Medication>());
     });
 
     test('PetTreatment deserialize surgery', () {
@@ -119,8 +119,8 @@ void main() {
       };
 
       final treatment = PetTreatment.fromJson(json);
-      expect(treatment.value, isNotNull);
-      expect(treatment.value, isA<Surgery>());
+      expect(treatment.actualInstance, isNotNull);
+      expect(treatment.actualInstance, isA<Surgery>());
     });
 
     test('PetTreatment no matching variant throws SerializationException', () {
@@ -162,6 +162,8 @@ void main() {
       final treatment = PetTreatment.fromJson(json);
 
       // Both variants are accessible on the decoded value, not just the first.
+      expect(treatment.actualInstance, isA<Medication>());
+      expect(treatment.matchedInstances, [isA<Medication>(), isA<Surgery>()]);
       final medication = treatment.valueOf<Medication>();
       final surgery = treatment.valueOf<Surgery>();
       expect(medication, isNotNull);
@@ -255,8 +257,8 @@ void main() {
         () {
       final bytes = Uint8List.fromList(<int>[0x01, 0x02, 0x03, 0x04]);
 
-      final req = SetPetAvatarThumbnailRequest.value(bytes);
-      expect(req.value, equals(bytes));
+      final req = SetPetAvatarThumbnailRequest(bytes);
+      expect(req.actualInstance, equals(bytes));
 
       // The scalar `format:byte` variant must travel as a base64 STRING,
       // not a JSON int-array [1,2,3,4], not the raw bytes, not an empty
@@ -268,8 +270,8 @@ void main() {
 
       // Deserializing that base64 string recovers exactly the 4 bytes.
       final restored = SetPetAvatarThumbnailRequest.fromJson(encoded);
-      expect(restored.value, isA<Uint8List>());
-      expect(restored.value, equals(bytes));
+      expect(restored.actualInstance, isA<Uint8List>());
+      expect(restored.actualInstance, equals(bytes));
     });
 
     test(
@@ -282,12 +284,12 @@ void main() {
       final wire = base64Encode(bytes);
 
       final req = SetPetAvatarThumbnailRequest.fromJson(wire);
-      expect(req.value, isA<Uint8List>());
+      expect(req.actualInstance, isA<Uint8List>());
       // The scalar variant is a Uint8List (which IS a List<int>), so the
       // meaningful ordering check is that it was NOT mis-parsed into the ARRAY
       // variant (a List<Uint8List>) element-by-element.
-      expect(req.value, isNot(isA<List<Uint8List>>()));
-      expect(req.value, equals(bytes));
+      expect(req.actualInstance, isNot(isA<List<Uint8List>>()));
+      expect(req.actualInstance, equals(bytes));
     });
 
     test('SetPetAvatarThumbnailRequest round trips a single byte value', () {
@@ -295,8 +297,8 @@ void main() {
       final wire = base64Encode(bytes);
 
       final req = SetPetAvatarThumbnailRequest.fromJson(wire);
-      expect(req.value, isA<Uint8List>());
-      expect(req.value, equals(bytes));
+      expect(req.actualInstance, isA<Uint8List>());
+      expect(req.actualInstance, equals(bytes));
       expect(req.toJson(), equals(wire));
     });
 
@@ -307,7 +309,7 @@ void main() {
       final wire = <String>[base64Encode(a), base64Encode(b)];
 
       final req = SetPetAvatarThumbnailRequest.fromJson(wire);
-      final value = req.value as List;
+      final value = req.actualInstance as List;
       expect(value, hasLength(2));
       expect(value[0], equals(a));
       expect(value[1], equals(b));
@@ -328,7 +330,7 @@ void main() {
       final b = SetPetAvatarThumbnailRequest.fromJson(wire);
 
       // Distinct underlying Uint8List instances (identity-unequal)...
-      expect(identical(a.value, b.value), isFalse);
+      expect(identical(a.actualInstance, b.actualInstance), isFalse);
       // ...but the unions are value-equal and hash-consistent.
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
@@ -350,7 +352,7 @@ void main() {
       final a = SetPetAvatarThumbnailRequest.fromJson(wire);
       final b = SetPetAvatarThumbnailRequest.fromJson(wire);
 
-      expect(identical(a.value, b.value), isFalse);
+      expect(identical(a.actualInstance, b.actualInstance), isFalse);
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });

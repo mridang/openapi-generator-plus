@@ -23,17 +23,19 @@ class SetPetAvatarThumbnailRequest {
 
   /// Wraps an already-decoded value. The value must match one of the
   /// declared oneOf variants; it is re-encoded verbatim by [toJson].
-  const SetPetAvatarThumbnailRequest.value(Object? value) : _value = value;
+  const SetPetAvatarThumbnailRequest(Object? actualInstance)
+    : _value = actualInstance;
 
-  /// Returns the underlying value of the union type.
-  Object? get value => _value;
+  /// Returns the resolved variant of the union.
+  Object? get actualInstance => _value;
 
   /// Converts this union type back to its JSON wire value.
   Object? toJson() => _encodeValue(_value);
 
-  /// Creates a [SetPetAvatarThumbnailRequest] from a decoded JSON value (a base64 [String]
-  /// for a `byte` variant, a [List] for an array variant, or a
-  /// `Map<String, dynamic>` for an object variant).
+  /// Creates a [SetPetAvatarThumbnailRequest] from a decoded JSON value.
+  ///
+  /// Accepts a base64 [String] for a `byte` variant, a [List] for an array
+  /// variant, or a `Map<String, dynamic>` for an object variant.
   factory SetPetAvatarThumbnailRequest.fromJson(Object? json) {
     try {
       return SetPetAvatarThumbnailRequest._(decodeBase64(json as String));

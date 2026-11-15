@@ -405,6 +405,19 @@ defmodule PetstoreClient.ObjectSerializer do
   @spec to_form_value(term()) :: String.t()
   def to_form_value(value), do: stringify(value)
 
+  @doc false
+  # Route a request body through its model's `serialize/1` when the model
+  # defines one (a oneOf whose variants carry `format: byte`), so the caller
+  # passes raw bytes and the wire carries base64. Other bodies pass unchanged.
+  @spec prepare_body(term(), module()) :: term()
+  def prepare_body(body, model) do
+    if Code.ensure_loaded?(model) and function_exported?(model, :serialize, 1) do
+      model.serialize(body)
+    else
+      body
+    end
+  end
+
   @doc """
   Sanitize an object for JSON serialization.
   """
@@ -1145,9 +1158,9 @@ defmodule PetstoreClient.ObjectSerializer do
     assert_required_present(data, module)
 
     # When the schema declares unevaluatedProperties:false (the codegen emits
-    # from_map_strict/1 only for such models), reject any wire key not declared
+    # strict_properties?/0 only for such models), reject any wire key not declared
     # by the model instead of silently dropping it.
-    if function_exported?(module, :from_map_strict, 1) do
+    if function_exported?(module, :strict_properties?, 0) do
       declared = attr_map |> Map.values() |> MapSet.new()
 
       Enum.each(Map.keys(data), fn key ->

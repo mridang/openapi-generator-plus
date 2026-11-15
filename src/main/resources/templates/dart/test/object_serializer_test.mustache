@@ -426,7 +426,7 @@ void main() {
       final dry = DryFood(weightKg: 1.25);
       final json = serialize(dry);
       final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
-      expect(food.value, isA<DryFood>());
+      expect(food.actualInstance, isA<DryFood>());
     });
 
     // -- Gap AU-residual: missing-discriminator wrapping --

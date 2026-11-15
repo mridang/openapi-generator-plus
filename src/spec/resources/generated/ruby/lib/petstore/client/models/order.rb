@@ -19,6 +19,31 @@ module Petstore::Client
   module Models
     # Model class for Order.
     class Order < Dry::Struct
+      # Allowed values of the status property.
+      class StatusEnum
+        PLACED = 'placed'
+        APPROVED = 'approved'
+        DELIVERED = 'delivered'
+
+        # Frozen set of all allowed values, used for validation.
+        VALUES = [PLACED, APPROVED, DELIVERED].freeze
+
+        def self.all_vars
+          VALUES
+        end
+
+        # Validate that +value+ is a recognized enum value.
+        #
+        # @param value [Object] the value to validate
+        # @return [Object] the value, if valid
+        # @raise [ArgumentError] if +value+ is not in {VALUES}
+        def self.validate!(value)
+          return value if value.nil? || VALUES.include?(value)
+
+          raise ArgumentError, "Unknown enum value for Order::StatusEnum: #{value.inspect} (allowed: #{VALUES.inspect})"
+        end
+      end
+
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
         id: 'id',
@@ -87,7 +112,7 @@ module Petstore::Client
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
       # Order Status
       # @example approved
-      attribute :status, Types::String.enum('placed', 'approved', 'delivered').optional.meta(omittable: true).default('placed')
+      attribute :status, Types::String.enum(*StatusEnum::VALUES).optional.meta(omittable: true).default('placed')
       attribute :complete, Types::Any.optional.meta(omittable: true)
     end
   end

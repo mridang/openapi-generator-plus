@@ -1513,9 +1513,20 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-            if (model == null || model.isEnum || model.vars == null) {
+            if (model == null || model.isEnum) {
                 continue;
             }
+            modelMap.put(
+                    "hasByteVariants",
+                    model.getComposedSchemas() != null
+                            && model.getComposedSchemas().getOneOf() != null
+                            && model.getComposedSchemas().getOneOf().stream().anyMatch(
+                                    BetterPHPCodegen::holdsBytes));
+            if (model.vars == null) {
+                continue;
+            }
+            modelMap.put("hasByteVars", model.vars.stream().anyMatch(
+                    BetterPHPCodegen::holdsBytes));
             for (final CodegenProperty var : model.vars) {
                 if (!var.isEnum || var.allowableValues == null) {
                     continue;
@@ -1533,6 +1544,18 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return result;
+    }
+
+    /**
+     * Whether a property is a {@code format: byte} value, or a list or map of
+     * them. The model template emits a private constant naming such properties
+     * so the serializer can base64-encode and decode them at the wire boundary.
+     */
+    private static boolean holdsBytes(CodegenProperty prop) {
+        if (prop.isByteArray) {
+            return true;
+        }
+        return (prop.isArray || prop.isMap) && prop.items != null && prop.items.isByteArray;
     }
 
     /** Renders {@code template} with {@code ctx} into {@code folder/className.php}. */

@@ -29,7 +29,7 @@ func TestPetFood_DeserializeDryFood(t *testing.T) {
 		t.Fatalf("failed to deserialize PetFood as DryFood: %v", err)
 	}
 
-	val := food.Value()
+	val := food.ActualInstance()
 	if val == nil {
 		t.Fatal("expected non-nil value")
 	}
@@ -48,7 +48,7 @@ func TestPetFood_DeserializeWetFood(t *testing.T) {
 		t.Fatalf("failed to deserialize PetFood as WetFood: %v", err)
 	}
 
-	val := food.Value()
+	val := food.ActualInstance()
 	if val == nil {
 		t.Fatal("expected non-nil value")
 	}
@@ -144,10 +144,13 @@ func TestPetFood_SerializeDryFood(t *testing.T) {
 
 func TestPetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	t.Parallel()
-	food := models.NewPetFoodFromDryFood(*models.NewDryFood(2.5))
+	food := models.NewPetFood(*models.NewDryFood(2.5))
 
-	if _, ok := food.Value().(models.DryFood); !ok {
-		t.Fatalf("expected the wrapped DryFood, got %T", food.Value())
+	if _, ok := food.ActualInstance().(models.DryFood); !ok {
+		t.Fatalf("expected the wrapped DryFood, got %T", food.ActualInstance())
+	}
+	if _, ok := models.NewPetFood(*models.NewDryFood(2.5)).ActualInstance().(models.DryFood); !ok {
+		t.Fatalf("expected ActualInstance on the constructor result to be DryFood")
 	}
 	data, err := json.Marshal(food)
 	if err != nil {
@@ -172,7 +175,7 @@ func TestPetFood_DiscriminatorKeyMatchesCaseSensitively(t *testing.T) {
 func TestPetTreatment_DeserializeMedication(t *testing.T) {
 	t.Parallel()
 	// Single-variant payload: only the Medication variant validates, so only
-	// it is retained and the Surgery slot stays nil.
+	// it is retained and no other variant is kept.
 	jsonData := []byte(`{"drugName":"Amoxicillin","dosage":"250mg"}`)
 
 	var treatment models.PetTreatment
@@ -181,18 +184,15 @@ func TestPetTreatment_DeserializeMedication(t *testing.T) {
 		t.Fatalf("failed to deserialize PetTreatment as Medication: %v", err)
 	}
 
-	val := treatment.Value()
-	if val == nil {
-		t.Fatal("expected non-nil value")
+	medication, ok := treatment.ActualInstance().(models.Medication)
+	if !ok {
+		t.Fatalf("expected Medication variant, got %T", treatment.ActualInstance())
 	}
-	if treatment.Medication == nil {
-		t.Fatal("expected Medication variant to be retained")
+	if medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected drugName 'Amoxicillin', got %q", medication.DrugName)
 	}
-	if treatment.Medication.DrugName != "Amoxicillin" {
-		t.Errorf("expected drugName 'Amoxicillin', got %q", treatment.Medication.DrugName)
-	}
-	if treatment.Surgery != nil {
-		t.Error("expected Surgery variant to be nil for a medication-only payload")
+	if n := len(treatment.MatchedInstances()); n != 1 {
+		t.Errorf("expected exactly one matched variant for a medication-only payload, got %d", n)
 	}
 }
 
@@ -208,18 +208,15 @@ func TestPetTreatment_DeserializeSurgery(t *testing.T) {
 		t.Fatalf("failed to deserialize PetTreatment as Surgery: %v", err)
 	}
 
-	val := treatment.Value()
-	if val == nil {
-		t.Fatal("expected non-nil value")
+	surgery, ok := treatment.ActualInstance().(models.Surgery)
+	if !ok {
+		t.Fatalf("expected Surgery variant, got %T", treatment.ActualInstance())
 	}
-	if treatment.Surgery == nil {
-		t.Fatal("expected Surgery variant to be retained")
+	if surgery.ProcedureName != "Spay" {
+		t.Errorf("expected procedureName 'Spay', got %q", surgery.ProcedureName)
 	}
-	if treatment.Surgery.ProcedureName != "Spay" {
-		t.Errorf("expected procedureName 'Spay', got %q", treatment.Surgery.ProcedureName)
-	}
-	if treatment.Medication != nil {
-		t.Error("expected Medication variant to be nil for a surgery-only payload")
+	if n := len(treatment.MatchedInstances()); n != 1 {
+		t.Errorf("expected exactly one matched variant for a surgery-only payload, got %d", n)
 	}
 }
 
@@ -237,24 +234,33 @@ func TestPetTreatment_RetainsAllMatchingVariantsLosslessly(t *testing.T) {
 		t.Fatalf("failed to deserialize co-satisfied PetTreatment: %v", err)
 	}
 
-	// Both variants must be retained and fully readable.
-	if treatment.Medication == nil {
-		t.Fatal("expected Medication variant to be retained")
+	// Both variants must be retained, in declaration order, and fully readable.
+	matched := treatment.MatchedInstances()
+	if len(matched) != 2 {
+		t.Fatalf("expected two matched variants, got %d", len(matched))
 	}
-	if treatment.Surgery == nil {
-		t.Fatal("expected Surgery variant to be retained")
+	medication, ok := matched[0].(models.Medication)
+	if !ok {
+		t.Fatalf("expected Medication first, got %T", matched[0])
 	}
-	if treatment.Medication.DrugName != "Amoxicillin" {
-		t.Errorf("expected drugName 'Amoxicillin', got %q", treatment.Medication.DrugName)
+	surgery, ok := matched[1].(models.Surgery)
+	if !ok {
+		t.Fatalf("expected Surgery second, got %T", matched[1])
 	}
-	if treatment.Medication.Dosage == nil || *treatment.Medication.Dosage != "250mg" {
-		t.Errorf("expected dosage '250mg', got %v", treatment.Medication.Dosage)
+	if _, ok := treatment.ActualInstance().(models.Medication); !ok {
+		t.Errorf("expected the actual instance to be the first matched variant, got %T", treatment.ActualInstance())
 	}
-	if treatment.Surgery.ProcedureName != "Spay" {
-		t.Errorf("expected procedureName 'Spay', got %q", treatment.Surgery.ProcedureName)
+	if medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected drugName 'Amoxicillin', got %q", medication.DrugName)
 	}
-	if treatment.Surgery.DurationMinutes == nil || *treatment.Surgery.DurationMinutes != 45 {
-		t.Errorf("expected durationMinutes 45, got %v", treatment.Surgery.DurationMinutes)
+	if medication.Dosage == nil || *medication.Dosage != "250mg" {
+		t.Errorf("expected dosage '250mg', got %v", medication.Dosage)
+	}
+	if surgery.ProcedureName != "Spay" {
+		t.Errorf("expected procedureName 'Spay', got %q", surgery.ProcedureName)
+	}
+	if surgery.DurationMinutes == nil || *surgery.DurationMinutes != 45 {
+		t.Errorf("expected durationMinutes 45, got %v", surgery.DurationMinutes)
 	}
 
 	// Re-serialize: the JSON must contain ALL FOUR fields — the co-satisfied data
@@ -288,10 +294,10 @@ func TestPetTreatment_SharedPropertyCollisionLastWins(t *testing.T) {
 	t.Parallel()
 	medNotes := "from-medication"
 	surgNotes := "from-surgery"
-	treatment := models.PetTreatment{
-		Medication: &models.Medication{DrugName: "Amoxicillin", Notes: &medNotes},
-		Surgery:    &models.Surgery{ProcedureName: "Spay", Notes: &surgNotes},
-	}
+	treatment := models.NewPetTreatment(
+		models.Medication{DrugName: "Amoxicillin", Notes: &medNotes},
+		models.Surgery{ProcedureName: "Spay", Notes: &surgNotes},
+	)
 
 	data, err := json.Marshal(treatment)
 	if err != nil {
@@ -437,9 +443,9 @@ func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testin
 
 	// Ordering: a scalar base64 string must resolve to the SCALAR []byte variant,
 	// NOT be mis-parsed element-by-element into the [][]byte array variant.
-	got, ok := scalar.Value().([]byte)
+	got, ok := scalar.ActualInstance().([]byte)
 	if !ok {
-		t.Fatalf("expected scalar []byte variant, got %T", scalar.Value())
+		t.Fatalf("expected scalar []byte variant, got %T", scalar.ActualInstance())
 	}
 	if string(got) != string(raw) {
 		t.Errorf("scalar byte round-trip mismatch: got %v, want %v", got, raw)
@@ -466,9 +472,9 @@ func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testin
 		t.Fatalf("failed to deserialize array byte variant: %v", err)
 	}
 
-	gotArray, ok := array.Value().([][]byte)
+	gotArray, ok := array.ActualInstance().([][]byte)
 	if !ok {
-		t.Fatalf("expected [][]byte array variant, got %T", array.Value())
+		t.Fatalf("expected [][]byte array variant, got %T", array.ActualInstance())
 	}
 	if len(gotArray) != 2 ||
 		string(gotArray[0]) != string(first) ||
@@ -489,7 +495,7 @@ func TestSetPetAvatarThumbnailRequest_ByteOneOfRoundTripsThroughBase64(t *testin
 func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testing.T) {
 	t.Parallel()
 
-	scalar := models.NewSetPetAvatarThumbnailRequestFromByteSlice([]byte{0x01, 0x02, 0x03, 0x04})
+	scalar := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02, 0x03, 0x04})
 	scalarOut, err := json.Marshal(scalar)
 	if err != nil {
 		t.Fatalf("failed to serialize scalar byte variant: %v", err)
@@ -498,7 +504,7 @@ func TestSetPetAvatarThumbnailRequest_ConstructedFromVariantsSerializes(t *testi
 		t.Errorf("expected scalar wire base64 \"AQIDBA==\", got %s", string(scalarOut))
 	}
 
-	array := models.NewSetPetAvatarThumbnailRequestFromByteSliceSlice([][]byte{{0x01, 0x02}, {0x03, 0x04}})
+	array := models.NewSetPetAvatarThumbnailRequest([][]byte{{0x01, 0x02}, {0x03, 0x04}})
 	arrayOut, err := json.Marshal(array)
 	if err != nil {
 		t.Fatalf("failed to serialize array byte variant: %v", err)

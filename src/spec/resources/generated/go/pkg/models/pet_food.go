@@ -19,16 +19,9 @@ type PetFood struct {
 	value any
 }
 
-// NewPetFoodFromDryFood wraps a DryFood as a PetFood, so a request
-// body can be built without decoding JSON text.
-func NewPetFoodFromDryFood(v DryFood) PetFood {
-	return PetFood{value: v}
-}
-
-// NewPetFoodFromWetFood wraps a WetFood as a PetFood, so a request
-// body can be built without decoding JSON text.
-func NewPetFoodFromWetFood(v WetFood) PetFood {
-	return PetFood{value: v}
+// NewPetFood wraps an already-decoded variant so a request body can be built without decoding JSON text.
+func NewPetFood(actualInstance any) PetFood {
+	return PetFood{value: actualInstance}
 }
 
 // MarshalJSON implements the json.Marshaler interface.
@@ -68,7 +61,7 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("unknown discriminator value %q for PetFood", disc.FoodType)
 }
 
-// Value returns the underlying value of the union type.
-func (o *PetFood) Value() any {
+// ActualInstance returns the matched variant of the union type.
+func (o PetFood) ActualInstance() any {
 	return o.value
 }
