@@ -448,7 +448,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     /**
      * Escapes raw text for use inside a Java string literal: backslash, double
-     * quote and the line/tab control characters.
+     * quote and every control character.
      *
      * @param text the raw text
      * @return the text escaped for a Java string literal
@@ -457,11 +457,26 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (text == null) {
             return "";
         }
-        return text.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c == '\n') {
+                out.append("\\n");
+            } else if (c == '\r') {
+                out.append("\\r");
+            } else if (c == '\t') {
+                out.append("\\t");
+            } else if (c < 0x20 || c == 0x7F) {
+                out.append(String.format(java.util.Locale.ROOT, "\\u%04X", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     /**
@@ -688,7 +703,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         if (unaliased.getDefault() != null) {
             if (ModelUtils.isStringSchema(unaliased)) {
-                return "\"" + escapeText(String.valueOf(unaliased.getDefault())) + "\"";
+                return "\"" + escapeForJavaString(String.valueOf(unaliased.getDefault())) + "\"";
             }
             if (ModelUtils.isLongSchema(unaliased)) {
                 return unaliased.getDefault() + "L";

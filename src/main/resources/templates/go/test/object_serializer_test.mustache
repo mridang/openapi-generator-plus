@@ -252,6 +252,9 @@ func TestDeserialize_DefaultsAbsentVersusNull(t *testing.T) {
 	if fromEmpty.Label == nil || *fromEmpty.Label != "untitled" {
 		t.Errorf("expected label default 'untitled', got %v", fromEmpty.Label)
 	}
+	if fromEmpty.Greeting == nil || *fromEmpty.Greeting != "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b" {
+		t.Errorf("expected greeting default to be the exact spec string, got %v", fromEmpty.Greeting)
+	}
 
 	var fromNull models.Defaults
 	if err := deserialize([]byte(`{"label":null,"retries":7}`), &fromNull); err != nil {

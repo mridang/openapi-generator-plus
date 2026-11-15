@@ -54,12 +54,12 @@ fn default_label() -> Option<String> {
 
 /// Serde default for the optional `greeting` field: when the property is
 /// ABSENT from the wire payload the schema's `default` applies, so an
-/// omitted `greeting` deserializes to `Some(String::from("it's \"quoted\" \\ back slash next $USD #{x} a*_/b"))` rather
+/// omitted `greeting` deserializes to `Some(String::from("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"))` rather
 /// than `None`. An explicit `null` still maps to `None`, and a present value
 /// is taken as-is.
 fn default_greeting() -> Option<String> {
     Some(String::from(
-        "it's \"quoted\" \\ back slash next $USD #{x} a*_/b",
+        "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
     ))
 }
 
@@ -179,7 +179,7 @@ impl Defaults {
             mode: Some(DefaultsModeEnum::Medium),
             label: Some(String::from("untitled")),
             greeting: Some(String::from(
-                "it's \"quoted\" \\ back slash next $USD #{x} a*_/b",
+                "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
             )),
             swatch: Some(Swatch::Green),
             ratio: Some(1.5),
@@ -216,7 +216,7 @@ impl Default for Defaults {
              * so `default()` matches `new()` (and the wire output of the other
              * SDKs) rather than emitting `None`. */
             greeting: Some(String::from(
-                "it's \"quoted\" \\ back slash next $USD #{x} a*_/b",
+                "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
             )),
             /* Optional field with a schema default: seed the declared default
              * so `default()` matches `new()` (and the wire output of the other

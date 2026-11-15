@@ -229,6 +229,8 @@ import Testing
         #expect(defaults?.retries == 3, "absent retries must default to 3")
         #expect(defaults?.mode == .medium, "absent mode must default to medium")
         #expect(defaults?.label == "untitled", "absent label must default to untitled")
+        #expect(defaults?.greeting == "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
+            "absent greeting must default to the exact spec string")
     }
 
     @Test func testDefaultsExplicitNullPreservedNotDefaulted() throws {

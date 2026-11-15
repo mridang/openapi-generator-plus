@@ -817,6 +817,7 @@ public static class ObjectSerializerTest
             Assert.Equal(3, fromEmpty!.Retries);
             Assert.Equal(Defaults.ModeEnum.Medium, fromEmpty.Mode);
             Assert.Equal("untitled", fromEmpty.Label);
+            Assert.Equal("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b", fromEmpty.Greeting);
 
             var fromNull = _serializer.Deserialize<Defaults>("{\"label\":null,\"retries\":7}");
             Assert.NotNull(fromNull);

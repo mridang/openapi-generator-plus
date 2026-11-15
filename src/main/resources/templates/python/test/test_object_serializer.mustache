@@ -613,6 +613,9 @@ class TestDeserialize:
         assert filled.retries == 3
         assert filled.mode == DefaultsModeEnum.MEDIUM
         assert filled.label == 'untitled'
+        assert filled.greeting == (
+            'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
+        )
 
         # (b) Explicit null on the nullable field is PRESERVED, not defaulted;
         # the supplied retries overrides its default.

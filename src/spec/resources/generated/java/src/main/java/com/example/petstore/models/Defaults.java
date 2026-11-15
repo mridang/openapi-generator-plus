@@ -78,7 +78,7 @@ public class Defaults {
   /** The {@code greeting} property. */
   @JsonProperty("greeting")
   @Nullable
-  public String greeting = "it's \"quoted\" \\ back slash next $USD #{x} a*_/b";
+  public String greeting = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b";
 
   /** The {@code swatch} property. */
   @JsonProperty("swatch")

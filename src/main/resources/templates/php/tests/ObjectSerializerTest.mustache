@@ -590,6 +590,13 @@ test('deserialize applies defaults only when fields are absent', function (): vo
     expect($defaults->label)->toBe('untitled');
 });
 
+test('deserialize holds the exact string default literal for greeting', function (): void {
+    /** @var Defaults $defaults */
+    $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
+    expect($defaults)->toBeInstanceOf(Defaults::class);
+    expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
+});
+
 test('deserialize preserves explicit null over a defaulted field', function (): void {
     $json = '{"label":null,"retries":7}';
     /** @var Defaults $defaults */

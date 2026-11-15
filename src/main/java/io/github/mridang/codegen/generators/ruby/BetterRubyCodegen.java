@@ -761,7 +761,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             }
         } else if (ModelUtils.isStringSchema(resolved)) {
             if (resolved.getDefault() != null) {
-                return "'" + escapeText(String.valueOf(resolved.getDefault())) + "'";
+                return toRubyStringLiteral(String.valueOf(resolved.getDefault()));
             }
         }
         return null;
@@ -933,6 +933,48 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
      */
     static String escapeSingleQuoted(String input) {
         return input.replace("\\", "\\\\").replace("'", "\\'");
+    }
+
+    /**
+     * Renders a raw string as a Ruby string literal that evaluates to exactly
+     * that string. A single-quoted literal is used unless the text holds a
+     * control character, which only a double-quoted literal can spell as an
+     * escape sequence. Cannot be standardized because the other languages
+     * quote and escape differently.
+     */
+    static String toRubyStringLiteral(String text) {
+        boolean hasControl = false;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) < 0x20 || text.charAt(i) == 0x7F) {
+                hasControl = true;
+                break;
+            }
+        }
+        if (!hasControl) {
+            return "'" + escapeSingleQuoted(text) + "'";
+        }
+        final StringBuilder sb = new StringBuilder(text.length() + 8).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                sb.append("\\\\");
+            } else if (c == '"') {
+                sb.append("\\\"");
+            } else if (c == '\n') {
+                sb.append("\\n");
+            } else if (c == '\r') {
+                sb.append("\\r");
+            } else if (c == '\t') {
+                sb.append("\\t");
+            } else if (c < 0x20 || c == 0x7F) {
+                sb.append(String.format(java.util.Locale.ROOT, "\\u{%X}", (int) c));
+            } else if (c == '#' && i + 1 < text.length() && "{$@".indexOf(text.charAt(i + 1)) >= 0) {
+                sb.append("\\#");
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.append('"').toString();
     }
 
     /**

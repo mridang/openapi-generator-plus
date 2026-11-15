@@ -608,7 +608,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 return literal.matches("-?\\d+") ? literal + ".0" : literal;
             }
             if (ModelUtils.isStringSchema(resolved)) {
-                return "String::from(\"" + escapeText(String.valueOf(resolved.getDefault())) + "\")";
+                return "String::from(" + toRustStringLiteral(String.valueOf(resolved.getDefault())) + ")";
             } else if (ModelUtils.isBooleanSchema(resolved)) {
                 return resolved.getDefault().toString();
             } else if (ModelUtils.isIntegerSchema(resolved)
@@ -683,6 +683,63 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Returns {@code value} as a double-quoted Rust string literal that
+     * evaluates to exactly {@code value}: the backslash, the double quote,
+     * CR, LF and TAB are escaped, and every other C0 control becomes
+     * a braced Unicode escape. Rust has no interpolation sigils in string literals.
+     */
+    private String toRustStringLiteral(String value) {
+        final String escaped = escapeEnumStringValue(value);
+        final StringBuilder out = new StringBuilder(escaped.length());
+        for (int i = 0; i < escaped.length(); i++) {
+            final char c = escaped.charAt(i);
+            if (c < 0x20 || c == 0x7f) {
+                out.append(String.format("\\u{%x}", (int) c));
+            } else {
+                out.append(c);
+            }
+        }
+        return quoteEnumValue(out.toString());
+    }
+
+    /**
+     * Reverses {@link #toRustStringLiteral} on the text between the quotes,
+     * so an enum variant is derived from the real wire value.
+     */
+    private static String unescapeRustStringLiteral(String literal) {
+        final StringBuilder out = new StringBuilder(literal.length());
+        int i = 0;
+        while (i < literal.length()) {
+            final char c = literal.charAt(i);
+            if (c != '\\' || i + 1 >= literal.length()) {
+                out.append(c);
+                i++;
+                continue;
+            }
+            final char n = literal.charAt(i + 1);
+            if (n == 'n') {
+                out.append('\n');
+            } else if (n == 'r') {
+                out.append('\r');
+            } else if (n == 't') {
+                out.append('\t');
+            } else if (n == 'u' && i + 2 < literal.length() && literal.charAt(i + 2) == '{') {
+                final int close = literal.indexOf('}', i + 3);
+                if (close > 0) {
+                    out.appendCodePoint(Integer.parseInt(literal.substring(i + 3, close), 16));
+                    i = close + 1;
+                    continue;
+                }
+                out.append(n);
+            } else {
+                out.append(n);
+            }
+            i += 2;
+        }
+        return out.toString();
+    }
+
+    /**
      * Rewrites an optional enum field's {@code defaultValue} to the
      * fully-qualified DECLARED variant (e.g. {@code DefaultsModeEnum::Medium})
      * rather than the wire string. The schema {@code default} can be any
@@ -709,8 +766,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                 && prop.isEnum
                 && prop.defaultValue.startsWith(prefix)
                 && prop.defaultValue.endsWith(suffix)) {
-            final String rawValue = prop.defaultValue.substring(
-                    prefix.length(), prop.defaultValue.length() - suffix.length());
+            final String rawValue = unescapeRustStringLiteral(prop.defaultValue.substring(
+                    prefix.length(), prop.defaultValue.length() - suffix.length()));
             // Derive the variant from the ORIGINAL wire value, not a lowercased
             // copy. The declared variants are named via toEnumVarName(value)
             // (PascalCase, no lowercasing), so lowercasing here would reference a

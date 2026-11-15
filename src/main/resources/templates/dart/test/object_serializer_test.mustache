@@ -80,6 +80,10 @@ void main() {
       expect(fromEmpty!.retries, equals(3));
       expect(fromEmpty.mode, equals(DefaultsModeEnum.medium));
       expect(fromEmpty.label, equals('untitled'));
+      expect(
+        fromEmpty.greeting,
+        equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'),
+      );
 
       final withNull = deserialize<Defaults>(
         '{"label":null,"retries":7}',

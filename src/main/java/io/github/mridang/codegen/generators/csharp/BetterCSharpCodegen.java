@@ -622,7 +622,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             if (isEnum) {
                 return resolved.getDefault().toString();
             }
-            return "\"" + escapeText(String.valueOf(resolved.getDefault())) + "\"";
+            return "\"" + escapeStringLiteralBody(String.valueOf(resolved.getDefault())) + "\"";
         }
         if (ModelUtils.isNumberSchema(resolved) && !isEnum) {
             /*
