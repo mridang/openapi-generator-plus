@@ -33091,8 +33091,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `datetime`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- datetime.time [member] majority present (1 SDKs); differs: rust=missing\n- datetime.intoinner [member] majority present (1 SDKs); differs: go=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33107,8 +33107,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `defaults`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- defaults.alldefaultsmodeenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33124,8 +33124,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `defaultsmodeenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- defaultsmodeenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33140,8 +33140,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `dryfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- dryfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33156,8 +33156,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `edgecases`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- edgecases.alledgecasesphaseenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33173,8 +33173,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `edgecasesphaseenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- edgecasesphaseenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33189,8 +33189,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `error`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- error [type] majority present (9 SDKs); differs: go=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33209,8 +33209,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `metadata`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- metadata.additionalproperties [member] majority present (11 SDKs); differs: node=missing\n- metadata.setadditionalproperty [member] majority absent (11 SDKs); differs: java=extra\n- metadata.additionalproperties [prop-optional] majority required (6 SDKs); differs: csharp=optional; elixir=optional; php=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33225,8 +33225,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `modelerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- modelerror [type] majority absent (9 SDKs); differs: go=ModelError",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33241,8 +33241,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `modelresult`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- modelresult [type] majority absent (9 SDKs); differs: java=ModelResult",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33257,8 +33257,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `order`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- order.allorderstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33274,8 +33274,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `orderstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- orderstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33290,8 +33290,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `pet`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- pet.allpetstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33312,8 +33312,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petfood.actualinstance [member] majority absent (8 SDKs); differs: kotlin=extra; node=extra; php=extra; python=extra\n- petfood.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- petfood.value [params] majority () (2 SDKs); differs: swift=(type)\n- petfood.newpetfoodfromdryfood [member] majority absent (11 SDKs); differs: go=extra\n- petfood.newpetfoodfromwetfood [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33328,8 +33328,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petpassport`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petpassport.thumbnailasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.scansasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.biometricchipasbytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setthumbnailfrombytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setscansfrombytes [member] majority absent (11 SDKs); differs: php=extra\n- petpassport.setbiometricchipfrombytes [member] majority absent (11 SDKs); differs: php=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33345,8 +33345,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33372,8 +33372,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `pettreatment`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- pettreatment.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing\n- pettreatment.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra\n- pettreatment.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra\n- pettreatment.actualinstances [member] majority absent (11 SDKs); differs: php=extra\n- pettreatment.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- pettreatment.value [params] majority () (2 SDKs); differs: swift=(type)\n- pettreatment.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra\n- pettreatment.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra\n- pettreatment.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33388,8 +33388,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petwithowner`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petwithowner.allpetwithownerstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33405,8 +33405,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `petwithownerstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- petwithownerstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33421,8 +33421,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `requirednullable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- requirednullable.note [prop-optional] majority required (11 SDKs); differs: kotlin=optional",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33437,8 +33437,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `result`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- result [type] majority present (9 SDKs); differs: java=missing",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33453,8 +33453,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `setpetavatarrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- setpetavatarrequest.dataasbytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarrequest.setdatafrombytes [member] majority absent (11 SDKs); differs: php=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33477,8 +33477,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `setpetavatarthumbnailrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- setpetavatarthumbnailrequest.actualinstance [member] majority absent (7 SDKs); differs: csharp=extra; java=extra; kotlin=extra; php=extra; python=extra\n- setpetavatarthumbnailrequest.actualinstanceasbytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.actualinstanceasbytelist [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.frombytes [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.frombytelist [member] majority absent (11 SDKs); differs: php=extra\n- setpetavatarthumbnailrequest.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- setpetavatarthumbnailrequest.value [params] majority () (2 SDKs); differs: swift=(type)\n- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombytesliceslice [member] majority absent (11 SDKs); differs: go=extra\n- setpetavatarthumbnailrequest.newsetpetavatarthumbnailrequestfrombyteslice [member] majority absent (11 SDKs); differs: go=extra\n- setpetavatarthumbnailrequest.serialize [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33499,8 +33499,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `stricttag`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- stricttag.setunknownproperty [member] majority absent (11 SDKs); differs: java=extra\n- stricttag.parsestrict [member] majority absent (11 SDKs); differs: kotlin=extra\n- stricttag.unknownproperties [member] majority absent (11 SDKs); differs: csharp=extra\n- stricttag.assertnounknownproperties [member] majority absent (11 SDKs); differs: php=extra\n- stricttag.unevaluatedpropertiesfalse [member] majority absent (11 SDKs); differs: ruby=extra\n- stricttag.fromjsonstrict [member] majority absent (11 SDKs); differs: node=extra\n- stricttag.frommapstrict [member] majority absent (11 SDKs); differs: elixir=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33526,8 +33526,8 @@
    "description": "`etc/api-surface.py check` reports these public-API differences for `treatmentrecord`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.\n- treatmentrecord.actualinstance [member] majority present (6 SDKs); differs: dart=missing; elixir=missing; go=missing; ruby=missing; rust=missing; swift=missing\n- treatmentrecord.instances [member] majority absent (10 SDKs); differs: java=extra; kotlin=extra\n- treatmentrecord.matchedinstances [member] majority absent (9 SDKs); differs: csharp=extra; node=extra; python=extra\n- treatmentrecord.actualinstances [member] majority absent (11 SDKs); differs: php=extra\n- treatmentrecord.value [member] majority absent (9 SDKs); differs: dart=extra; go=extra; swift=extra\n- treatmentrecord.value [params] majority () (2 SDKs); differs: swift=(type)\n- treatmentrecord.values [member] majority absent (10 SDKs); differs: dart=extra; swift=extra\n- treatmentrecord.medication [member] majority absent (10 SDKs); differs: go=extra; rust=extra\n- treatmentrecord.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra",
    "evidence": [],
    "unit_testable": false,
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso",
    "batch": null
   },
   {
@@ -33993,6 +33993,151 @@
     "php"
    ],
    "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F766",
+   "severity": "medium",
+   "title": "Language agents edit the shared etc/ API-surface tooling without a shared task",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node",
+    "kotlin"
+   ],
+   "description": "parity/api-models-node-r1 and parity/api-models-kotlin-r1 each added overlapping allow entries to etc/api-surface-allow.json and a near-identical private_constant change to etc/api-surface.py (run_ruby, around line 1737). kotlin-r1's version uses an undefined-in-scope `t` with no owner None guard. This blocks staging; the workflow should give etc/ to one shared task per change set.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F767",
+   "severity": "low",
+   "title": "elixir prepare_body/2 now routes every model request body through Model.serialize/1",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "For F735, the elixir agent routed every isModel request body through the new @doc false ObjectSerializer.prepare_body/2, not only oneOf/anyOf bodies with a byte variant. The agent says non-union bodies pass through unchanged. Once staged, check that the wire bytes of every elixir body match the other eleven SDKs, for example a Pet body with a byte or date field.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F768",
+   "severity": "medium",
+   "title": "The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-description branches would need a new docblock.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F769",
+   "severity": "medium",
+   "title": "The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F770",
+   "severity": "medium",
+   "title": "Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "ruby"
+   ],
+   "description": "Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no way to run the full ruby suite.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F771",
+   "severity": "medium",
+   "title": "The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/F729 drop it. I chose methods everywhere, (as:) on oneOf only. The orchestrator should confirm.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F772",
+   "severity": "medium",
+   "title": "The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F773",
+   "severity": "medium",
+   "title": "The worktree had no .claude directory, so I read the agent file from the pr35 checkout.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "The worktree had no .claude directory, so I read the agent file from the pr35 checkout.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F774",
+   "severity": "medium",
+   "title": "BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).",
    "evidence": [],
    "unit_testable": null,
    "status": "open",

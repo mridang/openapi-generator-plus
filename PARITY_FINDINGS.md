@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4, needs-spec 2, open 151, parked 33, partial 5. Severity: critical 3, high 59, medium 526, low 177.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4, needs-spec 2, open 135, parked 58, partial 5. Severity: critical 3, high 59, medium 534, low 178.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -718,31 +718,31 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4,
 | F710 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `unauthorizederror` (1 differences) |
 | F711 | medium | fixed | api-surface | java, kotlin, node | API surface: harmonise error `unprocessableentityerror` (1 differences) |
 | F712 | medium | open | api-surface | php | API surface: harmonise model `binaryvault` (6 differences) |
-| F713 | medium | open | api-surface | go, rust | API surface: harmonise model `datetime` (2 differences) |
-| F714 | medium | open | api-surface | go | API surface: harmonise model `defaults` (1 differences) |
-| F715 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `defaultsmodeenum` (1 differences) |
-| F716 | medium | open | api-surface | elixir | API surface: harmonise model `dryfood` (1 differences) |
-| F717 | medium | open | api-surface | go | API surface: harmonise model `edgecases` (1 differences) |
-| F718 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `edgecasesphaseenum` (1 differences) |
-| F719 | medium | open | api-surface | go | API surface: harmonise model `error` (1 differences) |
-| F720 | medium | open | api-surface | csharp, elixir, java, node, php | API surface: harmonise model `metadata` (3 differences) |
-| F721 | medium | open | api-surface | go | API surface: harmonise model `modelerror` (1 differences) |
-| F722 | medium | open | api-surface | java | API surface: harmonise model `modelresult` (1 differences) |
-| F723 | medium | open | api-surface | go | API surface: harmonise model `order` (1 differences) |
-| F724 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `orderstatusenum` (1 differences) |
-| F725 | medium | open | api-surface | go | API surface: harmonise model `pet` (1 differences) |
-| F726 | medium | open | api-surface | dart, go, kotlin, node, php, python, swift | API surface: harmonise model `petfood` (5 differences) |
-| F727 | medium | open | api-surface | php | API surface: harmonise model `petpassport` (6 differences) |
-| F728 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `petstatusenum` (1 differences) |
-| F729 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `pettreatment` (9 differences) |
-| F730 | medium | open | api-surface | go | API surface: harmonise model `petwithowner` (1 differences) |
-| F731 | medium | open | api-surface | elixir, ruby | API surface: harmonise model `petwithownerstatusenum` (1 differences) |
-| F732 | medium | open | api-surface | kotlin | API surface: harmonise model `requirednullable` (1 differences) |
-| F733 | medium | open | api-surface | java | API surface: harmonise model `result` (1 differences) |
-| F734 | medium | open | api-surface | php | API surface: harmonise model `setpetavatarrequest` (2 differences) |
-| F735 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, php, python, swift | API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences) |
-| F736 | medium | open | api-surface | csharp, elixir, java, kotlin, node, php, ruby | API surface: harmonise model `stricttag` (7 differences) |
-| F737 | medium | open | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `treatmentrecord` (9 differences) |
+| F713 | medium | parked | api-surface | go, rust | API surface: harmonise model `datetime` (2 differences) |
+| F714 | medium | parked | api-surface | go | API surface: harmonise model `defaults` (1 differences) |
+| F715 | medium | parked | api-surface | elixir, ruby | API surface: harmonise model `defaultsmodeenum` (1 differences) |
+| F716 | medium | parked | api-surface | elixir | API surface: harmonise model `dryfood` (1 differences) |
+| F717 | medium | parked | api-surface | go | API surface: harmonise model `edgecases` (1 differences) |
+| F718 | medium | parked | api-surface | elixir, ruby | API surface: harmonise model `edgecasesphaseenum` (1 differences) |
+| F719 | medium | parked | api-surface | go | API surface: harmonise model `error` (1 differences) |
+| F720 | medium | parked | api-surface | csharp, elixir, java, node, php | API surface: harmonise model `metadata` (3 differences) |
+| F721 | medium | parked | api-surface | go | API surface: harmonise model `modelerror` (1 differences) |
+| F722 | medium | parked | api-surface | java | API surface: harmonise model `modelresult` (1 differences) |
+| F723 | medium | parked | api-surface | go | API surface: harmonise model `order` (1 differences) |
+| F724 | medium | parked | api-surface | elixir, ruby | API surface: harmonise model `orderstatusenum` (1 differences) |
+| F725 | medium | parked | api-surface | go | API surface: harmonise model `pet` (1 differences) |
+| F726 | medium | parked | api-surface | dart, go, kotlin, node, php, python, swift | API surface: harmonise model `petfood` (5 differences) |
+| F727 | medium | parked | api-surface | php | API surface: harmonise model `petpassport` (6 differences) |
+| F728 | medium | parked | api-surface | elixir, ruby | API surface: harmonise model `petstatusenum` (1 differences) |
+| F729 | medium | parked | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `pettreatment` (9 differences) |
+| F730 | medium | parked | api-surface | go | API surface: harmonise model `petwithowner` (1 differences) |
+| F731 | medium | parked | api-surface | elixir, ruby | API surface: harmonise model `petwithownerstatusenum` (1 differences) |
+| F732 | medium | parked | api-surface | kotlin | API surface: harmonise model `requirednullable` (1 differences) |
+| F733 | medium | parked | api-surface | java | API surface: harmonise model `result` (1 differences) |
+| F734 | medium | parked | api-surface | php | API surface: harmonise model `setpetavatarrequest` (2 differences) |
+| F735 | medium | parked | api-surface | csharp, dart, elixir, go, java, kotlin, php, python, swift | API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences) |
+| F736 | medium | parked | api-surface | csharp, elixir, java, kotlin, node, php, ruby | API surface: harmonise model `stricttag` (7 differences) |
+| F737 | medium | parked | api-surface | csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift | API surface: harmonise model `treatmentrecord` (9 differences) |
 | F738 | medium | open | api-surface | elixir | API surface: harmonise model `wetfood` (1 differences) |
 | F739 | medium | open | api-surface | go | API surface: harmonise options `addpetoptions` (1 differences) |
 | F740 | medium | open | api-surface | elixir | API surface: harmonise options `addpetphotosoptions` (2 differences) |
@@ -771,6 +771,15 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 392, forced 4,
 | F763 | medium | open | review | csharp | The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself. |
 | F764 | medium | open | review | csharp | Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed. |
 | F765 | medium | open | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
+| F766 | medium | open | review | node, kotlin | Language agents edit the shared etc/ API-surface tooling without a shared task |
+| F767 | low | open | review | elixir | elixir prepare_body/2 now routes every model request body through Model.serialize/1 |
+| F768 | medium | open | review | php | The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip |
+| F769 | medium | open | review | php | The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text. |
+| F770 | medium | open | review | ruby | Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no |
+| F771 | medium | open | review | swift | The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/ |
+| F772 | medium | open | review | swift | The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a. |
+| F773 | medium | open | review | elixir | The worktree had no .claude directory, so I read the agent file from the pr35 checkout. |
+| F774 | medium | open | review | elixir | BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body). |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -7905,7 +7914,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - binaryvault.setlabelsfrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F713 [medium] API surface: harmonise model `datetime` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go, rust
 
 `etc/api-surface.py check` reports these public-API differences for `datetime`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7913,49 +7922,49 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - datetime.intoinner [member] majority present (1 SDKs); differs: go=missing
 
 ## F714 [medium] API surface: harmonise model `defaults` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `defaults`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - defaults.alldefaultsmodeenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F715 [medium] API surface: harmonise model `defaultsmodeenum` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `defaultsmodeenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - defaultsmodeenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F716 [medium] API surface: harmonise model `dryfood` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir
 
 `etc/api-surface.py check` reports these public-API differences for `dryfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - dryfood.foodtype [prop-optional] majority required (11 SDKs); differs: elixir=optional
 
 ## F717 [medium] API surface: harmonise model `edgecases` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `edgecases`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - edgecases.alledgecasesphaseenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F718 [medium] API surface: harmonise model `edgecasesphaseenum` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `edgecasesphaseenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - edgecasesphaseenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F719 [medium] API surface: harmonise model `error` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `error`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - error [type] majority present (9 SDKs); differs: go=missing
 
 ## F720 [medium] API surface: harmonise model `metadata` (3 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, elixir, java, node, php
 
 `etc/api-surface.py check` reports these public-API differences for `metadata`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -7964,42 +7973,42 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - metadata.additionalproperties [prop-optional] majority required (6 SDKs); differs: csharp=optional; elixir=optional; php=optional
 
 ## F721 [medium] API surface: harmonise model `modelerror` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `modelerror`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - modelerror [type] majority absent (9 SDKs); differs: go=ModelError
 
 ## F722 [medium] API surface: harmonise model `modelresult` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java
 
 `etc/api-surface.py check` reports these public-API differences for `modelresult`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - modelresult [type] majority absent (9 SDKs); differs: java=ModelResult
 
 ## F723 [medium] API surface: harmonise model `order` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `order`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - order.allorderstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F724 [medium] API surface: harmonise model `orderstatusenum` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `orderstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - orderstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F725 [medium] API surface: harmonise model `pet` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `pet`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - pet.allpetstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F726 [medium] API surface: harmonise model `petfood` (5 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: dart, go, kotlin, node, php, python, swift
 
 `etc/api-surface.py check` reports these public-API differences for `petfood`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8010,7 +8019,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - petfood.newpetfoodfromwetfood [member] majority absent (11 SDKs); differs: go=extra
 
 ## F727 [medium] API surface: harmonise model `petpassport` (6 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php
 
 `etc/api-surface.py check` reports these public-API differences for `petpassport`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8022,14 +8031,14 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - petpassport.setbiometricchipfrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F728 [medium] API surface: harmonise model `petstatusenum` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F729 [medium] API surface: harmonise model `pettreatment` (9 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `pettreatment`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8044,35 +8053,35 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - pettreatment.surgery [member] majority absent (10 SDKs); differs: go=extra; rust=extra
 
 ## F730 [medium] API surface: harmonise model `petwithowner` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: go
 
 `etc/api-surface.py check` reports these public-API differences for `petwithowner`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petwithowner.allpetwithownerstatusenumvalues [member] majority absent (11 SDKs); differs: go=extra
 
 ## F731 [medium] API surface: harmonise model `petwithownerstatusenum` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: elixir, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `petwithownerstatusenum`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - petwithownerstatusenum [type] majority present (10 SDKs); differs: elixir=missing; ruby=missing
 
 ## F732 [medium] API surface: harmonise model `requirednullable` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: kotlin
 
 `etc/api-surface.py check` reports these public-API differences for `requirednullable`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - requirednullable.note [prop-optional] majority required (11 SDKs); differs: kotlin=optional
 
 ## F733 [medium] API surface: harmonise model `result` (1 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: java
 
 `etc/api-surface.py check` reports these public-API differences for `result`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
 - result [type] majority present (9 SDKs); differs: java=missing
 
 ## F734 [medium] API surface: harmonise model `setpetavatarrequest` (2 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: php
 
 `etc/api-surface.py check` reports these public-API differences for `setpetavatarrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8080,7 +8089,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - setpetavatarrequest.setdatafrombytes [member] majority absent (11 SDKs); differs: php=extra
 
 ## F735 [medium] API surface: harmonise model `setpetavatarthumbnailrequest` (10 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, php, python, swift
 
 `etc/api-surface.py check` reports these public-API differences for `setpetavatarthumbnailrequest`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8096,7 +8105,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - setpetavatarthumbnailrequest.serialize [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F736 [medium] API surface: harmonise model `stricttag` (7 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, elixir, java, kotlin, node, php, ruby
 
 `etc/api-surface.py check` reports these public-API differences for `stricttag`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8109,7 +8118,7 @@ The hostname-verification TLS test in default-api-client.test.ts fails when jest
 - stricttag.frommapstrict [member] majority absent (11 SDKs); differs: elixir=extra
 
 ## F737 [medium] API surface: harmonise model `treatmentrecord` (9 differences)
-- Status: **open** | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected api-models: I did not approve, because there is nothing staged to review. In /Users/mridang/Code/mridang/openapi-generator-plus/.claude/worktrees/pr35, `git diff --cached` is empty and the tree is clean at 3385f7cf5. The octopus merge was aborted on a conflict in etc/api-surface.py and etc/api-surface-allow.jso) | Lens: api-surface | Category: api | Unit-testable (reviewer's view): False
 - SDKs: csharp, dart, elixir, go, java, kotlin, node, php, python, ruby, rust, swift
 
 `etc/api-surface.py check` reports these public-API differences for `treatmentrecord`. Bring every SDK onto the canonical shape in API_SURFACE.md (the majority shape unless a numbered decision says otherwise); idiom-only differences belong in etc/api-surface-allow.json with the language feature that forces them.
@@ -8304,3 +8313,57 @@ Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .pro
 - SDKs: php
 
 php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.
+
+## F766 [medium] Language agents edit the shared etc/ API-surface tooling without a shared task
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node, kotlin
+
+parity/api-models-node-r1 and parity/api-models-kotlin-r1 each added overlapping allow entries to etc/api-surface-allow.json and a near-identical private_constant change to etc/api-surface.py (run_ruby, around line 1737). kotlin-r1's version uses an undefined-in-scope `t` with no owner None guard. This blocks staging; the workflow should give etc/ to one shared task per change set.
+
+## F767 [low] elixir prepare_body/2 now routes every model request body through Model.serialize/1
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+For F735, the elixir agent routed every isModel request body through the new @doc false ObjectSerializer.prepare_body/2, not only oneOf/anyOf bodies with a byte variant. The agent says non-union bodies pass through unchanged. Once staged, check that the wire bytes of every elixir body match the other eleven SDKs, for example a Pet body with a byte or date field.
+
+## F768 [medium] The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-descrip
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+The php byte doc line 'Raw bytes (base64 on the wire).' is added only to properties that have a spec description. Byte properties with no description get no doc line, because the template's no-description branches would need a new docblock.
+
+## F769 [medium] The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+The php golden's spec/ directory and README may still mention the removed AsBytes helpers; I grepped the templates and found none, but did not check the generated README text.
+
+## F770 [medium] Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: ruby
+
+Ruby's rake test cannot run inside a nested container because test_helper.rb starts Chasm through testcontainers and needs /var/run/docker.sock, so the fast final-validation step in sdk-ruby.md has no way to run the full ruby suite.
+
+## F771 [medium] The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+The task text contradicts itself: F726 wants actualInstance as a property with no (as:) overload, F735/F737 want methods plus an actualInstance(as:) overload, and F735 wants (as:) on anyOf while F728/F729 drop it. I chose methods everywhere, (as:) on oneOf only. The orchestrator should confirm.
+
+## F772 [medium] The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+The worktree HEAD at start was not the base commit and had no .claude/agents or AGENTS.md; the agent file was read from the pr35 checkout and the branch was cut from d5e6cd73a.
+
+## F773 [medium] The worktree had no .claude directory, so I read the agent file from the pr35 checkout.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+The worktree had no .claude directory, so I read the agent file from the pr35 checkout.
+
+## F774 [medium] BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+BodyCapturingApiClient is defined twice in pet_api_test.mustache, at about 757 and 1352; I removed my duplicate and reuse the first (captured(name).body).
