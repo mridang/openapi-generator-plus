@@ -27227,8 +27227,8 @@
    "unit_testable": false,
    "lens": "L22-lifecycle",
    "id": "F411",
-   "status": "open",
-   "note": "template/README text, not a rule document: still open",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "priority_triage": "low",
    "plain": "Rust close() only sets a flag although the docs say it releases resources."
   },
@@ -29334,8 +29334,8 @@
    "description": "model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() text; the fix is mode='json' but the petstore anyOf members have no such fields, so it needs a spec change to lock.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the python fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "Python anyOf models with dates, bytes or decimals dump them in a different form than the wire form."
@@ -29432,8 +29432,8 @@
    "description": "operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the java fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "A Java operation doc lists an auth parameter that the signature does not have."
@@ -29562,8 +29562,8 @@
    "description": "Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]. java rejects it.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the kotlin fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "Kotlin accepts a proxy URL with an unterminated IPv6 bracket."
@@ -29580,8 +29580,8 @@
    "description": "Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme. A spec without one produces a node client that imports a missing file.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the node fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "Node client always imports the bearer authenticator file, which is only generated when the spec uses bearer auth."
@@ -29746,8 +29746,8 @@
    "description": "Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits. DataPart::fromPath returns self and cannot be subclassed, so file parts need a different construction.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the php fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "PHP multipart parts always carry a Content-Transfer-Encoding 8bit header the others do not."
@@ -29812,8 +29812,8 @@
    "description": "The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc marker.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the elixir fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "low",
    "plain": "Elixir gives no deprecation marker to deprecated enum, oneOf and anyOf schemas."
@@ -29912,8 +29912,8 @@
    "description": "DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout. It uses an instant stub, so it only checks that a 1 ms configuration is accepted, and its name is misleading.",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the swift fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "medium",
    "plain": "The Swift slow-endpoint test never actually exercises a timeout."
@@ -30454,8 +30454,8 @@
    "description": "Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkError; fix is f.adapter :net_http { |http| http.ignore_eof = false } in build_connection plus a Faraday#adapter RBS declaration (reproduced with a loopback TCPServer; chunked truncation and stalled bodies are already classified correctly).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the ruby fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "medium",
    "plain": "Ruby accepts a response body cut shorter than its Content-Length without error."
@@ -30810,8 +30810,8 @@
    "description": "Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into the enum type because GetUrl never validates, so out-of-enum values are not rejected at runtime in go (F041/F357 rejection cases cannot be locked here).",
    "evidence": [],
    "unit_testable": null,
-   "status": "open",
-   "note": "reported by the go fix agent, unverified",
+   "status": "parked",
+   "note": "review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis",
    "batch": null,
    "priority_triage": "medium",
    "plain": "Go typed server variants ignore the spec defaults, so an unset region renders https://.example.com."
@@ -34599,6 +34599,354 @@
     "java"
    ],
    "description": "etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F802",
+   "severity": "high",
+   "title": "Spec reuse of DryFood and WetFood in the DeprecatedFood union re-parents them in java and csharp",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java",
+    "csharp"
+   ],
+   "description": "setParentOnChild keeps the first union that claims a child, so a later oneOf that reuses existing variants silently changes their supertype. DryFood and WetFood extend DeprecatedFood instead of PetFood (java DryFood.java:14, csharp DryFood.cs:13), which breaks java test-compile. Either the spec must not reuse the variants or the parent resolution must not let a second union steal a child. Other languages were not checked.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F803",
+   "severity": "medium",
+   "title": "Adding security to an operation adds a positional options parameter before server, silently breaking existing server-only call sites",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java",
+    "kotlin",
+    "csharp",
+    "elixir",
+    "php",
+    "python",
+    "ruby",
+    "rust",
+    "node",
+    "dart",
+    "go",
+    "swift"
+   ],
+   "description": "The spec change adds security to getExternalPetInfo. Each SDK now has an options parameter before server, and server-only test calls break in elixir (BadMapError at runtime) and csharp (compile error), and in java the (petId, server) overload is dropped. A shared guard is needed so an operation that has both options and a server keeps a call form that is source-compatible in every SDK, and every SDK test must be checked after any spec security change.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F804",
+   "severity": "medium",
+   "title": "Rust close() cannot release an idle pooled connection by dropping reqwest::Client",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "rust"
+   ],
+   "description": "The F411 agent reports that dropping the client does not close an idle keep-alive socket, so the canonical text and its Ok(0) test cannot be met as written. A decision is needed: reword the canonical to 'closed blocks new requests, pool released on idle timeout', or configure pool_max_idle_per_host(0) for all twelve SDKs.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F805",
+   "severity": "low",
+   "title": "elixir: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "elixir"
+   ],
+   "description": "Idiom review of single-language-defects: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The change makes that third parameter `options` (default nil), so the keyword list reaches `options && Map.get(options, :auth)` in get_external_pet_info_with_http_info (lib/petstore_client/api/pet_api.ex:1334) and raises BadMapError. These two tests are not in the staged change, so the suite is left failing.\n\nSuggested form: Pass the Options slot explicitly in both tests: `PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, nil, server: server)` at pet_api_test.exs:172, and `get_external_pet_info(api, 1, nil, server: PetstoreClient.Api.GetExternalPetInfoServer.Server0)` in the multi-line call at pet_api_test.exs:906-909. Stage the test file with the change.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F806",
+   "severity": "low",
+   "title": "java: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exist",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exists at HEAD (PetApi.java:943) is removed and replaced by a three-argument method. This is a source-breaking removal of public API, and it forces the awkward call site getExternalPetInfo(1L, null, server) in PetApiTest.java:355 and its mustache source. The removal happened only because the convenience overload at PetApi.java:949 calls getExternalPetInfo(petId, null), which becomes ambiguous once a (Long, Server) overload exists.\n\nSuggested form: Restore public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) and its WithHttpInfo twin, each delegating with a null options argument. Remove the ambiguity in the convenience overload by casting the null: getExternalPetInfo(petId, (GetExternalPetInfoOptions) null). Make that change in the java api.mustache convenience block (around lines 150-185), not by hand-editing PetApi.java. Then the test can call getExternalPetInfo(1L, server) as HEAD did.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F807",
+   "severity": "low",
+   "title": "java: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is no longer the supertype of the two subtypes, a public API regression a java developer using PetFood as a base type would hit. The cause is the new DeprecatedFood oneOf in src/spec/resources/generated/java/src/test/resources/openapi.yaml, which reuses DryFood and WetFood with the same discriminator mapping, so the generator picks it as parent.\n\nSuggested form: Change the spec, not the generated java, so DryFood and WetFood keep PetFood as their parent. The deprecated union must not reuse the discriminator mapping that DryFood and WetFood already belong to. Either give the deprecated union a different discriminator or drop its oneOf members, then regenerate. Check the generator's parent-selection rule in the java codegen. Flag this to the parity-guard too, because the canonical asks for unreferenced deprecated schemas and this block references DryFood and WetFood.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F808",
+   "severity": "low",
+   "title": "java: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Jav",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "java"
+   ],
+   "description": "Idiom review of single-language-defects: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Javadoc by hand-scanning PetApi.java with indexOf, a hard-coded ') {' marker, and a substring loop with a break. This is not how this SDK's tests read files: ClientTest.java uses Files.readString and a Pattern regex on the file. A java developer would find the scanning brittle and hard to read.\n\nSuggested form: Read the file with Files.readString(source) as ClientTest does. Find the Javadoc block with one Pattern, for example a regex matching '/\\*\\*(?:(?!\\*/).)*?@param options options carrying an optional per-call authenticator(?:(?!\\*/).)*?\\*/\\s*public ApiResult<Pet> getExternalPetInfoWithHttpInfo\\(\\s*Long petId, @Nullable GetExternalPetInfoOptions options\\)', compiled with DOTALL. Then assert the match is found and that it does not contain '@param auth'. Keep one claim per test.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F809",
+   "severity": "low",
+   "title": "kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "Idiom review of single-language-defects: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the new throw on one 111-column line. The sibling throws at lines 124-126 of the same template are wrapped to the 100-column limit, so this line breaks the formatting every other check in the function follows.\n\nSuggested form: Wrap it like the sibling throw: `throw IllegalArgumentException(` on one line, then `\"Invalid proxy URL (unterminated IPv6 literal): $proxy\",` indented one level deeper, then `)`. Apply the same wrap to the generated TransportOptions.kt line.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F810",
+   "severity": "low",
+   "title": "kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "kotlin"
+   ],
+   "description": "Idiom review of single-language-defects: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getExternalPetInfo(1L, null, PetApi.GetExternalPetInfoServer.Server0)`. The bare `null` in the middle of the call is an unreadable positional argument, and the line is 101 columns.\n\nSuggested form: Use the named argument the signature already supports: `externalApi.getExternalPetInfo(1L, server = PetApi.GetExternalPetInfoServer.Server0)`. The defaulted options parameter is then skipped, the call reads naturally, and the line fits in 100 columns. Apply the same change to the generated PetApiTest.kt.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F811",
+   "severity": "low",
+   "title": "node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "node"
+   ],
+   "description": "Idiom review of single-language-defects: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node developer gets no editor strikethrough or deprecation hint. Deprecated oneOf, anyOf and object models in the same SDK (deprecated-food.ts:9-13, deprecated-treatment.ts:11-13, tag.ts:13) carry `@deprecated This schema is deprecated.`. The cause is the enum branch of src/main/resources/templates/node/models/model.mustache (lines 10-17, `{{#isEnum}}`), which never reads isDeprecated; this is pre-existing template behaviour that the new fixture schema exposes.\n\nSuggested form: In templates/node/models/model.mustache, inside the {{#isEnum}} branch, emit the same block the other branches use before `export enum {{classname}}`: `{{#isDeprecated}}` then a `/**` comment with the description, ` *` separator, ` * @deprecated This schema is deprecated.` and ` */` then `{{/isDeprecated}}`, with the plain description comment kept for `{{^isDeprecated}}`. Regenerate so deprecated-color.ts reads `/**\\n * Colours are deprecated, use Swatch instead\\n *\\n * @deprecated This schema is deprecated.\\n */` above `export enum DeprecatedColor`, and cover it with a node test in the existing model test file for enums rather than a new test file.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F812",
+   "severity": "low",
+   "title": "swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Idiom review of single-language-defects: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accepted, then actualInstance() and the private _value getter index _values[0] and trap at runtime. A Swift developer gets a crash from a public initialiser with no compile-time or error-level signal.\n\nSuggested form: Make the initialiser failable so the empty case is an ordinary nil: `public init?(_ values: [Any]) { guard !values.isEmpty else { return nil }; self._values = values }` in model.mustache (line 487) and the regenerated DeprecatedTreatment.swift:25. The capability is unchanged, so harmonisation holds. Add a unit test that DeprecatedTreatment([]) is nil.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F813",
+   "severity": "low",
+   "title": "swift: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "swift"
+   ],
+   "description": "Idiom review of single-language-defects: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed init per variant. The [Any] form mirrors Java's List<Object> and Kotlin's matchedInstances, so it is a harmonised shape that Swift cannot type-check.\n\nSuggested form: Keep the [Any] form for harmonisation. Optionally, a typed convenience init per variant (like the oneOf wrappers) could sit beside it without changing the surface of the other SDKs.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F814",
+   "severity": "low",
+   "title": "php: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private stat",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of single-language-defects: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private static function filePart` (default_api_client.mustache:202) and calls it as `self::filePart(` (:318, :335). The generated file is stale against its template, and the static form is the idiomatic one for a helper that uses no instance state.\n\nSuggested form: Regenerate the php SDK so DefaultApiClient.php matches the template: `private static function filePart(` at line 214 and `self::filePart(` at lines 330 and 342.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F815",
+   "severity": "low",
+   "title": "php: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on fa",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of single-language-defects: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on false. An unreadable file or stream is now silently uploaded as an empty part, where the previous DataPart::fromPath threw. Suppressing the warning with `@` is also not how PHP 8 code reports a read failure.\n\nSuggested form: Read without `@`, and on `false` throw like the CA-certificate path does at default_api_client.mustache:77-94, e.g. `$content = file_get_contents($path); if ($content === false) { throw new \\InvalidArgumentException(sprintf('failed to read multipart file \"%s\"', $path)); }`, and the same check after `stream_get_contents($v)`. Add a failure-path test for each.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F816",
+   "severity": "low",
+   "title": "php: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFil",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of single-language-defects: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFilename;` and then copies each constructor argument into them in the body. That is Java-style boilerplate where constructor property promotion fits, and PHP 8 code is expected to use it.\n\nSuggested form: Declare the three fields in the constructor signature as promoted properties, e.g. `public function __construct(string $bytes, string $filename, string $contentType, private readonly string $rawBytes, private readonly string $rawContentType, private readonly ?string $encodedFilename) { parent::__construct($bytes, $filename, $contentType); }`, or pass `$bytes` and `$contentType` through the promoted parameters and drop the separate property declarations. Keep parent::__construct as is.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F817",
+   "severity": "low",
+   "title": "php: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \\...GetExternalPetInfoServerServer0())`. Pa",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of single-language-defects: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \\...GetExternalPetInfoServerServer0())`. Passing a bare `null` to skip the options parameter is an awkward positional call, and the test skips the options argument only to reach the server argument.\n\nSuggested form: Use a named argument: `$result = $api->getExternalPetInfo(1, server: new \\{{invokerPackage}}\\Api\\GetExternalPetInfoServerServer0());` (generated: `$api->getExternalPetInfo(1, server: new \\PetstoreClient\\Api\\GetExternalPetInfoServerServer0());`).",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F818",
+   "severity": "low",
+   "title": "php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \\ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "Idiom review of single-language-defects: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \\ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.mustache:1601 has `(new \\ReflectionClass(DeprecatedColor::class))->getDocComment()`. The generated copy has drifted from its template, the same drift as the filePart case above. Line 1598 in the generated file (pre-existing) has the same unparenthesised form, so the generated output drops parentheses consistently. That form needs PHP 8.4 or later to parse.\n\nSuggested form: Regenerate so the generated test matches the template, and use the parenthesised form `(new \\ReflectionClass(DeprecatedColor::class))->getDocComment()`, which parses on every PHP 8 version. Apply the same fix to the pre-existing line 1598.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F819",
+   "severity": "low",
+   "title": "python: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaul",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Idiom review of single-language-defects: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaults to None, so the original keyword-only server call still works.\n\nSuggested form: In src/main/resources/templates/python/test/api/test_pet_api.mustache line 569, change `await api.get_external_pet_info(1, None, server=MockServer())` to `await api.get_external_pet_info(1, server=MockServer())`. Make the same change in the generated src/spec/resources/generated/python/test/Api/test_pet_api.py line 643.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F820",
+   "severity": "low",
+   "title": "python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Idiom review of single-language-defects: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) and the regenerated pet_treatment.py line 103 wrap it onto two lines, so these generated files do not match the template output and break the 100-column line length.\n\nSuggested form: Replace the single comment line in deprecated_treatment.py:106 and treatment_record.py:103 with the two-line form used by model.mustache and pet_treatment.py: `# JSON mode keeps date-time, bytes and Decimal fields in their` followed by `# wire form, so the merged dict matches model_dump_json.` at the same indentation. Regenerate the files rather than hand-editing if possible.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F821",
+   "severity": "medium",
+   "title": "Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive filesystems.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F822",
+   "severity": "medium",
+   "title": "The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "python"
+   ],
+   "description": "The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",

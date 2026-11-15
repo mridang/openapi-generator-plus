@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4, needs-spec 2, open 152, parked 43, partial 5. Severity: critical 3, high 59, medium 543, low 196.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4, needs-spec 2, open 163, parked 53, partial 5. Severity: critical 3, high 60, medium 547, low 212.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -416,7 +416,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F408 | low | fixed | L22-lifecycle | java, go, swift, csharp | Unsynchronized mutable auth state in the implicit and authorization-code authenticators (java/go/swift/csharp); kotlin uses @Volatile and rust a Mutex |
 | F409 | low | false-positive | L22-lifecycle | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Use-after-close: six different messages, and several doc comments still promise an SDK ApiException/ApiError |
 | F410 | low | duplicate | L22-lifecycle | java, kotlin | java/kotlin return a still-encoded br/zstd body when the optional codec is missing, contradicting AGENTS R6-2 |
-| F411 | low | open | L22-lifecycle | rust | rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs |
+| F411 | low | parked | L22-lifecycle | rust | rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs |
 | F412 | medium | fixed | batch1-discovered | csharp | The authorize URL still builds its base from _authorizationUrl.ToString() (same Uri normalization class as F117), so a configured authorization endpoint with a default port or upper-case host is rewri |
 | F413 | medium | false-positive | batch1-discovered | csharp | The redirect-replay buffering holds a whole Stream or multipart upload in memory when redirects are followed (the default), which can be costly for very large file uploads |
 | F414 | medium | false-positive | batch1-discovered | csharp | A non-string discriminator of JSON null still reaches the unknown-discriminator message with an empty value rather than a 'must be a string' error; this is consistent but differs from the other non-st |
@@ -496,13 +496,13 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F488 | medium | false-positive | batch2-discovered | rust | OIDC delegate expiry recreates the delegate after max-age (default 86400s), discarding the exchanged tokens; other SDKs may keep session state across discovery refresh |
 | F489 | medium | fixed | batch2-discovered | rust | The ApiClient for the OIDC authenticator is held in a Mutex<Option<Arc>> under unsafe impl Send/Sync; the unsafe impls on OpenIdConnectAuthenticator look unnecessary now that the delegate is an Arc |
 | F490 | medium | fixed | batch2-discovered | rust | The rust base_api_test and default_api_client_test integration cases hang when Docker is not reachable from inside the arm64 cargo container instead of failing fast |
-| F491 | medium | open | batch3-discovered | python | model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str()  |
+| F491 | medium | parked | batch3-discovered | python | model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str()  |
 | F492 | medium | false-positive | batch3-discovered | python | The test templates for README/SKILLS text live in test_metadata.mustache because a dedicated mirror test_readme file would need a new SupportingFileSpec entry in BetterPythonCodegen |
 | F493 | medium | false-positive | batch3-discovered | python | Stale worktree wf_4a554f2f-32a-5 still holds the branch name parity/b2-python (same for the other b2 branches), which blocks the documented 'checkout -B parity/b2-<lang>' setup step for re-runs |
 | F494 | medium | duplicate | batch3-discovered | java | java model.mustache renders externalDocs description and plural-example summary with double braces (about 14 @see sites plus line 682), so an apostrophe or quote in spec prose is HTML-escaped into gen |
 | F495 | medium | false-positive | batch3-discovered | java | Setup step 1 failed: branch parity/b2-java is already checked out in another worktree (wf_4a554f2f-32a-1, at f16a8a5fb), so this work is on parity/b2-java-r2, branched from f8d625c89; the orchestrator |
 | F496 | medium | duplicate | batch3-discovered | java | javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity |
-| F497 | medium | open | batch3-discovered | java | operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified |
+| F497 | medium | parked | batch3-discovered | java | operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified |
 | F498 | medium | duplicate | batch3-discovered | dart | dart's reserved-word list (src/main/resources/reserved-words/dart.txt) is matched lowercase by every isReservedWord caller, so a model named Type still becomes model_type while a model named Function  |
 | F499 | medium | duplicate | batch3-discovered | dart | dart date-array params and model date-array properties are typed List<DateTime> and serialized through the generic date-time path, so the date-only wire form is lost for arrays (F070), and no petstore |
 | F500 | medium | fixed | batch3-discovered | csharp | servers.mustache still embeds serverUrl, serverDescription and varDescription raw inside C# string literals, so a double quote or backslash in a server URL or description breaks compilation (only the  |
@@ -510,8 +510,8 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F502 | medium | false-positive | batch3-discovered | csharp | Branch name parity/b2-csharp is already checked out by the stale worktree wf_4a554f2f-32a-3 (commit 1e246e228), so git checkout -B failed; work was done on parity/b2-csharp-2 from f8d625c89 instead |
 | F503 | medium | false-positive | batch3-discovered | csharp | The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parity-findings.py; checking out f8d625c89 under the new branch name fixed that |
 | F504 | medium | false-positive | batch3-discovered | kotlin | The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for exam |
-| F505 | medium | open | batch3-discovered | kotlin | Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ] |
-| F506 | medium | open | batch3-discovered | node | Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme |
+| F505 | medium | parked | batch3-discovered | kotlin | Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ] |
+| F506 | medium | parked | batch3-discovered | node | Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme |
 | F507 | medium | open | batch3-discovered | node | Node SKILLS 'Client authentication method' section renders under hasAnyOAuth2 but imports ClientAuthMethod and the client-credentials authenticator |
 | F508 | medium | open | batch3-discovered | node | Node SKILLS Configuration example uses an undeclared `authenticator` variable, so it is not runnable verbatim |
 | F509 | medium | duplicate | batch3-discovered | node | Node model constructors have no element checks for arrays of integer, number or boolean |
@@ -521,17 +521,17 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F513 | medium | false-positive | batch3-discovered | ruby | The ruby _with_http_info variants carry only @return/@raise in their doc comments, with no summary or @param tags, so YARD shows them undocumented (api/api.mustache around line 146) |
 | F514 | medium | false-positive | batch3-discovered | ruby | The ruby `@param options` line always lists 'query, header, form, and cookie parameters' even when the operation has only one kind (e.g |
 | F515 | medium | false-positive | batch3-discovered | ruby | A stale branch parity/b2-ruby (9f96f906d) is still checked out in worktree wf_4a554f2f-32a-6 |
-| F516 | medium | open | batch3-discovered | php | Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits |
+| F516 | medium | parked | batch3-discovered | php | Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits |
 | F517 | medium | false-positive | batch3-discovered | php | api.mustache emits the `@param  |
 | F518 | medium | fixed | batch3-discovered | php | server_variant.mustache emits the server url through a double-brace tag inside a PHP single-quoted string, so a server url containing `=` or `&` is written as an HTML entity into code; I left it becau |
 | F519 | medium | duplicate | batch3-discovered | php | composer.mustache emits appDescription through a double-brace tag inside a JSON string, so a description with an apostrophe or ampersand would be entity-escaped rather than JSON-escaped |
-| F520 | medium | open | batch3-discovered | elixir | The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc ma |
+| F520 | medium | parked | batch3-discovered | elixir | The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc ma |
 | F521 | medium | duplicate | batch3-discovered | elixir | Elixir model docs render plural-example values with the escaping double-brace form (value) inside the moduledoc, so a JSON or quoted example value would be HTML-escaped there (same root cause as F179, |
 | F522 | medium | duplicate | batch3-discovered | elixir | The elixir oneOf/anyOf wrapper modules were not checked for the same entity-escaping slots; only the struct-model summary and externalDocs description slots were |
 | F523 | medium | false-positive | batch3-discovered | swift | Swift operation docs emit a `- Parameters:` heading with no items for operations whose parameters have no description (for example downloadPetDocument), because the list only includes parameters that  |
 | F524 | medium | false-positive | batch3-discovered | swift | The Swift WithHTTPInfo variants have only a one-line doc comment, with no parameter list, so Xcode quick help for them is much thinner than for the data methods |
 | F525 | medium | open | batch3-discovered | swift | Swift test templates compare non-optional values to nil (about 100 distinct sites, from `#expect(x != nil)`), so the generated tests cannot be compiled with warnings-as-errors until those are cleaned  |
-| F526 | medium | open | batch3-discovered | swift | DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout |
+| F526 | medium | parked | batch3-discovered | swift | DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout |
 | F527 | medium | open | batch3-discovered | rust | Deprecated operations with several request content-types may be missing #[deprecated] on the generated _with_content_type variant: the api.mustache block for that variant has no isDeprecated guard (no |
 | F528 | medium | open | batch3-discovered | rust | NetworkError::from(ApiError) and ClientError::from(ApiError) / ServerError::from(ApiError) in rust still accept any status, so a ClientError can wrap a 500 and a NetworkError a 200 |
 | F529 | medium | false-positive | batch3-discovered | rust | The rust SKILLS.md error hierarchy lists NetworkTimeoutError but the example no longer catches it, so a caller sees no pattern for telling a timeout from other network failures |
@@ -564,7 +564,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F556 | medium | duplicate | batch4-discovered | php | OAuth2TokenManager keeps the previous (already stale) expiry when a refresh response omits expires_in, so every following call refreshes again; the intended rule (T3-16) is untested and unclear for ph |
 | F557 | medium | fixed | batch4-discovered | java | OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so the token from exchangeCode was lost once the Cache-Control max-age expired (getAuthHeaders then threw IllegalStateExcep |
 | F558 | medium | duplicate | batch4-discovered | java | java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3) |
-| F559 | medium | open | batch4-discovered | ruby | Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr |
+| F559 | medium | parked | batch4-discovered | ruby | Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr |
 | F560 | medium | duplicate | batch4-discovered | ruby | Ruby gem entry point (gem.mustache) never requires the per-scheme wrapper authenticators (Auth::<Scheme>Authenticator, 12 files in the golden), so require 'petstore_client' alone leaves them undefined |
 | F561 | medium | fixed | batch4-discovered | ruby | Ruby OpenIdConnectAuthenticator rediscovery (default 86400s or max-age=0) builds a fresh OAuth2AuthorizationCodeAuthenticator and drops the exchanged token, so auth_headers raises 'Must call exchange_ |
 | F562 | medium | duplicate | batch4-discovered | ruby | Ruby accepts an int32 value of 3000000000 (ObjectSerializer Integer check is unbounded) and has no negative-timeout guard in TransportOptions, so both diverge from the SDKs that reject them; left unlo |
@@ -586,7 +586,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F578 | medium | false-positive | batch4-discovered | rust | Url normalisation makes the same_origin default-port comparison a no-op to mutate (port() and port_or_known_default() are equivalent), so the new default-port test locks behaviour but cannot catch tha |
 | F579 | medium | false-positive | batch4-discovered | rust | The rust golden suite has no chasm brotli integration test; brotli is covered only by the new in-process test |
 | F580 | medium | open | batch4-discovered | rust | test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent |
-| F581 | medium | open | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
+| F581 | medium | parked | batch4-discovered | go | Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th |
 | F582 | medium | open | batch4-discovered | go | TransportOptionsBuilder.Timeout doc says a value of 0 means a 0ms timeout, but http.Client treats Timeout 0 as no timeout and a negative value as an already-expired deadline; there is no validation of |
 | F583 | medium | fixed | batch4-discovered | go | OAuth2AuthorizationCodeAuthenticator.AuthHeadersOrError builds its refresh params with only grant_type and refresh_token, so the refresh grant does not carry client_id or client_secret (unlike the pas |
 | F584 | medium | fixed | batch4-discovered | go | OIDC rediscovery dropped the exchanged tokens and tokenExchanged flag (F016/F230) |
@@ -807,6 +807,27 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 417, forced 4,
 | F799 | medium | open | review | java | Container validation of StoreApiTest needs the Docker socket mounted, TESTCONTAINERS_RYUK_DISABLED=true (Ryuk cannot be reached from inside the container), and the project mounted at /app (the Chasm f |
 | F800 | medium | open | review | java | etc/api-surface.py check --json takes longer than the 120 second tool timeout, so before and after snapshots must run in the background. |
 | F801 | medium | open | review | java | etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult |
+| F802 | high | open | review | java, csharp | Spec reuse of DryFood and WetFood in the DeprecatedFood union re-parents them in java and csharp |
+| F803 | medium | open | review | java, kotlin, csharp, elixir, php, python, ruby, rust, node, dart, go, swift | Adding security to an operation adds a positional options parameter before server, silently breaking existing server-only call sites |
+| F804 | medium | open | review | rust | Rust close() cannot release an idle pooled connection by dropping reqwest::Client |
+| F805 | low | open | review | elixir | elixir: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The |
+| F806 | low | open | review | java | java: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exist |
+| F807 | low | open | review | java | java: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is |
+| F808 | low | open | review | java | java: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Jav |
+| F809 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the |
+| F810 | low | open | review | kotlin | kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx |
+| F811 | low | open | review | node | node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo |
+| F812 | low | open | review | swift | swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept |
+| F813 | low | open | review | swift | swift: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed |
+| F814 | low | open | review | php | php: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private stat |
+| F815 | low | open | review | php | php: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on fa |
+| F816 | low | open | review | php | php: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFil |
+| F817 | low | open | review | php | php: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \...GetExternalPetInfoServerServer0())`. Pa |
+| F818 | low | open | review | php | php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta |
+| F819 | low | open | review | python | python: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaul |
+| F820 | low | open | review | python | python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an |
+| F821 | medium | open | review | python | Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f |
+| F822 | medium | open | review | python | The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec. |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -5845,7 +5866,7 @@ AGENTS/R6-2 make a br/zstd response arrived without the optional codec library a
 - `AGENTS.md:272` — php/ruby raise when a br/zstd response arrives but the optional codec lib is absent
 
 ## F411 [low] rust DefaultApiClient::close() only sets a flag and releases nothing, despite its docs
-- Status: **open** (template/README text, not a rule document: still open) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): False
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: L22-lifecycle | Category: doc-truth | Unit-testable (reviewer's view): False
 - SDKs: rust
 
 The trait impl documents close() as 'Releases the underlying transport'. It only stores closed=true. The reqwest::Client, with its pool, idle sockets and hyper connections, lives until the last Arc<dyn ApiClient> is dropped. The Client facade, every *Api and every HTTP-aware authenticator hold clones, so in practice it lives until all of them are dropped. java (HttpClient.close), go (CloseIdleConnections), python (pool clear), csharp (Dispose), kotlin (HttpClient.close), node (dispatcher.close), dart (client.close), swift (finishTasksAndInvalidate) and php (reset) do release their pools on close. elixir documents that its pool is global, and ruby has no pool (see the pooling finding). rust can hold Mutex<Option<reqwest::Client>> and take() it on close.
@@ -6328,7 +6349,7 @@ The ApiClient for the OIDC authenticator is held in a Mutex<Option<Arc>> under u
 The rust base_api_test and default_api_client_test integration cases hang when Docker is not reachable from inside the arm64 cargo container instead of failing fast.
 
 ## F491 [medium] model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() 
-- Status: **open** (reported by the python fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: python
 
 model.mustache anyof_merged_dump still uses python-mode model_dump, so an anyOf model whose retained variant has date-time, bytes or decimal fields is written through json.dumps(default=str) as str() text; the fix is mode='json' but the petstore anyOf members have no such fields, so it needs a spec change to lock.
@@ -6364,7 +6385,7 @@ Setup step 1 failed: branch parity/b2-java is already checked out in another wor
 javadocDescription escapes only angle brackets, not a bare ampersand, which doclint=all rejects as a bad HTML entity.
 
 ## F497 [medium] operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified
-- Status: **open** (reported by the java fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: java
 
 operation_doc_result_noserver.mustache documents an auth parameter (when hasAuthMethods) that does not appear to match the generated signatures; not verified.
@@ -6412,13 +6433,13 @@ The worktree started at a8bc609f4 which lacks PARITY_FINDINGS.json and etc/parit
 The kotlin api.mustache `@param` lines emitted through two-tag section lines such as the pluralExamples and requestContentType blocks leave stray blank lines inside KDoc blocks in the golden (for example PetApi.kt around the `Example` lines).
 
 ## F505 [medium] Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]
-- Status: **open** (reported by the kotlin fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: kotlin
 
 Kotlin TransportOptions.proxy accepts an unterminated IPv6 literal such as http://[::1:3128, because the bracket parse only strips a leading [ and never requires the closing ]. java rejects it.
 
 ## F506 [medium] Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme
-- Status: **open** (reported by the node fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: node
 
 Node's client.mustache and its tests import ./auth/bearer-authenticator unconditionally, but AbstractBetterCodegen only emits that file when the spec declares an http bearer scheme. A spec without one produces a node client that imports a missing file.
@@ -6478,7 +6499,7 @@ The ruby `@param options` line always lists 'query, header, form, and cookie par
 A stale branch parity/b2-ruby (9f96f906d) is still checked out in worktree wf_4a554f2f-32a-6. Its content is already in the base as 3090c0e1d, and it blocks `git checkout -B parity/b2-ruby` for later batches.
 
 ## F516 [medium] Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits
-- Status: **open** (reported by the php fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: php
 
 Symfony FormDataPart forces Content-Transfer-Encoding: 8bit onto every part, so JSON object parts and file parts in DefaultApiClient still send a header Psr18ApiClient omits. DataPart::fromPath returns self and cannot be subclassed, so file parts need a different construction.
@@ -6502,7 +6523,7 @@ server_variant.mustache emits the server url through a double-brace tag inside a
 composer.mustache emits appDescription through a double-brace tag inside a JSON string, so a description with an apostrophe or ampersand would be entity-escaped rather than JSON-escaped.
 
 ## F520 [medium] The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc ma
-- Status: **open** (reported by the elixir fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: elixir
 
 The elixir model template emits no deprecation marker at all for deprecated enum, oneOf and anyOf schemas; only struct models (hasVars or not) got the old @deprecated line and now get the moduledoc marker.
@@ -6538,7 +6559,7 @@ The Swift WithHTTPInfo variants have only a one-line doc comment, with no parame
 Swift test templates compare non-optional values to nil (about 100 distinct sites, from `#expect(x != nil)`), so the generated tests cannot be compiled with warnings-as-errors until those are cleaned up.
 
 ## F526 [medium] DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout
-- Status: **open** (reported by the swift fix agent, unverified) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch3-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: swift
 
 DefaultApiClientTests.testTimesOutOnSlowEndpoint never exercises a timeout. It uses an instant stub, so it only checks that a 1 ms configuration is accepted, and its name is misleading.
@@ -6736,7 +6757,7 @@ OpenIdConnectAuthenticator replaced its delegate on every discovery refresh, so 
 java has no negative or zero timeout guard in TransportOptions (rust rejects it); the cross-language contract is still undecided (F359 part 3).
 
 ## F559 [medium] Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkErr
-- Status: **open** (reported by the ruby fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: ruby
 
 Ruby DefaultApiClient silently accepts a response body truncated below its Content-Length (Net::HTTP ignore_eof defaults to true), so a cut-off body returns 200 with partial data instead of NetworkError; fix is f.adapter :net_http { |http| http.ignore_eof = false } in build_connection plus a Faraday#adapter RBS declaration (reproduced with a loopback TCPServer; chunked truncation and stalled bodies are already classified correctly).
@@ -6868,7 +6889,7 @@ The rust golden suite has no chasm brotli integration test; brotli is covered on
 test_custom_ca_cert_replaces_the_system_trust_store silently skips (returns) when example.com:443 is unreachable, so CA sole-anchor coverage is network dependent.
 
 ## F581 [medium] Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into th
-- Status: **open** (reported by the go fix agent, unverified) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
+- Status: **parked** (review rejected single-language-defects: Not approved. The staged tree breaks the java build, breaks the elixir and csharp tests, and F411 (rust) is not implemented. The set is not harmonised: the shared spec change re-parents DryFood and WetFood in java and csharp, and the new options parameter on getExternalPetInfo was not applied consis) | Lens: batch4-discovered | Category: discovered | Unit-testable (reviewer's view): None
 - SDKs: go
 
 Typed per-operation server variants in go ignore the spec's variable defaults: GetMultiServerPetInfoServerRegional{} (no Region set) renders https://.example.com/v1, and any string can be cast into the enum type because GetUrl never validates, so out-of-enum values are not rejected at runtime in go (F041/F357 rejection cases cannot be locked here).
@@ -8572,3 +8593,161 @@ etc/api-surface.py check --json takes longer than the 120 second tool timeout, s
 - SDKs: java
 
 etc/api-surface-allow.json and API_SURFACE.md were not edited (owned by the coordinator). Needs-shared entries: dart baseapi.apiclient, baseapi.config, baseapi.invokeapi and baseapi.invokeapiforresult (and baseapi.invokeapiforemptyresult) with reason 'no protected modifier; a library-private name would hide the members from subclasses in other library files'; node and dart allowreservedvalue with reason 'shared across two source files, not exported by the package barrel'; ruby valueserializer.unwrapallowreserved with reason 'BaseApi cannot name a private_constant'; plus the API_SURFACE.md rows for Petstore and Iso8601Duration and the not-part-of-the-canonical-surface rows for Configuration.fromServer, TransportOptions.assertValidProxy and TransportOptions.validateProxy.
+
+## F802 [high] Spec reuse of DryFood and WetFood in the DeprecatedFood union re-parents them in java and csharp
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java, csharp
+
+setParentOnChild keeps the first union that claims a child, so a later oneOf that reuses existing variants silently changes their supertype. DryFood and WetFood extend DeprecatedFood instead of PetFood (java DryFood.java:14, csharp DryFood.cs:13), which breaks java test-compile. Either the spec must not reuse the variants or the parent resolution must not let a second union steal a child. Other languages were not checked.
+
+## F803 [medium] Adding security to an operation adds a positional options parameter before server, silently breaking existing server-only call sites
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java, kotlin, csharp, elixir, php, python, ruby, rust, node, dart, go, swift
+
+The spec change adds security to getExternalPetInfo. Each SDK now has an options parameter before server, and server-only test calls break in elixir (BadMapError at runtime) and csharp (compile error), and in java the (petId, server) overload is dropped. A shared guard is needed so an operation that has both options and a server keeps a call form that is source-compatible in every SDK, and every SDK test must be checked after any spec security change.
+
+## F804 [medium] Rust close() cannot release an idle pooled connection by dropping reqwest::Client
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: rust
+
+The F411 agent reports that dropping the client does not close an idle keep-alive socket, so the canonical text and its Ok(0) test cannot be met as written. A decision is needed: reword the canonical to 'closed blocks new requests, pool released on idle timeout', or configure pool_max_idle_per_host(0) for all twelve SDKs.
+
+## F805 [low] elixir: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: elixir
+
+Idiom review of single-language-defects: src/spec/resources/generated/elixir/test/pet_api_test.exs:172 and :906-909 still pass the server override as the third positional argument, `get_external_pet_info(api, 1, server: server)`. The change makes that third parameter `options` (default nil), so the keyword list reaches `options && Map.get(options, :auth)` in get_external_pet_info_with_http_info (lib/petstore_client/api/pet_api.ex:1334) and raises BadMapError. These two tests are not in the staged change, so the suite is left failing.
+
+Suggested form: Pass the Options slot explicitly in both tests: `PetstoreClient.Api.PetApi.get_external_pet_info(api, 1, nil, server: server)` at pet_api_test.exs:172, and `get_external_pet_info(api, 1, nil, server: PetstoreClient.Api.GetExternalPetInfoServer.Server0)` in the multi-line call at pet_api_test.exs:906-909. Stage the test file with the change.
+
+## F806 [low] java: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exist
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/api/PetApi.java:976: the public overload getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) that exists at HEAD (PetApi.java:943) is removed and replaced by a three-argument method. This is a source-breaking removal of public API, and it forces the awkward call site getExternalPetInfo(1L, null, server) in PetApiTest.java:355 and its mustache source. The removal happened only because the convenience overload at PetApi.java:949 calls getExternalPetInfo(petId, null), which becomes ambiguous once a (Long, Server) overload exists.
+
+Suggested form: Restore public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server) and its WithHttpInfo twin, each delegating with a null options argument. Remove the ambiguity in the convenience overload by casting the null: getExternalPetInfo(petId, (GetExternalPetInfoOptions) null). Make that change in the java api.mustache convenience block (around lines 150-185), not by hand-editing PetApi.java. Then the test can call getExternalPetInfo(1L, server) as HEAD did.
+
+## F807 [low] java: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Idiom review of single-language-defects: src/spec/resources/generated/java/src/main/java/com/example/petstore/models/DryFood.java:14 and WetFood.java:14 now read 'extends DeprecatedFood' instead of 'extends PetFood' (HEAD). PetFood is no longer the supertype of the two subtypes, a public API regression a java developer using PetFood as a base type would hit. The cause is the new DeprecatedFood oneOf in src/spec/resources/generated/java/src/test/resources/openapi.yaml, which reuses DryFood and WetFood with the same discriminator mapping, so the generator picks it as parent.
+
+Suggested form: Change the spec, not the generated java, so DryFood and WetFood keep PetFood as their parent. The deprecated union must not reuse the discriminator mapping that DryFood and WetFood already belong to. Either give the deprecated union a different discriminator or drop its oneOf members, then regenerate. Check the generator's parent-selection rule in the java codegen. Flag this to the parity-guard too, because the canonical asks for unreferenced deprecated schemas and this block references DryFood and WetFood.
+
+## F808 [low] java: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Jav
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: java
+
+Idiom review of single-language-defects: src/spec/resources/generated/java/src/test/java/com/example/petstore/api/PetApiTest.java:83-100 (and its source template src/main/resources/templates/java/test/api/PetApiTest.mustache) tests Javadoc by hand-scanning PetApi.java with indexOf, a hard-coded ') {' marker, and a substring loop with a break. This is not how this SDK's tests read files: ClientTest.java uses Files.readString and a Pattern regex on the file. A java developer would find the scanning brittle and hard to read.
+
+Suggested form: Read the file with Files.readString(source) as ClientTest does. Find the Javadoc block with one Pattern, for example a regex matching '/\*\*(?:(?!\*/).)*?@param options options carrying an optional per-call authenticator(?:(?!\*/).)*?\*/\s*public ApiResult<Pet> getExternalPetInfoWithHttpInfo\(\s*Long petId, @Nullable GetExternalPetInfoOptions options\)', compiled with DOTALL. Then assert the match is found and that it does not contain '@param auth'. Keep one claim per test.
+
+## F809 [low] kotlin: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Idiom review of single-language-defects: src/main/resources/templates/kotlin/transport_options.mustache:133 (and the generated src/spec/resources/generated/kotlin/src/main/kotlin/com/example/petstore/TransportOptions.kt:138) puts the new throw on one 111-column line. The sibling throws at lines 124-126 of the same template are wrapped to the 100-column limit, so this line breaks the formatting every other check in the function follows.
+
+Suggested form: Wrap it like the sibling throw: `throw IllegalArgumentException(` on one line, then `"Invalid proxy URL (unterminated IPv6 literal): $proxy",` indented one level deeper, then `)`. Apply the same wrap to the generated TransportOptions.kt line.
+
+## F810 [low] kotlin: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getEx
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: kotlin
+
+Idiom review of single-language-defects: src/main/resources/templates/kotlin/test/api/PetApiTest.mustache:374 (and generated src/spec/resources/generated/kotlin/src/test/kotlin/com/example/petstore/api/PetApiTest.kt:388) calls `getExternalPetInfo(1L, null, PetApi.GetExternalPetInfoServer.Server0)`. The bare `null` in the middle of the call is an unreadable positional argument, and the line is 101 columns.
+
+Suggested form: Use the named argument the signature already supports: `externalApi.getExternalPetInfo(1L, server = PetApi.GetExternalPetInfoServer.Server0)`. The defaulted options parameter is then skipped, the call reads naturally, and the line fits in 100 columns. Apply the same change to the generated PetApiTest.kt.
+
+## F811 [low] node: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node develo
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: node
+
+Idiom review of single-language-defects: src/spec/resources/generated/node/src/models/deprecated-color.ts:6-9: the deprecated enum DeprecatedColor (spec `deprecated: true`) is emitted without any @deprecated JSDoc tag, so a node developer gets no editor strikethrough or deprecation hint. Deprecated oneOf, anyOf and object models in the same SDK (deprecated-food.ts:9-13, deprecated-treatment.ts:11-13, tag.ts:13) carry `@deprecated This schema is deprecated.`. The cause is the enum branch of src/main/resources/templates/node/models/model.mustache (lines 10-17, `{{#isEnum}}`), which never reads isDeprecated; this is pre-existing template behaviour that the new fixture schema exposes.
+
+Suggested form: In templates/node/models/model.mustache, inside the {{#isEnum}} branch, emit the same block the other branches use before `export enum {{classname}}`: `{{#isDeprecated}}` then a `/**` comment with the description, ` *` separator, ` * @deprecated This schema is deprecated.` and ` */` then `{{/isDeprecated}}`, with the plain description comment kept for `{{^isDeprecated}}`. Regenerate so deprecated-color.ts reads `/**\n * Colours are deprecated, use Swatch instead\n *\n * @deprecated This schema is deprecated.\n */` above `export enum DeprecatedColor`, and cover it with a node test in the existing model test file for enums rather than a new test file.
+
+## F812 [low] swift: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accept
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Idiom review of single-language-defects: DeprecatedTreatment.swift:25 (generated from src/main/resources/templates/swift/models/model.mustache:487) declares a non-failable public init(_ values: [Any]). Passing an empty array is accepted, then actualInstance() and the private _value getter index _values[0] and trap at runtime. A Swift developer gets a crash from a public initialiser with no compile-time or error-level signal.
+
+Suggested form: Make the initialiser failable so the empty case is an ordinary nil: `public init?(_ values: [Any]) { guard !values.isEmpty else { return nil }; self._values = values }` in model.mustache (line 487) and the regenerated DeprecatedTreatment.swift:25. The capability is unchanged, so harmonisation holds. Add a unit test that DeprecatedTreatment([]) is nil.
+
+## F813 [low] swift: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: swift
+
+Idiom review of single-language-defects: Not a rejection, for the parity-guard: the anyOf wrapper takes untyped [Any] at DeprecatedTreatment.swift:25, while the oneOf wrappers (DeprecatedFood.swift:17, PetFood.swift:16) take one typed init per variant. The [Any] form mirrors Java's List<Object> and Kotlin's matchedInstances, so it is a harmonised shape that Swift cannot type-check.
+
+Suggested form: Keep the [Any] form for harmonisation. Optionally, a typed convenience init per variant (like the oneOf wrappers) could sit beside it without changing the surface of the other SDKs.
+
+## F814 [low] php: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private stat
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of single-language-defects: Generated php/lib/DefaultApiClient.php:214 declares filePart as a non-static `private function` and the call sites at :330 and :342 use `$this->filePart(`, but the template declares `private static function filePart` (default_api_client.mustache:202) and calls it as `self::filePart(` (:318, :335). The generated file is stale against its template, and the static form is the idiomatic one for a helper that uses no instance state.
+
+Suggested form: Regenerate the php SDK so DefaultApiClient.php matches the template: `private static function filePart(` at line 214 and `self::filePart(` at lines 330 and 342.
+
+## F815 [low] php: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on fa
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of single-language-defects: default_api_client.mustache:317 (generated DefaultApiClient.php:329) and :334 (generated :341) wrap the read in `@file_get_contents(...)` and `stream_get_contents($v)` and fall back to `''` on false. An unreadable file or stream is now silently uploaded as an empty part, where the previous DataPart::fromPath threw. Suppressing the warning with `@` is also not how PHP 8 code reports a read failure.
+
+Suggested form: Read without `@`, and on `false` throw like the CA-certificate path does at default_api_client.mustache:77-94, e.g. `$content = file_get_contents($path); if ($content === false) { throw new \InvalidArgumentException(sprintf('failed to read multipart file "%s"', $path)); }`, and the same check after `stream_get_contents($v)`. Add a failure-path test for each.
+
+## F816 [low] php: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFil
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of single-language-defects: default_api_client.mustache:207-222 (the anonymous DataPart subclass returned by filePart) declares `private string $rawBytes;`, `private string $rawContentType;` and `private ?string $encodedFilename;` and then copies each constructor argument into them in the body. That is Java-style boilerplate where constructor property promotion fits, and PHP 8 code is expected to use it.
+
+Suggested form: Declare the three fields in the constructor signature as promoted properties, e.g. `public function __construct(string $bytes, string $filename, string $contentType, private readonly string $rawBytes, private readonly string $rawContentType, private readonly ?string $encodedFilename) { parent::__construct($bytes, $filename, $contentType); }`, or pass `$bytes` and `$contentType` through the promoted parameters and drop the separate property declarations. Keep parent::__construct as is.
+
+## F817 [low] php: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \...GetExternalPetInfoServerServer0())`. Pa
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of single-language-defects: The call site at templates php/tests/Api/PetApiTest.mustache:367 (generated php/tests/Api/PetApiTest.php:367) is `$api->getExternalPetInfo(1, null, new \...GetExternalPetInfoServerServer0())`. Passing a bare `null` to skip the options parameter is an awkward positional call, and the test skips the options argument only to reach the server argument.
+
+Suggested form: Use a named argument: `$result = $api->getExternalPetInfo(1, server: new \{{invokerPackage}}\Api\GetExternalPetInfoServerServer0());` (generated: `$api->getExternalPetInfo(1, server: new \PetstoreClient\Api\GetExternalPetInfoServerServer0());`).
+
+## F818 [low] php: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.musta
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+Idiom review of single-language-defects: Generated php/tests/ObjectSerializerTest.php:1603 reads `$doc = new \ReflectionClass(DeprecatedColor::class)->getDocComment();`, but the template at templates php/tests/ObjectSerializerTest.mustache:1601 has `(new \ReflectionClass(DeprecatedColor::class))->getDocComment()`. The generated copy has drifted from its template, the same drift as the filePart case above. Line 1598 in the generated file (pre-existing) has the same unparenthesised form, so the generated output drops parentheses consistently. That form needs PHP 8.4 or later to parse.
+
+Suggested form: Regenerate so the generated test matches the template, and use the parenthesised form `(new \ReflectionClass(DeprecatedColor::class))->getDocComment()`, which parses on every PHP 8 version. Apply the same fix to the pre-existing line 1598.
+
+## F819 [low] python: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaul
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Idiom review of single-language-defects: The template test calls get_external_pet_info with a positional None for the new options parameter just to reach server. The call site is awkward, and the change is unnecessary: options defaults to None, so the original keyword-only server call still works.
+
+Suggested form: In src/main/resources/templates/python/test/api/test_pet_api.mustache line 569, change `await api.get_external_pet_info(1, None, server=MockServer())` to `await api.get_external_pet_info(1, server=MockServer())`. Make the same change in the generated src/spec/resources/generated/python/test/Api/test_pet_api.py line 643.
+
+## F820 [low] python: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) an
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Idiom review of single-language-defects: The generated anyof_merged_dump comment in deprecated_treatment.py line 106 and treatment_record.py line 103 is one line of about 140 characters. The template (model.mustache lines 285-286) and the regenerated pet_treatment.py line 103 wrap it onto two lines, so these generated files do not match the template output and break the 100-column line length.
+
+Suggested form: Replace the single comment line in deprecated_treatment.py:106 and treatment_record.py:103 with the two-line form used by model.mustache and pet_treatment.py: `# JSON mode keeps date-time, bytes and Decimal fields in their` followed by `# wire form, so the merged dict matches model_dump_json.` at the same indentation. Regenerate the files rather than hand-editing if possible.
+
+## F821 [medium] Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive f
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+Python golden test path is src/spec/resources/generated/python/test/Api/test_pet_api.py while the template is test/api/test_pet_api.mustache; the case differs, which is confusing on case-insensitive filesystems.
+
+## F822 [medium] The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: python
+
+The python api fixture (test/api) requires a reachable Docker daemon through testcontainers, so these tests cannot run in a one-shot python container; they only run in the full Maven PythonClientSpec.
