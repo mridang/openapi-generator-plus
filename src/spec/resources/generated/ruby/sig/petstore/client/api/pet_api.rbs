@@ -31,10 +31,13 @@ module Petstore::Client
       def url: () -> String
     end
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
+      attr_reader region: String
       def initialize: (region: String) -> void
       def url: () -> String
     end
     class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
+      attr_reader region: String
+      attr_reader channel: String
       def initialize: (region: String, channel: String) -> void
       def url: () -> String
     end
@@ -60,6 +63,8 @@ module Petstore::Client
     end
 
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
+      attr_reader environment: String
+      attr_reader version: String
       def initialize: (environment: String, version: String) -> void
       def url: () -> String
     end

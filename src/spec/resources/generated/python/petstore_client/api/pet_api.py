@@ -100,11 +100,11 @@ class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
     """Regional"""
 
     def __init__(self, region: GetMultiServerPetInfoServerRegionalRegion) -> None:
-        self._region = region
+        self.region = region
 
     def get_url(self) -> str:
         url = "https://{region}.example.com/v1"
-        url = url.replace("{" + "region" + "}", self._region.value)
+        url = url.replace("{" + "region" + "}", self.region.value)
         return url
 
 
@@ -116,13 +116,13 @@ class GetMultiServerPetInfoServerMirror(GetMultiServerPetInfoServer):
         region: GetMultiServerPetInfoServerMirrorRegion,
         channel: GetMultiServerPetInfoServerChannel,
     ) -> None:
-        self._region = region
-        self._channel = channel
+        self.region = region
+        self.channel = channel
 
     def get_url(self) -> str:
         url = "https://{region}.mirror.example.com/{channel}/v1"
-        url = url.replace("{" + "region" + "}", self._region.value)
-        url = url.replace("{" + "channel" + "}", self._channel.value)
+        url = url.replace("{" + "region" + "}", self.region.value)
+        url = url.replace("{" + "channel" + "}", self.channel.value)
         return url
 
 
@@ -173,13 +173,13 @@ class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
         environment: GetStagingPetInfoServerEnvironment,
         version: GetStagingPetInfoServerVersion,
     ) -> None:
-        self._environment = environment
-        self._version = version
+        self.environment = environment
+        self.version = version
 
     def get_url(self) -> str:
         url = "https://{environment}.example.com/api/{version}"
-        url = url.replace("{" + "environment" + "}", self._environment.value)
-        url = url.replace("{" + "version" + "}", self._version.value)
+        url = url.replace("{" + "environment" + "}", self.environment.value)
+        url = url.replace("{" + "version" + "}", self.version.value)
         return url
 
 

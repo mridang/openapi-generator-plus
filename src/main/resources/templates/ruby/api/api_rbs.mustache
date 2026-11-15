@@ -17,6 +17,9 @@ module {{moduleName}}
 {{#variants}}
     class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
 {{#hasVariables}}
+{{#serverVariables}}
+      attr_reader {{snakeName}}: String
+{{/serverVariables}}
       def initialize: ({{#serverVariables}}{{snakeName}}: String{{^-last}}, {{/-last}}{{/serverVariables}}) -> void
 {{/hasVariables}}
       def url: () -> String

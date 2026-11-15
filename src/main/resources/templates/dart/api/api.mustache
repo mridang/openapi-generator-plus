@@ -44,17 +44,17 @@ enum {{serverTypeName}}{{enumTypeName}} {
 /// {{#hasDescription}}{{#lambda.dartDocLines}}{{{description}}}{{/lambda.dartDocLines}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
 class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{#serverVariables}}
-  final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} _{{camelName}};
+  final {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}};
 {{/serverVariables}}
 
-  {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}){{#serverVariables}}{{#-first}} : {{/-first}}_{{camelName}} = {{camelName}}{{^-last}},
+  {{serverTypeName}}{{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}){{#serverVariables}}{{#-first}} : {{/-first}}this.{{camelName}} = {{camelName}}{{^-last}},
         {{/-last}}{{/serverVariables}};
 
   @override
   String getUrl() {
     var url = '{{#lambda.dartString}}{{{url}}}{{/lambda.dartString}}';
 {{#serverVariables}}
-    url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}_{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}_{{camelName}}{{/hasEnumValues}});
+    url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}});
 {{/serverVariables}}
     return url;
   }

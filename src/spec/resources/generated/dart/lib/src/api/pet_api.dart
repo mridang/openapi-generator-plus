@@ -95,11 +95,11 @@ class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
 
 /// Regional
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
-  final GetMultiServerPetInfoServerRegionalRegion _region;
+  final GetMultiServerPetInfoServerRegionalRegion region;
 
   GetMultiServerPetInfoServerRegional(
     GetMultiServerPetInfoServerRegionalRegion region,
-  ) : _region = region;
+  ) : this.region = region;
 
   @override
   String getUrl() {
@@ -108,7 +108,7 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
       '{'
       'region'
       '}',
-      _region.value,
+      region.value,
     );
     return url;
   }
@@ -116,14 +116,14 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
 
 /// Mirror
 class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
-  final GetMultiServerPetInfoServerMirrorRegion _region;
-  final GetMultiServerPetInfoServerChannel _channel;
+  final GetMultiServerPetInfoServerMirrorRegion region;
+  final GetMultiServerPetInfoServerChannel channel;
 
   GetMultiServerPetInfoServerMirror(
     GetMultiServerPetInfoServerMirrorRegion region,
     GetMultiServerPetInfoServerChannel channel,
-  ) : _region = region,
-      _channel = channel;
+  ) : this.region = region,
+      this.channel = channel;
 
   @override
   String getUrl() {
@@ -132,13 +132,13 @@ class GetMultiServerPetInfoServerMirror extends GetMultiServerPetInfoServer {
       '{'
       'region'
       '}',
-      _region.value,
+      region.value,
     );
     url = url.replaceAll(
       '{'
       'channel'
       '}',
-      _channel.value,
+      channel.value,
     );
     return url;
   }
@@ -188,14 +188,14 @@ enum GetStagingPetInfoServerVersion {
 
 /// Staging server
 class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
-  final GetStagingPetInfoServerEnvironment _environment;
-  final GetStagingPetInfoServerVersion _version;
+  final GetStagingPetInfoServerEnvironment environment;
+  final GetStagingPetInfoServerVersion version;
 
   GetStagingPetInfoServerStagingServer(
     GetStagingPetInfoServerEnvironment environment,
     GetStagingPetInfoServerVersion version,
-  ) : _environment = environment,
-      _version = version;
+  ) : this.environment = environment,
+      this.version = version;
 
   @override
   String getUrl() {
@@ -204,13 +204,13 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
       '{'
       'environment'
       '}',
-      _environment.value,
+      environment.value,
     );
     url = url.replaceAll(
       '{'
       'version'
       '}',
-      _version.value,
+      version.value,
     );
     return url;
   }

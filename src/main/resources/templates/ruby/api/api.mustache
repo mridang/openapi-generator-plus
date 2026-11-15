@@ -38,6 +38,10 @@ module {{moduleName}}
 {{/hasDescription}}
     class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
 {{#hasVariables}}
+{{#serverVariables}}
+      attr_reader :{{snakeName}}
+{{/serverVariables}}
+
       def initialize({{#serverVariables}}{{snakeName}}:{{^-last}}, {{/-last}}{{/serverVariables}})
         super()
 {{#serverVariables}}

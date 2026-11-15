@@ -11,7 +11,7 @@ final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
 {
 {{#hasVariables}}
 {{#serverVariables}}
-    private readonly {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
+    public readonly {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
 {{/serverVariables}}
 
     public function __construct(

@@ -54,7 +54,7 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
 
     def __init__(self{{#serverVariables}}, {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{enumTypeName}}{{/hasEnumValues}}{{^hasEnumValues}}str{{/hasEnumValues}}{{/serverVariables}}) -> None:
 {{#serverVariables}}
-        self._{{snakeName}} = {{snakeName}}
+        self.{{snakeName}} = {{snakeName}}
 {{/serverVariables}}
 {{^serverVariables}}
         pass
@@ -63,7 +63,7 @@ class {{serverTypeName}}{{variantName}}({{serverTypeName}}):
     def get_url(self) -> str:
         url = '{{url}}'
 {{#serverVariables}}
-        url = url.replace('{' + '{{name}}' + '}', {{#hasEnumValues}}self._{{snakeName}}.value{{/hasEnumValues}}{{^hasEnumValues}}self._{{snakeName}}{{/hasEnumValues}})
+        url = url.replace('{' + '{{name}}' + '}', {{#hasEnumValues}}self.{{snakeName}}.value{{/hasEnumValues}}{{^hasEnumValues}}self.{{snakeName}}{{/hasEnumValues}})
 {{/serverVariables}}
         return url
 {{/variants}}

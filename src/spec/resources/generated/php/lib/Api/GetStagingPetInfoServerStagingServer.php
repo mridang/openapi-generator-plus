@@ -18,8 +18,8 @@ namespace PetstoreClient\Api;
  */
 final class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
 {
-    private readonly GetStagingPetInfoServerEnvironment $environment;
-    private readonly GetStagingPetInfoServerVersion $version;
+    public readonly GetStagingPetInfoServerEnvironment $environment;
+    public readonly GetStagingPetInfoServerVersion $version;
 
     public function __construct(
         GetStagingPetInfoServerEnvironment $environment,

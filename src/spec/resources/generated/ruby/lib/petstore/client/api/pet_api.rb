@@ -61,6 +61,8 @@ module Petstore::Client
 
     # Regional
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
+      attr_reader :region
+
       def initialize(region:)
         super()
         allowed = [GetMultiServerPetInfoServerRegionalRegion::US, GetMultiServerPetInfoServerRegionalRegion::EU, GetMultiServerPetInfoServerRegionalRegion::AP]
@@ -77,6 +79,9 @@ module Petstore::Client
 
     # Mirror
     class GetMultiServerPetInfoServerMirror < GetMultiServerPetInfoServer
+      attr_reader :region
+      attr_reader :channel
+
       def initialize(region:, channel:)
         super()
         allowed = [GetMultiServerPetInfoServerMirrorRegion::US, GetMultiServerPetInfoServerMirrorRegion::EU]
@@ -133,6 +138,9 @@ module Petstore::Client
 
     # Staging server
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
+      attr_reader :environment
+      attr_reader :version
+
       def initialize(environment:, version:)
         super()
         allowed = [GetStagingPetInfoServerEnvironment::STAGING, GetStagingPetInfoServerEnvironment::SANDBOX]

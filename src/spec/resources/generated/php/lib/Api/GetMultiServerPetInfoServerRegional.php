@@ -18,7 +18,7 @@ namespace PetstoreClient\Api;
  */
 final class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
 {
-    private readonly GetMultiServerPetInfoServerRegionalRegion $region;
+    public readonly GetMultiServerPetInfoServerRegionalRegion $region;
 
     public function __construct(
         GetMultiServerPetInfoServerRegionalRegion $region,
