@@ -80,7 +80,7 @@ module Petstore::Client
       attribute :retries, Types::Any.optional.meta(omittable: true).default(3)
       attribute :mode, Types::String.enum('low', 'medium', 'high').optional.meta(omittable: true).default('medium')
       attribute :label, Types::Any.optional.meta(omittable: true).default('untitled')
-      attribute :greeting, Types::Any.optional.meta(omittable: true).default('it\'s "quoted" \\ back slash next $USD #{x} a*/b')
+      attribute :greeting, Types::Any.optional.meta(omittable: true).default("it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b")
       attribute :swatch, Types::Any.optional.meta(omittable: true).default('green')
       attribute :ratio, Types::Any.optional.meta(omittable: true).default(1.5)
       attribute :scale, Types::Any.optional.meta(omittable: true).default(0.25)
