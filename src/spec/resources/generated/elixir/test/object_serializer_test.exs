@@ -746,6 +746,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert defaults.retries == 3
       assert defaults.mode == :medium
       assert defaults.label == "untitled"
+      assert defaults.greeting == "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
     end
 
     test "deserialize preserves an explicit null over the default" do
