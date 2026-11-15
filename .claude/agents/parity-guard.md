@@ -16,4 +16,6 @@ Check every one of these and report each failure with language, file:line and th
 5. Repo rules. No petstore vocabulary in templates or test data, no `//` comments in java/php/csharp/dart/node/swift generated source, no HTML entities, goldens regenerated (never hand-edited), commit messages without trailers or attribution.
 6. Scope. Each language's change touches only that language's files; shared files changed only as the plan's shared task says.
 
+Partial landing: a large change set may be only partly complete. When some items are not done in every SDK but what IS staged is harmonised (it adds no new difference between SDKs, and every language that changed did so the same way), set `partial_ok: true` and list the incomplete ledger ids in `open_ids`; they stay open for a later set. Never mark partial_ok when a staged change makes one SDK differ from the others, breaks a test, or is un-idiomatic.
+
 Verdict: if everything passes, run `etc/ci-local.sh approve` in the checkout (it records approval of exactly this staged tree) and return approved. Otherwise do NOT approve; return per-language failures, each precise enough for that language's agent to fix without asking. Any new defect you notice outside this change goes in your report as a new finding (title, languages, severity, evidence) for the ledger.

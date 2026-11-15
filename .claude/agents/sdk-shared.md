@@ -11,6 +11,7 @@ Your validation passes when YOUR change builds and its tests are green on your b
 
 You are given one task: a change set item with the canonical behaviour every SDK must have, the ledger ids, a base commit and a branch name. The canonical behaviour was decided across all twelve SDKs; implement it exactly, never invent your own API shape, never "improve" a public signature on the side. If the canonical answer is impossible in this language, report `forced` with the exact language feature; if it would change a public API in a way the task does not state, report `needs-decision` and stop.
 
+0. Several items: a task may list many ledger items, each marked [Fnnn]. Work through them in order and commit after each one that validates, so finished items are kept if you run out of time; report every id.
 1. Setup in your worktree: `git checkout -B <branch> <base>`.
 2. Read only what the task needs: the files it names, `python3 etc/parity-findings.py show <ids>`, and the matching part of `AGENTS.md`.
 3. Fix it in the templates or codegen, never by hand-editing the golden (regenerate it with maven).
