@@ -122,7 +122,7 @@ function injectTraceUnder(TracerProvider $tracerProvider, ContextInterface $pare
     }
     $headers['x-test-trace-id'] = $span->getContext()->getTraceId();
     $headers['x-test-span-id'] = $span->getContext()->getSpanId();
-    $headers['x-test-flags'] = $span->getContext()->isSampled() ? '01' : '00';
+    $headers['x-test-flags'] = sprintf('%02x', $span->getContext()->getTraceFlags());
 
     return $headers;
 }
