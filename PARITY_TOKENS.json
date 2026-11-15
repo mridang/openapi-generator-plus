@@ -47,6 +47,12 @@
    "tokens": 386227,
    "items_landed": 0,
    "note": "php 107k, ruby 88k (dropped), java 87k, elixir 103k"
+  },
+  {
+   "label": "round 5: 20 items, Haiku langs, width 12 (both sets parked)",
+   "tokens": 10240572,
+   "items_landed": 0,
+   "note": ""
   }
  ]
 }
