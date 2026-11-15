@@ -689,6 +689,92 @@
     "swift"
    ],
    "reason": "language idiom: go and swift spell initialisms in upper case (URL, ID, HTTP) per Effective Go and the Swift API Design Guidelines"
+  },
+  {
+   "element": [
+    "petfood.actualinstance",
+    "pettreatment.actualinstance",
+    "treatmentrecord.actualinstance",
+    "setpetavatarthumbnailrequest.actualinstance"
+   ],
+   "aspect": "member",
+   "languages": [
+    "java",
+    "csharp",
+    "ruby",
+    "elixir",
+    "rust"
+   ],
+   "reason": "the deserialized value is itself the variant (java/csharp polymorphic base class, ruby/elixir build returns the variant, rust sum type), so there is no wrapper to hold it"
+  },
+  {
+   "element": [
+    "pettreatment.matchedinstances",
+    "treatmentrecord.matchedinstances"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust",
+    "ruby",
+    "elixir"
+   ],
+   "reason": "rust anyOf is a struct of typed Option slots with no Any to hold variants; ruby and elixir build returns the matched variant or a Composite, so there is no wrapper"
+  },
+  {
+   "element": [
+    "pettreatment.medication",
+    "pettreatment.surgery",
+    "treatmentrecord.medication",
+    "treatmentrecord.surgery"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "rust anyOf keeps typed Option slots instead of accessors"
+  },
+  {
+   "element": [
+    "petfood.actualinstance",
+    "pettreatment.actualinstance",
+    "treatmentrecord.actualinstance",
+    "setpetavatarthumbnailrequest.actualinstance"
+   ],
+   "aspect": "params",
+   "languages": [
+    "swift"
+   ],
+   "reason": "swift keeps the generic typed lookup as the overload actualInstance(as:)"
+  },
+  {
+   "element": [
+    "pettreatment.actualinstance",
+    "treatmentrecord.actualinstance",
+    "pettreatment.matchedinstances",
+    "treatmentrecord.matchedinstances"
+   ],
+   "aspect": "params",
+   "languages": [
+    "ruby",
+    "elixir"
+   ],
+   "reason": "ruby and elixir expose module functions that take the built value, as there is no wrapper object"
+  },
+  {
+   "element": "setpetavatarthumbnailrequest.actualinstance",
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "reason": "node: a union of primitives is the TypeScript alias Array<Buffer> | Buffer, with no wrapper class"
+  },
+  {
+   "element": "metadata.additionalproperties",
+   "aspect": "prop-optional",
+   "languages": [
+    "elixir"
+   ],
+   "reason": "elixir cannot put a defaulted %{} struct field in @enforce_keys without forcing every %Metadata{} literal to pass an empty map"
   }
  ]
 }

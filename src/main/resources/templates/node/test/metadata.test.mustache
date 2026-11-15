@@ -157,6 +157,12 @@ describe('Metadata additionalProperties accessor', () => {
     expect(new Metadata().additionalProperties).toEqual({});
   });
 
+  test('is typed like the index signature so typed values read without a cast', () => {
+    const metadata = new Metadata({ foo: 'a', bar: 'b' });
+    const extras: Record<string, Metadata[string]> = metadata.additionalProperties;
+    expect(extras).toEqual({ foo: 'a', bar: 'b' });
+  });
+
   test('returns a fresh record on every read', () => {
     const metadata = new Metadata({ foo: 1 });
     metadata.additionalProperties['bar'] = 2;

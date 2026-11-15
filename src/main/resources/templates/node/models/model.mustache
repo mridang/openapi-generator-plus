@@ -521,11 +521,11 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * there are none, never undefined. Read-only: assign extra keys on the
    * instance itself.
    */
-  get additionalProperties(): Record<string, unknown> {
-    const extras: Record<string, unknown> = {};
+  get additionalProperties(): Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}> {
+    const extras: Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}> = {};
     for (const key of Object.keys(this)) {
       if (!{{classname}}.__additionalPropertiesDeclaredKeys.has(key)) {
-        extras[key] = (this as Record<string, unknown>)[key];
+        extras[key] = (this as Record<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}}>)[key];
       }
     }
     return extras;
