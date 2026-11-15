@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4, needs-spec 2, open 171, parked 7, partial 7. Severity: critical 3, high 59, medium 522, low 176.
+Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4, needs-spec 2, open 175, parked 8, partial 7. Severity: critical 3, high 59, medium 526, low 177.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -50,7 +50,7 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4,
 | F042 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | Sending the refresh grant to refreshUrl (not tokenUrl) is untested in all 12 SDKs |
 | F043 | high | fixed | L13b-tests-api-auth-models | java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir | The R8-10 OAuth2 percent-encoding change has no test in any SDK |
 | F044 | high | fixed | L14-codegen-java | python, dart, php, ruby, java, kotlin, csharp, go, rust, swift, node, elixir | Enum string literals: python/dart/php/ruby silently STRIP a single quote from the wire value; no language escapes backslash |
-| F045 | high | open | L14-codegen-java | ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift | String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals |
+| F045 | high | parked | L14-codegen-java | ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift | String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals |
 | F046 | high | fixed | L14-codegen-java | python | python maps format: password to pydantic SecretStr, so model bodies send "**********" on the wire |
 | F047 | high | fixed | L15-template-mechanics | python, ruby, php, dart, kotlin, elixir, node | Enum string literal quoting differs by language: apostrophes are silently stripped in 4 SDKs and '$' / '#{' are interpolated in 3 |
 | F048 | high | fixed | L15-template-mechanics | php, python, ruby, node, dart, java, kotlin, csharp, go, rust, swift, elixir | Global server and server-variable descriptions are raw spec text placed inside string literals, so one apostrophe breaks 5 SDKs and one double quote breaks the other 7 |
@@ -766,6 +766,11 @@ Status counts: deferred 9, duplicate 88, false-positive 81, fixed 391, forced 4,
 | F758 | medium | open | review | rust | Behaviour change worth noting: ApiError::new no longer parses the body itself, so the api.mustache empty-body error (Some(raw_body), error_body None) no longer exposes a parsed error_body, as the task |
 | F759 | medium | open | review | rust | Several earlier scripted edits silently failed to apply (api.mustache and the redirect-cap call in default_api_client.mustache). Caught only by compiling the regenerated golden; always compile after b |
 | F760 | medium | open | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or f |
+| F761 | medium | open | review | php | php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03) |
+| F762 | low | open | review | php | php server description doc comment still uses the comment escaper (`a*_/b`) |
+| F763 | medium | open | review | csharp | The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself. |
+| F764 | medium | open | review | csharp | Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed. |
+| F765 | medium | open | review | php | php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -1335,7 +1340,11 @@ Reviewer suspected this is forced: None. Single-quoted literals can escape the q
 - `src/main/resources/templates/python/models/model.mustache:19` — {{{name}}} = {{{value}}}
 
 ## F045 [high] String default literals use the comment-escaper escapeText, which mutates values and emits invalid single-quoted literals
-- Status: **open** | Lens: L14-codegen-java | Category: codegen | Unit-testable (reviewer's view): True
+- Status: **parked** (review rejected string-default-literals: I did not approve change set string-default-literals (F045) and did not run etc/ci-local.sh approve. Two things block it.
+
+Fine as staged:
+- **java, go, rust:** each now uses quoteEnumValue(escapeEnumStringValue(v)).
+- **csharp:** uses '\'' + escapeEnumStringValue(v) + '\''. Its escape table already) | Lens: L14-codegen-java | Category: codegen | Unit-testable (reviewer's view): True
 - SDKs: ruby, php, dart, node, python, kotlin, elixir, java, csharp, go, rust, swift
 
 Eleven toDefaultValue overrides wrap a string schema default in the target quote and escape it with DefaultCodegen.escapeText. escapeText was written for comments and double-quoted text: it turns \t, \n and \r into spaces, doubles backslashes, escapes `"` (never `'`), and then runs escapeUnsafeCharacters (`*/`→`*_/`, `/*`→`/_*`; ruby adds `=end`→`=_end` and `#{`→`\#{`). The effects differ by language. (a) ruby/php/dart/node wrap the default in single quotes but leave `'` unescaped, so a default such as `it's` is a syntax error. (b) ruby and php single-quoted strings keep `\"` literally, so the default `say "hi"` becomes the runtime value `say \"hi\"` (and ruby `#{x}` becomes `\#{x}`) and goes on the wire wrong. (c) A newline or tab in a default becomes a space in those 11 SDKs. (d) `a*/b` becomes `a*_/b` in every escapeText user. (e) kotlin `"...$x"` and dart `'$x'` interpolate, and elixir `#{}` does too. python alone uses its own escaping (`val.replace("'","\\'")`), which never escapes backslashes or newlines, so a newline breaks the literal and `\n` is reinterpreted. The same default value therefore produces different in-memory and wire values, or no compiling SDK at all, depending on language. Latent because petstore string defaults are plain words (api, v3, placed, medium, untitled).
@@ -8269,3 +8278,33 @@ Several earlier scripted edits silently failed to apply (api.mustache and the re
 - SDKs: php
 
 php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or flakiness.
+
+## F761 [medium] php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03)
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `$span->getContext()->isSampled() ? '01' : '00'`. The injected traceparent carried flags '03' (sampled plus random-trace-id, W3C Trace Context level 2), so PhpClientSpec.shouldRunClientTests fails 'injects traceparent when a span is active' at tests/TraceContextUtilTest.php:143. The php agent's log at /tmp/php-string-default-literals-php.txt shows it. Fix: derive the expected flags from the span context's actual trace flags, e.g. sprintf('%02x', $span->getContext()->getTraceFlags()), not from isSampled(). Then check that the other eleven SDKs either propagate the random bit the same way or all mask it, so the wire bytes stay harmonised.
+
+## F762 [low] php server description doc comment still uses the comment escaper (`a*_/b`)
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+src/spec/resources/generated/php/lib/Servers.php:78 renders the server description in a docblock as `$5 #{x} a*_/b`. The other SDKs' doc comments show `a*/b`: dart and rust with ///, swift ///, csharp CDATA, ruby #. In a /** */ block the `*_/` rewrite is needed, so this may be an accepted idiom difference. The literal on line 84 is exact. Confirm it is recorded as idiom; if not, decide on one comment-safe form for every SDK that writes the description inside a block comment.
+
+## F763 [medium] The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.
+
+## F764 [medium] Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: csharp
+
+Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.
+
+## F765 [medium] php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC
+- Status: **open** | Lens: review | Category: discovered | Unit-testable (reviewer's view): None
+- SDKs: php
+
+php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.

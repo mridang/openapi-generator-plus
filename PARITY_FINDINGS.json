@@ -3449,8 +3449,8 @@
    "unit_testable": true,
    "lens": "L14-codegen-java",
    "id": "F045",
-   "status": "open",
-   "note": "",
+   "status": "parked",
+   "note": "review rejected string-default-literals: I did not approve change set string-default-literals (F045) and did not run etc/ci-local.sh approve. Two things block it.\n\nFine as staged:\n- **java, go, rust:** each now uses quoteEnumValue(escapeEnumStringValue(v)).\n- **csharp:** uses '\\'' + escapeEnumStringValue(v) + '\\''. Its escape table already",
    "priority_triage": "medium",
    "plain": "String default values from the spec are mangled (tabs and newlines flattened, '*/' altered, quotes handled differently) so defaults are not byte-exact across SDKs."
   },
@@ -33912,6 +33912,86 @@
     "php"
    ],
    "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails with traceparent flags -03 instead of -01 in PhpClientSpec; unrelated to this change, likely OpenTelemetry version drift or flakiness.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F761",
+   "severity": "medium",
+   "title": "php TraceContextUtilTest hardcodes traceparent flags 01/00 and fails when the span carries the W3C random flag (03)",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "src/main/resources/templates/php/tests/TraceContextUtilTest.mustache:125 builds the expected flags as `$span->getContext()->isSampled() ? '01' : '00'`. The injected traceparent carried flags '03' (sampled plus random-trace-id, W3C Trace Context level 2), so PhpClientSpec.shouldRunClientTests fails 'injects traceparent when a span is active' at tests/TraceContextUtilTest.php:143. The php agent's log at /tmp/php-string-default-literals-php.txt shows it. Fix: derive the expected flags from the span context's actual trace flags, e.g. sprintf('%02x', $span->getContext()->getTraceFlags()), not from isSampled(). Then check that the other eleven SDKs either propagate the random bit the same way or all mask it, so the wire bytes stay harmonised.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F762",
+   "severity": "low",
+   "title": "php server description doc comment still uses the comment escaper (`a*_/b`)",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "src/spec/resources/generated/php/lib/Servers.php:78 renders the server description in a docblock as `$5 #{x} a*_/b`. The other SDKs' doc comments show `a*/b`: dart and rust with ///, swift ///, csharp CDATA, ruby #. In a /** */ block the `*_/` rewrite is needed, so this may be an accepted idiom difference. The literal on line 84 is exact. Confirm it is recorded as idiom; if not, decide on one comment-safe form for every SDK that writes the description inside a block comment.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F763",
+   "severity": "medium",
+   "title": "The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "The assigned worktree started on an unrelated commit (72a4f425e) with no .claude/agents; I created the branch from base 9074a938 myself.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F764",
+   "severity": "medium",
+   "title": "Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "csharp"
+   ],
+   "description": "Untracked .classpath, .project, .settings/ and generated/kotlin/.classpath, .project, .settings/ appeared in the worktree. They are IDE or build leftovers and were not committed.",
+   "evidence": [],
+   "unit_testable": null,
+   "status": "open",
+   "note": "",
+   "batch": null
+  },
+  {
+   "id": "F765",
+   "severity": "medium",
+   "title": "php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpC",
+   "lens": "review",
+   "category": "discovered",
+   "languages": [
+    "php"
+   ],
+   "description": "php TraceContextUtilTest 'injects traceparent when a span is active' fails: test helper hardcodes x-test-flags '01' (TraceContextUtilTest.mustache:125) but the installed opentelemetry emits '03'; PhpClientSpec cannot go fully green until fixed.",
    "evidence": [],
    "unit_testable": null,
    "status": "open",
