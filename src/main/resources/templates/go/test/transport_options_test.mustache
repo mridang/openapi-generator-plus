@@ -46,15 +46,18 @@ func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_NegativeTimeoutIsRejected(t *testing.T) {
+func TestTransportOptions_RejectsANonPositiveTimeoutWithTheCanonicalMessage(t *testing.T) {
 	t.Parallel()
-	negative := -1
-	if _, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&negative).Build(); !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
-		t.Fatalf("expected ErrInvalidTimeout, got %v", err)
-	}
-	zero := 0
-	if _, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&zero).Build(); err != nil {
-		t.Fatalf("a zero timeout must stay valid, got %v", err)
+	for _, value := range []int{-1, 0} {
+		value := value
+		_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&value).Build()
+		if !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
+			t.Fatalf("timeout %d: expected ErrInvalidTimeout, got %v", value, err)
+		}
+		want := fmt.Sprintf("invalid timeout: must be a positive number of milliseconds (got %d)", value)
+		if err.Error() != want {
+			t.Errorf("timeout %d: expected %q, got %q", value, want, err.Error())
+		}
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -166,24 +167,84 @@ func hasHeader(headers map[string]string, name string) bool {
 	return false
 }
 
+// redactURL renders u with its query replaced by "***": an authenticator's
+// query-parameter API key is part of the query, and error messages reach logs
+// and error trackers. net/http redacts only a userinfo password.
+func redactURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	if u.RawQuery == "" {
+		return u.String()
+	}
+	redacted := *u
+	redacted.RawQuery = "***"
+	return redacted.String()
+}
+
+// redactedTransportMessage is err's text with the query of a *url.Error's URL
+// replaced by "***". The original error stays reachable as the cause.
+func redactedTransportMessage(err error) string {
+	var urlErr *url.Error
+	if !errors.As(err, &urlErr) {
+		return err.Error()
+	}
+	parsed, perr := url.Parse(urlErr.URL)
+	if perr != nil || parsed.RawQuery == "" {
+		return err.Error()
+	}
+	return fmt.Sprintf("%s %q: %v", urlErr.Op, redactURL(parsed), urlErr.Err)
+}
+
+// redirectRefusalMessage is the text of a refused redirect: the CheckRedirect
+// error with net/http's *url.Error wrapper ("Get \"...\": ...") removed.
+func redirectRefusalMessage(err error) string {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) && urlErr.Err != nil {
+		return urlErr.Err.Error()
+	}
+	return err.Error()
+}
+
+// mergeHeaders copies src into dst. A key that differs from an existing one
+// only in case replaces it, so the later layer wins and keeps its spelling (RFC
+// 9110 section 5.1). The keys of src are visited in sorted order, so the result
+// never depends on map iteration order.
+func mergeHeaders(dst, src map[string]string) {
+	keys := make([]string, 0, len(src))
+	for k := range src {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		removeHeader(dst, k)
+		dst[k] = src[k]
+	}
+}
+
+// removeHeader deletes every spelling of name from headers.
+func removeHeader(headers map[string]string, name string) {
+	for k := range headers {
+		if strings.EqualFold(k, name) {
+			delete(headers, k)
+		}
+	}
+}
+
 func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
 	if c.closed.Load() {
 		return nil, ErrClientClosed
 	}
 	merged := make(map[string]string)
-	for k, v := range c.transportOptions.DefaultHeaders() {
-		merged[k] = v
-	}
-	for k, v := range headers {
-		merged[k] = v
-	}
+	mergeHeaders(merged, c.transportOptions.DefaultHeaders())
+	mergeHeaders(merged, headers)
 	if !hasHeader(merged, "User-Agent") && c.transportOptions.UserAgent() != nil {
 		merged["User-Agent"] = *c.transportOptions.UserAgent()
 	}
 	if !hasHeader(merged, "X-Request-ID") && c.transportOptions.InjectRequestID() {
 		merged["X-Request-ID"] = uuid.New().String()
 	}
-	if _, ok := merged["Accept-Encoding"]; !ok {
+	if !hasHeader(merged, "Accept-Encoding") {
 		merged["Accept-Encoding"] = supportedEncodings()
 	}
 
@@ -191,7 +252,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 	switch b := body.(type) {
 	case nil:
 		// no body -- remove Content-Type to avoid sending it without a body
-		delete(merged, "Content-Type")
+		removeHeader(merged, "Content-Type")
 	case []byte:
 		bodyReader = bytes.NewReader(b)
 	case map[string]any:
@@ -200,7 +261,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 			return nil, fmt.Errorf("failed to build multipart body: %w", err)
 		}
 		bodyReader = buf
-		merged["Content-Type"] = contentType
+		mergeHeaders(merged, map[string]string{"Content-Type": contentType})
 	default:
 		return nil, fmt.Errorf("%w: unsupported body type %T", ErrInvalidRequest, body)
 	}
@@ -251,7 +312,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 			_ = resp.Body.Close()
 			return nil, errors_pkg.NewApiError(
 				resp.StatusCode,
-				fmt.Sprintf("redirect refused: %s", err.Error()),
+				redirectRefusalMessage(err),
 				"", lowerCaseHeaders(resp.Header), nil, err,
 			)
 		}
@@ -262,7 +323,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// other transport failure (connection refused, DNS, TLS, reset) as
 		// *NetworkError. Both carry status 0 and keep the net/http error as
 		// the cause, so errors.Is / errors.As still reach it.
-		return nil, newTransportError(fmt.Sprintf("request failed: %s", err.Error()), err)
+		return nil, newTransportError(fmt.Sprintf("request failed: %s", redactedTransportMessage(err)), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -476,10 +537,10 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 			 * the redirect being decided; refuse only past maxRedirects so that
 			 * exactly maxRedirects hops are followed. */
 			if len(via) > maxRedirects {
-				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+				return fmt.Errorf("too many redirects (exceeded %d)", maxRedirects)
 			}
 			if !strings.EqualFold(req.URL.Scheme, "http") && !strings.EqualFold(req.URL.Scheme, "https") {
-				return fmt.Errorf("refusing to follow redirect to non-HTTP scheme %q", req.URL.Scheme)
+				return fmt.Errorf("refusing to follow redirect to non-HTTP(S) URL: %s", redactURL(req.URL))
 			}
 			if len(via) == 0 {
 				return nil
@@ -536,8 +597,8 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
 				strings.EqualFold(req.URL.Scheme, "http") {
 				return fmt.Errorf(
-					"refusing to replay request body across HTTPS→HTTP downgrade on %d redirect to %s",
-					prevStatus, req.URL.String())
+					"refusing to replay request body across HTTPS->HTTP redirect: %s -> %s",
+					redactURL(via[len(via)-1].URL), redactURL(req.URL))
 			}
 			if !sameOrigin(origURL, req.URL) {
 				for _, name := range sensitiveHeaderAllowlist {

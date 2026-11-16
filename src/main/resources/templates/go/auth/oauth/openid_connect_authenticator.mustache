@@ -165,6 +165,11 @@ func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
 // document using the injected API client. Honors the `Cache-Control: max-age=<seconds>`
 // header from the discovery response; falls back to the RFC 8414 recommended
 // default of 86400 seconds when absent.
+//
+// Once a delegate exists, a failed rediscovery keeps using it (stale-if-error)
+// and retries after discoveryRetryDelay, so a brief outage of the discovery
+// endpoint does not fail API calls whose cached endpoints and tokens are still
+// valid. The first discovery has nothing to fall back on and returns its error.
 func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCodeAuthenticator, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -173,6 +178,21 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return a.delegate, nil
 	}
 
+	delegate, err := a.discover()
+	if err != nil && a.delegate != nil {
+		a.discoveryExpiry = time.Now().Add(discoveryRetryDelay)
+		return a.delegate, nil
+	}
+	return delegate, err
+}
+
+// discoveryRetryDelay is how long a failed rediscovery waits before the next
+// attempt while the previous delegate keeps serving.
+const discoveryRetryDelay = 30 * time.Second
+
+// discover fetches the discovery document and replaces the delegate. The caller
+// holds a.mu.
+func (a *OpenIdConnectAuthenticator) discover() (*OAuth2AuthorizationCodeAuthenticator, error) {
 	client := a.apiClient
 	if client == nil {
 		return nil, ErrApiClientNotInjected

@@ -174,14 +174,10 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
 
 	/* Merge config default headers */
-	for k, v := range b.config.DefaultHeaders() {
-		headers[k] = v
-	}
+	mergeHeaders(headers, b.config.DefaultHeaders())
 
 	/* Merge operation-specific headers */
-	for k, v := range params.headerParams {
-		headers[k] = v
-	}
+	mergeHeaders(headers, params.headerParams)
 
 	/* Merge auth headers */
 	if effectiveAuth != nil {
@@ -201,9 +197,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		} else {
 			authHeaders = effectiveAuth.AuthHeaders()
 		}
-		for k, v := range authHeaders {
-			headers[k] = v
-		}
+		mergeHeaders(headers, authHeaders)
 		/* Handle cookie params. RFC 6265 — don't URL-encode cookie name/value;
 		 * most cookie parsers don't URL-decode, so `=` (base64 padding) would
 		 * arrive as literal `%3D` and break JWT/session cookies. Validate and

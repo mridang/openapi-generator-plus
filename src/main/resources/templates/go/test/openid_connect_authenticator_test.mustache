@@ -442,6 +442,41 @@ func TestOpenIdConnect_ExchangedTokenSurvivesRediscovery(t *testing.T) {
 	}
 }
 
+// A failed rediscovery keeps the previous delegate: the cached endpoints and the
+// exchanged token still work, so the call succeeds instead of failing with the
+// discovery error. The first discovery has no fallback and fails.
+func TestOpenIdConnect_FailedRediscoveryKeepsUsingThePreviousDelegate(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		{body: `down`, statusCode: 503},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("the-code"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	headers, err := authObj.AuthHeadersOrError()
+	if err != nil {
+		t.Fatalf("expected the cached delegate to serve through a discovery outage, got %v", err)
+	}
+	if headers["Authorization"] != "Bearer tok1" {
+		t.Errorf("expected Authorization 'Bearer tok1', got %q", headers["Authorization"])
+	}
+	if client.requestCount() != 3 {
+		t.Errorf("expected discovery, token and one failed rediscovery, got %d requests", client.requestCount())
+	}
+
+	failing := &recordingTokenClient{responses: []fakeResponse{{body: `down`, statusCode: 503}}}
+	first := createOpenIdConnectAuthenticator()
+	first.SetApiClient(failing)
+	if _, err := first.BuildAuthorizationURL(""); err == nil {
+		t.Error("expected the first discovery to fail without a delegate to fall back on")
+	}
+}
+
 // The per-scheme wrapper discovers from the OpenID Connect URL its security
 // scheme declares.
 func TestSsoAuthWrapper_DiscoversFromTheDeclaredUrl(t *testing.T) {

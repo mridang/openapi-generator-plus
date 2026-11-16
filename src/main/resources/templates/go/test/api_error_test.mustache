@@ -509,7 +509,12 @@ func TestApiError_ErrorRendersOnlyThePartsThatArePresent(t *testing.T) {
 		{
 			"every part",
 			apierrors.NewApiError(502, "bad gateway", "upstream down", map[string]string{"retry-after": "5"}, nil, nil),
-			"bad gateway\nHTTP status code: 502\nResponse headers: map[retry-after:5]\nResponse body: upstream down",
+			"bad gateway\nHTTP status code: 502\nResponse headers: {\"retry-after\":\"5\"}\nResponse body: upstream down",
+		},
+		{
+			"headers are compact JSON with sorted keys and no HTML escaping",
+			apierrors.NewApiError(200, "m", "", map[string]string{"b": "<2>", "a": "1"}, nil, nil),
+			"m\nHTTP status code: 200\nResponse headers: {\"a\":\"1\",\"b\":\"<2>\"}",
 		},
 		{
 			"empty headers and body are omitted",

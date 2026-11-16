@@ -15,7 +15,8 @@ import (
 // host. Match it with errors.Is.
 var ErrInvalidProxyURL = errors.New("invalid proxy URL")
 
-// ErrInvalidTimeout is returned by Build when the timeout is negative.
+// ErrInvalidTimeout is returned by Build when the timeout is not a positive
+// number of milliseconds. Match it with errors.Is.
 var ErrInvalidTimeout = errors.New("invalid timeout")
 
 // ErrInvalidCACertificate is returned by TransportOptionsBuilder.Build when the
@@ -114,7 +115,7 @@ func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 // Covers the entire request lifecycle: connection, TLS handshake, sending the
 // request body, and reading the response. Defaults to 10000 ms (10 seconds)
 // when the builder does not set a value. Returns nil for no timeout (wait
-// indefinitely); a zero value means a 0ms timeout.
+// indefinitely); a set value is always positive.
 func (t *TransportOptions) Timeout() *int { return t.timeout }
 
 // FollowRedirects returns whether the client follows HTTP 3xx redirects
@@ -238,8 +239,8 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 
 // Timeout sets the end-to-end request timeout in milliseconds.
 //
-// Pass nil, or a pointer to 0, for no timeout: net/http treats a zero Timeout as none.
-// A negative value gives an already-expired deadline, so every request fails at once.
+// Pass nil for no timeout. Build rejects zero and negative values with
+// ErrInvalidTimeout.
 func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {
 	b.timeout = val
 	return b
@@ -302,8 +303,8 @@ func (b *TransportOptionsBuilder) Build() (*TransportOptions, error) {
 	if b.proxyErr != nil {
 		return nil, b.proxyErr
 	}
-	if b.timeout != nil && *b.timeout < 0 {
-		return nil, fmt.Errorf("%w: must not be negative: %d", ErrInvalidTimeout, *b.timeout)
+	if b.timeout != nil && *b.timeout <= 0 {
+		return nil, fmt.Errorf("%w: must be a positive number of milliseconds (got %d)", ErrInvalidTimeout, *b.timeout)
 	}
 	if b.httpClient != nil || b.roundTripper != nil {
 		switch {

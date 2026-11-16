@@ -4,6 +4,7 @@ package {{packageName}}
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 
 	"go.opentelemetry.io/otel/propagation"
@@ -115,6 +116,33 @@ func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
 	if headers["X-Request-ID"] != "abc-123" {
 		t.Error("X-Request-ID header was modified")
 	}
+}
+
+// Registering and clearing the propagator while requests inject trace context
+// is race-free: the suite runs with -race, which fails on an unsynchronised
+// global.
+func TestSetTraceContextPropagator_ConcurrentSetAndInjectIsRaceFree(t *testing.T) {
+	t.Cleanup(func() { SetTraceContextPropagator(nil) })
+	var wg sync.WaitGroup
+	for i := 0; i < 4; i++ {
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
+					headers["traceparent"] = "x"
+				})
+				SetTraceContextPropagator(nil)
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 200; j++ {
+				InjectTraceContext(map[string]string{})
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // TestSetTraceContextPropagator_RegisteredPropagatorIsUsed confirms the hook
