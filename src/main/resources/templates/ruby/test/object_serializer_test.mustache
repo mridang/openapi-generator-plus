@@ -542,6 +542,28 @@ describe {{moduleName}}::ObjectSerializer do
       _(from_null.retries).must_equal(7)
     end
 
+    # Numeric defaults keep their exact typed value, and the component
+    # default of a $ref'd enum applies on absence.
+    it 'applies exact numeric and referenced-enum defaults for absent fields' do
+      defaults = {{moduleName}}::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(defaults.ratio).must_equal(1.5)
+      _(defaults.scale).must_equal(0.25)
+      _(defaults.weight).must_equal(2)
+      _(defaults.ceiling).must_equal(9_000_000_000)
+      _(defaults.swatch).must_equal('green')
+    end
+
+    # Department and Employee reference each other: both directions decode to
+    # typed models and write back unchanged.
+    it 'decodes and writes mutually recursive Department and Employee models' do
+      json = '{"name":"Eng","lead":{"name":"Ann","department":{"name":"Eng"}}}'
+      department = {{moduleName}}::ObjectSerializer.deserialize(json, 'Department')
+      _(department.lead).must_be_kind_of({{moduleName}}::Models::Employee)
+      _(department.lead.department).must_be_kind_of({{moduleName}}::Models::Department)
+      _(department.lead.department.name).must_equal('Eng')
+      _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(department))).must_equal(JSON.parse(json))
+    end
+
     # Inline property enums are nested constants classes named
     # <Model>::<Prop>Enum with the same shape as a top-level enum class.
     it 'exposes inline property enums as nested constants classes' do
