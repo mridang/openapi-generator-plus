@@ -72,6 +72,9 @@ class OAuth2TokenManager {
     @Volatile
     private var refreshToken: String? = null
 
+    private fun isJsonLiteral(content: String): Boolean =
+        content == "true" || content == "false" || content == "null" || content.toDoubleOrNull() != null
+
     private fun isTokenValid(
         token: String?,
         expiry: Long?,
@@ -297,6 +300,12 @@ class OAuth2TokenManager {
              * which may hold the token. */
                 throw OAuth2TokenException("Token response is not valid JSON")
             }
+        if (element is JsonPrimitive && !element.isString && !isJsonLiteral(element.content)) {
+            /* parseToJsonElement reads a bare top-level word such as a
+             * form-encoded body as an unquoted literal instead of rejecting
+             * it; only number, boolean and null literals are real JSON. */
+            throw OAuth2TokenException("Token response is not valid JSON")
+        }
         val jsonObject =
             try {
                 element.jsonObject
