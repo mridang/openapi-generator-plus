@@ -895,9 +895,7 @@ defmodule {{moduleName}}.DefaultApiClient do
               # was already http, which an orig_url anchor would miss.
               if refuse_body_replay?(response.status, url, next_url, body) do
                 raise {{moduleName}}.Errors.ApiError,
-                  message:
-                    "Refusing to replay request body across HTTPS->HTTP redirect: " <>
-                      "#{redact_url(url)} -> #{redact_url(next_url)}",
+                  message: replay_refusal_message(url, next_url),
                   status_code: response.status
               end
 
@@ -1057,6 +1055,15 @@ defmodule {{moduleName}}.DefaultApiClient do
   @spec refuse_body_replay?(integer(), String.t(), String.t(), term()) :: boolean()
   def refuse_body_replay?(status, url, next_url, body) do
     status in [307, 308] and body not in [nil, ""] and downgrade?(url, next_url)
+  end
+
+  @doc false
+  # The D16 message of a refused body replay; both URLs lose their query,
+  # userinfo and fragment, so a credential in a URL never reaches the text.
+  @spec replay_refusal_message(String.t(), String.t()) :: String.t()
+  def replay_refusal_message(url, next_url) do
+    "Refusing to replay request body across HTTPS->HTTP redirect: " <>
+      "#{redact_url(url)} -> #{redact_url(next_url)}"
   end
 
   defp default_port("https"), do: 443

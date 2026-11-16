@@ -314,3 +314,39 @@ Rule: `ApiError.message/1` renders the response body cut at 1 KiB with `... (N m
 ### Skipped in batch 9
 
 F825 is Rust only.
+
+## Decisions taken in batch 10
+
+Each entry uses the audit finding's own proposal as the default. The owner may revisit any of them.
+
+### Lists in messages render as `[a, b, c]` (F1102, D20)
+
+Rule: the allowed values of a server variable (global `ServerConfiguration.url/2` and the per-operation server variants) and the declared content types of an operation are joined with `, ` inside brackets, unquoted, not printed through `inspect/1`. Where: `server_configuration.mustache`, `api/api.mustache`. Test: `test/server_configuration_test.mustache` (three-element list), `test/api/pet_api_test.mustache`.
+
+### Server URL substitution is one pass (F1118)
+
+Rule: `ServerConfiguration.url/2` and the per-operation server variants replace each `{name}` placeholder once, in a single `Regex.replace/3`, so a placeholder introduced by a substituted value is never expanded again; a placeholder with no declared variable stays as written. Where: `server_configuration.mustache`, `api/api.mustache`. Test: `test/server_configuration_test.mustache`. The per-operation variant has no test for the re-expansion: its variables are enums, so a value holding a placeholder is refused first.
+
+### Auth-code precondition wording (F1101, D09)
+
+Rule: the call before `exchange_code/2` raises `Must call exchange_code() before making API requests`, with the call parentheses. The use-after-close sentence was already canonical. Test: `test/oauth2_auth_code_authenticator_test.mustache`.
+
+### Options modules document the examples of optional parameters (F893)
+
+Rule: the named examples of an optional parameter are written into the `@moduledoc` of its `Api.Options.*` module as `### <name> example` blocks, the way the operation function documents a required parameter. Where: `BetterElixirCodegen.toExampleDocs`, `api/options.mustache`. Test: `BetterElixirCodegenTest`.
+
+### Documentation layout (F889, F890)
+
+Rule: SKILLS `Configuration` follows the java and kotlin order and level: `Custom Transport Options`, `Retries`, `Custom HTTP client` (renamed from `Custom HTTP Transport`), `Cancellation`, `Closing the client`, and `Raw responses, timeouts and the request id` (replaces `Timeouts and retries`). README gained a `Dependency audit` section. Where: `skills.mustache`, `readme.mustache`.
+
+### Dependency audit target (F1077)
+
+Rule: the generated `Makefile` has `make audit`, which runs `mix hex.audit`. Hex reports retired packages only, so it is a floor and not a vulnerability scan. Where: `makefile.mustache`, `readme.mustache`.
+
+### Tests added for behaviour that already held
+
+F1073 and F1074 (`test/bearer_authenticator_test.mustache`: a Unicode-space token is rejected by the printable-ASCII rule, `bearerxyz` is kept whole, a doubled prefix is stripped once), F1065 (an IPv6 literal proxy host is accepted verbatim; the unterminated form is not asserted because `URI.parse/1` accepts it and the result could not be run here), F1123 (`close/1` is an optional callback, the default transport implements it), F1129 and F1112 (`test/composed_schema_test.mustache`, `test/object_serializer_test.mustache`), F1124 (the hostile third server, `Pet.nickname` longer than its maximum, `Order.quantity` 500), F1161 (the typed `/test/status/<code>` routes through `getOrderById`, `test/api/store_api_test.mustache`), F1167 (the default user agent equals `{{userAgentDefault}}` on the options and on the wire), F1064 (a caller shut down mid-call ends with no reply and no SDK error), F927 (`DefaultApiClient.replay_refusal_message/2` carries the D16 replay sentence and is tested).
+
+### Skipped in batch 10
+
+F057, F827, F828, F830, F834 to F837, F840, F843, F857, F862, F865, F866, F868, F894, F1058, F1060, F1062 (cross-language decisions or shared Java); F858 nonce, F1056, F1061, F1081, F1085, F1087, F1157, F1172 (shared generator, fixtures, gates or a floor policy); F872 (rests on a compile check that was not run); F1048 (size bounds are cross-language); F1140 and F1151 (Req reads the whole body and Elixir takes upload bytes, so there is no response or handle to release); F831 (the 429 type exists; the `retry_after` accessor is a cross-language shape); F1154 (the apiKey escaping test exists; S8 server-before-options does not apply because the server is the `:server` keyword). F855, F1180, F1080 and F823 were finished in batch 9.
