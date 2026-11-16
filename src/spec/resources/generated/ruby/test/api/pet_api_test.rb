@@ -167,7 +167,7 @@ describe Petstore::Client::Api::PetApi do
       # An unknown content-type selector must be rejected client-side, not
       # silently dropped in favour of the first declared type.
       error = assert_raises(ArgumentError) do
-        @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), content_type: 'application/unknown-type')
+        @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"), request_content_type: 'application/unknown-type')
       end
       _(error.message).must_match(/[Uu]nsupported request content-type/)
     end
@@ -194,17 +194,17 @@ describe Petstore::Client::Api::PetApi do
           next
         end
         content_length = 0
-        content_type = ''
+        request_content_type = ''
         client.gets # request line
         while (line = client.gets)
           if line.downcase.start_with?('content-length:')
             content_length = line.split(':', 2).last.strip.to_i
           elsif line.downcase.start_with?('content-type:')
-            content_type = line.split(':', 2).last.strip
+            request_content_type = line.split(':', 2).last.strip
           end
           break if line.strip.empty?
         end
-        captured_content_type << content_type
+        captured_content_type << request_content_type
         captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
         body = '{"code":200,"type":"","message":"ok"}'
         response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
@@ -226,7 +226,7 @@ describe Petstore::Client::Api::PetApi do
         raw = "\xFF\xD8\xFF\xE0".b
         api.set_pet_avatar(1, StringIO.new(raw))
 
-        content_type = captured_content_type.pop
+        request_content_type = captured_content_type.pop
         sent = captured_body.pop.b
 
         # (1) The body is the exact raw bytes — not JSON-marshaled, not a JSON
@@ -238,9 +238,9 @@ describe Petstore::Client::Api::PetApi do
         _(sent).wont_equal '//j/4A==' # base64 of the four bytes
 
         # (2) The declared Content-Type is preserved verbatim.
-        _(content_type).must_equal 'image/jpeg'
-        _(content_type).wont_match(/octet-stream/)
-        _(content_type).wont_match(%r{application/json})
+        _(request_content_type).must_equal 'image/jpeg'
+        _(request_content_type).wont_match(/octet-stream/)
+        _(request_content_type).wont_match(%r{application/json})
       ensure
         server.close
         thread.join(2)
@@ -251,7 +251,7 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\xFF\xD8\xFF\xE0".b
-        api.set_pet_avatar(1, StringIO.new(raw), content_type: 'application/json')
+        api.set_pet_avatar(1, StringIO.new(raw), request_content_type: 'application/json')
         _(captured_content_type.pop).must_equal 'application/json'
         _(captured_body.pop.b).must_equal raw
       ensure
@@ -262,10 +262,10 @@ describe Petstore::Client::Api::PetApi do
 
     # Canonical regression: setPetAvatar declares THREE request content-types
     # (image/jpeg, image/png, application/json). Before the optional
-    # `content_type:` selector the wire Content-Type always collapsed to the
+    # `request_content_type:` selector the wire Content-Type always collapsed to the
     # first declared type (image/jpeg) and image/png was unreachable. The
     # selector lets the caller choose among the declared types while staying
-    # backward compatible: an unspecified content_type still sends the first.
+    # backward compatible: an unspecified request_content_type still sends the first.
     it 'honours the selected request content type' do
       # (1) Backward compatible — no selector sends the FIRST declared type.
       api, server, thread, _captured_body, captured_content_type = capture_avatar_request
@@ -283,13 +283,13 @@ describe Petstore::Client::Api::PetApi do
       api, server, thread, captured_body, captured_content_type = capture_avatar_request
       begin
         raw = "\x89PNG\r\n\x1A\n".b
-        api.set_pet_avatar(1, StringIO.new(raw), content_type: 'image/png')
+        api.set_pet_avatar(1, StringIO.new(raw), request_content_type: 'image/png')
 
-        content_type = captured_content_type.pop
+        request_content_type = captured_content_type.pop
         sent = captured_body.pop.b
 
-        _(content_type).must_equal 'image/png'
-        _(content_type).wont_equal 'image/jpeg'
+        _(request_content_type).must_equal 'image/png'
+        _(request_content_type).wont_equal 'image/jpeg'
         # The raw bytes still hit the wire unchanged — the selector only swaps
         # the Content-Type header, it does not re-encode the body.
         _(sent).must_equal raw
@@ -402,17 +402,17 @@ describe Petstore::Client::Api::PetApi do
           next
         end
         content_length = 0
-        content_type = ''
+        request_content_type = ''
         client.gets # request line
         while (line = client.gets)
           if line.downcase.start_with?('content-length:')
             content_length = line.split(':', 2).last.strip.to_i
           elsif line.downcase.start_with?('content-type:')
-            content_type = line.split(':', 2).last.strip
+            request_content_type = line.split(':', 2).last.strip
           end
           break if line.strip.empty?
         end
-        captured_content_type << content_type
+        captured_content_type << request_content_type
         captured_body << (content_length.positive? ? client.read(content_length).to_s : '')
         body = '{"code":200,"type":"","message":"ok"}'
         response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n" \
@@ -432,16 +432,16 @@ describe Petstore::Client::Api::PetApi do
         api.upload_pet_document(
           1,
           Petstore::Client::Api::Options::UploadPetDocumentOptions.new(file: StringIO.new(raw)),
-          content_type: 'application/octet-stream'
+          request_content_type: 'application/octet-stream'
         )
 
-        content_type = captured_content_type.pop
+        request_content_type = captured_content_type.pop
         sent = captured_body.pop.b
 
         # (1) Content-Type is the selected raw binary type — NOT multipart.
-        _(content_type).must_equal 'application/octet-stream'
-        _(content_type).wont_match(/multipart/)
-        _(content_type).wont_match(/boundary/)
+        _(request_content_type).must_equal 'application/octet-stream'
+        _(request_content_type).wont_match(/multipart/)
+        _(request_content_type).wont_match(/boundary/)
 
         # (2) The body is the exact raw bytes — not a multipart envelope, no
         # boundary delimiter, no Content-Disposition part header, not base64.
@@ -468,14 +468,14 @@ describe Petstore::Client::Api::PetApi do
               file: StringIO.new('doc-data'),
               document_type: 'vaccination_record'
             ),
-            content_type: selected
+            request_content_type: selected
           )
 
-          content_type = captured_content_type.pop
+          request_content_type = captured_content_type.pop
           sent = captured_body.pop.b
 
-          _(content_type).must_match(%r{\Amultipart/form-data})
-          _(content_type).must_match(/boundary=/)
+          _(request_content_type).must_match(%r{\Amultipart/form-data})
+          _(request_content_type).must_match(/boundary=/)
           _(sent).must_include 'Content-Disposition'
           _(sent).must_include 'doc-data'
         ensure
@@ -675,7 +675,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe 'error handling' do
-    def new_pet_api_for_mock(status, content_type, body)
+    def new_pet_api_for_mock(status, request_content_type, body)
       server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
@@ -689,7 +689,7 @@ describe Petstore::Client::Api::PetApi do
           while (line = client.gets)
             break if line.strip.empty?
           end
-          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
                      "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
           client.print(response)
           client.close
@@ -784,7 +784,7 @@ describe Petstore::Client::Api::PetApi do
   # template wrapped the already-encoded serializer output in a second
   # encode_path_segment pass, turning a space into %2520 instead of %20.
   describe 'path encoding' do
-    def capture_request_line(status, content_type, body)
+    def capture_request_line(status, request_content_type, body)
       server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       captured = Queue.new
@@ -798,7 +798,7 @@ describe Petstore::Client::Api::PetApi do
         while (line = client.gets)
           break if line.strip.empty?
         end
-        response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+        response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
                    "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
         client.print(response)
         client.close

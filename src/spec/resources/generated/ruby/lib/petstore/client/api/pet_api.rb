@@ -1234,16 +1234,16 @@ module Petstore::Client
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
-      # @param content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
+      # @param request_content_type [String, nil] selects the request Content-Type among the declared types (image/jpeg, image/png, application/json); defaults to 'image/jpeg' when nil
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar(pet_id, body, content_type: nil)
-        set_pet_avatar_with_http_info(pet_id, body, content_type: content_type).data
+      def set_pet_avatar(pet_id, body, request_content_type: nil)
+        set_pet_avatar_with_http_info(pet_id, body, request_content_type: request_content_type).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def set_pet_avatar_with_http_info(pet_id, body, content_type: nil)
+      def set_pet_avatar_with_http_info(pet_id, body, request_content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1268,7 +1268,7 @@ module Petstore::Client
         # whose resolved value already serializes correctly.
         request_body = ::Petstore::Client::ObjectSerializer.encode_oneof_body(body, 'File')
         # This operation declares multiple request content-types. The optional
-        # `content_type:` selector lets the caller choose among the declared
+        # `request_content_type:` selector lets the caller choose among the declared
         # types; when nil it defaults to the first declared type. An
         # unrecognised selector is rejected client-side so a typo never rides
         # the wire as an undeclared Content-Type (matching java/elixir and the
@@ -1277,13 +1277,13 @@ module Petstore::Client
         # supply a body the selected content-type accepts.
         declared_consumes = ['image/jpeg', 'image/png', 'application/json']
         resolved_content_type =
-          if content_type.nil?
+          if request_content_type.nil?
             declared_consumes.first
-          elsif declared_consumes.include?(content_type)
-            content_type
+          elsif declared_consumes.include?(request_content_type)
+            request_content_type
           else
             raise ArgumentError,
-                  "Unsupported request content-type '#{content_type}' for " \
+                  "Unsupported request content-type '#{request_content_type}' for " \
                   "set_pet_avatar; declared types are #{declared_consumes}"
           end
 
@@ -1523,11 +1523,11 @@ module Petstore::Client
       # Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
       # @param pet_id [Integer]
       # @param options [UploadPetDocumentOptions] options for query, header, form, and cookie parameters
-      # @param content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
+      # @param request_content_type [String, nil] selects the request Content-Type among the declared types (multipart/form-data, application/octet-stream); defaults to 'multipart/form-data' when nil
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, options, content_type: nil)
-        result = upload_pet_document_with_http_info(pet_id, options, content_type: content_type)
+      def upload_pet_document(pet_id, options, request_content_type: nil)
+        result = upload_pet_document_with_http_info(pet_id, options, request_content_type: request_content_type)
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -1546,7 +1546,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, options, content_type: nil)
+      def upload_pet_document_with_http_info(pet_id, options, request_content_type: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -1573,7 +1573,7 @@ module Petstore::Client
         request_body['takenAt'] = options.taken_at unless options.taken_at.nil?
         request_body['swatch'] = options.swatch unless options.swatch.nil?
         # This operation declares multiple request content-types. The optional
-        # `content_type:` selector lets the caller choose among the declared
+        # `request_content_type:` selector lets the caller choose among the declared
         # types; when nil it defaults to the first declared type. An
         # unrecognised selector is rejected client-side so a typo never rides
         # the wire as an undeclared Content-Type (matching java/elixir and the
@@ -1582,13 +1582,13 @@ module Petstore::Client
         # supply a body the selected content-type accepts.
         declared_consumes = ['multipart/form-data', 'application/octet-stream']
         resolved_content_type =
-          if content_type.nil?
+          if request_content_type.nil?
             declared_consumes.first
-          elsif declared_consumes.include?(content_type)
-            content_type
+          elsif declared_consumes.include?(request_content_type)
+            request_content_type
           else
             raise ArgumentError,
-                  "Unsupported request content-type '#{content_type}' for " \
+                  "Unsupported request content-type '#{request_content_type}' for " \
                   "upload_pet_document; declared types are #{declared_consumes}"
           end
 

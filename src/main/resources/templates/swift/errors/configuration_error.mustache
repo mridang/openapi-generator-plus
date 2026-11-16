@@ -15,7 +15,7 @@ import Foundation
 /// ``{{errorPrefix}}Error``.
 public enum ConfigurationError: Error, LocalizedError, Equatable {
     /// The proxy URL does not parse, is not http(s), or has no host.
-    case invalidProxyURL(String)
+    case invalidProxy(String)
     /// A server variable override is not one of the variable's enum values.
     case invalidServerVariable(variable: String, value: String, allowed: [String])
     /// The CA certificate file cannot be read or parsed.
@@ -35,7 +35,7 @@ public enum ConfigurationError: Error, LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidProxyURL(let url):
+        case .invalidProxy(let url):
             return "Invalid proxy URL: \(url)"
         case .invalidServerVariable(let variable, let value, let allowed):
             return "Invalid value '\(value)' for server variable '\(variable)'. Allowed values: \(allowed)"

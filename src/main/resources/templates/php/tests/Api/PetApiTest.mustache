@@ -48,9 +48,9 @@ beforeEach(function (): void {
     $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
 });
 
-function newPetApiForMock(int $statusCode, string $contentType, string $body): PetApi
+function newPetApiForMock(int $statusCode, string $requestContentType, string $body): PetApi
 {
-    $client = new PetMockApiClient($statusCode, $body, $contentType);
+    $client = new PetMockApiClient($statusCode, $body, $requestContentType);
     $config = Configuration::builder()
         ->baseUrl('http://localhost:9999')
         ->build();
@@ -207,7 +207,7 @@ test('set pet avatar', function (): void {
 });
 
 test('set pet avatar rejects an unrecognised request content-type', function (): void {
-    // An unknown $contentType must be rejected client-side, not passed onto the
+    // An unknown $requestContentType must be rejected client-side, not passed onto the
     // wire as an undeclared Content-Type.
     $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
     file_put_contents($tmpFile, "\xFF\xD8\xFF");
@@ -697,7 +697,7 @@ test('setPetAvatar streams raw bytes with declared content type', function (): v
 //
 // setPetAvatar (PUT /pet/{petId}/avatar) declares MULTIPLE request content
 // types — image/jpeg, image/png, application/json. The operation gains an
-// OPTIONAL trailing `?string $contentType = null` selector so the caller can
+// OPTIONAL trailing `?string $requestContentType = null` selector so the caller can
 // reach the non-first declared types instead of always collapsing to the
 // first. Two cases must hold:
 //   (1) omitting the selector keeps the FIRST declared type (image/jpeg) on

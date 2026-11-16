@@ -378,12 +378,12 @@ describe("PetApi", () => {
 
 function createMockServer(
   status: number,
-  contentType: string,
+  requestContentType: string,
   body: string,
 ): Promise<{ api: PetApi; server: http.Server; close: () => void }> {
   return new Promise((resolve) => {
     const server = http.createServer((_req, res) => {
-      res.writeHead(status, { "Content-Type": contentType });
+      res.writeHead(status, { "Content-Type": requestContentType });
       res.end(body);
     });
     server.listen(0, "127.0.0.1", () => {
@@ -761,16 +761,19 @@ describe("PetApi error handling", () => {
 describe("PetApi form-urlencoded body serialization", () => {
   function captureFormBody(): Promise<{
     api: PetApi;
-    getCapture: () => { body: string; contentType: string | undefined };
+    getCapture: () => { body: string; requestContentType: string | undefined };
     close: () => void;
   }> {
     return new Promise((resolve) => {
-      let captured = { body: "", contentType: undefined as string | undefined };
+      let captured = {
+        body: "",
+        requestContentType: undefined as string | undefined,
+      };
       const server = http.createServer((req, res) => {
         let body = "";
         req.on("data", (chunk: Buffer) => (body += chunk.toString("utf-8")));
         req.on("end", () => {
-          captured = { body, contentType: req.headers["content-type"] };
+          captured = { body, requestContentType: req.headers["content-type"] };
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end('{"code":200,"type":"ok","message":"saved"}');
         });
@@ -837,8 +840,8 @@ describe("PetApi form-urlencoded body serialization", () => {
         note: "very fast",
       };
       await api.setPetPreferences(1, options);
-      const { body, contentType } = getCapture();
-      expect(contentType).toContain("application/x-www-form-urlencoded");
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain("application/x-www-form-urlencoded");
       expect(body).toContain("nickname=good+boy");
       expect(body).toContain("note=very+fast");
       expect(body).not.toContain("%20");
@@ -894,18 +897,21 @@ describe("PetApi form-urlencoded body serialization", () => {
 describe("PetApi multipart model-part serialization", () => {
   function captureMultipartBody(): Promise<{
     api: PetApi;
-    getCapture: () => { body: string; contentType: string | undefined };
+    getCapture: () => { body: string; requestContentType: string | undefined };
     close: () => void;
   }> {
     return new Promise((resolve) => {
-      let captured = { body: "", contentType: undefined as string | undefined };
+      let captured = {
+        body: "",
+        requestContentType: undefined as string | undefined,
+      };
       const server = http.createServer((req, res) => {
         const chunks: Buffer[] = [];
         req.on("data", (chunk: Buffer) => chunks.push(chunk));
         req.on("end", () => {
           captured = {
             body: Buffer.concat(chunks).toString("utf-8"),
-            contentType: req.headers["content-type"],
+            requestContentType: req.headers["content-type"],
           };
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end('[{"id":1,"url":"u"}]');
@@ -943,8 +949,8 @@ describe("PetApi multipart model-part serialization", () => {
         // assertions below inspect the OUTGOING multipart body only.
       }
 
-      const { body, contentType } = getCapture();
-      expect(contentType).toContain("multipart/form-data");
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain("multipart/form-data");
 
       // Isolate the JSON `metadata` part from the multipart body.
       const metadataPart = body
@@ -977,7 +983,7 @@ describe("PetApi multipart model-part serialization", () => {
 
 // Cross-SDK content-type-selector parity — uploadPetDocument declares MULTIPLE
 // request content types (multipart/form-data AND application/octet-stream).
-// The per-call `contentType` argument MUST steer how the body is framed on the
+// The per-call `requestContentType` argument MUST steer how the body is framed on the
 // wire:
 //   * multipart/form-data  -> a multipart/form-data envelope (boundary, parts)
 //   * application/octet-stream -> the RAW file bytes verbatim, with no
@@ -988,13 +994,13 @@ describe("PetApi multipart model-part serialization", () => {
 describe("PetApi request content-type selector", () => {
   function captureRawBody(): Promise<{
     api: PetApi;
-    getCapture: () => { body: Buffer; contentType: string | undefined };
+    getCapture: () => { body: Buffer; requestContentType: string | undefined };
     close: () => void;
   }> {
     return new Promise((resolve) => {
       let captured = {
         body: Buffer.alloc(0),
-        contentType: undefined as string | undefined,
+        requestContentType: undefined as string | undefined,
       };
       const server = http.createServer((req, res) => {
         const chunks: Buffer[] = [];
@@ -1002,7 +1008,7 @@ describe("PetApi request content-type selector", () => {
         req.on("end", () => {
           captured = {
             body: Buffer.concat(chunks),
-            contentType: req.headers["content-type"],
+            requestContentType: req.headers["content-type"],
           };
           res.writeHead(200, { "Content-Type": "application/json" });
           res.end('{"code":200,"type":"ok","message":"stored"}');
@@ -1040,13 +1046,13 @@ describe("PetApi request content-type selector", () => {
         // the OUTGOING request framing only.
       }
 
-      const { body, contentType } = getCapture();
+      const { body, requestContentType } = getCapture();
 
       // The outbound Content-Type is the selected raw binary type, with no
       // multipart boundary parameter.
-      expect(contentType).toBe("application/octet-stream");
-      expect(contentType).not.toContain("multipart/form-data");
-      expect(contentType).not.toContain("boundary");
+      expect(requestContentType).toBe("application/octet-stream");
+      expect(requestContentType).not.toContain("multipart/form-data");
+      expect(requestContentType).not.toContain("boundary");
 
       // The body is the exact bytes handed in — byte-for-byte, no envelope.
       expect(Buffer.isBuffer(body)).toBe(true);
@@ -1083,9 +1089,9 @@ describe("PetApi request content-type selector", () => {
         // Canned response irrelevant; inspecting the OUTGOING framing only.
       }
 
-      const { body, contentType } = getCapture();
-      expect(contentType).toContain("multipart/form-data");
-      expect(contentType).toContain("boundary=");
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toContain("multipart/form-data");
+      expect(requestContentType).toContain("boundary=");
 
       const bodyText = body.toString("latin1");
       expect(bodyText).toContain("Content-Disposition: form-data");
@@ -1103,8 +1109,8 @@ describe("PetApi request content-type selector", () => {
         .setPetAvatar(1, bytes, "application/json")
         .catch(() => undefined);
 
-      const { body, contentType } = getCapture();
-      expect(contentType).toBe("application/json");
+      const { body, requestContentType } = getCapture();
+      expect(requestContentType).toBe("application/json");
       expect(body.equals(bytes)).toBe(true);
     } finally {
       close();
@@ -1400,24 +1406,24 @@ describe("PetApi against a recording client", () => {
   test.each([
     [
       "setPetAvatar",
-      (contentType: string) =>
+      (requestContentType: string) =>
         recordingApi.setPetAvatar(
           1,
           Buffer.from([1]),
-          contentType as "image/png",
+          requestContentType as "image/png",
         ),
       "Unsupported request content-type 'application/unknown-type' for setPetAvatar; declared types are [image/jpeg, image/png, application/json]",
     ],
     [
       "uploadPetDocument",
-      (contentType: string) =>
+      (requestContentType: string) =>
         recordingApi.uploadPetDocument(
           1,
           {
             file: Buffer.from([1]),
             documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
           },
-          contentType as "multipart/form-data",
+          requestContentType as "multipart/form-data",
         ),
       "Unsupported request content-type 'application/unknown-type' for uploadPetDocument; declared types are [multipart/form-data, application/octet-stream]",
     ],

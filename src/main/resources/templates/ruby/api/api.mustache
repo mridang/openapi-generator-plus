@@ -114,7 +114,7 @@ module {{moduleName}}
 {{/isOptions}}
 {{/vendorExtensions.op.signatureArgs}}
 {{#vendorExtensions.hasMultipleConsumes}}
-      # @param content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
+      # @param request_content_type [String, nil] selects the request Content-Type among the declared types ({{#consumes}}{{{mediaType}}}{{^-last}}, {{/-last}}{{/consumes}}); defaults to '{{vendorExtensions.op.effectiveConsumes}}' when nil
 {{/vendorExtensions.hasMultipleConsumes}}
       # @return [{{#isResponseFile}}StringIO{{/isResponseFile}}{{^isResponseFile}}{{{returnType}}}{{^returnType}}nil{{/returnType}}{{/isResponseFile}}]
       # @raise [ApiError] if fails to make API call
@@ -124,9 +124,9 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{{url}}} {{#lambda.rubyComment}}{{{description}}}{{/lambda.rubyComment}}
 {{/externalDocs}}
-      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+      def {{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#returnType}}
-        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
+        result = {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}})
         # This operation declares a non-void return type. When the server
         # responds with an empty/undecodable body (204, empty 200), the
         # unwrapped convenience method has no value to return. Surface this
@@ -143,7 +143,7 @@ module {{moduleName}}
         result.data
 {{/returnType}}
 {{^returnType}}
-        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
+        {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: request_content_type{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
 {{/returnType}}
       end
 
@@ -152,7 +152,7 @@ module {{moduleName}}
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
-      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+      def {{operationId}}_with_http_info({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}{{paramName}}{{#isBody}}{{#nullable}} = nil{{/nullable}}{{/isBody}}{{#isOptions}}{{#nullable}} = nil{{/nullable}}{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}{{#vendorExtensions.hasMultipleConsumes}}, request_content_type: nil{{/vendorExtensions.hasMultipleConsumes}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -337,7 +337,7 @@ module {{moduleName}}
 {{/hasFormParams}}
 {{#vendorExtensions.hasMultipleConsumes}}
         # This operation declares multiple request content-types. The optional
-        # `content_type:` selector lets the caller choose among the declared
+        # `request_content_type:` selector lets the caller choose among the declared
         # types; when nil it defaults to the first declared type. An
         # unrecognised selector is rejected client-side so a typo never rides
         # the wire as an undeclared Content-Type (matching java/elixir and the
@@ -346,13 +346,13 @@ module {{moduleName}}
         # supply a body the selected content-type accepts.
         declared_consumes = [{{#consumes}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/consumes}}]
         resolved_content_type =
-          if content_type.nil?
+          if request_content_type.nil?
             declared_consumes.first
-          elsif declared_consumes.include?(content_type)
-            content_type
+          elsif declared_consumes.include?(request_content_type)
+            request_content_type
           else
             raise ArgumentError,
-                  "Unsupported request content-type '#{content_type}' for " \
+                  "Unsupported request content-type '#{request_content_type}' for " \
                   "{{operationId}}; declared types are #{declared_consumes}"
           end
 

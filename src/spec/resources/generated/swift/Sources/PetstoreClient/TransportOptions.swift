@@ -160,20 +160,20 @@ public final class TransportOptionsBuilder {
   ///
   /// Only HTTP and HTTPS proxy URLs are supported.
   ///
-  /// - Throws: ``ConfigurationError/invalidProxyURL(_:)`` if the URL is not valid
+  /// - Throws: ``ConfigurationError/invalidProxy(_:)`` if the URL is not valid
   ///   or does not use the http or https scheme.
   @discardableResult
   public func proxy(_ val: String?) throws -> TransportOptionsBuilder {
     if let val = val, !val.isEmpty {
       guard let parsed = URL(string: val) else {
-        throw ConfigurationError.invalidProxyURL(val)
+        throw ConfigurationError.invalidProxy(val)
       }
       let scheme = parsed.scheme?.lowercased() ?? ""
       guard scheme == "http" || scheme == "https" else {
-        throw ConfigurationError.invalidProxyURL(val)
+        throw ConfigurationError.invalidProxy(val)
       }
       guard let host = parsed.host, !host.isEmpty else {
-        throw ConfigurationError.invalidProxyURL(val)
+        throw ConfigurationError.invalidProxy(val)
       }
       self.proxy = parsed
     } else {

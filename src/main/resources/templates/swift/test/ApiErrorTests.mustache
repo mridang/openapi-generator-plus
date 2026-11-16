@@ -260,7 +260,7 @@ import Testing
         // not an API failure, so ConfigurationError and
         // OAuth2AuthorizationCodeError conform to plain Error only.
         let errors: [any Error] = [
-            ConfigurationError.invalidProxyURL("://bad"),
+            ConfigurationError.invalidProxy("://bad"),
             ConfigurationError.invalidServerVariable(variable: "region", value: "mars", allowed: ["us", "eu"]),
             ConfigurationError.invalidCACertificate("missing"),
             ConfigurationError.proxyUnsupported,

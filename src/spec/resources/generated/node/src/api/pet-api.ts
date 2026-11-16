@@ -1801,15 +1801,15 @@ export class PetApi extends BaseApi {
    * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * @param petId  (required)
    * @param body  (required)
-   * @param contentType optional request Content-Type; one of image/jpeg, image/png, application/json. Defaults to the first declared type (image/jpeg) when omitted.
+   * @param requestContentType optional request Content-Type; one of image/jpeg, image/png, application/json. Defaults to the first declared type (image/jpeg) when omitted.
    * @throws {ApiError} if fails to make API call
    */
   async setPetAvatar(
     petId: number,
     body: Buffer,
-    contentType?: "image/jpeg" | "image/png" | "application/json",
+    requestContentType?: "image/jpeg" | "image/png" | "application/json",
   ): Promise<void> {
-    await this.setPetAvatarWithHttpInfo(petId, body, contentType);
+    await this.setPetAvatarWithHttpInfo(petId, body, requestContentType);
   }
 
   /**
@@ -1819,7 +1819,7 @@ export class PetApi extends BaseApi {
   async setPetAvatarWithHttpInfo(
     petId: number,
     body: Buffer,
-    contentType?: "image/jpeg" | "image/png" | "application/json",
+    requestContentType?: "image/jpeg" | "image/png" | "application/json",
   ): Promise<ApiResult<void>> {
     if (petId == null) {
       throw new TypeError(
@@ -1847,9 +1847,9 @@ export class PetApi extends BaseApi {
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     /* This operation declares more than one request content-type. The optional
-     * contentType selector lets the caller pick among the declared types; when
+     * requestContentType selector lets the caller pick among the declared types; when
      * omitted it defaults to the first declared type. The TypeScript signature
-     * already narrows contentType to the declared union, but a plain-JS or
+     * already narrows requestContentType to the declared union, but a plain-JS or
      * `as any` caller can bypass that compile-time check, so reject an
      * unrecognised selector at runtime too — a typo must never ride the wire as
      * an undeclared Content-Type (matching java/python and the other SDKs). */
@@ -1858,9 +1858,12 @@ export class PetApi extends BaseApi {
       "image/png",
       "application/json",
     ];
-    if (contentType != null && !declaredContentTypes.includes(contentType)) {
+    if (
+      requestContentType != null &&
+      !declaredContentTypes.includes(requestContentType)
+    ) {
       throw new TypeError(
-        `Unsupported request content-type '${contentType}' for setPetAvatar; declared types are [${declaredContentTypes.join(", ")}]`,
+        `Unsupported request content-type '${requestContentType}' for setPetAvatar; declared types are [${declaredContentTypes.join(", ")}]`,
       );
     }
     return await this.invokeApiForResult(
@@ -1870,7 +1873,7 @@ export class PetApi extends BaseApi {
       headerParams,
       body,
       [],
-      contentType ?? "image/jpeg",
+      requestContentType ?? "image/jpeg",
       null,
       undefined,
       true,
@@ -2204,19 +2207,19 @@ export class PetApi extends BaseApi {
    * @param options.pageCount  (optional)
    * @param options.takenAt  (optional)
    * @param options.swatch  (optional)
-   * @param contentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
+   * @param requestContentType optional request Content-Type; one of multipart/form-data, application/octet-stream. Defaults to the first declared type (multipart/form-data) when omitted.
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
   async uploadPetDocument(
     petId: number,
     options: UploadPetDocumentOptions,
-    contentType?: "multipart/form-data" | "application/octet-stream",
+    requestContentType?: "multipart/form-data" | "application/octet-stream",
   ): Promise<ApiResponse> {
     const uploadPetDocumentResult = await this.uploadPetDocumentWithHttpInfo(
       petId,
       options,
-      contentType,
+      requestContentType,
     );
     /* convenience-empty-body-handling: a body-returning operation that
      * receives no decodable body (204 / empty / null) must surface a
@@ -2240,7 +2243,7 @@ export class PetApi extends BaseApi {
   async uploadPetDocumentWithHttpInfo(
     petId: number,
     options: UploadPetDocumentOptions,
-    contentType?: "multipart/form-data" | "application/octet-stream",
+    requestContentType?: "multipart/form-data" | "application/octet-stream",
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new TypeError(
@@ -2300,14 +2303,14 @@ export class PetApi extends BaseApi {
      * type (a plain object becomes multipart; a Buffer is sent verbatim), so
      * we hand it the Buffer directly when the caller did not pick multipart. */
     const requestBody: Record<string, unknown> | Buffer | null =
-      (contentType ?? "multipart/form-data") === "multipart/form-data"
+      (requestContentType ?? "multipart/form-data") === "multipart/form-data"
         ? formBody
         : (options?.file ?? null);
 
     /* This operation declares more than one request content-type. The optional
-     * contentType selector lets the caller pick among the declared types; when
+     * requestContentType selector lets the caller pick among the declared types; when
      * omitted it defaults to the first declared type. The TypeScript signature
-     * already narrows contentType to the declared union, but a plain-JS or
+     * already narrows requestContentType to the declared union, but a plain-JS or
      * `as any` caller can bypass that compile-time check, so reject an
      * unrecognised selector at runtime too — a typo must never ride the wire as
      * an undeclared Content-Type (matching java/python and the other SDKs). */
@@ -2315,9 +2318,12 @@ export class PetApi extends BaseApi {
       "multipart/form-data",
       "application/octet-stream",
     ];
-    if (contentType != null && !declaredContentTypes.includes(contentType)) {
+    if (
+      requestContentType != null &&
+      !declaredContentTypes.includes(requestContentType)
+    ) {
       throw new TypeError(
-        `Unsupported request content-type '${contentType}' for uploadPetDocument; declared types are [${declaredContentTypes.join(", ")}]`,
+        `Unsupported request content-type '${requestContentType}' for uploadPetDocument; declared types are [${declaredContentTypes.join(", ")}]`,
       );
     }
     return await this.invokeApiForResult(
@@ -2327,7 +2333,7 @@ export class PetApi extends BaseApi {
       headerParams,
       requestBody,
       ["application/json"],
-      contentType ?? "multipart/form-data",
+      requestContentType ?? "multipart/form-data",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
       undefined,
     );

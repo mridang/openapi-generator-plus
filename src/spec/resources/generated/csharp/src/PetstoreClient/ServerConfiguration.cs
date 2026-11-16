@@ -26,8 +26,8 @@ namespace PetstoreClient;
 /// <param name="variables">Map of variable names to their definitions.</param>
 public sealed class ServerConfiguration(
     string urlTemplate,
-    string? description,
-    Dictionary<string, ServerVariable> variables
+    string? description = null,
+    Dictionary<string, ServerVariable>? variables = null
 )
 {
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class ServerConfiguration(
     /// </summary>
     public IReadOnlyDictionary<string, ServerVariable> Variables { get; } =
         new ReadOnlyDictionary<string, ServerVariable>(
-            new Dictionary<string, ServerVariable>(variables)
+            new Dictionary<string, ServerVariable>(variables ?? [])
         );
 
     /// <summary>
@@ -111,4 +111,20 @@ public sealed record ServerVariable(
     string DefaultValue,
     string? Description,
     IReadOnlyList<string> EnumValues
-);
+)
+{
+    /// <summary>
+    /// Create a server variable with no description and no restriction on its values.
+    /// </summary>
+    /// <param name="defaultValue">The default value used when no override is provided.</param>
+    public ServerVariable(string defaultValue)
+        : this(defaultValue, null, []) { }
+
+    /// <summary>
+    /// Create a server variable with a description and no restriction on its values.
+    /// </summary>
+    /// <param name="defaultValue">The default value used when no override is provided.</param>
+    /// <param name="description">Human-readable description of the variable, or <c>null</c>.</param>
+    public ServerVariable(string defaultValue, string? description)
+        : this(defaultValue, description, []) { }
+}

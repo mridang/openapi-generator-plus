@@ -200,7 +200,7 @@ describe {{moduleName}}::Api::StoreApi do
   end
 
   describe '#get_grouped_categories' do
-    def new_store_api_for_mock(status, content_type, body)
+    def new_store_api_for_mock(status, request_content_type, body)
       server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
@@ -214,7 +214,7 @@ describe {{moduleName}}::Api::StoreApi do
           while (line = client.gets)
             break if line.strip.empty?
           end
-          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
                      "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
           client.print(response)
           client.close
@@ -249,7 +249,7 @@ describe {{moduleName}}::Api::StoreApi do
   end
 
   describe 'error handling' do
-    def new_store_api_for_mock(status, content_type, body)
+    def new_store_api_for_mock(status, request_content_type, body)
       server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       port = server.addr[1]
       thread = Thread.new do
@@ -263,7 +263,7 @@ describe {{moduleName}}::Api::StoreApi do
           while (line = client.gets)
             break if line.strip.empty?
           end
-          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{request_content_type}\r\n" \
                      "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
           client.print(response)
           client.close

@@ -971,7 +971,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         // MULTIPLE request content-types (e.g. setPetAvatar: image/jpeg,
         // image/png, application/json) otherwise collapses to the first
         // declared type (effectiveConsumes) with no way to reach the others.
-        // Expose an OPTIONAL trailing `contentType` parameter, typed as a
+        // Expose an OPTIONAL trailing `requestContentType` parameter, typed as a
         // union literal of the declared content-types, so the caller can pick
         // among them. When omitted it defaults to the first declared type, so
         // every existing positional call site keeps compiling unchanged.
@@ -993,7 +993,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 co.put("mediaType", mediaType);
                 consumeOptions.add(co);
             }
-            fields.add(wrapperField("contentType", union.toString(), true));
+            fields.add(wrapperField("requestContentType", union.toString(), true));
             d.put("hasContentTypeSelector", true);
             d.put("contentTypeOptions", consumeOptions);
         } else {

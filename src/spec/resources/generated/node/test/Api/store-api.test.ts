@@ -111,12 +111,12 @@ describe("StoreApi", () => {
 
 function createMockServer(
   status: number,
-  contentType: string,
+  requestContentType: string,
   body: string,
 ): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
   return new Promise((resolve) => {
     const server = http.createServer((_req, res) => {
-      res.writeHead(status, { "Content-Type": contentType });
+      res.writeHead(status, { "Content-Type": requestContentType });
       res.end(body);
     });
     server.listen(0, "127.0.0.1", () => {
