@@ -643,6 +643,62 @@ mod tests {
         }
     }
 
+    /// Records the `Accept` header of the one request it receives.
+    struct AcceptCapturingClient {
+        accept: std::sync::Mutex<Option<String>>,
+    }
+
+    impl ApiClient for AcceptCapturingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            *self.accept.lock().unwrap() = headers.get("Accept").cloned();
+            let response = ApiHttpResponse::new(200, "{}".to_string(), HashMap::new());
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    /* F1121: an explicit `Accept` header parameter beats both the configured
+     * default (`text/plain`) and the negotiated value (`application/json`). */
+    #[tokio::test]
+    async fn test_header_param_accept_wins_over_the_default_and_the_negotiated_accept() {
+        let client = Arc::new(AcceptCapturingClient { accept: std::sync::Mutex::new(None) });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .default_header("Accept", "text/plain")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let mut header_params = HashMap::new();
+        header_params.insert("Accept".to_string(), "application/xml".to_string());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: "/items",
+            query_params: Vec::new(),
+            header_params,
+            body: None,
+            multipart: None,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+        };
+
+        api.invoke_api(params).await.expect("a 200 response must succeed");
+
+        assert_eq!(Some("application/xml".to_string()), *client.accept.lock().unwrap());
+    }
+
     /// Runs a String-returning operation against a response with the given
     /// body and Content-Type and returns the decoded value.
     async fn string_result(body: &str, content_type: &str) -> Option<String> {

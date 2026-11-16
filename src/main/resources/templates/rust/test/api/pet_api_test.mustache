@@ -1297,6 +1297,90 @@ async fn test_pet_api_upload_pet_document_octet_stream_sends_raw_body() {
     );
 }
 
+/* D36, F1125: the scalar multipart parts of upload_pet_document are plain text
+ * parts with no part Content-Type of their own. */
+#[tokio::test]
+async fn test_pet_api_upload_pet_document_scalar_parts_are_plain_text() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let taken_at: {{packageName}}::date_time::DateTime = "2024-01-15T10:30:00+00:00"
+        .parse()
+        .expect("a valid instant");
+    let opts = UploadPetDocumentOptions::new(vec![1, 2, 3])
+        .is_primary(true)
+        .page_count(3)
+        .taken_at(taken_at)
+        .swatch(Swatch::Red);
+
+    let _ = api.upload_pet_document(1, Some(&opts), None).await;
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (_, body) = split_http_request(&raw);
+    let body_text = String::from_utf8_lossy(body).to_string();
+    for (name, value) in [
+        ("isPrimary", "true"),
+        ("pageCount", "3"),
+        ("takenAt", "2024-01-15T10:30:00.000+00:00"),
+        ("swatch", "red"),
+    ] {
+        let expected = format!("Content-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n", name, value);
+        assert!(body_text.contains(&expected), "missing part {}: {:?}", name, body_text);
+    }
+}
+
+/* F1158: the matrix `petId` and label `tagName` path styles reach the URL. */
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_path_styles_reach_the_url() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api.get_pet_tag(5, "cute".to_string(), None).await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(urls[0].ends_with("/pet/;petId=5/tag/.cute"), "{}", urls[0]);
+}
+
+/* F1158: the deepObject `filter` map is expanded per key in key order. */
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_filter_is_a_deep_object() {
+    let (api, client) = new_pet_api_recording_urls();
+    let mut filter = HashMap::new();
+    filter.insert("size".to_string(), "large".to_string());
+    filter.insert("color".to_string(), "blue".to_string());
+    let _ = api
+        .find_pets_by_status(Some(&FindPetsByStatusOptions::new().filter(filter)))
+        .await;
+
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("filter%5Bcolor%5D=blue&filter%5Bsize%5D=large"),
+        "{}",
+        urls[0]
+    );
+}
+
+/* F1155: the deprecation markers sit on the declarations the spec deprecates:
+ * an operation, an Options parameter, a model and a property. */
+#[test]
+fn test_deprecated_elements_carry_the_deprecated_attribute() {
+    let squash = |text: &str| text.split_whitespace().collect::<String>();
+    let api = squash(include_str!("../src/api/pet_api.rs"));
+    for operation in ["find_pets_by_status", "get_pet_by_id"] {
+        assert!(
+            api.contains(&format!("#[deprecated]pubasyncfn{}_with_http_info(", operation)),
+            "{operation} must carry #[deprecated]"
+        );
+    }
+    let options = squash(include_str!("../src/api/options/find_pets_by_status_options.rs"));
+    assert!(options.contains("#[deprecated]pubstatus:"), "the status option must be deprecated");
+    let tag = squash(include_str!("../src/models/tag.rs"));
+    assert!(tag.contains("#[deprecated(note=\"Thisschemaisdeprecated.\")]"), "Tag must be deprecated");
+    let pet = squash(include_str!("../src/models/pet.rs"));
+    assert!(
+        pet.contains("#[deprecated(note=\"Thispropertyisdeprecated.\")]#[serde(rename=\"status\""),
+        "Pet.status must be deprecated"
+    );
+}
+
 /// Records the URL of every request and answers with an empty JSON object.
 struct UrlRecordingApiClient {
     urls: std::sync::Mutex<Vec<String>>,
