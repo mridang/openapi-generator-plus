@@ -145,6 +145,25 @@ describe {{moduleName}}::Api::PetApi do
     end
   end
 
+  # F1158: a deepObject query parameter reaches the wire as bracketed keys.
+  describe '#find_pets_by_status deepObject filter' do
+    it 'sends filter[key]=value pairs' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status(
+          {{moduleName}}::Api::Options::FindPetsByStatusOptions.new(filter: { 'color' => 'brown', 'size' => 'large' })
+        )
+        line = captured.pop[:request_line]
+
+        _(line).must_include 'filter%5Bcolor%5D=brown'
+        _(line).must_include 'filter%5Bsize%5D=large'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#get_pet_by_id' do
     it 'returns a pet by id' do
       result = @api.get_pet_by_id(1)
