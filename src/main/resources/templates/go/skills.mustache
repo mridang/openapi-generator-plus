@@ -266,6 +266,34 @@ transport, err := {{packageName}}.NewTransportOptionsBuilder().
 
 A 401 on an OAuth2 or OpenID Connect request calls `InvalidateAccessToken` on the authenticator (the refresh token is kept) and replays the request once; a second 401 is an `UnauthorizedError`.
 
+### Custom HTTP client
+
+```go
+httpClient := &http.Client{Transport: &http.Transport{}}
+transport, err := {{packageName}}.NewTransportOptionsBuilder().
+    HttpClient(httpClient).
+    Build()
+```
+
+The SDK sends every request through your client (anything with a `Do(*http.Request)` method; `RoundTripper(rt)` wraps an `http.RoundTripper`) and never closes it. Combining it with `Proxy`, `CACertPath` or `VerifySsl(false)` fails at `Build()` with `ErrTransportConflict`.
+
+### Cancellation
+
+Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request and the error satisfies `errors.Is(err, context.Canceled)`. It is never reported as `NetworkTimeoutError`.
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+go func() { time.Sleep(time.Second); cancel() }()
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#returnType}}_, {{/returnType}}{{/-first}}{{/operation}}err := client.{{baseName}}.{{#operation}}{{#-first}}{{operationId}}(ctx{{#vendorExtensions.op.signatureArgs}}, {{#isPath}}{{paramName}}{{/isPath}}{{#isBody}}{{paramName}}{{/isBody}}{{#isOptions}}nil{{/isOptions}}{{#isServer}}nil{{/isServer}}{{/vendorExtensions.op.signatureArgs}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+if errors.Is(err, context.Canceled) {
+    fmt.Println("cancelled")
+}
+```
+
+### Raw responses, timeouts and the request id
+
+Each operation has a `...WithHTTPInfo` variant returning `*ApiResult[T]` (`StatusCode`, `Data`, `RawBody`, `Headers`). `Timeout` is one end-to-end budget in positive milliseconds. An `X-Request-ID` header is added to each request unless you set one.
+
 ## API Methods
 
 Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request (`errors.Is(err, context.Canceled)`), and `client.Close()` cancels every request in flight. Each API group is exposed as a typed field on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{baseName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
