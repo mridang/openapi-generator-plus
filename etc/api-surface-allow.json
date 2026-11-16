@@ -1939,6 +1939,125 @@
     "swift"
    ],
    "reason": "tracked as F1179 (parked F699): swift still has proxyUnsupported and tlsOptionsUnsupported where D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout"
+  },
+  {
+   "element": [
+    "*authenticator.invalidateaccesstoken"
+   ],
+   "aspect": "member",
+   "languages": [
+    "kotlin",
+    "php",
+    "swift",
+    "rust"
+   ],
+   "reason": "tracked as F1180: a public invalidateAccessToken on every authenticator (F855, the 401 drop-and-replay) exists in kotlin, php, swift and rust only; ruby, node, dart, python, go, java, csharp and elixir skipped F855, so the shared 401 behaviour and its public name are still undecided"
+  },
+  {
+   "element": [
+    "accesstokeninvalidating"
+   ],
+   "aspect": "type",
+   "languages": [
+    "swift"
+   ],
+   "reason": "tracked as F1180: the swift protocol that carries the F855 public invalidateAccessToken (swift/AGENTS.md batch 7); goes away or becomes common once the 401 invalidation API is decided for all SDKs"
+  },
+  {
+   "element": [
+    "*authenticator.injectapiclient",
+    "oauth2tokenmanager.ensureapiclient"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "F856 (rust/AGENTS.md batch 7): the other SDKs hand a per-call authenticator the transport through setApiClient, but rust's set_api_client takes &mut self and a per-call authenticator is a shared Arc<dyn Authenticator>, so the borrow rules force a &self hook (inject_api_client) and a store-if-empty helper (ensure_api_client)"
+  },
+  {
+   "element": [
+    "requestoptions.skipdefaultheaders"
+   ],
+   "aspect": "member",
+   "languages": [
+    "rust"
+   ],
+   "reason": "tracked as F1181: F860/F1075 add a public RequestOptions::skip_default_headers flag in rust only; kotlin, php and swift tie the same behaviour to the existing noRedirect token request, so the flag could be dropped or made non-public"
+  },
+  {
+   "element": [
+    "transportoptions.maskuserinfo",
+    "transportoptions.sensitiveheader"
+   ],
+   "aspect": "member",
+   "languages": [
+    "ruby"
+   ],
+   "reason": "D79, S15 (ruby/AGENTS.md): mask_userinfo and sensitive_header? are class helpers that DefaultApiClient also calls, and ruby has no package-private visibility, so they stay public (the other SDKs keep them internal or private)"
+  },
+  {
+   "element": [
+    "error",
+    "result",
+    "modelerror",
+    "modelresult"
+   ],
+   "aspect": "type",
+   "languages": [
+    "node"
+   ],
+   "reason": "D45, F173, F1131 (node/AGENTS.md): node generates a schema named Error or Result as ModelError or ModelResult (BetterNodeCodegen.toModelName) so the global Error is never shadowed; API_SURFACE.md D01-D04 list only java, swift and rust for this prefix"
+  },
+  {
+   "element": [
+    "explodedobject"
+   ],
+   "aspect": "type",
+   "languages": [
+    "node",
+    "dart"
+   ],
+   "reason": "F1143, D47: node and dart return one value per parameter from the serializer (string, list or this marker), so an exploded form object needs a marker type for the query builder to expand; the other SDKs build the pairs without a dedicated type"
+  },
+  {
+   "element": [
+    "explodedobject.entries"
+   ],
+   "aspect": "member",
+   "languages": [
+    "dart"
+   ],
+   "reason": "tracked as F1182: node's ExplodedObject exposes `entries` while dart's exposes `pairs` for the same data; the field name should be aligned"
+  },
+  {
+   "element": [
+    "explodedobject.pairs"
+   ],
+   "aspect": "member",
+   "languages": [
+    "node"
+   ],
+   "reason": "tracked as F1182: dart's ExplodedObject exposes `pairs` while node's exposes `entries` for the same data; the field name should be aligned"
+  },
+  {
+   "element": [
+    "explodedobject.<ctor>"
+   ],
+   "aspect": "ctor",
+   "languages": [
+    "dart"
+   ],
+   "reason": "tracked as F1182: dart's ExplodedObject constructor argument is named pairs, node's is entries; the name should be aligned"
+  },
+  {
+   "element": [
+    "valueserializer.maybeallowreserved"
+   ],
+   "aspect": "returns",
+   "languages": [
+    "node"
+   ],
+   "reason": "F1143, D47: node's maybeAllowReserved returns a union (string, string[], ExplodedObject, AllowReservedValue), whose first SDK type is ExplodedObject; the others return only the allow-reserved wrapper"
   }
  ]
 }

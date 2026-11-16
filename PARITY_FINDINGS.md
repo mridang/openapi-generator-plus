@@ -2,7 +2,7 @@
 
 Source of truth: `PARITY_FINDINGS.json` (edit with `etc/parity-findings.py`). Findings came from independent reviewers and are CLAIMS until marked otherwise: they were not deduplicated or verified when imported.
 
-Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 272, parked 13, partial 5. Severity: critical 3, high 69, medium 796, low 311.
+Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 4, needs-spec 2, open 275, parked 13, partial 5. Severity: critical 3, high 69, medium 797, low 313.
 
 | ID | Sev | Status | Lens | SDKs | Title |
 |---|---|---|---|---|---|
@@ -1185,6 +1185,9 @@ Status counts: deferred 117, duplicate 88, false-positive 81, fixed 597, forced 
 | F1177 | medium | open | api-surface | java, csharp | java and csharp expose a public ApiException.forUnusableResponse factory the other ten SDKs do not have |
 | F1178 | low | open | api-surface | java | java Model.setAdditionalProperty is public although API_SURFACE.md D51 says java drops it |
 | F1179 | low | open | api-surface | swift | swift ConfigurationError still has proxyUnsupported and tlsOptionsUnsupported although D76 folds them into invalidProxy and invalidCaCertificate and adds invalidTimeout |
+| F1180 | medium | open | api-surface | kotlin, php, swift, rust | invalidateAccessToken (401 drops the cached OAuth token) is public on the authenticators of kotlin, php, swift and rust only |
+| F1181 | low | open | api-surface | rust | rust-only public RequestOptions::skip_default_headers where kotlin, php and swift key the same behaviour off the noRedirect token request |
+| F1182 | low | open | api-surface | node, dart | ExplodedObject differs between node (entries) and dart (pairs): public field and constructor naming not aligned |
 
 ## F001 [critical] kotlin query-string and form-body encoder leaves & = + # / ? [ ] literal (param injection, '+' decoded as space, '#' truncates URL)
 - Status: **fixed** | Lens: L01-value-serializer | Category: wire | Unit-testable (reviewer's view): True
@@ -12894,3 +12897,24 @@ API_SURFACE.md D51 says java has no setAdditionalProperty because every SDK expo
 
 A decided harmonisation (D76) is not implemented in swift (parked as F699 in swift/AGENTS.md). Implement it so the case set matches the other SDKs.
 - `etc/api-surface.py` — etc/api-surface.py check output, configurationerror cases
+
+## F1180 [medium] invalidateAccessToken (401 drops the cached OAuth token) is public on the authenticators of kotlin, php, swift and rust only
+- Status: **open** | Lens: api-surface | Category: api-shape | Unit-testable (reviewer's view): True
+- SDKs: kotlin, php, swift, rust
+
+F855 was implemented in four SDKs with a public invalidateAccessToken (swift also a public AccessTokenInvalidating protocol); the other eight SDKs do not have it. Decide the public name and shape once and implement it everywhere (or keep it internal), then drop the allow rules tracked as NEW-A.
+- `etc/api-surface-allow.json` — tracked as NEW-A
+
+## F1181 [low] rust-only public RequestOptions::skip_default_headers where kotlin, php and swift key the same behaviour off the noRedirect token request
+- Status: **open** | Lens: api-surface | Category: api-shape | Unit-testable (reviewer's view): False
+- SDKs: rust
+
+Token and OIDC discovery requests skip the transport default headers via a new public RequestOptions::skip_default_headers in rust, but via the existing noRedirect flag in kotlin, php and swift. Align them or make the rust option non-public.
+- `etc/api-surface-allow.json` — tracked as NEW-B
+
+## F1182 [low] ExplodedObject differs between node (entries) and dart (pairs): public field and constructor naming not aligned
+- Status: **open** | Lens: api-surface | Category: api-shape | Unit-testable (reviewer's view): False
+- SDKs: node, dart
+
+The exploded-object marker type returned by the value serializer exposes entries (array of tuples) in node and pairs (a Map) in dart. Align the names or make the type internal.
+- `etc/api-surface-allow.json` — tracked as NEW-C

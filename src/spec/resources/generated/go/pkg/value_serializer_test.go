@@ -16,7 +16,6 @@ import (
 	"time"
 
 	pkgerrors "petstore/pkg/errors"
-	"petstore/pkg/models"
 )
 
 // An optional integer, number or boolean parameter is a pointer in the Options
@@ -1083,15 +1082,22 @@ func TestPathEncodingParity_PercentSignIsEncoded(t *testing.T) {
 	}
 }
 
+// styledCriteria is a stand-in model: the property names are snake case so the test
+// proves the wire name, not the Go field name, reaches the request.
+type styledCriteria struct {
+	Breed  *string `json:"breed,omitempty"`
+	MinAge *int32  `json:"min_age,omitempty"`
+}
+
 // D47/F1143: an object-valued parameter is encoded property by property, in the
 // model's declaration order, whatever its wire names (min_age is snake case).
 func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
-	criteria := &models.PetCriteria{Breed: &breed, MinAge: &minAge}
+	criteria := &styledCriteria{Breed: &breed, MinAge: &minAge}
 
-	exploded, ok := serializeStyled("criteria", criteria, "query", "PetCriteria", "", "form", true).(queryPairs)
+	exploded, ok := serializeStyled("criteria", criteria, "query", "styledCriteria", "", "form", true).(queryPairs)
 	if !ok || len(exploded) != 2 || exploded[0] != [2]string{"breed", "lab"} || exploded[1] != [2]string{"min_age", "3"} {
 		t.Errorf("expected breed=lab then min_age=3, got %v", exploded)
 	}
@@ -1110,7 +1116,7 @@ func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 		{"pipe delimited", "query", "pipeDelimited", false, "breed|lab|min_age|3"},
 	}
 	for _, tc := range cases {
-		if got := serializeStyled("criteria", criteria, tc.location, "PetCriteria", "", tc.style, tc.explode); got != tc.want {
+		if got := serializeStyled("criteria", criteria, tc.location, "styledCriteria", "", tc.style, tc.explode); got != tc.want {
 			t.Errorf("%s: expected %q, got %v", tc.name, tc.want, got)
 		}
 	}
@@ -1118,7 +1124,7 @@ func TestSerializeStyled_ObjectValuedParameterFollowsItsStyle(t *testing.T) {
 
 func TestSerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
 	t.Parallel()
-	if got := serializeStyled("criteria", &models.PetCriteria{}, "query", "PetCriteria", "", "form", true); got != nil {
+	if got := serializeStyled("criteria", &styledCriteria{}, "query", "styledCriteria", "", "form", true); got != nil {
 		t.Errorf("expected the parameter to be omitted, got %v", got)
 	}
 }
@@ -1127,7 +1133,7 @@ func TestSerializeDeepObject_ModelBecomesBracketedKeys(t *testing.T) {
 	t.Parallel()
 	breed := "lab"
 	minAge := int32(3)
-	got := serializeDeepObject("criteriaDeep", &models.PetCriteria{Breed: &breed, MinAge: &minAge})
+	got := serializeDeepObject("criteriaDeep", &styledCriteria{Breed: &breed, MinAge: &minAge})
 	if len(got) != 2 || got["criteriaDeep[breed]"] != "lab" || got["criteriaDeep[min_age]"] != "3" {
 		t.Errorf("expected criteriaDeep[breed]=lab and criteriaDeep[min_age]=3, got %v", got)
 	}
