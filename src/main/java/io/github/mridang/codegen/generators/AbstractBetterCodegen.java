@@ -69,6 +69,7 @@ import org.openapitools.codegen.utils.ModelUtils;
 
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
+import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
 
 import org.slf4j.Logger;
@@ -670,6 +671,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // endpoints baked into the petstore spec don't generate junk SDK
         // methods. No-op when the spec contains no x-internal operations.
         new DropInternalOperationsRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        // F1062 — an operation with several distinct 2xx schemas gets a synthesised
+        // oneOf result union plus a status-to-variant mapping (see
+        // MultipleSuccessResponsesRule); single-schema operations are untouched.
+        new MultipleSuccessResponsesRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         detectSecuritySchemes(openAPI);
         additionalProperties.put("hasBasicAuth", hasBasicAuth);
         additionalProperties.put("hasBearerAuth", hasBearerAuth);
@@ -3251,6 +3256,60 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Exposes the status-to-variant mapping recorded by
+     * {@link MultipleSuccessResponsesRule}: {@code hasMultiple2xx},
+     * {@code successUnionType}, {@code successResponses} (one row per 2xx
+     * status code, ascending, a {@code 2XX} range last: {@code statusCode},
+     * {@code returnType}, {@code isRange}, {@code variantIndex},
+     * {@code isFirst}, {@code isLast}) and {@code successVariants} (one row
+     * per distinct schema: {@code returnType}, {@code statusCodes}).
+     * Single-schema operations get {@code hasMultiple2xx=false} and empty lists.
+     */
+    private void populateSuccessResponses(CodegenOperation op, Map<String, Object> d) {
+        final Object raw = op.vendorExtensions.get(MultipleSuccessResponsesRule.X_SUCCESS_RESPONSES);
+        final List<Map<String, Object>> rows = new ArrayList<>();
+        final List<Map<String, Object>> variants = new ArrayList<>();
+        if (raw instanceof List<?>) {
+            final Map<String, Map<String, Object>> byType = new java.util.LinkedHashMap<>();
+            for (final Object item : (List<?>) raw) {
+                final Map<?, ?> entry = (Map<?, ?>) item;
+                final String status = String.valueOf(entry.get("status"));
+                final String type =
+                        getTypeDeclaration(new Schema<>().$ref(String.valueOf(entry.get("ref"))));
+                final Map<String, Object> variant =
+                        byType.computeIfAbsent(
+                                type,
+                                t -> {
+                                    final Map<String, Object> v = new java.util.LinkedHashMap<>();
+                                    v.put("returnType", t);
+                                    v.put("statusCodes", new ArrayList<String>());
+                                    return v;
+                                });
+                @SuppressWarnings("unchecked")
+                final List<String> codes = (List<String>) variant.get("statusCodes");
+                if (codes != null) {
+                    codes.add(status);
+                }
+                final Map<String, Object> row = new java.util.LinkedHashMap<>();
+                row.put("statusCode", status);
+                row.put("returnType", type);
+                row.put("isRange", status.endsWith("XX"));
+                row.put("variantIndex", new ArrayList<>(byType.keySet()).indexOf(type));
+                rows.add(row);
+            }
+            variants.addAll(byType.values());
+            for (int i = 0; i < rows.size(); i++) {
+                rows.get(i).put("isFirst", i == 0);
+                rows.get(i).put("isLast", i == rows.size() - 1);
+            }
+        }
+        d.put("hasMultiple2xx", !rows.isEmpty());
+        d.put("successResponses", rows);
+        d.put("successVariants", variants);
+        d.put("successUnionType", rows.isEmpty() ? null : op.returnType);
+    }
+
+    /**
      * Populates operation-level decorator properties on
      * {@code op.vendorExtensions["op"]}. Idempotent — safe to invoke
      * multiple times per operation. Templates consume via
@@ -3337,6 +3396,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         // mode. Surfacing it on the operation decorator removes the last
         // vendorExtensions.x-* reference from any template.
         d.put("requestBodyIsRequiredButEmpty", isRequestBodyRequiredButEmpty(op));
+
+        // F1062 — per-status success variants for multi-2xx operations.
+        populateSuccessResponses(op, d);
 
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));
