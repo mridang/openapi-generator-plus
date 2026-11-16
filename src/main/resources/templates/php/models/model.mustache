@@ -272,9 +272,11 @@ class {{classname}}
     private static function anyOfCandidates(): array
     {
         return [
-{{#anyOf}}
-            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{.}}}')),
-{{/anyOf}}
+{{! Declaration order (D64): composedSchemas.anyOf keeps the order the spec
+    lists the variants in; the bare anyOf set is alphabetical. }}
+{{#composedSchemas.anyOf}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{dataType}}}')),
+{{/composedSchemas.anyOf}}
         ];
     }
 

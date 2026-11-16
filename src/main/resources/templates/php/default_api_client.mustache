@@ -72,10 +72,12 @@ class DefaultApiClient extends AbstractApiClient
              * eagerly at construction. A bad CA file is a configuration
              * mistake, so it raises \InvalidArgumentException. */
             $configuredCa = $this->transportOptions->caCertPath;
+            error_clear_last();
             $pem = @file_get_contents($configuredCa);
             if ($pem === false) {
+                $cause = error_get_last()['message'] ?? 'the file is unreadable';
                 throw new \InvalidArgumentException(
-                    sprintf('failed to read CA certificate from "%s"', $configuredCa)
+                    sprintf('failed to read CA certificate from "%s": %s', $configuredCa, $cause)
                 );
             }
             /* The @ keeps openssl's E_WARNING for an unparseable PEM from

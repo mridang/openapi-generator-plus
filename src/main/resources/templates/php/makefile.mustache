@@ -1,4 +1,4 @@
-.PHONY: install build test lint format analyze docs clean
+.PHONY: install build test lint format analyze audit docs clean
 
 install:
 	composer install --no-interaction --prefer-dist
@@ -16,6 +16,9 @@ format: install
 
 analyze: install
 	vendor/bin/phpstan analyse
+
+audit: install
+	composer audit
 
 docs: install
 	mkdir -p .phpdoc
