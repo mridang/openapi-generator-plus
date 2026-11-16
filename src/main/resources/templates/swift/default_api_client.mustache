@@ -291,7 +291,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             throw ConfigurationError.invalidArgument("malformed request URL: \(url)")
         }
 
-        var merged = BaseApi.mergeHeaders(transportOptions.defaultHeaders, overriding: headers)
+        /* The token POST (noRedirect) goes to the identity provider, another
+         * origin: the caller's default headers (an API Authorization or key
+         * header) are not sent there. */
+        var merged = BaseApi.mergeHeaders(noRedirect ? [:] : transportOptions.defaultHeaders, overriding: headers)
         /* Header names are case-insensitive (RFC 9110 section 5.1): a caller
          * header in any case wins and nothing is injected beside it. */
         func hasHeader(_ name: String) -> Bool {

@@ -1000,6 +1000,31 @@ import FoundationNetworking
         #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
     }
 
+    /* The token request goes to another origin, so the caller's default
+       headers stay off it; its own headers and the User-Agent still go. */
+    @Test func testNoRedirectRequestCarriesNoDefaultHeaders() async throws {
+        var seen: [URLRequest] = []
+        let transport = try TransportOptionsBuilder()
+            .defaultHeader(name: "X-Api-Secret", value: "api-only")
+            .userAgent("Agent/1.0")
+            .build()
+        let client = makeClient(transport: transport) { request in
+            seen.append(request)
+            return (self.body(), 200, [:])
+        }
+        _ = try await client.sendRequest(
+            method: "POST", url: "https://idp.example.com/token", headers: ["Accept": "application/json"],
+            body: Data("a=b".utf8), noRedirect: true)
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://api.example.com/items", headers: [:], body: nil)
+
+        #expect(seen.count == 2)
+        #expect(seen[0].value(forHTTPHeaderField: "X-Api-Secret") == nil)
+        #expect(seen[0].value(forHTTPHeaderField: "Accept") == "application/json")
+        #expect(seen[0].value(forHTTPHeaderField: "User-Agent") == "Agent/1.0")
+        #expect(seen[1].value(forHTTPHeaderField: "X-Api-Secret") == "api-only")
+    }
+
     // MARK: - Bare utf-16 byte-order marks
 
     /* A bare utf-16 label honours a leading byte-order mark and drops it; the
