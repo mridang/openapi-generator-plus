@@ -918,6 +918,37 @@ async fn test_pet_api_get_pet_summary_guards_the_required_cookie() {
     );
 }
 
+/* D47, F1143: object-valued query and header parameters are expanded per
+ * property in their declared styles. */
+#[tokio::test]
+async fn test_pet_api_get_pet_tag_object_valued_params_expand_per_style() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let mut criteria = PetCriteria::new();
+    criteria.breed = Some("lab".to_string());
+    criteria.min_age = Some(3);
+    let opts = GetPetTagOptions::new()
+        .criteria(criteria.clone())
+        .criteria_csv(criteria.clone())
+        .criteria_deep(criteria.clone())
+        .x_criteria(criteria);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(request_line.contains("breed=lab&min_age=3"), "{}", request_line);
+    assert!(request_line.contains("criteriaCsv=breed%2Clab%2Cmin_age%2C3"), "{}", request_line);
+    assert!(
+        request_line.contains("criteriaDeep%5Bbreed%5D=lab&criteriaDeep%5Bmin_age%5D=3"),
+        "{}",
+        request_line
+    );
+    let header = request
+        .lines()
+        .find(|line| line.to_lowercase().starts_with("x-criteria:"))
+        .map(|line| line["x-criteria:".len()..].trim().to_string());
+    assert_eq!(Some("breed,lab,min_age,3".to_string()), header, "{}", request);
+}
+
 /* F1113: a digit-leading query parameter keeps its original wire name even
  * though its Rust identifier needs a letter prefix. */
 #[tokio::test]

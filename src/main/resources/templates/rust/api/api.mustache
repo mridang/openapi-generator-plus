@@ -303,7 +303,7 @@ impl {{classname}} {
 <%/isArray%>
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "<%baseName%>",
-            <%#isArray%>None<%/isArray%><%^isArray%>Some(&object_serializer::to_path_value(&<%paramName%>))<%/isArray%>,
+            <%#isArray%>None<%/isArray%><%^isArray%>Some(&object_serializer::stringify_param(&<%paramName%>, "<%style%>", <%isExplode%>)?)<%/isArray%>,
             <%#isArray%>Some(&items)<%/isArray%><%^isArray%>None<%/isArray%>,
             "path",
             "<%dataType%>",
@@ -345,7 +345,7 @@ impl {{classname}} {
 {{/isArray}}
         if let Some(serialized) = value_serializer::serialize_styled(
             "{{baseName}}",
-            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(&opts.{{paramName}}, "{{style}}", {{isExplode}})?){{/isArray}},
             {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "query",
             "{{{dataType}}}",
@@ -373,7 +373,7 @@ impl {{classname}} {
 {{/isArray}}
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(val, "{{style}}", {{isExplode}})?){{/isArray}},
                     {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "query",
                     "{{{dataType}}}",
@@ -450,9 +450,21 @@ impl {{classname}} {
 {{#isArray}}
         let items: Vec<String> = opts.{{paramName}}.iter().map(object_serializer::stringify).collect();
 {{/isArray}}
-        if let Some(serialized) = value_serializer::serialize_styled(
+{{^isArray}}
+        /* An object-valued parameter in form style with explode=true becomes one
+         * `name=value` pair per property, in declaration order (D47). */
+        let object_pairs = object_serializer::object_query_pairs(&opts.{{paramName}}, "{{style}}", {{isExplode}})?;
+{{/isArray}}
+{{#isArray}}
+        let object_pairs: Option<Vec<(String, String)>> = None;
+{{/isArray}}
+        if let Some(pairs) = object_pairs {
+            for (k, v) in pairs {
+                query_params.push((k, v, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}));
+            }
+        } else if let Some(serialized) = value_serializer::serialize_styled(
             "{{baseName}}",
-            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(&opts.{{paramName}}, "{{style}}", {{isExplode}})?){{/isArray}},
             {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "query",
             "{{{dataType}}}",
@@ -478,9 +490,19 @@ impl {{classname}} {
 {{#isArray}}
                 let items: Vec<String> = val.iter().map(object_serializer::stringify).collect();
 {{/isArray}}
-                if let Some(serialized) = value_serializer::serialize_styled(
+{{^isArray}}
+                let object_pairs = object_serializer::object_query_pairs(val, "{{style}}", {{isExplode}})?;
+{{/isArray}}
+{{#isArray}}
+                let object_pairs: Option<Vec<(String, String)>> = None;
+{{/isArray}}
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}}));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(val, "{{style}}", {{isExplode}})?){{/isArray}},
                     {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "query",
                     "{{{dataType}}}",
@@ -527,7 +549,7 @@ impl {{classname}} {
 {{/isArray}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
-            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/isArray}},
+            {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(&opts.{{paramName}}, "{{style}}", {{isExplode}})?){{/isArray}},
             {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
             "header",
             "{{{dataType}}}",
@@ -551,7 +573,7 @@ impl {{classname}} {
 {{/isArray}}
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify(val)){{/isArray}},
+                    {{#isArray}}None{{/isArray}}{{^isArray}}Some(&object_serializer::stringify_param(val, "{{style}}", {{isExplode}})?){{/isArray}},
                     {{#isArray}}Some(&items){{/isArray}}{{^isArray}}None{{/isArray}},
                     "header",
                     "{{{dataType}}}",
