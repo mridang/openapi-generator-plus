@@ -586,8 +586,8 @@ import FoundationNetworking
     @Test func testSensitiveRedirectHeadersIncludesSpecApiKeyHeaders() {
         let lowered = Set(DefaultApiClient.sensitiveRedirectHeaders.map { $0.lowercased() })
         {{#apiKeyHeaderNames}}
-        #expect(lowered.contains("{{nameLower}}"),
-            "spec apiKey header '{{name}}' must be on the strip-list")
+        #expect(lowered.contains("{{#lambda.swiftString}}{{{nameLower}}}{{/lambda.swiftString}}"),
+            "spec apiKey header must be on the strip-list")
         {{/apiKeyHeaderNames}}
     }
     {{/hasApiKeyHeaderNames}}

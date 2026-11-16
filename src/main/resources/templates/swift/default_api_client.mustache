@@ -1385,7 +1385,7 @@ extension DefaultApiClient {
         "Authorization",
         "Cookie",
         "Proxy-Authorization",{{#apiKeyHeaderNames}}
-        "{{name}}",{{/apiKeyHeaderNames}}
+        "{{#lambda.swiftString}}{{{name}}}{{/lambda.swiftString}}",{{/apiKeyHeaderNames}}
     ]
 
     /// Whether a header must not leave the origin on a redirect: one named in

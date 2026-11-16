@@ -1064,6 +1064,26 @@ final class PetApiTests {
         #expect(mockClient.lastURL.isEmpty)
     }
 
+    /* A request body that is an anyOf wrapper goes out as the variant the
+       caller chose, on the operation's own path. */
+    @Test func testAddPetTreatmentSendsTheChosenVariantAsTheBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"drugName\":\"Amoxicillin\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let treatment = try JSONDecoder().decode(
+            PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8))
+
+        _ = try await api.addPetTreatment(petId: 5, petTreatment: treatment)
+
+        #expect(mockClient.lastMethod == "POST")
+        #expect(mockClient.lastURL == "https://example.com/pet/5/treatment")
+        #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
+        let sent = try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
+        #expect(sent?["drugName"] as? String == "Amoxicillin")
+        #expect(sent?["dosage"] as? String == "250mg")
+    }
+
     // MARK: - Response shapes through the mock server
 
     /* A response header repeated by the server keeps every value, and header
