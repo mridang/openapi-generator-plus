@@ -12,12 +12,13 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * Validates Bucket 4.8 ({@code format:time} -> {@code LocalTime},
+ * Unit tests for {@link BetterJavaCodegen}: the generator identity, naming conventions and
+ * collection type templates, plus Bucket 4.8 ({@code format:time} -> {@code LocalTime},
  * {@code format:duration} -> {@code Duration}) and Bucket 3.1 (API-key header
  * harvesting) in {@link BetterJavaCodegen}. Both behaviours are pure codegen
  * settings — no generation roundtrip is needed.
  */
-class BetterJavaCodegenTypeMappingTest {
+class BetterJavaCodegenTest {
 
     /* Bucket 4.8 — typeMapping + importMapping for java.time.LocalTime. */
     @Test
@@ -142,5 +143,54 @@ class BetterJavaCodegenTypeMappingTest {
         assertEquals(List.of(path, server, options), reordered);
         assertEquals(List.of(path, options), BetterJavaCodegen.serverBeforeOptions(List.of(path, options)));
         assertEquals(List.of(path, server), BetterJavaCodegen.serverBeforeOptions(List.of(path, server)));
+    }
+
+    @Test
+    void generatorIdentityIsJavaPlus() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("java-plus", codegen.getName());
+        assertEquals(org.openapitools.codegen.GeneratorLanguage.JAVA, codegen.generatorLanguage());
+    }
+
+    @Test
+    void sourceFolderDefaultsToMavenMainJava() {
+        assertEquals(java.nio.file.Path.of("src", "main", "java").toString(),
+                new BetterJavaCodegen().getSourceFolder());
+    }
+
+    @Test
+    void variablesAndOperationsAreCamelCaseAndEnumsUpperSnakeCase() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals(io.github.mridang.codegen.generators.NamingConvention.CAMEL_CASE,
+                codegen.getVarCasing());
+        assertEquals(io.github.mridang.codegen.generators.NamingConvention.CAMEL_CASE,
+                codegen.getOperationIdCasing());
+        assertEquals(io.github.mridang.codegen.generators.NamingConvention.UPPER_SNAKE_CASE,
+                codegen.getEnumCasing());
+    }
+
+    @Test
+    void collectionTypeTemplatesProduceGenericJavaTypes() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("List<String>", String.format(codegen.getArrayTypeTemplate(), "List", "String"));
+        assertEquals("Map<String, Integer>",
+                String.format(codegen.getMapTypeTemplate(), "Map", "String", "Integer"));
+        assertEquals("LinkedHashSet<", codegen.getUniqueItemsSetType());
+    }
+
+    @Test
+    void discriminatorHandlingIsEnabledForJava() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertTrue(codegen.setsDiscriminatorParent());
+        assertTrue(codegen.setsDiscriminatorDefaultOnChildren());
+        assertTrue(codegen.demotesDiscriminatorFromRequiredVars());
+    }
+
+    @Test
+    void renamesAParameterNamedLikeAnInjectedArgument() {
+        BetterJavaCodegen codegen = new BetterJavaCodegen();
+        assertEquals("optionsParam", codegen.toParamName("options"));
+        assertEquals("serverParam", codegen.toParamName("server"));
+        assertEquals("requestContentTypeParam", codegen.toParamName("requestContentType"));
     }
 }

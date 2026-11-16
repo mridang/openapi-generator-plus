@@ -61,4 +61,14 @@ public class JavaFormattingSpec extends AbstractFormattingSpec implements JavaSp
         .withFailMessage("Generated Java code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  @Test
+  void pluralExamplesShouldBeAttributedToParameter() throws java.io.IOException {
+    Path api = tempOutputDir.resolve("src/main/java/com/example/petstore/api/PetApi.java");
+    String src = java.nio.file.Files.readString(api);
+    assertThat(src)
+        .as("PetApi.java should attribute plural examples to their parameter")
+        .contains("@param petId ID of pet to return (required) Example — Small breed ID: {@code 1}")
+        .contains("Example — Large");
+  }
 }

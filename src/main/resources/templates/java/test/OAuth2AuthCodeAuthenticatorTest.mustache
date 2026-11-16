@@ -307,7 +307,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    void auth_headers_before_exchange_returns_recoverable_error() {
+    void authHeadersBeforeExchangeReturnsRecoverableError() {
         OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
         // Calling getAuthHeaders before exchangeCode is a precondition
@@ -325,7 +325,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     }
 
     @Test
-    void authorize_url_with_existing_query_string_uses_amp_separator() {
+    void authorizeUrlWithExistingQueryStringUsesAmpSeparator() {
         // RFC 6749 §3.1: the authorization endpoint URI MAY already include a
         // query component (e.g. tenant-scoped Auth0 URLs that bake `audience`
         // into the configured authorization_url). The builder must use '&' as

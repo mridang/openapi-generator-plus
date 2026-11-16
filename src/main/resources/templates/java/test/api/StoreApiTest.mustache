@@ -385,4 +385,27 @@ class StoreApiTest {
         assertThat(capturedUrl[0]).isEqualTo(
                 "http://localhost/store/order/by-tracking/0f8fad5b-d9cb-469f-a165-70867728950e");
     }
+
+    @Test
+    void testGetOrderByIdPicksTheStatusSpecificErrorThroughTheTypedRoutes() throws Exception {
+        Object[][] table = {
+            {400, {{invokerPackage}}.errors.BadRequestException.class},
+            {401, {{invokerPackage}}.errors.UnauthorizedException.class},
+            {403, {{invokerPackage}}.errors.ForbiddenException.class},
+            {409, {{invokerPackage}}.errors.ConflictException.class},
+            {418, {{invokerPackage}}.errors.ClientException.class},
+            {422, {{invokerPackage}}.errors.UnprocessableEntityException.class},
+            {500, {{invokerPackage}}.errors.InternalServerErrorException.class},
+            {502, {{invokerPackage}}.errors.ServerException.class},
+        };
+        for (Object[] row : table) {
+            StoreApi routed = new StoreApi(
+                    new DefaultApiClient({{invokerPackage}}.TransportOptions.builder().maxRetries(0).build()),
+                    Configuration.builder()
+                            .baseUrl(ChasmContainer.getBaseUrl() + "/test/status/" + row[0])
+                            .build());
+            Class<?> expected = (Class<?>) row[1];
+            assertThatThrownBy(() -> routed.getOrderById(1L)).isExactlyInstanceOf(expected);
+        }
+    }
 }

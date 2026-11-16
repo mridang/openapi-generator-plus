@@ -325,6 +325,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return type;
     }
 
+    /**
+     * The arguments an operation adds to its own signature: the per-call {@code options} object,
+     * the {@code server} override and the {@code requestContentType} selector. A path or body
+     * parameter named like one is suffixed so the method never has two parameters of one name
+     * (F1055).
+     */
+    @Override
+    protected Set<String> getInjectedArgumentNames() {
+        return Set.of("options", "server", "requestContentType");
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
@@ -1216,6 +1227,13 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             // A format: byte parameter is a mutable byte[]; it is copied in and
             // out so the options object never shares the caller's array.
             param.put("isByteArrayParam", "byte[]".equals(p.dataType));
+            // Named examples of an optional parameter belong on its setter, as the
+            // required ones belong on the operation (F893).
+            if (p.vendorExtensions != null
+                    && p.vendorExtensions.get("pluralExamples") instanceof List<?> examples
+                    && !examples.isEmpty()) {
+                param.put("pluralExamples", examples);
+            }
             if (copyFactory != null) {
                 param.put("copyFactory", copyFactory);
             }
