@@ -70,6 +70,22 @@ void main() {
     });
   });
 
+  group('SKILLS.md', () {
+    test('the error section names the root type and every branch of the tree', () {
+      final skills =
+          File('${Directory.current.path}/SKILLS.md').readAsStringSync();
+      for (final name in [
+        '{{errorPrefix}}Exception',
+        'SerializationException',
+        'OAuth2ServerException',
+        'OAuth2TokenException',
+      ]) {
+        expect(skills, contains('`$name`'));
+      }
+      expect(skills, contains('on {{errorPrefix}}Exception catch'));
+    });
+  });
+
   group('package barrel', () {
     test('hides the internal no-auth sentinel from the public API', () {
       final barrel =
