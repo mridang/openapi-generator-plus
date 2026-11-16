@@ -382,6 +382,11 @@ abstract class AbstractApiClient implements ApiClient
                     $e
                 );
             }
+            if ($contentEncoding !== '' && strtolower(trim($contentEncoding)) !== 'identity') {
+                /* D92: the headers describe the body the caller receives, and
+                 * that body is no longer encoded or the wire length. */
+                unset($responseHeaders['content-encoding'], $responseHeaders['content-length']);
+            }
             $contentType = $response->headers['content-type'][0] ?? '';
             if (!$this->isTextContentType($contentType)) {
                 $responseBody = base64_encode($responseBody);

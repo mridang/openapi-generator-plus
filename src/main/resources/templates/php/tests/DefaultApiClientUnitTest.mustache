@@ -1375,6 +1375,40 @@ test('decompresses a valid gzip-encoded response body', function (): void {
     expect($response->body)->toBe($payload);
 });
 
+test('a decoded body drops the Content-Encoding and Content-Length headers', function (): void {
+    $gzipped = (string) gzencode('{"ok":true}');
+    $mockResponse = new MockResponse($gzipped, [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => 'gzip',
+            'Content-Length' => (string) strlen($gzipped),
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->headers)->not->toHaveKey('content-encoding');
+    expect($response->headers)->not->toHaveKey('content-length');
+    expect($response->headers['content-type'] ?? null)->toBe('application/json');
+});
+
+test('an identity encoded body keeps its Content-Length', function (): void {
+    $mockResponse = new MockResponse('{"ok":true}', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Length' => '11',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->headers['content-length'] ?? null)->toBe('11');
+});
+
 test('wraps a gzip decompression failure as api exception', function (): void {
     /* decompression-error-not-wrapped: a body advertised as Content-Encoding:
      * gzip but whose bytes are not valid gzip makes gzdecode() fail, which the
