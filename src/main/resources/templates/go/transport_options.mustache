@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 )
 
 // ErrInvalidProxyURL is returned by TransportOptionsBuilder.Build when the
@@ -224,17 +225,43 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 		return b
 	}
 	parsed, err := url.Parse(val)
+	shown := redactProxyUserinfo(val)
 	switch {
 	case err != nil:
-		b.proxyErr = fmt.Errorf("%w %q: %v", ErrInvalidProxyURL, val, err)
+		// A *url.Error repeats the raw URL, so only its cause is shown.
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			err = urlErr.Err
+		}
+		b.proxyErr = fmt.Errorf("%w %q: %v", ErrInvalidProxyURL, shown, err)
 	case parsed.Scheme != "http" && parsed.Scheme != "https":
-		b.proxyErr = fmt.Errorf("%w %q: must use http or https scheme", ErrInvalidProxyURL, val)
+		b.proxyErr = fmt.Errorf("%w %q: must use http or https scheme", ErrInvalidProxyURL, shown)
 	case parsed.Host == "":
-		b.proxyErr = fmt.Errorf("%w %q: missing host", ErrInvalidProxyURL, val)
+		b.proxyErr = fmt.Errorf("%w %q: missing host", ErrInvalidProxyURL, shown)
 	default:
 		b.proxy = parsed
 	}
 	return b
+}
+
+// redactProxyUserinfo replaces the user:password part of a proxy URL with ***
+// so a rejected value that carries credentials (a socks5 URL, for instance)
+// never reaches an error message. It works on the raw text because the value
+// may not parse.
+func redactProxyUserinfo(raw string) string {
+	prefix, rest := "", raw
+	if i := strings.Index(raw, "://"); i >= 0 {
+		prefix, rest = raw[:i+3], raw[i+3:]
+	}
+	authority, tail := rest, ""
+	if i := strings.IndexAny(rest, "/?#"); i >= 0 {
+		authority, tail = rest[:i], rest[i:]
+	}
+	at := strings.LastIndex(authority, "@")
+	if at < 0 {
+		return raw
+	}
+	return prefix + "***" + authority[at:] + tail
 }
 
 // Timeout sets the end-to-end request timeout in milliseconds.

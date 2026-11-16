@@ -604,6 +604,14 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 				for _, name := range sensitiveHeaderAllowlist {
 					req.Header.Del(name)
 				}
+				/* A caller default header or a custom authenticator may carry a
+				 * credential under any name, so every header the string forms
+				 * already treat as a secret (S15) goes too. */
+				for name := range req.Header {
+					if isSecretHeaderName(name) {
+						req.Header.Del(name)
+					}
+				}
 			}
 			/* Gap 3.4: when the previous response was 303 the Go runtime
 			 * coerces the follow-up to GET and clears the body (RFC 7231

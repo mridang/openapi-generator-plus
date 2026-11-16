@@ -531,6 +531,8 @@ func TestTransportOptions_ProxyRejectionMessages(t *testing.T) {
 		{"socks5://proxy.example.com:1080", `invalid proxy URL "socks5://proxy.example.com:1080": must use http or https scheme`},
 		{"http://", `invalid proxy URL "http://": missing host`},
 		{"https:///only-a-path", `invalid proxy URL "https:///only-a-path": missing host`},
+		{"socks5://svc:s3cret@proxy.example.com:1080", `invalid proxy URL "socks5://***@proxy.example.com:1080": must use http or https scheme`},
+		{"http://svc:s3cret@", `invalid proxy URL "http://***@": missing host`},
 	}
 	for _, tc := range cases {
 		_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy(tc.proxy).Build()

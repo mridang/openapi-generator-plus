@@ -983,6 +983,51 @@ func TestDefaultApiClient_StripsAuthorizationAcrossCrossOriginRedirect(t *testin
 	}
 }
 
+// F1093: a credential carried under a name the spec does not declare (a
+// custom authenticator's X-Auth-Token, a default header named like a secret)
+// is stripped from a cross-origin redirect too; an ordinary header survives.
+func TestDefaultApiClient_StripsSecretNamedHeadersAcrossCrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	var received http.Header
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest("GET", origin.URL+"/start",
+		map[string]string{
+			"X-Auth-Token":    "leaked-token",
+			"X-Tenant-Secret": "leaked-secret",
+			"X-Tenant-Id":     "tenant-1",
+		}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := received.Get("X-Auth-Token"); got != "" {
+		t.Errorf("expected X-Auth-Token to be stripped, got %q", got)
+	}
+	if got := received.Get("X-Tenant-Secret"); got != "" {
+		t.Errorf("expected X-Tenant-Secret to be stripped, got %q", got)
+	}
+	if got := received.Get("X-Tenant-Id"); got != "tenant-1" {
+		t.Errorf("expected X-Tenant-Id to survive, got %q", got)
+	}
+}
+
 {{#hasApiKeyHeaderNames}}
 // Gap 3.1: the spec-declared API-key header names harvested from the OpenAPI
 // securitySchemes (apiKey, in: header) must be present in the cross-origin

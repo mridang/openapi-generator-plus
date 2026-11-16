@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"{{packageName}}/pkg/auth"
 	errors_pkg "{{packageName}}/pkg/errors"
 )
 
@@ -148,6 +149,13 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		effectiveAuth = nil
 	} else if params.auth != nil {
 		effectiveAuth = params.auth
+		/* Only the client-level authenticator is injected by the Client
+		 * constructor, so a per-call OAuth2 or OpenID Connect authenticator
+		 * gets this API's transport here, or its token request would fail with
+		 * ErrApiClientNotInjected. */
+		if httpAware, ok := params.auth.(auth.HttpAwareAuthenticator); ok {
+			httpAware.SetApiClient(&authApiClientAdapter{inner: b.apiClient})
+		}
 	} else {
 		effectiveAuth = b.authenticator
 	}
