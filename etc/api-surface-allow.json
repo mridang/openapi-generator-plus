@@ -1976,16 +1976,6 @@
   },
   {
    "element": [
-    "requestoptions.skipdefaultheaders"
-   ],
-   "aspect": "member",
-   "languages": [
-    "rust"
-   ],
-   "reason": "tracked as F1181: F860/F1075 add a public RequestOptions::skip_default_headers flag in rust only; kotlin, php and swift tie the same behaviour to the existing noRedirect token request, so the flag could be dropped or made non-public"
-  },
-  {
-   "element": [
     "transportoptions.maskuserinfo",
     "transportoptions.sensitiveheader"
    ],
