@@ -1973,5 +1973,20 @@ class ObjectSerializerTest {
             assertEquals("\"/<>&\u00e9\"", serializer.serialize("/<>&\u00e9"));
             assertEquals("\"q\\\"b\\\\c\\n\\u0001\"", serializer.serialize("q\"b\\c\n\u0001"));
         }
+
+        @Test
+        @DisplayName("constraint keywords are not enforced: slug, nickname and quantity decode as given")
+        void constraintKeywordsAreNotEnforced() {
+            {{modelPackage}}.EdgeCases edge = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"slug\":\"12/ab\"}", {{modelPackage}}.EdgeCases.class));
+            assertEquals("12/ab", edge.slug);
+            assertEquals("{\"slug\":\"12/ab\"}", serializer.serialize(edge));
+            {{modelPackage}}.Pet pet = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"name\":\"Rex\",\"photoUrls\":[\"u\"],\"nickname\":\"ZZZZZZZZZZ\"}", {{modelPackage}}.Pet.class));
+            assertEquals("ZZZZZZZZZZ", pet.nickname);
+            {{modelPackage}}.Order order = java.util.Objects.requireNonNull(serializer.deserialize(
+                "{\"quantity\":500}", {{modelPackage}}.Order.class));
+            assertEquals(Integer.valueOf(500), order.quantity);
+        }
     }
 }
