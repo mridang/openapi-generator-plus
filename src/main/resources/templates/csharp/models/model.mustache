@@ -596,7 +596,12 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
         {{#vars}}
+        {{#isPassword}}
+        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(this.{{name}} is null ? "null" : "***");
+        {{/isPassword}}
+        {{^isPassword}}
         sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.{{name}}));
+        {{/isPassword}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
         sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.AdditionalProperties));
@@ -744,7 +749,12 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
         global::System.Text.StringBuilder sb = new();
         sb.Append(this.GetType().Name).Append('{');
         {{#vars}}
+        {{#isPassword}}
+        sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(this.{{name}} is null ? "null" : "***");
+        {{/isPassword}}
+        {{^isPassword}}
         sb.Append("{{^-first}}, {{/-first}}{{name}}=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.{{name}}));
+        {{/isPassword}}
         {{/vars}}
         {{#isAdditionalPropertiesTrue}}
         sb.Append("{{#hasVars}}, {{/hasVars}}AdditionalProperties=").Append(global::{{packageName}}.ObjectSerializer.Describe(this.AdditionalProperties));

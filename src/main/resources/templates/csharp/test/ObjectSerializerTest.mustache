@@ -2009,6 +2009,15 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void FormatPasswordPropertyIsHiddenInTheStringForm()
+        {
+            string text = new Account("u") { Password = "hunter2" }.ToString();
+
+            Assert.DoesNotContain("hunter2", text, StringComparison.Ordinal);
+            Assert.Contains("Password=***", text, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void ReadOnlyPropertyIsStillDecoded()
         {
             Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\"}");
