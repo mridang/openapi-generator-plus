@@ -1219,15 +1219,15 @@ mod tests {
      * message, so the query and fragment are dropped from the URLs it names. */
     #[test]
     fn test_redacted_url_drops_the_query_and_fragment() {
-        let url = reqwest::Url::parse("https://api.example.com/pets?api_key=SECRET&x=1#frag")
+        let url = reqwest::Url::parse("https://api.example.com/items?api_key=SECRET&x=1#frag")
             .expect("valid url");
-        assert_eq!("https://api.example.com/pets", redacted_url(&url));
+        assert_eq!("https://api.example.com/items", redacted_url(&url));
     }
 
     #[tokio::test]
     async fn test_transport_error_does_not_carry_the_request_url() {
         let err = reqwest::Client::new()
-            .get("http://127.0.0.1:1/pets?api_key=SECRET")
+            .get("http://127.0.0.1:1/items?api_key=SECRET")
             .send()
             .await
             .expect_err("nothing listens on port 1");
@@ -1444,7 +1444,7 @@ mod tests {
 
     /* ── multipart-model-part-serialized-through-configured-serializer ──
      *
-     * Cross-SDK parity: the addPetPhotos operation sends a multipart/form-data
+     * Cross-SDK parity: a generated multipart operation sends a multipart/form-data
      * body whose `metadata` part is a MODEL (PhotoMetadata). The generated
      * operation builds that part with exactly the call exercised below —
      * `MultipartValue::Json(object_serializer::serialize(&metadata)?)` — so the
@@ -1463,7 +1463,7 @@ mod tests {
     fn test_multipart_model_part_uses_wire_property_names_and_datetime_format() {
         use crate::date_time::DateTime;
 
-        /* Build a PhotoMetadata exactly as a caller of add_pet_photos would,
+        /* Build a PhotoMetadata exactly as a caller of the multipart operation would,
          * with the canonical millisecond-precision instant. */
         let taken_at: DateTime = "2020-01-02T03:04:05.123Z"
             .parse()
@@ -1476,7 +1476,7 @@ mod tests {
         };
 
         /* Serialize the model part through the CONFIGURED serializer — the same
-         * call the generated add_pet_photos emits — then wrap it as the JSON
+         * call the generated the multipart operation emits — then wrap it as the JSON
          * object part the operation hands to the multipart writer. */
         let part_json = object_serializer::serialize(&metadata)
             .expect("model part must serialize through the configured serializer");

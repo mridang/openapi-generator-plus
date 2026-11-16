@@ -1230,7 +1230,7 @@ func TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
 	server.Close()
 
 	client := NewDefaultApiClient(nil)
-	_, err := client.SendRequest("GET", closedURL+"/pet?api_key=SECRET-KEY", map[string]string{}, nil)
+	_, err := client.SendRequest("GET", closedURL+"/items?api_key=SECRET-KEY", map[string]string{}, nil)
 	var netErr *pkgerrors.NetworkError
 	if !errors.As(err, &netErr) {
 		t.Fatalf("expected *NetworkError, got %T: %v", err, err)
@@ -1238,7 +1238,7 @@ func TestDefaultApiClient_NetworkErrorMessageRedactsTheQuery(t *testing.T) {
 	if strings.Contains(err.Error(), "SECRET-KEY") {
 		t.Errorf("the API key leaked into the message: %q", err.Error())
 	}
-	if !strings.Contains(err.Error(), "/pet?***") {
+	if !strings.Contains(err.Error(), "/items?***") {
 		t.Errorf("expected the query to read ***, got %q", err.Error())
 	}
 }

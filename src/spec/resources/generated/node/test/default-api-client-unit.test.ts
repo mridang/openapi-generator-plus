@@ -1220,7 +1220,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     const error = await client
       .sendRequest(
         "POST",
-        "https://secure.example/pet?api_key=SECRET",
+        "https://secure.example/items?api_key=SECRET",
         {},
         "body",
       )
@@ -1228,7 +1228,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
 
     expect((error as ApiError).message).toBe(
       "Refusing to replay request body across HTTPS->HTTP redirect: " +
-        "https://secure.example/pet?api_key=*** -> http://evil.example/steal?api_key=***",
+        "https://secure.example/items?api_key=*** -> http://evil.example/steal?api_key=***",
     );
     expect((error as ApiError).responseHeaders).toHaveProperty("location");
   });
