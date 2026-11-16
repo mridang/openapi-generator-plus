@@ -20,10 +20,13 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -789,11 +792,76 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 .collect(Collectors.joining(", "));
     }
 
+    /**
+     * Flags the models that hold a {@code format: password} property, so the
+     * model template can keep the value out of reflection, {@code print} and
+     * {@code dump}.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            if (model == null || model.isEnum || model.vars == null) {
+                continue;
+            }
+            modelMap.put("hasPasswordVars", model.vars.stream().anyMatch(v -> v.isPassword));
+        }
+        return result;
+    }
+
     private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "[]";
         }
-        return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
+        return "[\""
+                + scopes.keySet().stream()
+                        .map(BetterSwiftCodegen::escapeSwiftString)
+                        .collect(Collectors.joining("\", \""))
+                + "\"]";
+    }
+
+    /**
+     * Registers the {@code swiftString} lambda, which escapes raw text for the
+     * body of a Swift string literal (an apiKey header name such as
+     * {@code X-"Key"} must not end the literal).
+     */
+    @Override
+    protected com.google.common.collect.ImmutableMap.Builder<
+                    String, com.samskivert.mustache.Mustache.Lambda>
+            addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "swiftString",
+                        (fragment, writer) ->
+                                writer.write(escapeSwiftString(fragment.execute())));
+    }
+
+    /**
+     * Escapes raw text for the body of a Swift string literal: backslash and
+     * double quote, and every control character (as a Swift unicode escape).
+     *
+     * @param text raw text, possibly null
+     * @return the text safe to place between the quotes of a literal
+     */
+    static String escapeSwiftString(@Nullable String text) {
+        if (text == null) {
+            return "";
+        }
+        final StringBuilder out = new StringBuilder(text.length());
+        for (int i = 0; i < text.length(); i++) {
+            final char c = text.charAt(i);
+            if (c == '\\') {
+                out.append("\\\\");
+            } else if (c == '"') {
+                out.append("\\\"");
+            } else if (c < 0x20 || c == 0x7F) {
+                out.append("\\u{").append(Integer.toHexString(c)).append('}');
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     @SuppressFBWarnings(value = "IMPROPER_UNICODE",
@@ -809,7 +877,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String location = "." + NamingConvention.CAMEL_CASE.apply(
                     spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header");
-            return "host: host, keyParamName: \"" + spec.keyParamName()
+            return "host: host, keyParamName: \"" + escapeSwiftString(spec.keyParamName())
                     + "\", apiKey: apiKey, location: " + location;
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {

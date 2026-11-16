@@ -372,6 +372,97 @@ import Testing
         #expect(result.isEmpty)
     }
 
+    // MARK: - Object-valued parameters (D47)
+
+    private struct Criteria: Codable {
+        var breed: String?
+        var minAge: Int?
+        var active: Bool?
+        var note: String?
+
+        enum CodingKeys: String, CodingKey {
+            case breed
+            case minAge = "min_age"
+            case active
+            case note
+        }
+    }
+
+    private struct Nested: Codable {
+        var name: String
+        var inner: Criteria
+    }
+
+    @Test func testObjectFieldsAreWireKeyedSortedAndSkipNulls() throws {
+        let value = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
+        let fields = try #require(try? ValueSerializer.objectFields(value)?.get())
+        #expect(fields.map { $0.name } == ["active", "breed", "min_age"])
+        #expect(fields.map { $0.value } == ["true", "lab", "3"])
+    }
+
+    @Test func testScalarsAndDatesAreNotObjects() {
+        #expect(ValueSerializer.objectFields("text") == nil)
+        #expect(ValueSerializer.objectFields(5) == nil)
+        #expect(ValueSerializer.objectFields(Date()) == nil)
+        #expect(ValueSerializer.objectFields(Data([1, 2])) == nil)
+    }
+
+    @Test func testFormExplodedObjectExpandsIntoOnePairPerField() throws {
+        let value = Criteria(breed: "lab", minAge: 3)
+        let result = ValueSerializer.serializeStyled(
+            "criteria", value: value, location: "query", schemaType: "Criteria", collectionFormat: "",
+            style: "form", explode: true)
+        let parameter = try #require(result as? ValueSerializer.ObjectParameter)
+        #expect(parameter.failure == nil)
+        #expect(parameter.fields.map { "\($0.name)=\($0.value)" } == ["breed=lab", "min_age=3"])
+        #expect(BaseApi.buildQueryString(["criteria": parameter]) == "breed=lab&min_age=3")
+    }
+
+    @Test func testFormNotExplodedObjectIsOneCommaSeparatedValue() {
+        let value = Criteria(breed: "lab", minAge: 3)
+        let result = ValueSerializer.serializeStyled(
+            "criteriaCsv", value: value, location: "query", schemaType: "Criteria", collectionFormat: "",
+            style: "form", explode: false)
+        #expect(result as? String == "breed,lab,min_age,3")
+        #expect(BaseApi.buildQueryString(["criteriaCsv": result]) == "criteriaCsv=breed%2Clab%2Cmin_age%2C3")
+    }
+
+    @Test func testSimpleObjectInAHeaderIsCommaSeparated() throws {
+        let value = Criteria(breed: "lab", minAge: 3)
+        let plain = ValueSerializer.serializeStyled(
+            "X-Criteria", value: value, location: "header", schemaType: "Criteria", collectionFormat: "",
+            style: "simple", explode: false)
+        #expect(try ValueSerializer.headerValue(plain) == "breed,lab,min_age,3")
+        let exploded = ValueSerializer.serializeStyled(
+            "X-Criteria", value: value, location: "header", schemaType: "Criteria", collectionFormat: "",
+            style: "simple", explode: true)
+        #expect(try ValueSerializer.headerValue(exploded) == "breed=lab,min_age=3")
+    }
+
+    @Test func testDeepObjectModelExpandsToBracketedKeys() throws {
+        let pairs = try ValueSerializer.serializeDeepObjectValue(
+            "criteriaDeep", value: Criteria(breed: "lab", minAge: 3))
+        #expect(pairs.map { $0.key } == ["criteriaDeep[breed]", "criteriaDeep[min_age]"])
+        #expect(pairs.map { $0.value } == ["lab", "3"])
+    }
+
+    @Test func testNestedObjectFieldIsASerializationError() throws {
+        let value = Nested(name: "n", inner: Criteria(breed: "lab"))
+        #expect(throws: SerializationError.self) {
+            _ = try ValueSerializer.serializeDeepObjectValue("criteriaDeep", value: value)
+        }
+        let styled = ValueSerializer.serializeStyled(
+            "X-Criteria", value: value, location: "header", schemaType: "Nested", collectionFormat: "",
+            style: "simple", explode: false)
+        #expect(throws: SerializationError.self) {
+            _ = try ValueSerializer.headerValue(styled)
+        }
+        let query = ValueSerializer.serializeStyled(
+            "criteria", value: value, location: "query", schemaType: "Nested", collectionFormat: "",
+            style: "form", explode: true)
+        #expect((query as? ValueSerializer.ObjectParameter)?.failure != nil)
+    }
+
     // MARK: - Fallback
 
     @Test func testSerializeStyledUnknownStyleFallback() {

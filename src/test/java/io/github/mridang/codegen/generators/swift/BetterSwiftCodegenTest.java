@@ -50,4 +50,23 @@ class BetterSwiftCodegenTest {
                         BetterSwiftCodegen.serverBeforeOptions(
                                 List.of(arg("body"), arg("server"), arg("options")))));
     }
+
+    /* An apiKey header name goes into a string literal of the generated client. */
+    @Test
+    void escapesQuoteAndBackslashInAnApiKeyName() {
+        assertEquals("X-\\\"Key\\\"", BetterSwiftCodegen.escapeSwiftString("X-\"Key\""));
+        assertEquals("a\\\\b", BetterSwiftCodegen.escapeSwiftString("a\\b"));
+    }
+
+    @Test
+    void escapesControlCharactersInAnApiKeyName() {
+        assertEquals("a\\u{a}b", BetterSwiftCodegen.escapeSwiftString("a\nb"));
+        assertEquals("a\\u{0}b", BetterSwiftCodegen.escapeSwiftString("a\u0000b"));
+    }
+
+    @Test
+    void leavesAnOrdinaryNameAlone() {
+        assertEquals("X-Api-Key", BetterSwiftCodegen.escapeSwiftString("X-Api-Key"));
+        assertEquals("", BetterSwiftCodegen.escapeSwiftString(null));
+    }
 }

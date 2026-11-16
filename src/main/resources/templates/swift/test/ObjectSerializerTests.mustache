@@ -514,6 +514,183 @@ import Testing
         #expect(food.actualInstance() is DryFood)
     }
 
+    // MARK: - Fixture models: wire names, enums, durations, extras
+
+    /* Order.trackingId (format: uuid) is written in lowercase, read from
+       uppercase, and a malformed value is refused. */
+    @Test func testOrderTrackingIdIsWrittenLowercaseAndReadFromUppercase() throws {
+        let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
+        let json = try ObjectSerializer.serialize(Order(trackingId: id))
+        #expect(json.contains("\"trackingId\":\"e621e1f8-c36c-495a-93fc-0c247a3e6e5f\""))
+        let decoded = try ObjectSerializer.deserialize(
+            "{\"trackingId\":\"E621E1F8-C36C-495A-93FC-0C247A3E6E5F\"}", as: Order.self)
+        #expect(decoded?.trackingId == id)
+    }
+
+    @Test func testOrderTrackingIdRejectsAMalformedUuid() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"trackingId\":\"not-a-uuid\"}", as: Order.self)
+        }
+    }
+
+    /* Schemas named Error and Result are generated as ModelError and
+       ModelResult and keep their wire shape. */
+    @Test func testSchemasNamedErrorAndResultRoundTrip() throws {
+        let json = "{\"lastError\":{\"code\":1,\"message\":\"m\"},\"outcome\":{\"ok\":true}}"
+        let decoded = try ObjectSerializer.deserialize(json, as: EdgeCases.self)
+        #expect(decoded?.lastError == ModelError(code: 1, message: "m"))
+        #expect(decoded?.outcome == ModelResult(ok: true))
+        let value = try #require(decoded)
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    /* Properties named after keywords and literals keep their wire keys. */
+    @Test func testKeywordNamedPropertiesKeepTheirWireKeys() throws {
+        let json =
+            "{\"and\":true,\"class\":\"c\",\"false\":false,\"not\":true,\"null\":\"n\","
+            + "\"or\":false,\"return\":\"r\",\"true\":true}"
+        let decoded = try ObjectSerializer.deserialize(json, as: EdgeCases.self)
+        #expect(decoded?._class == "c")
+        #expect(decoded?._return == "r")
+        #expect(decoded?.null == "n")
+        #expect(decoded?._true == true)
+        #expect(decoded?._false == false)
+        let value = try #require(decoded)
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    /* The digit-leading property 2fa keeps its wire key. */
+    @Test func testDigitLeadingPropertyKeepsItsWireKey() throws {
+        let decoded = try ObjectSerializer.deserialize("{\"2fa\":true}", as: EdgeCases.self)
+        #expect(decoded?.n2fa == true)
+        let value = try #require(decoded)
+        #expect(try ObjectSerializer.serialize(value) == "{\"2fa\":true}")
+    }
+
+    /* Every wire value of the enums whose members need quoting or sanitising
+       decodes to one member and encodes back to the exact original string. */
+    @Test(arguments: ["Available", "Sold", "on-hold", "o'clock", "a\\b", "$eq", "#{x}"])
+    func testAvailabilityRoundTripsEveryWireValue(wire: String) throws {
+        struct Holder: Codable { let value: Availability }
+        let escaped = wire.replacingOccurrences(of: "\\", with: "\\\\")
+        let json = "{\"value\":\"\(escaped)\"}"
+        let decoded = try #require(try ObjectSerializer.deserialize(json, as: Holder.self))
+        #expect(decoded.value.rawValue == wire)
+        #expect(try ObjectSerializer.serialize(decoded) == json)
+    }
+
+    @Test(arguments: [" ", "@@", "a-b", "a_b"])
+    func testSeparatorRoundTripsEveryWireValue(wire: String) throws {
+        struct Holder: Codable { let value: Separator }
+        let json = "{\"value\":\"\(wire)\"}"
+        let decoded = try #require(try ObjectSerializer.deserialize(json, as: Holder.self))
+        #expect(decoded.value.rawValue == wire)
+        #expect(try ObjectSerializer.serialize(decoded) == json)
+    }
+
+    @Test func testSeparatorMembersAreDistinct() {
+        #expect(Set(Separator.allCases.map { $0.rawValue }).count == Separator.allCases.count)
+        #expect(Separator.allCases.count == 4)
+    }
+
+    @Test(arguments: ["In-Stock", "on-hold", "OUT_OF_STOCK"])
+    func testEdgeCasesPhaseRoundTripsEveryWireValue(wire: String) throws {
+        let json = "{\"phase\":\"\(wire)\"}"
+        let decoded = try ObjectSerializer.deserialize(json, as: EdgeCases.self)
+        let value = try #require(decoded)
+        #expect(value.phase?.rawValue == wire)
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    @Test func testEdgeCasesPhaseRejectsAnUnknownValue() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"phase\":\"in-stock\"}", as: EdgeCases.self)
+        }
+    }
+
+    /* A time of day passes through unchanged. */
+    @Test(arguments: ["10:30:00", "10:30:00.123"])
+    func testEdgeCasesCutoffPassesThrough(time: String) throws {
+        let json = "{\"cutoff\":\"\(time)\"}"
+        let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
+        #expect(value.cutoff == time)
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    /* A protobuf-JSON duration decodes to seconds and encodes back. */
+    @Test(arguments: [("3600s", 3600.0), ("-90s", -90.0), ("3600.500s", 3600.5), ("0s", 0.0)])
+    func testEdgeCasesRetryAfterRoundTrips(literal: String, seconds: Double) throws {
+        let json = "{\"retryAfter\":\"\(literal)\"}"
+        let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
+        #expect(value.retryAfter == seconds)
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    /* A key the model does not declare is dropped, not an error. */
+    @Test func testUndeclaredKeyOnAPlainModelIsDiscarded() throws {
+        let decoded = try ObjectSerializer.deserialize(
+            "{\"id\":42,\"name\":\"Dogs\",\"unexpectedField\":{\"nested\":[1,2]}}",
+            as: {{packageName}}.Category.self)
+        #expect(decoded?.id == 42)
+        #expect(decoded?.name == "Dogs")
+    }
+
+    /* A fixed-arity tuple degrades to a heterogeneous array that keeps each
+       element's type. */
+    @Test func testTupleLocationKeepsMixedElementTypes() throws {
+        let json = "{\"location\":[1.5,2,\"x\"],\"name\":\"p\",\"photoUrls\":[]}"
+        let decoded = try ObjectSerializer.deserialize(json, as: Pet.self)
+        let location = try #require(decoded?.location)
+        #expect(location.count == 3)
+        #expect(location[0].value as? Double == 1.5)
+        #expect(location[1].value as? Int == 2)
+        #expect(location[2].value as? String == "x")
+        let value = try #require(decoded)
+        #expect(try ObjectSerializer.serialize(value).contains("\"location\":[1.5,2,\"x\"]"))
+    }
+
+    /* Schema defaults are exact typed values. */
+    @Test func testNumericDefaultsAreExactTypedValues() throws {
+        let decoded = try ObjectSerializer.deserialize("{}", as: Defaults.self)
+        #expect(decoded?.ratio == 1.5)
+        #expect(decoded?.scale == 0.25)
+        #expect(decoded?.weight == 2.0)
+        #expect(decoded?.ceiling == 9_000_000_000)
+    }
+
+    /* D84: request JSON writes the line separators U+2028 and U+2029, the
+       slash and the HTML characters as they are, and escapes only the quote,
+       the backslash and control characters. */
+    @Test func testRequestJsonWritesLineSeparatorsAndSlashLiterally() throws {
+        struct Holder: Codable { let text: String }
+        let json = try ObjectSerializer.serialize(Holder(text: "a\u{2028}b\u{2029}c/<>&"))
+        #expect(json == "{\"text\":\"a\u{2028}b\u{2029}c/<>&\"}")
+    }
+
+    @Test func testRequestJsonEscapesQuoteBackslashAndControlCharacters() throws {
+        struct Holder: Codable { let text: String }
+        let json = try ObjectSerializer.serialize(Holder(text: "q\"b\\\n"))
+        #expect(json == #"{"text":"q\"b\\\n"}"#)
+    }
+
+    /* D57: a date-time without an offset is rejected, whatever the host zone;
+       a date-only value stays accepted. */
+    @Test(arguments: [
+        "2024-01-01T10:00:00", "2024-01-01T10:00:00.123", "2024-01-01 10:00:00", "2024-01-01T10:00",
+        "2024-01-01T10:00:00 ", "20240101T100000",
+    ])
+    func testDateTimeWithoutAnOffsetIsRejected(text: String) {
+        #expect(ObjectSerializer.parseDate(text) == nil)
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"shipDate\":\"\(text)\"}", as: Order.self)
+        }
+    }
+
+    @Test(arguments: ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00+02:00", "2024-01-01"])
+    func testDateTimeWithAnOffsetOrDateOnlyIsAccepted(text: String) {
+        #expect(ObjectSerializer.parseDate(text) != nil)
+    }
+
     // MARK: - Every wire-shape failure is a SerializationError
 
     /* Malformed JSON, a wrong primitive type, a missing required field, an
@@ -1110,6 +1287,16 @@ import Testing
         let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
         #expect(decoded?.thumbnail == original,
             "byte field must round-trip the exact bytes")
+    }
+
+    /* An OAS 3.1 contentEncoding: base64 property is normalised to a byte
+       field, so it is base64 on the wire and bytes in the model. */
+    @Test func testContentEncodedPropertyRoundTripsThroughBase64() throws {
+        let original = Data([0x01, 0x00, 0xFE])
+        let json = try ObjectSerializer.serialize(PetPassport(biometricChip: original))
+        #expect(json.contains("\"biometricChip\":\"\(original.base64EncodedString())\""))
+        let decoded = try ObjectSerializer.deserialize(json, as: PetPassport.self)
+        #expect(decoded?.biometricChip == original)
     }
 
     // PetPassport.scans is an array-of-byte (`[Data]`); each element must

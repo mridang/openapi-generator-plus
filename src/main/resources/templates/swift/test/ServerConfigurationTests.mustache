@@ -63,7 +63,7 @@ import Testing
             variable: "env", value: "dev", allowed: ["prod", "staging"])
         #expect(
             error.errorDescription
-                == "Invalid value 'dev' for server variable 'env'. Allowed values: [\"prod\", \"staging\"]")
+                == "Invalid value 'dev' for server variable 'env'. Allowed values: [prod, staging]")
     }
 
     @Test func variableWithoutEnumAcceptsAnyOverride() throws {

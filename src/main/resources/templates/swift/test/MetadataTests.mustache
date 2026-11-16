@@ -15,6 +15,17 @@ import Testing
         _ = restored
     }
 
+    /* The header comment of a source file prints the API description as prose:
+       a quote in it is a quote, not a backslash and a quote. */
+    @Test func testFileHeaderDescriptionHasNoEscapedQuotes() throws {
+        let file = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/{{packageName}}/DefaultApiClient.swift")
+        let source = try String(contentsOf: file, encoding: .utf8)
+        let header = source.components(separatedBy: "\n").prefix { $0.hasPrefix("//") }
+        #expect(!header.isEmpty)
+        #expect(!header.contains { $0.contains("\\\"") })
+    }
+
     @Test func testDeserializeFromJSON() throws {
         // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
         let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)

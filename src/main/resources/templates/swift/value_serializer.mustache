@@ -238,6 +238,10 @@ internal enum ValueSerializer {
                 }
                 return items.joined(separator: ",")
             }
+            if let object = objectFields(value) {
+                return objectValue(
+                    object, style: "form", location: location, explode: explode, encode: { $0 })
+            }
             return ObjectSerializer.stringify(value)
 
         case "simple":
@@ -247,10 +251,119 @@ internal enum ValueSerializer {
             if let items = items {
                 return items.map(encodeIfPath).joined(separator: ",")
             }
+            if let object = objectFields(value) {
+                return objectValue(
+                    object, style: "simple", location: location, explode: explode,
+                    encode: encodeIfPath)
+            }
             return encodeIfPath(ObjectSerializer.stringify(value))
 
         default:
             return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
+        }
+    }
+
+    /// An object-valued parameter (a model or a map) held until the request is
+    /// built. A query parameter that is form style and exploded expands into one
+    /// `name=value` pair per field, so ``serializeStyled(_:value:location:schemaType:collectionFormat:style:explode:)``
+    /// cannot return a single string for it. `failure` is set when a field is
+    /// itself an object or an array, which no query or header can carry.
+    struct ObjectParameter {
+        let fields: [(name: String, value: String)]
+        let failure: SerializationError?
+    }
+
+    /// The wire-keyed leaf fields of an object-valued parameter, sorted by
+    /// name, with null fields dropped. Returns `nil` when `value` is not an
+    /// object (a scalar, a byte string, a date, an enum), and a failure when a
+    /// field is nested. The names are the wire names, because the model is
+    /// encoded first.
+    static func objectFields(_ value: Any) -> Result<[(name: String, value: String)], SerializationError>? {
+        switch value {
+        case is String, is Bool, is Int, is Int32, is Int64, is Double, is Float, is Data, is Date, is UUID:
+            return nil
+        case is any RawRepresentable:
+            return nil
+        default:
+            break
+        }
+        guard let encodable = value as? Encodable,
+            let json = try? ObjectSerializer.serialize(encodable),
+            let fields = try? JSONDecoder().decode([String: AnyCodable].self, from: Data(json.utf8))
+        else {
+            return nil
+        }
+        var pairs: [(name: String, value: String)] = []
+        for name in fields.keys.sorted() {
+            guard let leaf = fields[name]?.value else { continue }
+            switch leaf {
+            case is NSNull:
+                continue
+            case is [Any], is [String: Any]:
+                return .failure(
+                    SerializationError(
+                        message: "Object-valued parameter has a nested value for '\(name)'; "
+                            + "only a flat object can be sent in a query or a header"))
+            default:
+                pairs.append((name, ObjectSerializer.stringify(leaf)))
+            }
+        }
+        return .success(pairs)
+    }
+
+    /// Renders an object-valued parameter for `style` (OAS 3.0 section 4.8.12.4):
+    /// form and exploded in a query is one pair per field (an ``ObjectParameter``),
+    /// anything else is one string, `name,value,name,value` when not exploded and
+    /// `name=value,name=value` when exploded.
+    private static func objectValue(
+        _ object: Result<[(name: String, value: String)], SerializationError>,
+        style: String,
+        location: String,
+        explode: Bool,
+        encode: (String) -> String
+    ) -> Any? {
+        switch object {
+        case .failure(let error):
+            return ObjectParameter(fields: [], failure: error)
+        case .success(let fields):
+            if style == "form" && explode && location == "query" {
+                return ObjectParameter(fields: fields, failure: nil)
+            }
+            if explode {
+                return fields.map { "\(encode($0.name))=\(encode($0.value))" }.joined(separator: ",")
+            }
+            return fields.flatMap { [encode($0.name), encode($0.value)] }.joined(separator: ",")
+        }
+    }
+
+    /// The text of a header parameter: its serialized value, or the failure of
+    /// an object-valued one that holds a nested field.
+    static func headerValue(_ value: Any?) throws -> String {
+        if let object = value as? ObjectParameter {
+            if let failure = object.failure {
+                throw failure
+            }
+            return ""
+        }
+        return "\(value ?? "")"
+    }
+
+    /// The `name[field]` pairs of a deepObject query parameter whose value is a
+    /// map or a model, sorted by field name. A nested field throws.
+    static func serializeDeepObjectValue(
+        _ paramName: String, value: Any
+    ) throws -> [(key: String, value: String)] {
+        if let dict = value as? [String: Any] {
+            return dict.keys.sorted().map {
+                (key: "\(paramName)[\($0)]", value: ObjectSerializer.stringify(dict[$0]))
+            }
+        }
+        guard let object = objectFields(value) else { return [] }
+        switch object {
+        case .failure(let error):
+            throw error
+        case .success(let fields):
+            return fields.map { (key: "\(paramName)[\($0.name)]", value: $0.value) }
         }
     }
 

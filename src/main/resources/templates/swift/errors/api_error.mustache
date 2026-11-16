@@ -52,12 +52,70 @@ public class ApiError: {{errorPrefix}}Error, LocalizedError, @unchecked Sendable
             msg += "\nHTTP status code: \(statusCode)"
         }
         if let headers = responseHeaders, !headers.isEmpty {
-            msg += "\nResponse headers: \(headers)"
+            msg += "\nResponse headers: \(Self.compactJson(Self.maskingSecrets(headers)))"
         }
         if let body = responseBody, !body.isEmpty {
-            msg += "\nResponse body: \(body)"
+            msg += "\nResponse body: \(Self.renderedBody(body))"
         }
         return msg
+    }
+
+    /// Most response-body bytes shown by ``errorDescription``; the whole body
+    /// stays on ``responseBody``.
+    static let maxRenderedBodyBytes = 1024
+
+    /// The body as shown in ``errorDescription``: at most
+    /// ``maxRenderedBodyBytes`` bytes followed by `... (N more bytes)`, with
+    /// control characters shown as `\xNN`, so a hostile server can neither fill
+    /// a log nor forge a line in it.
+    static func renderedBody(_ body: String) -> String {
+        let bytes = Array(body.utf8)
+        let omitted = bytes.count - maxRenderedBodyBytes
+        let shown = omitted > 0 ? String(decoding: bytes.prefix(maxRenderedBodyBytes), as: UTF8.self) : body
+        var out = ""
+        for scalar in shown.unicodeScalars {
+            if scalar.value < 0x20 || scalar.value == 0x7F {
+                out += String(format: "\\x%02X", scalar.value)
+            } else {
+                out.unicodeScalars.append(scalar)
+            }
+        }
+        if omitted > 0 {
+            out += "... (\(omitted) more bytes)"
+        }
+        return out
+    }
+
+    /// The headers with every credential-bearing value shown as `***`:
+    /// authorization, cookie and challenge headers and any name containing
+    /// `key`, `token` or `secret`.
+    static func maskingSecrets(_ headers: [String: String]) -> [String: String] {
+        let secretNames: Set<String> = [
+            "authorization", "proxy-authorization", "cookie", "set-cookie",
+            "www-authenticate", "proxy-authenticate",
+        ]
+        var shown: [String: String] = [:]
+        for (name, value) in headers {
+            let lower = name.lowercased()
+            let secret =
+                secretNames.contains(lower) || lower.contains("key") || lower.contains("token")
+                || lower.contains("secret")
+            shown[name] = secret ? "***" : value
+        }
+        return shown
+    }
+
+    /// The headers as compact JSON with the keys sorted and `/` left as it is
+    /// (`{"a":"b"}`), so the rendered text is the same on every run.
+    static func compactJson(_ headers: [String: String]) -> String {
+        guard
+            let data = try? JSONSerialization.data(
+                withJSONObject: headers, options: [.sortedKeys, .withoutEscapingSlashes]),
+            let text = String(data: data, encoding: .utf8)
+        else {
+            return "\(headers)"
+        }
+        return text
     }
 
     /// Deserialize the raw response body into the given type.

@@ -12,10 +12,11 @@ import Foundation
 /// callers await the same result. This avoids the thundering-herd pattern that
 /// otherwise overloads the OP and consumes refresh-token rotations.
 public final class OAuth2TokenManager: @unchecked Sendable {
-    /// Safety margin (in seconds) applied to token expiry checks so that we
-    /// refresh slightly before the token actually expires, avoiding a race
-    /// against the server clock.
-    private static let expirySafetyMargin: TimeInterval = 60
+    /// Largest safety margin (in seconds) taken off a token's lifetime when it
+    /// is stored, so that we refresh slightly before the token actually
+    /// expires, avoiding a race against the server clock. The margin is
+    /// `min(60, expires_in / 2)` and is applied once, at store time only.
+    private static let maxExpirySafetyMargin: TimeInterval = 60
 
     private let lock = NSLock()
     private var apiClient: ApiClient?
@@ -90,10 +91,11 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             /* A nil tokenExpiry means the token response carried no expires_in,
              * so the token is cached indefinitely (valid until explicitly
              * invalidated) -- matching the other SDKs. Only when an expiry is
-             * known do we apply the safety margin and refetch once it lapses. */
+             * known do we refetch once it lapses; the safety margin was
+             * already taken off when the expiry was stored. */
             if !accessToken.isEmpty {
                 if let expiry = tokenExpiry {
-                    if Date() < expiry.addingTimeInterval(-Self.expirySafetyMargin) {
+                    if Date() < expiry {
                         return .cached(accessToken)
                     }
                 } else {
@@ -237,33 +239,36 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
     /// Merges a grant response into the cached session (caller holds `lock`):
     /// a missing `refresh_token` keeps the stored one and a missing
-    /// `expires_in` keeps the known expiry.
+    /// `expires_in` clears the expiry, so the token is cached until it is
+    /// invalidated, exactly as ``exchange(tokenURL:params:extraHeaders:)`` and
+    /// the first fetch treat it.
     private func apply(_ result: TokenResult) {
         self.accessToken = result.accessToken
         if let refreshToken = result.refreshToken {
             self._refreshToken = refreshToken
         }
-        if result.hasExpiresIn {
-            self.tokenExpiry = Self.expiry(for: result.expiresIn)
-        }
-        /* No expires_in in the response: leave the prior tokenExpiry
-         * untouched (as every other SDK does) rather than overwriting it
-         * with the "never expires" nil sentinel. On a refresh whose
-         * response omits expires_in this keeps the previous expiry in
-         * force, so a stale token is refetched instead of cached forever. */
+        /* No expires_in in the response: the expiry is cleared (nil, cached
+         * until invalidated). Keeping the prior expiry would leave an already
+         * lapsed instant in force, because a refresh only runs once the old
+         * expiry has passed, and every following call would then run another
+         * refresh grant. */
+        self.tokenExpiry = result.hasExpiresIn ? Self.expiry(for: result.expiresIn) : nil
     }
 
     /// RFC 6749 section 5.1 says expires_in is a JSON number, but real-world
     /// providers (Salesforce, some Apigee deployments) send a quoted string
     /// and others send a JSON float. On anything unparseable or non-positive,
     /// the token is marked immediately stale so the next call refetches
-    /// (preferable to caching forever).
-    private static func expiry(for expiresIn: Int) -> Date {
+    /// (preferable to caching forever). One safety margin of
+    /// `min(60, expires_in / 2)` seconds is taken off the real lifetime here
+    /// and nowhere else, so a 60 second token is reused for 30 seconds.
+    static func expiry(for expiresIn: Int, now: Date = Date()) -> Date {
         if expiresIn > 0 {
-            let bufferSecs = min(expiresIn, 30)
-            return Date().addingTimeInterval(TimeInterval(expiresIn - bufferSecs))
+            let lifetime = TimeInterval(expiresIn)
+            let margin = min(maxExpirySafetyMargin, lifetime / 2)
+            return now.addingTimeInterval(lifetime - margin)
         }
-        return Date()
+        return now
     }
 
     private func requestToken(
@@ -351,40 +356,27 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             throw Self.parseOAuth2ServerError(statusCode: response.statusCode, body: response.body)
         }
 
-        guard let data = response.body.data(using: .utf8) else {
-            throw OAuth2TokenError.invalidResponse("Token response body is not valid UTF-8")
+        /* The body is parsed once, dynamically, so expires_in can arrive as a
+         * number or a quoted string (Salesforce, some Apigee deployments), and
+         * the three failures carry the canonical text with no parser detail. */
+        guard let data = response.body.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed])
+        else {
+            throw OAuth2TokenError.invalidResponse("Token response is not valid JSON")
         }
-
-        /* expires_in is decoded via JSONSerialization rather than Decodable so
-         * the parse does not fail when providers send it as a quoted string
-         * (Salesforce, some Apigee deployments) or as a JSON float. */
-        struct TokenResponse: Decodable {
-            let accessToken: String?
-            let refreshToken: String?
-
-            enum CodingKeys: String, CodingKey {
-                case accessToken = "access_token"
-                case refreshToken = "refresh_token"
-            }
+        guard let rawJson = json as? [String: Any] else {
+            throw OAuth2TokenError.invalidResponse("Token response is not a JSON object")
         }
-
-        let parsed: TokenResponse
-        do {
-            parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
-        } catch {
-            throw OAuth2TokenError.invalidResponse("Token response is not a valid token JSON object")
-        }
-        guard let accessTokenValue = parsed.accessToken, !accessTokenValue.isEmpty else {
+        guard let accessTokenValue = rawJson["access_token"] as? String, !accessTokenValue.isEmpty else {
             throw OAuth2TokenError.missingAccessToken(
                 "Token response missing or empty access_token field"
             )
         }
-        let rawJson = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        let rawExpiresIn = rawJson?["expires_in"]
+        let rawExpiresIn = rawJson["expires_in"]
         let hasExpiresIn = rawExpiresIn != nil && !(rawExpiresIn is NSNull)
         let expiresIn = Self.parseExpiresIn(rawExpiresIn)
 
-        let refreshTokenValue = parsed.refreshToken.flatMap { $0.isEmpty ? nil : $0 }
+        let refreshTokenValue = (rawJson["refresh_token"] as? String).flatMap { $0.isEmpty ? nil : $0 }
         return TokenResult(
             accessToken: accessTokenValue,
             refreshToken: refreshTokenValue,

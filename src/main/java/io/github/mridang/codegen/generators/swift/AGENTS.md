@@ -133,8 +133,8 @@ Where: `auth/oauth/oauth2_token_manager.mustache`, `openid_connect_authenticator
 Test: `OAuth2TokenManagerTests`, `OAuth2AuthCodeAuthenticatorTests`, `OpenIdConnectAuthenticatorTests` templates. Intended for D01: the manager still holds only `inflightRefresh`; discovery single-flight and the exchanged flag in the manager were not confirmed.
 
 ### Token numbers and expiry (D08, R8 sweep)
-Rule: `expires_in` and discovery max-age are capped at one year (`31_536_000`) before date arithmetic; a refresh response without `expires_in` keeps the known expiry.
-Why: a refresh without `expires_in` must not cache a token forever.
+Rule: `expires_in` and discovery max-age are capped at one year (`31_536_000`) before date arithmetic; a response without `expires_in` clears the expiry (see Decisions taken in batch 7).
+Why: a refresh without `expires_in` leaves the token cached until it is invalidated, exactly like the first fetch.
 Where: `oauth2_token_manager.mustache`, `openid_connect_authenticator.mustache`.
 Test: `OAuth2TokenManagerTests` template.
 
@@ -151,7 +151,7 @@ Where: `api/api.mustache`, `BetterSwiftCodegen`/`AbstractBetterCodegen.enrichOpe
 Test: `DefaultApiClientUnitTests` template (`DefaultApiClientTests` is `#if !os(Linux)` and does not run in the spec).
 
 ### Ambient proxy and Linux proxy (D74, F090)
-Rule: on Apple platforms `connectionProxyDictionary = [:]` disables system proxies unless `TransportOptions.proxy` is set; on Linux setting a proxy throws `ConfigurationError.proxyUnsupported` because FoundationNetworking cannot apply one.
+Rule: on Apple platforms `connectionProxyDictionary = [:]` disables system proxies unless `TransportOptions.proxy` is set; on Linux setting a proxy throws `ConfigurationError.invalidProxy` (text `Proxy configuration is not supported on this platform`) because FoundationNetworking cannot apply one.
 Why: one proxy policy; the Linux half is forced by the platform.
 Where: `default_api_client.mustache` (`buildSession`).
 Test: `DefaultApiClientUnitTests`, `TransportOptionsTests` templates.
@@ -192,11 +192,11 @@ Why: re-encoding by hand would risk the parsed-query behaviour; latent, no fixtu
 Where: `auth/oauth/oauth2_auth_code_authenticator.mustache`.
 Test: `OAuth2AuthCodeAuthenticatorTests` template.
 
-### Non-string token fields hard-fail (forced, borderline)
-Rule: a numeric `access_token` or `refresh_token` fails the whole token decode, where the dynamic-parse SDKs skip it.
-Why: the typed `Decodable` response; changing it means dynamic parsing, deferred.
+### Non-string token fields (batch 7, supersedes the old hard-fail)
+Rule: the token response is parsed dynamically; a numeric `access_token` is a missing one and a numeric `refresh_token` is skipped.
+Why: the same reading as the dynamic-parse SDKs.
 Where: `oauth2_token_manager.mustache`.
-Test: none.
+Test: `OAuth2TokenManagerTests` template (`testTokenFailuresCarryTheCanonicalMessage`).
 
 ### allowReserved and `[` `]` (D49, D78, forced exception)
 Rule: the always-literal set is `:/?@!$&'()*+,;=` plus `~`; `#`, `[` and `]` are percent-encoded by the SDK, and Foundation additionally rewrites `[` and `]` to `%5B` `%5D`, which is documented in `ValueSerializer.AllowReservedValue`.
@@ -240,14 +240,24 @@ Why: audit proposals, taken as the default; no wire effect.
 Where: `default_api_client.mustache`, `errors/oauth2_authorization_code_error.mustache`.
 Test: `DefaultApiClientTests` (hop-cap and scheme refusals assert the `location` header; the HTTPS to HTTP downgrade test is not asserted because the stub ends in URLSession's own "too many HTTP redirects" before the delegate refuses), `OAuth2AuthCodeAuthenticatorTests`.
 Generated tests: a comparison of a non-optional value with `nil` is written `_ = value` or dropped, an `is` check that is always true is a typed assignment (`let _: ClientError = error`), and `try` is not written before the non-throwing `authHeaders()` of the API key, bearer and basic authenticators (F525). Measure with `swift build --build-tests` and look for warnings in `Tests/`.
-Not taken in batch 6, left open: the single expiry margin and the no-`expires_in` expiry rule (F854, F1045, F1046; every token-manager test uses `expires_in: 1` as "already stale"), monotonic expiry clocks (F1054), the redirect guard on a supplied session (F1047), the canonical D16, D77 and D79 message wording (F924, F927, F932), and swift reserved names with backticks (F872; changes goldens and the reserved-word spec).
+Not taken in batch 6, left open then: the single expiry margin and the no-`expires_in` rule, the redirect guard on a supplied session, and the canonical D16, D77 and D79 wording (all taken in batch 7), monotonic expiry clocks (F1054, still open) and swift reserved names with backticks (F872; changes goldens and the reserved-word spec).
+
+### Decisions taken in batch 7
+Rule: token expiry is stored as `now + expires_in - min(60 s, expires_in / 2)` and read without a second margin, so a 60 s token is reused for 30 s; a grant response (first fetch, refresh or exchange) without `expires_in` clears the expiry, and a stale token in a test uses `expires_in: 0` (F854, F1045, F1046).
+Rule: request headers merge case-insensitively, layer by layer (transport defaults, config defaults, operation headers, authenticator headers, multipart Content-Type and Content-Length), through `BaseApi.mergeHeaders`; two spellings in one layer resolve in sorted-name order so the result is the same on every run (F1044).
+Rule: `ConfigurationError` has the cases `invalidArgument`, `invalidCACertificate`, `invalidProxy`, `invalidServerVariable`, `invalidState`, `invalidTimeout`; the former `proxyUnsupported` and `tlsOptionsUnsupported` are `invalidProxy` and `invalidCACertificate` with the platform text (D76). `invalidProxy` and `invalidCACertificate` carry the whole message, proxy text per D79 with `user:password@` shown as `***@` (F932, F1086); a timeout of zero or less is `invalidTimeout` when the options are built (D77, F924, F1079).
+Rule: the redirect refusals read `Too many redirects (exceeded N)`, `Refusing to follow redirect to non-HTTP(S) URL: <next>` and `Refusing to replay request body across HTTPS->HTTP redirect: <current> -> <next>` (D16, F927); token failures read `Token response is not valid JSON`, `...is not a JSON object`, `...missing or empty access_token field` (D07, F926); `ApiError` renders `Response headers: {"a":"b"}` as sorted compact JSON (D17, F922); lists in messages render `[a, b, c]` (D20, F928).
+Rule: a supplied `URLSession` keeps the SDK redirect rules: the SDK `SessionDelegate` is attached to each task (`URLSessionTask.delegate`, macOS 12 and iOS 15 are the floor), so credential stripping, the scheme and downgrade refusals and the hop cap still run (F1047). A cross-origin hop also drops every header whose name contains `key`, `token` or `secret` (the S15 rule), so default headers and custom authenticator headers are covered without being listed (F1093).
+Rule: object-valued query and header parameters (a model or a map, D47) expand by style: form exploded is one `name=value` pair per field, form not exploded and simple are `name,value,name,value`, deepObject is `param[name]=value`; fields are the wire names, sorted by name (`JSONEncoder` has no declared-order mode), nulls dropped, and a nested field is a `SerializationError` (F1143). A per-call `HttpAwareAuthenticator` receives the API's client (F856). The file header prints the info description through `unescapeDocComment` (F1156), and an apiKey name goes into the strip-list through `swiftString` (F1154).
+Rule (owner default, ported from the php, kotlin and go branches): a 401 on a request authenticated by an OAuth2 or OIDC authenticator calls `AccessTokenInvalidating.invalidateAccessToken()` (public protocol in `http_aware_authenticator.mustache`), fetches the headers again (a refresh grant first) and replays the request once; a failed re-authentication leaves the 401 (F855). The authorization-code URL carries a PKCE S256 `code_challenge` and the code exchange sends the matching `code_verifier` once (SHA-256 is hand-written in `PKCE`, because CryptoKit is not on Linux; no OIDC nonce, since no ID token is validated) (F858). OIDC discovery rejects an `issuer` that differs from the discovery URL minus `/.well-known/openid-configuration` (a document without an issuer is accepted) and an authorization or token endpoint that is not https unless it is http on a loopback host (F859). A `noRedirect` request (the token POST) omits `TransportOptions.defaultHeaders`; OIDC discovery still carries them, because it must follow redirects (F860). Models with a `format: password` property are `CustomReflectable` and show it as `***` in `print`, `dump` and `String(describing:)` (F867; `hasPasswordVars` is set in `postProcessModels`). `ApiError.errorDescription` shows at most 1024 body bytes then `... (N more bytes)`, control characters as `\xNN`, and `***` for authorization, cookie, set-cookie, challenge headers and any header named like key, token or secret (F1080). The date-only fallback in `parseDate` takes exactly `yyyy-MM-dd`, so a date-time without an offset is rejected (F1163, F1164).
+Not taken in batch 7: monotonic expiry clocks (F1054; `ContinuousClock` needs macOS 13 and `systemUptime` stops during sleep), per-operation security schemes (F857), a response size limit (F1048, a new transport option), the allOf discriminator protocol (F057, S4 still not landed), and the `.unsafeFlags` in `Package.swift` (F1095: SwiftPM 6.2 `treatWarning` would raise the tools-version, and the flags are also what the spec build relies on).
 
 ## Known limitations and out of scope
 
-- Linux has no proxy support (`ConfigurationError.proxyUnsupported`) and no CA pin; SOCKS proxies are rejected by design (README). Reason: FoundationNetworking.
+- Linux has no proxy support (`ConfigurationError.invalidProxy`) and no CA pin (`ConfigurationError.invalidCACertificate`); SOCKS proxies are rejected by design (README). Reason: FoundationNetworking.
 - `int` and `integer` map to `Int`, not `Int32`, so a value above `Int32` range is accepted for `int32` fields and an integral-looking `1.0` is accepted (D54, F006, F076; the API-breaking `Int32` mapping was proposed and not applied).
 - Query, form and multipart parameters are held in `[String: ...]` dictionaries, so their wire order is not the spec order and multipart order is nondeterministic (D53, F087, parked).
-- Not applied yet, intended per the ledger: lenient `LocalizedError` text on `OAuth2AuthorizationCodeError` (D09), the redirect-refusal wording of D16, the `timeout(_:) throws` validation (D77, `invalidTimeout`), proxy and CA error message grammar (D79), duplicate-key and required-default handling in `init(from:)` for D62 and D63, and the `Content-Encoding` header removal of D92.
+- Not applied yet, intended per the ledger: duplicate-key and required-default handling in `init(from:)` for D62 and D63, and the `Content-Encoding` header removal of D92.
 - Declared-charset decoding is lenient UTF-8 with a fallback; windows-1252, shift_jis and iso-8859-x bodies can decode as mojibake (F258, open for swift).
 - The required date parameter guard has no petstore fixture (F433, needs a spec change). Generated tests no longer compare non-optional values to `nil` or test always-true casts (F525). `swift build -strict-concurrency=complete` (`make analyse`) is run by no spec (F382); test sources get weaker strictness than sources (F193, deferred).
 - The API surface harmonisation of `ConfigurationError` is parked (F699).

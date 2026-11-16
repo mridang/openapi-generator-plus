@@ -261,10 +261,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         do {
             let val = options.{{paramName}}
 {{#vendorExtensions.param.queryDeepObject}}
-            if let dict = (val as Any) as? [String: Any] {
-                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
-                    queryParams[k] = v
-                }
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
@@ -284,10 +282,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{^required}}
         if let val = options.{{paramName}} {
 {{#vendorExtensions.param.queryDeepObject}}
-            if let dict = (val as Any) as? [String: Any] {
-                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
-                    queryParams[k] = v
-                }
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
@@ -308,10 +304,8 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
 {{#vendorExtensions.param.queryDeepObject}}
-            if let dict = (val as Any) as? [String: Any] {
-                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
-                    queryParams[k] = v
-                }
+            for (k, v) in try ValueSerializer.serializeDeepObjectValue("{{baseName}}", value: val) {
+                queryParams[k] = v
             }
 {{/vendorExtensions.param.queryDeepObject}}
 {{#vendorExtensions.param.queryContent}}
@@ -335,17 +329,17 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#headerParams}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
-        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+        headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(options.{{paramName}}){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: options.{{paramName}}, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
 {{/required}}
 {{^required}}
         if let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
         }
 {{/required}}
 {{/vendorExtensions.op.optionsParamRequired}}
 {{^vendorExtensions.op.optionsParamRequired}}
         if let options = options, let val = options.{{paramName}} {
-            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}}
+            headerParams["{{baseName}}"] = {{#vendorExtensions.swiftContent}}try ObjectSerializer.serialize(val){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}try ValueSerializer.headerValue(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}})){{/vendorExtensions.swiftContent}}
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/headerParams}}
@@ -444,7 +438,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         if let requestContentType {
             guard declaredRequestContentTypes.contains(requestContentType) else {
                 throw ConfigurationError.invalidArgument(
-                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are \(declaredRequestContentTypes)")
+                    "Unsupported request content-type '\(requestContentType)' for {{operationId}}; declared types are [\(declaredRequestContentTypes.joined(separator: ", "))]")
             }
             effectiveRequestContentType = requestContentType
         } else {
