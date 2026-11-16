@@ -142,7 +142,7 @@ Where: `default_api_client.mustache`.
 Test: `default_api_client_test.mustache`.
 
 ### Redirect, serializer and error wording (D15, D16, D17, D18, D20, D21)
-Rule: serialize errors read `Failed to serialize object to JSON: <detail>`, deserialize `Failed to deserialize JSON: <detail>`, depth `JSON nesting depth <N> exceeds limit 1000`; redirects read `Refusing to follow redirect to non-HTTP(S) URL: <url>`, `Refusing to replay request body across HTTPS->HTTP redirect: <from> -> <to>`, `Too many redirects (exceeded <N>)`; `Response headers:` is `JSON.generate(response_headers.sort.to_h)`; one leading BOM is stripped inside `parse_json`; lists render `[a, b, c]`; User-Agent and X-Request-ID injection is case-insensitive (`casecmp?`), the caller's header wins.
+Rule (all of it is implemented as written since batch 6): serialize errors read `Failed to serialize object to JSON: <detail>`, deserialize `Failed to deserialize JSON: <detail>`, depth `JSON nesting depth <N> exceeds limit 1000`; redirects read `Refusing to follow redirect to non-HTTP(S) URL: <url>`, `Refusing to replay request body across HTTPS->HTTP redirect: <from> -> <to>`, `Too many redirects (exceeded <N>)`; `Response headers:` is `JSON.generate(response_headers.sort.to_h)`; one leading BOM is stripped inside `parse_json`; lists render `[a, b, c]`; User-Agent and X-Request-ID injection is case-insensitive (`casecmp?`), the caller's header wins.
 Why: one wording and one byte form in all twelve; the BOM strip must live in the helper both the success path and `from_response` call.
 Where: `object_serializer.mustache`, `default_api_client.mustache`, `errors/api_error.mustache`, `server_configuration.mustache`, `api/api.mustache`.
 Test: `object_serializer_test`, `default_api_client_unit_test`, `api_error_test`, `server_configuration_test`.
@@ -262,10 +262,9 @@ Test: `python3 etc/api-surface.py check`.
 - Webhooks, callbacks, XML bodies, Link Objects and mutual TLS are out of scope (S11, closed issues #53, #70, #78, #88, #90); the README says so.
 - OpenAPI 3.2 and 3.1 loading is tracked in epics #49 and #96, 3.2 documents in #50.
 - `format: number` precision is lossy (Float); lossless parsing is undecided.
-- Connection reuse is open for ruby: it never keeps a connection alive (F229).
+- Connection reuse is open for ruby: Faraday's default `net_http` adapter opens a connection per request (F229); keep-alive would need `net_http_persistent`, an owner decision. The misleading code comment was removed.
 - `ruby` models do no type or enum validation on construction beyond dry-types `Any` for untyped fields (F316, parked).
 - An overflowing double literal such as `1e400` decodes to Infinity (F390, parked).
-- The apiKey scheme name is pasted into a string literal without escaping (F278, open).
 - Docs build (`yard --fail-on-warning`) is shipped in the Makefile but run by no spec (F191, deferred).
 - No `LICENSE` file is generated.
 - Reserved-word narrowing (D44) is conditional on Steep/RBS passing; otherwise it is recorded as forced.
@@ -295,3 +294,32 @@ Test: `python3 etc/api-surface.py check`.
 Rule: `Client#close` closes the `DefaultApiClient` the SDK built (a supplied Faraday connection is never closed; a closed client raises the existing closed `RuntimeError`); `Errors::TooManyRequestsError` (429, a `ClientError`) is selected in `ApiError.from_response`; the unexpected-Content-Type `SerializationError` names `Class.operation` through the `operation_id:` keyword of `invoke_api_for_result`; a `content:` cookie is percent-encoded by `ValueSerializer.encode_content_cookie` (only A-Z a-z 0-9 - . _ ~ literal); on 301/302 only POST becomes GET, on 303 every method but HEAD becomes GET, 307/308 never change the method.
 Where: `client.mustache`, `errors/too_many_requests_error.mustache`, `base_api.mustache`, `value_serializer.mustache`, `default_api_client.mustache`, `infrastructure_rbs.mustache`.
 Test: `client_test`, `api_error_test`, `base_api_test`, `value_serializer_test`, `default_api_client_test`.
+
+## Decisions taken in batch 6
+
+Each follows the audit's own proposal unless noted.
+
+### Redirect, header and message wording (F916, F921, F922, F924, F925, F927, F928, F931)
+Rule: the too-many-redirects error is raised only when the exhausted budget leaves a 3xx that still has a `Location` (a terminal 3xx is returned); the three redirect messages are the D16 text exactly; `ApiError#message` renders `Response headers: ` as `JSON.generate(headers.sort.to_h)`; `Builder#timeout` accepts only a positive number (`Invalid timeout: must be a positive number of milliseconds (got N)`, so `0` is rejected); `exchange_code('')` raises `Authorization code must not be empty`.
+Where: `default_api_client.mustache`, `errors/api_error.mustache`, `transport_options.mustache`, `auth/oauth/oauth2_auth_code_authenticator.mustache`.
+Test: `default_api_client_unit_test`, `api_error_test`, `transport_options_test`, `oauth2_auth_code_authenticator_test`, `api/pet_api_test` (the messages are asserted byte for byte).
+
+### OAuth2 token expiry (F854, F910, F911, F863)
+Rule: the real expiry (`now + expires_in`) is stored and one margin, `min(60, expires_in / 2)` seconds, is applied when it is read, so a 60 s token is reused for 30 s; a response without `expires_in` clears the previous expiry (no `expires_in` means no expiry); a `token_type` other than `bearer` (any case) or missing raises `OAuth2TokenError` with `Unsupported token_type in token response`, never echoing the value.
+Where: `auth/oauth/oauth2_token_manager.mustache`.
+Test: `oauth2_token_manager_test`.
+
+### Per-call authenticators and discovery (F856, F859)
+Rule: `BaseApi` hands its own `ApiClient` to a per-call `HttpAwareAuthenticator` (one that is not the client authenticator) before asking it for headers; an OIDC discovery document with an `issuer` that differs (trailing slash ignored) from the discovery URL minus `/.well-known/openid-configuration` raises `SerializationError`, and a discovered `authorization_endpoint` or `token_endpoint` must be https unless the host is loopback. An absent `issuer` is accepted (partial: the spec requires it).
+Where: `base_api.mustache`, `auth/oauth/openid_connect_authenticator.mustache`.
+Test: `base_api_test`, `openid_connect_authenticator_test`.
+
+### Custom HTTP verbs and header merge (F838, F860 partial)
+Rule: verbs Faraday's `run_request` accepts go through it; any other (QUERY, custom) is built with `build_request` and `builder.build_response`; transport default headers lose to a caller header of the same name in any case.
+Where: `default_api_client.mustache` (`dispatch`), `infrastructure_rbs.mustache`.
+Test: `default_api_client_unit_test`.
+
+### Docs (F883, F884, F885, F887, F888, F889, F890, F894 partial)
+Rule: the README opens with consumer Installation and Usage, then Configuration (timeout unit, proxy, request id), Custom HTTP client, Raw responses and Cancellation; Not supported lists webhooks, XML bodies and `nodeType`, Link Objects, mutual TLS and automatic retries before the ruby-specific items; build, test and lint moved to a final Development section; the `uniqueItems` text now says the order is unspecified (S6); SKILLS builds the sample model from its required attributes and documents timeouts, request id, cancellation and `*_with_http_info`; a binary response is documented as a `StringIO`.
+Where: `readme.mustache`, `skills.mustache`.
+Test: `readme_test`, `skills_test`.

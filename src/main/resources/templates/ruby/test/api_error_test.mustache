@@ -64,7 +64,7 @@ describe {{moduleName}}::Errors::ApiError do
       status_code: 500, message: 'boom', response_headers: headers, response_body: 'oops'
     )
 
-    _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: #{headers}\nResponse body: oops")
+    _(err.message).must_equal("boom\nHTTP status code: 500\nResponse headers: {\"x-id\":\"1\"}\nResponse body: oops")
   end
 
   it 'substitutes the default text for an empty detail message' do
