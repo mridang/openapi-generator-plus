@@ -58,8 +58,40 @@ jobs:
       - name: Install Dependencies
         run: mvn --batch-mode --show-version dependency:go-offline
 
+      - name: Start profiling sampler
+        run: |
+          mkdir -p "$RUNNER_TEMP/spike"
+          setsid nohup .github/spike/sampler.sh "$RUNNER_TEMP/spike" > "$RUNNER_TEMP/spike/sampler.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/spike/sampler.pid"
+          date +%s > "$RUNNER_TEMP/spike/mvn-start"
+
       - name: Run Junit
-        run: mvn verify --batch-mode
+        shell: bash
+        run: |
+          set -o pipefail
+          mvn verify --batch-mode 2>&1 | perl -MTime::HiRes=time -pe 'BEGIN{$|=1} $_=sprintf("%.3f %s",time,$_)' | tee "$RUNNER_TEMP/spike/mvn-timestamped.log"
+
+      - name: Stop sampler and summarise
+        if: always()
+        run: |
+          kill -- -"$(cat "$RUNNER_TEMP/spike/sampler.pid")" 2>/dev/null || pkill -f sampler.sh || true
+          cd "$RUNNER_TEMP/spike"
+          grep -E 'Running |Tests run:.*Time elapsed|--- |BUILD|Total time|Pulling|Starting' mvn-timestamped.log > phases.log || true
+          {
+            echo '## Profiling summary'
+            python3 "$GITHUB_WORKSPACE/.github/spike/summarize.py" "$RUNNER_TEMP/spike"
+            echo
+            echo 'Phase boundaries are in phases.log of the spike-profile artifact.'
+            nproc
+            free -m | head -2
+          } >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload profiling data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spike-profile
+          path: ${{ runner.temp }}/spike
 
       - name: Generate coverage report
         if: always()
