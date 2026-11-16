@@ -39,24 +39,26 @@ public class DropInternalOperationsRule implements CustomNormalizationRule {
         }
         int droppedOps = 0;
         int droppedPaths = 0;
-        final java.util.Iterator<Map.Entry<String, PathItem>> it = paths.entrySet().iterator();
-        while (it.hasNext()) {
-            final Map.Entry<String, PathItem> entry = it.next();
-            final PathItem pi = entry.getValue();
-            if (pi == null) {
-                continue;
-            }
-            if (isInternal(pi.getGet())) { pi.setGet(null); droppedOps++; }
-            if (isInternal(pi.getPut())) { pi.setPut(null); droppedOps++; }
-            if (isInternal(pi.getPost())) { pi.setPost(null); droppedOps++; }
-            if (isInternal(pi.getDelete())) { pi.setDelete(null); droppedOps++; }
-            if (isInternal(pi.getOptions())) { pi.setOptions(null); droppedOps++; }
-            if (isInternal(pi.getHead())) { pi.setHead(null); droppedOps++; }
-            if (isInternal(pi.getPatch())) { pi.setPatch(null); droppedOps++; }
-            if (isInternal(pi.getTrace())) { pi.setTrace(null); droppedOps++; }
-            if (pi.readOperations().isEmpty()) {
-                it.remove();
-                droppedPaths++;
+        synchronized (paths) {
+            final java.util.Iterator<Map.Entry<String, PathItem>> it = paths.entrySet().iterator();
+            while (it.hasNext()) {
+                final Map.Entry<String, PathItem> entry = it.next();
+                final PathItem pi = entry.getValue();
+                if (pi == null) {
+                    continue;
+                }
+                if (isInternal(pi.getGet())) { pi.setGet(null); droppedOps++; }
+                if (isInternal(pi.getPut())) { pi.setPut(null); droppedOps++; }
+                if (isInternal(pi.getPost())) { pi.setPost(null); droppedOps++; }
+                if (isInternal(pi.getDelete())) { pi.setDelete(null); droppedOps++; }
+                if (isInternal(pi.getOptions())) { pi.setOptions(null); droppedOps++; }
+                if (isInternal(pi.getHead())) { pi.setHead(null); droppedOps++; }
+                if (isInternal(pi.getPatch())) { pi.setPatch(null); droppedOps++; }
+                if (isInternal(pi.getTrace())) { pi.setTrace(null); droppedOps++; }
+                if (pi.readOperations().isEmpty()) {
+                    it.remove();
+                    droppedPaths++;
+                }
             }
         }
         if (droppedOps > 0 || droppedPaths > 0) {
