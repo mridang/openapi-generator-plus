@@ -352,6 +352,14 @@ Where: `transport_options.mustache`. Test: `TransportOptionsTest`.
 Rule: Symfony components are required as `^6.4|^7.4` (6.0 to 6.3 are end of life). Symfony 8 is not admitted until the templates and the php spec are verified against it; the PSR-18 transport already lets an application avoid the Symfony client.
 Where: `composer.mustache`.
 
+### Auth behaviour added in batch 7 (F855, F856, F858, F859, F860, F1093)
+Rule: a 401 on a request authenticated by an OAuth2 or OIDC authenticator calls its new public `invalidateAccessToken()` and replays the request once with a fresh token (a refresh grant first); a body that is not a string or null is not replayed and a failed re-authentication leaves the 401. A per-call authenticator from `Options` gets the transport injected before use. The authorization-code URL carries a PKCE S256 `code_challenge` and `exchangeCode` sends the matching `code_verifier`. OIDC discovery rejects an `issuer` that differs from the discovery URL minus `/.well-known/openid-configuration` (a document with no issuer is accepted) and an authorization or token endpoint that is not https unless loopback. A request sent with `noRedirect` (the token POST) omits `TransportOptions::defaultHeaders`. A cross-origin redirect also strips any header whose name contains key, token, secret, auth or credential, and any transport default header except `User-Agent`. No OIDC nonce is sent because the SDK never validates an ID token.
+Where: `base_api.mustache`, `auth/oauth/*.mustache`, `abstract_api_client.mustache`. Test: `BaseApiTest`, `OAuth2AuthCodeAuthenticatorTest`, `OpenIdConnectAuthenticatorTest`, `DefaultApiClientUnitTest`.
+
+### Rendering and headers (F1080, F1165, F867)
+Rule: `ApiException::__toString()` shows at most 1024 body bytes with `... (N more bytes)`, escapes control characters as `\xNN`, and renders `authorization`, `proxy-authorization`, `cookie`, `set-cookie`, `www-authenticate`, `proxy-authenticate` and any header named like key, token or secret as `***`. A decoded response drops `content-encoding` and `content-length` from the returned headers (D92). Models with a `format: password` property define `__debugInfo()` that masks it.
+Where: `api_error.mustache`, `abstract_api_client.mustache`, `models/model.mustache` (`hasPasswordVars` set in `BetterPHPCodegen.postProcessModels`). Test: `ApiExceptionTest`, `DefaultApiClientUnitTest`, `ObjectSerializerTest`.
+
 ## Known limitations and out of scope
 
 - Model fields of `format: byte` hold the base64 text (`?string`), with raw bytes through `getXAsBytes()` and `setXFromBytes()`; the other eleven hold native bytes. Decode validation is decided (D58) but the representation difference is deferred (F136), so the root "native bytes in memory in all 12" sentence is false for php.
