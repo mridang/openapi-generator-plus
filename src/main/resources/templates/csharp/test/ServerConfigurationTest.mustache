@@ -149,6 +149,51 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void GetUrlDoesNotExpandAPlaceholderThatASubstitutedValueIntroduces()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("{version}", null, []),
+                ["version"] = new ServerVariable("v2", null, []),
+            });
+
+        Assert.Equal("https://{version}.example.com/v2", server.GetUrl());
+    }
+
+    [Fact]
+    public void GetUrlLeavesAnUnknownPlaceholderAndUnbalancedBraceAsWritten()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{other}/{",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, []),
+            });
+
+        Assert.Equal("https://api.example.com/{other}/{", server.GetUrl());
+    }
+
+    [Fact]
+    public void ServerConfigurationCopiesTheCallersVariablesAtConstruction()
+    {
+        var variables = new Dictionary<string, ServerVariable>
+        {
+            ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+        };
+        var server = new ServerConfiguration("https://{env}.example.com", null, variables);
+
+        variables["env"] = new ServerVariable("changed", null, []);
+        variables["extra"] = new ServerVariable("x", null, []);
+
+        Assert.Equal("https://api.example.com", server.GetUrl());
+        Assert.Single(server.Variables);
+    }
+
+    [Fact]
     public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(
@@ -175,6 +220,23 @@ public class ServerConfigurationTest
         );
 
         Assert.Throws<ArgumentNullException>(() => server.GetUrl(null!));
+    }
+
+    [Fact]
+    public void ThirdGeneratedServerKeepsItsHostileTextVerbatim()
+    {
+        ServerConfiguration server = Servers.All[2];
+
+        Assert.Equal("https://{tenant}.example.com/api", server.UrlTemplate);
+        Assert.Equal("Bob's \"sandbox\" & co: $5 #{x} a*/b", server.Description);
+        ServerVariable tenant = server.Variables["tenant"];
+        Assert.Equal("o'neil", tenant.DefaultValue);
+        Assert.Equal("Tenant's \"id\"", tenant.Description);
+        Assert.Equal(new[] { "o'neil", "a&b" }, tenant.EnumValues);
+        Assert.Equal("https://o'neil.example.com/api", server.GetUrl());
+        Assert.Equal(
+            "https://a&b.example.com/api",
+            server.GetUrl(new Dictionary<string, string> { ["tenant"] = "a&b" }));
     }
 
     [Fact]

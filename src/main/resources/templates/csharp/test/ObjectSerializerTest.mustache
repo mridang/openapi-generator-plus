@@ -1073,7 +1073,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTrip_WholeSeconds()
+        public void DurationConverterRoundTripWholeSeconds()
         {
             // 2h15m30s → 8130 seconds → "8130s"
             var original = new TimeSpan(2, 15, 30);
@@ -1084,7 +1084,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTrip_DaysAndTime()
+        public void DurationConverterRoundTripDaysAndTime()
         {
             // 3d4h5m6s → 273906 seconds → "273906s"
             var original = new TimeSpan(3, 4, 5, 6);
@@ -1094,7 +1094,7 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void DurationConverterRoundTrip_Negative()
+        public void DurationConverterRoundTripNegative()
         {
             var original = new TimeSpan(0, -45, 0);
             string formatted = ProtobufDurationConverter.Format(original);
@@ -1943,6 +1943,27 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void PatternConstrainedStringIsAcceptedAndKeptVerbatim()
+        {
+            EdgeCases decoded = _serializer.Deserialize<EdgeCases>("{\"slug\":\"12/ab\"}")!;
+
+            Assert.Equal("12/ab", decoded.Slug);
+            Assert.Contains("\"slug\":\"12/ab\"", _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void StringBeyondItsLengthAndPatternConstraintsRoundTrips()
+        {
+            string outOfBounds = new('Z', 10);
+            string json = "{\"name\":\"n\",\"photoUrls\":[],\"nickname\":\"" + outOfBounds + "\"}";
+
+            Pet decoded = _serializer.Deserialize<Pet>(json)!;
+
+            Assert.Equal(outOfBounds, decoded.Nickname);
+            Assert.Contains("\"nickname\":\"" + outOfBounds + "\"", _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void InlineEnumRejectsAnUnknownWireValue()
         {
             Assert.Throws<SerializationException>(
@@ -2006,6 +2027,18 @@ public static class ObjectSerializerTest
 
             Assert.Equal(decimal.Parse(literal, CultureInfo.InvariantCulture), decoded!.WeightKg);
             Assert.Contains("\"weightKg\":" + literal, _serializer.Serialize(decoded), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BareNumberReadInExponentNotationIsWrittenBackInPlainNotation()
+        {
+            Pet? decoded = _serializer.Deserialize<Pet>(
+                "{\"name\":\"a\",\"photoUrls\":[],\"weightKg\":1E+3}");
+
+            Assert.Equal(1000m, decoded!.WeightKg);
+            string written = _serializer.Serialize(decoded);
+            Assert.Contains("\"weightKg\":1000", written, StringComparison.Ordinal);
+            Assert.DoesNotContain("E+", written, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]

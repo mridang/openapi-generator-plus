@@ -75,4 +75,18 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
         .withFailMessage("Generated C# code is not properly formatted:\n%s", result.output())
         .isTrue();
   }
+
+  @Test
+  void pluralExamplesShouldBeAttributedToTheirParameter() throws java.io.IOException {
+    Path petApi = tempOutputDir.resolve("src/PetstoreClient/Api/PetApi.cs");
+    assertThat(java.nio.file.Files.readString(petApi))
+        .as("a path parameter keeps its named examples in the API reference")
+        .contains("/// <example>Small breed ID: 1</example>")
+        .contains("/// <example>Large breed ID: 42</example>");
+    Path options = tempOutputDir.resolve("src/PetstoreClient/Api/Options/FindPetsByStatusOptions.cs");
+    assertThat(java.nio.file.Files.readString(options))
+        .as("an optional parameter keeps its named examples on the options property")
+        .contains("/// <example>Available only: available</example>")
+        .contains("/// <example>Sold pets: sold</example>");
+  }
 }

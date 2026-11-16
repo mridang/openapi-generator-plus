@@ -206,10 +206,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             {
                 caCerts.ImportFromPemFile(transportOptions.CaCertPath);
             }
-            catch (Exception ex) when (ex is System.IO.IOException or System.Security.Cryptography.CryptographicException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
             {
                 throw new ArgumentException(
-                    $"failed to load CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    $"failed to read CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
+                    nameof(transportOptions),
+                    ex);
+            }
+            catch (System.Security.Cryptography.CryptographicException ex)
+            {
+                throw new ArgumentException(
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": {ex.Message}",
                     nameof(transportOptions),
                     ex);
             }
@@ -217,7 +224,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             if (caCerts.Count == 0)
             {
                 throw new ArgumentException(
-                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found or unparseable",
+                    $"failed to parse CA certificate from \"{transportOptions.CaCertPath}\": no PEM blocks found",
                     nameof(transportOptions));
             }
             if (transportOptions.VerifySsl)
@@ -589,9 +596,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
          * header replaces a default of the same name whatever its casing and
          * both are never sent as two headers. */
         Dictionary<string, string> mergedHeaders = new(StringComparer.OrdinalIgnoreCase);
-        foreach (KeyValuePair<string, string> header in _transportOptions.DefaultHeaders)
+        /* A no-redirect request is the OAuth2 token POST, which goes to the
+         * authorization server and not to the API: the caller's default
+         * headers (an Authorization or API-key header meant for the API) are
+         * not sent there. */
+        if (!noRedirect)
         {
-            mergedHeaders[header.Key] = header.Value;
+            foreach (KeyValuePair<string, string> header in _transportOptions.DefaultHeaders)
+            {
+                mergedHeaders[header.Key] = header.Value;
+            }
         }
         foreach (KeyValuePair<string, string> header in headers)
         {

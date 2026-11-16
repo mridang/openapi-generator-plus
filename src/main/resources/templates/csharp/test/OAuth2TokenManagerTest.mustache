@@ -534,6 +534,44 @@ public class OAuth2TokenManagerTest
         Assert.Null(ex.InnerException);
     }
 
+    [Theory]
+    [InlineData("Bearer")]
+    [InlineData("bearer")]
+    [InlineData("BEARER")]
+    public async Task TokenTypeBearerInAnyCaseIsAccepted(string tokenType)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        string token = await manager.GetAccessTokenAsync(
+            new Uri("https://auth.example.com/token"),
+            new Dictionary<string, string> { ["grant_type"] = "client_credentials" });
+
+        Assert.Equal("at", token);
+    }
+
+    [Theory]
+    [InlineData("DPoP")]
+    [InlineData("mac")]
+    [InlineData("N_A")]
+    [InlineData("")]
+    public async Task TokenTypeOtherThanBearerIsRefusedWithoutEchoingIt(string tokenType)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"at\",\"token_type\":\"" + tokenType + "\"}");
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+
+        Assert.Equal("Unsupported token_type in token response", ex.Message);
+    }
+
     [Fact]
     public async Task ConcurrentReadersNeverSeeATokenOtherThanOneThatWasSet()
     {

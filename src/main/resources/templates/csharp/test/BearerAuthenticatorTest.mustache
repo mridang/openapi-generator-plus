@@ -69,6 +69,29 @@ public class BearerAuthenticatorTest
             new BearerAuthenticator("https://api.example.com", "   "));
     }
 
+    [Fact]
+    public void UnicodeSpaceIsNotBlankItFailsThePrintableAsciiCheckInstead()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "\u00a0"));
+        Assert.Contains("printable ASCII", ex.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("must not be empty", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TokenThatMerelyStartsWithTheLettersBearerIsKeptWhole()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "bearerxyz");
+        Assert.Equal("Bearer bearerxyz", auth.GetAuthHeaders()["Authorization"]);
+    }
+
+    [Fact]
+    public void DoublePrefixIsStrippedOnlyOnce()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", "Bearer Bearer xyz");
+        Assert.Equal("Bearer Bearer xyz", auth.GetAuthHeaders()["Authorization"]);
+    }
+
     /// <summary>
     /// The default ToString() must mask the stored token: the secret value
     /// must be absent and a *** redaction marker present.

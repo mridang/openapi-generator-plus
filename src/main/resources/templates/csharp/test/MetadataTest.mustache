@@ -165,6 +165,71 @@ public class MetadataTest
     }
 
     [Fact]
+    public void ProjectManifestDeclaresANonEmptyDescription()
+    {
+        /* The package manifest must carry a description, wired from the spec's
+           description with a generated fallback, so the NuGet listing is never blank. */
+        var manifest = File.ReadAllText(
+            Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "{{packageName}}.csproj"));
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            manifest,
+            "<Description>(.*?)</Description>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        Assert.True(match.Success, "the project file must declare a <Description>");
+        var text = match.Groups[1].Value.Replace("<![CDATA[", "", StringComparison.Ordinal)
+            .Replace("]]>", "", StringComparison.Ordinal)
+            .Trim();
+        Assert.NotEmpty(text);
+    }
+
+    [Fact]
+    public void ReadmeSocksNoteNamesTheBuilderSetter()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+
+        Assert.Contains(
+            "`TransportOptionsBuilder.Proxy(...)` accepts only `http://` and `https://` URLs.",
+            readme,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("`TransportOptions.Proxy(...)`", readme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SkillsModelSampleSuppliesTheRequiredField()
+    {
+        /* The first model has a required property, so a bare constructor call would
+           not compile; the sample passes a value for it. */
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        Assert.Contains("var model = new Account(\"example\");", skills, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Account()", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MakefileCarriesADependencyAuditTarget()
+    {
+        var makefile = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "Makefile"));
+
+        Assert.Contains("\naudit:\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("dotnet list package --vulnerable --include-transitive", makefile, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ModelWithoutAnExampleDoesNotDocumentALiteralNull()
+    {
+        /* A property that declares no example leaves the codegen example as the
+           string "null", which is truthy in Mustache; Tag carries no example, so it
+           is the canary for a bogus example element. */
+        var model = Path.Combine(ProjectRoot().FullName, "src", "{{packageName}}", "Models", "Tag.cs");
+
+        var source = File.ReadAllText(model);
+
+        Assert.DoesNotContain("<example>null</example>", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
     {
         var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
