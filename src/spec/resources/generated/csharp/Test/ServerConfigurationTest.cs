@@ -14,6 +14,8 @@ namespace Test;
 
 public class ServerConfigurationTest
 {
+    private static readonly string[] ExpectedHostileValues = ["o'neil", "a&b"];
+
     [Fact]
     public void GetUrlSubstitutesDefaultValues()
     {
@@ -246,7 +248,7 @@ public class ServerConfigurationTest
         ServerVariable tenant = server.Variables["tenant"];
         Assert.Equal("o'neil", tenant.DefaultValue);
         Assert.Equal("Tenant's \"id\"", tenant.Description);
-        Assert.Equal(new[] { "o'neil", "a&b" }, tenant.EnumValues);
+        Assert.Equal(ExpectedHostileValues, tenant.EnumValues);
         Assert.Equal("https://o'neil.example.com/api", server.GetUrl());
         Assert.Equal(
             "https://a&b.example.com/api",

@@ -14,6 +14,7 @@ namespace Test;
 public class ServerVariableTest
 {
     private static readonly string[] ExpectedEnumValues = ["v2", "v3"];
+    private static readonly string[] ExpectedCopiedValues = ["api", "staging"];
 
     [Fact]
     public void ExposesDefaultValueDescriptionAndEnum()
@@ -64,6 +65,6 @@ public class ServerVariableTest
         allowed.Add("prod");
         allowed[0] = "changed";
 
-        Assert.Equal(new[] { "api", "staging" }, variable.EnumValues);
+        Assert.Equal(ExpectedCopiedValues, variable.EnumValues);
     }
 }
