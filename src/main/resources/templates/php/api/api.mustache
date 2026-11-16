@@ -428,7 +428,7 @@ class {{classname}} extends BaseApi
         if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
                 "Unsupported request content-type '" . $requestContentType
-                    . "' for {{operationId}}; declared types are " . implode(', ', $declaredConsumes)
+                    . "' for {{operationId}}; declared types are [" . implode(', ', $declaredConsumes) . ']'
             );
         }
 {{/vendorExtensions.op.hasMultipleConsumes}}
@@ -791,7 +791,7 @@ class {{classname}} extends BaseApi
         if ($requestContentType !== null && !in_array($requestContentType, $declaredConsumes, true)) {
             throw new \InvalidArgumentException(
                 "Unsupported request content-type '" . $requestContentType
-                    . "' for {{operationId}}; declared types are " . implode(', ', $declaredConsumes)
+                    . "' for {{operationId}}; declared types are [" . implode(', ', $declaredConsumes) . ']'
             );
         }
 {{/vendorExtensions.op.hasMultipleConsumes}}

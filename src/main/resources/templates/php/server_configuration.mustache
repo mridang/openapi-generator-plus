@@ -44,20 +44,22 @@ final class ServerConfiguration
      */
     public function getUrl(array $overrides = []): string
     {
-        $url = $this->urlTemplate;
+        $replacements = [];
         foreach ($this->variables as $varName => $variable) {
             $value = $overrides[$varName] ?? $variable->defaultValue;
 
             if ($variable->enumValues !== [] && !in_array($value, $variable->enumValues, true)) {
                 throw new \InvalidArgumentException(
                     "Invalid value '$value' for server variable '$varName'"
-                    . ". Allowed values: " . implode(', ', $variable->enumValues)
+                    . ". Allowed values: [" . implode(', ', $variable->enumValues) . ']'
                 );
             }
 
-            $url = str_replace('{' . $varName . '}', $value, $url);
+            $replacements['{' . $varName . '}'] = $value;
         }
 
-        return $url;
+        /* One pass over the template: a placeholder that a substituted value
+         * introduces is never expanded again. */
+        return strtr($this->urlTemplate, $replacements);
     }
 }

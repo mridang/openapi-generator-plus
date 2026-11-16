@@ -22,6 +22,9 @@ class {{className}}
 {{#params}}
 {{#hasDocType}}
      * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{{description}}}{{/description}}
+{{#exampleLines}}
+     * @example {{{.}}}
+{{/exampleLines}}
 {{/hasDocType}}
 {{/params}}
      */

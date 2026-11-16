@@ -10,6 +10,7 @@ use {{modelPackage}}\Metadata;
 use {{modelPackage}}\Surgery;
 use {{modelPackage}}\PetFood;
 use {{modelPackage}}\PetTreatment;
+use {{modelPackage}}\TreatmentRecord;
 use {{modelPackage}}\PetWithOwner;
 use {{modelPackage}}\SetPetAvatarThumbnailRequest;
 
@@ -168,6 +169,29 @@ test('any of shared property collision keeps the last variant, emitted once', fu
     expect($serialized)->toContain('from-surgery');
     expect($serialized)->not->toContain('from-medication');
     // `notes` appears exactly once — no duplicate key.
+    expect(substr_count($serialized, '"notes"'))->toBe(1);
+});
+
+test('any of tries the variants in the order the spec declares them', function (): void {
+    /* TreatmentRecord lists Surgery before Medication, the reverse of the
+     * alphabetical order, so a template that sorts the variants fails here. */
+    $result = TreatmentRecord::build(['drugName' => 'Amoxicillin', 'procedureName' => 'Spay']);
+
+    $instances = $result->getMatchedInstances();
+    expect($instances)->toHaveCount(2);
+    expect($instances[0])->toBeInstanceOf(Surgery::class);
+    expect($instances[1])->toBeInstanceOf(Medication::class);
+    expect($result->getActualInstance())->toBe($instances[0]);
+});
+
+test('any of shared property collision keeps the later declared variant of a reordered union', function (): void {
+    $surgery = new Surgery('Spay', notes: 'from-surgery');
+    $medication = new Medication('Amoxicillin', notes: 'from-medication');
+
+    $serialized = ObjectSerializer::serialize(new TreatmentRecord([$surgery, $medication]));
+
+    expect($serialized)->toContain('from-medication');
+    expect($serialized)->not->toContain('from-surgery');
     expect(substr_count($serialized, '"notes"'))->toBe(1);
 });
 

@@ -289,6 +289,21 @@ test('integration includes transport default headers', function (): void {
     expect($json['headers']['x-custom'])->toBe('custom-value');
 });
 
+test('repeated response headers are joined in the order they arrive', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+
+    $response = (new DefaultApiClient())->sendRequest('GET', $chasmUrl . '/test/response-headers', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->headers['x-custom-header'] ?? null)->toBe('foo');
+    $link = $response->headers['link'] ?? '';
+    expect(strpos($link, 'rel="next"'))->toBeInt();
+    expect(strpos($link, 'rel="next"'))->toBeLessThan((int) strpos($link, 'rel="prev"'));
+    $cookies = $response->headers['set-cookie'] ?? '';
+    expect(strpos($cookies, 'a=1'))->toBeInt();
+    expect(strpos($cookies, 'a=1'))->toBeLessThan((int) strpos($cookies, 'b=2'));
+});
+
 test('caller headers override transport defaults', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 

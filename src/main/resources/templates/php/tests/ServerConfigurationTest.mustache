@@ -101,7 +101,7 @@ test('rejected override message names the value, the variable and the allowed va
     expect(fn () => $server->getUrl(['env' => 'invalid']))
         ->toThrow(
             \InvalidArgumentException::class,
-            "Invalid value 'invalid' for server variable 'env'. Allowed values: api, staging"
+            "Invalid value 'invalid' for server variable 'env'. Allowed values: [api, staging]"
         );
 });
 
@@ -116,7 +116,7 @@ test('default value outside the enum is rejected', function (): void {
     expect(fn () => $server->getUrl())
         ->toThrow(
             \InvalidArgumentException::class,
-            "Invalid value 'dev' for server variable 'env'. Allowed values: api, staging"
+            "Invalid value 'dev' for server variable 'env'. Allowed values: [api, staging]"
         );
 });
 
@@ -130,4 +130,27 @@ test('a variable repeated in the template is replaced everywhere', function (): 
 
     expect($server->getUrl())->toBe('https://us.example.com/us/v1');
     expect($server->getUrl(['region' => 'eu']))->toBe('https://eu.example.com/eu/v1');
+});
+
+test('a placeholder introduced by a substituted value is not expanded again', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/{version}',
+        variables: [
+            'env' => new ServerVariable(defaultValue: '{version}'),
+            'version' => new ServerVariable(defaultValue: 'v2'),
+        ],
+    );
+
+    expect($server->getUrl())->toBe('https://{version}.example.com/v2');
+});
+
+test('a value holding replacement patterns is substituted literally', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'api'),
+        ],
+    );
+
+    expect($server->getUrl(['env' => 'a$1\\0b']))->toBe('https://a$1\\0b.example.com');
 });

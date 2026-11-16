@@ -728,6 +728,36 @@ test('multipart filename ascii only omits filename star', function (): void {
     expect($directive)->not->toContain('filename*=');
 });
 
+test('multipart filename outside the bmp gets one underscore in the ascii fallback', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective("\u{1F600}.png"))
+        ->toBe('filename="_.png"; filename*=UTF-8\'\'%F0%9F%98%80.png');
+});
+
+test('multipart filename mixes ascii and a letter above ascii', function (): void {
+    expect(DefaultApiClient::buildFilenameDirective("r\u{E9}sum\u{E9}.pdf"))
+        ->toBe('filename="r_sum_.pdf"; filename*=UTF-8\'\'r%C3%A9sum%C3%A9.pdf');
+});
+
+test('multipart file part content type follows the filename extension', function (string $filename, string $expected): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, $filename))->toBe($expected);
+})->with([
+    'png' => ['a.png', 'image/png'],
+    'upper case extension' => ['A.PNG', 'image/png'],
+    'jpg' => ['a.jpg', 'image/jpeg'],
+    'jpeg' => ['a.jpeg', 'image/jpeg'],
+    'gif' => ['a.gif', 'image/gif'],
+    'webp' => ['a.webp', 'image/webp'],
+    'pdf' => ['a.pdf', 'application/pdf'],
+    'json' => ['a.json', 'application/json'],
+    'txt' => ['a.txt', 'text/plain'],
+    'html' => ['a.html', 'text/html'],
+    'unknown extension' => ['a.xyzzy', 'application/octet-stream'],
+    'no extension' => ['blob', 'application/octet-stream'],
+]);
+
 test('multipart filename crlf rejected', function (): void {
     foreach (["a\rb.pdf", "a\nb.pdf", "a\r\nb.pdf", "a\x00b.pdf"] as $bad) {
         try {
@@ -1257,6 +1287,16 @@ test('non-existent caCertPath throws invalid argument exception at construction'
         });
 });
 
+test('an unreadable caCertPath names the path and the cause', function (): void {
+    $transport = TransportOptions::builder()->caCertPath('/nonexistent/ca.pem')->build();
+
+    expect(fn (): mixed => new DefaultApiClient($transport))
+        ->toThrow(function (\Exception $e): void {
+            expect($e->getMessage())->toStartWith('failed to read CA certificate from "/nonexistent/ca.pem": ');
+            expect(strlen($e->getMessage()))->toBeGreaterThan(strlen('failed to read CA certificate from "/nonexistent/ca.pem": '));
+        });
+});
+
 test('non-existent caCertPath throws even when verifySsl is false', function (): void {
     $transport = TransportOptions::builder()->verifySsl(false)->caCertPath('/nonexistent/ca.pem')->build();
 
@@ -1429,6 +1469,26 @@ test('an identity encoded body keeps its Content-Length', function (): void {
 
     expect($response->headers['content-length'] ?? null)->toBe('11');
 });
+
+test('a body declared identity encoded is passed through undecoded', function (string $declared): void {
+    $mockResponse = new MockResponse('{"ok":true}', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'application/json',
+            'Content-Encoding' => $declared,
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('{"ok":true}');
+    expect($response->headers['content-encoding'] ?? null)->toBe($declared);
+})->with([
+    'lower case' => ['identity'],
+    'upper case' => ['IDENTITY'],
+]);
 
 test('wraps a gzip decompression failure as api exception', function (): void {
     /* decompression-error-not-wrapped: a body advertised as Content-Encoding:
