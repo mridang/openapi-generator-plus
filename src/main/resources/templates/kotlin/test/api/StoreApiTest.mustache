@@ -213,6 +213,35 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("getOrderByTrackingId puts the canonical lowercase uuid in the path")
+        fun testGetOrderByTrackingIdSendsLowercaseUuid() {
+            val paths = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    paths.add(request.url.encodedPath)
+                    respond(
+                        content = """{"id":1}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val order =
+                runBlocking {
+                    api.getOrderByTrackingId(kotlin.uuid.Uuid.parse("E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
+                }
+
+            assertEquals(1L, order.id)
+            assertEquals(listOf("/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f"), paths)
+        }
+
+        @Test
         @DisplayName("searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
         fun testSearchStoreSendsPartialTime() {
             val captured = mutableListOf<String>()

@@ -1033,6 +1033,43 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("an empty required header or cookie parameter fails loud before any request is sent")
+        fun testEmptyRequiredHeaderAndCookieFailLoud() {
+            // F1127: the guard covers a required header (getPetByName X-Correlation-Id) and a
+            // required cookie (getPetSummary session), not only query parameters.
+            var requests = 0
+            val engine =
+                MockEngine { _ ->
+                    requests++
+                    respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
+
+            val header =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking { api.getPetByName("Rex", GetPetByNameOptions(category = "c", xCorrelationId = "")) }
+                }
+            assertEquals(
+                "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
+                header.message,
+            )
+
+            val cookie =
+                assertThrows(IllegalArgumentException::class.java) {
+                    runBlocking {
+                        api.getPetSummary(1L, java.time.LocalDate.of(2024, 1, 2), {{apiPackage}}.options.GetPetSummaryOptions(session = ""))
+                    }
+                }
+            assertEquals("Missing the required parameter 'session' when calling PetApi.getPetSummary", cookie.message)
+            assertEquals(0, requests)
+        }
+
+        @Test
         @DisplayName("per-call auth override on base method wins on the wire")
         fun testAddPetPerCallAuthOverride() {
             // Verify the auth argument on the BASE operation method (not just the

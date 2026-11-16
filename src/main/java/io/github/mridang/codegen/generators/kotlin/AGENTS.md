@@ -326,3 +326,5 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 - **F1156.** `api_info.mustache` renders the info description through `unescapeDocComment`; `MetadataTest` asserts no generated header line holds a backslash-escaped quote.
 - **F1086.** Proxy URL configuration errors print the URL with its user-info replaced by `***@` (D79); `TransportOptionsTest` pins it.
 - **F1079.** Already conforming: `timeout(0)` is refused with the D77 message.
+- **Test parity added (F1144, F1146, F1113/F1114, F1148, F1162, F1127, F1069).** `ObjectSerializerTest` pins the hostile Availability members, the EdgeCases.phase wire values, keyword and digit-leading wire keys, literal U+2028/2029/DEL, and exact plain-notation decimals; `StoreApiTest` pins the lowercase uuid path; `PetApiTest` pins the header and cookie guards.
+- **F864.** Already conforming since batch 6: `additionalProperties` is a constructor parameter, so `copy()` carries it.
