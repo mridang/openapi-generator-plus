@@ -135,8 +135,16 @@ class DefaultApiClient internal constructor(
             throw IllegalStateException("ApiClient has been closed and can no longer send requests")
         }
         val mergedHeaders = mutableMapOf<String, String>()
-        mergedHeaders.putAll(transportOptions.defaultHeaders)
-        mergedHeaders.putAll(headers)
+        /* The token POST (noRedirect) goes to the identity provider, another origin: the caller's
+         * default headers (an API Authorization or key header) are not sent there (F860). */
+        if (!noRedirect) {
+            mergedHeaders.putAll(transportOptions.defaultHeaders)
+        }
+        for ((name, value) in headers) {
+            // Header names are case-insensitive: a later layer replaces the earlier one.
+            mergedHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
+            mergedHeaders[name] = value
+        }
 
         if (transportOptions.userAgent != null && !hasHeader(mergedHeaders, "User-Agent")) {
             mergedHeaders["User-Agent"] = transportOptions.userAgent!!

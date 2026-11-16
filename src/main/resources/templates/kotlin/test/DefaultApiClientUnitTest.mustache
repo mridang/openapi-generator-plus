@@ -466,6 +466,44 @@ class DefaultApiClientUnitTest {
     }
 
     @Nested
+    @DisplayName("default header layering")
+    inner class DefaultHeaderLayering {
+
+        @Test
+        @DisplayName("a caller header replaces a default header of another letter case")
+        fun callerHeaderReplacesDefaultCaseInsensitively() {
+            val seen = mutableListOf<List<String>>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    seen.add(req.headers.getAll("Accept").orEmpty())
+                })
+            val transport = TransportOptions.builder().defaultHeader("accept", "text/plain").build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/test", mapOf("Accept" to "application/json"), null)
+            }
+            assertEquals(listOf(listOf("application/json")), seen)
+        }
+
+        @Test
+        @DisplayName("a no-redirect (token) request does not carry the transport default headers")
+        fun noRedirectRequestSkipsDefaultHeaders() {
+            val seen = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    seen.add(req.headers["X-Api-Secret"])
+                })
+            val transport = TransportOptions.builder().defaultHeader("X-Api-Secret", "api-only").build()
+            val apiClient = DefaultApiClient(client, transport)
+            runBlocking {
+                apiClient.sendRequest("POST", "http://localhost/token", emptyMap(), "a=b", noRedirect = true)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            }
+            assertEquals(listOf<String?>(null, "api-only"), seen)
+        }
+    }
+
+    @Nested
     @DisplayName("basic HTTP")
     inner class BasicHttp {
 
