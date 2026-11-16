@@ -9,7 +9,8 @@ import type { ApiClient } from '../../src/api-client{{importFileExtension}}';
 import type { ApiHttpResponse } from '../../src/api-http-response{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
-import { Pet, PetCriteria, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index{{importFileExtension}}';
+import { Servers } from '../../src/servers{{importFileExtension}}';
+import { Medication, Pet, PetCriteria, PetStatusEnum, PetTreatment, PhotoMetadata, SetPetAvatarThumbnailRequest, Swatch } from '../../src/models/index{{importFileExtension}}';
 import { ApiError } from '../../src/errors/api-error{{importFileExtension}}';
 import { InternalServerError, NotFoundError } from '../../src/errors/index{{importFileExtension}}';
 import { SerializationError } from '../../src/errors/serialization-error{{importFileExtension}}';
@@ -1249,6 +1250,86 @@ describe('PetApi against a recording client', () => {
       "Missing the required parameter 'session' when calling PetApi.getPetSummary",
     );
     expect(recorded).toHaveLength(0);
+  });
+
+  test('addPetTreatment sends the chosen anyOf variant as the request body', async () => {
+    const sent: { path?: string; body?: string | Buffer | Record<string, unknown> | null } = {};
+    const treatmentApi = new PetApi(
+      {
+        async sendRequest(_method, url, _headers, body): Promise<ApiHttpResponse> {
+          sent.path = new URL(url).pathname;
+          sent.body = body;
+          return {
+            statusCode: 200,
+            body: '{"drugName":"Amoxicillin","dosage":"250mg"}',
+            headers: { 'content-type': 'application/json' },
+          };
+        },
+      },
+      Configuration.builder().baseUrl('https://client-base.example.com').build(),
+    );
+
+    const result = await treatmentApi.addPetTreatment(
+      7,
+      new PetTreatment(new Medication({ drugName: 'Amoxicillin', dosage: '250mg' })),
+    );
+
+    expect(sent.path).toBe('/pet/7/treatment');
+    expect(JSON.parse(sent.body as string)).toEqual({ drugName: 'Amoxicillin', dosage: '250mg' });
+    expect(result).toBeInstanceOf(PetTreatment);
+    expect(result.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test('uploadPetDocument sends the non-string scalar parts as plain text parts', async () => {
+    const chunks: Buffer[] = [];
+    const server = http.createServer((req, res) => {
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end('{}');
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const port = (server.address() as { port: number }).port;
+      const uploadApi = new PetApi(
+        undefined,
+        Configuration.builder().baseUrl(`http://127.0.0.1:${port}`).build(),
+      );
+
+      await uploadApi.uploadPetDocument(1, {
+        file: Buffer.from('document-content'),
+        isPrimary: true,
+        pageCount: 3,
+        takenAt: new Date(Date.UTC(2024, 0, 15, 10, 30, 0)),
+        swatch: Swatch.Red,
+      });
+    } finally {
+      server.close();
+    }
+
+    const body = Buffer.concat(chunks).toString('utf-8');
+    const part = (name: string) => body.split('\r\n--').find((p) => p.includes(`name="${name}"`))!;
+    expect(part('isPrimary')).toMatch(/name="isPrimary"\r\n\r\ntrue$/);
+    expect(part('pageCount')).toMatch(/name="pageCount"\r\n\r\n3$/);
+    expect(part('takenAt')).toMatch(/name="takenAt"\r\n\r\n2024-01-15T10:30:00\.000\+00:00$/);
+    expect(part('swatch')).toMatch(/name="swatch"\r\n\r\nred$/);
+    for (const name of ['isPrimary', 'pageCount', 'takenAt', 'swatch']) {
+      expect(part(name)).not.toContain('Content-Type');
+    }
+  });
+
+  test('the third global server keeps its hostile text unchanged', () => {
+    const server = Servers.SERVER_2;
+
+    expect(server.urlTemplate).toBe('https://{tenant}.example.com/api');
+    expect(server.description).toBe('Bob\'s "sandbox" & co: $5 #{x} a*/b');
+    const tenant = server.variables['tenant']!;
+    expect(tenant.defaultValue).toBe("o'neil");
+    expect(tenant.description).toBe('Tenant\'s "id"');
+    expect([...tenant.enumValues]).toEqual(["o'neil", 'a&b']);
+    expect(server.getUrl()).toBe("https://o'neil.example.com/api");
+    expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
   });
 
   test('without a variant the client base URL is used', async () => {

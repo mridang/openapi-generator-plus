@@ -9,7 +9,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { Account, Category, EdgeCases, ModelError, ModelResult, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
+import { Account, Category, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, StrictTag, RequiredNullable } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -2167,6 +2167,34 @@ describe('toBinary', () => {
       expect(decoded.lastError!.message).toBe('boom');
       expect(decoded.outcome).toBeInstanceOf(ModelResult);
       expect(JSON.parse(ObjectSerializer.serialize(decoded))).toMatchObject(wire);
+    });
+
+    test.each([[' '], ['@@'], ['a-b'], ['a_b']])('the enum wire value %j decodes to a member and re-encodes', (wire) => {
+      const member = ObjectSerializer.deserializeEnum<Separator>(wire, Separator as unknown as Record<string, unknown>);
+
+      expect(member).toBe(wire);
+      expect(ObjectSerializer.serialize(member)).toBe(JSON.stringify(wire));
+    });
+
+    test('the four separator wire values decode to four distinct members', () => {
+      const members = [' ', '@@', 'a-b', 'a_b'].map((wire) =>
+        ObjectSerializer.deserializeEnum<Separator>(wire, Separator as unknown as Record<string, unknown>),
+      );
+
+      expect(new Set(members).size).toBe(4);
+    });
+
+    test('an order quantity above its declared maximum still decodes', () => {
+      expect(ObjectSerializer.deserialize({ quantity: 500 }, Order)!.quantity).toBe(500);
+    });
+
+    test('a prefixItems location decodes as a heterogeneous array and re-encodes unchanged', () => {
+      const pet = ObjectSerializer.deserialize({ name: 'x', photoUrls: [], location: [1.5, 2, 'hq'] }, Pet)!;
+
+      expect(pet.location).toEqual([1.5, 2, 'hq']);
+      expect(typeof pet.location![0]).toBe('number');
+      expect(typeof pet.location![2]).toBe('string');
+      expect(JSON.parse(ObjectSerializer.serialize(pet)).location).toEqual([1.5, 2, 'hq']);
     });
 
     test('a duplicate object key resolves to the last value', () => {

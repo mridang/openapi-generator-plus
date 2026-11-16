@@ -418,6 +418,20 @@ describe('BaseApi auth injection', () => {
     expect(capturing.capturedHeaders['Cookie']).toBe('session=abc123; theme=dark');
   });
 
+  test('an explicit per-call Accept header wins over the default Accept and the negotiated Accept', async () => {
+    const capturing = new CapturingApiClient();
+    const config = Configuration.builder()
+      .baseUrl('https://api.example.com')
+      .defaultHeader('Accept', 'text/plain')
+      .build();
+
+    await new TestableApi(capturing, config).call(
+      'GET', '/items', {}, { Accept: 'application/xml' }, null, ['application/json'], 'application/json', null);
+
+    const accepts = Object.entries(capturing.capturedHeaders).filter(([name]) => name.toLowerCase() === 'accept');
+    expect(accepts).toEqual([['Accept', 'application/xml']]);
+  });
+
   test('a per-call OAuth2 authenticator is given the API client of the call', async () => {
     const seen: Array<{ url: string; headers: Record<string, string> }> = [];
     const stub: ApiClient = {
