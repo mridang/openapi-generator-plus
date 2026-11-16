@@ -269,6 +269,17 @@ public final class TransportOptions {
         }
 
         /**
+         * Render a proxy URL for an error message with any {@code user:password@}
+         * userinfo replaced by {@code ***@}, so credentials never reach a log.
+         *
+         * @param url the proxy URL as supplied
+         * @return the URL with its userinfo masked
+         */
+        private static String redactUserInfo(String url) {
+            return url.replaceFirst("^([A-Za-z][A-Za-z0-9+.\\-]*://)[^/?#]*@", "$1***@");
+        }
+
+        /**
          * Set the HTTP/HTTPS proxy URL.
          *
          * @param proxy proxy URL (e.g. {@code "http://proxy:3128"}), or {@code null}
@@ -281,16 +292,16 @@ public final class TransportOptions {
                 try {
                     uri = java.net.URI.create(proxy);
                 } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Invalid proxy URL: " + proxy, e);
+                    throw new IllegalArgumentException("Invalid proxy URL: " + redactUserInfo(proxy), e);
                 }
                 String scheme = uri.getScheme();
                 if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
                     throw new IllegalArgumentException(
-                            "Invalid proxy URL (must use http or https scheme): " + proxy);
+                            "Invalid proxy URL (must use http or https scheme): " + redactUserInfo(proxy));
                 }
                 if (uri.getHost() == null || uri.getHost().isEmpty()) {
                     throw new IllegalArgumentException(
-                            "Invalid proxy URL (missing host): " + proxy);
+                            "Invalid proxy URL (missing host): " + redactUserInfo(proxy));
                 }
             }
             this.proxy = proxy;

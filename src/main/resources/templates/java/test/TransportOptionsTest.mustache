@@ -199,7 +199,9 @@ class TransportOptionsTest {
         "http://|Invalid proxy URL: http://",
         "http://:8080|Invalid proxy URL (missing host): http://:8080",
         "https:///path|Invalid proxy URL (missing host): https:///path",
-        "not a valid url ^%$|Invalid proxy URL: not a valid url ^%$"
+        "not a valid url ^%$|Invalid proxy URL: not a valid url ^%$",
+        "socks5://svc:s3cret@proxy.example.com:1080|Invalid proxy URL (must use http or https scheme): socks5://***@proxy.example.com:1080",
+        "http://svc:s3cret@:8080|Invalid proxy URL (missing host): http://***@:8080"
     })
     @DisplayName("an unusable proxy URL is rejected with the exact message")
     void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {

@@ -308,3 +308,7 @@ Where: `readme.mustache`, `skills.mustache`.
 ### Already conforming or skipped in batch 6
 Already conforming: F803 (server before options), F054 (content parameters in every location), F149 and F832 (`Class.operationId` in the Content-Type error), F215 (required plus nullable keeps the key), F824, F831, F833, F839, F868 (public fields and setters). Skipped, needing a shared or cross-language decision: F802, F823, F826, F827, F828, F830, F834 to F838, F840, F843, F855, F857, F858, F860, F862, F865, F866, F893, F894, F908, F929 (java has one synchronous accessor, so D12 does not apply).
 
+
+## Decisions taken in batch 7
+
+- F1086 (D79): proxy URL validation messages replace any `user:password@` userinfo with `***@` (`TransportOptions.Builder.redactUserInfo`). Test: `TransportOptionsTest` (`unusableProxyUrlIsRejectedWithTheExactMessage` rows).
