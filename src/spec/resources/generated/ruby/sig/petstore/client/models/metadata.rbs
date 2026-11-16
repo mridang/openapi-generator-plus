@@ -8,6 +8,7 @@ module Petstore::Client::Models
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
     ADDITIONAL_PROPERTIES: bool
+    ADDITIONAL_PROPERTIES_TYPE: String
     attr_reader additional_properties: Hash[String, untyped]?
     attr_reader created_at: Time?
   end

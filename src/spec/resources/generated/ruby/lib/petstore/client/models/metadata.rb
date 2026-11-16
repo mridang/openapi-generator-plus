@@ -83,6 +83,9 @@ module Petstore::Client
       # Whether this model accepts additional properties not defined in the schema.
       ADDITIONAL_PROPERTIES = true
 
+      # The type of additional property values.
+      ADDITIONAL_PROPERTIES_TYPE = 'String'
+
       # Undeclared JSON keys captured on deserialization and re-emitted
       # verbatim on serialization, so a round-trip preserves additional
       # properties (matching the 10 SDKs that round-trip them). Keyed by the

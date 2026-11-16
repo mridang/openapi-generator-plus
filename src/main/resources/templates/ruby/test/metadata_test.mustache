@@ -28,16 +28,16 @@ describe {{moduleName}}::Models::Metadata do
   end
 
   it 'captures and round-trips additionalProperties' do
-    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":3}'
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
 
     # Undeclared keys are captured (not silently dropped) so a round-trip
     # preserves them, matching the SDKs that round-trip additionalProperties.
-    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => 3)
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
 
     data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(metadata))
     _(data['customField']).must_equal('hello')
-    _(data['count']).must_equal(3)
+    _(data['count']).must_equal('3')
     _(data['createdAt']).wont_be_nil
   end
 
