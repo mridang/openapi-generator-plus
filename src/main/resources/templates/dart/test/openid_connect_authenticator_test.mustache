@@ -430,12 +430,19 @@ void main() {
         client.urls,
         equals(['https://auth.example.com/.well-known/openid-configuration']),
       );
+      final uri = Uri.parse(url);
       expect(
-        url,
-        equals(
-          'https://auth.example.com/authorize?response_type=code&client_id=cid&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=openid',
-        ),
+        '${uri.scheme}://${uri.host}${uri.path}',
+        equals('https://auth.example.com/authorize'),
       );
+      expect(uri.queryParameters['response_type'], equals('code'));
+      expect(uri.queryParameters['client_id'], equals('cid'));
+      expect(
+        uri.queryParameters['redirect_uri'],
+        equals('https://app.example.com/callback'),
+      );
+      expect(uri.queryParameters['scope'], equals('openid'));
+      expect(uri.queryParameters['code_challenge_method'], equals('S256'));
     });
   });
 }

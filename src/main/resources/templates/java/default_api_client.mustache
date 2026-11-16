@@ -828,10 +828,13 @@ public final class DefaultApiClient implements ApiClient {
 
     /** Whether a status is worth another attempt: 408, 409, 429 and 5xx except 501. */
     static boolean isRetryableStatus(int status) {
-        return status == 408
-                || status == 409
-                || status == 429
-                || status >= 500 && status <= 599 && status != 501;
+        if (status == 408 || status == 409 || status == 429) {
+            return true;
+        }
+        if (status == 501) {
+            return false;
+        }
+        return status >= 500 && status <= 599;
     }
 
     /**
