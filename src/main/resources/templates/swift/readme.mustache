@@ -75,8 +75,8 @@ Swift is `0.30000000000000004`.
 
 Do not do arithmetic on prices, balances, or other money-typed
 fields. If you need exact decimal arithmetic, parse the raw response
-body yourself with `JSONDecoder().userInfo[.useDecimal] = true` and
-map the field to Foundation's `Decimal`.
+body yourself and decode the field into a Foundation `Decimal` (declare
+the property as `Decimal` in your own `Decodable` type).
 
 `format: int64` is unaffected — Swift's `Int` is 64-bit on all
 supported platforms and represents the full range without loss.

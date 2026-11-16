@@ -49,9 +49,7 @@ require '{{modulePath}}/auth/http_aware_authenticator'
 {{#hasBasicAuth}}
 require '{{modulePath}}/auth/basic_authenticator'
 {{/hasBasicAuth}}
-{{#hasBearerAuth}}
 require '{{modulePath}}/auth/bearer_authenticator'
-{{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
 require '{{modulePath}}/auth/api_key_location'
 require '{{modulePath}}/auth/api_key_authenticator'

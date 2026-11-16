@@ -5,9 +5,7 @@ from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 {{#hasBasicAuth}}
 from {{packageName}}.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
 {{/hasBasicAuth}}
-{{#hasBearerAuth}}
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator as BearerAuthenticator
-{{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
 from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator as ApiKeyAuthenticator
 from {{packageName}}.auth.api_key_location import ApiKeyLocation as ApiKeyLocation
@@ -20,9 +18,7 @@ __all__ = [
 {{#hasBasicAuth}}
     'BasicAuthenticator',
 {{/hasBasicAuth}}
-{{#hasBearerAuth}}
     'BearerAuthenticator',
-{{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
     'ApiKeyAuthenticator',
     'ApiKeyLocation',

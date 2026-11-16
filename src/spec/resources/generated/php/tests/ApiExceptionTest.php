@@ -29,7 +29,6 @@ test('null headers and body mark transport-no-response', function (): void {
     $ex = new ApiException(
         0,
         'connection reset',
-        null,
     );
 
     expect($ex->getResponseHeaders())->toBeNull();

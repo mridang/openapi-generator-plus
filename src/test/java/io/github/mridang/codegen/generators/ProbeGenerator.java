@@ -55,17 +55,34 @@ public final class ProbeGenerator {
     public static void generate(
             String generatorName, Map<String, Object> properties, Path outputDir)
             throws IOException {
-        Files.createDirectories(outputDir);
-
         final URL specUrl = ProbeGenerator.class.getClassLoader().getResource(SPEC_RESOURCE);
         if (specUrl == null) {
             throw new IllegalStateException("Could not find probe spec: " + SPEC_RESOURCE);
         }
+        generate(generatorName, properties, outputDir, specUrl.getPath());
+    }
+
+    /**
+     * Renders {@code generatorName} from the spec file at {@code specPath}.
+     *
+     * @param generatorName the registered generator name
+     * @param properties additional properties to pass to the codegen
+     * @param outputDir the directory to generate into
+     * @param specPath the OpenAPI document to read
+     * @throws IOException if the spec cannot be read or the output written
+     */
+    public static void generate(
+            String generatorName,
+            Map<String, Object> properties,
+            Path outputDir,
+            String specPath)
+            throws IOException {
+        Files.createDirectories(outputDir);
 
         final CodegenConfigurator configurator =
                 new CodegenConfigurator()
                         .setGeneratorName(generatorName)
-                        .setInputSpec(specUrl.getPath())
+                        .setInputSpec(specPath)
                         .setOutputDir(outputDir.toString().replace("\\", "/"))
                         .setValidateSpec(false)
                         .setAdditionalProperties(new HashMap<>(properties));

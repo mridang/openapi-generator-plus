@@ -17,13 +17,18 @@ import io.github.mridang.codegen.generators.python.BetterPythonCodegen;
 import io.github.mridang.codegen.generators.ruby.BetterRubyCodegen;
 import io.github.mridang.codegen.generators.rust.BetterRustCodegen;
 import io.github.mridang.codegen.generators.swift.BetterSwiftCodegen;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -275,4 +280,38 @@ class AbstractBetterCodegenTest {
                 values.stream().map(v -> v.get("literal")).collect(Collectors.toList()));
         assertEquals("it's", values.get(1).get("value"));
     }
+
+  /**
+   * The client facade's withToken factory builds a bearer authenticator whatever
+   * schemes the spec declares, so every SDK must generate one even for a spec
+   * with no security schemes at all.
+   */
+  @Test
+  @DisplayName("every SDK generates a bearer authenticator for a spec without security schemes")
+  void bearerAuthenticatorIsGeneratedForASpecWithoutSecuritySchemes() throws IOException {
+    final Path work = Path.of("target", "probe-no-security").toAbsolutePath();
+    Files.createDirectories(work);
+    final Path spec = work.resolve("openapi.yaml");
+    Files.writeString(
+        spec,
+        "openapi: 3.0.3\n"
+            + "info:\n  title: Bare\n  version: '1'\n"
+            + "paths:\n  /ping:\n    get:\n      operationId: ping\n"
+            + "      responses:\n        '200':\n          description: ok\n");
+    for (final String generator : ProbeGenerator.ALL_GENERATORS) {
+      final Path out = work.resolve(generator);
+      ProbeGenerator.generate(
+          generator,
+          Map.of("packageName", "bare", "skipFormatter", "true"),
+          out,
+          spec.toString());
+      try (Stream<Path> files = Files.walk(out)) {
+        assertTrue(
+            files.anyMatch(
+                f -> f.getFileName().toString().toLowerCase(Locale.ROOT).contains("bearer")
+                    && Files.isRegularFile(f)),
+            generator + " must generate a bearer authenticator");
+      }
+    }
+  }
 }

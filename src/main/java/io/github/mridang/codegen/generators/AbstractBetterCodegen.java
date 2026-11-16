@@ -1004,12 +1004,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     getAuthDir(),
                     toAuthFilename("basic_authenticator")));
         }
-        if (hasBearerAuth) {
-            supportingFiles.add(new SupportingFile(
-                    "auth/bearer_authenticator.mustache",
-                    getAuthDir(),
-                    toAuthFilename("bearer_authenticator")));
-        }
+        // The client facade's withToken factory builds a BearerAuthenticator whatever
+        // schemes the spec declares, so the class is always generated.
+        supportingFiles.add(new SupportingFile(
+                "auth/bearer_authenticator.mustache",
+                getAuthDir(),
+                toAuthFilename("bearer_authenticator")));
         if (hasApiKeyAuth) {
             supportingFiles.add(new SupportingFile(
                     "auth/api_key_location.mustache",

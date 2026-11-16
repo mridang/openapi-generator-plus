@@ -327,14 +327,12 @@
       def to_s: () -> String
     end
 {{/hasBasicAuth}}
-{{#hasBearerAuth}}
 
     class BearerAuthenticator < BaseAuthenticator
       def initialize: (String, String) -> void
       def inspect: () -> String
       def to_s: () -> String
     end
-{{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
 
     class ApiKeyAuthenticator < BaseAuthenticator

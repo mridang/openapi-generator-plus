@@ -203,7 +203,8 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 
 // Timeout sets the end-to-end request timeout in milliseconds.
 //
-// Pass nil for no timeout; a value of 0 means a 0ms timeout.
+// Pass nil, or a pointer to 0, for no timeout: net/http treats a zero Timeout as none.
+// A negative value gives an already-expired deadline, so every request fails at once.
 func (b *TransportOptionsBuilder) Timeout(val *int) *TransportOptionsBuilder {
 	b.timeout = val
 	return b

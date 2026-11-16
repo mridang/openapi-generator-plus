@@ -136,6 +136,12 @@ class TransportOptions private constructor(
                     val hostAndPort = authority.substringAfterLast('@')
                     val host =
                         if (hostAndPort.startsWith("[")) {
+                            // An IPv6 literal must be closed by a bracket.
+                            if (!hostAndPort.contains(']')) {
+                                throw IllegalArgumentException(
+                                    "Invalid proxy URL (unterminated IPv6 literal): $proxy",
+                                )
+                            }
                             hostAndPort.substringBefore(']').removePrefix("[")
                         } else {
                             hostAndPort.substringBefore(':')

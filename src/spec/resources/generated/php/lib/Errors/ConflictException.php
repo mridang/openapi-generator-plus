@@ -20,7 +20,7 @@ class ConflictException extends ClientException
 {
     public function __construct(
         string $message = "",
-        ?array $responseHeaders = [],
+        ?array $responseHeaders = null,
         ?string $responseBody = null,
         mixed $errorBody = null
     ) {

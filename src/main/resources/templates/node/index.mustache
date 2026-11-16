@@ -56,9 +56,7 @@ export { isHttpAwareAuthenticator } from './auth/http-aware-authenticator{{impor
 {{#hasBasicAuth}}
 export { BasicAuthenticator } from './auth/basic-authenticator{{importFileExtension}}';
 {{/hasBasicAuth}}
-{{#hasBearerAuth}}
 export { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
-{{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
 export { ApiKeyAuthenticator } from './auth/api-key-authenticator{{importFileExtension}}';
 export { ApiKeyLocation } from './auth/api-key-location{{importFileExtension}}';

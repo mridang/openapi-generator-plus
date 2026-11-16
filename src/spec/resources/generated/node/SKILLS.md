@@ -266,8 +266,12 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { Client, TransportOptions } from "petstore-client";
+import { BearerAuthenticator, Client, TransportOptions } from "petstore-client";
 
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 const transport = TransportOptions.builder()
   .proxy("http://proxy:3128")
   .timeout(5000)

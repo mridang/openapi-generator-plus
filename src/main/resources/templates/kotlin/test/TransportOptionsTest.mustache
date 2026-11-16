@@ -175,6 +175,17 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("a proxy URL with an unterminated IPv6 literal is rejected")
+        fun proxyUrlWithAnUnterminatedIpv6LiteralIsRejected() {
+            for (proxy in listOf("http://[::1:3128", "http://user@[::1:3128")) {
+                val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().proxy(proxy)
+                }
+                assertEquals("Invalid proxy URL (unterminated IPv6 literal): $proxy", ex.message)
+            }
+        }
+
+        @Test
         @DisplayName("a proxy URL with user-info, an IPv6 literal or a path is accepted")
         fun proxyUrlWithHostIsAccepted() {
             for (proxy in listOf("http://user:pw@proxy:3128", "http://user@proxy", "http://[::1]:3128", "http://proxy:3128/path?q=1")) {

@@ -11,10 +11,8 @@ mod basic_authenticator;
 pub use basic_authenticator::*;
 {{/hasBasicAuth}}
 
-{{#hasBearerAuth}}
 mod bearer_authenticator;
 pub use bearer_authenticator::*;
-{{/hasBearerAuth}}
 
 {{#hasApiKeyAuth}}
 pub mod api_key_authenticator;

@@ -141,6 +141,7 @@ When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a
 
 The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
 
+{{#hasOAuth2ClientCredentials}}
 #### Client authentication method
 
 OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
@@ -157,6 +158,7 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
   [], ClientAuthMethod.Basic);
 ```
+{{/hasOAuth2ClientCredentials}}
 
 {{/hasAnyOAuth2}}
 {{#hasServers}}
@@ -234,8 +236,9 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { {{clientClassName}}, TransportOptions } from '{{npmName}}';
+import { BearerAuthenticator, {{clientClassName}}, TransportOptions } from '{{npmName}}';
 
+const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
 const transport = TransportOptions.builder()
   .proxy('http://proxy:3128')
   .timeout(5000)

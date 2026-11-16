@@ -3,9 +3,6 @@
 {{#notes}}
      * {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}
 {{/notes}}
-{{#hasAuthMethods}}
-     * @param auth the authenticator providing credentials for this request
-{{/hasAuthMethods}}
 {{#pathParams}}
      * @param {{paramName}} {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{description}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}}{{vendorExtensions.requiredLabel}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{#vendorExtensions.pluralExamples}}

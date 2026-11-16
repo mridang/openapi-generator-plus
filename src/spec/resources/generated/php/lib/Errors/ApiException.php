@@ -61,7 +61,7 @@ class ApiException extends OpenAPIException
     public function __construct(
         int $statusCode = 0,
         string $message = "",
-        ?array $responseHeaders = [],
+        ?array $responseHeaders = null,
         ?string $responseBody = null,
         mixed $errorBody = null,
         ?Throwable $previous = null
