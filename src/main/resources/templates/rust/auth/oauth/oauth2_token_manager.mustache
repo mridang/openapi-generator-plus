@@ -351,12 +351,15 @@ impl OAuth2TokenManager {
 
         /* A 2xx answer the SDK cannot use is an OAuth2TokenError, never a
          * leaked serde_json::Error. */
-        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|e| {
-            Box::new(OAuth2TokenError::new(format!(
-                "failed to parse token response: {}",
-                e
-            ))) as Box<dyn std::error::Error + Send + Sync>
+        let parsed: serde_json::Value = serde_json::from_str(response.body()).map_err(|_| {
+            Box::new(OAuth2TokenError::new("Token response is not valid JSON".to_string()))
+                as Box<dyn std::error::Error + Send + Sync>
         })?;
+        if !parsed.is_object() {
+            return Err(Box::new(OAuth2TokenError::new(
+                "Token response is not a JSON object".to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
 
         let token = parsed
             .get("access_token")
@@ -364,7 +367,7 @@ impl OAuth2TokenManager {
             .filter(|s| !s.is_empty())
             .ok_or_else(|| {
                 Box::new(OAuth2TokenError::new(
-                    "token response missing or empty access_token field".to_string(),
+                    "Token response missing or empty access_token field".to_string(),
                 )) as Box<dyn std::error::Error + Send + Sync>
             })?;
         inner.access_token = token.to_string();

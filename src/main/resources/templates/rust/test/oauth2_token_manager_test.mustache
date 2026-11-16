@@ -755,10 +755,46 @@ async fn test_token_response_missing_access_token_throws_typed_error() {
         .get_access_token("https://auth.example.com/token", &params)
         .await
         .expect_err("missing access_token must error");
-    assert!(
-        err.downcast_ref::<OAuth2TokenError>().is_some(),
-        "expected OAuth2TokenError, got: {err}"
+    let token_err = err
+        .downcast_ref::<OAuth2TokenError>()
+        .unwrap_or_else(|| panic!("expected OAuth2TokenError, got: {err}"));
+    assert_eq!(
+        "Token response missing or empty access_token field",
+        token_err.message()
     );
+}
+
+/* D07 (F926, F1105): a 2xx token body the SDK cannot use is an
+ * OAuth2TokenError with the canonical text, no parser detail and no cause. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_unusable_token_response_bodies_use_the_canonical_messages() {
+    for (body, expected) in [
+        ("not json", "Token response is not valid JSON"),
+        ("", "Token response is not valid JSON"),
+        ("[1, 2]", "Token response is not a JSON object"),
+        ("\"tok\"", "Token response is not a JSON object"),
+        ("{}", "Token response missing or empty access_token field"),
+        (r#"{"access_token":""}"#, "Token response missing or empty access_token field"),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an unusable token response must error");
+
+        let token_err = err
+            .downcast_ref::<OAuth2TokenError>()
+            .unwrap_or_else(|| panic!("expected OAuth2TokenError for {body:?}, got: {err}"));
+        assert_eq!(expected, token_err.message(), "body {body:?}");
+        assert_eq!(expected, token_err.to_string(), "body {body:?}");
+        assert!(std::error::Error::source(token_err).is_none(), "body {body:?}");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
