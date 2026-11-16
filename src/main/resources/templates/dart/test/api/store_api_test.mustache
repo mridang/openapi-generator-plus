@@ -1,5 +1,6 @@
 {{>api_info}}
 {{#generateTests}}
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:test/test.dart';
@@ -78,6 +79,67 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+
+    test('createAccount sends the writeOnly password and decodes the readOnly id', () async {
+      String? requestBody;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requestBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":7,"username":"u"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final created =
+            await api.createAccount(const Account(username: 'u', password: 'p'));
+
+        expect(requestBody, contains('"password":"p"'));
+        expect(created.id, equals(7));
+        expect(created.username, equals('u'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('getOrderByTrackingId puts the lowercase uuid in the path', () async {
+      String? path;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        path = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getOrderByTrackingId(
+            UuidValue.fromString('E621E1F8-C36C-495A-93FC-0C247A3E6E5F'));
+
+        expect(path,
+            equals('/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('a malformed uuid path argument is refused before any request', () {
+      expect(() => UuidValue.fromString('not-a-uuid'), throwsArgumentError);
     });
 
     test('placeOrder', () async {
